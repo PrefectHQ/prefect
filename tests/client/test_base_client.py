@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Dict, List, Tuple
@@ -104,6 +105,7 @@ class TestPrefectHttpxAsyncClient:
     async def test_prefect_httpx_client_retries_on_designated_error_codes(
         self, monkeypatch, error_code, caplog
     ):
+        caplog.set_level(logging.DEBUG, logger="prefect.client")
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
         client = PrefectHttpxAsyncClient()
@@ -144,6 +146,7 @@ class TestPrefectHttpxAsyncClient:
     async def test_prefect_httpx_client_retries_on_extra_error_codes(
         self, monkeypatch, error_code, extra_codes, caplog
     ):
+        caplog.set_level(logging.DEBUG, logger="prefect.client")
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
         client = PrefectHttpxAsyncClient()
@@ -217,6 +220,7 @@ class TestPrefectHttpxAsyncClient:
         exception_type,
         caplog,
     ):
+        caplog.set_level(logging.DEBUG, logger="prefect.client")
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
         client = PrefectHttpxAsyncClient()
@@ -528,6 +532,7 @@ class TestPrefectHttpxAsyncClient:
         self, monkeypatch, caplog
     ):
         """ConnectError SHOULD be retried after a successful connection has been made."""
+        caplog.set_level(logging.DEBUG, logger="prefect.client")
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 

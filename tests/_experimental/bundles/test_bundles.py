@@ -2,11 +2,13 @@
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from zipfile import ZipFile
 
 import pytest
 
 import prefect.bundles as bundles_module
 from prefect.bundles import create_bundle_for_flow_run
+from prefect.bundles._path_resolver import PathValidationError
 from prefect.flows import flow
 
 
@@ -322,6 +324,243 @@ def my_flow():
             result["zip_path"].unlink(missing_ok=True)
             result["zip_path"].parent.rmdir()
 
+    def test_include_files_base_dir_sets_the_collection_and_archive_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'")
+        (tmp_path / ".prefectignore").write_text("assets/ignored.txt\n")
+        custom_base_dir = tmp_path / "assets"
+        custom_base_dir.mkdir()
+        (custom_base_dir / "config.yaml").write_text("source: custom")
+        (custom_base_dir / "ignored.txt").write_text("ignored")
+        nested_dir = custom_base_dir / "data"
+        nested_dir.mkdir()
+        (nested_dir / "input.csv").write_text("a,b\n1,2")
+
+        flow_dir = tmp_path / "flows"
+        flow_dir.mkdir()
+        flow_file = flow_dir / "my_flow.py"
+        flow_file.write_text("from prefect import flow")
+        (flow_dir / "config.yaml").write_text("source: flow")
+
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"prefect>=3.0.0\n",
+        )
+
+        @flow
+        def test_flow():
+            pass
+
+        test_flow.include_files = [  # type: ignore[attr-defined]
+            "config.yaml",
+            "ignored.txt",
+            "data/input.csv",
+        ]
+        test_flow.include_files_base_dir = custom_base_dir  # type: ignore[attr-defined]
+
+        with patch("prefect.bundles.inspect.getfile", return_value=str(flow_file)):
+            flow_run = MagicMock()
+            flow_run.model_dump.return_value = {"id": "test-123"}
+            result = create_bundle_for_flow_run(test_flow, flow_run)
+
+        zip_path = result["zip_path"]
+        assert zip_path is not None
+
+        try:
+            with ZipFile(zip_path) as archive:
+                assert set(archive.namelist()) == {"config.yaml", "data/input.csv"}
+                assert archive.read("config.yaml") == b"source: custom"
+        finally:
+            zip_path.unlink(missing_ok=True)
+            zip_path.parent.rmdir()
+
+    def test_relative_include_files_base_dir_resolves_from_bundle_creation_cwd(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assets_dir = tmp_path / "assets"
+        assets_dir.mkdir()
+        (assets_dir / "config.yaml").write_text("source: cwd")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"prefect>=3.0.0\n",
+        )
+
+        @flow
+        def test_flow():
+            pass
+
+        test_flow.include_files = ["config.yaml"]  # type: ignore[attr-defined]
+        test_flow.include_files_base_dir = Path("assets")  # type: ignore[attr-defined]
+
+        flow_run = MagicMock()
+        flow_run.model_dump.return_value = {"id": "test-123"}
+        result = create_bundle_for_flow_run(test_flow, flow_run)
+
+        zip_path = result["zip_path"]
+        assert zip_path is not None
+
+        try:
+            with ZipFile(zip_path) as archive:
+                assert archive.read("config.yaml") == b"source: cwd"
+        finally:
+            zip_path.unlink(missing_ok=True)
+            zip_path.parent.rmdir()
+
+    def test_include_files_base_dir_expands_user_home(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assets_dir = tmp_path / "assets"
+        assets_dir.mkdir()
+        (assets_dir / "config.yaml").write_text("source: home")
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"prefect>=3.0.0\n",
+        )
+
+        @flow
+        def test_flow():
+            pass
+
+        test_flow.include_files = ["config.yaml"]  # type: ignore[attr-defined]
+        test_flow.include_files_base_dir = Path("~/assets")  # type: ignore[attr-defined]
+
+        flow_run = MagicMock()
+        flow_run.model_dump.return_value = {"id": "test-123"}
+        result = create_bundle_for_flow_run(test_flow, flow_run)
+
+        zip_path = result["zip_path"]
+        assert zip_path is not None
+
+        try:
+            with ZipFile(zip_path) as archive:
+                assert archive.read("config.yaml") == b"source: home"
+        finally:
+            zip_path.unlink(missing_ok=True)
+            zip_path.parent.rmdir()
+
+    @pytest.mark.parametrize("base_dir_kind", ["missing", "file"])
+    def test_invalid_include_files_base_dir_fails_bundle_creation(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        base_dir_kind: str,
+    ) -> None:
+        base_dir = tmp_path / base_dir_kind
+        if base_dir_kind == "file":
+            base_dir.write_text("not a directory")
+
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"prefect>=3.0.0\n",
+        )
+
+        @flow
+        def test_flow():
+            pass
+
+        test_flow.include_files = ["config.yaml"]  # type: ignore[attr-defined]
+        test_flow.include_files_base_dir = base_dir  # type: ignore[attr-defined]
+
+        flow_run = MagicMock()
+        flow_run.model_dump.return_value = {"id": "test-123"}
+
+        with pytest.raises(ValueError, match="include_files_base_dir"):
+            create_bundle_for_flow_run(test_flow, flow_run)
+
+    def test_unknown_user_in_include_files_base_dir_fails_bundle_creation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"prefect>=3.0.0\n",
+        )
+        original_expanduser = Path.expanduser
+
+        def expanduser(path: Path) -> Path:
+            if str(path) == "~unknown-user/assets":
+                raise RuntimeError("Could not determine home directory")
+            return original_expanduser(path)
+
+        monkeypatch.setattr(Path, "expanduser", expanduser)
+
+        @flow
+        def test_flow():
+            pass
+
+        test_flow.include_files = ["config.yaml"]  # type: ignore[attr-defined]
+        test_flow.include_files_base_dir = Path("~unknown-user/assets")  # type: ignore[attr-defined]
+
+        flow_run = MagicMock()
+        flow_run.model_dump.return_value = {"id": "test-123"}
+
+        with pytest.raises(ValueError, match="include_files_base_dir"):
+            create_bundle_for_flow_run(test_flow, flow_run)
+
+    def test_unreadable_include_files_base_dir_fails_bundle_creation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        base_dir = tmp_path / "assets"
+        base_dir.mkdir()
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"prefect>=3.0.0\n",
+        )
+        original_scandir = bundles_module.os.scandir
+
+        def scandir(path: Path):
+            if Path(path) == base_dir:
+                raise PermissionError("permission denied")
+            return original_scandir(path)
+
+        monkeypatch.setattr(bundles_module.os, "scandir", scandir)
+
+        @flow
+        def test_flow():
+            pass
+
+        test_flow.include_files = ["config.yaml"]  # type: ignore[attr-defined]
+        test_flow.include_files_base_dir = base_dir  # type: ignore[attr-defined]
+
+        flow_run = MagicMock()
+        flow_run.model_dump.return_value = {"id": "test-123"}
+
+        with pytest.raises(PermissionError, match="permission denied"):
+            create_bundle_for_flow_run(test_flow, flow_run)
+
+    def test_include_files_cannot_escape_custom_base_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        base_dir = tmp_path / "assets"
+        base_dir.mkdir()
+        (tmp_path / "secret.txt").write_text("secret")
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"prefect>=3.0.0\n",
+        )
+
+        @flow
+        def test_flow():
+            pass
+
+        test_flow.include_files = ["../secret.txt"]  # type: ignore[attr-defined]
+        test_flow.include_files_base_dir = base_dir  # type: ignore[attr-defined]
+
+        flow_run = MagicMock()
+        flow_run.model_dump.return_value = {"id": "test-123"}
+
+        with pytest.raises(PathValidationError, match="traversal"):
+            create_bundle_for_flow_run(test_flow, flow_run)
+
     def test_files_key_none_when_no_include_files(self, monkeypatch) -> None:
         """files_key is None when flow has no include_files."""
         import prefect.bundles as bundles_module
@@ -367,6 +606,7 @@ def my_flow():
             pass
 
         test_flow.include_files = []
+        test_flow.include_files_base_dir = Path("does-not-exist")  # type: ignore[attr-defined]
 
         flow_run = MagicMock()
         flow_run.model_dump.return_value = {"id": "test-123"}

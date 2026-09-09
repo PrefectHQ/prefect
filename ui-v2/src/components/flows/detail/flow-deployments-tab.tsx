@@ -1,9 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
-import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
-import {
-	getCoreRowModel,
-	type RowSelectionState,
-	useReactTable,
+import type {
+	OnChangeFn,
+	PaginationState,
+	RowSelectionState,
 } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
 import type { ChangeEvent } from "react";
@@ -38,6 +37,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { TagsInput } from "@/components/ui/tags-input";
+import { useTable } from "@/lib/tanstack-table";
 import { columns as baseDeploymentColumns } from "./deployment-columns";
 
 type DeploymentSort = components["schemas"]["DeploymentSort"];
@@ -104,10 +104,9 @@ export const FlowDeploymentsTab = ({
 		[deploymentPagination, onDeploymentPaginationChange],
 	);
 
-	const deploymentsTable = useReactTable({
+	const deploymentsTable = useTable({
 		data: deployments,
 		columns: baseDeploymentColumns,
-		getCoreRowModel: getCoreRowModel(),
 		manualPagination: true,
 		pageCount: deploymentsPages,
 		state: {

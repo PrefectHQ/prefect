@@ -1,13 +1,8 @@
-import {
-	createColumnHelper,
-	getCoreRowModel,
-	getPaginationRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { useDeferredValue, useMemo, useState } from "react";
 import type { Deployment } from "@/api/deployments";
 import { DataTable } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/input";
+import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { pluralize } from "@/utils";
 
 type DeploymentParametersTableProps = {
@@ -55,7 +50,7 @@ const formatParameterValue = (value: unknown): string => {
 	return JSON.stringify(value) ?? "";
 };
 
-const columns = [
+const columns = columnHelper.columns([
 	columnHelper.accessor("key", {
 		header: "Key",
 		cell: ({ row }) => (
@@ -84,7 +79,7 @@ const columns = [
 		),
 	}),
 	columnHelper.accessor("type", { header: "Type" }),
-];
+]);
 
 /**
  *
@@ -145,13 +140,11 @@ export const DeploymentParametersTable = ({
 		);
 	}, [data, deferredSearch]);
 
-	const table = useReactTable({
+	const table = useTable({
 		data: filteredData,
 
 		columns,
-		getCoreRowModel: getCoreRowModel(),
 		defaultColumn: { maxSize: 300 },
-		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});
 
 	return (

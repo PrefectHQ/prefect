@@ -1,7 +1,7 @@
-import type { ColumnDef } from "@tanstack/react-table";
 import { format, parseISO } from "date-fns";
 import type { components } from "@/api/prefect";
 import { StateBadge } from "@/components/ui/state-badge";
+import type { ColumnDef } from "@/lib/tanstack-table";
 import { DeploymentCell, WorkPoolCell } from "./cells";
 
 type FlowRun = components["schemas"]["FlowRunResponse"];

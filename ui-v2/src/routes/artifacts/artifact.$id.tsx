@@ -1,7 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildGetArtifactQuery } from "@/api/artifacts";
 import { useGetArtifactFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-flow-task-runs/use-get-artifacts-flow-task-runs";
@@ -20,7 +19,7 @@ const searchParams = z.object({
 export type ArtifactDetailTabOptions = z.infer<typeof searchParams>["tab"];
 
 export const Route = createFileRoute("/artifacts/artifact/$id")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const { id } = Route.useParams();
 

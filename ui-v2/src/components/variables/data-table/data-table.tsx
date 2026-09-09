@@ -1,10 +1,7 @@
-import {
-	type ColumnFiltersState,
-	createColumnHelper,
-	getCoreRowModel,
-	type OnChangeFn,
-	type PaginationState,
-	useReactTable,
+import type {
+	ColumnFiltersState,
+	OnChangeFn,
+	PaginationState,
 } from "@tanstack/react-table";
 import type React from "react";
 import { useCallback, useMemo } from "react";
@@ -20,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { TagsInput } from "@/components/ui/tags-input";
+import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { pluralize } from "@/utils";
 import { ActionsCell, ValueCell } from "./cells";
 
@@ -28,52 +26,55 @@ const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();
 const createColumns = (
 	onVariableEdit: (variable: components["schemas"]["Variable"]) => void,
 	onVariableDelete: (variable: components["schemas"]["Variable"]) => void,
-) => [
-	columnHelper.accessor("name", {
-		header: "Name",
-	}),
-	columnHelper.accessor("value", {
-		header: "Value",
-		cell: ValueCell,
-	}),
-	columnHelper.accessor("updated", {
-		header: "Updated",
-		cell: (props) => {
-			const updated = props.getValue();
-			if (!updated) return null;
-			const formatted = new Date(updated ?? new Date())
-				.toLocaleString(undefined, {
-					year: "numeric",
-					month: "numeric",
-					day: "numeric",
-					hour: "numeric",
-					minute: "numeric",
-					second: "numeric",
-					hour12: true,
-				})
-				.replace(",", "");
-			return <span className="text-muted-foreground text-sm">{formatted}</span>;
-		},
-	}),
-	columnHelper.accessor("tags", {
-		header: () => null,
-		cell: (props) => {
-			const tags = props.getValue();
-			if (!tags) return null;
-			return <TagBadgeGroup tags={tags} maxTagsDisplayed={3} />;
-		},
-	}),
-	columnHelper.display({
-		id: "actions",
-		cell: (props) => (
-			<ActionsCell
-				{...props}
-				onVariableEdit={onVariableEdit}
-				onVariableDelete={onVariableDelete}
-			/>
-		),
-	}),
-];
+) =>
+	columnHelper.columns([
+		columnHelper.accessor("name", {
+			header: "Name",
+		}),
+		columnHelper.accessor("value", {
+			header: "Value",
+			cell: ValueCell,
+		}),
+		columnHelper.accessor("updated", {
+			header: "Updated",
+			cell: (props) => {
+				const updated = props.getValue();
+				if (!updated) return null;
+				const formatted = new Date(updated ?? new Date())
+					.toLocaleString(undefined, {
+						year: "numeric",
+						month: "numeric",
+						day: "numeric",
+						hour: "numeric",
+						minute: "numeric",
+						second: "numeric",
+						hour12: true,
+					})
+					.replace(",", "");
+				return (
+					<span className="text-muted-foreground text-sm">{formatted}</span>
+				);
+			},
+		}),
+		columnHelper.accessor("tags", {
+			header: () => null,
+			cell: (props) => {
+				const tags = props.getValue();
+				if (!tags) return null;
+				return <TagBadgeGroup tags={tags} maxTagsDisplayed={3} />;
+			},
+		}),
+		columnHelper.display({
+			id: "actions",
+			cell: (props) => (
+				<ActionsCell
+					{...props}
+					onVariableEdit={onVariableEdit}
+					onVariableDelete={onVariableDelete}
+				/>
+			),
+		}),
+	]);
 
 type VariablesDataTableProps = {
 	variables: components["schemas"]["Variable"][];
@@ -140,14 +141,13 @@ export const VariablesDataTable = ({
 		[pagination, onPaginationChange],
 	);
 
-	const table = useReactTable({
+	const table = useTable({
 		data: variables,
 		columns: columns,
 		state: {
 			pagination,
 			columnFilters,
 		},
-		getCoreRowModel: getCoreRowModel(),
 		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
 		rowCount: currentVariableCount,

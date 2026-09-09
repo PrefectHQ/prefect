@@ -1,0 +1,101 @@
+---
+title: Prefect scope of support
+sidebarTitle: Scope of support
+description: Understand what Prefect support covers and where to find help for requests outside its scope.
+keywords: ["service boundaries", "shared responsibility", "customer assistance", "ticket eligibility"]
+---
+
+This page describes what Prefect's Solutions Engineering team can help with, what falls outside its scope,
+and where to go for everything else. Clear boundaries help resolve issues quickly. When a request is out of
+scope, the team directs you to the appropriate resource.
+
+## Support entitlement
+
+| Offering | Support tiers | Channel |
+| --- | --- | --- |
+| Prefect Open Source, FastMCP, and the Prefect Cloud free tier | — | [Prefect Community Slack](https://prefect.io/slack), [GitHub](https://github.com/PrefectHQ), [Prefect documentation](/v3/get-started/index), and [FastMCP documentation](https://gofastmcp.com/) |
+| Prefect Cloud | Starter / Team | Ticketed support with no response-time commitments |
+| Prefect Cloud | Bronze / Silver / Gold | Email; support portal at Silver and above; response times and coverage hours per your agreement |
+| Prefect Horizon | Bronze / Silver | Email; support portal at Silver; response times per your agreement |
+| Prefect Customer-Managed | Priority / Premier | [support@prefect.io](mailto:support@prefect.io); see the [Customer-Managed scope of support](https://docs-customer-managed.prefect.io/support/) |
+
+Bug reports and feature requests are always welcome on GitHub, on any plan.
+
+## In scope
+
+Solutions Engineering assists with:
+
+- **Prefect product usage and configuration.** Documented features of Prefect Cloud, Prefect Open Source,
+  Horizon, and FastMCP, including work pools, deployments, automations, role-based access control (RBAC),
+  and single sign-on (SSO).
+- **Troubleshooting Prefect-owned components.** The Cloud control plane, Prefect server, workers, SDK,
+  Horizon platform, FastMCP framework, and Prefect-maintained integrations.
+- **Best-practice guidance.** Documented patterns for flows, deployments, work pools, and upgrade paths;
+  the recommended way to configure Prefect for your execution environment; and technical onboarding and
+  implementation planning sessions when included in your support tier.
+- **Defect escalation.** Reproducing suspected bugs, triaging reported security vulnerabilities, and
+  escalating confirmed defects and critical incidents to Engineering.
+- **Billing and account administration.**
+
+Issues on unsupported versions may require an upgrade as the first troubleshooting step.
+
+## Out of scope
+
+Solutions Engineering does not provide assistance with:
+
+- **Your infrastructure.** Prefect helps you configure Prefect to communicate with your infrastructure,
+  but does not provision, debug, or tune it. This includes compute platforms such as Kubernetes, Amazon ECS,
+  serverless platforms, and virtual machines; networking such as virtual private clouds, firewall rules, proxies,
+  DNS, and TLS; and cloud accounts and identity and access management (IAM). Self-hosting customers on every
+  plan remain responsible for operating their Prefect environment, including its database, scaling, and
+  backups.
+- **Your code.** Writing, debugging, or optimizing your flows, tasks, business logic, or custom MCP servers
+  and tools. Errors raised by your code or its dependencies are the author's responsibility; Prefect reports
+  those errors.
+- **Third-party software.** Tools, libraries, databases, and services not owned by Prefect;
+  community-maintained integrations; and modified or forked builds of Prefect software.
+- **Deep architectural consultation.** Best-practice guidance is in scope, but deep consultative engagements
+  or guidance on sizing, design, or the operational architecture of your infrastructure are not. A question
+  that can be answered from documented patterns in a support ticket or onboarding session is support. A
+  request that requires discovery of your environment, a design deliverable, or ongoing ownership of an
+  outcome is consultation and project work.
+
+For design, implementation, migrations, security work, training, or end-user support, Prefect Customer
+Engineering may be able to help. Contact your account team or customer success manager.
+
+## Shared responsibility model
+
+| Component | Prefect Open Source | Prefect Cloud (hybrid work pools) | Prefect Cloud ([push work pools](/v3/how-to-guides/deployment_infra/serverless)) | Prefect Cloud ([managed work pools](/v3/how-to-guides/deployment_infra/managed)) | Prefect Horizon | FastMCP |
+| --- | --- | --- | --- | --- | --- | --- |
+| Control plane / API | You | **Prefect** | **Prefect** | **Prefect** | **Prefect** | — |
+| Execution infrastructure | You | You | You | **Prefect** | **Prefect** | You |
+| Your code (flows, tasks, and MCP tools) | You | You | You | You | You | You |
+| Networking from your environment | You | You | You | You | You | You |
+| Third-party services | You | You | You | You | You | You |
+
+Support covers the cells marked **Prefect**, plus the documented behavior of Prefect software running in
+your environment.
+
+Prefect Customer-Managed deployments follow a dedicated boundary. See the
+[Customer-Managed scope of support](https://docs-customer-managed.prefect.io/support/).
+
+## Get help effectively
+
+Tickets that include the expected and actual behavior, exact errors and logs, product versions, execution
+environment, and steps already tried are resolved faster.
+
+For requests outside the support scope, use the following resources:
+
+| Issue | Where to go |
+| --- | --- |
+| Your infrastructure or third-party tools | The vendor's documentation and support, or your platform team |
+| Code patterns and approaches | [Prefect Community Slack](https://prefect.io/slack) |
+| Design and implementation work | Prefect Customer Engineering, through your account team |
+| Bug reports and feature requests | [Prefect](https://github.com/PrefectHQ/prefect) and [FastMCP](https://github.com/PrefectHQ/fastmcp) on GitHub |
+
+For common product issues, see [How to troubleshoot Prefect Cloud](/v3/how-to-guides/cloud/troubleshoot-cloud).
+
+<Note>
+This page describes Prefect's standard support offering. Contractual terms, including service-level
+agreements, are defined in your agreement with Prefect and control if there is a conflict.
+</Note>

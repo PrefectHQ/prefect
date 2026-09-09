@@ -4,6 +4,7 @@ import dataclasses
 import json
 import logging
 import sys
+import threading
 import time
 import uuid
 from collections import ChainMap
@@ -28,6 +29,7 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
 from prefect._internal.concurrency.api import create_call, from_sync
+from prefect._internal.concurrency.cancellation import CancelledError
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.context import FlowRunContext, TaskRunContext
@@ -1709,6 +1711,66 @@ class Test_SafeStreamHandler:
             logger.removeHandler(handler)
 
         assert "hello" in stream.getvalue()
+
+    def test_async_cancellation_does_not_leave_handler_locked(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        # Python <=3.12 acquires the handler lock before entering try/finally in
+        # both handle() and flush(). Patch those implementations in so this
+        # remains a regression test when the suite runs on a newer Python.
+        def python_312_handle(
+            handler: logging.Handler, record: logging.LogRecord
+        ) -> bool | logging.LogRecord:
+            filtered = handler.filter(record)
+            if isinstance(filtered, logging.LogRecord):
+                record = filtered
+            if filtered:
+                handler.acquire()
+                try:
+                    handler.emit(record)
+                finally:
+                    handler.release()
+            return filtered
+
+        def python_312_flush(handler: logging.StreamHandler) -> None:
+            handler.acquire()
+            try:
+                if handler.stream and hasattr(handler.stream, "flush"):
+                    handler.stream.flush()
+            finally:
+                handler.release()
+
+        monkeypatch.setattr(logging.Handler, "handle", python_312_handle)
+        monkeypatch.setattr(logging.StreamHandler, "flush", python_312_flush)
+
+        handler = _SafeStreamHandler(stream=StringIO())
+        acquire = handler.acquire
+
+        def interrupt_acquire() -> None:
+            acquire()
+            raise CancelledError()
+
+        monkeypatch.setattr(handler, "acquire", interrupt_acquire)
+        record = logging.makeLogRecord({"msg": "test"})
+
+        def handle_record() -> None:
+            try:
+                handler.handle(record)
+            except CancelledError:
+                pass
+
+        thread = threading.Thread(target=handle_record)
+        thread.start()
+        thread.join(timeout=5)
+        assert not thread.is_alive()
+
+        assert handler.lock is not None
+        lock_is_available = handler.lock.acquire(timeout=0.1)
+        if lock_is_available:
+            handler.lock.release()
+        else:
+            handler.createLock()
+        assert lock_is_available
 
 
 class TestPrefectConsoleHandler:

@@ -6,6 +6,10 @@ env:
   PY_COLORS: 1
 
 on:
+  # repository_dispatch executes the workflow definition from the default branch.
+  repository_dispatch:
+    types:
+      - logfire-test-profile
   pull_request:
     paths:
       - .github/workflows/python-tests.yaml
@@ -47,10 +51,11 @@ concurrency:
 
 jobs:
   run-tests:
+    if: ${{ github.event_name != 'repository_dispatch' }}
     runs-on: ubuntu-latest
     name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
 
-    services:
+    services: &python-test-services
       redis:
         image: redis:latest
         ports:
@@ -84,16 +89,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test-type:
-          - name: Server Tests
+        test-type: &python-test-types
+          - id: server
+            name: Server Tests
             modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/orchestration/
-          - name: Database Tests
+          - id: database
+            name: Database Tests
             modules: tests/server/database/
-          - name: "Orchestration Tests: Core"
+          - id: orchestration-core
+            name: "Orchestration Tests: Core"
             modules: tests/server/orchestration/ --ignore=tests/server/orchestration/api/
-          - name: "Orchestration Tests: API"
+          - id: orchestration-api
+            name: "Orchestration Tests: API"
             modules: tests/server/orchestration/api/
-          - name: "Client Tests: Modules"
+          - id: client-modules
+            name: "Client Tests: Modules"
             modules: >-
               tests/
               --ignore=tests/typesafety
@@ -106,7 +116,8 @@ jobs:
               --ignore=tests/test_settings.py
               --ignore=tests/input/
               --ignore-glob="tests/test_*.py"
-          - name: "Client Tests: Top-Level"
+          - id: client-top-level
+            name: "Client Tests: Top-Level"
             modules: >-
               tests/test_artifacts.py
               tests/test_assets.py
@@ -131,7 +142,8 @@ jobs:
               tests/test_ui_build_validation.py
               tests/test_variables.py
               tests/test_versioning.py
-          - name: "Client Tests: Execution"
+          - id: client-execution
+            name: "Client Tests: Execution"
             modules: >-
               tests/test_flow_engine.py
               tests/test_flow_runs.py
@@ -146,7 +158,8 @@ jobs:
               tests/test_tasks.py
               tests/test_transactions.py
               tests/test_waiters.py
-          - name: Runner, Worker, Settings, Input, and CLI Tests
+          - id: runner-worker-settings-input-cli
+            name: Runner, Worker, Settings, Input, and CLI Tests
             modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
         database:
           - "postgres:14"
@@ -158,8 +171,13 @@ jobs:
           - "3.13"
           - "3.14"
         exclude:
+          # The canonical Python 3.12/Postgres lane uses duration-balanced
+          # groups in run-canonical-tests instead of these static test types.
+          - database: "postgres:14"
+            python-version: "3.12"
           - database: "sqlite"
             test-type:
+              id: client-modules
               name: "Client Tests: Modules"
               modules: >-
                 tests/
@@ -175,6 +193,7 @@ jobs:
                 --ignore-glob="tests/test_*.py"
           - database: "sqlite"
             test-type:
+              id: client-top-level
               name: "Client Tests: Top-Level"
               modules: >-
                 tests/test_artifacts.py
@@ -202,6 +221,7 @@ jobs:
                 tests/test_versioning.py
           - database: "sqlite"
             test-type:
+              id: client-execution
               name: "Client Tests: Execution"
               modules: >-
                 tests/test_flow_engine.py
@@ -219,6 +239,7 @@ jobs:
                 tests/test_waiters.py
           - database: "sqlite"
             test-type:
+              id: runner-worker-settings-input-cli
               name: Runner, Worker, Settings, Input, and CLI Tests
               modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
 
@@ -228,14 +249,16 @@ jobs:
       - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
 
-      - uses: actions/checkout@v7
+      - &python-test-checkout
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
           filter: blob:none
 
-      - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v9.0.0
+      - &python-test-setup-uv
+        name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -244,7 +267,8 @@ jobs:
       - name: Install packages
         run: uv sync --locked
 
-      - name: Set database connection URL
+      - &python-test-database-url
+        name: Set database connection URL
         if: ${{ startsWith(matrix.database, 'postgres') }}
         run: echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
@@ -260,8 +284,334 @@ jobs:
           --exclude-service docker \
           --durations 26 \
 
-      - name: Check database container
+      - &python-test-check-database
+        name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail
+        if: always()
+        run: |
+          docker container inspect ${{ job.services.postgres.id }} \
+          && docker container logs ${{ job.services.postgres.id }} \
+          || echo "Ignoring bad exit code"
+
+  prepare-canonical-test-durations:
+    if: ${{ github.event_name != 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    name: Prepare canonical test durations
+
+    steps:
+      - name: Restore previous test durations
+        uses: actions/cache/restore@v6
+        with:
+          path: test-durations.json
+          key: pytest-split-v1-python-3.12-postgres-14-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            pytest-split-v1-python-3.12-postgres-14-
+
+      - name: Validate test durations
+        run: |
+          if [[ -f test-durations.json ]] \
+            && jq -e '
+              type == "object"
+              and all(
+                to_entries[];
+                (.value | type == "number")
+                and (.value >= 0)
+              )
+            ' test-durations.json > /dev/null
+          then
+            echo "Using cached test durations"
+          else
+            echo "::notice::No valid cached durations; splitting tests by count"
+            jq -n '{}' > test-durations.json
+          fi
+          jq 'length' test-durations.json
+
+      - name: Upload test duration baseline
+        uses: actions/upload-artifact@v7
+        with:
+          name: canonical-test-duration-baseline
+          path: test-durations.json
+          retention-days: 7
+          overwrite: true
+
+  run-canonical-tests:
+    if: ${{ github.event_name != 'repository_dispatch' }}
+    needs: prepare-canonical-test-durations
+    runs-on: ubuntu-latest
+    name: >-
+      Canonical Tests: group ${{ matrix.group }}/18 - python:3.12, postgres:14
+    timeout-minutes: 15
+
+    services: *python-test-services
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+        database: ["postgres:14"]
+        python-version: ["3.12"]
+
+    steps:
+      - *python-test-checkout
+
+      - *python-test-setup-uv
+
+      - name: Install packages
+        run: uv sync --locked
+
+      - name: Download test duration baseline
+        uses: actions/download-artifact@v8
+        with:
+          name: canonical-test-duration-baseline
+
+      - *python-test-database-url
+
+      - name: Run tests
+        id: canonical_tests
+        run: |
+          # Start every group from the same baseline. Cleaning leaves only this
+          # group's observations for the single-writer merge job below.
+          duration_path="test-durations-${{ matrix.group }}.json"
+          # A normal pytest session replaces this sentinel when it stores clean
+          # group timings. If pytest is interrupted before session finish, the
+          # untouched input cannot be mistaken for a valid group result.
+          jq '."__pytest_split_incomplete__" = -1' \
+            test-durations.json > "$duration_path"
+          set +e
+          uv run pytest tests --ignore=tests/typesafety \
+          -m "not windows" \
+          --numprocesses logical \
+          --maxprocesses 6 \
+          --dist worksteal \
+          --disable-docker-image-builds \
+          --exclude-service kubernetes \
+          --exclude-service docker \
+          --durations 26 \
+          --splits 18 \
+          --group "${{ matrix.group }}" \
+          --splitting-algorithm least_duration \
+          --durations-path "$duration_path" \
+          --store-durations \
+          --clean-durations
+          pytest_exit_code=$?
+          set -e
+          echo "exit_code=${pytest_exit_code}" >> "$GITHUB_OUTPUT"
+          exit "$pytest_exit_code"
+
+      - name: Validate group test durations
+        id: validate_canonical_durations
+        if: >-
+          ${{ !cancelled()
+          && (steps.canonical_tests.outputs.exit_code == '0'
+          || steps.canonical_tests.outputs.exit_code == '1') }}
+        run: |
+          duration_path="test-durations-${{ matrix.group }}.json"
+          jq -e '
+            type == "object"
+            and length > 0
+            and (has("__pytest_split_incomplete__") | not)
+            and all(
+              to_entries[];
+              (.key | length > 0)
+              and (.value | type == "number")
+              and (.value >= 0)
+            )
+          ' "$duration_path" > /dev/null
+
+      - name: Upload group test durations
+        if: ${{ !cancelled() && steps.validate_canonical_durations.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: canonical-test-durations-${{ matrix.group }}
+          path: test-durations-${{ matrix.group }}.json
+          retention-days: 7
+          overwrite: true
+
+      - *python-test-check-database
+
+  save-canonical-test-durations:
+    if: ${{ !cancelled() && github.event_name != 'repository_dispatch' }}
+    needs: run-canonical-tests
+    runs-on: ubuntu-latest
+    name: Save canonical test durations
+
+    steps:
+      - name: Download group test durations
+        uses: actions/download-artifact@v8
+        with:
+          pattern: canonical-test-durations-*
+          path: test-duration-groups
+          merge-multiple: true
+
+      - name: Merge group test durations
+        run: |
+          duration_files=(test-duration-groups/test-durations-*.json)
+          if [[ ${#duration_files[@]} -ne 18 ]]; then
+            echo "::error::Expected 18 duration files, found ${#duration_files[@]}"
+            exit 1
+          fi
+
+          jq -S -s '
+            reduce .[] as $group ({};
+              reduce ($group | to_entries[]) as $entry (.;
+                if has($entry.key) then
+                  error("duplicate test duration: \($entry.key)")
+                else
+                  .[$entry.key] = $entry.value
+                end
+              )
+            )
+          ' "${duration_files[@]}" > test-durations.json
+
+          jq 'length' test-durations.json
+
+      - name: Cache merged test durations
+        uses: actions/cache/save@v6
+        with:
+          path: test-durations.json
+          key: pytest-split-v1-python-3.12-postgres-14-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload merged test durations
+        uses: actions/upload-artifact@v7
+        with:
+          name: canonical-test-durations
+          path: test-durations.json
+          retention-days: 30
+          overwrite: true
+
+  profile-tests-with-logfire:
+    if: ${{ github.event_name == 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    name: "Logfire: ${{ matrix.test-type.name }}"
+    timeout-minutes: 30
+    environment:
+      name: logfire-profiling
+      deployment: false
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: prefect
+          POSTGRES_DB: prefect
+          LANG: C.UTF-8
+          LANGUAGE: C.UTF-8
+          LC_ALL: C.UTF-8
+          LC_COLLATE: C.UTF-8
+          LC_CTYPE: C.UTF-8
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --tmpfs /var/lib/postgresql/data
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test-type: *python-test-types
+
+    steps:
+      - name: Display current test matrix
+        run: echo '${{ toJSON(matrix) }}'
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install packages
+        run: uv sync --locked --group perf
+
+      - name: Set database connection URL
+        run: echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
+
+      - name: Run tests with Logfire
+        env:
+          LOGFIRE_CONSOLE: "false"
+          LOGFIRE_DISTRIBUTED_TRACING: "true"
+          LOGFIRE_RESOURCE_ATTRIBUTES: >-
+            vcs.repository.url.full=${{ github.server_url }}/${{ github.repository }},
+            cicd.pipeline.run.id=${{ github.run_id }},
+            github.actions.run.attempt=${{ github.run_attempt }},
+            cicd.pipeline.run.url.full=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }},
+            github.actions.job.check_run_id=${{ job.check_run_id }},
+            prefect.pytest.shard.id=${{ matrix.test-type.id }}
+          LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TEST_PROFILE_TOKEN }}
+          PREFECT_LOGFIRE_ENABLED: "false"
+        run: |
+          if [[ -z "$LOGFIRE_TOKEN" ]]; then
+            echo "::error::Logfire profiling requires the" \
+              "LOGFIRE_TEST_PROFILE_TOKEN secret in the" \
+              "logfire-profiling environment"
+            exit 1
+          fi
+
+          # These tests assert that Prefect's outermost run span has no parent.
+          uv run --no-sync pytest ${{ matrix.test-type.modules }} \
+          --ignore=tests/telemetry/test_run_telemetry.py \
+          -m "not windows" \
+          --numprocesses auto \
+          --maxprocesses 6 \
+          --dist worksteal \
+          --disable-docker-image-builds \
+          --exclude-service kubernetes \
+          --exclude-service docker \
+          --durations 26 \
+          --logfire \
+          --logfire-trace-phases \
+          --logfire-service-name prefect-pytest-profile
+
+      - name: Add Logfire filters to job summary
+        if: always()
+        env:
+          LOGFIRE_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+          LOGFIRE_RUN_ATTEMPT: ${{ github.run_attempt }}
+          LOGFIRE_RUN_ID: ${{ github.run_id }}
+          LOGFIRE_SHARD_ID: ${{ matrix.test-type.id }}
+        run: |
+          printf '%s\n' \
+            '### Logfire filters' \
+            '' \
+            'All shards in this workflow attempt:' \
+            '' \
+            '```sql' \
+            "otel_resource_attributes->>'vcs.repository.url.full' = '$LOGFIRE_REPOSITORY_URL'" \
+            "AND otel_resource_attributes->>'cicd.pipeline.run.id' = '$LOGFIRE_RUN_ID'" \
+            "AND otel_resource_attributes->>'github.actions.run.attempt' = '$LOGFIRE_RUN_ATTEMPT'" \
+            '```' \
+            '' \
+            "Shard $LOGFIRE_SHARD_ID:" \
+            '' \
+            '```sql' \
+            "otel_resource_attributes->>'vcs.repository.url.full' = '$LOGFIRE_REPOSITORY_URL'" \
+            "AND otel_resource_attributes->>'cicd.pipeline.run.id' = '$LOGFIRE_RUN_ID'" \
+            "AND otel_resource_attributes->>'github.actions.run.attempt' = '$LOGFIRE_RUN_ATTEMPT'" \
+            "AND otel_resource_attributes->>'prefect.pytest.shard.id' = '$LOGFIRE_SHARD_ID'" \
+            '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check database container
         if: always()
         run: |
           docker container inspect ${{ job.services.postgres.id }} \
@@ -277,7 +627,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.12"
 
@@ -285,6 +635,7 @@ jobs:
         run: uv run --with pyyaml --no-project -s scripts/verify_test_selection.py
 
   run-docker-tests:
+    if: ${{ github.event_name != 'repository_dispatch' }}
     runs-on: ubuntu-latest
     name: docker, python:${{ matrix.python-version }}
 
@@ -348,7 +699,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -433,6 +784,7 @@ jobs:
           || echo "Ignoring bad exit code"
 
   run-typesafety-test:
+    if: ${{ github.event_name != 'repository_dispatch' }}
     name: typesafety
     runs-on: ubuntu-latest
 
@@ -444,7 +796,7 @@ jobs:
           filter: blob:none
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           python-version: "3.12"

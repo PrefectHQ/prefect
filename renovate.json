@@ -10,6 +10,13 @@
       "matchManagers": ["npm"],
       "matchPackageNames": ["typescript"],
       "allowedVersions": "<6.1.0"
+    },
+    {
+      "description": "Keep the old-SQLite compatibility image on Python 3.10.",
+      "matchManagers": ["dockerfile"],
+      "matchFileNames": [".github/docker/old-sqlite.Dockerfile"],
+      "matchPackageNames": ["python"],
+      "enabled": false
     }
   ]
 }

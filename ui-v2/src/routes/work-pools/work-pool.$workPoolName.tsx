@@ -6,7 +6,6 @@ import type {
 	PaginationState,
 	SortingState,
 } from "@tanstack/react-table";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { z } from "zod";
 import { buildPaginateDeploymentsQuery } from "@/api/deployments";
@@ -57,7 +56,7 @@ const workPoolSearchParams = z.object({
 type WorkPoolSearchParams = z.infer<typeof workPoolSearchParams>;
 
 export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
-	validateSearch: zodValidator(workPoolSearchParams),
+	validateSearch: workPoolSearchParams,
 	component: function RouteComponent() {
 		// Wrapper component for Work Pool Queues tab
 		const WorkPoolQueuesTabWrapper = ({

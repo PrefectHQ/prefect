@@ -1,7 +1,6 @@
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import {
@@ -63,7 +62,7 @@ const buildFilterBody = (
 });
 
 export const Route = createFileRoute("/artifacts/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const search = Route.useSearch();
 		const { filters, onFilterChange } = useFilter();

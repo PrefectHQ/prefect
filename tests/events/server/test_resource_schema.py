@@ -391,15 +391,18 @@ def test_label_diving():
         getattr(diver, "_something_else")
 
 
-def test_limit_on_labels():
+def test_limit_on_labels_uses_current_settings():
+    resource = {
+        "prefect.resource.id": "the.thing",
+        **{str(i): str(i) for i in range(10)},
+    }
+
     with temporary_settings(updates={PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE: 10}):
         with pytest.raises(ValidationError):
-            Resource.model_validate(
-                {
-                    "prefect.resource.id": "the.thing",
-                    **{str(i): str(i) for i in range(10)},
-                }
-            )
+            Resource.model_validate(resource)
+
+    with temporary_settings(updates={PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE: 11}):
+        assert Resource.model_validate(resource).root == resource
 
 
 def test_limit_on_related_resources():

@@ -1,8 +1,8 @@
-import type { ColumnDef } from "@tanstack/react-table";
 import type { WorkPoolWorker } from "@/api/work-pools";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { SortableColumnHeader } from "@/components/work-pools/work-pool-queues-table/components/sortable-column-header";
 import { WorkerStatusBadge } from "@/components/workers/worker-status-badge";
+import type { ColumnDef } from "@/lib/tanstack-table";
 
 export const createWorkersTableColumns = (): ColumnDef<WorkPoolWorker>[] => [
 	{

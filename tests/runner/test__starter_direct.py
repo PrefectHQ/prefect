@@ -184,6 +184,37 @@ class TestDirectSubprocessStarter:
 
         control_channel.unregister.assert_called_once_with(mock_flow_run.id)
 
+    async def test_start_passes_control_session_env_to_subprocess(self):
+        mock_flow = MagicMock()
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = "flow-run-id"
+        mock_process = MagicMock()
+        mock_process.join = MagicMock()
+
+        control_channel = MagicMock()
+        control_channel.register.return_value = (54321, "deadbeef" * 4)
+        starter = DirectSubprocessStarter(
+            flow=mock_flow,
+            control_channel=control_channel,
+        )
+
+        with patch(
+            "prefect.runner._starter_direct.run_flow_in_subprocess",
+            return_value=mock_process,
+        ) as mock_run:
+            await starter.start(mock_flow_run)
+
+        control_channel.register.assert_called_once_with(mock_flow_run.id)
+        mock_run.assert_called_once_with(
+            mock_flow,
+            flow_run=mock_flow_run,
+            env={
+                "PREFECT__DEPLOYMENT_NAME": None,
+                "PREFECT__CONTROL_PORT": "54321",
+                "PREFECT__CONTROL_TOKEN": "deadbeef" * 4,
+            },
+        )
+
     async def test_start_omits_control_env_when_channel_is_disabled(self):
         mock_flow = MagicMock()
         mock_flow_run = MagicMock()

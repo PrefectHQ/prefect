@@ -1,5 +1,4 @@
 import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { useAuthSafe } from "@/auth";
 import { LoginPage } from "@/components/auth/login-page";
@@ -10,7 +9,7 @@ const loginSearchSchema = z.object({
 });
 
 export const Route = createFileRoute("/login")({
-	validateSearch: zodValidator(loginSearchSchema),
+	validateSearch: loginSearchSchema,
 	beforeLoad: ({ context, search }) => {
 		// If already authenticated, redirect away from login page
 		if (!context.auth.isLoading && context.auth.isAuthenticated) {

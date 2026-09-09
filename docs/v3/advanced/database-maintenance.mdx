@@ -206,9 +206,8 @@ ALTER TABLE flow_run SET (
 
 Prefect server includes a built-in database vacuum service that automatically cleans up old data. The service runs as a background process alongside Prefect server and handles deletion of:
 
-- Old top-level flow runs that have reached a terminal state (completed, failed, cancelled, or crashed)
-- Orphaned logs (logs referencing flow runs that no longer exist)
-- Orphaned artifacts (artifacts referencing flow runs that no longer exist)
+- Old top-level flow runs that have reached a terminal state (completed, failed, cancelled, or crashed), together with their logs and artifacts
+- Orphaned logs and artifacts left by interrupted cleanup, late writes, direct SQL deletion, or older Prefect versions
 - Stale artifact collections (collections whose latest artifact has been deleted)
 - Old events and event resources past the event retention period
 
@@ -218,10 +217,11 @@ The flow run vacuum permanently deletes data. Back up your database before enabl
 
 ### Enable the vacuum service
 
-The vacuum service has two independent components controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED`:
+The vacuum service has three independently scheduled components controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED`:
 
 - **Event vacuum** (`events`): Cleans up old events and event resources. Enabled by default.
-- **Flow run vacuum** (`flow_runs`): Cleans up old flow runs, orphaned logs, orphaned artifacts, and stale artifact collections. Disabled by default.
+- **Flow run vacuum** (`flow_runs`): Cleans up old flow runs with their logs and artifacts. Disabled by default.
+- **Orphan reconciliation** (`orphans`): Finds and removes orphaned logs and artifacts, then reconciles stale artifact collections. Automatically enabled with `flow_runs`, but runs less frequently because each pass can scan the full child tables. You can also enable it independently.
 
 To enable flow run cleanup in addition to the default event cleanup:
 
@@ -241,8 +241,9 @@ The following settings control vacuum behavior:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` | `events` | Comma-separated set of vacuum types to enable. Valid values: `events`, `flow_runs`. |
-| `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS` | `3600` (1 hour) | How often the vacuum cycle runs, in seconds. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` | `events` | Comma-separated set of vacuum types to enable. Valid values: `events`, `flow_runs`, `orphans`. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS` | `3600` (1 hour) | How often the flow run and event vacuum cycles run, in seconds. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_ORPHAN_CLEANUP_LOOP_SECONDS` | `86400` (24 hours) | How often orphan reconciliation runs when enabled. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD` | `7776000` (90 days) | How old a flow run must be (based on end time) before it is eligible for deletion. Accepts seconds. Must be greater than 1 hour. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` | `200` | Number of records to delete per database transaction. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES` | `{"prefect.flow-run.heartbeat": 604800}` | Per-event-type retention period overrides in seconds. Event types not listed fall back to `PREFECT_SERVER_EVENTS_RETENTION_PERIOD`. Each override is capped by the global events retention period. |
@@ -258,15 +259,18 @@ export PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE=200
 
 ### How the vacuum service works
 
-Each vacuum cycle schedules independent cleanup tasks:
+The vacuum services schedule independent cleanup tasks:
 
 <Steps>
 ### Flow run vacuum (when `flow_runs` is enabled)
 
-1. **Delete orphaned logs**: Removes log entries whose associated flow run no longer exists in the database.
-2. **Delete orphaned artifacts**: Removes artifacts whose associated flow run no longer exists.
-3. **Reconcile stale artifact collections**: For collections pointing to a deleted artifact, re-points to the next most recent artifact version. If no versions remain, deletes the collection.
-4. **Delete old flow runs**: Removes top-level flow runs (not subflows) that are in a terminal state and whose end time is older than the configured retention period. Subflows are not cascade-deleted when their parent is removed; they are cleaned up independently by later vacuum cycles once they also meet the top-level, terminal state, and age criteria.
+1. **Delete old flow runs**: Selects and deletes a locked batch of top-level terminal flow runs whose end time is older than the configured retention period. It then deletes logs and artifacts by `flow_run_id`, without scanning the log table. Subflows are cleaned up independently by later batches and cycles once they meet the same criteria.
+
+### Orphan reconciliation (when `flow_runs` or `orphans` is enabled)
+
+1. **Delete orphaned logs**: Removes logs whose flow run no longer exists.
+2. **Delete orphaned artifacts**: Removes artifacts whose flow run no longer exists.
+3. **Reconcile stale artifact collections**: Repairs collections affected by artifact cleanup.
 
 ### Event vacuum (when `events` is enabled)
 
@@ -278,22 +282,22 @@ Each vacuum cycle schedules independent cleanup tasks:
 The event vacuum only runs when the event persister service is also enabled (`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=true`, which is the default). This prevents unexpected data deletion for deployments that have disabled event processing.
 </Note>
 
-All deletions happen in batches (controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`) to avoid long-running transactions that could impact database performance.
+Flow run selection, orphan reconciliation, and event cleanup use transaction batches controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`. Once a locked flow run batch is deleted, its logs and artifacts are deleted in their own batches of the same size, so a run with many child rows does not create one large transaction.
+
+<Note>
+Orphan reconciliation uses anti-joins that can scan the full `log` and `artifact` tables. It runs once every 24 hours by default instead of on the normal hourly vacuum loop. Increase `PREFECT_SERVER_SERVICES_DB_VACUUM_ORPHAN_CLEANUP_LOOP_SECONDS` if those scans affect database performance. You do not need to add `orphans` when `flow_runs` is enabled; the separate value is for running orphan cleanup without deleting old flow runs.
+</Note>
 
 ### Tune the vacuum for your workload
 
 - **High-volume deployments** (thousands of runs per day): Consider a shorter retention period (for example, 7-14 days) and a more frequent vacuum cycle (every few hours) to prevent data accumulation.
 - **Low-volume deployments**: The defaults (90-day retention, hourly cycle) are appropriate for most cases.
-- **Large batch size**: Increasing `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` speeds up cleanup but may hold database locks longer. Decrease the batch size if you observe performance impacts during vacuum cycles.
+- **Large batch size**: Increasing `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` can speed up cleanup but may make transactions larger and hold database locks longer. Decrease the batch size if you observe performance impacts during vacuum cycles.
 - **Scaled deployments**: If you run [separate API and background service processes](/v3/advanced/self-hosted), ensure the background services pod is running to enable the vacuum service.
 
 ## Data retention with a custom flow
 
 As an alternative to the built-in vacuum service, you can implement custom retention logic using a Prefect flow. This approach gives you more control over which flow runs to delete and allows you to add custom logic such as notifications or conditional retention.
-
-<Note>
-Using the Prefect API ensures proper cleanup of all related data, including logs and artifacts. The API handles cascade deletions and triggers necessary background tasks.
-</Note>
 
 {/* pmd-metadata: notest */}
 ```python
@@ -398,7 +402,7 @@ async with asyncpg.connect(connection_url) as conn:
 ```
 
 <Tip>
-If you use direct SQL for flow run deletion, enable the built-in vacuum service with `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,flow_runs"` to automatically clean up any orphaned logs and artifacts left behind.
+After direct SQL deletion, enable orphan reconciliation with `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,orphans"` to remove child rows that no longer reference an existing flow run.
 </Tip>
 
 ### Important considerations

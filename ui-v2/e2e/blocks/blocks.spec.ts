@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Page, TestInfo } from "@playwright/test";
 import {
 	type BlockSchema,
 	type BlockType,
@@ -13,6 +13,17 @@ import {
 } from "../fixtures";
 
 const TEST_PREFIX = "e2e-block-";
+
+/**
+ * Build a block name prefix that belongs to a single test.
+ *
+ * Playwright runs the tests in this file in parallel, so cleanup that deletes
+ * every block with the shared prefix also deletes the blocks that another
+ * running test still uses.
+ */
+function testBlockPrefix(testInfo: TestInfo): string {
+	return `${TEST_PREFIX}${testInfo.testId}-`;
+}
 
 /**
  * Get a block type and schema for testing.
@@ -57,12 +68,12 @@ test.describe("Blocks Page", () => {
 		await waitForServerHealth(apiClient);
 	});
 
-	test.beforeEach(async ({ apiClient }) => {
-		await cleanupBlockDocuments(apiClient, TEST_PREFIX);
+	test.beforeEach(async ({ apiClient }, testInfo) => {
+		await cleanupBlockDocuments(apiClient, testBlockPrefix(testInfo));
 	});
 
-	test.afterEach(async ({ apiClient }) => {
-		await cleanupBlockDocuments(apiClient, TEST_PREFIX);
+	test.afterEach(async ({ apiClient }, testInfo) => {
+		await cleanupBlockDocuments(apiClient, testBlockPrefix(testInfo));
 	});
 
 	test.describe("Empty State", () => {
@@ -85,6 +96,14 @@ test.describe("Blocks Page", () => {
 				await waitForBlocksPageReady(page);
 			}).toPass({ timeout: 15000 });
 
+			// A test that runs in parallel can create a block between the check
+			// above and the page load, which replaces the empty state with the table
+			const documentsAfterLoad = await listBlockDocuments(apiClient);
+			test.skip(
+				documentsAfterLoad.length > 0,
+				"Skipping empty state test because blocks appeared while the page loaded",
+			);
+
 			await expect(
 				page.getByRole("heading", { name: /add a block to get started/i }),
 			).toBeVisible();
@@ -98,8 +117,8 @@ test.describe("Blocks Page", () => {
 		test("should view, edit, and delete a block via UI", async ({
 			page,
 			apiClient,
-		}) => {
-			const blockName = `${TEST_PREFIX}lifecycle-${Date.now()}`;
+		}, testInfo) => {
+			const blockName = `${testBlockPrefix(testInfo)}lifecycle-${Date.now()}`;
 
 			// --- CREATE BLOCK VIA API ---
 			// Create block via API for reliable test setup
@@ -177,9 +196,9 @@ test.describe("Blocks Page", () => {
 		test("should display existing blocks in the list", async ({
 			page,
 			apiClient,
-		}) => {
+		}, testInfo) => {
 			// Create a block via API first
-			const blockName = `${TEST_PREFIX}list-${Date.now()}`;
+			const blockName = `${testBlockPrefix(testInfo)}list-${Date.now()}`;
 			const { blockType, blockSchema } =
 				await getTestBlockTypeAndSchema(apiClient);
 
@@ -206,9 +225,9 @@ test.describe("Blocks Page", () => {
 		test("should navigate to block details when clicking a block", async ({
 			page,
 			apiClient,
-		}) => {
+		}, testInfo) => {
 			// Create a block via API first
-			const blockName = `${TEST_PREFIX}navigate-${Date.now()}`;
+			const blockName = `${testBlockPrefix(testInfo)}navigate-${Date.now()}`;
 			const { blockType, blockSchema } =
 				await getTestBlockTypeAndSchema(apiClient);
 
@@ -240,9 +259,9 @@ test.describe("Blocks Page", () => {
 		test("should delete a block via action menu from the list", async ({
 			page,
 			apiClient,
-		}) => {
+		}, testInfo) => {
 			// Create a block via API first
-			const blockName = `${TEST_PREFIX}delete-list-${Date.now()}`;
+			const blockName = `${testBlockPrefix(testInfo)}delete-list-${Date.now()}`;
 			const { blockType, blockSchema } =
 				await getTestBlockTypeAndSchema(apiClient);
 
