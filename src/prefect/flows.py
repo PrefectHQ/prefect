@@ -20,6 +20,7 @@ import warnings
 from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
+from types import CoroutineType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1785,6 +1786,11 @@ class Flow(Generic[P, R]):
 
     @overload
     def __call__(
+        self: "Flow[P, CoroutineType[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
+    ) -> Coroutine[Any, Any, T]: ...
+
+    @overload
+    def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
     ) -> Coroutine[Any, Any, T]: ...
 
@@ -1794,6 +1800,14 @@ class Flow(Generic[P, R]):
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> T: ...
+
+    @overload
+    def __call__(
+        self: "Flow[P, CoroutineType[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> Awaitable[State[T]]: ...
 
     @overload
     def __call__(
@@ -2124,29 +2138,13 @@ class Flow(Generic[P, R]):
 
 class _FlowDecoratorCallable(Protocol):
     """The decorator returned by a configured `@flow(...)` call. Declared as a
-    protocol so applying it re-runs the same async-normalizing overloads as
-    the bare `@flow` form. See tests/typing/call_annotations.py."""
+    protocol so applying it types like the bare `@flow` form. See
+    tests/typing/call_annotations.py."""
 
-    @overload
-    def __call__(
-        self, __fn: Callable[P, Coroutine[Any, Any, R]]
-    ) -> Flow[P, Coroutine[Any, Any, R]]: ...
-
-    @overload
     def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]: ...
-
-    def __call__(self, __fn: Callable[..., Any]) -> Flow[..., Any]: ...
 
 
 class FlowDecorator:
-    # Normalizes an async def's inferred `types.CoroutineType` to `Coroutine`;
-    # as the Flow's invariant R it would stop every `self: "Flow[...,
-    # Coroutine[...]]"` overload from matching. See tests/typing/call_annotations.py.
-    @overload
-    def __call__(
-        self, __fn: Callable[P, Coroutine[Any, Any, R]]
-    ) -> Flow[P, Coroutine[Any, Any, R]]: ...
-
     @overload
     def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]: ...
 
@@ -2460,6 +2458,13 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
     @overload
     def __call__(
+        self: "Flow[P, CoroutineType[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Coroutine[Any, Any, T]: ...
+
+    @overload
+    def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
@@ -2471,6 +2476,14 @@ class InfrastructureBoundFlow(Flow[P, R]):
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> T: ...
+
+    @overload
+    def __call__(
+        self: "Flow[P, CoroutineType[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> Awaitable[State[T]]: ...
 
     @overload
     def __call__(

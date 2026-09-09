@@ -102,6 +102,6 @@ jobs:
 
       - name: Run call-site typing checks (mypy)
         run: >-
-          uv run --with mypy mypy --follow-imports=silent --warn-unused-ignores tests/typing/
+          uv run mypy --follow-imports=silent --warn-unused-ignores tests/typing/
 
 

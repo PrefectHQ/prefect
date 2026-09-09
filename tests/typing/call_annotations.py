@@ -9,11 +9,15 @@ suppressions, so a lost error fails CI too.
 
 # pyright: reportUnnecessaryTypeIgnoreComment=error
 
+from typing import TypeVar
+
 from typing_extensions import assert_type
 
 from prefect import flow, task
 from prefect.futures import PrefectFuture, PrefectFutureList
 from prefect.states import State
+
+T = TypeVar("T")
 
 
 @task
@@ -48,6 +52,16 @@ def configured_sync_task(x: int) -> int:
 
 @flow(name="configured-flow")
 async def configured_async_flow(x: int) -> int:
+    return x
+
+
+@task
+def generic_task(x: T) -> T:
+    return x
+
+
+@task(retries=1)
+def configured_generic_task(x: T) -> T:
     return x
 
 
@@ -96,6 +110,14 @@ async def check_configured_decorator_calls() -> None:
     assert_type(configured_async_task.map([1, 2]), PrefectFutureList[int])
     assert_type(await configured_async_flow(1), int)
     assert_type(await configured_async_flow(1, return_state=True), State[int])
+
+
+def check_generic_task_calls() -> None:
+    assert_type(generic_task(1), int)
+    assert_type(generic_task("a"), str)
+    assert_type(generic_task.submit(1), PrefectFuture[int])
+    assert_type(configured_generic_task(1), int)
+    assert_type(configured_generic_task.submit("a"), PrefectFuture[str])
 
 
 @task
