@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
@@ -209,6 +210,53 @@ class TestConcurrencyLeaseStorage:
 
         # Should not raise an error
         await storage.renew_lease(nonexistent_id, ttl)
+
+    async def test_begin_lease_revocation_blocks_renewal(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        active_lease = await storage.create_lease([uuid4()], timedelta(minutes=5))
+        assert await storage.begin_lease_revocation(active_lease.id) is None
+        assert await storage.renew_lease(active_lease.id, timedelta(minutes=5))
+
+        expired_lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+        claimed_lease = await storage.begin_lease_revocation(expired_lease.id)
+        assert claimed_lease is not None
+        assert await storage.renew_lease(expired_lease.id, timedelta(minutes=5)) is False
+
+        await storage.cancel_lease_revocation(expired_lease.id)
+        assert await storage.renew_lease(expired_lease.id, timedelta(minutes=5))
+
+        abandoned_lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+        assert await storage.begin_lease_revocation(abandoned_lease.id) is not None
+        lease_key = storage._lease_key(abandoned_lease.id)
+        lease_data = json.loads(await storage.redis_client.get(lease_key))
+        lease_data["revoking_until"] = datetime.now(timezone.utc).timestamp() - 1
+        await storage.redis_client.set(lease_key, json.dumps(lease_data))
+        assert await storage.renew_lease(abandoned_lease.id, timedelta(minutes=5))
+
+    async def test_revocation_token_fences_old_worker(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+        first_claim = await storage.begin_lease_revocation(lease.id)
+        assert first_claim is not None
+        assert first_claim.revocation_token is not None
+
+        lease_key = storage._lease_key(lease.id)
+        lease_data = json.loads(await storage.redis_client.get(lease_key))
+        lease_data["revoking_until"] = datetime.now(timezone.utc).timestamp() - 1
+        await storage.redis_client.set(lease_key, json.dumps(lease_data))
+
+        second_claim = await storage.begin_lease_revocation(lease.id)
+        assert second_claim is not None
+        assert second_claim.revocation_token != first_claim.revocation_token
+
+        with pytest.raises(RuntimeError, match="no longer owned"):
+            await storage.revoke_lease(lease.id, first_claim.revocation_token)
+        assert await storage.read_lease(lease.id) is not None
+
+        await storage.revoke_lease(lease.id, second_claim.revocation_token)
+        assert await storage.read_lease(lease.id) is None
 
     async def test_revoke_lease(self, storage: ConcurrencyLeaseStorage):
         """Test revoking an existing lease."""

@@ -6,7 +6,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, TypedDict
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 
@@ -39,6 +39,8 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self.storage_path: Path = Path(
             storage_path or prefect_home / "concurrency_leases"
         )
+        self.revoking: set[UUID] = set()
+        self.revocation_tokens: dict[UUID, str] = {}
 
     def _ensure_storage_path(self) -> None:
         """Ensure the storage path exists, creating it if necessary."""
@@ -212,6 +214,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             await self._remove_from_expiration_index(lease_id)
             return False
 
+        if lease_id in self.revoking:
+            return False
+
         try:
             with open(lease_file, "r") as f:
                 lease_data = json.load(f)
@@ -238,7 +243,40 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             await self._remove_from_expiration_index(lease_id)
             return False
 
-    async def revoke_lease(self, lease_id: UUID) -> None:
+    async def begin_lease_revocation(
+        self, lease_id: UUID
+    ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
+        if lease_id in self.revoking:
+            return None
+        lease = await self.read_lease(lease_id)
+        if lease is None:
+            return None
+        if lease.expiration > datetime.now(timezone.utc):
+            return None
+        self.revoking.add(lease_id)
+        token = str(uuid4())
+        self.revocation_tokens[lease_id] = token
+        lease.revocation_token = token
+        return lease
+
+    async def renew_lease_revocation(self, lease_id: UUID, revocation_token: str) -> bool:
+        return self.revocation_tokens.get(lease_id) == revocation_token
+
+    async def cancel_lease_revocation(
+        self, lease_id: UUID, revocation_token: str | None = None
+    ) -> None:
+        if revocation_token and self.revocation_tokens.get(lease_id) != revocation_token:
+            return
+        self.revoking.discard(lease_id)
+        self.revocation_tokens.pop(lease_id, None)
+
+    async def revoke_lease(
+        self, lease_id: UUID, revocation_token: str | None = None
+    ) -> None:
+        if revocation_token and self.revocation_tokens.get(lease_id) != revocation_token:
+            raise RuntimeError("revocation claim is no longer owned")
+        self.revoking.discard(lease_id)
+        self.revocation_tokens.pop(lease_id, None)
         lease_file = self._lease_file_path(lease_id)
         lease_file.unlink(missing_ok=True)
 
