@@ -3264,6 +3264,7 @@ class TestResumingFlows:
             states.StateType.FAILED,
             states.StateType.CRASHED,
             states.StateType.CANCELLED,
+            states.StateType.CANCELLING,
         ]
 
         if proposed_state_type in permitted_resuming_states:
@@ -3324,6 +3325,35 @@ class TestResumingFlows:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_allows_cancelling_a_paused_flow_run_after_pause_has_timed_out(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+    ):
+        """A blocking pause keeps the flow process alive even after its
+        deadline passes, so an explicit cancel must still reach Cancelling
+        rather than being rewritten to Failed."""
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.CANCELLING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        five_minutes_ago = now("UTC") - timedelta(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_ago
+        )
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.CANCELLING
 
     async def test_marks_flow_run_as_resuming_upon_leaving_paused_state(
         self,

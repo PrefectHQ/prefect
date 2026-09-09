@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import "@/mocks/mock-json-input";
 import { BaseJobTemplateFormSection } from "./base-job-template-form-section";
 import type { WorkerBaseJobTemplate } from "./schema";
 
@@ -113,6 +114,52 @@ describe("BaseJobTemplateFormSection", () => {
 				/This work pool's base job template does not have any customizations/,
 			),
 		).toBeInTheDocument();
+	});
+
+	it("writes free-form object defaults to the template as plain objects", async () => {
+		const templateWithEnv: WorkerBaseJobTemplate = {
+			job_configuration: { env: "{{ env }}" },
+			variables: {
+				type: "object",
+				properties: {
+					env: {
+						type: "object",
+						title: "Environment Variables",
+						additionalProperties: { type: "string" },
+						default: {},
+					},
+				},
+			},
+		};
+
+		render(
+			<BaseJobTemplateFormSection
+				baseJobTemplate={templateWithEnv}
+				onBaseJobTemplateChange={mockOnBaseJobTemplateChange}
+			/>,
+		);
+
+		const jsonInput = await screen.findByTestId("mock-json-input");
+		fireEvent.change(jsonInput, {
+			target: { value: '{"CDWH_ENVIRONMENT": "dev"}' },
+		});
+
+		await waitFor(() => {
+			const lastCall = mockOnBaseJobTemplateChange.mock.lastCall as
+				| [WorkerBaseJobTemplate]
+				| undefined;
+			expect(lastCall?.[0].variables?.properties?.env).toMatchObject({
+				default: { CDWH_ENVIRONMENT: "dev" },
+			});
+		});
+
+		for (const [template] of mockOnBaseJobTemplateChange.mock.calls as [
+			WorkerBaseJobTemplate,
+		][]) {
+			expect(JSON.stringify(template.variables?.properties?.env)).not.toContain(
+				"__prefect_kind",
+			);
+		}
 	});
 
 	it("can click on advanced tab", () => {

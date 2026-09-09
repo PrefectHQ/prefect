@@ -2065,6 +2065,54 @@ class TestMarkDeploymentsReady:
         await session.refresh(deployment)
         assert deployment.status == DeploymentStatus.READY
 
+    async def test_waits_for_concurrent_write_transaction_on_sqlite(
+        self,
+        deployment: orm_models.Deployment,
+    ):
+        # Regression test for "database is locked": a DEFERRED transaction
+        # that reads then writes cannot upgrade its lock while another write
+        # transaction is open (SQLITE_BUSY_SNAPSHOT fails immediately, the
+        # busy timeout does not apply). BEGIN IMMEDIATE (with_for_update)
+        # takes the write lock up front and waits instead.
+        db = provide_database_interface()
+        if db.dialect.name != "sqlite":
+            pytest.skip("Covers SQLite write-lock upgrade behavior")
+
+        lock_acquired = asyncio.Event()
+        release = asyncio.Event()
+
+        async def hold_write_lock() -> None:
+            async with db.session_context(
+                begin_transaction=True, with_for_update=True
+            ) as locker:
+                # first statement emits BEGIN IMMEDIATE, taking the write lock
+                await locker.execute(sa.select(1))
+                lock_acquired.set()
+                await release.wait()
+
+        holder = asyncio.create_task(hold_write_lock())
+        await lock_acquired.wait()
+        marker = asyncio.create_task(
+            models.deployments.mark_deployments_ready(
+                db=db, deployment_ids=[deployment.id]
+            )
+        )
+        try:
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(asyncio.shield(marker), timeout=1.0)
+            assert not marker.done()
+        finally:
+            release.set()
+            await holder
+        await marker
+
+        async with db.session_context() as session:
+            refreshed = await models.deployments.read_deployment(
+                session=session, deployment_id=deployment.id
+            )
+            assert refreshed is not None
+            assert refreshed.status == DeploymentStatus.READY
+
     async def test_blocks_when_row_is_locked_by_concurrent_transition(
         self,
         deployment: orm_models.Deployment,
@@ -2107,3 +2155,49 @@ class TestMarkDeploymentsNotReady:
         )
         await session.refresh(deployment)
         assert deployment.status == DeploymentStatus.NOT_READY
+
+    async def test_waits_for_concurrent_write_transaction_on_sqlite(
+        self,
+        deployment: orm_models.Deployment,
+    ):
+        db = provide_database_interface()
+        if db.dialect.name != "sqlite":
+            pytest.skip("Covers SQLite write-lock upgrade behavior")
+
+        await models.deployments.mark_deployments_ready(
+            db=db, deployment_ids=[deployment.id]
+        )
+
+        lock_acquired = asyncio.Event()
+        release = asyncio.Event()
+
+        async def hold_write_lock() -> None:
+            async with db.session_context(
+                begin_transaction=True, with_for_update=True
+            ) as locker:
+                await locker.execute(sa.select(1))
+                lock_acquired.set()
+                await release.wait()
+
+        holder = asyncio.create_task(hold_write_lock())
+        await lock_acquired.wait()
+        marker = asyncio.create_task(
+            models.deployments.mark_deployments_not_ready(
+                deployment_ids=[deployment.id]
+            )
+        )
+        try:
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(asyncio.shield(marker), timeout=1.0)
+            assert not marker.done()
+        finally:
+            release.set()
+            await holder
+        await marker
+
+        async with db.session_context() as session:
+            refreshed = await models.deployments.read_deployment(
+                session=session, deployment_id=deployment.id
+            )
+            assert refreshed is not None
+            assert refreshed.status == DeploymentStatus.NOT_READY
