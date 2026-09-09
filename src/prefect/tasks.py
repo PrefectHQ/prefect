@@ -30,6 +30,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 from typing_extensions import (
+    Concatenate,
     Literal,
     ParamSpec,
     Self,
@@ -91,6 +92,9 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
+T0 = TypeVar("T0")  # The type of a task's first parameter, peeled off P
+T1 = TypeVar("T1")  # The type of a task's second parameter, peeled off P
+P_rest = ParamSpec("P_rest")  # The parameters of the task after the peeled ones
 
 NUM_CHARS_DYNAMIC_KEY = 8
 
@@ -1192,6 +1196,37 @@ class Task(Generic[P, R]):
         *args: Any,
         wait_for: OneOrManyFutureOrResult[Any],
         return_state: Literal[False] = False,
+        **kwargs: Any,
+    ) -> T: ...
+
+    # FUTURE-INPUT OVERLOADS: Calls with unresolved futures in leading
+    # positional slots (#17379). The engine resolves futures in parameters
+    # before the task runs, but ParamSpec cannot express "each parameter also
+    # accepts a future of its type" (python/typing#1163). One overload per
+    # depth; the last peeled slot must be future-only — a value-or-future
+    # union there makes mypy reject valid mixed calls and accept wrong values.
+    @overload
+    def __call__(
+        self: "Task[Concatenate[T0, T1, P_rest], T]",
+        __arg0: Union[T0, PrefectFuture[T0]],
+        __arg1: PrefectFuture[T1],
+        *args: Any,
+        **kwargs: Any,
+    ) -> T: ...
+
+    @overload
+    def __call__(
+        self: "Task[Concatenate[list[T0], P_rest], T]",
+        __arg0: Union[PrefectFutureList[T0], PrefectFuture[list[T0]]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> T: ...
+
+    @overload
+    def __call__(
+        self: "Task[Concatenate[T0, P_rest], T]",
+        __arg0: PrefectFuture[T0],
+        *args: Any,
         **kwargs: Any,
     ) -> T: ...
 
