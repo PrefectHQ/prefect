@@ -508,6 +508,30 @@ class TestTaskSourcePolicy:
         assert keys[0] is not None
         assert keys[0] == keys[1]
 
+    def test_failing_stable_transform_does_not_break_task_definition(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        class FakeDataFrame:
+            columns: list[object] = ["a", 1]
+
+        fake_pandas = ModuleType("pandas")
+        fake_pandas.DataFrame = FakeDataFrame  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "pandas", fake_pandas)
+        monkeypatch.setattr("prefect.cache_policies.STABLE_TRANSFORMS", {})
+
+        df = FakeDataFrame()
+
+        @task
+        def uses_df() -> list[object]:
+            return df.columns
+
+        key = TaskSource().compute_key(
+            task_ctx=TaskRunContext.model_construct(task=uses_df),
+            inputs=None,
+            flow_parameters=None,
+        )
+        assert key is not None
+
 
 class TestDefaultPolicy:
     def test_changing_the_inputs_busts_the_cache(self):

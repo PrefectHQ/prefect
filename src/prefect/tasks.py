@@ -318,11 +318,11 @@ def _hash_closure(fn: Callable[..., Any]) -> str | None:
     hashes: list[str | None] = []
     for cell in cells:
         try:
-            value = cell.cell_contents
-        except ValueError:
+            value = _stabilize(cell.cell_contents)
+        except Exception:
             hashes.append(None)
             continue
-        hashes.append(hash_objects(_stabilize(value)))
+        hashes.append(hash_objects(value))
     return hash_objects(hashes)
 
 
@@ -494,7 +494,7 @@ class Task(Generic[P, R]):
 
         # Closure values are hashed once at definition time so that the cache
         # key reflects the values the task was created with, not later mutation
-        self.closure_hash: str | None = _hash_closure(fn)
+        self._closure_hash: str | None = _hash_closure(fn)
 
         # the task is considered async if its function is async or an async
         # generator

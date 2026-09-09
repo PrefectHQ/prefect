@@ -311,7 +311,7 @@ class TaskSource(CachePolicy):
         if not task_ctx:
             return None
 
-        closure_hash = getattr(task_ctx.task, "closure_hash", None)
+        closure_hash = getattr(task_ctx.task, "_closure_hash", None)
         closure = [closure_hash] if closure_hash is not None else []
 
         # Use stored source code if available (works after cloudpickle serialization)
