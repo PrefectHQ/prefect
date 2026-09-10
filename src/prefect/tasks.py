@@ -11,6 +11,7 @@ import inspect
 from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
+from types import ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -45,7 +46,13 @@ from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset
-from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy, _stabilize
+from prefect.cache_policies import (
+    DEFAULT,
+    NO_CACHE,
+    CachePolicy,
+    _stabilize,
+    _uses_task_source,
+)
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import (
@@ -304,26 +311,35 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
     return f"{qualname}-{code_hash}"
 
 
-def _hash_closure(fn: Callable[..., Any]) -> str | None:
-    """Hash the values captured by a function's closure.
-
-    Returns `None` when the function has no closure. Values that cannot be
-    hashed (and empty cells) contribute `None` to the hash, so tasks that differ
-    only by such values (for example, locks or connections) are not distinguished.
-    """
+def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
+    """Hash closure values and referenced non-callable module globals."""
     cells = getattr(fn, "__closure__", None)
-    if not cells:
-        return None
-
-    hashes: list[str | None] = []
-    for cell in cells:
+    freevars = getattr(getattr(fn, "__code__", None), "co_freevars", ())
+    closure_hashes: dict[str, str | None] = {}
+    for name, cell in zip(freevars, cells or ()):
         try:
             value = _stabilize(cell.cell_contents)
         except Exception:
-            hashes.append(None)
+            closure_hashes[name] = None
+        else:
+            closure_hashes[name] = hash_objects(value)
+
+    global_hashes: dict[str, str | None] = {}
+    try:
+        referenced_globals = inspect.getclosurevars(fn).globals
+    except TypeError:
+        referenced_globals = {}
+    for name, value in referenced_globals.items():
+        if isinstance(value, ModuleType) or callable(value):
             continue
-        hashes.append(hash_objects(value))
-    return hash_objects(hashes)
+        try:
+            global_hashes[name] = hash_objects(_stabilize(value))
+        except Exception:
+            global_hashes[name] = None
+
+    if not closure_hashes and not global_hashes:
+        return None
+    return hash_objects({"closure": closure_hashes, "globals": global_hashes})
 
 
 class Task(Generic[P, R]):
@@ -492,10 +508,6 @@ class Task(Generic[P, R]):
         except (TypeError, OSError):
             self.source_code = None
 
-        # Closure values are hashed once at definition time so that the cache
-        # key reflects the values the task was created with, not later mutation
-        self._closure_hash: str | None = _hash_closure(fn)
-
         # the task is considered async if its function is async or an async
         # generator
         self.isasync: bool = inspect.iscoroutinefunction(
@@ -585,6 +597,13 @@ class Task(Generic[P, R]):
             self.cache_policy = None
         else:
             self.cache_policy: Union[CachePolicy, type[NotSet], None] = cache_policy
+
+        # Snapshot task-source context only when the effective policy uses it.
+        self._task_source_context_hash: str | None = (
+            _hash_task_source_context(fn)
+            if _uses_task_source(self.cache_policy)
+            else None
+        )
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to

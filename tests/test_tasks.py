@@ -12,6 +12,7 @@ import weakref
 from asyncio import Event, sleep
 from functools import partial
 from pathlib import Path
+from types import FunctionType
 from typing import Any, Dict, List, Optional
 from unittest.mock import ANY, MagicMock, call
 from uuid import UUID, uuid4
@@ -2255,6 +2256,36 @@ class TestTaskCaching:
             make_scaler(3),
             make_scaler(2),
         )
+
+        @flow
+        def my_flow() -> tuple[State[int], State[int], State[int]]:
+            return (
+                double(10, return_state=True),
+                triple(10, return_state=True),
+                another_double(10, return_state=True),
+            )
+
+        first, second, third = my_flow()
+
+        assert first.result() == 20
+        assert second.result() == 30
+        assert second.name == "Completed"
+        assert third.result() == 20
+        assert third.name == "Cached"
+
+    def test_task_source_policy_distinguishes_referenced_globals(self):
+        def scale(x: int) -> int:
+            return x * FACTOR  # type: ignore[name-defined]  # noqa: F821
+
+        def make_scaler(factor: int):
+            fn = FunctionType(
+                scale.__code__,
+                {"__builtins__": __builtins__, "FACTOR": factor},
+                scale.__name__,
+            )
+            return task(fn, cache_policy=TASK_SOURCE + INPUTS, persist_result=True)
+
+        double, triple, another_double = make_scaler(2), make_scaler(3), make_scaler(2)
 
         @flow
         def my_flow() -> tuple[State[int], State[int], State[int]]:

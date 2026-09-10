@@ -4,15 +4,17 @@ import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from types import ModuleType
+from types import FunctionType, ModuleType
 from typing import Callable
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import SecretStr
 
 from prefect import task
 from prefect.cache_policies import (
     DEFAULT,
+    NO_CACHE,
     CachePolicy,
     CompoundCachePolicy,
     Inputs,
@@ -21,6 +23,7 @@ from prefect.cache_policies import (
     _None,
 )
 from prefect.context import TaskRunContext
+from prefect.settings import PREFECT_TASKS_DISABLE_CACHING, temporary_settings
 from prefect.utilities.hashing import hash_objects
 
 
@@ -403,6 +406,96 @@ class TestTaskSourcePolicy:
         assert keys[0] != keys[1]
         assert keys[0] == keys[2]
 
+    def test_referenced_global_values_change_key(self):
+        policy = TaskSource()
+
+        def scale(x: int) -> int:
+            return x * FACTOR  # type: ignore[name-defined]  # noqa: F821
+
+        def make_task(factor: int):
+            fn = FunctionType(
+                scale.__code__,
+                {"__builtins__": __builtins__, "FACTOR": factor},
+                scale.__name__,
+            )
+            return task(fn)
+
+        double, triple, another_double = make_task(2), make_task(3), make_task(2)
+        assert double.source_code == triple.source_code
+
+        keys = [
+            policy.compute_key(
+                task_ctx=TaskRunContext.model_construct(task=t),
+                inputs=None,
+                flow_parameters=None,
+            )
+            for t in (double, triple, another_double)
+        ]
+
+        assert keys[0] != keys[1]
+        assert keys[0] == keys[2]
+
+    def test_unreferenced_globals_do_not_change_key(self):
+        def constant() -> int:
+            return 1
+
+        one = task(
+            FunctionType(
+                constant.__code__,
+                {"__builtins__": __builtins__, "UNUSED": 1},
+                constant.__name__,
+            )
+        )
+        two = task(
+            FunctionType(
+                constant.__code__,
+                {"__builtins__": __builtins__, "UNUSED": 2},
+                constant.__name__,
+            )
+        )
+
+        assert one._task_source_context_hash is None
+        assert TaskSource().compute_key(
+            task_ctx=TaskRunContext.model_construct(task=one),
+            inputs=None,
+            flow_parameters=None,
+        ) == TaskSource().compute_key(
+            task_ctx=TaskRunContext.model_construct(task=two),
+            inputs=None,
+            flow_parameters=None,
+        )
+
+    @pytest.mark.parametrize(
+        "first,second",
+        [
+            (lambda x: x + 1, lambda x: x + 2),
+            (ModuleType("first"), ModuleType("second")),
+        ],
+    )
+    def test_callable_and_module_globals_are_excluded(
+        self, first: object, second: object
+    ):
+        def uses_helper(x: int) -> object:
+            return HELPER(x)  # type: ignore[name-defined]  # noqa: F821
+
+        one = task(
+            FunctionType(
+                uses_helper.__code__,
+                {"__builtins__": __builtins__, "HELPER": first},
+                uses_helper.__name__,
+            )
+        )
+        two = task(
+            FunctionType(
+                uses_helper.__code__,
+                {"__builtins__": __builtins__, "HELPER": second},
+                uses_helper.__name__,
+            )
+        )
+
+        assert one._task_source_context_hash is None
+        assert two._task_source_context_hash is None
+
     def test_unhashable_closure_values_are_ignored(self):
         policy = TaskSource()
 
@@ -451,6 +544,31 @@ class TestTaskSourcePolicy:
         assert run_count == 1
         assert key() == before
 
+    def test_global_mutation_after_definition_does_not_change_key(self):
+        policy = TaskSource()
+
+        def get_value() -> int:
+            return VALUE  # type: ignore[name-defined]  # noqa: F821
+
+        namespace = {"__builtins__": __builtins__, "VALUE": 1}
+        captured = task(FunctionType(get_value.__code__, namespace, get_value.__name__))
+        before = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=captured),
+            inputs=None,
+            flow_parameters=None,
+        )
+
+        namespace["VALUE"] = 2
+
+        assert (
+            policy.compute_key(
+                task_ctx=TaskRunContext.model_construct(task=captured),
+                inputs=None,
+                flow_parameters=None,
+            )
+            == before
+        )
+
     def test_task_without_closure_key_is_unchanged(self):
         policy = TaskSource()
 
@@ -465,6 +583,76 @@ class TestTaskSourcePolicy:
         )
 
         assert key == hash_objects(plain.source_code, raise_on_failure=True)
+
+    def test_masked_secrets_do_not_expose_or_distinguish_values(self):
+        def make_task(secret: SecretStr):
+            @task
+            def uses_secret() -> str:
+                return secret.get_secret_value()
+
+            return uses_secret
+
+        one = make_task(SecretStr("tenant-a-password"))
+        two = make_task(SecretStr("tenant-b-password"))
+
+        assert one._task_source_context_hash == two._task_source_context_hash
+        assert "tenant-a-password" not in repr(one._task_source_context_hash)
+        assert "tenant-b-password" not in repr(two._task_source_context_hash)
+
+    def test_task_source_context_hash_survives_cloudpickle(self):
+        import cloudpickle
+
+        captured = "value"
+
+        @task
+        def uses_capture() -> str:
+            return captured
+
+        restored = cloudpickle.loads(cloudpickle.dumps(uses_capture))
+
+        assert (
+            restored._task_source_context_hash == uses_capture._task_source_context_hash
+        )
+
+    def test_context_hashing_only_runs_for_effective_task_source_policy(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        context_hash = MagicMock(return_value="context-hash")
+        monkeypatch.setattr("prefect.tasks._hash_task_source_context", context_hash)
+
+        def make_fn(value: int):
+            return lambda: value
+
+        task(make_fn(1), cache_policy=NO_CACHE)
+        task(make_fn(2), cache_policy=Inputs())
+        task(make_fn(3), cache_key_fn=lambda *_: "custom")
+        task(make_fn(4), cache_policy=TaskSource(), persist_result=False)
+        task(make_fn(5), result_storage_key="custom-key")
+        with temporary_settings({PREFECT_TASKS_DISABLE_CACHING: True}):
+            task(make_fn(6), cache_policy=TaskSource())
+
+        context_hash.assert_not_called()
+
+        source_task = task(make_fn(7), cache_policy=TaskSource())
+        default_task = task(make_fn(8))
+
+        assert context_hash.call_count == 2
+        assert source_task._task_source_context_hash == "context-hash"
+        assert default_task._task_source_context_hash == "context-hash"
+
+    def test_with_options_recomputes_context_for_effective_policy(self):
+        captured = "value"
+
+        @task(cache_policy=NO_CACHE)
+        def no_cache() -> str:
+            return captured
+
+        with_source = no_cache.with_options(cache_policy=TaskSource())
+        without_source = with_source.with_options(cache_policy=NO_CACHE)
+
+        assert no_cache._task_source_context_hash is None
+        assert with_source._task_source_context_hash is not None
+        assert without_source._task_source_context_hash is None
 
     def test_closure_values_use_stable_transforms(
         self, monkeypatch: pytest.MonkeyPatch

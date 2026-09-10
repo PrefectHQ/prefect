@@ -292,13 +292,12 @@ class _None(CachePolicy):
 @dataclass
 class TaskSource(CachePolicy):
     """
-    Policy for computing a cache key based on the source code of the task.
+    Policy for computing a cache key based on a task's source and definition context.
 
-    This policy only considers raw lines of code in the task, and not the source code of nested tasks.
-
-    Values captured by the task function's closure at definition time are included in
-    the key, so tasks created by a factory with identical source but different captured
-    values do not share a cache entry. Closure values that cannot be hashed are ignored.
+    The key includes raw lines of task code and a definition-time snapshot of
+    hashable closure values and referenced non-callable module globals. It does not
+    include the source of referenced helpers. Modules, callables, masked secrets, and
+    values that cannot be hashed may not distinguish otherwise identical tasks.
     """
 
     def compute_key(
@@ -311,13 +310,13 @@ class TaskSource(CachePolicy):
         if not task_ctx:
             return None
 
-        closure_hash = getattr(task_ctx.task, "_closure_hash", None)
-        closure = [closure_hash] if closure_hash is not None else []
+        context_hash = getattr(task_ctx.task, "_task_source_context_hash", None)
+        context = [context_hash] if context_hash is not None else []
 
         # Use stored source code if available (works after cloudpickle serialization)
         lines = getattr(task_ctx.task, "source_code", None)
         if lines is not None:
-            return hash_objects(lines, *closure, raise_on_failure=True)
+            return hash_objects(lines, *context, raise_on_failure=True)
 
         # Fall back to inspect.getsource for local execution
         try:
@@ -330,7 +329,16 @@ class TaskSource(CachePolicy):
             else:
                 raise
 
-        return hash_objects(lines, *closure, raise_on_failure=True)
+        return hash_objects(lines, *context, raise_on_failure=True)
+
+
+def _uses_task_source(policy: object) -> bool:
+    """Return whether a cache policy includes task source in its key."""
+    if isinstance(policy, TaskSource):
+        return True
+    if isinstance(policy, CompoundCachePolicy):
+        return any(_uses_task_source(nested) for nested in policy.policies)
+    return False
 
 
 @dataclass
