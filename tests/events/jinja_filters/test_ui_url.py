@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ from prefect.server.schemas.core import (
     WorkQueue,
 )
 from prefect.server.schemas.responses import FlowRunResponse
+from prefect.server.utilities.user_templates import render_user_template_sync
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.types._datetime import DateTime
 
@@ -85,9 +87,16 @@ def test_automation_url(chonk_party: Automation):
 def test_received_event_url_is_preserved_when_serialized(
     woodchonk_walked: ReceivedEvent,
 ):
-    assert woodchonk_walked.model_dump(mode="json")["url"] == (
+    expected_url = (
         f"http://localhost:3000/events/event/{woodchonk_walked.occurred:%Y-%m-%d}/"
         f"{woodchonk_walked.id}"
+    )
+    serialized_event = json.loads(woodchonk_walked.model_dump_json())
+
+    assert serialized_event["url"] == expected_url
+    assert (
+        render_user_template_sync("{{ event.url }}", {"event": serialized_event})
+        == expected_url
     )
 
 
