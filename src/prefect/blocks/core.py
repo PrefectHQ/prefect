@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections.abc
 import hashlib
 import html
 import inspect
@@ -84,7 +85,18 @@ UnionTypes: tuple[object, ...] = (Union,)
 if hasattr(types, "UnionType"):
     # Python 3.10+ only
     UnionTypes = (*UnionTypes, types.UnionType)
-NestedTypes: tuple[type, ...] = (list, dict, tuple, *UnionTypes)
+
+
+def _is_nested_type(annotation: Any) -> bool:
+    """
+    Returns True if `annotation` is a supported container or union annotation
+    whose type arguments may contain nested types, e.g. `Union[A, B]`,
+    `A | B`, `list[A]`, `dict[str, A]`, or `collections.abc.Sequence[A]`.
+    """
+    origin = get_origin(annotation)
+    if origin in UnionTypes:
+        return True
+    return isinstance(origin, type) and issubclass(origin, collections.abc.Iterable)
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -168,10 +180,10 @@ def _collect_secret_fields(
 ) -> None:
     """
     Recursively collects all secret fields from a given type and adds them to the
-    secrets list, supporting nested Union / Dict / Tuple / List / BaseModel fields.
+    secrets list, supporting nested Union / container / BaseModel fields.
     Also, note, this function mutates the input secrets list, thus does not return anything.
     """
-    if get_origin(type_) in NestedTypes:
+    if _is_nested_type(type_):
         for nested_type in get_args(type_):
             _collect_secret_fields(name, nested_type, secrets)
         return
@@ -302,7 +314,7 @@ def schema_extra(schema: dict[str, Any], model: type["Block"]) -> None:
             else:
                 refs[field_name] = annotation._to_block_schema_reference_dict()  # pyright: ignore[reportPrivateUsage]
 
-        if get_origin(annotation) in NestedTypes:
+        if _is_nested_type(annotation):
             for type_ in get_args(annotation):
                 collect_block_schema_references(field_name, type_)
 
@@ -1469,9 +1481,9 @@ class Block(BaseModel, ABC):
         if Block.is_block_class(annotation):
             return True
 
-        if get_origin(annotation) in UnionTypes:
-            for annotation in get_args(annotation):
-                if Block.is_block_class(annotation):
+        if _is_nested_type(annotation):
+            for nested_annotation in get_args(annotation):
+                if Block.annotation_refers_to_block_class(nested_annotation):
                     return True
 
         return False
@@ -1510,7 +1522,7 @@ class Block(BaseModel, ABC):
                 if TYPE_CHECKING:
                     assert isinstance(coro, Coroutine)
                 await coro
-            elif get_origin(annotation) in NestedTypes:
+            elif _is_nested_type(annotation):
                 for inner_annotation in get_args(annotation):
                     await register_blocks_in_annotation(inner_annotation)
 
@@ -1606,7 +1618,7 @@ class Block(BaseModel, ABC):
             """Walk through the annotation and register any nested blocks."""
             if Block.is_block_class(annotation):
                 annotation.register_type_and_schema(_sync=True)
-            elif get_origin(annotation) in NestedTypes:
+            elif _is_nested_type(annotation):
                 for inner_annotation in get_args(annotation):
                     register_blocks_in_annotation_sync(inner_annotation, sync_client)
 
@@ -2023,7 +2035,7 @@ class Block(BaseModel, ABC):
                 # recurse into the nested block's own fields
                 for nested in cls._collect_nested_block_types(annotation).items():
                     result.setdefault(nested[0], nested[1])
-        if get_origin(annotation) in NestedTypes:
+        if _is_nested_type(annotation):
             for arg in get_args(annotation):
                 cls._walk_annotation_for_blocks(arg, result)
 
