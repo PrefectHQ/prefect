@@ -297,8 +297,8 @@ class TaskSource(CachePolicy):
     The key includes raw lines of task code and a definition-time snapshot of
     hashable closure values and referenced non-callable module globals. It does not
     include the source of referenced helpers. Names unresolved at definition time are
-    ignored. Modules, callables, masked secrets, and values that cannot be hashed may
-    not distinguish otherwise identical tasks.
+    ignored. Modules, callables, opaque objects, masked secrets, and values that
+    cannot be hashed may not distinguish otherwise identical tasks.
     """
 
     def compute_key(
