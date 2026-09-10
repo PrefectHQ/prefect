@@ -449,10 +449,20 @@ class Settings(PrefectBaseSettings):
         for setting, value in updates.items():
             set_in_dict(updates_obj, _get_setting_accessor(setting), value)
 
+        current_values = self.model_dump(exclude_unset=True)
+        if "profiles_path" not in self.model_fields_set:
+            current_values.pop("profiles_path", None)
+        if "local_storage_path" not in self.results.model_fields_set:
+            current_values.get("results", {}).pop("local_storage_path", None)
+        if "config_path" not in self.logging.model_fields_set:
+            current_values.get("logging", {}).pop("config_path", None)
+        if "memo_store_path" not in self.server.model_fields_set:
+            current_values.get("server", {}).pop("memo_store_path", None)
+
         new_settings = self.__class__.model_validate(
             deep_merge_dicts(
                 set_defaults_obj,
-                self.model_dump(exclude_unset=True),
+                current_values,
                 restore_defaults_obj,
                 updates_obj,
             )

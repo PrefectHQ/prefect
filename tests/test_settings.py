@@ -3245,6 +3245,19 @@ class TestWorkerDebugMode:
 
 
 class TestHomeDependentDefaults:
+    def test_copy_with_update_recomputes_home_dependent_defaults(
+        self, tmp_path: Path
+    ) -> None:
+        settings = Settings(home=tmp_path / "old")
+        new_home = tmp_path / "new"
+
+        updated = settings.copy_with_update(updates={PREFECT_HOME: new_home})
+
+        assert updated.profiles_path == new_home / "profiles.toml"
+        assert updated.results.local_storage_path == new_home / "storage"
+        assert updated.logging.config_path == new_home / "logging.yml"
+        assert updated.server.memo_store_path == new_home / "memo_store.toml"
+
     def test_local_storage_path_defaults_to_prefect_home_storage(self, monkeypatch, tmp_path):
         custom_home = tmp_path / "custom_prefect_home"
         monkeypatch.setenv("PREFECT_HOME", str(custom_home))
