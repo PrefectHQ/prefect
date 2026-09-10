@@ -947,6 +947,9 @@ class TestAPICompatibility:
 
         class SequenceParent(Block):
             children: collections.abc.Sequence[Child]
+            generated: collections.abc.Generator[Child, None, int]
+            return_position: collections.abc.Generator[int, None, Child]
+            send_secret: collections.abc.Generator[int, SecretStr, None]
             kind: Literal["a", "b"] = "a"
             child_type: type[Child]
 
@@ -958,8 +961,12 @@ class TestAPICompatibility:
         list_refs = ListParent.model_json_schema()["block_schema_references"]
         assert list_refs["children"] == expected_reference
 
-        sequence_refs = SequenceParent.model_json_schema()["block_schema_references"]
-        assert sequence_refs == {"children": expected_reference}
+        sequence_schema = SequenceParent.model_json_schema()
+        assert sequence_schema["block_schema_references"] == {
+            "children": expected_reference,
+            "generated": expected_reference,
+        }
+        assert sequence_schema["secret_fields"] == []
 
     async def test_block_load(
         self, test_block, block_document, in_memory_prefect_client
