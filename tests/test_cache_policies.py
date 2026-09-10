@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import threading
+from collections import namedtuple
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -11,7 +12,7 @@ from typing import Callable
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic import BaseModel, PrivateAttr, SecretStr
+from pydantic import BaseModel, Field, PrivateAttr, SecretStr
 
 from prefect import task
 from prefect.cache_policies import (
@@ -561,6 +562,21 @@ class TestTaskSourcePolicy:
 
         assert one._task_source_context_hash != two._task_source_context_hash
 
+    def test_empty_closure_cell_differs_from_captured_none(self):
+        def make_task(empty: bool):
+            captured = None
+
+            def read() -> None:
+                return captured  # noqa: F821
+
+            if empty:
+                del captured
+            return task(read)
+
+        empty, populated = make_task(True), make_task(False)
+
+        assert empty._task_source_context_hash != populated._task_source_context_hash
+
     def test_globals_referenced_by_nested_code_change_key(self):
         def outer() -> int:
             def inner() -> int:
@@ -724,6 +740,26 @@ print(_hash_task_source_context(make_task()))
 
         assert aliased._task_source_context_hash != distinct._task_source_context_hash
 
+    def test_alias_relationships_cross_unordered_containers(self):
+        @dataclass(frozen=True)
+        class Value:
+            number: int
+
+        def make_task(shared: bool):
+            first = Value(1)
+            member = first if shared else Value(1)
+            items = frozenset({member})
+
+            @task
+            def value_is_shared() -> bool:
+                return next(iter(items)) is first
+
+            return value_is_shared
+
+        aliased, distinct = make_task(True), make_task(False)
+
+        assert aliased._task_source_context_hash != distinct._task_source_context_hash
+
     def test_model_fields_with_sets_are_stable_across_hash_seeds(self):
         script = """
 from pydantic import BaseModel
@@ -792,6 +828,22 @@ print(_hash_task_source_context(make_task()))
 
         assert one._task_source_context_hash != two._task_source_context_hash
 
+    def test_namedtuple_values_retain_elements_without_instance_state(self):
+        Point = namedtuple("Point", "value")
+
+        def make_task(value: int):
+            captured = Point(value)
+
+            @task
+            def read_value() -> int:
+                return captured.value
+
+            return read_value
+
+        one, two = make_task(1), make_task(2)
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
     def test_pydantic_private_attributes_change_context_identity(self):
         class Model(BaseModel):
             _factor: int = PrivateAttr()
@@ -809,6 +861,63 @@ print(_hash_task_source_context(make_task()))
         double, triple = make_task(2), make_task(3)
 
         assert double._task_source_context_hash != triple._task_source_context_hash
+
+    def test_pydantic_excluded_fields_change_context_identity(self):
+        class Model(BaseModel):
+            factor: int = Field(exclude=True)
+
+        def make_task(factor: int):
+            captured = Model(factor=factor)
+
+            @task
+            def read_factor() -> int:
+                return captured.factor
+
+            return read_factor
+
+        double, triple = make_task(2), make_task(3)
+
+        assert double._task_source_context_hash != triple._task_source_context_hash
+
+    def test_additional_dataclass_state_changes_context_identity(self):
+        @dataclass
+        class Config:
+            value: int
+
+        def make_task(factor: int):
+            captured = Config(1)
+            captured.factor = factor  # type: ignore[attr-defined]
+
+            @task
+            def read_factor() -> int:
+                return captured.factor  # type: ignore[attr-defined, no-any-return]
+
+            return read_factor
+
+        double, triple = make_task(2), make_task(3)
+
+        assert double._task_source_context_hash != triple._task_source_context_hash
+
+    def test_secrets_nested_in_opaque_objects_are_not_distinguishing(self):
+        class Wrapper:
+            def __init__(self, value: str):
+                self.secret = SecretStr(value)
+
+        def make_task(value: str):
+            captured = Wrapper(value)
+
+            @task
+            def read_secret() -> str:
+                return captured.secret.get_secret_value()
+
+            return read_secret
+
+        one = make_task("tenant-a-password")
+        two = make_task("tenant-b-password")
+
+        assert one._task_source_context_hash == two._task_source_context_hash
+        assert "tenant-a-password" not in repr(one._task_source_context_hash)
+        assert "tenant-b-password" not in repr(two._task_source_context_hash)
 
     @pytest.mark.skipif(sys.version_info < (3, 12), reason="type statements need 3.12")
     def test_type_alias_scopes_include_referenced_globals(self):
@@ -1051,6 +1160,32 @@ print(_hash_task_source_context(make_task()))
 
         assert keys[0] is not None
         assert keys[0] == keys[1]
+
+    def test_allocating_transforms_do_not_create_false_aliases(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        class AllocatingTransform:
+            def __init__(self, value: int):
+                self.value = value
+
+        monkeypatch.setattr(
+            "prefect.cache_policies.STABLE_TRANSFORMS",
+            {AllocatingTransform: lambda value: [value.value]},
+        )
+
+        def make_task(second_value: int):
+            first = AllocatingTransform(1)
+            second = AllocatingTransform(second_value)
+
+            @task
+            def values() -> tuple[int, int]:
+                return first.value, second.value
+
+            return values
+
+        one, two = make_task(2), make_task(3)
+
+        assert one._task_source_context_hash != two._task_source_context_hash
 
     def test_failing_stable_transform_does_not_break_task_definition(
         self, monkeypatch: pytest.MonkeyPatch

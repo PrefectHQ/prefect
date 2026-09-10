@@ -32,7 +32,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretBytes, SecretStr
 from typing_extensions import (
     Literal,
     ParamSpec,
@@ -328,6 +328,13 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
 
     def fingerprint(value: Any) -> str | None:
         references: dict[int, int] = {}
+        retained_values: list[Any] = []
+
+        def instance_state(item: Any) -> dict[str, Any]:
+            try:
+                return vars(item)
+            except TypeError:
+                return {}
 
         def safe_prepare(item: Any) -> Any:
             try:
@@ -337,8 +344,11 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
 
         def prepare(item: Any) -> Any:
             item = _stabilize(item)
+            retained_values.append(item)
             if isinstance(item, ModuleType) or callable(item):
                 return ("excluded", None)
+            if isinstance(item, (SecretBytes, SecretStr)):
+                return ("secret", type(item).__qualname__, str(item))
 
             if (
                 isinstance(item, (dict, list, tuple, set, frozenset))
@@ -366,18 +376,25 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     "dict-subclass",
                     type(item).__qualname__,
                     safe_prepare(dict(item)),
-                    safe_prepare(vars(item)),
+                    safe_prepare(instance_state(item)),
                 )
             if type(item) in {set, frozenset}:
-                prepared = [fingerprint(value) or "unhashable" for value in item]
-                return (type(item).__name__, tuple(sorted(prepared)))
+                ordered_values = sorted(
+                    item, key=lambda value: fingerprint(value) or "unhashable"
+                )
+                return (
+                    type(item).__name__,
+                    tuple(safe_prepare(value) for value in ordered_values),
+                )
             if isinstance(item, (set, frozenset)):
-                prepared = [fingerprint(value) or "unhashable" for value in item]
+                ordered_values = sorted(
+                    item, key=lambda value: fingerprint(value) or "unhashable"
+                )
                 return (
                     f"{type(item).__name__}-subclass",
                     type(item).__qualname__,
-                    tuple(sorted(prepared)),
-                    safe_prepare(vars(item)),
+                    tuple(safe_prepare(value) for value in ordered_values),
+                    safe_prepare(instance_state(item)),
                 )
             if type(item) is list:
                 return ("list", tuple(safe_prepare(value) for value in item))
@@ -386,7 +403,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     "list-subclass",
                     type(item).__qualname__,
                     tuple(safe_prepare(value) for value in item),
-                    safe_prepare(vars(item)),
+                    safe_prepare(instance_state(item)),
                 )
             if type(item) is tuple:
                 return ("tuple", tuple(safe_prepare(value) for value in item))
@@ -395,16 +412,22 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     "tuple-subclass",
                     type(item).__qualname__,
                     tuple(safe_prepare(value) for value in item),
-                    safe_prepare(vars(item)),
+                    safe_prepare(instance_state(item)),
                 )
             if isinstance(item, BaseModel):
                 return (
                     "model",
                     type(item).__qualname__,
-                    safe_prepare(item.model_dump(mode="python")),
+                    safe_prepare(item.__dict__),
                     safe_prepare(item.__pydantic_private__),
                 )
             if is_dataclass(item) and not isinstance(item, type):
+                field_names = {field.name for field in fields(item)}
+                additional_state = {
+                    name: value
+                    for name, value in instance_state(item).items()
+                    if name not in field_names
+                }
                 return (
                     "dataclass",
                     type(item).__qualname__,
@@ -412,7 +435,10 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                         (field.name, safe_prepare(getattr(item, field.name)))
                         for field in fields(item)
                     ),
+                    safe_prepare(additional_state),
                 )
+            if hasattr(item, "__dict__") or hasattr(type(item), "__slots__"):
+                raise TypeError("Opaque objects are not safe task-source context")
             return (
                 "leaf",
                 type(item).__qualname__,
@@ -430,7 +456,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
         try:
             value = cell.cell_contents
         except Exception:
-            closure_values[name] = None
+            closure_values[name] = ("empty-cell", None)
         else:
             if isinstance(value, ModuleType) or callable(value):
                 continue
