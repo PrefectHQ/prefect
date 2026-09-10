@@ -439,6 +439,28 @@ class TestTaskSourcePolicy:
 
         assert one._task_source_context_hash == two._task_source_context_hash
 
+    def test_captured_container_types_are_distinguishing(self):
+        def make_task(captured):
+            @task
+            def read():
+                return captured
+
+            return read
+
+        assert (
+            make_task([1])._task_source_context_hash
+            != make_task((1,))._task_source_context_hash
+        )
+
+    def test_captured_iterators_are_not_consumed(self):
+        captured = iter([1, 2])
+
+        @task
+        def read():
+            return list(captured)
+
+        assert list(captured) == [1, 2]
+
     def test_task_without_closure_key_is_unchanged(self):
         policy = TaskSource()
 

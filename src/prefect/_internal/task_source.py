@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Iterator
 from types import ModuleType
 from typing import Any, Callable
 
@@ -12,10 +13,15 @@ def hash_task_source_context(fn: Callable[..., Any]) -> str | None:
     """Hash captured values that supplement a task's source identity."""
 
     def value_hash(value: Any) -> str | None:
-        if isinstance(value, ModuleType) or inspect.isclass(value) or callable(value):
+        if (
+            isinstance(value, (Iterator, ModuleType))
+            or inspect.isclass(value)
+            or callable(value)
+        ):
             return None
         try:
-            return hash_objects(_stabilize(value))
+            stable = _stabilize(value)
+            return hash_objects((type(stable).__qualname__, stable))
         except Exception:
             return None
 
