@@ -4,7 +4,7 @@ import subprocess
 import sys
 import threading
 from collections import namedtuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from types import FunctionType, ModuleType
@@ -12,7 +12,7 @@ from typing import Callable
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic import BaseModel, Field, PrivateAttr, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, SecretStr
 
 from prefect import task
 from prefect.cache_policies import (
@@ -577,6 +577,21 @@ class TestTaskSourcePolicy:
 
         assert empty._task_source_context_hash != populated._task_source_context_hash
 
+    def test_empty_closure_cell_marker_cannot_collide_with_user_value(self):
+        def make_task(empty: bool):
+            captured: object = ("empty",)
+
+            def read() -> object:
+                return captured  # noqa: F821
+
+            if empty:
+                del captured
+            return task(read)
+
+        empty, populated = make_task(True), make_task(False)
+
+        assert empty._task_source_context_hash != populated._task_source_context_hash
+
     def test_globals_referenced_by_nested_code_change_key(self):
         def outer() -> int:
             def inner() -> int:
@@ -808,6 +823,27 @@ print(_hash_task_source_context(make_task()))
 
         assert one._task_source_context_hash != two._task_source_context_hash
 
+    def test_container_subclasses_retain_slotted_state(self):
+        class TaggedList(list[object]):
+            __slots__ = ("tag",)
+
+            def __init__(self, tag: str):
+                super().__init__([1])
+                self.tag = tag
+
+        def make_task(tag: str):
+            captured = TaggedList(tag)
+
+            @task
+            def read_tag() -> str:
+                return captured.tag
+
+            return read_tag
+
+        one, two = make_task("one"), make_task("two")
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
     def test_tuple_subclasses_retain_state(self):
         class TaggedTuple(tuple[object, ...]):
             def __new__(cls, tag: str):
@@ -879,6 +915,23 @@ print(_hash_task_source_context(make_task()))
 
         assert double._task_source_context_hash != triple._task_source_context_hash
 
+    def test_pydantic_extra_fields_change_context_identity(self):
+        class Model(BaseModel):
+            model_config = ConfigDict(extra="allow")
+
+        def make_task(factor: int):
+            captured = Model(factor=factor)
+
+            @task
+            def read_factor() -> int:
+                return captured.factor  # type: ignore[attr-defined, no-any-return]
+
+            return read_factor
+
+        double, triple = make_task(2), make_task(3)
+
+        assert double._task_source_context_hash != triple._task_source_context_hash
+
     def test_additional_dataclass_state_changes_context_identity(self):
         @dataclass
         class Config:
@@ -891,6 +944,25 @@ print(_hash_task_source_context(make_task()))
             @task
             def read_factor() -> int:
                 return captured.factor  # type: ignore[attr-defined, no-any-return]
+
+            return read_factor
+
+        double, triple = make_task(2), make_task(3)
+
+        assert double._task_source_context_hash != triple._task_source_context_hash
+
+    def test_missing_dataclass_field_does_not_hide_readable_fields(self):
+        @dataclass
+        class Config:
+            factor: int
+            missing: int = field(init=False)
+
+        def make_task(factor: int):
+            captured = Config(factor)
+
+            @task
+            def read_factor() -> int:
+                return captured.factor
 
             return read_factor
 
@@ -984,6 +1056,28 @@ print(_hash_task_source_context(make_task()))
                 template.__name__,
             )
         )
+
+        assert one._task_source_context_hash is None
+        assert two._task_source_context_hash is None
+
+    def test_nested_class_local_names_are_not_global_context(self):
+        def template() -> int:
+            class Namespace:
+                VALUE = 1
+                ALIAS = VALUE
+
+            return Namespace.ALIAS
+
+        def make_task(value: int):
+            return task(
+                FunctionType(
+                    template.__code__,
+                    {"__builtins__": __builtins__, "VALUE": value},
+                    template.__name__,
+                )
+            )
+
+        one, two = make_task(2), make_task(3)
 
         assert one._task_source_context_hash is None
         assert two._task_source_context_hash is None
@@ -1186,6 +1280,32 @@ print(_hash_task_source_context(make_task()))
         one, two = make_task(2), make_task(3)
 
         assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_allocating_transforms_preserve_original_aliases(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        class AllocatingTransform:
+            def __init__(self, value: int):
+                self.value = value
+
+        monkeypatch.setattr(
+            "prefect.cache_policies.STABLE_TRANSFORMS",
+            {AllocatingTransform: lambda value: [value.value]},
+        )
+
+        def make_task(shared: bool):
+            first = AllocatingTransform(1)
+            second = first if shared else AllocatingTransform(1)
+
+            @task
+            def values_are_shared() -> bool:
+                return first is second
+
+            return values_are_shared
+
+        aliased, distinct = make_task(True), make_task(False)
+
+        assert aliased._task_source_context_hash != distinct._task_source_context_hash
 
     def test_failing_stable_transform_does_not_break_task_definition(
         self, monkeypatch: pytest.MonkeyPatch

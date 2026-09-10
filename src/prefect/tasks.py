@@ -331,10 +331,26 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
         retained_values: list[Any] = []
 
         def instance_state(item: Any) -> dict[str, Any]:
+            state: dict[str, Any] = {}
             try:
-                return vars(item)
+                state.update(vars(item))
             except TypeError:
-                return {}
+                pass
+            for cls in type(item).__mro__:
+                slots = cls.__dict__.get("__slots__", ())
+                if isinstance(slots, str):
+                    slots = (slots,)
+                for name in slots:
+                    if name not in {"__dict__", "__weakref__"} and hasattr(item, name):
+                        state[name] = getattr(item, name)
+            return state
+
+        def prepare_attribute(item: Any, name: str) -> Any:
+            try:
+                value = getattr(item, name)
+            except Exception:
+                return ("missing", None)
+            return safe_prepare(value)
 
         def safe_prepare(item: Any) -> Any:
             try:
@@ -343,7 +359,10 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return ("unhashable", None)
 
         def prepare(item: Any) -> Any:
-            item = _stabilize(item)
+            original = item
+            item = _stabilize(original)
+            identity = original if item is not original else item
+            retained_values.append(original)
             retained_values.append(item)
             if isinstance(item, ModuleType) or callable(item):
                 return ("excluded", None)
@@ -355,9 +374,9 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 or isinstance(item, BaseModel)
                 or (is_dataclass(item) and not isinstance(item, type))
             ):
-                if (reference := references.get(id(item))) is not None:
+                if (reference := references.get(id(identity))) is not None:
                     return ("reference", reference)
-                references[id(item)] = len(references)
+                references[id(identity)] = len(references)
 
             if type(item) is dict:
                 ordered_items = sorted(
@@ -419,6 +438,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     "model",
                     type(item).__qualname__,
                     safe_prepare(item.__dict__),
+                    safe_prepare(item.__pydantic_extra__),
                     safe_prepare(item.__pydantic_private__),
                 )
             if is_dataclass(item) and not isinstance(item, type):
@@ -432,7 +452,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     "dataclass",
                     type(item).__qualname__,
                     tuple(
-                        (field.name, safe_prepare(getattr(item, field.name)))
+                        (field.name, prepare_attribute(item, field.name))
                         for field in fields(item)
                     ),
                     safe_prepare(additional_state),
@@ -456,11 +476,11 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
         try:
             value = cell.cell_contents
         except Exception:
-            closure_values[name] = ("empty-cell", None)
+            closure_values[name] = ("empty",)
         else:
             if isinstance(value, ModuleType) or callable(value):
                 continue
-            closure_values[name] = value
+            closure_values[name] = ("value", value)
 
     global_values: dict[str, Any] = {}
     try:
@@ -469,13 +489,23 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
         referenced_globals = {}
 
     def global_names(code: CodeType) -> set[str]:
+        instructions = tuple(dis.get_instructions(code))
+        local_names = {
+            instruction.argval
+            for instruction in instructions
+            if instruction.opname in {"DELETE_NAME", "STORE_NAME"}
+            and isinstance(instruction.argval, str)
+        }
         names = {
             instruction.argval
-            for instruction in dis.get_instructions(code)
+            for instruction in instructions
             if instruction.opname
             in {"LOAD_FROM_DICT_OR_GLOBALS", "LOAD_GLOBAL", "LOAD_NAME"}
             and isinstance(instruction.argval, str)
             and instruction.argval != "__name__"
+            and not (
+                instruction.opname == "LOAD_NAME" and instruction.argval in local_names
+            )
         }
         for constant in code.co_consts:
             if isinstance(constant, CodeType):
@@ -495,7 +525,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
     for name, value in referenced_globals.items():
         if isinstance(value, ModuleType) or callable(value):
             continue
-        global_values[name] = value
+        global_values[name] = ("value", value)
 
     if not closure_values and not global_values:
         return None
