@@ -1,4 +1,5 @@
 import itertools
+import os
 import subprocess
 import sys
 import threading
@@ -536,6 +537,116 @@ class TestTaskSourcePolicy:
         captured_task = make_task()
 
         assert captured_task._task_source_context_hash is not None
+
+    def test_empty_closure_cell_does_not_hide_referenced_globals(self):
+        def make_task(value: int):
+            captured = "unused"
+
+            def template(use_capture: bool = False) -> int:
+                if use_capture:
+                    return captured  # noqa: F821
+                return VALUE  # type: ignore[name-defined]  # noqa: F821
+
+            fn = FunctionType(
+                template.__code__,
+                {"__builtins__": __builtins__, "VALUE": value},
+                template.__name__,
+                closure=template.__closure__,
+            )
+            del captured
+            return task(fn)
+
+        one, two = make_task(1), make_task(2)
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_globals_referenced_by_nested_code_change_key(self):
+        def outer() -> int:
+            def inner() -> int:
+                return VALUE  # type: ignore[name-defined]  # noqa: F821
+
+            return inner()
+
+        def make_task(value: int):
+            return task(
+                FunctionType(
+                    outer.__code__,
+                    {"__builtins__": __builtins__, "VALUE": value},
+                    outer.__name__,
+                )
+            )
+
+        one, two = make_task(1), make_task(2)
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
+    @pytest.mark.parametrize(
+        "first,second",
+        [
+            (lambda value: value + 1, lambda value: value + 2),
+            (ModuleType("first"), ModuleType("second")),
+        ],
+    )
+    def test_callable_and_module_closure_values_are_excluded(
+        self, first: object, second: object
+    ):
+        def make_task(helper: object):
+            @task
+            def uses_helper(value: int) -> object:
+                return helper(value)  # type: ignore[operator]
+
+            return uses_helper
+
+        one, two = make_task(first), make_task(second)
+
+        assert one._task_source_context_hash is None
+        assert two._task_source_context_hash is None
+
+    @pytest.mark.parametrize(
+        "first,second",
+        [
+            ({"alpha", "beta"}, {"beta", "alpha"}),
+            (frozenset({1, 2}), frozenset({2, 1})),
+        ],
+    )
+    def test_unordered_closure_values_have_stable_keys(
+        self, first: object, second: object
+    ):
+        def make_task(value: object):
+            @task
+            def captured() -> object:
+                return value
+
+            return captured
+
+        one, two = make_task(first), make_task(second)
+
+        assert one._task_source_context_hash == two._task_source_context_hash
+
+    def test_unordered_closure_values_are_stable_across_hash_seeds(self):
+        script = """
+from prefect.tasks import _hash_task_source_context
+
+def make_task():
+    value = {"alpha", "beta", "gamma"}
+    def captured():
+        return value
+    return captured
+
+print(_hash_task_source_context(make_task()))
+"""
+        hashes = [
+            subprocess.run(
+                [sys.executable, "-c", script],
+                check=True,
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PYTHONHASHSEED": seed},
+            ).stdout
+            for seed in ("1", "2")
+        ]
+
+        assert hashes[0] == hashes[1]
 
     def test_closure_mutation_after_definition_does_not_change_key(self):
         policy = TaskSource()

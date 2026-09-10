@@ -7,11 +7,12 @@ Module containing the base workflow task class and decorator - for most use case
 from __future__ import annotations
 
 import datetime
+import dis
 import inspect
 from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
-from types import ModuleType
+from types import CodeType, ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -313,27 +314,79 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
 
 def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
     """Hash closure values and referenced non-callable module globals."""
+
+    def prepare(value: Any) -> Any:
+        value = _stabilize(value)
+        if isinstance(value, dict):
+            items = [
+                hash_objects((prepare(key), prepare(item)), raise_on_failure=True)
+                for key, item in value.items()
+            ]
+            return ("dict", tuple(sorted(items)))
+        if isinstance(value, (set, frozenset)):
+            items = [
+                hash_objects(prepare(item), raise_on_failure=True) for item in value
+            ]
+            return (
+                type(value).__name__,
+                tuple(sorted(items)),
+            )
+        if isinstance(value, list):
+            return ("list", tuple(prepare(item) for item in value))
+        if isinstance(value, tuple):
+            return ("tuple", tuple(prepare(item) for item in value))
+        return value
+
     cells = getattr(fn, "__closure__", None)
     freevars = getattr(getattr(fn, "__code__", None), "co_freevars", ())
     closure_hashes: dict[str, str | None] = {}
     for name, cell in zip(freevars, cells or ()):
         try:
-            value = _stabilize(cell.cell_contents)
+            value = cell.cell_contents
         except Exception:
             closure_hashes[name] = None
         else:
-            closure_hashes[name] = hash_objects(value)
+            if isinstance(value, ModuleType) or callable(value):
+                continue
+            try:
+                closure_hashes[name] = hash_objects(prepare(value))
+            except Exception:
+                closure_hashes[name] = None
 
     global_hashes: dict[str, str | None] = {}
     try:
         referenced_globals = inspect.getclosurevars(fn).globals
     except (TypeError, ValueError):
         referenced_globals = {}
+
+    def global_names(code: CodeType) -> set[str]:
+        names = {
+            instruction.argval
+            for instruction in dis.get_instructions(code)
+            if instruction.opname in {"LOAD_GLOBAL", "LOAD_NAME"}
+            and isinstance(instruction.argval, str)
+        }
+        for constant in code.co_consts:
+            if isinstance(constant, CodeType):
+                names.update(global_names(constant))
+        return names
+
+    namespace = getattr(fn, "__globals__", {})
+    code = getattr(fn, "__code__", None)
+    if isinstance(code, CodeType):
+        referenced_globals = {
+            **{
+                name: namespace[name]
+                for name in global_names(code)
+                if name in namespace
+            },
+            **referenced_globals,
+        }
     for name, value in referenced_globals.items():
         if isinstance(value, ModuleType) or callable(value):
             continue
         try:
-            global_hashes[name] = hash_objects(_stabilize(value))
+            global_hashes[name] = hash_objects(prepare(value))
         except Exception:
             global_hashes[name] = None
 
