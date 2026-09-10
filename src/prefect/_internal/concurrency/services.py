@@ -312,13 +312,37 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """
         with cls._instance_lock:
             key = hash((cls, *args))
-            if key not in cls._instances:
-                cls._instances[key] = cls._new_instance(*args)
+            instance = cls._instances.get(key)
 
-            return cls._instances[key]
+            # A stopped service can never accept items again, so a stopped
+            # instance must be replaced instead of returned. A new instance can
+            # already be stopped when `_new_instance` returns: its `_run` may
+            # have exited — and removed itself from `_instances` — on the global
+            # loop before it is stored here.
+            if instance is None or instance._stopped:
+                instance = cls._new_instance(*args)
+
+                if instance._stopped:
+                    # The service stopped while it was being created; try once
+                    # more so a transient startup failure is not surfaced to the
+                    # caller. A service that persistently fails to start is
+                    # still returned and `send` will report the failure.
+                    instance = cls._new_instance(*args)
+
+                if not instance._stopped:
+                    cls._instances[key] = instance
+
+            return instance
 
     def _remove_instance(self):
-        self._instances.pop(self._key, None)
+        # Mark the service as stopped before removing it so that `instance()`
+        # cannot return this service to a new caller
+        self._stopped = True
+
+        # Only remove this service if it is still cached — a replacement may
+        # already be stored under the same key
+        if self._instances.get(self._key) is self:
+            self._instances.pop(self._key, None)
 
     @classmethod
     def _new_instance(cls, *args: Hashable) -> Self:
