@@ -373,18 +373,13 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return ("excluded", None)
             if isinstance(item, (SecretBytes, SecretStr)):
                 return ("secret", type(item).__qualname__, str(item))
-            if isinstance(
-                item,
-                (
-                    Decimal,
-                    Enum,
-                    Fraction,
-                    Path,
-                    UUID,
-                    datetime.date,
-                    datetime.time,
-                    datetime.timedelta,
-                ),
+            if type(item) in (
+                Decimal,
+                Fraction,
+                UUID,
+                datetime.date,
+                datetime.time,
+                datetime.timedelta,
             ):
                 return (
                     "value",
@@ -414,6 +409,9 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     safe_prepare(item),
                 )
 
+            if type(item) is bytearray:
+                return ("bytearray", bytes(item))
+
             if type(item) is dict:
                 ordered_items = sorted(
                     item.items(),
@@ -427,10 +425,17 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     ),
                 )
             if isinstance(item, dict):
+                ordered_items = sorted(
+                    dict.items(item),
+                    key=lambda pair: fingerprint(pair[0]) or "unhashable",
+                )
                 return (
                     "dict-subclass",
                     type(item).__qualname__,
-                    safe_prepare(dict(item)),
+                    tuple(
+                        (safe_prepare(key), safe_prepare(value))
+                        for key, value in ordered_items
+                    ),
                     safe_prepare(instance_state(item)),
                 )
             if type(item) in {set, frozenset}:
@@ -504,6 +509,25 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     "stable-leaf",
                     type(item).__qualname__,
                     hash_objects(item, raise_on_failure=True),
+                )
+            if isinstance(
+                item,
+                (
+                    Decimal,
+                    Enum,
+                    Fraction,
+                    Path,
+                    UUID,
+                    datetime.date,
+                    datetime.time,
+                    datetime.timedelta,
+                ),
+            ):
+                return (
+                    "value-subclass",
+                    type(item).__qualname__,
+                    hash_objects(item, raise_on_failure=True),
+                    safe_prepare(instance_state(item)),
                 )
             if hasattr(item, "__dict__") or hasattr(type(item), "__slots__"):
                 raise TypeError("Opaque objects are not safe task-source context")

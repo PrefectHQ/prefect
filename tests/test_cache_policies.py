@@ -5,6 +5,7 @@ import sys
 import threading
 from collections import deque, namedtuple
 from dataclasses import dataclass, field
+from datetime import date
 from enum import Enum
 from pathlib import Path
 from types import FunctionType, ModuleType
@@ -827,6 +828,62 @@ print(_hash_task_source_context(make_task()))
 
         def make_task(tag: str):
             captured = TaggedList(tag)
+
+            @task
+            def read_tag() -> str:
+                return captured.tag
+
+            return read_tag
+
+        one, two = make_task("one"), make_task("two")
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_dict_subclasses_use_base_storage(self):
+        class OverriddenMapping(dict[str, int]):
+            def __iter__(self):
+                return iter(("synthetic",))
+
+            def keys(self):
+                return {"synthetic": 0}.keys()
+
+            def __getitem__(self, key: str) -> int:
+                return 0
+
+        def make_task(value: int):
+            captured = OverriddenMapping(actual=value)
+
+            @task
+            def read_value() -> int:
+                return dict.__getitem__(captured, "actual")
+
+            return read_value
+
+        one, two = make_task(1), make_task(2)
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_bytearray_contents_change_context_identity(self):
+        def make_task(value: bytes):
+            captured = bytearray(value)
+
+            @task
+            def read_value() -> bytes:
+                return bytes(captured)
+
+            return read_value
+
+        one, two = make_task(b"one"), make_task(b"two")
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_standard_value_subclasses_retain_state(self):
+        class TaggedDate(date):
+            pass
+
+        def make_task(tag: str):
+            captured = TaggedDate(2026, 9, 10)
+            captured.tag = tag
 
             @task
             def read_tag() -> str:
