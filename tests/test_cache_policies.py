@@ -755,6 +755,21 @@ print(_hash_task_source_context(make_task()))
 
         assert aliased._task_source_context_hash != distinct._task_source_context_hash
 
+    def test_mutable_leaf_aliases_change_context_identity(self):
+        def make_task(shared: bool):
+            first = bytearray(b"value")
+            second = first if shared else bytearray(b"value")
+
+            @task
+            def values_are_shared() -> bool:
+                return first is second
+
+            return values_are_shared
+
+        aliased, distinct = make_task(True), make_task(False)
+
+        assert aliased._task_source_context_hash != distinct._task_source_context_hash
+
     def test_alias_relationships_cross_unordered_containers(self):
         @dataclass(frozen=True)
         class Value:
@@ -837,6 +852,30 @@ print(_hash_task_source_context(make_task()))
             @task
             def read_tag() -> str:
                 return captured.tag
+
+            return read_tag
+
+        one, two = make_task("one"), make_task("two")
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_container_subclasses_retain_private_slotted_state(self):
+        class TaggedList(list[object]):
+            __slots__ = ("__tag",)
+
+            def __init__(self, tag: str):
+                super().__init__([1])
+                self.__tag = tag
+
+            def tag(self) -> str:
+                return self.__tag
+
+        def make_task(tag: str):
+            captured = TaggedList(tag)
+
+            @task
+            def read_tag() -> str:
+                return captured.tag()
 
             return read_tag
 
@@ -1082,6 +1121,38 @@ print(_hash_task_source_context(make_task()))
         assert one._task_source_context_hash is None
         assert two._task_source_context_hash is None
 
+    @pytest.mark.parametrize(
+        "class_body",
+        [
+            "before = VALUE\n        VALUE = 100",
+            "VALUE = 100\n        del VALUE\n        before = VALUE",
+        ],
+    )
+    def test_nested_class_global_reads_follow_execution_order(self, class_body: str):
+        namespace: dict[str, object] = {}
+        exec(
+            "def template():\n"
+            "    class Namespace:\n"
+            f"        {class_body}\n"
+            "    return Namespace.before\n",
+            namespace,
+        )
+        template = namespace["template"]
+        assert isinstance(template, FunctionType)
+
+        def make_task(value: int):
+            return task(
+                FunctionType(
+                    template.__code__,
+                    {"__builtins__": __builtins__, "VALUE": value},
+                    template.__name__,
+                )
+            )
+
+        one, two = make_task(1), make_task(2)
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
     def test_closure_mutation_after_definition_does_not_change_key(self):
         policy = TaskSource()
         run_count = 0
@@ -1254,6 +1325,22 @@ print(_hash_task_source_context(make_task()))
 
         assert keys[0] is not None
         assert keys[0] == keys[1]
+
+    def test_pandas_stable_transform_preserves_distinct_contents(self):
+        pd = pytest.importorskip("pandas")
+
+        def make_task(factor: int):
+            captured = pd.DataFrame({"factor": [factor]})
+
+            @task
+            def read_factor() -> int:
+                return int(captured["factor"].iloc[0])
+
+            return read_factor
+
+        double, triple = make_task(2), make_task(3)
+
+        assert double._task_source_context_hash != triple._task_source_context_hash
 
     def test_allocating_transforms_do_not_create_false_aliases(
         self, monkeypatch: pytest.MonkeyPatch

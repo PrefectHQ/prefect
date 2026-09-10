@@ -341,6 +341,8 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 if isinstance(slots, str):
                     slots = (slots,)
                 for name in slots:
+                    if name.startswith("__") and not name.endswith("__"):
+                        name = f"_{cls.__name__.lstrip('_')}{name}"
                     if name not in {"__dict__", "__weakref__"} and hasattr(item, name):
                         state[name] = getattr(item, name)
             return state
@@ -370,7 +372,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return ("secret", type(item).__qualname__, str(item))
 
             if (
-                isinstance(item, (dict, list, tuple, set, frozenset))
+                isinstance(item, (bytearray, dict, list, tuple, set, frozenset))
                 or isinstance(item, BaseModel)
                 or (is_dataclass(item) and not isinstance(item, type))
             ):
@@ -457,6 +459,12 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     ),
                     safe_prepare(additional_state),
                 )
+            if type(item).__module__.startswith("pandas."):
+                return (
+                    "stable-leaf",
+                    type(item).__qualname__,
+                    hash_objects(item, raise_on_failure=True),
+                )
             if hasattr(item, "__dict__") or hasattr(type(item), "__slots__"):
                 raise TypeError("Opaque objects are not safe task-source context")
             return (
@@ -490,23 +498,21 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
 
     def global_names(code: CodeType) -> set[str]:
         instructions = tuple(dis.get_instructions(code))
-        local_names = {
-            instruction.argval
-            for instruction in instructions
-            if instruction.opname in {"DELETE_NAME", "STORE_NAME"}
-            and isinstance(instruction.argval, str)
-        }
-        names = {
-            instruction.argval
-            for instruction in instructions
-            if instruction.opname
-            in {"LOAD_FROM_DICT_OR_GLOBALS", "LOAD_GLOBAL", "LOAD_NAME"}
-            and isinstance(instruction.argval, str)
-            and instruction.argval != "__name__"
-            and not (
-                instruction.opname == "LOAD_NAME" and instruction.argval in local_names
-            )
-        }
+        bound_names: set[str] = set()
+        names: set[str] = set()
+        for instruction in instructions:
+            name = instruction.argval
+            if not isinstance(name, str):
+                continue
+            if instruction.opname == "STORE_NAME":
+                bound_names.add(name)
+            elif instruction.opname == "DELETE_NAME":
+                bound_names.discard(name)
+            elif (
+                instruction.opname in {"LOAD_FROM_DICT_OR_GLOBALS", "LOAD_GLOBAL"}
+                or (instruction.opname == "LOAD_NAME" and name not in bound_names)
+            ) and name != "__name__":
+                names.add(name)
         for constant in code.co_consts:
             if isinstance(constant, CodeType):
                 names.update(global_names(constant))
