@@ -1571,3 +1571,152 @@ class TestGetWorkQueueSlotHolders:
         )
         assert len(holders) == 1
         assert holders[0][0].id == run.id
+
+
+class TestGetScheduledRunsWithDeploymentConcurrency:
+    """
+    The work pool scheduler withholds runs that a deployment has no concurrency
+    slot for, instead of handing them to a worker only for the
+    Scheduled -> Pending transition to reject and reschedule them.
+    """
+
+    @pytest.fixture
+    async def work_queue(self, session):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="deployment-limits"),
+        )
+        return await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="runs"),
+        )
+
+    async def create_deployment(
+        self,
+        session: AsyncSession,
+        flow,
+        name: str,
+        limit: int | None = None,
+        active_slots: int = 0,
+        collision_strategy: schemas.core.ConcurrencyLimitStrategy | None = None,
+        limit_is_active: bool = True,
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name=name,
+                flow_id=flow.id,
+                concurrency_limit=limit,
+                concurrency_options=(
+                    schemas.core.ConcurrencyOptions(
+                        collision_strategy=collision_strategy
+                    )
+                    if collision_strategy is not None
+                    else None
+                ),
+            ),
+        )
+        if deployment.global_concurrency_limit is not None:
+            deployment.global_concurrency_limit.active_slots = active_slots
+            deployment.global_concurrency_limit.active = limit_is_active
+        return deployment
+
+    async def create_runs(
+        self, session: AsyncSession, flow, work_queue, deployment, count: int
+    ):
+        runs = []
+        for i in range(count):
+            runs.append(
+                await models.flow_runs.create_flow_run(
+                    session=session,
+                    flow_run=schemas.core.FlowRun(
+                        flow_id=flow.id,
+                        deployment_id=deployment.id if deployment else None,
+                        work_queue_id=work_queue.id,
+                        state=schemas.states.Scheduled(
+                            scheduled_time=now("UTC") + datetime.timedelta(minutes=i)
+                        ),
+                    ),
+                )
+            )
+        return runs
+
+    async def scheduled_run_ids(self, session: AsyncSession):
+        runs = await models.workers.get_scheduled_flow_runs(session=session)
+        return {r.flow_run.id for r in runs}
+
+    async def test_deployment_without_a_limit_is_unaffected(
+        self, session, flow, work_queue
+    ):
+        deployment = await self.create_deployment(session, flow, "unlimited")
+        runs = await self.create_runs(session, flow, work_queue, deployment, 3)
+        await session.commit()
+
+        assert await self.scheduled_run_ids(session) == {r.id for r in runs}
+
+    async def test_runs_without_a_deployment_are_unaffected(
+        self, session, flow, work_queue
+    ):
+        runs = await self.create_runs(session, flow, work_queue, None, 3)
+        await session.commit()
+
+        assert await self.scheduled_run_ids(session) == {r.id for r in runs}
+
+    async def test_available_slots_bound_the_number_of_runs_returned(
+        self, session, flow, work_queue
+    ):
+        deployment = await self.create_deployment(
+            session, flow, "one-slot-left", limit=3, active_slots=2
+        )
+        runs = await self.create_runs(session, flow, work_queue, deployment, 5)
+        await session.commit()
+
+        # the single remaining slot goes to the earliest scheduled run
+        assert await self.scheduled_run_ids(session) == {runs[0].id}
+
+    async def test_saturated_deployment_yields_no_runs(self, session, flow, work_queue):
+        deployment = await self.create_deployment(
+            session, flow, "saturated", limit=2, active_slots=2
+        )
+        await self.create_runs(session, flow, work_queue, deployment, 5)
+        await session.commit()
+
+        assert await self.scheduled_run_ids(session) == set()
+
+    async def test_saturated_deployment_does_not_block_its_neighbors(
+        self, session, flow, work_queue
+    ):
+        saturated = await self.create_deployment(
+            session, flow, "saturated", limit=1, active_slots=1
+        )
+        idle = await self.create_deployment(session, flow, "idle", limit=5)
+        await self.create_runs(session, flow, work_queue, saturated, 5)
+        idle_runs = await self.create_runs(session, flow, work_queue, idle, 3)
+        await session.commit()
+
+        assert await self.scheduled_run_ids(session) == {r.id for r in idle_runs}
+
+    async def test_cancel_new_runs_are_still_delivered(self, session, flow, work_queue):
+        deployment = await self.create_deployment(
+            session,
+            flow,
+            "cancel-new",
+            limit=1,
+            active_slots=1,
+            collision_strategy=schemas.core.ConcurrencyLimitStrategy.CANCEL_NEW,
+        )
+        runs = await self.create_runs(session, flow, work_queue, deployment, 3)
+        await session.commit()
+
+        # a CANCEL_NEW run must reach a worker so the transition can cancel it
+        assert await self.scheduled_run_ids(session) == {r.id for r in runs}
+
+    async def test_inactive_limit_offers_no_slots(self, session, flow, work_queue):
+        deployment = await self.create_deployment(
+            session, flow, "inactive-limit", limit=5, limit_is_active=False
+        )
+        await self.create_runs(session, flow, work_queue, deployment, 3)
+        await session.commit()
+
+        assert await self.scheduled_run_ids(session) == set()

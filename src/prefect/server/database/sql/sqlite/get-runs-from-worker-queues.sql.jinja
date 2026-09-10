@@ -33,6 +33,33 @@ GROUP BY
 ),
 
 
+-- compute available slots under deployment concurrency limits
+--
+-- Unlike pool and queue limits, deployment slots are held in
+-- concurrency_limit_v2.active_slots rather than counted from flow_run, because
+-- they are acquired by SecureFlowConcurrencySlots at the Scheduled -> Pending
+-- transition and released by lease expiry. Mirroring that rule:
+--   * an inactive limit can never be acquired, so it offers no slots
+--   * slot decay is not modeled here; deployment-backed limits are created
+--     with slot_decay_per_second = 0
+-- Only ENQUEUE deployments are eligible: a CANCEL_NEW run must still be handed
+-- to a worker so the transition can cancel it rather than leaving it Scheduled.
+deployment_slots AS (
+    SELECT
+        d.id,
+        CASE WHEN cl.active THEN
+            MAX(0, cl."limit" - cl.active_slots)
+        ELSE
+            0
+        END AS available_slots
+    FROM
+        deployment d
+        JOIN concurrency_limit_v2 cl ON cl.id = d.concurrency_limit_id
+    WHERE
+        COALESCE(json_extract(d.concurrency_options, '$.collision_strategy'), 'ENQUEUE') = 'ENQUEUE'
+),
+
+
 -- CTE that loads flow runs and applies worker pool queue limits
 scheduled_flow_runs AS (
     SELECT
@@ -40,6 +67,7 @@ scheduled_flow_runs AS (
         wq.id AS run_work_queue_id,
         fr.*,
         worker_slots.available_slots as available_worker_slots,
+        deployment_slots.available_slots as available_deployment_slots,
         ROW_NUMBER() OVER (PARTITION BY wp.id ORDER BY {% if respect_queue_priorities %}wq.priority ASC, {% endif %}fr.next_scheduled_start_time) AS work_pool_rank
     FROM
         work_pool wp
@@ -50,10 +78,17 @@ scheduled_flow_runs AS (
         JOIN (
             SELECT 
                 fr.*,
-                ROW_NUMBER() OVER (PARTITION BY work_queue_id ORDER BY next_scheduled_start_time) AS work_queue_rank
+                ROW_NUMBER() OVER (PARTITION BY work_queue_id ORDER BY next_scheduled_start_time) AS work_queue_rank,
+                -- rank each run within its deployment so that a deployment with
+                -- some capacity left contributes only that many runs, rather
+                -- than being excluded entirely or flooding the response
+                ROW_NUMBER() OVER (PARTITION BY deployment_id ORDER BY next_scheduled_start_time) AS deployment_rank
             FROM flow_run fr
             WHERE fr.state_type = 'SCHEDULED'
             AND (json_extract(fr.empirical_policy, '$.retry_type') IS NULL OR json_extract(fr.empirical_policy, '$.retry_type') != 'in_process')
+            -- skip deployments that are entirely out of slots so their runs
+            -- don't consume queue or pool slots another deployment could use
+            AND COALESCE((SELECT ds.available_slots FROM deployment_slots ds WHERE ds.id = fr.deployment_id), 1) > 0
             {% if scheduled_after %}
             AND fr.next_scheduled_start_time >= :scheduled_after
             {% endif %}
@@ -64,6 +99,8 @@ scheduled_flow_runs AS (
         ON 
             fr.work_queue_id = wq.id 
             AND work_queue_rank <= MIN(COALESCE(queue_slots.available_slots, :queue_limit), :queue_limit)
+
+        LEFT JOIN deployment_slots ON deployment_slots.id = fr.deployment_id
 
     WHERE
         wp.is_paused IS FALSE
@@ -83,6 +120,10 @@ SELECT
 FROM scheduled_flow_runs
 WHERE
     work_pool_rank <= MIN(COALESCE(available_worker_slots, :worker_limit), :worker_limit)
+    -- hold back the runs a deployment has no room for; the transition-time
+    -- check in SecureFlowConcurrencySlots remains the authority for races
+    AND (available_deployment_slots IS NULL
+        OR deployment_rank <= available_deployment_slots)
 ORDER BY 
     {% if respect_queue_priorities %}
     

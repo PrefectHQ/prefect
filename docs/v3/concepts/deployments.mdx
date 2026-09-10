@@ -342,6 +342,10 @@ deployment can be active at once. To enable this behavior, deployments have the 
   slot is released. This is useful for deployments with slow-starting infrastructure. Must be between 60 and
   86400 seconds. If not set, falls back to the server setting (default 300 seconds / 5 minutes).
 
+Workers only receive as many runs as the deployment has free concurrency slots, so an `ENQUEUE` deployment
+with a large backlog does not repeatedly cycle runs through `AwaitingConcurrencySlot`. The limit is still
+enforced when a run is submitted, which is what settles races between workers.
+
 <CodeGroup>
 
 ```sh prefect deploy
