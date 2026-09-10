@@ -5,7 +5,7 @@ import sys
 import threading
 from collections import deque, namedtuple
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, time
 from enum import Enum
 from pathlib import Path
 from types import FunctionType, ModuleType
@@ -878,6 +878,37 @@ print(_hash_task_source_context(make_task()))
 
         assert one._task_source_context_hash != two._task_source_context_hash
 
+    def test_bytearray_subclasses_retain_base_storage(self):
+        class TaggedBytearray(bytearray):
+            pass
+
+        def make_task(value: bytes):
+            captured = TaggedBytearray(value)
+
+            @task
+            def read_value() -> bytes:
+                return bytes(bytearray.__iter__(captured))
+
+            return read_value
+
+        one, two = make_task(b"one"), make_task(b"two")
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_datetime_time_fold_changes_context_identity(self):
+        def make_task(fold: int):
+            captured = time(1, 2, fold=fold)
+
+            @task
+            def read_fold() -> int:
+                return captured.fold
+
+            return read_fold
+
+        earlier, later = make_task(0), make_task(1)
+
+        assert earlier._task_source_context_hash != later._task_source_context_hash
+
     def test_standard_value_subclasses_retain_state(self):
         class TaggedDate(date):
             pass
@@ -1155,6 +1186,29 @@ print(_hash_task_source_context(make_task()))
             @task
             def read_factor() -> int:
                 return captured.factor
+
+            return read_factor
+
+        double, triple = make_task(2), make_task(3)
+
+        assert double._task_source_context_hash != triple._task_source_context_hash
+
+    def test_dataclass_fields_use_stored_values(self):
+        @dataclass
+        class Config:
+            factor: int
+
+            def __getattribute__(self, name: str):
+                if name == "factor":
+                    return 0
+                return super().__getattribute__(name)
+
+        def make_task(factor: int):
+            captured = Config(factor)
+
+            @task
+            def read_factor() -> int:
+                return vars(captured)["factor"]
 
             return read_factor
 

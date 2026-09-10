@@ -361,10 +361,28 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
 
         def prepare_attribute(item: Any, name: str) -> Any:
             try:
-                value = getattr(item, name)
+                item_vars = vars(item)
             except Exception:
-                return ("missing", None)
+                item_vars = {}
+            if name in item_vars:
+                value = item_vars[name]
+            else:
+                try:
+                    value = object.__getattribute__(item, name)
+                except Exception:
+                    return ("missing", None)
             return safe_prepare(value)
+
+        def standard_value(item: Any) -> Any:
+            if isinstance(item, datetime.datetime):
+                return ("datetime", item.isoformat(), item.fold)
+            if isinstance(item, datetime.time):
+                return ("time", item.isoformat(), item.fold)
+            if isinstance(item, datetime.date):
+                return ("date", item.isoformat())
+            if isinstance(item, datetime.timedelta):
+                return ("timedelta", item.days, item.seconds, item.microseconds)
+            return hash_objects(item, raise_on_failure=True)
 
         def safe_prepare(item: Any) -> Any:
             try:
@@ -386,6 +404,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 Decimal,
                 Fraction,
                 UUID,
+                datetime.datetime,
                 datetime.date,
                 datetime.time,
                 datetime.timedelta,
@@ -393,7 +412,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return (
                     "value",
                     type(item).__qualname__,
-                    hash_objects(item, raise_on_failure=True),
+                    standard_value(item),
                 )
             is_dataframe = (
                 item is not original
@@ -409,6 +428,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     Fraction,
                     Path,
                     UUID,
+                    datetime.datetime,
                     datetime.date,
                     datetime.time,
                     datetime.timedelta,
@@ -417,6 +437,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 Decimal,
                 Fraction,
                 UUID,
+                datetime.datetime,
                 datetime.date,
                 datetime.time,
                 datetime.timedelta,
@@ -441,8 +462,16 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     safe_prepare(item),
                 )
 
-            if type(item) is bytearray:
-                return ("bytearray", bytes(item))
+            if isinstance(item, bytearray):
+                contents = bytes(bytearray.__iter__(item))
+                if type(item) is bytearray:
+                    return ("bytearray", contents)
+                return (
+                    "bytearray-subclass",
+                    type(item).__qualname__,
+                    contents,
+                    safe_prepare(instance_state(item)),
+                )
 
             if type(item) is dict:
                 ordered_items = list(item.items())
@@ -548,6 +577,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     Fraction,
                     Path,
                     UUID,
+                    datetime.datetime,
                     datetime.date,
                     datetime.time,
                     datetime.timedelta,
@@ -556,7 +586,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return (
                     "value-subclass",
                     type(item).__qualname__,
-                    hash_objects(item, raise_on_failure=True),
+                    standard_value(item),
                     safe_prepare(instance_state(item)),
                 )
             if hasattr(item, "__dict__") or hasattr(type(item), "__slots__"):
