@@ -536,6 +536,38 @@ class TestVacuumOrphanedLogs:
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Log) == 1
 
+    async def test_scans_all_flow_runs_across_multiple_batches(
+        self, session, flow, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Orphans are found in every page of the flow_run_id scan, even when
+        live runs and orphans are interleaved and each page holds several rows
+        per run."""
+        db = provide_database_interface()
+        monkeypatch.setattr(
+            get_current_settings().server.services.db_vacuum, "batch_size", 2
+        )
+        live_ids = []
+        for _ in range(3):
+            flow_run = await _create_flow_run(session, flow, end_time=RECENT)
+            live_ids.append(flow_run.id)
+        orphaned_ids = [uuid.uuid4() for _ in range(3)]
+        for flow_run_id in live_ids + orphaned_ids:
+            for _ in range(3):
+                await _create_log(session, flow_run_id=flow_run_id)
+        await _create_log(session, flow_run_id=None)
+
+        assert await _count(session, db, db.Log) == 19
+        await vacuum_orphaned_logs(db=db)
+
+        async with db.session_context() as new_session:
+            remaining = (
+                (await new_session.execute(sa.select(db.Log.flow_run_id)))
+                .scalars()
+                .all()
+            )
+        assert len(remaining) == 10
+        assert set(remaining) == set(live_ids) | {None}
+
 
 class TestVacuumOrphanedArtifacts:
     async def test_deletes_orphaned_artifacts(self, session, flow):

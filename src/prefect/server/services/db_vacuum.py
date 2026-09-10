@@ -41,7 +41,11 @@ from docket import CurrentDocket, Depends, Docket, Perpetual
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import (
+    PrefectDBInterface,
+    orm_models,
+    provide_database_interface,
+)
 from prefect.server.database.configurations import AsyncPostgresConfiguration
 from prefect.server.schemas.states import TERMINAL_STATES
 from prefect.server.services.perpetual_services import perpetual_service
@@ -53,14 +57,14 @@ from prefect.utilities.collections import batched_iterable
 logger: logging.Logger = get_logger(__name__)
 
 
-# Vacuum runs batched maintenance deletes that legitimately scan large tables
-# (e.g. the orphaned-log anti-join). On Postgres these inherit the asyncpg
-# `command_timeout` derived from `PREFECT_API_DATABASE_TIMEOUT` (10s by
-# default) — a latency budget meant for user-facing API queries, not bulk
-# maintenance. When a batch exceeds it asyncpg raises `TimeoutError`, killing
-# the task before it makes progress. Maintenance work runs on a dedicated
-# connection with no statement timeout so it can run to completion; sqlite's
-# `timeout` is a lock-wait, not a statement deadline, so it is left as-is.
+# Vacuum runs batched maintenance deletes over very large tables. On Postgres
+# these inherit the asyncpg `command_timeout` derived from
+# `PREFECT_API_DATABASE_TIMEOUT` (10s by default) — a latency budget meant for
+# user-facing API queries, not bulk maintenance. When a batch exceeds it asyncpg
+# raises `TimeoutError`, killing the task before it makes progress. Maintenance
+# work runs on a dedicated connection with no statement timeout so it can run to
+# completion; sqlite's `timeout` is a lock-wait, not a statement deadline, so it
+# is left as-is.
 _MAINTENANCE_CONFIGS: dict[str, AsyncPostgresConfiguration] = {}
 
 # Binds a batched delete spends on top of its id list (the `LIMIT`/`OFFSET` of
@@ -220,17 +224,7 @@ async def vacuum_orphaned_logs(
 ) -> None:
     """Delete logs whose flow_run_id references a non-existent flow run."""
     settings = get_current_settings().server.services.db_vacuum
-    deleted = await _batch_delete(
-        db,
-        db.Log,
-        sa.and_(
-            db.Log.flow_run_id.is_not(None),
-            ~sa.exists(
-                sa.select(sa.literal(1)).where(db.FlowRun.id == db.Log.flow_run_id)
-            ),
-        ),
-        settings.batch_size,
-    )
+    deleted = await _delete_orphaned_by_flow_run(db, db.Log, settings.batch_size)
     if deleted:
         logger.info("Database vacuum: deleted %d orphaned logs.", deleted)
 
@@ -241,17 +235,7 @@ async def vacuum_orphaned_artifacts(
 ) -> None:
     """Delete artifacts whose flow_run_id references a non-existent flow run."""
     settings = get_current_settings().server.services.db_vacuum
-    deleted = await _batch_delete(
-        db,
-        db.Artifact,
-        sa.and_(
-            db.Artifact.flow_run_id.is_not(None),
-            ~sa.exists(
-                sa.select(sa.literal(1)).where(db.FlowRun.id == db.Artifact.flow_run_id)
-            ),
-        ),
-        settings.batch_size,
-    )
+    deleted = await _delete_orphaned_by_flow_run(db, db.Artifact, settings.batch_size)
     if deleted:
         logger.info("Database vacuum: deleted %d orphaned artifacts.", deleted)
 
@@ -470,6 +454,64 @@ async def _delete_flow_run_batch(
                 sa.delete(db.FlowRun).where(db.FlowRun.id.in_(flow_run_id_batch))
             )
         return flow_run_ids
+
+
+async def _delete_orphaned_by_flow_run(
+    db: PrefectDBInterface,
+    model: type[orm_models.Log | orm_models.Artifact],
+    batch_size: int,
+) -> int:
+    """Delete rows whose `flow_run_id` references a flow run that no longer exists.
+
+    An anti-join between the child table and `flow_run` has to visit every child
+    row to find the orphans, and repeating it per delete batch rescans the whole
+    table each time. Instead, walk the distinct `flow_run_id` values in key order
+    with a cursor so each query reads one bounded slice of the `flow_run_id`
+    index, then delete any orphaned run's rows through that same index.
+    """
+    total = 0
+    cursor: UUID | None = None
+    ids_per_statement = max(1, get_max_query_parameters() - _DELETE_BIND_OVERHEAD)
+    while True:
+        candidates = (
+            sa.select(model.flow_run_id)
+            .where(model.flow_run_id.is_not(None))
+            .distinct()
+            .order_by(model.flow_run_id)
+            .limit(batch_size)
+        )
+        if cursor is not None:
+            candidates = candidates.where(model.flow_run_id > cursor)
+
+        async with _maintenance_session(db) as session:
+            flow_run_ids = (await session.execute(candidates)).scalars().all()
+            if not flow_run_ids:
+                break
+            existing = set(
+                (
+                    await session.execute(
+                        sa.select(db.FlowRun.id).where(db.FlowRun.id.in_(flow_run_ids))
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        cursor = flow_run_ids[-1]
+
+        orphaned = [
+            flow_run_id for flow_run_id in flow_run_ids if flow_run_id not in existing
+        ]
+        for orphaned_batch in batched_iterable(orphaned, ids_per_statement):
+            total += await _batch_delete(
+                db,
+                model,
+                model.flow_run_id.in_(orphaned_batch),
+                batch_size,
+            )
+
+        await asyncio.sleep(0)  # yield to event loop between batches
+
+    return total
 
 
 async def _reconcile_artifact_collections(
