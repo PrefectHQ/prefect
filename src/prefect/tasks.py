@@ -314,6 +314,15 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
 
 def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
     """Hash closure values and referenced non-callable module globals."""
+    cells = getattr(fn, "__closure__", None)
+    code = getattr(fn, "__code__", None)
+    if (
+        not cells
+        and isinstance(code, CodeType)
+        and not code.co_names
+        and not any(isinstance(constant, CodeType) for constant in code.co_consts)
+    ):
+        return None
 
     class CyclicValue(Exception):
         pass
@@ -353,8 +362,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
             return ("tuple", tuple(fingerprint(item, ancestors) for item in value))
         return value
 
-    cells = getattr(fn, "__closure__", None)
-    freevars = getattr(getattr(fn, "__code__", None), "co_freevars", ())
+    freevars = getattr(code, "co_freevars", ())
     closure_hashes: dict[str, str | None] = {}
     for name, cell in zip(freevars, cells or ()):
         try:
@@ -385,7 +393,6 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
         return names
 
     namespace = getattr(fn, "__globals__", {})
-    code = getattr(fn, "__code__", None)
     if isinstance(code, CodeType):
         referenced_globals = {
             **{
