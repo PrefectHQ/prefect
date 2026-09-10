@@ -327,7 +327,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
     global_hashes: dict[str, str | None] = {}
     try:
         referenced_globals = inspect.getclosurevars(fn).globals
-    except TypeError:
+    except (TypeError, ValueError):
         referenced_globals = {}
     for name, value in referenced_globals.items():
         if isinstance(value, ModuleType) or callable(value):

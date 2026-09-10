@@ -523,6 +523,20 @@ class TestTaskSourcePolicy:
         assert key_one is not None
         assert key_one == key_two
 
+    def test_empty_closure_cell_does_not_break_task_definition(self):
+        def make_task():
+            captured = "value"
+
+            def uses_capture() -> str:
+                return captured  # noqa: F821
+
+            del captured
+            return task(uses_capture)
+
+        captured_task = make_task()
+
+        assert captured_task._task_source_context_hash is not None
+
     def test_closure_mutation_after_definition_does_not_change_key(self):
         policy = TaskSource()
         run_count = 0
