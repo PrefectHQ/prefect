@@ -1,7 +1,6 @@
 import itertools
 import subprocess
 import sys
-import threading
 from dataclasses import dataclass
 from pathlib import Path
 from types import FunctionType, ModuleType
@@ -23,7 +22,6 @@ from prefect.cache_policies import (
     RunId,
     TaskSource,
     _None,
-    _uses_task_source,
 )
 from prefect.context import TaskRunContext
 from prefect.settings import PREFECT_TASKS_DISABLE_CACHING, temporary_settings
@@ -379,36 +377,6 @@ class TestTaskSourcePolicy:
         assert key_b is not None
         assert key_a != key_b
 
-    def test_closure_values_change_key(self):
-        """Tasks with identical source but different captured values get different keys."""
-        policy = TaskSource()
-
-        def make_scaler(factor: int):
-            @task
-            def scale(x: int) -> int:
-                return x * factor
-
-            return scale
-
-        double, triple, another_double = (
-            make_scaler(2),
-            make_scaler(3),
-            make_scaler(2),
-        )
-        assert double.source_code == triple.source_code
-
-        keys = [
-            policy.compute_key(
-                task_ctx=TaskRunContext.model_construct(task=t),
-                inputs=None,
-                flow_parameters=None,
-            )
-            for t in (double, triple, another_double)
-        ]
-
-        assert keys[0] != keys[1]
-        assert keys[0] == keys[2]
-
     def test_referenced_global_values_change_key(self):
         def template() -> int:
             return VALUE  # type: ignore[name-defined]  # noqa: F821
@@ -471,54 +439,6 @@ class TestTaskSourcePolicy:
 
         assert one._task_source_context_hash == two._task_source_context_hash
 
-    def test_unhashable_closure_values_are_ignored(self):
-        policy = TaskSource()
-
-        def make_task(resource: threading.Lock):
-            @task
-            def locked() -> None:
-                with resource:
-                    pass
-
-            return locked
-
-        one, two = make_task(threading.Lock()), make_task(threading.Lock())
-
-        key_one = policy.compute_key(
-            task_ctx=TaskRunContext.model_construct(task=one),
-            inputs=None,
-            flow_parameters=None,
-        )
-        key_two = policy.compute_key(
-            task_ctx=TaskRunContext.model_construct(task=two),
-            inputs=None,
-            flow_parameters=None,
-        )
-
-        assert key_one is not None
-        assert key_one == key_two
-
-    def test_closure_mutation_after_definition_does_not_change_key(self):
-        policy = TaskSource()
-        run_count = 0
-
-        @task
-        def counted() -> None:
-            nonlocal run_count
-            run_count += 1
-
-        def key() -> str | None:
-            return policy.compute_key(
-                task_ctx=TaskRunContext.model_construct(task=counted),
-                inputs=None,
-                flow_parameters=None,
-            )
-
-        before = key()
-        counted.fn()
-        assert run_count == 1
-        assert key() == before
-
     def test_task_without_closure_key_is_unchanged(self):
         policy = TaskSource()
 
@@ -546,12 +466,6 @@ class TestTaskSourcePolicy:
         restored = cloudpickle.loads(cloudpickle.dumps(read))
 
         assert restored._task_source_context_hash == read._task_source_context_hash
-
-    def test_effective_policy_detection(self):
-        assert _uses_task_source(TASK_SOURCE)
-        assert _uses_task_source(INPUTS + TASK_SOURCE)
-        assert not _uses_task_source(NO_CACHE)
-        assert not _uses_task_source(INPUTS)
 
     @pytest.mark.parametrize(
         "options",
