@@ -395,12 +395,14 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     "tuple-subclass",
                     type(item).__qualname__,
                     tuple(safe_prepare(value) for value in item),
+                    safe_prepare(vars(item)),
                 )
             if isinstance(item, BaseModel):
                 return (
                     "model",
                     type(item).__qualname__,
                     safe_prepare(item.model_dump(mode="python")),
+                    safe_prepare(item.__pydantic_private__),
                 )
             if is_dataclass(item) and not isinstance(item, type):
                 return (
@@ -423,18 +425,18 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
             return None
 
     freevars = getattr(code, "co_freevars", ())
-    closure_hashes: dict[str, str | None] = {}
+    closure_values: dict[str, Any] = {}
     for name, cell in zip(freevars, cells or ()):
         try:
             value = cell.cell_contents
         except Exception:
-            closure_hashes[name] = None
+            closure_values[name] = None
         else:
             if isinstance(value, ModuleType) or callable(value):
                 continue
-            closure_hashes[name] = fingerprint(value)
+            closure_values[name] = value
 
-    global_hashes: dict[str, str | None] = {}
+    global_values: dict[str, Any] = {}
     try:
         referenced_globals = inspect.getclosurevars(fn).globals
     except (TypeError, ValueError):
@@ -444,7 +446,8 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
         names = {
             instruction.argval
             for instruction in dis.get_instructions(code)
-            if instruction.opname in {"LOAD_GLOBAL", "LOAD_NAME"}
+            if instruction.opname
+            in {"LOAD_FROM_DICT_OR_GLOBALS", "LOAD_GLOBAL", "LOAD_NAME"}
             and isinstance(instruction.argval, str)
             and instruction.argval != "__name__"
         }
@@ -466,11 +469,11 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
     for name, value in referenced_globals.items():
         if isinstance(value, ModuleType) or callable(value):
             continue
-        global_hashes[name] = fingerprint(value)
+        global_values[name] = value
 
-    if not closure_hashes and not global_hashes:
+    if not closure_values and not global_values:
         return None
-    return hash_objects({"closure": closure_hashes, "globals": global_hashes})
+    return fingerprint({"closure": closure_values, "globals": global_values})
 
 
 class Task(Generic[P, R]):

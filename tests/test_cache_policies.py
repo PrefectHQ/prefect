@@ -11,7 +11,7 @@ from typing import Callable
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic import SecretStr
+from pydantic import BaseModel, PrivateAttr, SecretStr
 
 from prefect import task
 from prefect.cache_policies import (
@@ -709,6 +709,21 @@ print(_hash_task_source_context(make_task()))
 
         assert aliased._task_source_context_hash != distinct._task_source_context_hash
 
+    def test_alias_relationships_across_closure_cells_change_identity(self):
+        def make_task(shared: bool):
+            first: list[object] = []
+            second = first if shared else []
+
+            @task
+            def values_are_shared() -> bool:
+                return first is second
+
+            return values_are_shared
+
+        aliased, distinct = make_task(True), make_task(False)
+
+        assert aliased._task_source_context_hash != distinct._task_source_context_hash
+
     def test_model_fields_with_sets_are_stable_across_hash_seeds(self):
         script = """
 from pydantic import BaseModel
@@ -754,6 +769,70 @@ print(_hash_task_source_context(make_task()))
             return read_tag
 
         one, two = make_task("one"), make_task("two")
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_tuple_subclasses_retain_state(self):
+        class TaggedTuple(tuple[object, ...]):
+            def __new__(cls, tag: str):
+                value = super().__new__(cls, (1,))
+                value.tag = tag
+                return value
+
+        def make_task(tag: str):
+            captured = TaggedTuple(tag)
+
+            @task
+            def read_tag() -> str:
+                return captured.tag  # type: ignore[attr-defined]
+
+            return read_tag
+
+        one, two = make_task("one"), make_task("two")
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_pydantic_private_attributes_change_context_identity(self):
+        class Model(BaseModel):
+            _factor: int = PrivateAttr()
+
+        def make_task(factor: int):
+            captured = Model()
+            captured._factor = factor
+
+            @task
+            def read_factor() -> int:
+                return captured._factor
+
+            return read_factor
+
+        double, triple = make_task(2), make_task(3)
+
+        assert double._task_source_context_hash != triple._task_source_context_hash
+
+    @pytest.mark.skipif(sys.version_info < (3, 12), reason="type statements need 3.12")
+    def test_type_alias_scopes_include_referenced_globals(self):
+        namespace: dict[str, object] = {}
+        exec(
+            "def template():\n"
+            "    class Namespace:\n"
+            "        type Alias = VALUE\n"
+            "    return Namespace.Alias.__value__\n",
+            namespace,
+        )
+        template = namespace["template"]
+        assert isinstance(template, FunctionType)
+
+        def make_task(value: int):
+            return task(
+                FunctionType(
+                    template.__code__,
+                    {"__builtins__": __builtins__, "VALUE": value},
+                    template.__name__,
+                )
+            )
+
+        one, two = make_task(1), make_task(2)
 
         assert one._task_source_context_hash != two._task_source_context_hash
 
