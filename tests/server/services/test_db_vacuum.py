@@ -568,6 +568,51 @@ class TestVacuumOrphanedLogs:
         assert len(remaining) == 10
         assert set(remaining) == set(live_ids) | {None}
 
+    async def test_large_configured_batch_bounds_query_parameters(
+        self, session, flow, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A batch size above the bind-parameter budget still keeps every
+        statement within that budget."""
+        db = provide_database_interface()
+        if db.dialect.name != "sqlite":
+            pytest.skip("Maintenance statements on Postgres use a separate engine")
+        monkeypatch.setattr(
+            get_current_settings().server.services.db_vacuum, "batch_size", 1_000
+        )
+        monkeypatch.setattr(db_vacuum, "get_max_query_parameters", lambda: 5)
+
+        flow_run = await _create_flow_run(session, flow, end_time=RECENT)
+        await _create_log(session, flow_run_id=flow_run.id)
+        orphaned_ids = [uuid.uuid4() for _ in range(7)]
+        for flow_run_id in orphaned_ids:
+            await _create_log(session, flow_run_id=flow_run_id)
+
+        parameter_counts: list[int] = []
+        engine = await db.engine()
+
+        def record_parameters(
+            _conn, _cursor, _statement, parameters, _context, _executemany
+        ):
+            parameter_counts.append(len(parameters))
+
+        sa.event.listen(engine.sync_engine, "before_cursor_execute", record_parameters)
+        try:
+            await vacuum_orphaned_logs(db=db)
+        finally:
+            sa.event.remove(
+                engine.sync_engine, "before_cursor_execute", record_parameters
+            )
+
+        assert parameter_counts
+        assert max(parameter_counts) <= 5
+        async with db.session_context() as new_session:
+            remaining = (
+                (await new_session.execute(sa.select(db.Log.flow_run_id)))
+                .scalars()
+                .all()
+            )
+        assert remaining == [flow_run.id]
+
 
 class TestVacuumOrphanedArtifacts:
     async def test_deletes_orphaned_artifacts(self, session, flow):

@@ -472,13 +472,14 @@ async def _delete_orphaned_by_flow_run(
     total = 0
     cursor: UUID | None = None
     ids_per_statement = max(1, get_max_query_parameters() - _DELETE_BIND_OVERHEAD)
+    page_size = min(batch_size, ids_per_statement)
     while True:
         candidates = (
             sa.select(model.flow_run_id)
             .where(model.flow_run_id.is_not(None))
             .distinct()
             .order_by(model.flow_run_id)
-            .limit(batch_size)
+            .limit(page_size)
         )
         if cursor is not None:
             candidates = candidates.where(model.flow_run_id > cursor)
@@ -501,12 +502,9 @@ async def _delete_orphaned_by_flow_run(
         orphaned = [
             flow_run_id for flow_run_id in flow_run_ids if flow_run_id not in existing
         ]
-        for orphaned_batch in batched_iterable(orphaned, ids_per_statement):
+        if orphaned:
             total += await _batch_delete(
-                db,
-                model,
-                model.flow_run_id.in_(orphaned_batch),
-                batch_size,
+                db, model, model.flow_run_id.in_(orphaned), batch_size
             )
 
         await asyncio.sleep(0)  # yield to event loop between batches
