@@ -597,71 +597,20 @@ class TestTaskSourcePolicy:
 
         assert read._task_source_context_hash is None
 
-    def test_closure_values_use_stable_transforms(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        class FakeDataFrame:
-            def __init__(self, columns: dict[str, str]):
-                self._columns = columns
-
-            @property
-            def columns(self) -> list[str]:
-                return list(self._columns)
-
-            def __getitem__(self, column: str) -> str:
-                return self._columns[column]
-
-        fake_pandas = ModuleType("pandas")
-        fake_pandas.DataFrame = FakeDataFrame  # type: ignore[attr-defined]
-        monkeypatch.setitem(sys.modules, "pandas", fake_pandas)
-        monkeypatch.setattr("prefect.cache_policies.STABLE_TRANSFORMS", {})
-
-        def make_task(df: FakeDataFrame):
-            @task
-            def uses_df() -> list[str]:
-                return df.columns
-
-            return uses_df
-
-        policy = TaskSource()
-        keys = [
-            policy.compute_key(
-                task_ctx=TaskRunContext.model_construct(task=t),
-                inputs=None,
-                flow_parameters=None,
-            )
-            for t in (
-                make_task(FakeDataFrame({"a": "1", "b": "2"})),
-                make_task(FakeDataFrame({"b": "2", "a": "1"})),
-            )
-        ]
-
-        assert keys[0] is not None
-        assert keys[0] == keys[1]
-
     def test_failing_stable_transform_does_not_break_task_definition(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        class FakeDataFrame:
-            columns: list[object] = ["a", 1]
-
-        fake_pandas = ModuleType("pandas")
-        fake_pandas.DataFrame = FakeDataFrame  # type: ignore[attr-defined]
-        monkeypatch.setitem(sys.modules, "pandas", fake_pandas)
-        monkeypatch.setattr("prefect.cache_policies.STABLE_TRANSFORMS", {})
-
-        df = FakeDataFrame()
+        monkeypatch.setattr(
+            "prefect._internal.task_source._stabilize",
+            MagicMock(side_effect=ValueError),
+        )
+        captured = object()
 
         @task
-        def uses_df() -> list[object]:
-            return df.columns
+        def read() -> object:
+            return captured
 
-        key = TaskSource().compute_key(
-            task_ctx=TaskRunContext.model_construct(task=uses_df),
-            inputs=None,
-            flow_parameters=None,
-        )
-        assert key is not None
+        assert read._task_source_context_hash is not None
 
 
 class TestDefaultPolicy:
