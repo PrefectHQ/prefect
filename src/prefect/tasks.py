@@ -329,9 +329,18 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
     ):
         return None
 
-    def fingerprint(value: Any) -> str | None:
+    def fingerprint(
+        value: Any, sort_keys: dict[int, str | None] | None = None
+    ) -> str | None:
+        sort_keys = {} if sort_keys is None else sort_keys
         references: dict[int, int] = {}
         retained_values: list[Any] = []
+
+        def sort_key(item: Any) -> str:
+            identity = id(item)
+            if identity not in sort_keys:
+                sort_keys[identity] = fingerprint(item, sort_keys)
+            return sort_keys[identity] or "unhashable"
 
         def instance_state(item: Any) -> dict[str, Any]:
             state: dict[str, Any] = {}
@@ -391,9 +400,32 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 and type(original).__module__.startswith("pandas.")
                 and type(original).__name__ == "DataFrame"
             )
+            is_pandas_value = type(item).__module__.startswith("pandas.")
+            is_standard_value_subclass = isinstance(
+                item,
+                (
+                    Decimal,
+                    Enum,
+                    Fraction,
+                    Path,
+                    UUID,
+                    datetime.date,
+                    datetime.time,
+                    datetime.timedelta,
+                ),
+            ) and type(item) not in (
+                Decimal,
+                Fraction,
+                UUID,
+                datetime.date,
+                datetime.time,
+                datetime.timedelta,
+            )
 
             if (
                 is_dataframe
+                or is_pandas_value
+                or is_standard_value_subclass
                 or isinstance(item, (bytearray, dict, list, tuple, set, frozenset))
                 or isinstance(item, BaseModel)
                 or (is_dataclass(item) and not isinstance(item, type))
@@ -413,10 +445,9 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return ("bytearray", bytes(item))
 
             if type(item) is dict:
-                ordered_items = sorted(
-                    item.items(),
-                    key=lambda pair: fingerprint(pair[0]) or "unhashable",
-                )
+                ordered_items = list(item.items())
+                if len(ordered_items) > 1:
+                    ordered_items.sort(key=lambda pair: sort_key(pair[0]))
                 return (
                     "dict",
                     tuple(
@@ -425,10 +456,9 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     ),
                 )
             if isinstance(item, dict):
-                ordered_items = sorted(
-                    dict.items(item),
-                    key=lambda pair: fingerprint(pair[0]) or "unhashable",
-                )
+                ordered_items = list(dict.items(item))
+                if len(ordered_items) > 1:
+                    ordered_items.sort(key=lambda pair: sort_key(pair[0]))
                 return (
                     "dict-subclass",
                     type(item).__qualname__,
@@ -439,9 +469,9 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     safe_prepare(instance_state(item)),
                 )
             if type(item) in {set, frozenset}:
-                ordered_values = sorted(
-                    item, key=lambda value: fingerprint(value) or "unhashable"
-                )
+                ordered_values = list(item)
+                if len(ordered_values) > 1:
+                    ordered_values.sort(key=sort_key)
                 return (
                     type(item).__name__,
                     tuple(safe_prepare(value) for value in ordered_values),
@@ -452,9 +482,9 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     if isinstance(item, set)
                     else frozenset.__iter__(item)
                 )
-                ordered_values = sorted(
-                    iterator, key=lambda value: fingerprint(value) or "unhashable"
-                )
+                ordered_values = list(iterator)
+                if len(ordered_values) > 1:
+                    ordered_values.sort(key=sort_key)
                 return (
                     f"{type(item).__name__}-subclass",
                     type(item).__qualname__,
@@ -504,7 +534,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     ),
                     safe_prepare(additional_state),
                 )
-            if type(item).__module__.startswith("pandas."):
+            if is_pandas_value:
                 return (
                     "stable-leaf",
                     type(item).__qualname__,

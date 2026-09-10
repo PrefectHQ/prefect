@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, SecretStr
 
+import prefect.tasks as tasks_module
 from prefect import task
 from prefect.cache_policies import (
     DEFAULT,
@@ -895,6 +896,48 @@ print(_hash_task_source_context(make_task()))
 
         assert one._task_source_context_hash != two._task_source_context_hash
 
+    def test_standard_value_subclasses_retain_aliases(self):
+        class TaggedDate(date):
+            pass
+
+        def make_task(shared: bool):
+            first = TaggedDate(2026, 9, 10)
+            first.tag = "value"
+            second = first if shared else TaggedDate(2026, 9, 10)
+            second.tag = "value"
+
+            @task
+            def values_are_shared() -> bool:
+                return first is second
+
+            return values_are_shared
+
+        aliased, distinct = make_task(True), make_task(False)
+
+        assert aliased._task_source_context_hash != distinct._task_source_context_hash
+
+    def test_nested_unordered_values_are_prepared_linearly(self, monkeypatch):
+        original_stabilize = tasks_module._stabilize
+        calls = 0
+
+        def counted_stabilize(value):
+            nonlocal calls
+            calls += 1
+            return original_stabilize(value)
+
+        monkeypatch.setattr(tasks_module, "_stabilize", counted_stabilize)
+        captured: object = "leaf"
+        depth = 12
+        for _ in range(depth):
+            captured = frozenset({captured})
+
+        @task
+        def read_value() -> object:
+            return captured
+
+        assert read_value._task_source_context_hash is not None
+        assert calls < depth * 4
+
     def test_container_subclasses_retain_slotted_state(self):
         class TaggedList(list[object]):
             __slots__ = ("tag",)
@@ -1529,6 +1572,23 @@ print(_hash_task_source_context(make_task()))
         def make_task(shared: bool):
             first = pd.DataFrame({"value": [1]})
             second = first if shared else pd.DataFrame({"value": [1]})
+
+            @task
+            def values_are_shared() -> bool:
+                return first is second
+
+            return values_are_shared
+
+        aliased, distinct = make_task(True), make_task(False)
+
+        assert aliased._task_source_context_hash != distinct._task_source_context_hash
+
+    def test_series_aliases_change_context_identity(self):
+        pd = pytest.importorskip("pandas")
+
+        def make_task(shared: bool):
+            first = pd.Series([1])
+            second = first if shared else pd.Series([1])
 
             @task
             def values_are_shared() -> bool:
