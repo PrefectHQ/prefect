@@ -370,25 +370,28 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return ("excluded", None)
             if isinstance(item, (SecretBytes, SecretStr)):
                 return ("secret", type(item).__qualname__, str(item))
-            if (
+            is_dataframe = (
                 item is not original
                 and type(original).__module__.startswith("pandas.")
                 and type(original).__name__ == "DataFrame"
-            ):
-                return (
-                    "stable-dataframe",
-                    safe_prepare(original.index),
-                    safe_prepare(item),
-                )
+            )
 
             if (
-                isinstance(item, (bytearray, dict, list, tuple, set, frozenset))
+                is_dataframe
+                or isinstance(item, (bytearray, dict, list, tuple, set, frozenset))
                 or isinstance(item, BaseModel)
                 or (is_dataclass(item) and not isinstance(item, type))
             ):
                 if (reference := references.get(id(identity))) is not None:
                     return ("reference", reference)
                 references[id(identity)] = len(references)
+
+            if is_dataframe:
+                return (
+                    "stable-dataframe",
+                    safe_prepare(original.index),
+                    safe_prepare(item),
+                )
 
             if type(item) is dict:
                 ordered_items = sorted(
@@ -433,7 +436,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return (
                     "list-subclass",
                     type(item).__qualname__,
-                    tuple(safe_prepare(value) for value in item),
+                    tuple(safe_prepare(value) for value in list.__iter__(item)),
                     safe_prepare(instance_state(item)),
                 )
             if type(item) is tuple:
@@ -451,6 +454,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     type(item).__qualname__,
                     safe_prepare(item.__dict__),
                     safe_prepare(item.__pydantic_extra__),
+                    safe_prepare(item.__pydantic_fields_set__),
                     safe_prepare(item.__pydantic_private__),
                 )
             if is_dataclass(item) and not isinstance(item, type):
@@ -477,6 +481,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 )
             if hasattr(item, "__dict__") or hasattr(type(item), "__slots__"):
                 raise TypeError("Opaque objects are not safe task-source context")
+            hash(item)
             return (
                 "leaf",
                 type(item).__qualname__,

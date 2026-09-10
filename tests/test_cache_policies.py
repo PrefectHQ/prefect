@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 import threading
-from collections import namedtuple
+from collections import deque, namedtuple
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -883,6 +883,24 @@ print(_hash_task_source_context(make_task()))
 
         assert one._task_source_context_hash != two._task_source_context_hash
 
+    def test_list_subclasses_use_base_storage(self):
+        class OverriddenIteration(list[int]):
+            def __iter__(self):
+                return iter([0])
+
+        def make_task(value: int):
+            captured = OverriddenIteration([value])
+
+            @task
+            def read_value() -> int:
+                return list.__getitem__(captured, 0)
+
+            return read_value
+
+        one, two = make_task(1), make_task(2)
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
     def test_tuple_subclasses_retain_state(self):
         class TaggedTuple(tuple[object, ...]):
             def __new__(cls, tag: str):
@@ -971,6 +989,23 @@ print(_hash_task_source_context(make_task()))
 
         assert double._task_source_context_hash != triple._task_source_context_hash
 
+    def test_pydantic_fields_set_changes_context_identity(self):
+        class Model(BaseModel):
+            value: int = 1
+
+        def make_task(explicit: bool):
+            captured = Model(value=1) if explicit else Model()
+
+            @task
+            def fields_set() -> set[str]:
+                return captured.model_fields_set
+
+            return fields_set
+
+        implicit, explicit = make_task(False), make_task(True)
+
+        assert implicit._task_source_context_hash != explicit._task_source_context_hash
+
     def test_additional_dataclass_state_changes_context_identity(self):
         @dataclass
         class Config:
@@ -1020,6 +1055,23 @@ print(_hash_task_source_context(make_task()))
             @task
             def read_secret() -> str:
                 return captured.secret.get_secret_value()
+
+            return read_secret
+
+        one = make_task("tenant-a-password")
+        two = make_task("tenant-b-password")
+
+        assert one._task_source_context_hash == two._task_source_context_hash
+        assert "tenant-a-password" not in repr(one._task_source_context_hash)
+        assert "tenant-b-password" not in repr(two._task_source_context_hash)
+
+    def test_secrets_nested_in_unhashable_leaves_are_not_distinguishing(self):
+        def make_task(value: str):
+            captured = deque([SecretStr(value)])
+
+            @task
+            def read_secret() -> str:
+                return captured[0].get_secret_value()
 
             return read_secret
 
@@ -1383,6 +1435,23 @@ print(_hash_task_source_context(make_task()))
         one, two = make_task([1]), make_task([2])
 
         assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_dataframe_aliases_change_context_identity(self):
+        pd = pytest.importorskip("pandas")
+
+        def make_task(shared: bool):
+            first = pd.DataFrame({"value": [1]})
+            second = first if shared else pd.DataFrame({"value": [1]})
+
+            @task
+            def values_are_shared() -> bool:
+                return first is second
+
+            return values_are_shared
+
+        aliased, distinct = make_task(True), make_task(False)
+
+        assert aliased._task_source_context_hash != distinct._task_source_context_hash
 
     def test_allocating_transforms_do_not_create_false_aliases(
         self, monkeypatch: pytest.MonkeyPatch
