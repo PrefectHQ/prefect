@@ -1153,6 +1153,32 @@ print(_hash_task_source_context(make_task()))
 
         assert one._task_source_context_hash != two._task_source_context_hash
 
+    def test_conditional_class_assignment_keeps_global_fallthrough(self):
+        def template() -> int:
+            class Namespace:
+                if FLAG:  # type: ignore[name-defined]  # noqa: F821
+                    VALUE = 100
+                before = VALUE  # type: ignore[name-defined]  # noqa: F821
+
+            return Namespace.before
+
+        def make_task(value: int):
+            return task(
+                FunctionType(
+                    template.__code__,
+                    {
+                        "__builtins__": __builtins__,
+                        "FLAG": False,
+                        "VALUE": value,
+                    },
+                    template.__name__,
+                )
+            )
+
+        one, two = make_task(1), make_task(2)
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
     def test_closure_mutation_after_definition_does_not_change_key(self):
         policy = TaskSource()
         run_count = 0
@@ -1341,6 +1367,22 @@ print(_hash_task_source_context(make_task()))
         double, triple = make_task(2), make_task(3)
 
         assert double._task_source_context_hash != triple._task_source_context_hash
+
+    def test_zero_column_dataframes_retain_index_context(self):
+        pd = pytest.importorskip("pandas")
+
+        def make_task(index: list[int]):
+            captured = pd.DataFrame(index=index)
+
+            @task
+            def read_index() -> list[int]:
+                return list(captured.index)
+
+            return read_index
+
+        one, two = make_task([1]), make_task([2])
+
+        assert one._task_source_context_hash != two._task_source_context_hash
 
     def test_allocating_transforms_do_not_create_false_aliases(
         self, monkeypatch: pytest.MonkeyPatch

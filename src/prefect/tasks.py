@@ -370,6 +370,16 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return ("excluded", None)
             if isinstance(item, (SecretBytes, SecretStr)):
                 return ("secret", type(item).__qualname__, str(item))
+            if (
+                item is not original
+                and type(original).__module__.startswith("pandas.")
+                and type(original).__name__ == "DataFrame"
+            ):
+                return (
+                    "stable-dataframe",
+                    safe_prepare(original.index),
+                    safe_prepare(item),
+                )
 
             if (
                 isinstance(item, (bytearray, dict, list, tuple, set, frozenset))
@@ -498,6 +508,10 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
 
     def global_names(code: CodeType) -> set[str]:
         instructions = tuple(dis.get_instructions(code))
+        has_control_flow = any(
+            "JUMP" in instruction.opname or instruction.opname == "FOR_ITER"
+            for instruction in instructions
+        )
         bound_names: set[str] = set()
         names: set[str] = set()
         for instruction in instructions:
@@ -510,7 +524,10 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 bound_names.discard(name)
             elif (
                 instruction.opname in {"LOAD_FROM_DICT_OR_GLOBALS", "LOAD_GLOBAL"}
-                or (instruction.opname == "LOAD_NAME" and name not in bound_names)
+                or (
+                    instruction.opname == "LOAD_NAME"
+                    and (has_control_flow or name not in bound_names)
+                )
             ) and name != "__name__":
                 names.add(name)
         for constant in code.co_consts:
