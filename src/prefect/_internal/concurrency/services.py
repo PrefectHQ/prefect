@@ -316,26 +316,28 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
 
             # A stopped service can never accept items again, so a stopped
             # instance must be replaced instead of returned.
-            if instance is None or instance._stopped:
-                for _attempt in range(2):
-                    instance = cls._new_instance(*args)
+            if instance is not None and not instance._stopped:
+                return instance
 
-                    # Store the new instance before checking whether it has
-                    # stopped. A service that stops while it is created removes
-                    # itself from `_instances` on the global loop, which can run
-                    # before this store; checking afterwards ensures a stopped
-                    # service is neither left in the cache nor returned.
-                    cls._instances[key] = instance
-                    if not instance._stopped:
-                        break
-                    if cls._instances.get(key) is instance:
-                        cls._instances.pop(key, None)
+            # A new instance can already be stopped when `_new_instance`
+            # returns: its `_run` may have exited — and removed itself from
+            # `_instances` — on the global loop before it is stored here. The
+            # instance is stored before its `_stopped` flag is checked so a
+            # stopped service is neither left in the cache nor returned. Up to
+            # two attempts are made so a transient startup failure is not
+            # surfaced to the caller.
+            for _attempt in range(2):
+                instance = cls._new_instance(*args)
 
-                    # The service stopped while it was being created. Try once
-                    # more so a transient startup failure is not surfaced to the
-                    # caller. A service that persistently fails to start is
-                    # still returned and `send` will report the failure.
+                cls._instances[key] = instance
+                if not instance._stopped:
+                    break
+                if cls._instances.get(key) is instance:
+                    cls._instances.pop(key, None)
 
+            # A service that persistently fails to start is still returned and
+            # `send` will report the failure.
+            assert instance is not None
             return instance
 
     def _remove_instance(self):
