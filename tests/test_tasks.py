@@ -2274,33 +2274,31 @@ class TestTaskCaching:
         assert third.name == "Cached"
 
     def test_task_source_policy_distinguishes_referenced_globals(self):
-        def scale(x: int) -> int:
-            return x * FACTOR  # type: ignore[name-defined]  # noqa: F821
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23062"""
 
-        def make_scaler(factor: int):
-            fn = FunctionType(
-                scale.__code__,
-                {"__builtins__": __builtins__, "FACTOR": factor},
-                scale.__name__,
-            )
+        def template() -> int:
+            return VALUE  # type: ignore[name-defined]  # noqa: F821
+
+        def make_task(value: int):
+            fn = FunctionType(template.__code__, {"VALUE": value}, "read_value")
             return task(fn, cache_policy=TASK_SOURCE + INPUTS, persist_result=True)
 
-        double, triple, another_double = make_scaler(2), make_scaler(3), make_scaler(2)
+        one, two, another_one = make_task(1), make_task(2), make_task(1)
 
         @flow
         def my_flow() -> tuple[State[int], State[int], State[int]]:
             return (
-                double(10, return_state=True),
-                triple(10, return_state=True),
-                another_double(10, return_state=True),
+                one(return_state=True),
+                two(return_state=True),
+                another_one(return_state=True),
             )
 
         first, second, third = my_flow()
 
-        assert first.result() == 20
-        assert second.result() == 30
+        assert first.result() == 1
+        assert second.result() == 2
         assert second.name == "Completed"
-        assert third.result() == 20
+        assert third.result() == 1
         assert third.name == "Cached"
 
     def test_cache_policy_serializable_isolation_level_with_no_manager(self):

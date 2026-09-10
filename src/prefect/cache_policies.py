@@ -292,13 +292,13 @@ class _None(CachePolicy):
 @dataclass
 class TaskSource(CachePolicy):
     """
-    Policy for computing a cache key based on a task's source and definition context.
+    Policy for computing a cache key based on the source code of the task.
 
-    The key includes raw lines of task code and a definition-time snapshot of
-    hashable closure values and referenced non-callable module globals. It does not
-    include the source of referenced helpers. Names unresolved at definition time are
-    ignored. Modules, callables, opaque objects, masked secrets, and values that
-    cannot be hashed may not distinguish otherwise identical tasks.
+    In addition to raw source, this policy includes a definition-time snapshot of
+    hashable closure values and referenced non-callable module globals. Later mutation
+    does not change task identity. Modules, callables, masked secrets, and unhashable
+    resources are not reliable distinguishing inputs. Nested and helper source is not
+    included.
     """
 
     def compute_key(
@@ -331,15 +331,6 @@ class TaskSource(CachePolicy):
                 raise
 
         return hash_objects(lines, *context, raise_on_failure=True)
-
-
-def _uses_task_source(policy: object) -> bool:
-    """Return whether a cache policy includes task source in its key."""
-    if isinstance(policy, TaskSource):
-        return True
-    if isinstance(policy, CompoundCachePolicy):
-        return any(_uses_task_source(nested) for nested in policy.policies)
-    return False
 
 
 @dataclass
@@ -425,6 +416,15 @@ class Inputs(CachePolicy):
         if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Can only subtract strings from key policies.")
         return Inputs(exclude=self.exclude + [other])
+
+
+def _uses_task_source(policy: object) -> bool:
+    """Return whether an effective policy includes task source identity."""
+    if isinstance(policy, TaskSource):
+        return True
+    if isinstance(policy, CompoundCachePolicy):
+        return any(_uses_task_source(child) for child in policy.policies)
+    return False
 
 
 INPUTS = Inputs()

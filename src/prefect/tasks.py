@@ -7,16 +7,10 @@ Module containing the base workflow task class and decorator - for most use case
 from __future__ import annotations
 
 import datetime
-import dis
 import inspect
 from copy import copy
-from dataclasses import fields, is_dataclass
-from decimal import Decimal
-from enum import Enum
-from fractions import Fraction
 from functools import partial, update_wrapper
 from pathlib import Path
-from types import CodeType, ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -35,7 +29,6 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, SecretBytes, SecretStr
 from typing_extensions import (
     Literal,
     ParamSpec,
@@ -50,15 +43,10 @@ from typing_extensions import (
 import prefect.states
 from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.task_source import hash_task_source_context
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset
-from prefect.cache_policies import (
-    DEFAULT,
-    NO_CACHE,
-    CachePolicy,
-    _stabilize,
-    _uses_task_source,
-)
+from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy, _uses_task_source
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import (
@@ -317,359 +305,6 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
     return f"{qualname}-{code_hash}"
 
 
-def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
-    """Hash closure values and referenced non-callable module globals."""
-    cells = getattr(fn, "__closure__", None)
-    code = getattr(fn, "__code__", None)
-    if (
-        not cells
-        and isinstance(code, CodeType)
-        and not code.co_names
-        and not any(isinstance(constant, CodeType) for constant in code.co_consts)
-    ):
-        return None
-
-    def fingerprint(
-        value: Any, sort_keys: dict[int, str | None] | None = None
-    ) -> str | None:
-        sort_keys = {} if sort_keys is None else sort_keys
-        references: dict[int, int] = {}
-        retained_values: list[Any] = []
-
-        def sort_key(item: Any) -> str:
-            identity = id(item)
-            if identity not in sort_keys:
-                sort_keys[identity] = fingerprint(item, sort_keys)
-            return sort_keys[identity] or "unhashable"
-
-        def instance_state(item: Any) -> dict[str, Any]:
-            state: dict[str, Any] = {}
-            try:
-                state.update(vars(item))
-            except TypeError:
-                pass
-            for cls in type(item).__mro__:
-                slots = cls.__dict__.get("__slots__", ())
-                if isinstance(slots, str):
-                    slots = (slots,)
-                for name in slots:
-                    if name.startswith("__") and not name.endswith("__"):
-                        name = f"_{cls.__name__.lstrip('_')}{name}"
-                    if name not in {"__dict__", "__weakref__"} and hasattr(item, name):
-                        state[name] = getattr(item, name)
-            return state
-
-        def prepare_attribute(item: Any, name: str) -> Any:
-            try:
-                item_vars = vars(item)
-            except Exception:
-                item_vars = {}
-            if name in item_vars:
-                value = item_vars[name]
-            else:
-                try:
-                    value = object.__getattribute__(item, name)
-                except Exception:
-                    return ("missing", None)
-            return safe_prepare(value)
-
-        def standard_value(item: Any) -> Any:
-            if isinstance(item, datetime.datetime):
-                return ("datetime", item.isoformat(), item.fold)
-            if isinstance(item, datetime.time):
-                return ("time", item.isoformat(), item.fold)
-            if isinstance(item, datetime.date):
-                return ("date", item.isoformat())
-            if isinstance(item, datetime.timedelta):
-                return ("timedelta", item.days, item.seconds, item.microseconds)
-            return hash_objects(item, raise_on_failure=True)
-
-        def safe_prepare(item: Any) -> Any:
-            try:
-                return prepare(item)
-            except Exception:
-                return ("unhashable", None)
-
-        def prepare(item: Any) -> Any:
-            original = item
-            item = _stabilize(original)
-            identity = original if item is not original else item
-            retained_values.append(original)
-            retained_values.append(item)
-            if isinstance(item, ModuleType) or callable(item):
-                return ("excluded", None)
-            if isinstance(item, (SecretBytes, SecretStr)):
-                return ("secret", type(item).__qualname__, str(item))
-            if type(item) in (
-                Decimal,
-                Fraction,
-                UUID,
-                datetime.datetime,
-                datetime.date,
-                datetime.time,
-                datetime.timedelta,
-            ):
-                return (
-                    "value",
-                    type(item).__qualname__,
-                    standard_value(item),
-                )
-            is_dataframe = (
-                item is not original
-                and type(original).__module__.startswith("pandas.")
-                and type(original).__name__ == "DataFrame"
-            )
-            is_pandas_value = type(item).__module__.startswith("pandas.")
-            is_standard_value_subclass = isinstance(
-                item,
-                (
-                    Decimal,
-                    Enum,
-                    Fraction,
-                    Path,
-                    UUID,
-                    datetime.datetime,
-                    datetime.date,
-                    datetime.time,
-                    datetime.timedelta,
-                ),
-            ) and type(item) not in (
-                Decimal,
-                Fraction,
-                UUID,
-                datetime.datetime,
-                datetime.date,
-                datetime.time,
-                datetime.timedelta,
-            )
-
-            if (
-                is_dataframe
-                or is_pandas_value
-                or is_standard_value_subclass
-                or isinstance(item, (bytearray, dict, list, tuple, set, frozenset))
-                or isinstance(item, BaseModel)
-                or (is_dataclass(item) and not isinstance(item, type))
-            ):
-                if (reference := references.get(id(identity))) is not None:
-                    return ("reference", reference)
-                references[id(identity)] = len(references)
-
-            if is_dataframe:
-                return (
-                    "stable-dataframe",
-                    safe_prepare(original.index),
-                    safe_prepare(item),
-                )
-
-            if isinstance(item, bytearray):
-                contents = bytes(bytearray.__iter__(item))
-                if type(item) is bytearray:
-                    return ("bytearray", contents)
-                return (
-                    "bytearray-subclass",
-                    type(item).__qualname__,
-                    contents,
-                    safe_prepare(instance_state(item)),
-                )
-
-            if type(item) is dict:
-                ordered_items = list(item.items())
-                if len(ordered_items) > 1:
-                    ordered_items.sort(key=lambda pair: sort_key(pair[0]))
-                return (
-                    "dict",
-                    tuple(
-                        (safe_prepare(key), safe_prepare(value))
-                        for key, value in ordered_items
-                    ),
-                )
-            if isinstance(item, dict):
-                ordered_items = list(dict.items(item))
-                if len(ordered_items) > 1:
-                    ordered_items.sort(key=lambda pair: sort_key(pair[0]))
-                return (
-                    "dict-subclass",
-                    type(item).__qualname__,
-                    tuple(
-                        (safe_prepare(key), safe_prepare(value))
-                        for key, value in ordered_items
-                    ),
-                    safe_prepare(instance_state(item)),
-                )
-            if type(item) in {set, frozenset}:
-                ordered_values = list(item)
-                if len(ordered_values) > 1:
-                    ordered_values.sort(key=sort_key)
-                return (
-                    type(item).__name__,
-                    tuple(safe_prepare(value) for value in ordered_values),
-                )
-            if isinstance(item, (set, frozenset)):
-                iterator = (
-                    set.__iter__(item)
-                    if isinstance(item, set)
-                    else frozenset.__iter__(item)
-                )
-                ordered_values = list(iterator)
-                if len(ordered_values) > 1:
-                    ordered_values.sort(key=sort_key)
-                return (
-                    f"{type(item).__name__}-subclass",
-                    type(item).__qualname__,
-                    tuple(safe_prepare(value) for value in ordered_values),
-                    safe_prepare(instance_state(item)),
-                )
-            if type(item) is list:
-                return ("list", tuple(safe_prepare(value) for value in item))
-            if isinstance(item, list):
-                return (
-                    "list-subclass",
-                    type(item).__qualname__,
-                    tuple(safe_prepare(value) for value in list.__iter__(item)),
-                    safe_prepare(instance_state(item)),
-                )
-            if type(item) is tuple:
-                return ("tuple", tuple(safe_prepare(value) for value in item))
-            if isinstance(item, tuple):
-                return (
-                    "tuple-subclass",
-                    type(item).__qualname__,
-                    tuple(safe_prepare(value) for value in tuple.__iter__(item)),
-                    safe_prepare(instance_state(item)),
-                )
-            if isinstance(item, BaseModel):
-                return (
-                    "model",
-                    type(item).__qualname__,
-                    safe_prepare(item.__dict__),
-                    safe_prepare(item.__pydantic_extra__),
-                    safe_prepare(item.__pydantic_fields_set__),
-                    safe_prepare(item.__pydantic_private__),
-                )
-            if is_dataclass(item) and not isinstance(item, type):
-                field_names = {field.name for field in fields(item)}
-                additional_state = {
-                    name: value
-                    for name, value in instance_state(item).items()
-                    if name not in field_names
-                }
-                return (
-                    "dataclass",
-                    type(item).__qualname__,
-                    tuple(
-                        (field.name, prepare_attribute(item, field.name))
-                        for field in fields(item)
-                    ),
-                    safe_prepare(additional_state),
-                )
-            if is_pandas_value:
-                return (
-                    "stable-leaf",
-                    type(item).__qualname__,
-                    hash_objects(item, raise_on_failure=True),
-                )
-            if isinstance(
-                item,
-                (
-                    Decimal,
-                    Enum,
-                    Fraction,
-                    Path,
-                    UUID,
-                    datetime.datetime,
-                    datetime.date,
-                    datetime.time,
-                    datetime.timedelta,
-                ),
-            ):
-                return (
-                    "value-subclass",
-                    type(item).__qualname__,
-                    standard_value(item),
-                    safe_prepare(instance_state(item)),
-                )
-            if hasattr(item, "__dict__") or hasattr(type(item), "__slots__"):
-                raise TypeError("Opaque objects are not safe task-source context")
-            hash(item)
-            return (
-                "leaf",
-                type(item).__qualname__,
-                hash_objects(item, raise_on_failure=True),
-            )
-
-        try:
-            return hash_objects(prepare(value))
-        except Exception:
-            return None
-
-    freevars = getattr(code, "co_freevars", ())
-    closure_values: dict[str, Any] = {}
-    for name, cell in zip(freevars, cells or ()):
-        try:
-            value = cell.cell_contents
-        except Exception:
-            closure_values[name] = ("empty",)
-        else:
-            if isinstance(value, ModuleType) or callable(value):
-                continue
-            closure_values[name] = ("value", value)
-
-    global_values: dict[str, Any] = {}
-    try:
-        referenced_globals = inspect.getclosurevars(fn).globals
-    except (TypeError, ValueError):
-        referenced_globals = {}
-
-    def global_names(code: CodeType) -> set[str]:
-        instructions = tuple(dis.get_instructions(code))
-        has_control_flow = any(
-            "JUMP" in instruction.opname or instruction.opname == "FOR_ITER"
-            for instruction in instructions
-        )
-        bound_names: set[str] = set()
-        names: set[str] = set()
-        for instruction in instructions:
-            name = instruction.argval
-            if not isinstance(name, str):
-                continue
-            if instruction.opname == "STORE_NAME":
-                bound_names.add(name)
-            elif instruction.opname == "DELETE_NAME":
-                bound_names.discard(name)
-            elif (
-                instruction.opname in {"LOAD_FROM_DICT_OR_GLOBALS", "LOAD_GLOBAL"}
-                or (
-                    instruction.opname == "LOAD_NAME"
-                    and (has_control_flow or name not in bound_names)
-                )
-            ) and name != "__name__":
-                names.add(name)
-        for constant in code.co_consts:
-            if isinstance(constant, CodeType):
-                names.update(global_names(constant))
-        return names
-
-    namespace = getattr(fn, "__globals__", {})
-    if isinstance(code, CodeType):
-        referenced_globals = {
-            **{
-                name: namespace[name]
-                for name in global_names(code)
-                if name in namespace
-            },
-            **referenced_globals,
-        }
-    for name, value in referenced_globals.items():
-        if isinstance(value, ModuleType) or callable(value):
-            continue
-        global_values[name] = ("value", value)
-
-    if not closure_values and not global_values:
-        return None
-    return fingerprint({"closure": closure_values, "globals": global_values})
-
-
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -926,9 +561,8 @@ class Task(Generic[P, R]):
         else:
             self.cache_policy: Union[CachePolicy, type[NotSet], None] = cache_policy
 
-        # Snapshot task-source context only when the effective policy uses it.
-        self._task_source_context_hash: str | None = (
-            _hash_task_source_context(fn)
+        self._task_source_context_hash = (
+            hash_task_source_context(fn)
             if _uses_task_source(self.cache_policy)
             else None
         )

@@ -68,7 +68,7 @@ Prefect comes prepackaged with a few common cache policies:
 - `DEFAULT`: this cache policy uses the task's inputs, its code definition, as well as the prevailing flow run ID
 to compute the task's cache key.
 - `INPUTS`: this cache policy uses _only_ the task's inputs to compute the cache key.
-- `TASK_SOURCE`: this cache policy uses raw lines of task code plus a definition-time snapshot of hashable closure values and referenced non-callable module globals. Later mutation does not change the task's identity, and names unresolved at definition time are ignored. Referenced helpers and modules are excluded, so changes to nested source do not invalidate the key. Opaque objects, unhashable resources, and masked secrets may not distinguish otherwise identical tasks.
+- `TASK_SOURCE`: this cache policy uses the task's raw source plus a definition-time snapshot of hashable captured closure values and referenced non-callable module globals. Later mutation does not change task identity. Nested/helper source, modules, callables, unhashable resources, and masked secrets are not reliable distinguishing inputs.
 - `FLOW_PARAMETERS`: this cache policy uses _only_ the parameter values provided to the parent flow run
 to compute the cache key.
 - `NO_CACHE`: this cache policy always returns `None` and therefore avoids caching and result persistence altogether.
