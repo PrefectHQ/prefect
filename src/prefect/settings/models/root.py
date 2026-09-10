@@ -281,12 +281,16 @@ class Settings(PrefectBaseSettings):
         """
         if "profiles_path" not in self.model_fields_set:
             self.profiles_path = self.home / "profiles.toml"
+            self.__pydantic_fields_set__.remove("profiles_path")
         if "local_storage_path" not in self.results.model_fields_set:
             self.results.local_storage_path = self.home / "storage"
+            self.results.__pydantic_fields_set__.remove("local_storage_path")
         if "config_path" not in self.logging.model_fields_set:
             self.logging.config_path = self.home / "logging.yml"
+            self.logging.__pydantic_fields_set__.remove("config_path")
         if "memo_store_path" not in self.server.model_fields_set:
             self.server.memo_store_path = self.home / "memo_store.toml"
+            self.server.__pydantic_fields_set__.remove("memo_store_path")
 
         if self.ui_url is None:
             self.ui_url = default_ui_url(self)
@@ -449,20 +453,10 @@ class Settings(PrefectBaseSettings):
         for setting, value in updates.items():
             set_in_dict(updates_obj, _get_setting_accessor(setting), value)
 
-        current_values = self.model_dump(exclude_unset=True)
-        if "profiles_path" not in self.model_fields_set:
-            current_values.pop("profiles_path", None)
-        if "local_storage_path" not in self.results.model_fields_set:
-            current_values.get("results", {}).pop("local_storage_path", None)
-        if "config_path" not in self.logging.model_fields_set:
-            current_values.get("logging", {}).pop("config_path", None)
-        if "memo_store_path" not in self.server.model_fields_set:
-            current_values.get("server", {}).pop("memo_store_path", None)
-
         new_settings = self.__class__.model_validate(
             deep_merge_dicts(
                 set_defaults_obj,
-                current_values,
+                self.model_dump(exclude_unset=True),
                 restore_defaults_obj,
                 updates_obj,
             )

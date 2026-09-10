@@ -3259,8 +3259,8 @@ class TestHomeDependentDefaults:
         assert updated.server.memo_store_path == new_home / "memo_store.toml"
 
     def test_local_storage_path_defaults_to_prefect_home_storage(
-        self, monkeypatch, tmp_path
-    ):
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         custom_home = tmp_path / "custom_prefect_home"
         monkeypatch.setenv("PREFECT_HOME", str(custom_home))
         settings = Settings()
@@ -3270,7 +3270,9 @@ class TestHomeDependentDefaults:
         assert settings.server.memo_store_path == custom_home / "memo_store.toml"
         assert settings.logging.config_path == custom_home / "logging.yml"
 
-    def test_local_storage_path_explicit_override(self, monkeypatch, tmp_path):
+    def test_local_storage_path_explicit_override(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         custom_home = tmp_path / "custom_prefect_home"
         override_path = tmp_path / "override_storage"
         monkeypatch.setenv("PREFECT_HOME", str(custom_home))
