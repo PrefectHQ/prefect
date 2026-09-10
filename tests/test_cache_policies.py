@@ -901,6 +901,24 @@ print(_hash_task_source_context(make_task()))
 
         assert one._task_source_context_hash != two._task_source_context_hash
 
+    def test_set_subclasses_use_base_storage(self):
+        class OverriddenIteration(set[int]):
+            def __iter__(self):
+                return iter([0])
+
+        def make_task(value: int):
+            captured = OverriddenIteration({value})
+
+            @task
+            def contains_one() -> bool:
+                return set.__contains__(captured, 1)
+
+            return contains_one
+
+        one, two = make_task(1), make_task(2)
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
     def test_tuple_subclasses_retain_state(self):
         class TaggedTuple(tuple[object, ...]):
             def __new__(cls, tag: str):
@@ -1125,6 +1143,18 @@ print(_hash_task_source_context(make_task()))
             enum_value._task_source_context_hash
             != string_value._task_source_context_hash
         )
+
+    def test_standard_hashable_values_change_context_identity(self):
+        def make_task(captured: Path):
+            @task
+            def read_path() -> Path:
+                return captured
+
+            return read_path
+
+        one, two = make_task(Path("/one")), make_task(Path("/two"))
+
+        assert one._task_source_context_hash != two._task_source_context_hash
 
     def test_nested_class_module_name_does_not_change_context_identity(self):
         def template() -> int:

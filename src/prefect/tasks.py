@@ -11,6 +11,9 @@ import dis
 import inspect
 from copy import copy
 from dataclasses import fields, is_dataclass
+from decimal import Decimal
+from enum import Enum
+from fractions import Fraction
 from functools import partial, update_wrapper
 from pathlib import Path
 from types import CodeType, ModuleType
@@ -370,6 +373,24 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return ("excluded", None)
             if isinstance(item, (SecretBytes, SecretStr)):
                 return ("secret", type(item).__qualname__, str(item))
+            if isinstance(
+                item,
+                (
+                    Decimal,
+                    Enum,
+                    Fraction,
+                    Path,
+                    UUID,
+                    datetime.date,
+                    datetime.time,
+                    datetime.timedelta,
+                ),
+            ):
+                return (
+                    "value",
+                    type(item).__qualname__,
+                    hash_objects(item, raise_on_failure=True),
+                )
             is_dataframe = (
                 item is not original
                 and type(original).__module__.startswith("pandas.")
@@ -421,8 +442,13 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                     tuple(safe_prepare(value) for value in ordered_values),
                 )
             if isinstance(item, (set, frozenset)):
+                iterator = (
+                    set.__iter__(item)
+                    if isinstance(item, set)
+                    else frozenset.__iter__(item)
+                )
                 ordered_values = sorted(
-                    item, key=lambda value: fingerprint(value) or "unhashable"
+                    iterator, key=lambda value: fingerprint(value) or "unhashable"
                 )
                 return (
                     f"{type(item).__name__}-subclass",
@@ -445,7 +471,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
                 return (
                     "tuple-subclass",
                     type(item).__qualname__,
-                    tuple(safe_prepare(value) for value in item),
+                    tuple(safe_prepare(value) for value in tuple.__iter__(item)),
                     safe_prepare(instance_state(item)),
                 )
             if isinstance(item, BaseModel):
