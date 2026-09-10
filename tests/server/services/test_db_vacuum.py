@@ -10,9 +10,14 @@ from types import SimpleNamespace
 
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import (
+    PrefectDBInterface,
+    orm_models,
+    provide_database_interface,
+)
 from prefect.server.database.configurations import (
     AioSqliteConfiguration,
     AsyncPostgresConfiguration,
@@ -520,6 +525,47 @@ class TestVacuumOrphanedLogs:
         db = provide_database_interface()
         flow_run = await _create_flow_run(session, flow, end_time=RECENT)
         await _create_log(session, flow_run_id=flow_run.id)
+
+        await vacuum_orphaned_logs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.Log) == 1
+
+    async def test_preserves_log_if_flow_run_is_created_before_delete(
+        self,
+        session: AsyncSession,
+        flow: orm_models.Flow,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A flow run created after discovery makes its logs non-orphaned."""
+        db = provide_database_interface()
+        flow_run_id = uuid.uuid4()
+        await _create_log(session, flow_run_id=flow_run_id)
+        original_batch_delete = db_vacuum._batch_delete
+        flow_run_created = False
+
+        async def create_flow_run_before_delete(
+            db: PrefectDBInterface,
+            model: type[orm_models.Log | orm_models.Artifact],
+            condition: sa.ColumnElement[bool],
+            batch_size: int,
+        ) -> int:
+            nonlocal flow_run_created
+            if not flow_run_created:
+                flow_run_created = True
+                async with db.session_context(begin_transaction=True) as late_session:
+                    await models.flow_runs.create_flow_run(
+                        session=late_session,
+                        flow_run=schemas.core.FlowRun(
+                            id=flow_run_id,
+                            flow_id=flow.id,
+                            state=schemas.states.Completed(),
+                            end_time=RECENT,
+                        ),
+                    )
+            return await original_batch_delete(db, model, condition, batch_size)
+
+        monkeypatch.setattr(db_vacuum, "_batch_delete", create_flow_run_before_delete)
 
         await vacuum_orphaned_logs(db=db)
 

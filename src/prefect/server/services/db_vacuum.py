@@ -504,7 +504,13 @@ async def _delete_orphaned_by_flow_run(
         ]
         if orphaned:
             total += await _batch_delete(
-                db, model, model.flow_run_id.in_(orphaned), batch_size
+                db,
+                model,
+                sa.and_(
+                    model.flow_run_id.in_(orphaned),
+                    ~sa.exists().where(db.FlowRun.id == model.flow_run_id),
+                ),
+                batch_size,
             )
 
         await asyncio.sleep(0)  # yield to event loop between batches
