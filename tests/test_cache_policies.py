@@ -4,6 +4,7 @@ import subprocess
 import sys
 import threading
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from types import FunctionType, ModuleType
 from typing import Callable
@@ -675,6 +676,129 @@ print(_hash_task_source_context(make_task()))
         one, two = make_task([]), make_task([1])
 
         assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_recursive_mappings_are_independent_of_insertion_order(self):
+        def make_task(reverse: bool):
+            captured: dict[str, object] = {}
+            pairs = [("factor", 2), ("self", captured)]
+            captured.update(reversed(pairs) if reverse else pairs)
+
+            @task
+            def read() -> int:
+                return captured["factor"]  # type: ignore[return-value]
+
+            return read
+
+        one, two = make_task(False), make_task(True)
+
+        assert one._task_source_context_hash == two._task_source_context_hash
+
+    def test_alias_relationships_change_context_identity(self):
+        def make_task(shared: bool):
+            first: list[object] = []
+            second = first if shared else []
+            captured = [first, second]
+
+            @task
+            def values_are_shared() -> bool:
+                return captured[0] is captured[1]
+
+            return values_are_shared
+
+        aliased, distinct = make_task(True), make_task(False)
+
+        assert aliased._task_source_context_hash != distinct._task_source_context_hash
+
+    def test_model_fields_with_sets_are_stable_across_hash_seeds(self):
+        script = """
+from pydantic import BaseModel
+from prefect.tasks import _hash_task_source_context
+
+class Model(BaseModel):
+    values: set[str]
+
+def make_task():
+    value = Model(values={"alpha", "beta", "gamma"})
+    def captured():
+        return value
+    return captured
+
+print(_hash_task_source_context(make_task()))
+"""
+        hashes = [
+            subprocess.run(
+                [sys.executable, "-c", script],
+                check=True,
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PYTHONHASHSEED": seed},
+            ).stdout
+            for seed in ("1", "2")
+        ]
+
+        assert hashes[0] == hashes[1]
+
+    def test_container_subclasses_retain_state(self):
+        class TaggedList(list[object]):
+            def __init__(self, tag: str):
+                super().__init__([1])
+                self.tag = tag
+
+        def make_task(tag: str):
+            captured = TaggedList(tag)
+
+            @task
+            def read_tag() -> str:
+                return captured.tag
+
+            return read_tag
+
+        one, two = make_task("one"), make_task("two")
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
+    def test_leaf_types_change_context_identity(self):
+        class Value(str, Enum):
+            ITEM = "value"
+
+        def make_task(captured: object):
+            @task
+            def read_type() -> type[object]:
+                return type(captured)
+
+            return read_type
+
+        enum_value, string_value = make_task(Value.ITEM), make_task("value")
+
+        assert (
+            enum_value._task_source_context_hash
+            != string_value._task_source_context_hash
+        )
+
+    def test_nested_class_module_name_does_not_change_context_identity(self):
+        def template() -> int:
+            class Unused:
+                pass
+
+            return 1
+
+        one = task(
+            FunctionType(
+                template.__code__,
+                {"__builtins__": __builtins__, "__name__": "__main__"},
+                template.__name__,
+            )
+        )
+        two = task(
+            FunctionType(
+                template.__code__,
+                {"__builtins__": __builtins__, "__name__": "imported"},
+                template.__name__,
+            )
+        )
+
+        assert one._task_source_context_hash is None
+        assert two._task_source_context_hash is None
 
     def test_closure_mutation_after_definition_does_not_change_key(self):
         policy = TaskSource()

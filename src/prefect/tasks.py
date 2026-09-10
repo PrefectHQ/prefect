@@ -10,6 +10,7 @@ import datetime
 import dis
 import inspect
 from copy import copy
+from dataclasses import fields, is_dataclass
 from functools import partial, update_wrapper
 from pathlib import Path
 from types import CodeType, ModuleType
@@ -31,6 +32,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
+from pydantic import BaseModel
 from typing_extensions import (
     Literal,
     ParamSpec,
@@ -324,43 +326,101 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
     ):
         return None
 
-    class CyclicValue(Exception):
-        pass
+    def fingerprint(value: Any) -> str | None:
+        references: dict[int, int] = {}
 
-    def fingerprint(value: Any, ancestors: frozenset[int] = frozenset()) -> str | None:
-        try:
-            return hash_objects(prepare(value, ancestors))
-        except CyclicValue:
+        def safe_prepare(item: Any) -> Any:
             try:
-                return hash_objects(_stabilize(value))
+                return prepare(item)
             except Exception:
-                return None
+                return ("unhashable", None)
+
+        def prepare(item: Any) -> Any:
+            item = _stabilize(item)
+            if isinstance(item, ModuleType) or callable(item):
+                return ("excluded", None)
+
+            if (
+                isinstance(item, (dict, list, tuple, set, frozenset))
+                or isinstance(item, BaseModel)
+                or (is_dataclass(item) and not isinstance(item, type))
+            ):
+                if (reference := references.get(id(item))) is not None:
+                    return ("reference", reference)
+                references[id(item)] = len(references)
+
+            if type(item) is dict:
+                ordered_items = sorted(
+                    item.items(),
+                    key=lambda pair: fingerprint(pair[0]) or "unhashable",
+                )
+                return (
+                    "dict",
+                    tuple(
+                        (safe_prepare(key), safe_prepare(value))
+                        for key, value in ordered_items
+                    ),
+                )
+            if isinstance(item, dict):
+                return (
+                    "dict-subclass",
+                    type(item).__qualname__,
+                    safe_prepare(dict(item)),
+                    safe_prepare(vars(item)),
+                )
+            if type(item) in {set, frozenset}:
+                prepared = [fingerprint(value) or "unhashable" for value in item]
+                return (type(item).__name__, tuple(sorted(prepared)))
+            if isinstance(item, (set, frozenset)):
+                prepared = [fingerprint(value) or "unhashable" for value in item]
+                return (
+                    f"{type(item).__name__}-subclass",
+                    type(item).__qualname__,
+                    tuple(sorted(prepared)),
+                    safe_prepare(vars(item)),
+                )
+            if type(item) is list:
+                return ("list", tuple(safe_prepare(value) for value in item))
+            if isinstance(item, list):
+                return (
+                    "list-subclass",
+                    type(item).__qualname__,
+                    tuple(safe_prepare(value) for value in item),
+                    safe_prepare(vars(item)),
+                )
+            if type(item) is tuple:
+                return ("tuple", tuple(safe_prepare(value) for value in item))
+            if isinstance(item, tuple):
+                return (
+                    "tuple-subclass",
+                    type(item).__qualname__,
+                    tuple(safe_prepare(value) for value in item),
+                )
+            if isinstance(item, BaseModel):
+                return (
+                    "model",
+                    type(item).__qualname__,
+                    safe_prepare(item.model_dump(mode="python")),
+                )
+            if is_dataclass(item) and not isinstance(item, type):
+                return (
+                    "dataclass",
+                    type(item).__qualname__,
+                    tuple(
+                        (field.name, safe_prepare(getattr(item, field.name)))
+                        for field in fields(item)
+                    ),
+                )
+            return (
+                "leaf",
+                type(item).__qualname__,
+                hash_objects(item, raise_on_failure=True),
+            )
+
+        try:
+            return hash_objects(prepare(value))
         except Exception:
             return None
-
-    def prepare(value: Any, ancestors: frozenset[int]) -> Any:
-        value = _stabilize(value)
-        if isinstance(value, (dict, list, tuple, set, frozenset)):
-            if id(value) in ancestors:
-                raise CyclicValue
-            ancestors = ancestors | {id(value)}
-        if isinstance(value, dict):
-            items = [
-                (fingerprint(key, ancestors), fingerprint(item, ancestors))
-                for key, item in value.items()
-            ]
-            return ("dict", tuple(sorted(items, key=repr)))
-        if isinstance(value, (set, frozenset)):
-            items = [fingerprint(item, ancestors) for item in value]
-            return (
-                type(value).__name__,
-                tuple(sorted(items, key=repr)),
-            )
-        if isinstance(value, list):
-            return ("list", tuple(fingerprint(item, ancestors) for item in value))
-        if isinstance(value, tuple):
-            return ("tuple", tuple(fingerprint(item, ancestors) for item in value))
-        return value
 
     freevars = getattr(code, "co_freevars", ())
     closure_hashes: dict[str, str | None] = {}
@@ -386,6 +446,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
             for instruction in dis.get_instructions(code)
             if instruction.opname in {"LOAD_GLOBAL", "LOAD_NAME"}
             and isinstance(instruction.argval, str)
+            and instruction.argval != "__name__"
         }
         for constant in code.co_consts:
             if isinstance(constant, CodeType):
