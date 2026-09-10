@@ -4,7 +4,7 @@ import inspect
 from types import ModuleType
 from typing import Any, Callable
 
-from prefect.cache_policies import _stabilize
+from prefect.cache_policies import _stabilize  # pyright: ignore[reportPrivateUsage]
 from prefect.utilities.hashing import hash_objects
 
 
