@@ -315,26 +315,42 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
 def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
     """Hash closure values and referenced non-callable module globals."""
 
-    def prepare(value: Any) -> Any:
+    class CyclicValue(Exception):
+        pass
+
+    def fingerprint(value: Any, ancestors: frozenset[int] = frozenset()) -> str | None:
+        try:
+            return hash_objects(prepare(value, ancestors))
+        except CyclicValue:
+            try:
+                return hash_objects(_stabilize(value))
+            except Exception:
+                return None
+        except Exception:
+            return None
+
+    def prepare(value: Any, ancestors: frozenset[int]) -> Any:
         value = _stabilize(value)
+        if isinstance(value, (dict, list, tuple, set, frozenset)):
+            if id(value) in ancestors:
+                raise CyclicValue
+            ancestors = ancestors | {id(value)}
         if isinstance(value, dict):
             items = [
-                hash_objects((prepare(key), prepare(item)), raise_on_failure=True)
+                (fingerprint(key, ancestors), fingerprint(item, ancestors))
                 for key, item in value.items()
             ]
-            return ("dict", tuple(sorted(items)))
+            return ("dict", tuple(sorted(items, key=repr)))
         if isinstance(value, (set, frozenset)):
-            items = [
-                hash_objects(prepare(item), raise_on_failure=True) for item in value
-            ]
+            items = [fingerprint(item, ancestors) for item in value]
             return (
                 type(value).__name__,
-                tuple(sorted(items)),
+                tuple(sorted(items, key=repr)),
             )
         if isinstance(value, list):
-            return ("list", tuple(prepare(item) for item in value))
+            return ("list", tuple(fingerprint(item, ancestors) for item in value))
         if isinstance(value, tuple):
-            return ("tuple", tuple(prepare(item) for item in value))
+            return ("tuple", tuple(fingerprint(item, ancestors) for item in value))
         return value
 
     cells = getattr(fn, "__closure__", None)
@@ -348,10 +364,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
         else:
             if isinstance(value, ModuleType) or callable(value):
                 continue
-            try:
-                closure_hashes[name] = hash_objects(prepare(value))
-            except Exception:
-                closure_hashes[name] = None
+            closure_hashes[name] = fingerprint(value)
 
     global_hashes: dict[str, str | None] = {}
     try:
@@ -385,10 +398,7 @@ def _hash_task_source_context(fn: Callable[..., Any]) -> str | None:
     for name, value in referenced_globals.items():
         if isinstance(value, ModuleType) or callable(value):
             continue
-        try:
-            global_hashes[name] = hash_objects(prepare(value))
-        except Exception:
-            global_hashes[name] = None
+        global_hashes[name] = fingerprint(value)
 
     if not closure_hashes and not global_hashes:
         return None

@@ -648,6 +648,34 @@ print(_hash_task_source_context(make_task()))
 
         assert hashes[0] == hashes[1]
 
+    def test_hashable_mapping_siblings_survive_unhashable_values(self):
+        def make_task(factor: int):
+            captured = {"factor": factor, "lock": threading.Lock()}
+
+            @task
+            def scale(value: int) -> int:
+                return value * captured["factor"]  # type: ignore[operator]
+
+            return scale
+
+        double, triple = make_task(2), make_task(3)
+
+        assert double._task_source_context_hash != triple._task_source_context_hash
+
+    def test_recursive_closure_values_retain_distinguishing_context(self):
+        def make_task(prefix: list[object]):
+            prefix.append(prefix)
+
+            @task
+            def captured() -> int:
+                return len(prefix)
+
+            return captured
+
+        one, two = make_task([]), make_task([1])
+
+        assert one._task_source_context_hash != two._task_source_context_hash
+
     def test_closure_mutation_after_definition_does_not_change_key(self):
         policy = TaskSource()
         run_count = 0
