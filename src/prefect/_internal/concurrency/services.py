@@ -315,22 +315,26 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
             instance = cls._instances.get(key)
 
             # A stopped service can never accept items again, so a stopped
-            # instance must be replaced instead of returned. A new instance can
-            # already be stopped when `_new_instance` returns: its `_run` may
-            # have exited — and removed itself from `_instances` — on the global
-            # loop before it is stored here.
+            # instance must be replaced instead of returned.
             if instance is None or instance._stopped:
-                instance = cls._new_instance(*args)
+                for _attempt in range(2):
+                    instance = cls._new_instance(*args)
 
-                if instance._stopped:
-                    # The service stopped while it was being created; try once
+                    # Store the new instance before checking whether it has
+                    # stopped. A service that stops while it is created removes
+                    # itself from `_instances` on the global loop, which can run
+                    # before this store; checking afterwards ensures a stopped
+                    # service is neither left in the cache nor returned.
+                    cls._instances[key] = instance
+                    if not instance._stopped:
+                        break
+                    if cls._instances.get(key) is instance:
+                        cls._instances.pop(key, None)
+
+                    # The service stopped while it was being created. Try once
                     # more so a transient startup failure is not surfaced to the
                     # caller. A service that persistently fails to start is
                     # still returned and `send` will report the failure.
-                    instance = cls._new_instance(*args)
-
-                if not instance._stopped:
-                    cls._instances[key] = instance
 
             return instance
 
