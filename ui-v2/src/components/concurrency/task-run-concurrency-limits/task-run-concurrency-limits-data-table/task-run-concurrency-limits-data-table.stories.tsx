@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "storybook/test";
 import { createFakeTaskRunConcurrencyLimit } from "@/mocks";
 import { routerDecorator, toastDecorator } from "@/storybook/utils";
-import { Table as TaskRunConcurrencyLimitsDataTable } from "./task-run-concurrency-limits-data-table";
+import { TaskRunConcurrencyLimitsDataTable } from "./task-run-concurrency-limits-data-table";
 
 const MOCK_DATA = [
 	createFakeTaskRunConcurrencyLimit(),
@@ -22,9 +22,14 @@ const meta = {
 		onDeleteRow: fn(),
 		onResetRow: fn(),
 		onSearchChange: fn(),
-		searchValue: fn(),
+		searchValue: "",
+		onClearSearch: fn(),
+		showFilteredEmptyState: false,
+		pageCount: 1,
+		pagination: { pageIndex: 0, pageSize: 10 },
+		onPaginationChange: fn(),
 	},
-} satisfies Meta;
+} satisfies Meta<typeof TaskRunConcurrencyLimitsDataTable>;
 export default meta;
 
 export const story: StoryObj = {
