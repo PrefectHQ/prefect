@@ -236,6 +236,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         send_kwargs: dict[str, Any],
         retry_codes: set[int] = set(),
         retry_exceptions: tuple[type[Exception], ...] = tuple(),
+        connect_error_attempts: int = 0,
     ):
         """
         Send a request and retry it if it fails.
@@ -243,6 +244,11 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         Sends the provided request and retries it up to PREFECT_CLIENT_MAX_RETRIES times
         if the request either raises an exception listed in `retry_exceptions` or
         receives a response with a status code listed in `retry_codes`.
+
+        `connect_error_attempts` is a separate budget, in total attempts, that applies
+        only to `httpx.ConnectError` before the client has ever connected. It is counted
+        independently so that opting into connection retries cannot change how many times
+        a reachable server is retried.
 
         Retries are not counted against the limit if the response headers contains
         a reserved value, indicating that the server is undergoing maintenance. These
@@ -252,7 +258,9 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         exponential backoff if a retry header is not provided.
         """
         try_count = 0
+        connect_try_count = 0
         response = None
+        max_retries = PREFECT_CLIENT_MAX_RETRIES.value()
 
         if TYPE_CHECKING:
             # older httpx versions type method as str | bytes | Unknown
@@ -264,16 +272,24 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         if self.enable_csrf_support and is_change_request:
             await self._add_csrf_headers(request=request)
 
-        while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
+        while try_count <= max_retries:
             retry_seconds = None
             exc_info = None
 
             try:
                 response = await send(request, *send_args, **send_kwargs)
-            except retry_exceptions:  # type: ignore
-                try_count += 1
-                if try_count > PREFECT_CLIENT_MAX_RETRIES.value():
-                    raise
+            except retry_exceptions as exc:  # type: ignore
+                if connect_error_attempts > 0 and isinstance(exc, httpx.ConnectError):
+                    # Initial-connection failures draw on their own budget so they
+                    # never widen (or narrow) the retry allowance for a server that
+                    # is actually answering.
+                    connect_try_count += 1
+                    if connect_try_count >= connect_error_attempts:
+                        raise
+                else:
+                    try_count += 1
+                    if try_count > max_retries:
+                        raise
                 # Otherwise, we will ignore this error but capture the info for logging
                 exc_info = sys.exc_info()
             else:
@@ -297,7 +313,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
 
             # Use an exponential back-off if not set in a header
             if retry_seconds is None:
-                retry_seconds = 2**try_count
+                retry_seconds = 2 ** (try_count + connect_try_count)
 
             # Add jitter
             jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
@@ -324,7 +340,8 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                 )
                 + f"Another attempt will be made in {retry_seconds}s. "
                 "This is attempt"
-                f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
+                f" {try_count + connect_try_count}/"
+                f"{(connect_error_attempts if connect_try_count else max_retries + 1)}.",
                 exc_info=exc_info,
             )
             await anyio.sleep(retry_seconds)
@@ -378,8 +395,14 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         # Only retry ConnectError after we've successfully connected once.
         # This allows fast failure on initial connection issues (e.g., wrong URL)
         # while still providing resilience during server restarts.
+        # Before that first success, PREFECT_CLIENT_CONNECTION_ATTEMPTS opts in to
+        # tolerating an API that is not up yet.
+        connect_error_attempts = 0
         if self._has_connected:
             retry_exceptions = retry_exceptions + (httpx.ConnectError,)
+        elif connection_attempts := get_current_settings().client.connection_attempts:
+            retry_exceptions = retry_exceptions + (httpx.ConnectError,)
+            connect_error_attempts = connection_attempts
 
         super_send = super().send
         response = await self._send_with_retry(
@@ -395,6 +418,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                 *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
             },
             retry_exceptions=retry_exceptions,
+            connect_error_attempts=connect_error_attempts,
         )
 
         # Mark that we've successfully connected to the server
@@ -506,6 +530,7 @@ class PrefectHttpxSyncClient(httpx.Client):
         send_kwargs: dict[str, Any],
         retry_codes: set[int] = set(),
         retry_exceptions: tuple[type[Exception], ...] = tuple(),
+        connect_error_attempts: int = 0,
     ):
         """
         Send a request and retry it if it fails.
@@ -513,6 +538,11 @@ class PrefectHttpxSyncClient(httpx.Client):
         Sends the provided request and retries it up to PREFECT_CLIENT_MAX_RETRIES times
         if the request either raises an exception listed in `retry_exceptions` or
         receives a response with a status code listed in `retry_codes`.
+
+        `connect_error_attempts` is a separate budget, in total attempts, that applies
+        only to `httpx.ConnectError` before the client has ever connected. It is counted
+        independently so that opting into connection retries cannot change how many times
+        a reachable server is retried.
 
         Retries are not counted against the limit if the response headers contains
         a reserved value, indicating that the server is undergoing maintenance. These
@@ -522,7 +552,9 @@ class PrefectHttpxSyncClient(httpx.Client):
         exponential backoff if a retry header is not provided.
         """
         try_count = 0
+        connect_try_count = 0
         response = None
+        max_retries = PREFECT_CLIENT_MAX_RETRIES.value()
 
         if TYPE_CHECKING:
             # older httpx versions type method as str | bytes | Unknown
@@ -534,16 +566,24 @@ class PrefectHttpxSyncClient(httpx.Client):
         if self.enable_csrf_support and is_change_request:
             self._add_csrf_headers(request=request)
 
-        while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
+        while try_count <= max_retries:
             retry_seconds = None
             exc_info = None
 
             try:
                 response = send(request, *send_args, **send_kwargs)
-            except retry_exceptions:  # type: ignore
-                try_count += 1
-                if try_count > PREFECT_CLIENT_MAX_RETRIES.value():
-                    raise
+            except retry_exceptions as exc:  # type: ignore
+                if connect_error_attempts > 0 and isinstance(exc, httpx.ConnectError):
+                    # Initial-connection failures draw on their own budget so they
+                    # never widen (or narrow) the retry allowance for a server that
+                    # is actually answering.
+                    connect_try_count += 1
+                    if connect_try_count >= connect_error_attempts:
+                        raise
+                else:
+                    try_count += 1
+                    if try_count > max_retries:
+                        raise
                 # Otherwise, we will ignore this error but capture the info for logging
                 exc_info = sys.exc_info()
             else:
@@ -567,7 +607,7 @@ class PrefectHttpxSyncClient(httpx.Client):
 
             # Use an exponential back-off if not set in a header
             if retry_seconds is None:
-                retry_seconds = 2**try_count
+                retry_seconds = 2 ** (try_count + connect_try_count)
 
             # Add jitter
             jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
@@ -594,7 +634,8 @@ class PrefectHttpxSyncClient(httpx.Client):
                 )
                 + f"Another attempt will be made in {retry_seconds}s. "
                 "This is attempt"
-                f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
+                f" {try_count + connect_try_count}/"
+                f"{(connect_error_attempts if connect_try_count else max_retries + 1)}.",
                 exc_info=exc_info,
             )
             time.sleep(retry_seconds)
@@ -648,8 +689,14 @@ class PrefectHttpxSyncClient(httpx.Client):
         # Only retry ConnectError after we've successfully connected once.
         # This allows fast failure on initial connection issues (e.g., wrong URL)
         # while still providing resilience during server restarts.
+        # Before that first success, PREFECT_CLIENT_CONNECTION_ATTEMPTS opts in to
+        # tolerating an API that is not up yet.
+        connect_error_attempts = 0
         if self._has_connected:
             retry_exceptions = retry_exceptions + (httpx.ConnectError,)
+        elif connection_attempts := get_current_settings().client.connection_attempts:
+            retry_exceptions = retry_exceptions + (httpx.ConnectError,)
+            connect_error_attempts = connection_attempts
 
         super_send = super().send
         response = self._send_with_retry(
@@ -665,6 +712,7 @@ class PrefectHttpxSyncClient(httpx.Client):
                 *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
             },
             retry_exceptions=retry_exceptions,
+            connect_error_attempts=connect_error_attempts,
         )
 
         # Mark that we've successfully connected to the server
