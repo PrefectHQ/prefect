@@ -7,19 +7,24 @@ sidebarTitle: db_vacuum
 
 
 
-The database vacuum service. Two perpetual services schedule cleanup tasks
+The database vacuum service. Three perpetual services schedule cleanup tasks
 independently, gated by the `enabled` set in
 `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` (default `["events"]`):
 
-1. schedule_vacuum_tasks — Cleans up old flow runs and orphaned resources
-   (logs, artifacts, artifact collections). Enabled when `"flow_runs"`
-   is in the enabled set.
+1. schedule_vacuum_tasks — Cleans up old flow runs, then deletes their logs
+   and artifacts by `flow_run_id` in bounded batches. Enabled when
+   `"flow_runs"` is in the enabled set.
 
 2. schedule_event_vacuum_tasks — Cleans up old events, including any
    event types with per-type retention overrides. Enabled when `"events"`
    is in the enabled set **and** `event_persister.enabled` is true
    (the default), so that operators who disabled event processing are not
    surprised on upgrade. Runs in all server modes, including ephemeral.
+
+3. schedule_orphan_vacuum_tasks — Cleans up logs and artifacts orphaned by
+   interrupted cleanup, late writes, direct SQL deletion, or older Prefect
+   versions. It runs daily when flow run vacuum is enabled, rather than on the
+   hourly vacuum loop, and can also be enabled independently with `"orphans"`.
 
 Per-event-type retention can be customised via
 `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`. Event types
@@ -32,14 +37,14 @@ accumulating if a cycle overlaps with in-progress work.
 
 ## Functions
 
-### `schedule_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `schedule_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 schedule_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.loop_seconds))) -> None
 ```
 
 
-Schedule cleanup tasks for old flow runs and orphaned resources.
+Schedule cleanup tasks for old flow runs.
 
 Each task is enqueued with a deterministic key so that overlapping
 cycles (e.g. when cleanup takes longer than loop_seconds) naturally
@@ -49,7 +54,7 @@ Disabled by default because it permanently deletes flow runs. Enable
 via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.
 
 
-### `schedule_event_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `schedule_event_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 schedule_event_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.loop_seconds))) -> None
@@ -65,7 +70,20 @@ operators who opted out of event processing are not surprised by
 trimming on upgrade.
 
 
-### `vacuum_orphaned_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L176" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `schedule_orphan_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+schedule_orphan_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.orphan_cleanup_loop_seconds))) -> None
+```
+
+
+Schedule lower-frequency orphan reconciliation tasks.
+
+Each pass can scan the full log and artifact tables, so this service runs
+less often than the normal flow run and event vacuum loops.
+
+
+### `vacuum_orphaned_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_orphaned_logs() -> None
@@ -75,7 +93,7 @@ vacuum_orphaned_logs() -> None
 Delete logs whose flow_run_id references a non-existent flow run.
 
 
-### `vacuum_orphaned_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_orphaned_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_orphaned_artifacts() -> None
@@ -85,7 +103,7 @@ vacuum_orphaned_artifacts() -> None
 Delete artifacts whose flow_run_id references a non-existent flow run.
 
 
-### `vacuum_stale_artifact_collections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_stale_artifact_collections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_stale_artifact_collections() -> None
@@ -98,7 +116,7 @@ Re-points to the next latest version if one exists, otherwise deletes
 the collection row.
 
 
-### `vacuum_old_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_old_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L280" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_old_flow_runs() -> None
@@ -107,8 +125,19 @@ vacuum_old_flow_runs() -> None
 
 Delete old top-level terminal flow runs past the retention period.
 
+`log` and `artifact` have no `ON DELETE CASCADE` from `flow_run`. Each run
+batch is selected and deleted in one locking transaction, then its children
+are deleted by `flow_run_id` using indexed lookups.
 
-### `vacuum_events_with_retention_overrides` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+`batch_size` bounds how many runs are selected, not how many children they
+have, so children are deleted in separately committed batches rather than
+in one transaction with the runs and their cascaded task runs and states.
+Deleting the runs first prevents a concurrent state transition from
+preserving a run after some of its children were permanently deleted. If
+child cleanup is interrupted, orphan reconciliation recovers it.
+
+
+### `vacuum_events_with_retention_overrides` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L347" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_events_with_retention_overrides() -> None
@@ -122,7 +151,7 @@ events (and their resources) that are older than the configured retention
 for that type, capped by the global events retention period.
 
 
-### `vacuum_old_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L315" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_old_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L401" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_old_events() -> None
