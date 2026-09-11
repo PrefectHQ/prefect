@@ -79,6 +79,21 @@ describe("getScheduleTitle()", () => {
 		expect(RESULT).toBe("59/15 * * * * *");
 	});
 
+	it("returns the raw cron string for a seven-field cron expression", () => {
+		const mockDeploymentSchedule: DeploymentSchedule = {
+			...baseDeploymentSchedule,
+			schedule: {
+				cron: "* 12-23 * * * */30 2027",
+				timezone: "UTC",
+				day_or: true,
+			},
+		};
+
+		const RESULT = getScheduleTitle(mockDeploymentSchedule);
+
+		expect(RESULT).toBe("* 12-23 * * * */30 2027");
+	});
+
 	it("returns the raw cron string for a diverging step", () => {
 		const mockDeploymentSchedule: DeploymentSchedule = {
 			...baseDeploymentSchedule,

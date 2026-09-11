@@ -61,6 +61,25 @@ describe("ScheduleBadge", () => {
 		);
 	});
 
+	it("renders a seven-field cron schedule using the raw cron string", () => {
+		const schedule = {
+			id: "test-id",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			active: true,
+			schedule: {
+				cron: "* 12-23 * * * */30 2027",
+				timezone: "UTC",
+				day_or: false,
+			},
+		};
+
+		render(<ScheduleBadge schedule={schedule} />);
+
+		expect(screen.getByText("* 12-23 * * * */30 2027")).toBeInTheDocument();
+		expect(screen.queryByText(/every second/i)).not.toBeInTheDocument();
+	});
+
 	it("renders a paused cron schedule correctly", async () => {
 		const user = userEvent.setup();
 		const schedule = {
