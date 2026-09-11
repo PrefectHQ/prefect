@@ -44,9 +44,20 @@ async def revoke_expired_lease(
         logger.warning(f"Lease {lease_id} should be revoked but has no metadata")
         return
 
-    occupancy_seconds = (
-        datetime.now(timezone.utc) - expired_lease.created_at
-    ).total_seconds()
+    now = datetime.now(timezone.utc)
+
+    if expired_lease.expiration > now:
+        # The lease was renewed between `monitor_expired_leases` listing it and
+        # this task running. Revoking now would take the slots away from a
+        # holder that is alive and renewing on schedule, and the holder would
+        # only find out on its next renewal.
+        logger.debug(
+            f"Lease {lease_id} was renewed after being scheduled for revocation; "
+            "leaving it alone"
+        )
+        return
+
+    occupancy_seconds = (now - expired_lease.created_at).total_seconds()
 
     logger.info(
         f"Revoking lease {lease_id} for {len(expired_lease.resource_ids)} "
