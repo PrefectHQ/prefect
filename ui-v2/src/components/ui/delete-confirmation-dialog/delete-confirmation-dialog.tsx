@@ -55,7 +55,10 @@ export const DeleteConfirmationDialog = ({
 				</AlertDialogHeader>
 				{confirmText && (
 					<div className="space-y-2">
-						<Label htmlFor="confirm-text" className="block cursor-text select-text">
+						<Label
+							htmlFor="confirm-text"
+							className="block cursor-text select-text"
+						>
 							Type <strong>{confirmText}</strong> to confirm:
 						</Label>
 						<Input
