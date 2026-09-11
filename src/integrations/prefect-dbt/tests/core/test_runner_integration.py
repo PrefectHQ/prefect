@@ -9,6 +9,9 @@ import pytest
 import yaml
 from dbt.cli.main import dbtRunner
 
+from prefect import flow, task
+from prefect.context import TaskRunContext
+
 duckdb = pytest.importorskip("duckdb", reason="duckdb required for integration tests")
 pytest.importorskip(
     "dbt.adapters.duckdb", reason="dbt-duckdb required for integration tests"
@@ -134,4 +137,85 @@ def test_runner_lifecycle_hooks_with_real_dbt_invocation(dbt_project, caplog):
     assert any(
         "dbt hook broken_post_model failed during post_model." in record.getMessage()
         for record in caplog.records
+    )
+
+
+SOURCES_YML = {
+    "version": 2,
+    "sources": [
+        {
+            "name": "raw",
+            "schema": "main",
+            "tables": [
+                {
+                    "name": "customers",
+                    "loaded_at_field": "created_at::timestamp",
+                    "freshness": {
+                        "warn_after": {"count": 1, "period": "hour"},
+                        "error_after": {"count": 100, "period": "day"},
+                    },
+                }
+            ],
+        }
+    ],
+}
+
+
+@pytest.fixture
+def dbt_project_with_source(dbt_project):
+    (dbt_project / "models" / "sources.yml").write_text(yaml.dump(SOURCES_YML))
+
+    runner = dbtRunner()
+    for command in (["seed"], ["parse"]):
+        result = runner.invoke(
+            command
+            + [
+                "--project-dir",
+                str(dbt_project),
+                "--profiles-dir",
+                str(dbt_project),
+            ]
+        )
+        assert result.success, f"dbt {command} failed: {result.exception}"
+
+    return dbt_project
+
+
+def test_source_freshness_logs_go_to_enclosing_task_run(
+    dbt_project_with_source, caplog
+):
+    """Source nodes get no Prefect task, so their logs belong to the caller.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/22990
+    """
+    settings = PrefectDbtSettings(
+        project_dir=dbt_project_with_source, profiles_dir=dbt_project_with_source
+    )
+    task_run_ids: list[str] = []
+
+    @task
+    def run_source_freshness():
+        task_run_context = TaskRunContext.get()
+        assert task_run_context is not None
+        task_run_ids.append(str(task_run_context.task_run.id))
+        PrefectDbtRunner(settings=settings, raise_on_failure=False).invoke(
+            ["source", "freshness"]
+        )
+
+    @flow
+    def freshness_flow():
+        run_source_freshness()
+
+    with caplog.at_level(logging.INFO, logger="prefect.task_runs"):
+        freshness_flow()
+
+    freshness_records = [
+        record
+        for record in caplog.records
+        if "freshness of raw.customers" in record.getMessage()
+    ]
+    assert freshness_records, "no source freshness logs were emitted"
+    assert all(
+        getattr(record, "task_run_id", None) == task_run_ids[0]
+        for record in freshness_records
     )
