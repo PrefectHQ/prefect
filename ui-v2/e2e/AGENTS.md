@@ -111,6 +111,7 @@ await expect(page.getByText(itemName)).not.toBeVisible();
 - Use unique test data with `TEST_PREFIX` and timestamps: `${TEST_PREFIX}item-${Date.now()}`
 - Clean up in both `beforeEach` and `afterEach`
 - Never depend on data from other tests
+- If multiple tests in one file share a single `TEST_PREFIX`, a `beforeEach`/`afterEach` cleanup call deletes data belonging to any other test in that file still running in parallel. Scope the prefix per test instead, e.g. `` `${TEST_PREFIX}${testInfo.testId}-` ``.
 
 ### Parallel Test Execution
 

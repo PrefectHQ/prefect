@@ -673,7 +673,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._cleanup_handler_registry = build_cleanup_handler_registry(self)
 
         self._prefetch_seconds: float = (
-            prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
+            prefetch_seconds
+            if prefetch_seconds is not None
+            else PREFECT_WORKER_PREFETCH_SECONDS.value()
         )
         self.heartbeat_interval_seconds: int = (
             heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
@@ -1144,7 +1146,18 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             worker_id=self.backend_id,
         )
 
-        bundle_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        try:
+            bundle_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        except Exception as exc:
+            logger.exception(
+                "Failed to create execution bundle for flow run '%s'.", flow_run.id
+            )
+            message = (
+                f"Flow run bundle could not be created: {type(exc).__name__}: {exc}"
+            )
+            await self._propose_crashed_state(flow_run, message, client=self.client)
+            return
+
         bundle = bundle_result["bundle"]
         zip_path = bundle_result["zip_path"]
 
@@ -1288,7 +1301,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         seconds_since_last_poll = (
             prefect.types._datetime.now("UTC") - self._last_polled_time
-        ).seconds
+        ).total_seconds()
 
         is_still_polling = seconds_since_last_poll <= threshold_seconds
 

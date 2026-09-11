@@ -108,7 +108,8 @@ test.describe("Deployments List Page", () => {
 			});
 		}).toPass({ timeout: 15000 });
 
-		const tagsInput = page.getByPlaceholder("Filter by tags");
+		await page.getByRole("button", { name: "Filter by tags" }).click();
+		const tagsInput = page.getByPlaceholder("Search or enter new tag");
 		await tagsInput.pressSequentially("e2e-dep-tag");
 		await page.keyboard.press("Enter");
 

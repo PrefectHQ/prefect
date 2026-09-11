@@ -2397,6 +2397,10 @@ class InfrastructureBoundFlow(Flow[P, R]):
         job_variables: Infrastructure configuration that will override the base job
             configuration of the work pool.
         launcher: Optional upload and execution launcher overrides.
+        include_files: Optional file patterns to include with the flow bundle.
+        include_files_base_dir: Optional base directory for `include_files`. Relative
+            paths are resolved from the working directory when the bundle is created.
+            Defaults to the flow file's directory.
         worker_cls: The class of the worker to use to spin up infrastructure and submit
             the flow to it.
     """
@@ -2409,6 +2413,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         worker_cls: type["BaseWorker[Any, Any, Any]"],
         launcher: BundleLauncher | None = None,
         include_files: Sequence[str] | None = None,
+        include_files_base_dir: Path | str | None = None,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
@@ -2418,6 +2423,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
         self.launcher: BundleLauncherOverride | None = normalize_launcher(launcher)
         self.include_files: list[str] | None = (
             list(include_files) if include_files is not None else None
+        )
+        self.include_files_base_dir: str | None = (
+            str(include_files_base_dir) if include_files_base_dir is not None else None
         )
 
     @overload
@@ -2648,7 +2656,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
             get_result_store,
             resolve_result_storage,
         )
-        from prefect.states import Pending, Scheduled
+        from prefect.states import Failed, Pending, Scheduled
         from prefect.tasks import Task
 
         # Get parameters to error early if they are invalid
@@ -2753,14 +2761,28 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 parent_task_run_id=getattr(parent_task_run, "id", None),
             )
 
-            result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-            upload_bundle_to_storage(
-                result["bundle"],
-                bundle_key,
-                upload_command,
-                zip_path=result["zip_path"],
-                upload_step=upload_step,
-            )
+            try:
+                result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+                upload_bundle_to_storage(
+                    result["bundle"],
+                    bundle_key,
+                    upload_command,
+                    zip_path=result["zip_path"],
+                    upload_step=upload_step,
+                )
+            except Exception as exc:
+                try:
+                    client.set_flow_run_state(
+                        flow_run.id,
+                        state=Failed(message=f"Flow run submission failed: {exc}"),
+                        force=True,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to update flow run %s after submission failed",
+                        flow_run.id,
+                    )
+                raise
 
             # Set flow run to scheduled now that the bundle is uploaded and ready to be executed
             client.set_flow_run_state(flow_run.id, state=Scheduled())
@@ -2795,6 +2817,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         job_variables: Optional[dict[str, Any]] = None,
         launcher: BundleLauncher | None = NotSet,  # type: ignore
         include_files: Optional[list[str]] = NotSet,  # type: ignore
+        include_files_base_dir: Path | str | None = NotSet,  # type: ignore
     ) -> "InfrastructureBoundFlow[P, R]":
         new_flow = super().with_options(
             name=name,
@@ -2828,6 +2851,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
             include_files=include_files
             if include_files is not NotSet
             else self.include_files,
+            include_files_base_dir=include_files_base_dir
+            if include_files_base_dir is not NotSet
+            else self.include_files_base_dir,
         )
         return new_infrastructure_bound_flow
 
@@ -2839,7 +2865,25 @@ def bind_flow_to_infrastructure(
     job_variables: dict[str, Any] | None = None,
     launcher: BundleLauncher | None = None,
     include_files: Sequence[str] | None = None,
+    *,
+    include_files_base_dir: Path | str | None = None,
 ) -> InfrastructureBoundFlow[P, R]:
+    """Bind a flow to execution on a specific infrastructure work pool.
+
+    Args:
+        flow: The flow to bind.
+        work_pool: The name of the work pool to use.
+        worker_cls: The worker class that submits the flow.
+        job_variables: Infrastructure overrides for the work pool's base job template.
+        launcher: Optional upload and execution launcher overrides.
+        include_files: Optional file patterns to include with the flow bundle.
+        include_files_base_dir: Optional base directory for `include_files`. Relative
+            paths are resolved from the working directory when the bundle is created.
+            Defaults to the flow file's directory.
+
+    Returns:
+        An infrastructure-bound copy of the flow.
+    """
     new = InfrastructureBoundFlow[P, R](
         flow.fn,
         work_pool=work_pool,
@@ -2847,6 +2891,7 @@ def bind_flow_to_infrastructure(
         worker_cls=worker_cls,
         launcher=launcher,
         include_files=include_files,
+        include_files_base_dir=include_files_base_dir,
     )
     # Copy all attributes from the original flow
     for attr, value in flow.__dict__.items():
@@ -2856,6 +2901,9 @@ def bind_flow_to_infrastructure(
     new.worker_cls = worker_cls
     new.launcher = normalize_launcher(launcher)
     new.include_files = list(include_files) if include_files is not None else None
+    new.include_files_base_dir = (
+        str(include_files_base_dir) if include_files_base_dir is not None else None
+    )
     return new
 
 

@@ -55,7 +55,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up uv and Python 3.12
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           python-version: "3.12"
@@ -122,7 +122,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up uv and Python 3.12
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           python-version: "3.12"

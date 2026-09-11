@@ -12,7 +12,11 @@ import {
 const formSchema = z.object({
 	active: z.boolean().default(true),
 	/** Coerce to solve common issue of transforming a string number to a number type */
-	denied_slots: z.number().default(0).or(z.string()).pipe(z.coerce.number()),
+	denied_slots: z
+		.number()
+		.default(0)
+		.or(z.string())
+		.pipe(z.coerce.number<string | number>()),
 	/** Coerce to solve common issue of transforming a string number to a number type */
 	limit: z
 		.number()
@@ -20,7 +24,7 @@ const formSchema = z.object({
 		.or(z.string())
 		.pipe(
 			z.coerce
-				.number()
+				.number<string | number>()
 				.int({ message: "Concurrency limit must be a whole number" })
 				.nonnegative({ message: "Concurrency limit must be 0 or greater" }),
 		),
@@ -33,9 +37,13 @@ const formSchema = z.object({
 		.number()
 		.default(0)
 		.or(z.string())
-		.pipe(z.coerce.number()),
+		.pipe(z.coerce.number<string | number>()),
 	/** Additional fields post creation. Coerce to solve common issue of transforming a string number to a number type  */
-	active_slots: z.number().default(0).or(z.string()).pipe(z.coerce.number()),
+	active_slots: z
+		.number()
+		.default(0)
+		.or(z.string())
+		.pipe(z.coerce.number<string | number>()),
 });
 
 const DEFAULT_VALUES = {

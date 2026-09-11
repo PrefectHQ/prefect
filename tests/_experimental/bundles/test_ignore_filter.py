@@ -16,6 +16,7 @@ through cascading .prefectignore patterns. Tests cover:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from prefect.bundles._ignore_filter import (
     FilterResult,
@@ -285,6 +286,40 @@ class TestIgnoreFilter:
         # Log file should be excluded by project root pattern
         assert log_file in result.excluded_by_ignore
         assert py_file in result.included_files
+
+    def test_project_root_patterns_match_relative_to_project_root(self, tmp_path):
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        (project_root / "pyproject.toml").write_text("[project]")
+        (project_root / ".prefectignore").write_text("assets/secret.txt\n")
+
+        base_dir = project_root / "assets"
+        base_dir.mkdir()
+        secret_file = base_dir / "secret.txt"
+        secret_file.touch()
+
+        result = IgnoreFilter(base_dir).filter([secret_file])
+
+        assert secret_file in result.excluded_by_ignore
+
+    def test_flow_dir_negation_overrides_project_root_pattern(self, tmp_path: Path):
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        (project_root / "pyproject.toml").write_text("[project]")
+        (project_root / ".prefectignore").write_text("assets/*.txt\n")
+
+        base_dir = project_root / "assets"
+        base_dir.mkdir()
+        (base_dir / ".prefectignore").write_text("!keep.txt\n")
+        keep_file = base_dir / "keep.txt"
+        keep_file.touch()
+        ignored_file = base_dir / "ignored.txt"
+        ignored_file.touch()
+
+        result = IgnoreFilter(base_dir).filter([keep_file, ignored_file])
+
+        assert keep_file in result.included_files
+        assert ignored_file in result.excluded_by_ignore
 
     def test_cascade_loads_flow_dir_patterns(self, tmp_path):
         """Test that IgnoreFilter loads patterns from flow directory."""

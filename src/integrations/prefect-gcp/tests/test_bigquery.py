@@ -8,6 +8,7 @@ from google.cloud.bigquery.format_options import ParquetOptions
 from prefect_gcp.bigquery import (
     BigQueryWarehouse,
     _build_load_job_config,
+    abigquery_query,
     bigquery_create_table,
     bigquery_insert_stream,
     bigquery_load_cloud_storage,
@@ -52,6 +53,80 @@ def test_bigquery_query(
                 assert result == ("test_transformer",)
             else:
                 assert result == ["query"]
+
+
+class DryRunCapturingClient(MagicMock):
+    """Fake BigQuery client that records the job config used for each query."""
+
+    def __init__(self, error=None, total_bytes_processed=10, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.error = error
+        self.total_bytes_processed = total_bytes_processed
+        self.job_configs = []
+
+    def query(self, query, **kwargs):
+        self.job_configs.append(kwargs["job_config"])
+        if self.error is not None:
+            raise self.error
+        response = MagicMock()
+        response.total_bytes_processed = self.total_bytes_processed
+        return response
+
+
+@pytest.mark.parametrize(
+    "error,expected_error",
+    [(None, RuntimeError), (ValueError("dry run failed"), ValueError)],
+    ids=["over_max_bytes", "query_error"],
+)
+def test_bigquery_query_restores_job_config_on_dry_run_failure(
+    error, expected_error, gcp_credentials
+):
+    client = DryRunCapturingClient(error=error)
+    gcp_credentials.get_bigquery_client.return_value = client
+
+    @flow
+    def test_flow():
+        return bigquery_query(
+            "query",
+            gcp_credentials,
+            dry_run_max_bytes=5,
+            job_config={"use_query_cache": True},
+        )
+
+    with pytest.raises(expected_error):
+        test_flow()
+
+    job_config = client.job_configs[0]
+    assert job_config.dry_run is None
+    assert job_config.use_query_cache is True
+
+
+@pytest.mark.parametrize(
+    "error,expected_error",
+    [(None, RuntimeError), (ValueError("dry run failed"), ValueError)],
+    ids=["over_max_bytes", "query_error"],
+)
+async def test_abigquery_query_restores_job_config_on_dry_run_failure(
+    error, expected_error, gcp_credentials
+):
+    client = DryRunCapturingClient(error=error)
+    gcp_credentials.get_bigquery_client.return_value = client
+
+    @flow
+    async def test_flow():
+        return await abigquery_query(
+            "query",
+            gcp_credentials,
+            dry_run_max_bytes=5,
+            job_config={"use_query_cache": True},
+        )
+
+    with pytest.raises(expected_error):
+        await test_flow()
+
+    job_config = client.job_configs[0]
+    assert job_config.dry_run is None
+    assert job_config.use_query_cache is True
 
 
 def test_bigquery_create_table(gcp_credentials):

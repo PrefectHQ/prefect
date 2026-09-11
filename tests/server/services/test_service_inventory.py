@@ -75,7 +75,7 @@ PERPETUAL_SERVICE_DISABLE_UPDATES: dict[str, bool | None] = {
     "PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED": False,
 }
 
-PRODUCTION_PERPETUAL_FUNCTION_COUNT = 14
+PRODUCTION_PERPETUAL_FUNCTION_COUNT = 15
 
 
 def _item(name: str, **kwargs: bool):
@@ -158,6 +158,18 @@ def test_grouping_is_derived_from_registration_metadata():
         "monitor_subflow_runs",
     )
 
+    vacuum_configs = [
+        config
+        for config in get_perpetual_services()
+        if config.display_name == "DB Vacuum"
+    ]
+    assert {config.function.__name__ for config in vacuum_configs} == {
+        "schedule_vacuum_tasks",
+        "schedule_event_vacuum_tasks",
+        "schedule_orphan_vacuum_tasks",
+    }
+    assert _item("DB Vacuum").components == ("flow_runs", "events", "orphans")
+
 
 def test_proactive_triggers_extra_components_are_additive():
     config = _proactive_triggers_config()
@@ -229,6 +241,7 @@ def test_inventory_order_is_deterministic():
     assert first == second
     assert first == [*CLASS_SERVICE_NAMES, *PERPETUAL_GROUP_NAMES]
     assert len(first) == 17
+    assert "schedule_orphan_vacuum_tasks" not in first
 
 
 def test_scheduler_uses_shared_control():
@@ -312,6 +325,9 @@ def test_triggers_actions_and_proactive_share_one_setting():
 
 
 def test_db_vacuum_component_state_for_set_bool_and_none():
+    names = [item.name for item in _get_service_inventory()]
+    assert "schedule_orphan_vacuum_tasks" not in names
+
     with temporary_settings(
         {
             "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED": True,
@@ -320,8 +336,12 @@ def test_db_vacuum_component_state_for_set_bool_and_none():
     ):
         item = _item("DB Vacuum")
         assert item.shared_control is True
-        assert item.components == ("flow_runs", "events")
-        assert dict(item.component_state) == {"flow_runs": True, "events": True}
+        assert item.components == ("flow_runs", "events", "orphans")
+        assert dict(item.component_state) == {
+            "flow_runs": True,
+            "events": True,
+            "orphans": True,
+        }
         assert item.enabled is True
 
     with temporary_settings(
@@ -331,7 +351,11 @@ def test_db_vacuum_component_state_for_set_bool_and_none():
         }
     ):
         item = _item("DB Vacuum")
-        assert dict(item.component_state) == {"flow_runs": True, "events": True}
+        assert dict(item.component_state) == {
+            "flow_runs": True,
+            "events": True,
+            "orphans": True,
+        }
 
     with temporary_settings(
         {
@@ -340,7 +364,11 @@ def test_db_vacuum_component_state_for_set_bool_and_none():
         }
     ):
         item = _item("DB Vacuum")
-        assert dict(item.component_state) == {"flow_runs": False, "events": True}
+        assert dict(item.component_state) == {
+            "flow_runs": False,
+            "events": True,
+            "orphans": False,
+        }
         assert item.enabled is True
 
     with temporary_settings(
@@ -350,8 +378,40 @@ def test_db_vacuum_component_state_for_set_bool_and_none():
         }
     ):
         item = _item("DB Vacuum")
-        assert dict(item.component_state) == {"flow_runs": False, "events": False}
+        assert dict(item.component_state) == {
+            "flow_runs": False,
+            "events": False,
+            "orphans": False,
+        }
         assert item.enabled is False
+
+    with temporary_settings(
+        {
+            "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED": True,
+            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED": {"flow_runs"},
+        }
+    ):
+        item = _item("DB Vacuum")
+        assert dict(item.component_state) == {
+            "flow_runs": True,
+            "events": False,
+            "orphans": True,
+        }
+        assert item.enabled is True
+
+    with temporary_settings(
+        {
+            "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED": True,
+            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED": {"orphans"},
+        }
+    ):
+        item = _item("DB Vacuum")
+        assert dict(item.component_state) == {
+            "flow_runs": False,
+            "events": False,
+            "orphans": True,
+        }
+        assert item.enabled is True
 
 
 def test_event_vacuum_disabled_when_event_persister_disabled():
@@ -362,7 +422,11 @@ def test_event_vacuum_disabled_when_event_persister_disabled():
         }
     ):
         item = _item("DB Vacuum")
-        assert dict(item.component_state) == {"flow_runs": True, "events": False}
+        assert dict(item.component_state) == {
+            "flow_runs": True,
+            "events": False,
+            "orphans": True,
+        }
         assert item.enabled is True
 
 
@@ -469,6 +533,7 @@ def test_normal_ephemeral_and_webserver_filtering():
     vacuum = next(item for item in ephemeral if item.name == "DB Vacuum")
     assert vacuum.components == ("events",)
     assert "flow_runs" not in dict(vacuum.component_state)
+    assert "orphans" not in dict(vacuum.component_state)
 
 
 def test_discovery_is_independent_of_unrelated_import_order():
@@ -501,7 +566,7 @@ def test_discovery_is_independent_of_unrelated_import_order():
         missing = required - set(names)
         assert not missing, missing
         assert len(names) == 17
-        assert len(get_perpetual_services()) == 14
+        assert len(get_perpetual_services()) == 15
         print("ok")
         """
     )
@@ -539,7 +604,7 @@ def test_documentation_isolation_recipe_enables_only_scheduler_and_late_runs():
     """Scheduler + Late Runs isolation must not leave event vacuum running.
 
     Event vacuum also requires the Event Persister. With persister disabled and
-    `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=events`, both vacuum components
+    `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=events`, all vacuum components
     stay off. `false` is the wrong disable value because it maps to events.
     """
     with temporary_settings(DOCUMENTATION_ISOLATION_UPDATES):
@@ -548,4 +613,8 @@ def test_documentation_isolation_recipe_enables_only_scheduler_and_late_runs():
 
         vacuum = _item("DB Vacuum")
         assert vacuum.enabled is False
-        assert dict(vacuum.component_state) == {"flow_runs": False, "events": False}
+        assert dict(vacuum.component_state) == {
+            "flow_runs": False,
+            "events": False,
+            "orphans": False,
+        }

@@ -60,6 +60,8 @@ SPCS_DEFAULT_MEMORY_LIMIT = None
 
 DEFAULT_CONTAINER_ENTRYPOINT = "/opt/prefect/entrypoint.sh"
 
+PREFECT_SNOWFLAKE_APPLICATION = "Prefect_Snowflake_Collection"
+
 MAX_CREATE_SERVICE_ATTEMPTS = 3
 CREATE_SERVICE_MIN_DELAY_SECONDS = 1
 CREATE_SERVICE_MIN_DELAY_JITTER_SECONDS = 0
@@ -296,6 +298,10 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
 
         # Set the container's environment variables by grabbing them from the worker.
         container["env"] = {**self._base_environment(), **self.env}
+
+        # Attribute usage from the flow-run container to Prefect as a fallback for non-Prefect Snowflake libraries.
+        # SF_PARTNER is read by the Snowflake Connector for Python to set the application name, if not otherwise set.
+        container["env"].setdefault("SF_PARTNER", PREFECT_SNOWFLAKE_APPLICATION)
 
         # Remove PREFECT_API_KEY and PREFECT_API_AUTH_STRING from the environment variables, if they exist, and there is an equivalent secret.
         secret_env_vars = {
@@ -915,7 +921,7 @@ class SPCSWorker(BaseWorker):
                 "account": os.getenv("SNOWFLAKE_ACCOUNT"),
                 "token": Path("/snowflake/session/token").read_text(),
                 "authenticator": "oauth",
-                "application": "Prefect_Snowflake_Collection",
+                "application": PREFECT_SNOWFLAKE_APPLICATION,
             }
         else:
             creds = configuration.snowflake_credentials
@@ -923,7 +929,7 @@ class SPCSWorker(BaseWorker):
                 "account": creds.account,
                 "user": creds.user,
                 "role": creds.role,
-                "application": "Prefect_Snowflake_Collection",
+                "application": PREFECT_SNOWFLAKE_APPLICATION,
             }
             private_key = creds.resolve_private_key()
             if private_key is not None:

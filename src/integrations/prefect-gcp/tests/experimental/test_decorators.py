@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 from typing import Generator
 from unittest.mock import AsyncMock, MagicMock
 
@@ -223,13 +224,20 @@ class TestCloudRunDecoratorIncludeFiles:
 
         assert test_flow.include_files == []
 
-    def test_include_files_with_valid_strings(self, mock_submit: AsyncMock) -> None:
-        @cloud_run(work_pool="test-pool", include_files=["config.yaml", "data/"])
+    def test_include_files_with_valid_strings(
+        self, mock_submit: AsyncMock, tmp_path: Path
+    ) -> None:
+        @cloud_run(
+            work_pool="test-pool",
+            include_files=["config.yaml", "data/"],
+            include_files_base_dir=tmp_path,
+        )
         @prefect.flow
         def test_flow():
             return "test"
 
         assert test_flow.include_files == ["config.yaml", "data/"]
+        assert test_flow.include_files_base_dir == str(tmp_path)
 
     def test_include_files_tuple_converted_to_list(
         self, mock_submit: AsyncMock
@@ -493,13 +501,20 @@ class TestVertexAIDecoratorIncludeFiles:
 
         assert test_flow.include_files == []
 
-    def test_include_files_with_valid_strings(self, mock_submit: AsyncMock) -> None:
-        @vertex_ai(work_pool="test-pool", include_files=["config.yaml", "data/"])
+    def test_include_files_with_valid_strings(
+        self, mock_submit: AsyncMock, tmp_path: Path
+    ) -> None:
+        @vertex_ai(
+            work_pool="test-pool",
+            include_files=["config.yaml", "data/"],
+            include_files_base_dir=tmp_path,
+        )
         @prefect.flow
         def test_flow():
             return "test"
 
         assert test_flow.include_files == ["config.yaml", "data/"]
+        assert test_flow.include_files_base_dir == str(tmp_path)
 
     def test_include_files_tuple_converted_to_list(
         self, mock_submit: AsyncMock

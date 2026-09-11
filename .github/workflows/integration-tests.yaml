@@ -11,6 +11,7 @@ on:
       - ui/**
       - .nvmrc
       - Dockerfile
+      - .github/docker/old-sqlite.Dockerfile
       - integration-tests/*
   push:
     branches:
@@ -22,6 +23,7 @@ on:
       - ui/**
       - .nvmrc
       - Dockerfile
+      - .github/docker/old-sqlite.Dockerfile
 
 jobs:
   compatibility-tests:
@@ -62,7 +64,7 @@ jobs:
           filter: blob:none
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           python-version: "3.10"
@@ -150,7 +152,7 @@ jobs:
           TMPDIR: ${{ env.TMPDIR }}
         
       - name: Set up uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           python-version: "3.10"

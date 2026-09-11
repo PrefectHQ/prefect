@@ -149,6 +149,7 @@ SettingAccessor: TypeAlias = Literal[
     "server.services.db_vacuum.enabled",
     "server.services.db_vacuum.event_retention_overrides",
     "server.services.db_vacuum.loop_seconds",
+    "server.services.db_vacuum.orphan_cleanup_loop_seconds",
     "server.services.db_vacuum.retention_period",
     "server.services.event_logger.enabled",
     "server.services.event_persister.batch_size",

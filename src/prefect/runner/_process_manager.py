@@ -7,23 +7,65 @@ import os
 import signal
 import sys
 import time
-from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
+from typing import Protocol
 from uuid import UUID
 
 import anyio
 import anyio.abc
+from typing_extensions import Self
 
 from prefect.logging import get_logger
 
 _WINDOWS_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+_WINDOWS_PROCESS_SET_QUOTA = 0x0100
+_WINDOWS_PROCESS_TERMINATE = 0x0001
 _WINDOWS_SYNCHRONIZE = 0x00100000
 _WINDOWS_PROCESS_PROBE_ACCESS = (
     _WINDOWS_PROCESS_QUERY_LIMITED_INFORMATION | _WINDOWS_SYNCHRONIZE
 )
 _WINDOWS_WAIT_OBJECT_0 = 0x00000000
 _WINDOWS_WAIT_TIMEOUT = 0x00000102
+_WINDOWS_JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
+_WINDOWS_JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
 _windows_kernel32: ctypes.WinDLL | None = None
+
+
+class _WindowsJobObjectBasicLimitInformation(ctypes.Structure):
+    _fields_ = [
+        ("PerProcessUserTimeLimit", ctypes.c_longlong),
+        ("PerJobUserTimeLimit", ctypes.c_longlong),
+        ("LimitFlags", ctypes.c_uint32),
+        ("MinimumWorkingSetSize", ctypes.c_size_t),
+        ("MaximumWorkingSetSize", ctypes.c_size_t),
+        ("ActiveProcessLimit", ctypes.c_uint32),
+        ("Affinity", ctypes.c_size_t),
+        ("PriorityClass", ctypes.c_uint32),
+        ("SchedulingClass", ctypes.c_uint32),
+    ]
+
+
+class _WindowsIoCounters(ctypes.Structure):
+    _fields_ = [
+        ("ReadOperationCount", ctypes.c_ulonglong),
+        ("WriteOperationCount", ctypes.c_ulonglong),
+        ("OtherOperationCount", ctypes.c_ulonglong),
+        ("ReadTransferCount", ctypes.c_ulonglong),
+        ("WriteTransferCount", ctypes.c_ulonglong),
+        ("OtherTransferCount", ctypes.c_ulonglong),
+    ]
+
+
+class _WindowsJobObjectExtendedLimitInformation(ctypes.Structure):
+    _fields_ = [
+        ("BasicLimitInformation", _WindowsJobObjectBasicLimitInformation),
+        ("IoInfo", _WindowsIoCounters),
+        ("ProcessMemoryLimit", ctypes.c_size_t),
+        ("JobMemoryLimit", ctypes.c_size_t),
+        ("PeakProcessMemoryUsed", ctypes.c_size_t),
+        ("PeakJobMemoryUsed", ctypes.c_size_t),
+    ]
 
 
 def _get_windows_kernel32() -> ctypes.WinDLL:
@@ -35,6 +77,19 @@ def _get_windows_kernel32() -> ctypes.WinDLL:
         kernel32.OpenProcess.restype = ctypes.c_void_p
         kernel32.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
         kernel32.WaitForSingleObject.restype = ctypes.c_uint32
+        kernel32.CreateJobObjectW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
+        kernel32.CreateJobObjectW.restype = ctypes.c_void_p
+        kernel32.SetInformationJobObject.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            ctypes.c_uint32,
+        ]
+        kernel32.SetInformationJobObject.restype = ctypes.c_int
+        kernel32.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        kernel32.AssignProcessToJobObject.restype = ctypes.c_int
+        kernel32.TerminateJobObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+        kernel32.TerminateJobObject.restype = ctypes.c_int
         kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
         kernel32.CloseHandle.restype = ctypes.c_int
         _windows_kernel32 = kernel32
@@ -62,28 +117,145 @@ def _pid_is_alive(pid: int) -> bool:
         wait_result = kernel32.WaitForSingleObject(handle, 0)
         if wait_result == _WINDOWS_WAIT_TIMEOUT:
             return True
-        if wait_result == _WINDOWS_WAIT_OBJECT_0:
-            return False
-        return True
+        return wait_result != _WINDOWS_WAIT_OBJECT_0
     finally:
         kernel32.CloseHandle(handle)
 
 
-def _hard_kill(pid: int) -> None:
-    """Stop `pid` immediately, taking its process group when it leads one so a
-    wrapper command cannot leave the real process running orphaned."""
-    if sys.platform == "win32":
-        # Any signal other than the CTRL_* events is a TerminateProcess here.
-        os.kill(pid, signal.SIGTERM)
-    elif os.getpgid(pid) == pid:
+class ProcessTerminationScope(Protocol):
+    wait_after_graceful_kill: bool
+
+    def is_alive(self, pid: int) -> bool: ...
+
+    def graceful_kill(self, pid: int) -> None: ...
+
+    def hard_kill(self, pid: int) -> None: ...
+
+    def close(self) -> None: ...
+
+
+class _SingleProcessTerminationScope:
+    wait_after_graceful_kill = sys.platform != "win32"
+
+    def is_alive(self, pid: int) -> bool:
+        return _pid_is_alive(pid)
+
+    def graceful_kill(self, pid: int) -> None:
+        if sys.platform == "win32":
+            os.kill(pid, signal.CTRL_BREAK_EVENT)
+        else:
+            os.kill(pid, signal.SIGTERM)
+
+    def hard_kill(self, pid: int) -> None:
+        if sys.platform == "win32":
+            # Any signal other than the CTRL_* events is a TerminateProcess here.
+            os.kill(pid, signal.SIGTERM)
+        else:
+            os.kill(pid, signal.SIGKILL)
+
+    def close(self) -> None:
+        pass
+
+
+class _PosixProcessGroupTerminationScope:
+    wait_after_graceful_kill = True
+
+    def is_alive(self, pid: int) -> bool:
+        try:
+            os.killpg(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        else:
+            return True
+
+    def graceful_kill(self, pid: int) -> None:
+        os.killpg(pid, signal.SIGTERM)
+
+    def hard_kill(self, pid: int) -> None:
         os.killpg(pid, signal.SIGKILL)
-    else:
-        os.kill(pid, signal.SIGKILL)
+
+    def close(self) -> None:
+        pass
+
+
+class _WindowsJobTerminationScope:
+    wait_after_graceful_kill = False
+
+    def __init__(self, job_handle: int) -> None:
+        self._job_handle = job_handle
+
+    def is_alive(self, pid: int) -> bool:
+        return _pid_is_alive(pid)
+
+    def graceful_kill(self, pid: int) -> None:
+        os.kill(pid, signal.CTRL_BREAK_EVENT)
+
+    def hard_kill(self, pid: int) -> None:
+        if not _get_windows_kernel32().TerminateJobObject(self._job_handle, 1):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def close(self) -> None:
+        if self._job_handle:
+            _get_windows_kernel32().CloseHandle(self._job_handle)
+            self._job_handle = 0
+
+
+def _create_windows_job_termination_scope(pid: int) -> _WindowsJobTerminationScope:
+    kernel32 = _get_windows_kernel32()
+    job_handle = kernel32.CreateJobObjectW(None, None)
+    if not job_handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+
+    try:
+        limits = _WindowsJobObjectExtendedLimitInformation()
+        limits.BasicLimitInformation.LimitFlags = (
+            _WINDOWS_JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        )
+        if not kernel32.SetInformationJobObject(
+            job_handle,
+            _WINDOWS_JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+            ctypes.byref(limits),
+            ctypes.sizeof(limits),
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+        process_handle = kernel32.OpenProcess(
+            _WINDOWS_PROCESS_SET_QUOTA
+            | _WINDOWS_PROCESS_TERMINATE
+            | _WINDOWS_PROCESS_QUERY_LIMITED_INFORMATION,
+            False,
+            pid,
+        )
+        if not process_handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            if not kernel32.AssignProcessToJobObject(job_handle, process_handle):
+                raise ctypes.WinError(ctypes.get_last_error())
+        finally:
+            kernel32.CloseHandle(process_handle)
+    except BaseException:
+        kernel32.CloseHandle(job_handle)
+        raise
+
+    return _WindowsJobTerminationScope(job_handle)
+
+
+def create_isolated_termination_scope(pid: int) -> ProcessTerminationScope:
+    if sys.platform == "win32":
+        return _create_windows_job_termination_scope(pid)
+    return _PosixProcessGroupTerminationScope()
 
 
 @dataclass
 class ProcessHandle:
+    """A tracked child and the platform-specific scope its starter owns."""
+
     _process: anyio.abc.Process | multiprocessing.context.SpawnProcess
+    termination_scope: ProcessTerminationScope = field(
+        default_factory=_SingleProcessTerminationScope
+    )
 
     @property
     def pid(self) -> int | None:
@@ -98,6 +270,20 @@ class ProcessHandle:
     @property
     def raw_process(self) -> anyio.abc.Process | multiprocessing.context.SpawnProcess:
         return self._process
+
+    def is_alive(self) -> bool:
+        return self.pid is not None and self.termination_scope.is_alive(self.pid)
+
+    def graceful_kill(self) -> None:
+        if self.pid is not None:
+            self.termination_scope.graceful_kill(self.pid)
+
+    def hard_kill(self) -> None:
+        if self.pid is not None:
+            self.termination_scope.hard_kill(self.pid)
+
+    def close(self) -> None:
+        self.termination_scope.close()
 
 
 class ProcessManager:
@@ -119,11 +305,11 @@ class ProcessManager:
             self._lock = asyncio.Lock()
         return self._lock
 
-    async def __aenter__(self) -> "ProcessManager":
+    async def __aenter__(self) -> Self:
         self._lock = asyncio.Lock()
         return self
 
-    async def __aexit__(self, *_: Any) -> None:
+    async def __aexit__(self, *_: object) -> None:
         async with self._process_map_lock:
             flow_run_ids = list(self._process_map.keys())
 
@@ -131,14 +317,16 @@ class ProcessManager:
             try:
                 await self.kill(flow_run_id)
             except Exception:
-                self._logger.error(
+                self._logger.exception(
                     "Failed to kill process for flow run '%s' during shutdown.",
                     flow_run_id,
-                    exc_info=True,
                 )
 
         async with self._process_map_lock:
+            handles = list(self._process_map.values())
             self._process_map.clear()
+        for handle in handles:
+            handle.close()
 
     async def add(self, flow_run_id: UUID, handle: ProcessHandle) -> None:
         async with self._process_map_lock:
@@ -148,24 +336,25 @@ class ProcessManager:
             try:
                 await self._on_add(flow_run_id)
             except Exception:
-                self._logger.error(
+                self._logger.exception(
                     "on_add callback raised for flow run '%s'",
                     flow_run_id,
-                    exc_info=True,
                 )
 
     async def remove(self, flow_run_id: UUID) -> None:
         async with self._process_map_lock:
-            self._process_map.pop(flow_run_id, None)
+            handle = self._process_map.pop(flow_run_id, None)
+
+        if handle is not None:
+            handle.close()
 
         if self._on_remove is not None:
             try:
                 await self._on_remove(flow_run_id)
             except Exception:
-                self._logger.error(
+                self._logger.exception(
                     "on_remove callback raised for flow run '%s'",
                     flow_run_id,
-                    exc_info=True,
                 )
 
     def get(self, flow_run_id: UUID) -> ProcessHandle | None:
@@ -193,14 +382,11 @@ class ProcessManager:
             if handle is None:
                 return True
 
-            if handle.returncode is not None:
-                return True
-
             pid = handle.pid
             if pid is None:
                 return True
 
-            if not _pid_is_alive(pid):
+            if not handle.is_alive():
                 return True
 
             remaining = deadline - time.monotonic()
@@ -235,30 +421,26 @@ class ProcessManager:
 
         if force:
             try:
-                _hard_kill(pid)
+                handle.hard_kill()
             except ProcessLookupError:
                 pass
             return
 
-        if sys.platform == "win32":
-            os.kill(pid, signal.CTRL_BREAK_EVENT)
-        else:
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except ProcessLookupError:
-                # Already reaped, e.g. re-killed from `__aexit__` after a cancelled
-                # executor skipped its cleanup.
-                return
+        try:
+            handle.graceful_kill()
+        except ProcessLookupError:
+            # Already reaped, e.g. re-killed from `__aexit__` after a cancelled
+            # executor skipped its cleanup.
+            return
 
+        if handle.termination_scope.wait_after_graceful_kill:
             check_interval = max(grace_seconds / 10, 1)
             with anyio.move_on_after(grace_seconds):
                 while True:
                     await anyio.sleep(check_interval)
-                    try:
-                        os.kill(pid, 0)
-                    except ProcessLookupError:
+                    if not handle.is_alive():
                         return
             try:
-                os.kill(pid, signal.SIGKILL)
+                handle.hard_kill()
             except OSError:
                 return

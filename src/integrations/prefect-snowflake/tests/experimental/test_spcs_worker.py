@@ -692,8 +692,23 @@ async def test_job_manifest_env_variables(snowflake_credentials, worker_flow_run
     # Should have custom vars plus base environment vars.
     assert "CUSTOM_VAR" in container["env"]
     assert container["env"]["CUSTOM_VAR"] == "custom_value"
+    assert container["env"]["SF_PARTNER"] == "Prefect_Snowflake_Collection"
     assert "ANOTHER_VAR" in container["env"]
     assert "PREFECT__FLOW_RUN_ID" in container["env"]
+
+
+async def test_job_manifest_preserves_sf_partner_override(
+    snowflake_credentials, worker_flow_run
+):
+    config = await create_job_configuration(
+        snowflake_credentials,
+        worker_flow_run,
+        {"env": {"SF_PARTNER": "custom_partner"}},
+    )
+
+    container = config.job_manifest["spec"]["containers"][0]
+
+    assert container["env"]["SF_PARTNER"] == "custom_partner"
 
 
 async def test_job_manifest_secrets_remove_api_key(

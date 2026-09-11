@@ -477,6 +477,9 @@ SUPPORTED_SETTINGS = {
         "expected_value": {"prefect.flow-run.heartbeat": timedelta(hours=1)},
     },
     "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS": {"test_value": 1800.0},
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_ORPHAN_CLEANUP_LOOP_SECONDS": {
+        "test_value": 43200.0
+    },
     "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD": {
         "test_value": 172800,
         "expected_value": timedelta(days=2),
@@ -745,12 +748,15 @@ class TestSettingsClass:
         assert set(settings.to_environment_variables().keys()) == expected_names
 
     def test_settings_to_environment_works_with_exclude_unset(self):
+        valid_setting_names = _get_valid_setting_names(Settings)
         assert Settings(
             server=ServerSettings(api=ServerAPISettings(port=3000))
         ).to_environment_variables(exclude_unset=True) == {
-            # From env
+            # From env. `PREFECT_`-prefixed variables that are not settings, such
+            # as `PREFECT_LOGFIRE_ENABLED`, do not appear in the environment of a
+            # `Settings` instance.
             **{
-                var: os.environ[var] for var in os.environ if var.startswith("PREFECT_")
+                var: os.environ[var] for var in os.environ if var in valid_setting_names
             },
             # From test settings
             "PREFECT_SERVER_LOGGING_LEVEL": "DEBUG",
@@ -1262,12 +1268,13 @@ class TestSettingAccess:
         assert settings.flows.heartbeat_frequency == 90
 
     def test_db_vacuum_enabled_bool_true_compat(self, monkeypatch: pytest.MonkeyPatch):
-        """Legacy ENABLED=true should map to both vacuum types enabled."""
+        """Legacy ENABLED=true should retain automatic orphan cleanup."""
         monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "true")
         settings = Settings()
         assert settings.server.services.db_vacuum.enabled_vacuum_types == {
             "events",
             "flow_runs",
+            "orphans",
         }
 
     def test_db_vacuum_enabled_bool_false_compat(self, monkeypatch: pytest.MonkeyPatch):
@@ -1284,6 +1291,18 @@ class TestSettingAccess:
         settings = Settings()
         with pytest.raises(ValueError, match="Invalid vacuum type"):
             settings.server.services.db_vacuum.enabled_vacuum_types
+
+    def test_db_vacuum_orphan_reconciliation_can_be_enabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv(
+            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "events,orphans"
+        )
+        settings = Settings()
+        assert settings.server.services.db_vacuum.enabled_vacuum_types == {
+            "events",
+            "orphans",
+        }
 
     def test_db_vacuum_event_retention_override_rejects_negative(
         self, monkeypatch: pytest.MonkeyPatch
@@ -3223,3 +3242,41 @@ class TestWorkerDebugMode:
         with temporary_settings({PREFECT_DEBUG_MODE: True}):
             env = get_current_settings().to_environment_variables(exclude_unset=True)
             assert "PREFECT_DEBUG_MODE" in env
+
+
+class TestHomeDependentDefaults:
+    def test_copy_with_update_recomputes_home_dependent_defaults(
+        self, tmp_path: Path
+    ) -> None:
+        settings = Settings(home=tmp_path / "old")
+        new_home = tmp_path / "new"
+
+        updated = settings.copy_with_update(updates={PREFECT_HOME: new_home})
+
+        assert updated.profiles_path == new_home / "profiles.toml"
+        assert updated.results.local_storage_path == new_home / "storage"
+        assert updated.logging.config_path == new_home / "logging.yml"
+        assert updated.server.memo_store_path == new_home / "memo_store.toml"
+
+    def test_local_storage_path_defaults_to_prefect_home_storage(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        custom_home = tmp_path / "custom_prefect_home"
+        monkeypatch.setenv("PREFECT_HOME", str(custom_home))
+        settings = Settings()
+        assert settings.home == custom_home
+        assert settings.results.local_storage_path == custom_home / "storage"
+        assert settings.profiles_path == custom_home / "profiles.toml"
+        assert settings.server.memo_store_path == custom_home / "memo_store.toml"
+        assert settings.logging.config_path == custom_home / "logging.yml"
+
+    def test_local_storage_path_explicit_override(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        custom_home = tmp_path / "custom_prefect_home"
+        override_path = tmp_path / "override_storage"
+        monkeypatch.setenv("PREFECT_HOME", str(custom_home))
+        monkeypatch.setenv("PREFECT_RESULTS_LOCAL_STORAGE_PATH", str(override_path))
+        settings = Settings()
+        assert settings.home == custom_home
+        assert settings.results.local_storage_path == override_path

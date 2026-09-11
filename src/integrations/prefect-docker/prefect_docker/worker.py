@@ -80,7 +80,7 @@ from prefect.utilities.dockerutils import (
 from prefect.utilities.processutils import command_to_string
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
-from prefect_docker.types import VolumeStr
+from prefect_docker.types import VolumeStr, is_relative_bind_source
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -96,6 +96,21 @@ CONTAINER_LABELS = {
 }
 
 
+def _resolve_volumes(volumes: list[str]) -> list[str]:
+    """
+    Resolve explicit relative bind-mount sources (e.g. `.`, `./dir`, `../dir`)
+    against the worker process's current working directory, leaving absolute
+    paths, named volumes, and anonymous volumes unchanged.
+    """
+    resolved: list[str] = []
+    for volume in volumes:
+        source, sep, rest = volume.partition(":")
+        if sep and is_relative_bind_source(source):
+            volume = f"{os.path.abspath(source)}{sep}{rest}"
+        resolved.append(volume)
+    return resolved
+
+
 class ImagePullPolicy(enum.Enum):
     """Enum representing the image pull policy options for a Docker container."""
 
@@ -104,6 +119,21 @@ class ImagePullPolicy(enum.Enum):
     # tries to pull the image, but if not possible it still continues
     IF_POSSIBLE = "IfPossible"
     NEVER = "Never"
+
+
+def _is_missing_container_error(exc: docker.errors.APIError) -> bool:
+    """
+    Report if a Docker API error says that a container does not exist.
+
+    The Docker Engine gives a 404 for a container that does not exist, but
+    Docker-compatible APIs are less consistent. Podman, for example, gives a 500
+    with the explanation `container <id> does not exist in database: no such
+    container`.
+    """
+    return (
+        isinstance(exc, docker.errors.NotFound)
+        or "no such container" in str(exc).lower()
+    )
 
 
 class DockerWorkerJobConfiguration(BaseJobConfiguration):
@@ -128,6 +158,8 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             If 'networks' is set, this cannot be set.
         auto_remove: If set, containers will be deleted on completion.
         volumes: Docker volumes that should be mounted in created containers.
+            Relative bind-mount sources (e.g. `.` or `./data`) are resolved
+            against the worker's current working directory.
         stream_output: If set, the output from created containers will be streamed
             to local standard output.
         mem_limit: Memory limit of created containers. Accepts a value
@@ -176,8 +208,10 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
     )
     volumes: list[VolumeStr] = Field(
         default_factory=list,
-        description="A list of volume to mount into created containers.",
-        examples=["/my/local/path:/path/in/container"],
+        description="A list of volumes to mount into created containers."
+        " Relative bind-mount sources (e.g. '.' or './data') are resolved"
+        " against the worker's current working directory.",
+        examples=["/my/local/path:/path/in/container", "./data:/path/in/container"],
     )
     stream_output: bool = Field(
         default=True,
@@ -629,7 +663,18 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             worker_id=self.backend_id,
         )
 
-        creation_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        try:
+            creation_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        except Exception as exc:
+            logger.exception(
+                "Failed to create execution bundle for flow run '%s'.", flow_run.id
+            )
+            message = (
+                f"Flow run bundle could not be created: {type(exc).__name__}: {exc}"
+            )
+            await self._propose_crashed_state(flow_run, message)
+            return
+
         bundle = creation_result["bundle"]
 
         await (
@@ -771,7 +816,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             labels=configuration.labels,
             extra_hosts=extra_hosts,
             name=configuration.name,
-            volumes=configuration.volumes,
+            volumes=_resolve_volumes(configuration.volumes),
             mem_limit=configuration.mem_limit,
             memswap_limit=configuration.memswap_limit,
             privileged=configuration.privileged,
@@ -888,8 +933,13 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         container, configuration, last_event=last_event
                     )
 
-        except docker.errors.NotFound:
+        except docker.errors.APIError as exc:
             # The container was removed during watching
+            if not (
+                isinstance(exc, docker.errors.NotFound)
+                or (configuration.auto_remove and _is_missing_container_error(exc))
+            ):
+                raise
             self._logger.warning(
                 f"Docker container {container.name} was removed before we could wait "
                 "for its completion."
@@ -928,6 +978,11 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         f"Docker container {container.name} was marked for removal"
                         " before logs could be retrieved. Output will not be"
                         " streamed. "
+                    )
+                elif configuration.auto_remove and _is_missing_container_error(exc):
+                    self._logger.warning(
+                        f"Docker container {container.name} was removed before logs"
+                        " could be retrieved. Output will not be streamed."
                     )
                 else:
                     self._logger.exception(

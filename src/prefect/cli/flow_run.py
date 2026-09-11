@@ -768,13 +768,13 @@ async def execute(
             starter = WorkspaceResolvingEngineCommandStarter(
                 workspace_root=Path(workspace_root),
                 control_channel=ctx.control_channel,
-                isolate_process_group=intent is not None,
             )
+            ctx.call_after_exit(starter.close)
             executor = ctx.create_executor(
                 flow_run,
                 starter,
-                resolve_flow=starter.resolve_flow,
                 propose_submitting=False,
+                hook_runner=starter.hook_runner,
             )
 
             terminating = anyio.Event()
