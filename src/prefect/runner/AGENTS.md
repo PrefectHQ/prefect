@@ -147,6 +147,8 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 **Automatic dependency installation:** By default, `WorkspaceResolvingEngineCommandStarter` does not install dependencies before starting a flow run. When no explicit command is passed and `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` is true, it auto-selects `uv run --no-default-groups --project <project_root>` with the worker-supplied workspace bootstrap — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). The bootstrap uses the prepared entrypoint with `prefect.flow_engine` when that module exposes its executable `_main`; older selected runtimes fall back to `prefect.engine` with `PREFECT__FLOW_ENTRYPOINT`, preserving the prepared workspace. If the setting is false or any condition fails, the command falls back to `None`. Explicit commands always take precedence.
 
+**Deferred cleanup:** a starter that owns a resource hooks still need during teardown (e.g. `WorkspaceResolvingEngineCommandStarter.close()`, which removes the temp directory backing the manifest hooks read) must register that cleanup via `ctx.call_after_exit(starter.close)` rather than calling it right after `start()` returns. `call_after_exit` callbacks run only after `FlowRunExecutorContext`'s `AsyncExitStack` (and therefore cancellation/crashed hook execution) has fully exited.
+
 ## Reference
 
 Full refactor design and rationale: plans/completed/2026-02-18-runner-refactor.md
