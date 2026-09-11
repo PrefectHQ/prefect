@@ -92,27 +92,34 @@ async def read_concurrency_limit_v2(
 async def read_all_concurrency_limits_v2(
     limit: int = LimitBody(),
     offset: int = Body(0, ge=0),
+    concurrency_limits: Optional[schemas.filters.ConcurrencyLimitV2Filter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.GlobalConcurrencyLimitResponse]:
     async with db.session_context() as session:
-        query = sa.select(
-            db.ConcurrencyLimitV2,
-            models.concurrency_limits_v2.active_slots_after_decay(db).label(
-                "active_slots"
-            ),
-        ).order_by(db.ConcurrencyLimitV2.name)
-
-        if offset is not None:
-            query = query.offset(offset)
-        if limit is not None:
-            query = query.limit(limit)
-
-        result = await session.execute(query)
-        rows = result.all()
+        rows = await models.concurrency_limits_v2.read_all_concurrency_limits_with_active_slots(
+            session=session,
+            limit=limit,
+            offset=offset,
+            concurrency_limit_filter=concurrency_limits,
+        )
 
     return [
         _global_concurrency_limit_response(row[0], row.active_slots) for row in rows
     ]
+
+
+@router.post("/count")
+async def count_concurrency_limits_v2(
+    concurrency_limits: Optional[schemas.filters.ConcurrencyLimitV2Filter] = Body(
+        None, embed=True
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    async with db.session_context() as session:
+        return await models.concurrency_limits_v2.count_concurrency_limits(
+            session=session,
+            concurrency_limit_filter=concurrency_limits,
+        )
 
 
 @router.patch("/{id_or_name}", status_code=status.HTTP_204_NO_CONTENT)

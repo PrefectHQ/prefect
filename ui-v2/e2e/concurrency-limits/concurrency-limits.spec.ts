@@ -1,6 +1,7 @@
 import {
 	cleanupGlobalConcurrencyLimits,
 	cleanupTaskRunConcurrencyLimits,
+	createGlobalConcurrencyLimit,
 	expect,
 	listGlobalConcurrencyLimits,
 	listTaskRunConcurrencyLimits,
@@ -120,6 +121,39 @@ test.describe("Concurrency Limits Page", () => {
 		// Verify delete via API
 		const limits = await listGlobalConcurrencyLimits(apiClient);
 		expect(limits.find((l) => l.name === limitName)).toBeUndefined();
+	});
+
+	test("Global Concurrency Limits - search finds a limit beyond the default API page size", async ({
+		page,
+		apiClient,
+	}) => {
+		// The concurrency-limits API defaults to returning 200 results per page. Seed
+		// more than that so a limit created near the end can only be found through
+		// server-side filtering, not by scrolling/paginating through the first page.
+		const runId = Date.now();
+		const targetName = `${TEST_PREFIX}${runId}-target`;
+
+		const seedNames = Array.from(
+			{ length: 205 },
+			(_, i) => `${TEST_PREFIX}${runId}-seed-${i}`,
+		);
+		await Promise.all(
+			seedNames.map((name) =>
+				createGlobalConcurrencyLimit(apiClient, { name, limit: 1 }),
+			),
+		);
+		await createGlobalConcurrencyLimit(apiClient, {
+			name: targetName,
+			limit: 1,
+		});
+
+		await page.goto("/concurrency-limits?tab=global");
+
+		await page
+			.getByPlaceholder(/search global concurrency limit/i)
+			.fill(targetName);
+
+		await expect(page.getByText(targetName, { exact: true })).toBeVisible();
 	});
 
 	test("Task Run Concurrency Limits - CRUD flow", async ({
