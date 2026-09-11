@@ -5,6 +5,7 @@ from fastapi import Response, WebSocket
 from fastapi.exceptions import HTTPException
 from fastapi.param_functions import Depends, Path
 from fastapi.params import Body, Query
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.status import WS_1002_PROTOCOL_ERROR
@@ -71,7 +72,31 @@ async def stream_events_in(websocket: WebSocket) -> None:
     try:
         async with messaging.create_event_publisher() as publisher:
             async for event_json in websocket.iter_text():
-                event = Event.model_validate_json(event_json)
+                try:
+                    event = Event.model_validate_json(event_json)
+                except ValidationError as exc:
+                    # One event we cannot accept must not take the connection down
+                    # with it. Clients read a closed socket as a transient network
+                    # problem and reconnect, so letting this escape lost both this
+                    # event and everything the client sent before it noticed --
+                    # silently, because nothing on either side reported it.
+                    #
+                    # Only the location and type of each validation error are
+                    # logged. The string form of a ValidationError embeds
+                    # Pydantic's `input_value`, which would reproduce the rejected
+                    # event's payload and resource labels in the server log, and
+                    # ObfuscateApiKeyFilter only removes the configured API key --
+                    # anything else the client sent would stay in the clear.
+                    logger.warning(
+                        "An event received on the incoming event stream could not "
+                        "be validated and was dropped (%s)",
+                        ", ".join(
+                            f"{'.'.join(str(part) for part in error['loc']) or '<root>'}:"
+                            f" {error['type']}"
+                            for error in exc.errors()
+                        ),
+                    )
+                    continue
                 await publisher.publish_event(event.receive())
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover
         pass  # it's fine if a client disconnects either normally or abnormally
