@@ -211,6 +211,10 @@ async def _collect_flow_runs(
 
 @perpetual_service(
     enabled_getter=lambda: get_current_settings().server.services.scheduler.enabled,
+    display_name="Scheduler",
+    environment_variable="PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED",
+    description="Schedules flow runs from deployments with active schedules.",
+    shared_control=True,
 )
 async def schedule_deployments(
     perpetual: Perpetual = Perpetual(
@@ -287,6 +291,10 @@ async def schedule_deployments(
 
 @perpetual_service(
     enabled_getter=lambda: get_current_settings().server.services.scheduler.enabled,
+    display_name="Scheduler",
+    environment_variable="PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED",
+    description="Schedules flow runs from deployments with active schedules.",
+    shared_control=True,
 )
 async def schedule_recent_deployments(
     perpetual: Perpetual = Perpetual(

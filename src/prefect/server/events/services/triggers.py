@@ -70,6 +70,11 @@ class ReactiveTriggers(RunInEphemeralServers, Service):
 @perpetual_service(
     enabled_getter=lambda: get_current_settings().server.services.triggers.enabled,
     run_in_ephemeral=True,
+    display_name="Proactive Triggers",
+    environment_variable="PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED",
+    description="Evaluates proactive automation triggers on a periodic schedule.",
+    shared_control=True,
+    extra_components=("ReactiveTriggers", "Actions"),
 )
 async def evaluate_proactive_triggers_periodic(
     perpetual: Perpetual = Perpetual(
