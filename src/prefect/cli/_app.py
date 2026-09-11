@@ -317,11 +317,6 @@ _app.command(
     help="Commands for interacting with the Prefect UI.",
 )
 _app.command(
-    "prefect.cli.dev:dev_app",
-    name="dev",
-    help="Internal Prefect development.",
-)
-_app.command(
     "prefect.cli.sdk:sdk_app",
     name="sdk",
     help="Manage Prefect SDKs. (beta)",
