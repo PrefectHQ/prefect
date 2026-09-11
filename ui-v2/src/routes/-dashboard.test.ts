@@ -30,6 +30,7 @@ describe("getDateRangeFromSearch", () => {
 	it("honors explicit from/to when no range type is set", () => {
 		expect(
 			getDateRangeFromSearch({
+				seconds: -3600,
 				from: "2020-01-01T00:00:00.000Z",
 				to: "2020-01-01T01:00:00.000Z",
 			}),
