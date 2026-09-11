@@ -129,6 +129,10 @@ R = TypeVar("R")
 
 BACKOFF_MAX = 10
 
+# Grace period before warning that a run has outlived its timeout, so an enforced
+# timeout can unwind the run first rather than race the watchdog into a warning
+TIMEOUT_WATCHDOG_GRACE_SECONDS = 0.5
+
 
 def _create_task_run_locally(
     task: "Task[Any, Any]",
@@ -267,6 +271,53 @@ class BaseTaskRunEngine(Generic[P, R]):
         ):
             return self.context["cancel_event"].is_set()
         return False
+
+    def _warn_timeout_exceeded(self) -> None:
+        """Report a run that is still going after its timeout has elapsed."""
+        try:
+            self.logger.warning(
+                "Task run has exceeded its timeout of %s second(s) but is still "
+                "running. The timeout could not interrupt the operation in progress; "
+                "the run will continue until it finishes on its own and only then be "
+                "marked `TimedOut`. Blocking operations like `time.sleep()`, network "
+                "requests, or file I/O cannot be interrupted. See "
+                "https://docs.prefect.io/v3/how-to-guides/workflows/"
+                "write-and-run#task-timeout-behavior for more information.",
+                self.task.timeout_seconds,
+            )
+        except Exception:  # pragma: no cover
+            # Advisory only, and raised on a watchdog thread where nothing would catch
+            # it; log shipping fails here for a run with no flow run to attach to
+            pass
+
+    @contextmanager
+    def timeout_watchdog(self) -> Generator[None, None, None]:
+        """
+        Warn if the run outlives its timeout.
+
+        A timeout cannot interrupt a run blocked in a syscall, so the run overruns its
+        deadline and is only marked `TimedOut` once that call returns on its own.
+        """
+        watchdog: Optional[threading.Timer] = None
+        if self.task.timeout_seconds is not None:
+            try:
+                watchdog = threading.Timer(
+                    self.task.timeout_seconds + TIMEOUT_WATCHDOG_GRACE_SECONDS,
+                    self._warn_timeout_exceeded,
+                )
+                watchdog.daemon = True
+                watchdog.start()
+            except Exception:
+                # The warning is advisory, so a run that cannot spare a thread for it
+                # goes without rather than failing. `start` raises once the process
+                # cannot allocate more, which a wide enough mapped run can reach.
+                watchdog = None
+
+        try:
+            yield
+        finally:
+            if watchdog is not None:
+                watchdog.cancel()
 
     def compute_transaction_key(self) -> Optional[str]:
         key: Optional[str] = None
@@ -1008,9 +1059,16 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         "write-and-run#task-timeout-behavior for more information.",
                         self.task.timeout_seconds,
                     )
-                with timeout(
-                    seconds=self.task.timeout_seconds,
-                    timeout_exc_type=TaskRunTimeoutError,
+                # The watchdog is entered outside the timeout scope so that it is
+                # disarmed the moment execution leaves it, before `handle_timeout`
+                # evaluates retry conditions. An enforced timeout has already
+                # interrupted the run by then and there is no overrun to report.
+                with (
+                    self.timeout_watchdog(),
+                    timeout(
+                        seconds=self.task.timeout_seconds,
+                        timeout_exc_type=TaskRunTimeoutError,
+                    ),
                 ):
                     self.logger.debug(
                         f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
@@ -1622,9 +1680,16 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # reenter the run context to ensure it is up to date for every run
         async with self.setup_run_context():
             try:
-                with timeout_async(
-                    seconds=self.task.timeout_seconds,
-                    timeout_exc_type=TaskRunTimeoutError,
+                # The watchdog is entered outside the timeout scope so that it is
+                # disarmed the moment execution leaves it, before `handle_timeout`
+                # evaluates retry conditions. An enforced timeout has already
+                # interrupted the run by then and there is no overrun to report.
+                with (
+                    self.timeout_watchdog(),
+                    timeout_async(
+                        seconds=self.task.timeout_seconds,
+                        timeout_exc_type=TaskRunTimeoutError,
+                    ),
                 ):
                     self.logger.debug(
                         f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
