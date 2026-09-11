@@ -118,6 +118,44 @@ async def test_automation_crud_operations_complete_successfully(
         assert created.id not in triggers.automations_by_id
 
 
+async def test_automation_commit_does_not_block_event_loop_while_lock_held(
+    automations_session: AsyncSession, sample_automation: Automation
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23055
+
+    On SQLite the `after_commit` listener updates the in-memory automations
+    cache via `automation_changed`, which waits on the module-global
+    automations lock. If that lock is held by another coroutine on the same
+    event loop (as `reconcile_automations` does across its database reads),
+    the commit must not block the event loop waiting for it.
+    """
+    if get_dialect(automations_session.sync_session).name == "postgresql":
+        pytest.skip("PostgreSQL uses NOTIFY and has no after_commit listener")
+
+    from prefect.server.events import triggers
+
+    triggers.automations_by_id.clear()
+    triggers.triggers.clear()
+
+    # Hold the automations lock on this event loop the way
+    # `reconcile_automations` does while it reads the database
+    async with triggers._automations_lock():
+        created = await create_automation(automations_session, sample_automation)
+        # If the after_commit listener blocked the event loop waiting on the
+        # lock, this commit would deadlock the test
+        await automations_session.commit()
+
+        # The event loop must still be able to run other work while the
+        # pending cache update waits on the lock
+        await asyncio.sleep(0)
+        assert created.id not in triggers.automations_by_id
+
+    # Once the lock is released, the scheduled cache update completes
+    async for attempt in retry_asserts(max_attempts=10, delay=0.1):
+        with attempt:
+            assert created.id in triggers.automations_by_id
+
+
 async def test_automation_listener_receives_notifications_and_processes_them(
     automations_session: AsyncSession, sample_automation: Automation
 ):
