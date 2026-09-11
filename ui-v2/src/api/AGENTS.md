@@ -28,6 +28,7 @@ This directory contains API-related code including query options factories and m
 - When mutating, create custom hooks for each mutation
 - Don't perform data transformation in queryOptions factories - do it in components
 - Add `refetchInterval: 30_000` to list, count, and detail query factories that display live operational data (work pools, flow runs, task runs, etc.). Use `60_000` for slower-changing data (events). When callers may need to override the interval, accept it as a parameter with a sensible default rather than hardcoding it.
+- For existence checks ("are there any records at all"), don't use an unfiltered `count` query — an unbounded COUNT scans the whole table and can exceed the API's statement timeout on large deployments. Use a filtered list query with `limit: 1` and check the response length instead.
 
 ## Query Key Factory Pattern
 
