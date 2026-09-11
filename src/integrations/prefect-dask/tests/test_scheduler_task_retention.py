@@ -9,7 +9,7 @@ from prefect_dask.client import PrefectDaskClient
 from prefect import flow, task
 
 
-def _count_named_prefect_tasks_in_scheduler_process(dask_scheduler, task_names) -> int:
+def _count_named_prefect_tasks_in_scheduler_process(task_names, dask_scheduler=None) -> int:
     import gc
 
     gc.collect()
