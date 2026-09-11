@@ -507,6 +507,7 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
         )
 
         canonical_task_run_ids: dict[TaskRunUpsertKey, UUID] = {}
+        supports_insertmanyvalues = db.dialect.name == "postgresql"
 
         for segment in segments:
             update_cols = (segment.columns | {"updated"}) - {"id", "created"}
@@ -514,16 +515,18 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
             # keeps the generated SQL text stable
             insert_cols = sorted(segment.columns)
 
-            # SQLAlchemy takes the statement's column list from the first row and
-            # silently drops keys that only later rows carry, so give every row
-            # the same keys.
+            # Execution-time parameter sets must share a column list, so give every
+            # row the same keys.
             to_insert = [
                 {column: tr.task_run_dict.get(column) for column in insert_cols}
                 | {"created": now, "updated": now}
                 for tr in segment.rows
             ]
+            use_insertmanyvalues = supports_insertmanyvalues and len(to_insert) > 1
 
-            insert_statement = db.queries.insert(db.TaskRun).values(to_insert)
+            insert_statement = db.queries.insert(db.TaskRun)
+            if not use_insertmanyvalues:
+                insert_statement = insert_statement.values(to_insert)
             index_elements = (
                 db.orm.task_run_unique_upsert_columns
                 if segment.conflict_target == "natural-key"
@@ -551,7 +554,19 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                 where=db.TaskRun.state_timestamp
                 < insert_statement.excluded.state_timestamp,
             )
-            await session.execute(upsert_statement)
+            if use_insertmanyvalues:
+                # asyncpg uses insertmanyvalues for execution-time parameters only
+                # when RETURNING is present. Return the ids and discard them. Core
+                # DML keeps the explicit NULL values used by the upsert semantics.
+                upsert_statement = upsert_statement.returning(
+                    db.TaskRun.id
+                ).execution_options(dml_strategy="raw")
+                result = await session.execute(upsert_statement, to_insert)
+                result.close()
+            else:
+                # SQLite versions before 3.35 do not support RETURNING. Keep the
+                # existing multi-row statement for supported older versions.
+                await session.execute(upsert_statement)
 
             if segment.conflict_target == "natural-key":
                 segment_natural_keys = [

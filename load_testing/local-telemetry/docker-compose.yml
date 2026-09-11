@@ -20,7 +20,7 @@ services:
       - 14269:14269 # jaeger's health check
       - 9411:9411 # zipkin (http)
   collector:
-    image: otel/opentelemetry-collector-contrib:0.159.0
+    image: otel/opentelemetry-collector-contrib:0.160.0
     depends_on:
       - jaeger
       - prometheus
