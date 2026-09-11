@@ -9,9 +9,9 @@ ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.10
 # The version used to build the V1 UI distributable.
-ARG NODE_VERSION=20.19.0
+ARG NODE_VERSION=20.20.2
 # The version used to build the V2 UI distributable (requires Node 22+).
-ARG NODE_V2_VERSION=22.12.0
+ARG NODE_V2_VERSION=22.23.2
 # SQLite version — must match the tag published to prefecthq/prefect-sqlite on DockerHub
 # See Dockerfile.sqlite-builder and .github/workflows/sqlite-builder.yaml
 ARG SQLITE_VERSION=3.50.4
@@ -87,7 +87,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     (echo "ERROR: git version must be >= 1:2.47.3" && exit 1)
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.10 /uv /bin/uv
 
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
@@ -104,7 +104,7 @@ RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 
 # Setup a base final image from miniconda
-FROM continuumio/miniconda3:26.5.3 AS prefect-conda
+FROM continuumio/miniconda3:26.7.1 AS prefect-conda
 
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
@@ -122,6 +122,7 @@ SHELL ["/bin/bash", "--login", "-c"]
 FROM ${BASE_IMAGE} AS final
 
 # Redeclare ARGs needed in this stage
+ARG BASE_IMAGE
 ARG PYTHON_VERSION
 ARG SQLITE_VERSION
 
@@ -179,19 +180,26 @@ COPY --from=sqlite-builder /usr/local/lib/pkgconfig/sqlite3.pc /usr/local/lib/pk
 RUN ldconfig
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /bin/uv
-
-# Install prefect from the sdist
-COPY --from=python-builder /opt/prefect/dist ./dist
+COPY --from=ghcr.io/astral-sh/uv:0.12.10 /uv /bin/uv
 
 # Extras to include during installation
 ARG PREFECT_EXTRAS=[redis,client,otel]
-RUN --mount=type=cache,target=/root/.cache/uv \
-    UV_COMPILE_BYTECODE=1 uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
-    rm -rf dist/
 
-# Remove setuptools
-RUN uv pip uninstall setuptools
+# Install prefect from the sdist.
+#
+# The sdist is bind-mounted rather than copied. A COPY commits the archive to its
+# own layer, and a `rm -rf` in a later RUN can only add a whiteout on top of that
+# layer -- it cannot remove it from the image, so the archive ships in everything
+# we push. A bind mount is never committed to a layer.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,from=python-builder,source=/opt/prefect/dist,target=/dist \
+    UV_COMPILE_BYTECODE=1 uv pip install "/dist/prefect.tar.gz${PREFECT_EXTRAS:-""}"
+
+# Setuptools is required by pip in the conda environment. Remove it only from
+# base images where it is not managed as part of the environment.
+RUN if [ "${BASE_IMAGE}" != "prefect-conda" ]; then \
+        uv pip uninstall setuptools; \
+    fi
 
 # Install any extra packages
 ARG EXTRA_PIP_PACKAGES

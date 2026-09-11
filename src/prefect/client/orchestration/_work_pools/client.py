@@ -48,7 +48,7 @@ class WorkPoolClient(BaseClient):
         Args:
             work_pool_name: The name of the work pool to heartbeat against.
             worker_name: The name of the worker sending the heartbeat.
-            return_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `return_id` is `True`.
+            get_worker_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `get_worker_id` is `True`.
             worker_metadata: Metadata about the worker to send to the server.
         """
         from uuid import UUID
@@ -376,7 +376,7 @@ class WorkPoolAsyncClient(BaseAsyncClient):
         Args:
             work_pool_name: The name of the work pool to heartbeat against.
             worker_name: The name of the worker sending the heartbeat.
-            return_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `return_id` is `True`.
+            get_worker_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `get_worker_id` is `True`.
             worker_metadata: Metadata about the worker to send to the server.
         """
         from uuid import UUID

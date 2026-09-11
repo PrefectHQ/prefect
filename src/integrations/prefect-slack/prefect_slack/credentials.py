@@ -115,12 +115,16 @@ class SlackWebhook(NotificationBlock):
             if response.status_code >= 400:
                 raise NotificationError(f"Failed to send message: {response.body}")
 
+    @staticmethod
+    def _format_text(body: str, subject: Optional[str]) -> str:
+        return f"{subject}\n{body}" if subject else body
+
     async def notify_async(self, body: str, subject: Optional[str] = None):
         """
         Sends a message to the Slack channel asynchronously.
         """
         client = self.get_client()
-        response = await client.send(text=body)
+        response = await client.send(text=self._format_text(body, subject))
         self._raise_on_failure(response)
 
     @async_dispatch(notify_async)
@@ -129,5 +133,5 @@ class SlackWebhook(NotificationBlock):
         Sends a message to the Slack channel.
         """
         client = self.get_client(sync_client=True)
-        response = client.send(text=body)
+        response = client.send(text=self._format_text(body, subject))
         self._raise_on_failure(response)

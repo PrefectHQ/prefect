@@ -1260,32 +1260,34 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         _drop_empty_keys_from_dict(task_definition)
 
         # Handle secrets for both API key and auth string
-        secrets = []
+        prefect_secrets: dict[str, str] = {}
         if configuration.prefect_api_key_secret_arn:
-            secrets.append(
-                {
-                    "name": "PREFECT_API_KEY",
-                    "valueFrom": configuration.prefect_api_key_secret_arn,
-                }
+            prefect_secrets["PREFECT_API_KEY"] = (
+                configuration.prefect_api_key_secret_arn
             )
-            # Remove the PREFECT_API_KEY from the environment variables
-            for item in tuple(container.get("environment", [])):
-                if item["name"] == "PREFECT_API_KEY":
-                    container["environment"].remove(item)  # type: ignore
-
         if configuration.prefect_api_auth_string_secret_arn:
-            secrets.append(
-                {
-                    "name": "PREFECT_API_AUTH_STRING",
-                    "valueFrom": configuration.prefect_api_auth_string_secret_arn,
-                }
+            prefect_secrets["PREFECT_API_AUTH_STRING"] = (
+                configuration.prefect_api_auth_string_secret_arn
             )
-            # Remove the PREFECT_API_AUTH_STRING from the environment variables
+
+        if prefect_secrets:
+            # Remove the corresponding environment variables because the values will
+            # be provided via secrets instead
             for item in tuple(container.get("environment", [])):
-                if item["name"] == "PREFECT_API_AUTH_STRING":
+                if item["name"] in prefect_secrets:
                     container["environment"].remove(item)  # type: ignore
 
-        if secrets:
+            # Merge into any secrets already defined on the container rather than
+            # replacing them. A secret configured here takes precedence over one of
+            # the same name in the task definition.
+            secrets = list(container.get("secrets") or [])
+            for secret in secrets:
+                if secret.get("name") in prefect_secrets:
+                    secret["valueFrom"] = prefect_secrets.pop(secret["name"])
+            secrets.extend(
+                {"name": name, "valueFrom": value_from}
+                for name, value_from in prefect_secrets.items()
+            )
             container["secrets"] = secrets
 
         return task_definition

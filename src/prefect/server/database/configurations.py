@@ -157,13 +157,19 @@ class BaseDatabaseConfiguration(ABC):
             connection_app_name
             or get_current_settings().server.database.sqlalchemy.connect_args.application_name
         )
+        # `is None`, not `or`: 0 is a meaningful value for both of these. Setting
+        # statement_cache_size to 0 is required behind PgBouncer in transaction mode,
+        # and 0 disables the prepared statement cache, so `or` would discard exactly
+        # the value the settings describe as the reason to set them.
         self.statement_cache_size: Optional[int] = (
             statement_cache_size
-            or get_current_settings().server.database.sqlalchemy.connect_args.statement_cache_size
+            if statement_cache_size is not None
+            else get_current_settings().server.database.sqlalchemy.connect_args.statement_cache_size
         )
         self.prepared_statement_cache_size: Optional[int] = (
             prepared_statement_cache_size
-            or get_current_settings().server.database.sqlalchemy.connect_args.prepared_statement_cache_size
+            if prepared_statement_cache_size is not None
+            else get_current_settings().server.database.sqlalchemy.connect_args.prepared_statement_cache_size
         )
         self.search_path: Optional[str] = (
             search_path
@@ -213,14 +219,6 @@ class BaseDatabaseConfiguration(ABC):
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
     async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
-
-        Args:
-            connection_url (str, optional): The database connection string.
-                Defaults to self.connection_url
-            echo (bool, optional): Whether to echo SQL sent
-                to the database. Defaults to self.echo
-            timeout (float, optional): The database statement timeout, in seconds.
-                Defaults to self.timeout
 
         Returns:
             AsyncEngine: a SQLAlchemy engine
@@ -452,14 +450,6 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
     async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
-
-        Args:
-            connection_url (str, optional): The database connection string.
-                Defaults to self.connection_url
-            echo (bool, optional): Whether to echo SQL sent
-                to the database. Defaults to self.echo
-            timeout (float, optional): The database statement timeout, in seconds.
-                Defaults to self.timeout
 
         Returns:
             AsyncEngine: a SQLAlchemy engine

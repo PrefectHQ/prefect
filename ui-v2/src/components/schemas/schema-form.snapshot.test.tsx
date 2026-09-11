@@ -4,20 +4,26 @@ import { describe, expect, test } from "vitest";
 import "@/mocks/mock-json-input";
 import { SchemaForm, type SchemaFormProps } from "./schema-form";
 
-/**
- * 🔍 Snapshot Tests
- *
- * ⚠️ These snapshot tests are order dependent because of `useId` which produces
- * a random id that is order dependent on how many times useId is called.
- * We could mock react's useId to return a deterministic id. However radix-ui
- * had their own wrapper around useId that we would also need to mock. Which
- * we've been unable to do so far.
- *
- * https://github.com/radix-ui/primitives/discussions/3393
- *
- * 🔄 Running tests in a different order will cause snapshots to fail. Such as
- * when adding a new test to the middle of the list.
- */
+function normalizeGeneratedIds(container: HTMLElement): HTMLElement {
+	const clone = container.cloneNode(true) as HTMLElement;
+	const normalizedIds = new Map<string, string>();
+
+	for (const element of [clone, ...clone.querySelectorAll("*")]) {
+		for (const attribute of element.attributes) {
+			attribute.value = attribute.value.replace(
+				/(?:radix-)?_r_[a-z0-9]+_/g,
+				(id) => {
+					const normalizedId =
+						normalizedIds.get(id) ?? `generated-id-${normalizedIds.size}`;
+					normalizedIds.set(id, normalizedId);
+					return normalizedId;
+				},
+			);
+		}
+	}
+
+	return clone;
+}
 
 function TestSchemaForm({
 	schema = { type: "object", properties: {} },
@@ -48,7 +54,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with value", () => {
@@ -62,7 +68,7 @@ describe("property.type", () => {
 				<TestSchemaForm schema={schema} values={{ name: "foo" }} />,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with default", () => {
@@ -74,7 +80,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("format:date", () => {
@@ -86,7 +92,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("format:date with value", () => {
@@ -100,7 +106,7 @@ describe("property.type", () => {
 				<TestSchemaForm schema={schema} values={{ name: "2024-01-01" }} />,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("format:date with default", () => {
@@ -112,7 +118,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("format:date-time", () => {
@@ -124,7 +130,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("format:date-time with value", () => {
@@ -141,7 +147,7 @@ describe("property.type", () => {
 				/>,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("format:date-time with default", () => {
@@ -157,7 +163,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("format:json-string", () => {
@@ -169,7 +175,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("format:json-string with value", () => {
@@ -183,7 +189,7 @@ describe("property.type", () => {
 				<TestSchemaForm schema={schema} values={{ name: '{"foo": "bar"}' }} />,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("format:json-string with default", () => {
@@ -199,7 +205,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("enum", () => {
@@ -211,7 +217,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("enum with value", () => {
@@ -225,7 +231,7 @@ describe("property.type", () => {
 				<TestSchemaForm schema={schema} values={{ name: "foo" }} />,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("enum with default", () => {
@@ -237,7 +243,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 	});
 
@@ -251,7 +257,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with value", () => {
@@ -265,7 +271,7 @@ describe("property.type", () => {
 				<TestSchemaForm schema={schema} values={{ name: 123.45 }} />,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with default", () => {
@@ -277,7 +283,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("enum", () => {
@@ -289,7 +295,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 	});
 
@@ -303,7 +309,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with value", () => {
@@ -317,7 +323,7 @@ describe("property.type", () => {
 				<TestSchemaForm schema={schema} values={{ name: 123 }} />,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with default", () => {
@@ -329,7 +335,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("enum", () => {
@@ -341,7 +347,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 	});
 
@@ -355,7 +361,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with value", () => {
@@ -369,7 +375,7 @@ describe("property.type", () => {
 				<TestSchemaForm schema={schema} values={{ name: true }} />,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with default", () => {
@@ -381,7 +387,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("enum", () => {
@@ -393,7 +399,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 	});
 
@@ -407,7 +413,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 	});
 
@@ -432,7 +438,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with value", () => {
@@ -458,7 +464,7 @@ describe("property.type", () => {
 				<TestSchemaForm schema={schema} values={{ name: "foo" }} />,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with default", () => {
@@ -482,7 +488,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 	});
 
@@ -499,7 +505,7 @@ describe("property.type", () => {
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with values - drag handles visible", () => {
@@ -519,7 +525,7 @@ describe("property.type", () => {
 				/>,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with prefixItems - no drag handles on prefix items", () => {
@@ -543,7 +549,7 @@ describe("property.type", () => {
 				/>,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 
 		test("with enum items", () => {
@@ -560,7 +566,7 @@ describe("property.type", () => {
 				<TestSchemaForm schema={schema} values={{ items: ["foo", "bar"] }} />,
 			);
 
-			expect(container).toMatchSnapshot();
+			expect(normalizeGeneratedIds(container)).toMatchSnapshot();
 		});
 	});
 });

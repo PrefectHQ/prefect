@@ -40,6 +40,42 @@ describe("DeploymentParametersTable", () => {
 		expect(screen.getByRole("cell", { name: /goodbye/i })).toBeVisible();
 	});
 
+	it("renders object-valued parameters as JSON", () => {
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: {
+				title: "Parameters",
+				type: "object",
+				properties: {
+					builder: {
+						default: { day: "today" },
+						position: 0,
+						title: "builder",
+						type: "object",
+					},
+					days: {
+						default: ["today"],
+						position: 1,
+						title: "days",
+						type: "array",
+					},
+				},
+			},
+			parameters: {
+				builder: { day: "prev_td" },
+				days: ["prev_td", "next_td"],
+			},
+		});
+
+		render(<DeploymentParametersTable deployment={deployment} />);
+
+		expect(
+			screen.getByRole("cell", { name: '{"day":"prev_td"}' }),
+		).toBeVisible();
+		expect(screen.getByRole("cell", { name: '{"day":"today"}' })).toBeVisible();
+		expect(screen.getByRole("cell", { name: "prev_td,next_td" })).toBeVisible();
+		expect(screen.queryByText("[object Object]")).not.toBeInTheDocument();
+	});
+
 	it("filters table rows", async () => {
 		// ------------ Setup
 		const user = userEvent.setup();

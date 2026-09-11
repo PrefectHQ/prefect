@@ -32,10 +32,16 @@ async def revoke_expired_lease(
 ) -> None:
     """Revoke a single expired lease (docket task)."""
     expired_lease = await lease_storage.read_lease(lease_id)
-    if expired_lease is None or expired_lease.metadata is None:
-        logger.warning(
-            f"Lease {lease_id} should be revoked but was not found or has no metadata"
-        )
+    if expired_lease is None:
+        # The lease itself is gone, but storage may still hold an expiration
+        # entry for it; revoking clears that entry so the lease stops being
+        # reported as expired on every pass.
+        await lease_storage.revoke_lease(lease_id)
+        logger.warning(f"Lease {lease_id} should be revoked but was not found")
+        return
+
+    if expired_lease.metadata is None:
+        logger.warning(f"Lease {lease_id} should be revoked but has no metadata")
         return
 
     occupancy_seconds = (

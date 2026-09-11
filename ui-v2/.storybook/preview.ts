@@ -1,12 +1,10 @@
 import { withThemeByClassName } from "@storybook/addon-themes";
 import type { Preview } from "@storybook/react";
 import { handlers } from "@tests/utils/handlers";
-import { initialize, mswLoader } from "msw-storybook-addon";
+import { setupWorker } from "msw/browser";
+import { mswLoader } from "msw-storybook-addon/csf3";
 
 import "../src/index.css";
-
-// Initialize MSW
-initialize({ onUnhandledRequest: "bypass" }, handlers);
 
 export default {
 	parameters: {
@@ -27,5 +25,11 @@ export default {
 		}),
 	],
 	// Provide the MSW addon loader globally
-	loaders: [mswLoader],
+	loaders: [
+		mswLoader(async () => {
+			const worker = setupWorker(...handlers);
+			await worker.start({ onUnhandledRequest: "bypass" });
+			return worker;
+		}),
+	],
 } satisfies Preview;

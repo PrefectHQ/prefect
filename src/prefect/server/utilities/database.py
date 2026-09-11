@@ -48,6 +48,7 @@ from typing_extensions import (
     TypeVar,
 )
 
+from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 from prefect.types._datetime import DateTime
 
 P = ParamSpec("P")
@@ -767,3 +768,16 @@ def get_dialect(obj: Union[str, Session, sa.Engine]) -> type[sa.Dialect]:
         url = sa.engine.url.make_url(obj)
 
     return url.get_dialect()
+
+
+def get_max_query_parameters() -> int:
+    """The number of bind parameters a single statement may carry.
+
+    Both drivers reject a statement over the limit, so any query built from a
+    variable number of rows must batch itself under it.
+    """
+    dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
+    if dialect.name == "postgresql":
+        return 32_767
+    else:
+        return 999

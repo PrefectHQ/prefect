@@ -25,7 +25,7 @@ describe("FlowsEmptyState", () => {
 		const docsLink = screen.getByRole("link", { name: /view docs/i });
 		expect(docsLink).toHaveAttribute(
 			"href",
-			"https://docs.prefect.io/v3/develop/flows",
+			"https://docs.prefect.io/v3/concepts/flows",
 		);
 	});
 });

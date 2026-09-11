@@ -47,6 +47,13 @@ if TYPE_CHECKING:
 
 logger: "logging.Logger" = get_logger(__name__)
 
+# Exceptions that indicate transient network issues and should trigger retries.
+_RETRYABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
+    ConnectionClosed,
+    TimeoutError,
+    OSError,
+)
+
 LOGS_OBSERVED = Counter(
     "prefect_logs_observed",
     "The number of logs observed by Prefect log subscribers",
@@ -90,6 +97,7 @@ def _get_api_url_and_key(
 def get_logs_subscriber(
     filter: Optional["LogFilter"] = None,
     reconnection_attempts: int = 10,
+    reconnect_on_clean_close: bool = False,
 ) -> "PrefectLogsSubscriber":
     """
     Get a logs subscriber based on the current Prefect configuration.
@@ -101,13 +109,16 @@ def get_logs_subscriber(
 
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
         return PrefectCloudLogsSubscriber(
-            filter=filter, reconnection_attempts=reconnection_attempts
+            filter=filter,
+            reconnection_attempts=reconnection_attempts,
+            reconnect_on_clean_close=reconnect_on_clean_close,
         )
     elif api_url:
         return PrefectLogsSubscriber(
             api_url=api_url,
             filter=filter,
             reconnection_attempts=reconnection_attempts,
+            reconnect_on_clean_close=reconnect_on_clean_close,
         )
     elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         from prefect.server.api.server import SubprocessASGIServer
@@ -118,6 +129,7 @@ def get_logs_subscriber(
             api_url=server.api_url,
             filter=filter,
             reconnection_attempts=reconnection_attempts,
+            reconnect_on_clean_close=reconnect_on_clean_close,
         )
     else:
         raise ValueError(
@@ -128,6 +140,10 @@ def get_logs_subscriber(
 class PrefectLogsSubscriber:
     """
     Subscribes to a Prefect logs stream, yielding logs as they occur.
+
+    Abnormal disconnects are retried. Clean disconnects end iteration unless
+    `reconnect_on_clean_close` is enabled. The logs stream is live-only, so logs
+    emitted while disconnected may be omitted.
 
     Example:
 
@@ -155,6 +171,7 @@ class PrefectLogsSubscriber:
         api_url: Optional[str] = None,
         filter: Optional["LogFilter"] = None,
         reconnection_attempts: int = 10,
+        reconnect_on_clean_close: bool = False,
     ):
         """
         Args:
@@ -162,6 +179,8 @@ class PrefectLogsSubscriber:
             filter: Log filter to apply
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
+            reconnect_on_clean_close: Whether to reconnect when the server closes
+                the connection normally instead of ending iteration
         """
         self._api_key = None
         self._auth_token = PREFECT_API_AUTH_STRING.value()
@@ -189,6 +208,7 @@ class PrefectLogsSubscriber:
         self._connect = websocket_connect(socket_url, **connect_kwargs)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
+        self._reconnect_on_clean_close = reconnect_on_clean_close
         if self._reconnection_attempts < 0:
             raise ValueError("reconnection_attempts must be a non-negative integer")
 
@@ -272,14 +292,15 @@ class PrefectLogsSubscriber:
 
     async def __anext__(self) -> Log:
         assert self._reconnection_attempts >= 0
-        for i in range(self._reconnection_attempts + 1):  # pragma: no branch
+        attempts = 0
+        while attempts <= self._reconnection_attempts:
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
                 # previous reconnection attempt.
                 #
                 # Otherwise, after the first time through this loop, we're recovering
                 # from a ConnectionClosed, so reconnect now.
-                if not self._websocket or i > 0:
+                if not self._websocket or attempts > 0:
                     try:
                         await self._reconnect()
                     finally:
@@ -301,20 +322,22 @@ class PrefectLogsSubscriber:
                     finally:
                         LOGS_OBSERVED.labels(self.client_name).inc()
 
-            except ConnectionClosedOK:
-                logger.debug('Connection closed with "OK" status')
-                raise StopAsyncIteration
-            except ConnectionClosed:
+            except _RETRYABLE_EXCEPTIONS as exc:
+                if isinstance(exc, ConnectionClosedOK):
+                    if not self._reconnect_on_clean_close:
+                        logger.debug('Connection closed with "OK" status')
+                        raise StopAsyncIteration
+
+                attempts += 1
                 logger.debug(
-                    "Connection closed with %s/%s attempts",
-                    i + 1,
+                    "Retryable error with %s/%s attempts",
+                    attempts,
                     self._reconnection_attempts,
                 )
-                if i == self._reconnection_attempts:
-                    # this was our final chance, raise the most recent error
+                if attempts > self._reconnection_attempts:
                     raise
 
-                if i > 2:
+                if attempts > 2:
                     # let the first two attempts happen quickly in case this is just
                     # a standard load balancer timeout, but after that, just take a
                     # beat to let things come back around.
@@ -331,6 +354,7 @@ class PrefectCloudLogsSubscriber(PrefectLogsSubscriber):
         api_key: Optional[str] = None,
         filter: Optional["LogFilter"] = None,
         reconnection_attempts: int = 10,
+        reconnect_on_clean_close: bool = False,
     ):
         """
         Args:
@@ -339,6 +363,8 @@ class PrefectCloudLogsSubscriber(PrefectLogsSubscriber):
             filter: Log filter to apply
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
+            reconnect_on_clean_close: Whether to reconnect when the server closes
+                the connection normally instead of ending iteration
         """
         api_url, api_key = _get_api_url_and_key(api_url, api_key)
 
@@ -346,6 +372,7 @@ class PrefectCloudLogsSubscriber(PrefectLogsSubscriber):
             api_url=api_url,
             filter=filter,
             reconnection_attempts=reconnection_attempts,
+            reconnect_on_clean_close=reconnect_on_clean_close,
         )
 
         self._api_key = api_key

@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
+import anyio
 import pytest
 from typing_extensions import Self
 
@@ -22,9 +23,10 @@ TERMINAL_FLOW_RUN_EVENTS = {
 class MockEventSubscriber:
     """Mock event subscriber for testing"""
 
-    def __init__(self, events: list[Event]):
+    def __init__(self, events: list[Event], stop_when_exhausted: bool = False):
         self.events = events
         self._index = 0
+        self._stop_when_exhausted = stop_when_exhausted
 
     async def __aenter__(self) -> Self:
         return self
@@ -37,7 +39,10 @@ class MockEventSubscriber:
 
     async def __anext__(self) -> Event:
         if self._index >= len(self.events):
-            raise StopAsyncIteration
+            if self._stop_when_exhausted:
+                raise StopAsyncIteration
+            await asyncio.Event().wait()
+            raise AssertionError("unreachable")
         event = self.events[self._index]
         self._index += 1
         return event
@@ -46,9 +51,10 @@ class MockEventSubscriber:
 class MockLogsSubscriber:
     """Mock logs subscriber for testing"""
 
-    def __init__(self, logs: list[Log]):
+    def __init__(self, logs: list[Log], stop_when_exhausted: bool = False):
         self.logs = logs
         self._index = 0
+        self._stop_when_exhausted = stop_when_exhausted
 
     async def __aenter__(self) -> Self:
         return self
@@ -61,10 +67,30 @@ class MockLogsSubscriber:
 
     async def __anext__(self) -> Log:
         if self._index >= len(self.logs):
-            raise StopAsyncIteration
+            if self._stop_when_exhausted:
+                raise StopAsyncIteration
+            await asyncio.Event().wait()
+            raise AssertionError("unreachable")
         log = self.logs[self._index]
         self._index += 1
         return log
+
+
+class HangingLogsSubscriber:
+    """A logs stream that stays connected but never yields or ends."""
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *args) -> None:
+        pass
+
+    def __aiter__(self) -> Self:
+        return self
+
+    async def __anext__(self) -> Log:
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
 
 
 @pytest.fixture
@@ -120,7 +146,10 @@ def terminal_event(flow_run_id: UUID) -> Event:
         occurred=datetime.now(timezone.utc) + timedelta(seconds=3),
         event="prefect.flow-run.Completed",
         resource=Resource(
-            root={"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"}
+            root={
+                "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                "prefect.state-type": "COMPLETED",
+            }
         ),
         payload={},
     )
@@ -143,9 +172,13 @@ def straggler_log(flow_run_id: UUID) -> Log:
 def setup_mocks(monkeypatch):
     """Setup mocks for get_events_subscriber and get_logs_subscriber"""
 
-    def create_mocks(events: list[Event], logs: list[Log]):
-        mock_events = MockEventSubscriber(events)
-        mock_logs = MockLogsSubscriber(logs)
+    def create_mocks(
+        events: list[Event],
+        logs: list[Log],
+        stop_when_exhausted: bool = False,
+    ):
+        mock_events = MockEventSubscriber(events, stop_when_exhausted)
+        mock_logs = MockLogsSubscriber(logs, stop_when_exhausted)
 
         def mock_get_events_subscriber(*args, **kwargs):
             return mock_events
@@ -170,17 +203,18 @@ async def test_flow_run_subscriber_basic_interleaving(
     sample_log1: Log,
     sample_event1: Event,
     sample_log2: Log,
+    terminal_event: Event,
     setup_mocks,
 ):
-    """Test that FlowRunSubscriber interleaves logs and events"""
-    setup_mocks([sample_event1], [sample_log1, sample_log2])
+    """Test that FlowRunSubscriber interleaves logs and events until completion"""
+    setup_mocks([sample_event1, terminal_event], [sample_log1, sample_log2])
 
     items: list[Log | Event] = []
     async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
         async for item in subscriber:
             items.append(item)
 
-    assert len(items) == 3
+    assert len(items) == 4
     assert any(isinstance(item, Log) and item.message == "Test log 1" for item in items)
     assert any(isinstance(item, Log) and item.message == "Test log 2" for item in items)
     assert any(
@@ -279,15 +313,12 @@ async def test_flow_run_subscriber_straggler_timeout(
 
 
 async def test_flow_run_subscriber_empty_streams(flow_run_id: UUID, setup_mocks):
-    """Test that FlowRunSubscriber handles empty streams"""
-    setup_mocks([], [])
+    """Test that empty streams are treated as premature termination"""
+    setup_mocks([], [], stop_when_exhausted=True)
 
-    items: list[Log | Event] = []
-    async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
-        async for item in subscriber:
-            items.append(item)
-
-    assert len(items) == 0
+    with pytest.raises(ConnectionError, match="stream closed unexpectedly"):
+        async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+            await anext(subscriber)
 
 
 async def test_flow_run_subscriber_context_manager_cleanup(
@@ -355,8 +386,171 @@ async def test_flow_run_subscriber_context_manager_cleanup(
     assert logs_exited
 
 
+async def test_flow_run_subscriber_reconnects_lower_level_streams_on_clean_close(
+    flow_run_id: UUID, monkeypatch: pytest.MonkeyPatch
+):
+    event_kwargs: dict[str, object] = {}
+    log_kwargs: dict[str, object] = {}
+
+    def mock_get_events_subscriber(*args, **kwargs):
+        event_kwargs.update(kwargs)
+        return MockEventSubscriber([])
+
+    def mock_get_logs_subscriber(*args, **kwargs):
+        log_kwargs.update(kwargs)
+        return MockLogsSubscriber([])
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        mock_get_events_subscriber,
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        mock_get_logs_subscriber,
+    )
+
+    async with FlowRunSubscriber(flow_run_id=flow_run_id):
+        pass
+
+    assert event_kwargs["reconnect_on_clean_close"] is True
+    assert log_kwargs["reconnect_on_clean_close"] is True
+
+
+async def test_flow_run_subscriber_propagates_non_connection_error(
+    flow_run_id: UUID, monkeypatch
+):
+    """A non-retryable subscriber failure is propagated, not retried."""
+
+    class InvalidEventSubscriber:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        def __aiter__(self) -> Self:
+            return self
+
+        async def __anext__(self) -> Event:
+            raise ValueError("invalid event payload")
+
+    mock_events = InvalidEventSubscriber()
+    mock_logs = HangingLogsSubscriber()
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        lambda *args, **kwargs: mock_events,
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        lambda *args, **kwargs: mock_logs,
+    )
+
+    with pytest.raises(ValueError, match="invalid event payload"):
+        async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+            await anext(subscriber)
+
+
+async def test_flow_run_subscriber_stops_when_events_close_and_logs_stay_open(
+    flow_run_id: UUID, monkeypatch: pytest.MonkeyPatch
+):
+    """A cleanly closed stream must not strand an idle sibling stream."""
+
+    class ClosedEventSubscriber:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        def __aiter__(self) -> Self:
+            return self
+
+        async def __anext__(self) -> Event:
+            raise StopAsyncIteration
+
+    class HangingLogsSubscriber:
+        """A logs stream that stays connected but never yields or ends."""
+
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        def __aiter__(self) -> Self:
+            return self
+
+        async def __anext__(self) -> Log:
+            await asyncio.Event().wait()  # never returns
+            raise AssertionError("unreachable")
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        lambda *args, **kwargs: ClosedEventSubscriber(),
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        lambda *args, **kwargs: HangingLogsSubscriber(),
+    )
+
+    with (
+        anyio.fail_after(1),
+        pytest.raises(
+            ConnectionError, match="Flow run events stream closed unexpectedly"
+        ),
+    ):
+        async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+            await anext(subscriber)
+
+
+async def test_flow_run_subscriber_completes_after_terminal_event(
+    flow_run_id: UUID,
+    sample_event1: Event,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A clean run stops after reaching a terminal state."""
+    terminal_event = Event(
+        id=uuid4(),
+        occurred=datetime.now(timezone.utc) + timedelta(seconds=3),
+        event="prefect.flow-run.Completed",
+        resource=Resource(
+            root={
+                "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                "prefect.state-type": "COMPLETED",
+            }
+        ),
+        payload={},
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        lambda *args, **kwargs: MockEventSubscriber([sample_event1, terminal_event]),
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        lambda *args, **kwargs: HangingLogsSubscriber(),
+    )
+
+    items: list[Log | Event] = []
+    async with FlowRunSubscriber(
+        flow_run_id=flow_run_id, straggler_timeout=1
+    ) as subscriber:
+        async for item in subscriber:
+            items.append(item)
+
+    assert terminal_event in items
+
+
 async def test_flow_run_subscriber_only_terminal_events_stop_consumption(
-    flow_run_id: UUID, setup_mocks
+    flow_run_id: UUID, terminal_event: Event, setup_mocks
 ):
     """Test that only terminal events stop event consumption"""
     non_terminal_event = Event(
@@ -379,19 +573,19 @@ async def test_flow_run_subscriber_only_terminal_events_stop_consumption(
         payload={},
     )
 
-    setup_mocks([non_terminal_event, another_event], [])
+    setup_mocks([non_terminal_event, another_event, terminal_event], [])
 
     items: list[Log | Event] = []
     async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
         async for item in subscriber:
             items.append(item)
 
-    assert len(items) == 2
+    assert len(items) == 3
     assert all(isinstance(item, Event) for item in items)
 
 
 async def test_flow_run_subscriber_terminal_event_for_different_flow_run(
-    flow_run_id: UUID, setup_mocks
+    flow_run_id: UUID, terminal_event: Event, setup_mocks
 ):
     """Test that terminal events for other flow runs don't stop consumption"""
     other_flow_run_id = uuid4()
@@ -426,11 +620,11 @@ async def test_flow_run_subscriber_terminal_event_for_different_flow_run(
         payload={},
     )
 
-    setup_mocks([event1, other_terminal, event2], [])
+    setup_mocks([event1, other_terminal, event2, terminal_event], [])
 
     items: list[Log | Event] = []
     async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
         async for item in subscriber:
             items.append(item)
 
-    assert len(items) == 3
+    assert len(items) == 4

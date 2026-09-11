@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from uuid import UUID, uuid4
 
+import pytest
 import uv
 
 import prefect
@@ -84,6 +85,9 @@ def _task_marker_count(marker_dir: Path) -> int:
     return len(list(marker_dir.glob(f"{TASK_MARKER_PREFIX}*")))
 
 
+# The waits below allow 270s in total, so the global 90s timeout would always fire
+# first, killing the test before its own failure messages could report anything.
+@pytest.mark.timeout(300)
 def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path):
     api_url = PREFECT_API_URL.value()
     assert api_url, "PREFECT_API_URL must be configured for integration tests."

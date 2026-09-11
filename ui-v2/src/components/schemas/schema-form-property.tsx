@@ -1,5 +1,12 @@
 import type { ReferenceObject, SchemaObject } from "openapi-typescript";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { SchemaFormInput } from "./schema-form-input";
 import { SchemaFormPropertyDescription } from "./schema-form-property-description";
@@ -14,7 +21,8 @@ import {
 	type SchemaValuePropertyError,
 } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
-import { isDefined } from "./utilities/guards";
+import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
+import { isArray, isDefined } from "./utilities/guards";
 import { mergeSchemaPropertyDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 
 export type SchemaFormPropertyProps = {
@@ -56,22 +64,62 @@ export function SchemaFormProperty({
 	const [initialized, setInitialized] = useState(false);
 	const [internalValue, setInternalValue] = useState(getInitialValue);
 	const [omitted, setOmitted] = useState(false);
+	const emittedValue = useRef<{ value: unknown } | null>(null);
 	const id = useId();
+
+	const shouldOmitRequiredArray = useCallback(
+		(value: unknown) => {
+			if (!required || !isArray(value)) {
+				return false;
+			}
+
+			const anyOfIndex = getIndexForAnyOfPropertyValue({
+				value,
+				property,
+				schema,
+			});
+			const arrayProperty = property.anyOf?.[anyOfIndex]
+				? mergeSchemaPropertyDefinition(property.anyOf[anyOfIndex], schema)
+				: property;
+			const minItems =
+				"minItems" in arrayProperty &&
+				typeof arrayProperty.minItems === "number"
+					? arrayProperty.minItems
+					: 1;
+
+			return value.length < minItems;
+		},
+		[property, required, schema],
+	);
 
 	const handleValueChange = useCallback(
 		(value: unknown) => {
 			setInternalValue(value);
+
+			if (shouldOmitRequiredArray(value)) {
+				emittedValue.current = { value: undefined };
+				onValueChange(undefined);
+				return;
+			}
+
+			emittedValue.current = { value };
 			onValueChange(value);
 		},
-		[onValueChange],
+		[onValueChange, shouldOmitRequiredArray],
 	);
 
 	const handleOmittedChange = useCallback(() => {
 		const isOmitted = !omitted;
 
 		setOmitted(isOmitted);
-		onValueChange(isOmitted ? undefined : internalValue);
-	}, [omitted, onValueChange, internalValue]);
+
+		if (isOmitted) {
+			onValueChange(undefined);
+			return;
+		}
+
+		handleValueChange(internalValue);
+	}, [omitted, onValueChange, handleValueChange, internalValue]);
 
 	useEffect(() => {
 		if (initialized || skipDefaultValueInitialization) {
@@ -91,11 +139,27 @@ export function SchemaFormProperty({
 		value,
 	]);
 
+	// The parent propagates values asynchronously, so it can echo back a value that
+	// is older than what the user has already typed. Only accept a value from the
+	// parent once it has caught up with the last value emitted from this property,
+	// otherwise in-flight edits get overwritten.
 	useEffect(() => {
+		if (emittedValue.current) {
+			if (Object.is(emittedValue.current.value, value)) {
+				emittedValue.current = null;
+			}
+
+			return;
+		}
+
 		if (isDefined(value)) {
 			setInternalValue(value);
+
+			if (shouldOmitRequiredArray(value)) {
+				onValueChange(undefined);
+			}
 		}
-	}, [value]);
+	}, [onValueChange, shouldOmitRequiredArray, value]);
 
 	function getInitialValue() {
 		if (isDefined(value)) {

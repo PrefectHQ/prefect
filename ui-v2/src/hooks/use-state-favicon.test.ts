@@ -9,7 +9,7 @@ describe("useStateFavicon", () => {
 	let favicon32: HTMLLinkElement;
 	let favicon16Dark: HTMLLinkElement;
 	let favicon32Dark: HTMLLinkElement;
-	const originalMatchMedia = window.matchMedia;
+	const originalMatchMedia = window.matchMedia.bind(window);
 
 	const createMatchMediaMock = (prefersDark: boolean) => {
 		return vi.fn().mockImplementation((query: string) => ({

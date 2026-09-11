@@ -45,7 +45,12 @@ alembic_revision("description")      # Create a new migration
 
 **Every migration must support both SQLite and PostgreSQL.** Migration scripts live in `database/_migrations/`. Config is in `database/alembic.ini`.
 
+**`CREATE INDEX CONCURRENTLY IF NOT EXISTS` migrations can leave an `INVALID` index behind if the build is interrupted** (statement timeout, pod restart, racing replicas) — a later `IF NOT EXISTS` retry then silently skips repairing it, so the migration records as applied but the planner never uses the index. New concurrent-index migrations should check `pg_index.indisvalid` and `REINDEX INDEX CONCURRENTLY` if invalid; see `c8d5f2a71b3e` for the pattern.
+
 ## Orchestration Pitfalls
+
+- **Deployment concurrency has a TLA+ model.** Before changing its behavior,
+  review `formal/tla/deployment-concurrency/README.md` and its mapped regressions.
 
 - **Pydantic v2 treats null JSON fields as explicitly set.** When a worker sends a state update with `field: null`, Pydantic v2 sets that field to `None`, silently overwriting any existing value. To preserve `state_details` fields across transitions (e.g. `deployment_concurrency_lease_id`), add a `FlowRunUniversalTransform` to `CoreFlowPolicy` that copies the field forward when the proposed state has `None`. See `PreserveDeploymentConcurrencyLeaseId` in `orchestration/core_policy.py` as the canonical pattern. Any new field added to `state_details` that workers may omit faces this same risk.
 
@@ -62,6 +67,8 @@ alembic_revision("description")      # Create a new migration
 - **CANCELLING state transitions must call `maybe_schedule_cancelling_timeout_check_for_state()`.** Any new API path that accepts a CANCELLING transition should call this after `SetStateStatus.ACCEPT`; failures are intentionally non-fatal — log and swallow, do not raise. `cancel_subflow_run` deliberately skips subflows already in CANCELLING to preserve their existing timeout deadline — this guard has no inline comment but removing it resets the deadline. The `ensure_cancelling_timeout_checks` perpetual service re-seeds missed checks on server restart.
 
 - **`record_bulk_task_run_events` batches must be sorted by conflict key before upserting.** In `services/task_run_recorder.py`, task runs are sorted by conflict key — natural key `(flow_run_id, task_key, dynamic_key)` when available, otherwise `("id", task_run_id)` — before batching into upsert groups. This enforces deterministic row-level lock acquisition order across concurrent recorder instances; removing or reordering the sort causes deadlocks. Events that collide on either `id` or natural key are coalesced via union-find to a single canonical ID — the input `TaskRun.id` and `state.state_details.task_run_id` are mutated in-place to that canonical value. Any refactor that re-batches or re-merges must re-sort by conflict key. The function retries once internally on `IntegrityError` to handle TOCTOU races between concurrent recorders, then re-raises on a second failure — callers must catch `IntegrityError` or re-queue the batch.
+
+- **`_segment_task_runs_for_upsert` must keep emitting contiguous blocks of its input.** That property, not the batch key, is what preserves the lock ordering above, so a new condition may only *close* a segment earlier — never reorder rows. Each existing condition guards a failure that is silent on at least one dialect; see its docstring and `_fillable_columns` before relaxing one. Absent keys are `NULL`-filled and restored with `coalesce(excluded.col, task_run.col)`, applied to exactly the columns that were filled — a payload asking to write a real `NULL` keeps a plain `excluded.col`, and the batch splits rather than let one statement mean both. This is also why `flow_run_id` must stay out of `_fillable_columns`: coalescing it would break detach.
 
 - **`docket.add()` in monitor loops must pass a per-entity `key=` to prevent duplicate enqueues.** Without it, repeated iterations over the same pending entity enqueue duplicate tasks — causing duplicate state transitions. Format: `"<service-name>:<entity-id>"`, e.g., `"mark-flow-run-late:{run.id}"` in `services/late_runs.py`.
 

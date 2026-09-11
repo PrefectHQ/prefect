@@ -22,8 +22,11 @@ upstream dependency:
 2.x:
   - base-branch: '2.x'
 
-ui-replatform:
+ui:
   - all:
     - changed-files:
-        - any-glob-to-any-file: ui-v2/**
-        - all-globs-to-all-files: '!ui-v2/src/api/prefect.ts'
+        - any-glob-to-any-file:
+            - ui/**
+            - ui-v2/**
+        - all-globs-to-all-files:
+            - '!ui-v2/src/api/prefect.ts'

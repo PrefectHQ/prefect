@@ -385,6 +385,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_ECHO": {"test_value": True},
     "PREFECT_SERVER_DATABASE_HOST": {"test_value": "localhost"},
     "PREFECT_SERVER_DATABASE_MIGRATE_ON_START": {"test_value": True},
+    "PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_NAME": {"test_value": "prefect"},
     "PREFECT_SERVER_DATABASE_PASSWORD": {"test_value": "password"},
     "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
@@ -476,6 +477,9 @@ SUPPORTED_SETTINGS = {
         "expected_value": {"prefect.flow-run.heartbeat": timedelta(hours=1)},
     },
     "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS": {"test_value": 1800.0},
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_ORPHAN_CLEANUP_LOOP_SECONDS": {
+        "test_value": 43200.0
+    },
     "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD": {
         "test_value": 172800,
         "expected_value": timedelta(days=2),
@@ -744,12 +748,15 @@ class TestSettingsClass:
         assert set(settings.to_environment_variables().keys()) == expected_names
 
     def test_settings_to_environment_works_with_exclude_unset(self):
+        valid_setting_names = _get_valid_setting_names(Settings)
         assert Settings(
             server=ServerSettings(api=ServerAPISettings(port=3000))
         ).to_environment_variables(exclude_unset=True) == {
-            # From env
+            # From env. `PREFECT_`-prefixed variables that are not settings, such
+            # as `PREFECT_LOGFIRE_ENABLED`, do not appear in the environment of a
+            # `Settings` instance.
             **{
-                var: os.environ[var] for var in os.environ if var.startswith("PREFECT_")
+                var: os.environ[var] for var in os.environ if var in valid_setting_names
             },
             # From test settings
             "PREFECT_SERVER_LOGGING_LEVEL": "DEBUG",
@@ -1261,12 +1268,13 @@ class TestSettingAccess:
         assert settings.flows.heartbeat_frequency == 90
 
     def test_db_vacuum_enabled_bool_true_compat(self, monkeypatch: pytest.MonkeyPatch):
-        """Legacy ENABLED=true should map to both vacuum types enabled."""
+        """Legacy ENABLED=true should retain automatic orphan cleanup."""
         monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "true")
         settings = Settings()
         assert settings.server.services.db_vacuum.enabled_vacuum_types == {
             "events",
             "flow_runs",
+            "orphans",
         }
 
     def test_db_vacuum_enabled_bool_false_compat(self, monkeypatch: pytest.MonkeyPatch):
@@ -1283,6 +1291,18 @@ class TestSettingAccess:
         settings = Settings()
         with pytest.raises(ValueError, match="Invalid vacuum type"):
             settings.server.services.db_vacuum.enabled_vacuum_types
+
+    def test_db_vacuum_orphan_reconciliation_can_be_enabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv(
+            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "events,orphans"
+        )
+        settings = Settings()
+        assert settings.server.services.db_vacuum.enabled_vacuum_types == {
+            "events",
+            "orphans",
+        }
 
     def test_db_vacuum_event_retention_override_rejects_negative(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1314,6 +1334,26 @@ class TestSettingAccess:
 
 
 class TestDatabaseSettings:
+    def test_migration_timeout_defaults_to_none(self):
+        """Migrations are not bound by the application statement timeout.
+
+        Schema changes such as concurrent index builds on large tables can take
+        far longer than an ordinary API query, so `migration_timeout` defaults
+        to no timeout rather than inheriting `server.database.timeout`.
+        """
+        settings = get_current_settings()
+        assert settings.server.database.migration_timeout is None
+        assert settings.server.database.timeout == 10.0
+
+    @pytest.mark.parametrize("value", [0, -1.0])
+    def test_migration_timeout_rejects_non_positive(self, value: float):
+        """asyncpg's `command_timeout` requires a positive value, so a `0` or
+        negative migration timeout must be rejected up front rather than failing
+        every PostgreSQL migration connection at server startup.
+        """
+        with pytest.raises(pydantic.ValidationError):
+            ServerDatabaseSettings(migration_timeout=value)
+
     def test_database_connection_url_templates_password(self):
         with temporary_settings(
             {

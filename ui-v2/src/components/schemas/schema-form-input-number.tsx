@@ -41,6 +41,7 @@ export function SchemaFormInputNumber({
 			type="number"
 			min={property.minimum}
 			max={property.maximum}
+			step="any"
 			value={value ?? ""}
 			onChange={(e) => handleChange(e.target.value)}
 			id={id}

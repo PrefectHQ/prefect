@@ -1,10 +1,12 @@
 import asyncio
+import os
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import pytest
 from prefect_redis.lease_storage import ConcurrencyLeaseStorage
-from redis.asyncio import Redis
+from redis.asyncio import Redis, RedisCluster
+from redis.cluster import key_slot
 
 from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
 from prefect.server.utilities.leasing import ResourceLease
@@ -18,6 +20,114 @@ class TestConcurrencyLeaseStorage:
     async def storage(self, redis: Redis) -> ConcurrencyLeaseStorage:
         """Create a ConcurrencyLeaseStorage instance with the test Redis client."""
         return ConcurrencyLeaseStorage(redis_client=redis)
+
+    def test_keys_share_cluster_hash_slot(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv(
+            "PREFECT_REDIS_MESSAGING_URL",
+            "redis+cluster://redis.example.com:6379",
+        )
+        monkeypatch.setattr(
+            "prefect_redis.lease_storage.get_async_redis_client", lambda: None
+        )
+        storage = ConcurrencyLeaseStorage()
+        lease_id = uuid4()
+        limit_id = uuid4()
+        keys = [
+            storage._lease_key(lease_id),
+            storage.expirations_key,
+            storage._expiration_key(lease_id),
+            storage._limit_holders_key(limit_id),
+        ]
+
+        assert keys == [
+            f"{{prefect:concurrency}}:lease:{lease_id}",
+            "{prefect:concurrency}:expirations",
+            f"{{prefect:concurrency}}:expiration:{lease_id}",
+            f"{{prefect:concurrency}}:limit:{limit_id}:holders",
+        ]
+        assert len({key_slot(key.encode()) for key in keys}) == 1
+
+    def test_keys_preserve_standalone_names(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.delenv("PREFECT_REDIS_MESSAGING_URL", raising=False)
+        monkeypatch.setattr(
+            "prefect_redis.lease_storage.get_async_redis_client", lambda: None
+        )
+        storage = ConcurrencyLeaseStorage()
+        lease_id = uuid4()
+        limit_id = uuid4()
+
+        assert storage._lease_key(lease_id) == f"prefect:concurrency:lease:{lease_id}"
+        assert storage.expirations_key == "prefect:concurrency:expirations"
+        assert storage._expiration_key(lease_id) == (
+            f"prefect:concurrency:expiration:{lease_id}"
+        )
+        assert storage._limit_holders_key(limit_id) == (
+            f"prefect:concurrency:limit:{limit_id}:holders"
+        )
+
+    @pytest.mark.skipif(
+        not os.environ.get("PREFECT_REDIS_CLUSTER_TEST_URL"),
+        reason="requires PREFECT_REDIS_CLUSTER_TEST_URL",
+    )
+    async def test_runs_against_real_redis_cluster(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        cluster_url = os.environ["PREFECT_REDIS_CLUSTER_TEST_URL"]
+        client_url = cluster_url.replace("redis+cluster://", "redis://", 1).replace(
+            "rediss+cluster://", "rediss://", 1
+        )
+        settings_url = cluster_url
+        if settings_url.startswith("redis://"):
+            settings_url = settings_url.replace("redis://", "redis+cluster://", 1)
+        elif settings_url.startswith("rediss://"):
+            settings_url = settings_url.replace("rediss://", "rediss+cluster://", 1)
+
+        redis_client = RedisCluster.from_url(client_url, decode_responses=True)
+        await redis_client.flushall()
+        try:
+            monkeypatch.setenv("PREFECT_REDIS_MESSAGING_URL", settings_url)
+            storage = ConcurrencyLeaseStorage(redis_client=redis_client)
+            resource_ids = [uuid4(), uuid4()]
+            holder_id = uuid4()
+            metadata = ConcurrencyLimitLeaseMetadata(slots=2)
+            setattr(
+                metadata,
+                "holder",
+                {"type": "task_run", "id": str(holder_id)},
+            )
+
+            lease = await storage.create_lease(
+                resource_ids, timedelta(minutes=5), metadata
+            )
+
+            read_lease = await storage.read_lease(lease.id)
+            assert read_lease is not None
+            assert read_lease.resource_ids == resource_ids
+            assert lease.id in await storage.read_active_lease_ids()
+            for resource_id in resource_ids:
+                assert await storage.list_holders_for_limit(resource_id) == [
+                    (
+                        lease.id,
+                        ConcurrencyLeaseHolder(type="task_run", id=holder_id),
+                    )
+                ]
+
+            assert await storage.renew_lease(lease.id, timedelta(minutes=10))
+            renewed_lease = await storage.read_lease(lease.id)
+            assert renewed_lease is not None
+            assert renewed_lease.expiration > lease.expiration
+
+            await storage.revoke_lease(lease.id)
+            assert await storage.read_lease(lease.id) is None
+            for resource_id in resource_ids:
+                assert await storage.list_holders_for_limit(resource_id) == []
+
+            expired_lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+            assert expired_lease.id in await storage.read_expired_lease_ids()
+            await storage.revoke_lease(expired_lease.id)
+        finally:
+            await redis_client.flushall()
+            await redis_client.aclose()
 
     async def test_create_lease(self, storage: ConcurrencyLeaseStorage):
         """Test creating a new lease."""

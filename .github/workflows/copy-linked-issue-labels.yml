@@ -29,6 +29,6 @@ jobs:
             docs
             plan
             upstream dependency
-            ui-replatform
+            ui
             2.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}

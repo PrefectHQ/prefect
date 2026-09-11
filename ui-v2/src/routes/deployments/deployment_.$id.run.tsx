@@ -1,6 +1,5 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { categorizeError } from "@/api/error-utils";
@@ -17,12 +16,12 @@ import { RouteErrorState } from "@/components/ui/route-error-state";
  * @property actions used designate how to pre-populate the fields
  */
 const searchParams = z.object({
-	parameters: z.record(z.unknown()).optional(),
-	additionalOptions: z.record(z.unknown()).optional(),
+	parameters: z.record(z.string(), z.unknown()).optional(),
+	additionalOptions: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const Route = createFileRoute("/deployments/deployment_/$id/run")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const { id } = Route.useParams();
 		const { parameters, additionalOptions } = Route.useSearch();

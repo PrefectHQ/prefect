@@ -1,10 +1,20 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { SchemaObject } from "openapi-typescript";
 import { act, useState } from "react";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	type Mock,
+	test,
+	vi,
+} from "vitest";
 import "@/mocks/mock-json-input";
 import type { SchemaFormProps } from "./schema-form";
 import { SchemaForm } from "./schema-form";
+import type { PrefectSchemaObject } from "./types/schemas";
+import type { SchemaFormValues } from "./types/values";
 
 function TestSchemaForm({
 	schema = { type: "object", properties: {} },
@@ -107,6 +117,65 @@ describe("property.type", () => {
 
 		expect(spy).toHaveBeenCalledTimes(1);
 		expect(spy).toHaveBeenCalledWith({ name: "John Doe" });
+	});
+
+	test("propagates changes before the next task", async () => {
+		const spy = vi.fn();
+		const schema: SchemaObject = {
+			type: "object",
+			properties: {
+				name: { type: "string" },
+			},
+		};
+
+		render(<TestSchemaForm schema={schema} values={{}} onValuesChange={spy} />);
+
+		fireEvent.change(screen.getByRole("textbox"), {
+			target: { value: "Arthur Dent" },
+		});
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(spy).toHaveBeenCalledWith({ name: "Arthur Dent" });
+	});
+
+	test("preserves sibling and nested defaults across microtask batches", async () => {
+		const spy = vi.fn();
+
+		function Wrapper() {
+			const [values, setValues] = useState<SchemaFormValues>({});
+			spy.mockImplementation((value: SchemaFormValues) => setValues(value));
+
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					name: { type: "string", default: "Ford Prefect" },
+					location: {
+						type: "object",
+						properties: {
+							planet: { type: "string", default: "Betelgeuse Five" },
+						},
+					},
+				},
+			};
+
+			return (
+				<TestSchemaForm schema={schema} values={values} onValuesChange={spy} />
+			);
+		}
+
+		render(<Wrapper />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(spy).toHaveBeenLastCalledWith({
+			name: "Ford Prefect",
+			location: { planet: "Betelgeuse Five" },
+		});
 	});
 
 	describe("object without properties (Dict type)", () => {
@@ -316,6 +385,137 @@ describe("property.type", () => {
 				);
 			});
 			expect(hasJsonKind).toBe(false);
+		});
+	});
+
+	describe("asynchronous parent updates", () => {
+		test("does not revert typed characters when the parent commits a stale value", async () => {
+			const pendingValues: SchemaFormValues[] = [];
+
+			function Wrapper() {
+				const [values, setValues] = useState<SchemaFormValues>({});
+
+				const schema: SchemaObject = {
+					type: "object",
+					properties: {
+						name: { type: "string" },
+					},
+				};
+
+				return (
+					<>
+						<TestSchemaForm
+							schema={schema}
+							values={values}
+							onValuesChange={(newValues) => pendingValues.push(newValues)}
+						/>
+						<button
+							type="button"
+							onClick={() => {
+								const next = pendingValues.shift();
+
+								if (next) {
+									setValues(next);
+								}
+							}}
+						>
+							commit
+						</button>
+					</>
+				);
+			}
+
+			render(<Wrapper />);
+
+			const input = screen.getByRole("textbox");
+
+			fireEvent.change(input, { target: { value: "b" } });
+
+			// eslint-disable-next-line @typescript-eslint/require-await
+			await act(async () => {
+				vi.runAllTimers();
+			});
+
+			fireEvent.change(input, { target: { value: "ba" } });
+			fireEvent.change(input, { target: { value: "bar" } });
+
+			// let the latest value emit before the parent commits an older snapshot
+			await act(async () => {
+				await Promise.resolve();
+			});
+
+			// the parent commits the value of the first keystroke after two more
+			fireEvent.click(screen.getByRole("button", { name: "commit" }));
+
+			await act(async () => {
+				await Promise.resolve();
+			});
+
+			expect(pendingValues).toEqual([{ name: "bar" }, { name: "bar" }]);
+			expect(input).toHaveValue("bar");
+		});
+	});
+
+	describe("optional property with a non-null default", () => {
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {
+				// @ts-expect-error pydantic creates optional properties without a type
+				format_rule: {
+					anyOf: [{ type: "string" }, { type: "null" }],
+					default: "value.split(',')",
+				},
+			},
+		};
+
+		function renderWithValues(
+			spy: Mock<(values: SchemaFormValues) => void>,
+			initialValues: SchemaFormValues,
+		) {
+			function Wrapper() {
+				const [values, setValues] = useState<SchemaFormValues>(initialValues);
+				spy.mockImplementation((value: SchemaFormValues) => setValues(value));
+
+				return (
+					<TestSchemaForm
+						schema={schema}
+						values={values}
+						onValuesChange={spy}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+		}
+
+		test("keeps an explicit null value", async () => {
+			const spy = vi.fn<(values: SchemaFormValues) => void>();
+
+			renderWithValues(spy, { format_rule: null });
+
+			// eslint-disable-next-line @typescript-eslint/require-await
+			await act(async () => {
+				vi.runAllTimers();
+			});
+
+			for (const [values] of spy.mock.calls) {
+				expect(values).toEqual({ format_rule: null });
+			}
+		});
+
+		test("reports null when the None definition is selected", async () => {
+			const spy = vi.fn<(values: SchemaFormValues) => void>();
+
+			renderWithValues(spy, { format_rule: "value.split(',')" });
+
+			fireEvent.mouseDown(screen.getByRole("tab", { name: "None" }));
+
+			// eslint-disable-next-line @typescript-eslint/require-await
+			await act(async () => {
+				vi.runAllTimers();
+			});
+
+			expect(spy).toHaveBeenLastCalledWith({ format_rule: null });
 		});
 	});
 });

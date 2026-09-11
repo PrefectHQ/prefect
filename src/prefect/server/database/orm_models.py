@@ -479,7 +479,7 @@ class FlowRun(Run):
         sa.ForeignKey("flow.id", ondelete="cascade"), index=True
     )
 
-    deployment_id: Mapped[Optional[uuid.UUID]] = mapped_column()
+    deployment_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
     work_queue_name: Mapped[Optional[str]] = mapped_column(index=True)
     flow_version: Mapped[Optional[str]] = mapped_column(index=True)
     deployment_version: Mapped[Optional[str]] = mapped_column(index=True)
@@ -1468,6 +1468,10 @@ class EventResource(Base):
         sa.Index(
             "ix_event_resources__occurred",
             "occurred",
+        ),
+        sa.Index(
+            "ix_event_resources__event_id",
+            "event_id",
         ),
     )
 

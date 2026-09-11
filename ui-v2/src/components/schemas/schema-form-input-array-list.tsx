@@ -37,11 +37,6 @@ export function SchemaFormInputArrayList({
 	onValuesChange,
 	errors,
 }: SchemaFormInputArrayListProps) {
-	const isEmpty = values === undefined || values.length === 0;
-	const canAddMore =
-		property.maxItems === undefined ||
-		(values?.length ?? 0) < (property.maxItems ?? Number.POSITIVE_INFINITY);
-
 	const prefixItemsCount = isArray(property.prefixItems)
 		? property.prefixItems.length
 		: 0;
@@ -65,6 +60,10 @@ export function SchemaFormInputArrayList({
 		})) ?? [],
 	);
 
+	const isEmpty = localKeyedValues.length === 0;
+	const canAddMore =
+		localKeyedValues.length < (property.maxItems ?? Number.POSITIVE_INFINITY);
+
 	function getPropertyForIndex(index: number) {
 		if (isArray(property.prefixItems) && index < property.prefixItems.length) {
 			return property.prefixItems[index];
@@ -87,7 +86,7 @@ export function SchemaFormInputArrayList({
 	}
 
 	function getLastForIndex(index: number): boolean {
-		return index === (values?.length ?? 0) - 1;
+		return index === localKeyedValues.length - 1;
 	}
 
 	function getCanMoveForIndex(index: number): boolean {
@@ -98,11 +97,11 @@ export function SchemaFormInputArrayList({
 	}
 
 	function handleValueChange(key: string, value: unknown) {
-		setLocalKeyedValues(
-			localKeyedValues.map((item) =>
-				item.key === key ? { ...item, value } : item,
-			),
+		const newKeyedValues = localKeyedValues.map((item) =>
+			item.key === key ? { ...item, value } : item,
 		);
+		setLocalKeyedValues(newKeyedValues);
+		onValuesChange(newKeyedValues.map(({ value }) => value));
 	}
 
 	function addItem() {

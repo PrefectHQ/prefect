@@ -6,7 +6,7 @@ export const DOCS_LINKS = {
 		"https://docs.prefect.io/v3/automate/events/automations-triggers",
 	"blocks-guide": "https://docs.prefect.io/v3/develop/blocks",
 	"deployments-guide": "https://docs.prefect.io/v3/deploy/index",
-	"flows-guide": "https://docs.prefect.io/v3/develop/flows",
+	"flows-guide": "https://docs.prefect.io/v3/concepts/flows",
 	"global-concurrency-guide":
 		"https://docs.prefect.io/v3/develop/global-concurrency-limits",
 	"integrations-guide": "https://docs.prefect.io/integrations/integrations",

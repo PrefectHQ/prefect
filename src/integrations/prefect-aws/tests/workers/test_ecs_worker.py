@@ -2984,6 +2984,163 @@ async def test_run_task_with_both_secrets(
     )
 
 
+@pytest.mark.usefixtures("ecs_mocks", "prefect_both_secrets_setting")
+async def test_secrets_in_task_definition_are_preserved(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    """Secrets already on the container are kept when Prefect adds its own."""
+    configuration = await construct_configuration_with_job_template(
+        template_overrides=dict(
+            task_definition={
+                "containerDefinitions": [
+                    {
+                        "name": ECS_DEFAULT_CONTAINER_NAME,
+                        "image": "{{ image }}",
+                        "secrets": [
+                            {
+                                "name": "MY_DATABASE_PASSWORD",
+                                "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:db-password",
+                            },
+                            {
+                                "name": "MY_API_TOKEN",
+                                "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:api-token",
+                            },
+                        ],
+                    }
+                ]
+            }
+        ),
+        aws_credentials=aws_credentials,
+        prefect_api_key_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
+        prefect_api_auth_string_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-auth-string",
+    )
+    configuration.prepare_for_flow_run(flow_run)
+
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    async with ECSWorker(work_pool_name="test") as worker:
+        result = await worker.run(flow_run, configuration)
+
+    _, task_arn = parse_identifier(result.identifier)
+    task = describe_task(ecs_client, task_arn)
+    task_definition = describe_task_definition(ecs_client, task)
+
+    secrets = task_definition["containerDefinitions"][0]["secrets"]
+
+    assert sorted(secrets, key=lambda secret: secret["name"]) == [
+        {
+            "name": "MY_API_TOKEN",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:api-token",
+        },
+        {
+            "name": "MY_DATABASE_PASSWORD",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:db-password",
+        },
+        {
+            "name": "PREFECT_API_AUTH_STRING",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-auth-string",
+        },
+        {
+            "name": "PREFECT_API_KEY",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
+        },
+    ]
+
+
+@pytest.mark.usefixtures("ecs_mocks")
+async def test_secrets_in_task_definition_are_preserved_without_prefect_secrets(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    """Secrets on the container survive when no secret ARNs are configured."""
+    configuration = await construct_configuration_with_job_template(
+        template_overrides=dict(
+            task_definition={
+                "containerDefinitions": [
+                    {
+                        "name": ECS_DEFAULT_CONTAINER_NAME,
+                        "image": "{{ image }}",
+                        "secrets": [
+                            {
+                                "name": "MY_DATABASE_PASSWORD",
+                                "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:db-password",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+        aws_credentials=aws_credentials,
+    )
+
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    async with ECSWorker(work_pool_name="test") as worker:
+        result = await worker.run(flow_run, configuration)
+
+    _, task_arn = parse_identifier(result.identifier)
+    task = describe_task(ecs_client, task_arn)
+    task_definition = describe_task_definition(ecs_client, task)
+
+    assert task_definition["containerDefinitions"][0]["secrets"] == [
+        {
+            "name": "MY_DATABASE_PASSWORD",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:db-password",
+        }
+    ]
+
+
+@pytest.mark.usefixtures("ecs_mocks", "prefect_api_key_setting")
+async def test_secret_arn_replaces_matching_secret_in_task_definition(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    """A configured secret ARN wins over a same-named secret in the task definition."""
+    configuration = await construct_configuration_with_job_template(
+        template_overrides=dict(
+            task_definition={
+                "containerDefinitions": [
+                    {
+                        "name": ECS_DEFAULT_CONTAINER_NAME,
+                        "image": "{{ image }}",
+                        "secrets": [
+                            {
+                                "name": "PREFECT_API_KEY",
+                                "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:stale-api-key",
+                            },
+                            {
+                                "name": "MY_DATABASE_PASSWORD",
+                                "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:db-password",
+                            },
+                        ],
+                    }
+                ]
+            }
+        ),
+        aws_credentials=aws_credentials,
+        prefect_api_key_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
+    )
+    configuration.prepare_for_flow_run(flow_run)
+
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    async with ECSWorker(work_pool_name="test") as worker:
+        result = await worker.run(flow_run, configuration)
+
+    _, task_arn = parse_identifier(result.identifier)
+    task = describe_task(ecs_client, task_arn)
+    task_definition = describe_task_definition(ecs_client, task)
+
+    assert task_definition["containerDefinitions"][0]["secrets"] == [
+        {
+            "name": "PREFECT_API_KEY",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
+        },
+        {
+            "name": "MY_DATABASE_PASSWORD",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:db-password",
+        },
+    ]
+
+
 @pytest.mark.usefixtures("ecs_mocks")
 async def test_kill_infrastructure_stops_task(aws_credentials, flow_run):
     """Test that kill_infrastructure successfully stops an ECS task."""

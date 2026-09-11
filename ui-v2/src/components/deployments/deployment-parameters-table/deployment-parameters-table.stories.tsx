@@ -24,9 +24,16 @@ const meta = {
 						title: "goodbye",
 						type: "boolean",
 					},
+					builder: {
+						default: { day: "today" },
+						position: 2,
+						title: "builder",
+						type: "object",
+					},
 				},
 			},
 			parameters: {
+				builder: { day: "prev_td" },
 				goodbye: false,
 				name: "world",
 			},

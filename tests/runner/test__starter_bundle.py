@@ -165,6 +165,38 @@ class TestBundleExecutionStarter:
 
         control_channel.unregister.assert_called_once_with(mock_flow_run.id)
 
+    async def test_start_passes_control_session_env_to_subprocess(self):
+        mock_bundle = MagicMock()
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = "flow-run-id"
+        mock_process = MagicMock()
+        mock_process.join = MagicMock()
+
+        control_channel = MagicMock()
+        control_channel.register.return_value = (54321, "deadbeef" * 4)
+        starter = BundleExecutionStarter(
+            bundle=mock_bundle,
+            env={"EXISTING_VAR": "present"},
+            control_channel=control_channel,
+        )
+
+        with patch(
+            "prefect.runner._starter_bundle.execute_bundle_in_subprocess",
+            return_value=mock_process,
+        ) as mock_exec:
+            await starter.start(mock_flow_run)
+
+        control_channel.register.assert_called_once_with(mock_flow_run.id)
+        mock_exec.assert_called_once_with(
+            mock_bundle,
+            cwd=None,
+            env={
+                "EXISTING_VAR": "present",
+                "PREFECT__CONTROL_PORT": "54321",
+                "PREFECT__CONTROL_TOKEN": "deadbeef" * 4,
+            },
+        )
+
     async def test_start_omits_control_env_when_channel_is_disabled(self):
         mock_bundle = MagicMock()
         mock_flow_run = MagicMock()

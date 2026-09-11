@@ -28,7 +28,9 @@ export function SchemaFormInputStringFormatDate({
 	const initialDate = value
 		? parse(value, dateFormat, startOfToday())
 		: undefined;
-	const [date, setDate] = useState<Date | undefined>(initialDate);
+	const [date, setDate] = useState<Date | undefined>(
+		initialDate && isValid(initialDate) ? initialDate : undefined,
+	);
 	const [inputValue, setInputValue] = useState(value ?? "");
 	const inputRef = useRef<HTMLInputElement>(null);
 
@@ -98,6 +100,7 @@ export function SchemaFormInputStringFormatDate({
 						className="p-0"
 						mode="single"
 						selected={date}
+						defaultMonth={date}
 						onSelect={handleDateChange}
 						required={true}
 						autoFocus

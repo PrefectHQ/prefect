@@ -192,6 +192,86 @@ async def test_start_worker_creates_work_pool_with_base_config(
     }
 
 
+@pytest.fixture
+def unreachable_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def raise_connect_error(*args: object, **kwargs: object) -> None:
+        raise httpx.ConnectError("All connection attempts failed")
+
+    monkeypatch.setattr(PrefectClient, "read_work_pool", raise_connect_error)
+    monkeypatch.setattr(PrefectClient, "read_work_queues", raise_connect_error)
+
+
+@pytest.mark.usefixtures("use_hosted_api_server", "unreachable_api")
+def test_start_worker_when_api_is_unreachable(mock_worker: MagicMock):
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            "test-work-pool",
+            "-t",
+            "process",
+            "--run-once",
+        ],
+        expected_code=0,
+    )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
+    )
+
+
+@pytest.mark.parametrize(
+    ("status_code", "should_recommend_type"),
+    [
+        pytest.param(None, True, id="transport-error"),
+        pytest.param(503, True, id="server-error"),
+        pytest.param(401, False, id="authentication-error"),
+        pytest.param(403, False, id="authorization-error"),
+    ],
+)
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_without_type_when_api_request_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    status_code: int | None,
+    should_recommend_type: bool,
+):
+    request = httpx.Request("GET", "https://api.prefect.io/work_pools/test-work-pool")
+    api_error: httpx.HTTPError
+    if status_code is None:
+        api_error = httpx.ConnectError(
+            "All connection attempts failed", request=request
+        )
+    else:
+        message = {
+            401: "Unauthorized",
+            403: "Forbidden",
+            503: "Service unavailable",
+        }[status_code]
+        api_error = httpx.HTTPStatusError(
+            message,
+            request=request,
+            response=httpx.Response(status_code, request=request),
+        )
+
+    async def raise_api_error(*args: object, **kwargs: object) -> None:
+        raise api_error
+
+    monkeypatch.setattr(PrefectClient, "read_work_pool", raise_api_error)
+    monkeypatch.setattr(PrefectClient, "read_work_queues", raise_api_error)
+
+    invoke_and_assert(
+        command=["worker", "start", "-p", "test-work-pool", "--run-once"],
+        expected_code=1,
+        expected_output_contains=[
+            str(api_error),
+            *(["Provide a worker type with '--type'"] if should_recommend_type else []),
+        ],
+        expected_output_does_not_contain=(
+            None if should_recommend_type else "Provide a worker type with '--type'"
+        ),
+    )
+
+
 @pytest.mark.usefixtures("use_hosted_api_server")
 def test_start_worker_with_work_queue_names(mock_worker, process_work_pool):
     invoke_and_assert(

@@ -2,12 +2,14 @@ import datetime
 import inspect
 import multiprocessing
 import os
+import pathlib
 import textwrap
 import uuid
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
+import cloudpickle
 import pytest
 
 import prefect.settings
@@ -391,6 +393,73 @@ class TestSerializeContext:
             "deployment_id": None,
             "deployment_parameters": None,
         }
+
+    def test_settings_paths_are_portable_between_operating_systems(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        foreign_path_type = (
+            pathlib.WindowsPath if os.name != "nt" else pathlib.PosixPath
+        )
+        foreign_path_value = (
+            r"C:\Users\reporter\.prefect\profiles.toml"
+            if foreign_path_type is pathlib.WindowsPath
+            else "/home/reporter/.prefect/profiles.toml"
+        )
+        foreign_logging_path_value = (
+            r"C:\Users\reporter\.prefect\logging.yml"
+            if foreign_path_type is pathlib.WindowsPath
+            else "/home/reporter/.prefect/logging.yml"
+        )
+        foreign_memo_path_value = (
+            r"C:\Users\reporter\.prefect\memo_store.toml"
+            if foreign_path_type is pathlib.WindowsPath
+            else "/home/reporter/.prefect/memo_store.toml"
+        )
+        with monkeypatch.context() as patch:
+            patch.setattr(foreign_path_type, "__new__", pathlib.PurePath.__new__)
+            foreign_path = foreign_path_type(foreign_path_value)
+            foreign_logging_path = foreign_path_type(foreign_logging_path_value)
+            foreign_memo_path = foreign_path_type(foreign_memo_path_value)
+            patch.setattr(PREFECT_HOME, "_default", foreign_path)
+
+            current = SettingsContext.get()
+            assert current is not None
+            settings_context = SettingsContext(
+                profile=current.profile.model_copy(
+                    update={
+                        "settings": {PREFECT_HOME: str(foreign_path)},
+                        "source": foreign_path,
+                    }
+                ),
+                settings=current.settings.model_copy(
+                    update={
+                        "logging": current.settings.logging.model_copy(
+                            update={"config_path": foreign_logging_path}
+                        ),
+                        "server": current.settings.server.model_copy(
+                            update={"memo_store_path": foreign_memo_path}
+                        ),
+                    }
+                ),
+            )
+
+            with settings_context:
+                serialized = serialize_context()["settings_context"]
+
+        assert serialized["profile"]["settings"] == {"PREFECT_HOME": str(foreign_path)}
+        assert serialized["profile"]["source"] == str(foreign_path)
+        assert serialized["settings"]["logging"]["config_path"] == str(
+            foreign_logging_path
+        )
+        assert serialized["settings"]["server"]["memo_store_path"] == str(
+            foreign_memo_path
+        )
+        roundtripped = cloudpickle.loads(cloudpickle.dumps(serialized))
+        with hydrated_context({"settings_context": roundtripped}):
+            hydrated = SettingsContext.get()
+            assert hydrated.profile.settings[PREFECT_HOME] == str(foreign_path)
+            assert isinstance(hydrated.profile.source, pathlib.Path)
+            assert not isinstance(hydrated.profile.source, foreign_path_type)
 
     async def test_with_flow_run_context(self, prefect_client):
         @flow

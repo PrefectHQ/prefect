@@ -14,6 +14,7 @@ import warnings
 from collections.abc import AsyncGenerator, Generator, Mapping
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -46,11 +47,13 @@ from prefect.results import (
 )
 from prefect.settings import Profile, Settings
 from prefect.settings.legacy import (
+    Setting,
     _get_settings_fields,  # type: ignore[reportPrivateUsage]
 )
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.types import DateTime
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.services import start_client_metrics_server
 
 T = TypeVar("T")
@@ -825,6 +828,21 @@ class SettingsContext(ContextModel):
     def __hash__(self: Self) -> int:
         return hash(self.settings)
 
+    def serialize(self, include_secrets: bool = True) -> dict[str, Any]:
+        """Serialize settings without platform-specific path objects."""
+        serialized = super().serialize(include_secrets=include_secrets)
+        return visit_collection(
+            serialized,
+            visit_fn=lambda value: (
+                value.name
+                if isinstance(value, Setting)
+                else str(value)
+                if isinstance(value, Path)
+                else value
+            ),
+            return_data=True,
+        )
+
     @classmethod
     def get(cls) -> Optional["SettingsContext"]:
         # Return the global context instead of `None` if no context exists
@@ -894,6 +912,32 @@ def get_settings_context() -> SettingsContext:
         raise MissingContextError("No settings context found.")
 
     return settings_ctx
+
+
+@contextmanager
+def _temporary_global_settings_context(
+    settings_context: "SettingsContext",
+) -> Generator[None, None, None]:
+    """
+    Temporarily replace the process-global settings context.
+
+    `SettingsContext.get` returns the process-global settings context when the
+    current `contextvars` context does not contain one. Replacing the global
+    context makes the given settings visible to contexts that were copied before
+    the settings were applied, such as the context that
+    `unittest.IsolatedAsyncioTestCase` copies when it is constructed. Contexts
+    that contain their own settings context are not affected.
+
+    This is an internal utility for `prefect.testing.utilities.prefect_test_harness`.
+    """
+    global GLOBAL_SETTINGS_CONTEXT
+
+    prior_global_settings_context = GLOBAL_SETTINGS_CONTEXT
+    GLOBAL_SETTINGS_CONTEXT = settings_context
+    try:
+        yield
+    finally:
+        GLOBAL_SETTINGS_CONTEXT = prior_global_settings_context
 
 
 @contextmanager
@@ -976,7 +1020,7 @@ def use_profile(
 
     Args:
         profile: The name of the profile to load or an instance of a Profile.
-        override_environment_variable: If set, variables in the profile will take
+        override_environment_variables: If set, variables in the profile will take
             precedence over current environment variables. By default, environment
             variables will override profile settings.
         include_current_context: If set, the new settings will be constructed

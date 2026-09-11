@@ -1829,10 +1829,6 @@ class Task(Generic[P, R]):
 
         This is the async version of serve().
 
-        Args:
-            task_runner: The task runner to use for serving the task. If not provided,
-                the default task runner will be used.
-
         Examples:
             Serve a task using the default task runner in an async context
             ```python
@@ -1852,10 +1848,6 @@ class Task(Generic[P, R]):
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
-
-        Args:
-            task_runner: The task runner to use for serving the task. If not provided,
-                the default task runner will be used.
 
         Examples:
             Serve a task using the default task runner

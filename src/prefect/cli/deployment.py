@@ -46,6 +46,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.exceptions import (
+    FlowRunWatchError,
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
@@ -585,9 +586,12 @@ async def run(
                 stacklevel=2,
             )
 
-        finished_flow_run = await watch_flow_run(
-            flow_run.id, _cli.console, timeout=watch_timeout
-        )
+        try:
+            finished_flow_run = await watch_flow_run(
+                flow_run.id, _cli.console, timeout=watch_timeout
+            )
+        except FlowRunWatchError as exc:
+            exit_with_error(str(exc))
         finished_flow_run_state = finished_flow_run.state
         if finished_flow_run_state is None:
             exit_with_error("Flow run finished in an unknown state.")

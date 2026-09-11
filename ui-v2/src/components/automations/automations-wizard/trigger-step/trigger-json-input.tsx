@@ -38,7 +38,7 @@ export const TriggerJsonInput = ({
 			if (e instanceof SyntaxError) {
 				setLocalError("Invalid JSON syntax");
 			} else if (e instanceof z.ZodError) {
-				setLocalError(e.errors[0]?.message ?? "Invalid trigger configuration");
+				setLocalError(e.issues[0]?.message ?? "Invalid trigger configuration");
 			}
 			return false;
 		}

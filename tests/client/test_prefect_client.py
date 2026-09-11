@@ -1097,6 +1097,7 @@ async def test_set_then_read_flow_run_state(prefect_client):
     )
     assert isinstance(response, OrchestrationResult)
     assert response.status == SetStateStatus.ACCEPT
+    assert response.state is not None
 
     states = await prefect_client.read_flow_run_states(flow_run_id)
     assert len(states) == 2
@@ -1105,6 +1106,15 @@ async def test_set_then_read_flow_run_state(prefect_client):
 
     assert states[1].is_completed()
     assert states[1].message == "Test!"
+
+    state = await prefect_client.read_flow_run_state(response.state.id)
+    assert state == states[1]
+    assert state.state_details.flow_run_id == flow_run_id
+
+
+async def test_read_flow_run_state_404_is_object_not_found(prefect_client):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await prefect_client.read_flow_run_state(uuid4())
 
 
 async def test_set_flow_run_state_404_is_object_not_found(prefect_client):
@@ -1637,7 +1647,7 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(
 async def test_prefect_api_ssl_cert_file_default_setting(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    os.environ["SSL_CERT_FILE"] = "my_cert.pem"
+    monkeypatch.setenv("SSL_CERT_FILE", "my_cert.pem")
 
     # Mock the SSL context creation
     mock_context = Mock()
@@ -1668,7 +1678,7 @@ async def test_prefect_api_ssl_cert_file_default_setting(
 async def test_prefect_api_ssl_cert_file_default_setting_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    os.environ["SSL_CERT_FILE"] = ""
+    monkeypatch.setenv("SSL_CERT_FILE", "")
 
     # Mock the SSL context creation
     mock_context = Mock()
@@ -2711,6 +2721,35 @@ class TestAutomations:
             assert body["offset"] == 5
             assert len(result) == 1
 
+    async def test_read_automations_with_id_filter(
+        self, cloud_client, automation: AutomationCore
+    ):
+        from prefect.events.filters import AutomationFilter, AutomationFilterId
+
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
+            created_automation = automation.model_dump(mode="json")
+            automation_id = uuid4()
+            created_automation["id"] = str(automation_id)
+            read_route = router.post("/automations/filter").mock(
+                return_value=httpx.Response(200, json=[created_automation])
+            )
+
+            automation_filter = AutomationFilter(
+                id=AutomationFilterId(any_=[automation_id])
+            )
+            result = await cloud_client.read_automations(automations=automation_filter)
+
+            assert read_route.called
+            body = json.loads(read_route.calls[0].request.content)
+            # the id criteria must survive serialization; PrefectBaseModel ignores
+            # unknown fields, so a missing model field would drop it silently and
+            # return unfiltered automations
+            assert body["automations"]["id"] == {"any_": [str(automation_id)]}
+            assert len(result) == 1
+            assert result[0].id == automation_id
+
     async def test_read_automations_by_name(
         self, cloud_client, automation: AutomationCore
     ):
@@ -3443,6 +3482,23 @@ class TestSyncClient:
         version = sync_prefect_client.api_version()
         assert prefect.__version__
         assert version == prefect.__version__
+
+    def test_read_flow_run_state(self, sync_prefect_client):
+        @flow
+        def foo():
+            pass
+
+        flow_run_id = sync_prefect_client.create_flow_run(foo).id
+        response = sync_prefect_client.set_flow_run_state(
+            flow_run_id,
+            state=Completed(message="Test!"),
+        )
+        assert response.state is not None
+
+        state = sync_prefect_client.read_flow_run_state(response.state.id)
+        assert state.is_completed()
+        assert state.message == "Test!"
+        assert state.state_details.flow_run_id == flow_run_id
 
     def test_read_server_default_result_storage(self, sync_prefect_client):
         configuration = sync_prefect_client.read_server_default_result_storage()

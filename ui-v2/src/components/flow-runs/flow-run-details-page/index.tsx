@@ -7,6 +7,7 @@ import {
 	buildGetFlowRunDetailsQuery,
 	queryKeyFactory as flowRunsQueryKeyFactory,
 	isPendingLikeState,
+	isTerminalState,
 	useDeleteFlowRun,
 } from "@/api/flow-runs";
 import { queryKeyFactory as logsQueryKeyFactory } from "@/api/logs";
@@ -63,11 +64,7 @@ export const FlowRunDetailsPage = ({
 	useStateFavicon(flowRun?.state_type);
 
 	useEffect(() => {
-		if (flowRun.state_type === "RUNNING" || flowRun.state_type === "PENDING") {
-			setRefetchInterval(5000);
-		} else {
-			setRefetchInterval(false);
-		}
+		setRefetchInterval(isTerminalState(flowRun.state_type) ? false : 5000);
 	}, [flowRun]);
 
 	const onDeleteRunClicked = () => {

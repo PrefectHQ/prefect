@@ -70,24 +70,39 @@ Similarly, the `for_each` field accepts a `set` of resource ids.
 To simulate users causing order status events, run the following in a Python shell or script:
 
 ```python simulate_events.py
-import time
 from prefect.events import emit_event
 
 user_id_1, user_id_2 = "123", "456"
-for event_name, user_id in [
-    ("order.created", user_id_1),
-    ("order.created", user_id_2), # other user
-    ("order.complete", user_id_1),
-]:
-    event = emit_event(
-        event=event_name,
-        resource={"prefect.resource.id": user_id},
-    )
-    time.sleep(1)
-    print(f"{user_id} emitted {event_name}")
+
+order_created_1 = emit_event(
+    event="order.created",
+    resource={"prefect.resource.id": user_id_1},
+)
+emit_event(
+    event="order.created",
+    resource={"prefect.resource.id": user_id_2},  # other user
+)
+emit_event(
+    event="order.complete",
+    resource={"prefect.resource.id": user_id_1},
+    follows=order_created_1,
+)
 ```
 
 In the above example:
 
 - `user_id_1` creates and then completes an order, triggering a run of our deployment.
 - `user_id_2` creates an order, but no completed event is emitted so no deployment is triggered.
+
+<Warning>
+**Declare `follows` for events emitted close together**
+
+Because the trigger uses `order.created` in `after` and `order.complete` in `expect`, it only
+counts an `order.complete` event that arrives *after* an `order.created` event. Events
+emitted within a second or two of each other may arrive at the system in either order unless
+the later event declares [`follows`](/v3/concepts/events#event-ordering)—which is why the
+`order.complete` emission above passes `follows=order_created_1`. In a real system where
+minutes pass between creating and completing an order, `follows` isn't strictly needed,
+though it still documents the relationship between the events (note that `emit_event`
+only sets it when the two events occur within five minutes of each other).
+</Warning>

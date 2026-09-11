@@ -30,11 +30,6 @@ export function SchemaFormInputArray({
 	const { schema } = useSchemaFormContext();
 
 	function handleValuesChange(values: unknown[] | undefined) {
-		if (values === undefined || values.length === 0) {
-			onValuesChange(undefined);
-			return;
-		}
-
 		onValuesChange(values);
 	}
 

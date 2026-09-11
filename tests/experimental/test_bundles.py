@@ -131,7 +131,7 @@ class TestExecuteBundleInSubprocess:
         process = execute_bundle_in_subprocess(bundle)
 
         process.join()
-        assert process.exitcode == 1
+        assert process.exitcode == 0
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None
@@ -412,7 +412,7 @@ class TestExecuteBundleInSubprocess:
         bundle = result["bundle"]
         process = execute_bundle_in_subprocess(bundle)
         process.join()
-        assert process.exitcode == 1
+        assert process.exitcode == 0
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None

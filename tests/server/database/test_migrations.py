@@ -1,28 +1,683 @@
+import contextlib
+import importlib.util
 import json
 import textwrap
+from collections.abc import AsyncIterator
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import alembic.context
 import alembic.script
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
+from prefect.server.database import dependencies
 from prefect.server.database.alembic_commands import (
     alembic_config,
     alembic_downgrade,
     alembic_upgrade,
 )
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database.interface import DBSingleton, PrefectDBInterface
 from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
 )
 from prefect.server.models.variables import read_variables
 from prefect.server.utilities.database import get_dialect
-from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_SERVER_DATABASE_CONNECTION_URL,
+    temporary_settings,
+)
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 pytestmark = [pytest.mark.service("database"), pytest.mark.clear_db]
+
+
+@contextlib.asynccontextmanager
+async def _isolated_postgres_schema_changes(
+    db: PrefectDBInterface, database_engine: AsyncEngine
+) -> AsyncIterator[None]:
+    if db.dialect.name != "postgresql":
+        yield
+        return
+
+    # Alembic uses a separate engine, so the application pool does not observe its
+    # DDL and can retain asyncpg prepared statements for types that were replaced.
+    await database_engine.dispose()
+    try:
+        yield
+    finally:
+        # The hosted test API runs in another process against the same per-worker
+        # database. Disconnect its pooled sessions too; pool_pre_ping will replace
+        # them before the next request.
+        async with database_engine.begin() as connection:
+            await connection.execute(
+                sa.text(
+                    """
+                    SELECT pg_terminate_backend(pid)
+                    FROM pg_stat_activity
+                    WHERE datname = current_database()
+                      AND pid <> pg_backend_pid()
+                    """
+                )
+            )
+        await database_engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+async def isolate_migration_tests(
+    db: PrefectDBInterface, database_engine: AsyncEngine
+) -> AsyncIterator[None]:
+    async with _isolated_postgres_schema_changes(db, database_engine):
+        yield
+
+
+@pytest.fixture
+def migration_environment(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """Load the Alembic environment without running migrations at import time."""
+    monkeypatch.setitem(vars(alembic.context), "config", SimpleNamespace())
+    monkeypatch.setitem(vars(alembic.context), "is_offline_mode", lambda: False)
+    monkeypatch.setattr(
+        "prefect.utilities.asyncutils.run_async_from_worker_thread", lambda _: None
+    )
+
+    path = Path(__file__).parents[3] / "src/prefect/server/database/_migrations/env.py"
+    spec = importlib.util.spec_from_file_location("test_migration_environment", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture
+def event_resource_index_migration() -> ModuleType:
+    path = (
+        Path(__file__).parents[3]
+        / "src/prefect/server/database/_migrations/versions/postgresql"
+        / "2026_07_20_000000_50737cdaee36_add_event_resources_event_id_index.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "test_event_resource_index_migration", path
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture
+def flow_run_deployment_id_index_migration() -> ModuleType:
+    path = (
+        Path(__file__).parents[3]
+        / "src/prefect/server/database/_migrations/versions/postgresql"
+        / "2026_08_20_000000_9e9dadc36797_add_flow_run_deployment_id_index.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "test_flow_run_deployment_id_index_migration", path
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture
+def event_resources_occurred_index_repair_migration() -> ModuleType:
+    path = (
+        Path(__file__).parents[3]
+        / "src/prefect/server/database/_migrations/versions/postgresql"
+        / "2026_09_04_000000_c8d5f2a71b3e_rebuild_invalid_event_resources_occurred_index.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "test_event_resources_occurred_index_repair_migration", path
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("migration_timeout", [None, 60.0])
+async def test_postgres_migration_engine_uses_migration_timeout(
+    migration_environment: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    migration_timeout: float | None,
+):
+    dedicated_engine = object()
+    observed_timeouts: list[float | None] = []
+
+    class DatabaseConfig:
+        connection_url = "postgresql+asyncpg://user:password@localhost/prefect"
+        timeout: float | None = 10.0
+
+        async def engine(self):
+            observed_timeouts.append(self.timeout)
+            return dedicated_engine
+
+    database_config = DatabaseConfig()
+    database_interface = SimpleNamespace(
+        database_config=database_config,
+        engine=AsyncMock(),
+    )
+    settings = SimpleNamespace(
+        server=SimpleNamespace(
+            database=SimpleNamespace(migration_timeout=migration_timeout)
+        )
+    )
+    monkeypatch.setattr(migration_environment, "db_interface", database_interface)
+    monkeypatch.setattr(migration_environment, "get_current_settings", lambda: settings)
+
+    engine = await migration_environment.migration_engine()
+
+    assert engine is dedicated_engine
+    assert observed_timeouts == [migration_timeout]
+    assert database_config.timeout == 10.0
+    database_interface.engine.assert_not_awaited()
+
+
+async def test_sqlite_migration_engine_reuses_application_engine(
+    migration_environment: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    application_engine = object()
+    database_interface = SimpleNamespace(
+        database_config=SimpleNamespace(
+            connection_url="sqlite+aiosqlite:///prefect.db"
+        ),
+        engine=AsyncMock(return_value=application_engine),
+    )
+    monkeypatch.setattr(migration_environment, "db_interface", database_interface)
+
+    engine = await migration_environment.migration_engine()
+
+    assert engine is application_engine
+    database_interface.engine.assert_awaited_once_with()
+
+
+@pytest.mark.parametrize("migration_fails", [False, True])
+async def test_apply_migrations_disposes_dedicated_engine(
+    migration_environment: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    migration_fails: bool,
+):
+    connection = SimpleNamespace(run_sync=AsyncMock())
+    if migration_fails:
+        connection.run_sync.side_effect = RuntimeError("migration failed")
+
+    connection_context = MagicMock()
+    connection_context.__aenter__ = AsyncMock(return_value=connection)
+    connection_context.__aexit__ = AsyncMock(return_value=None)
+
+    dedicated_engine = SimpleNamespace(
+        connect=MagicMock(return_value=connection_context),
+        dispose=AsyncMock(),
+    )
+    application_engine = object()
+    database_interface = SimpleNamespace(
+        engine=AsyncMock(return_value=application_engine),
+        orm=SimpleNamespace(versions_dir="versions"),
+    )
+    engines = {
+        "dedicated": dedicated_engine,
+        "application": application_engine,
+    }
+    script = SimpleNamespace(version_locations=None)
+    monkeypatch.setattr(migration_environment, "db_interface", database_interface)
+    monkeypatch.setattr(
+        migration_environment,
+        "migration_engine",
+        AsyncMock(return_value=dedicated_engine),
+    )
+    monkeypatch.setattr(migration_environment, "ENGINES", engines)
+    monkeypatch.setitem(vars(alembic.context), "script", script)
+
+    if migration_fails:
+        with pytest.raises(RuntimeError, match="migration failed"):
+            await migration_environment.apply_migrations()
+    else:
+        await migration_environment.apply_migrations()
+
+    assert script.version_locations == ["versions"]
+    assert engines == {"application": application_engine}
+    connection.run_sync.assert_awaited_once_with(
+        migration_environment.do_run_migrations
+    )
+    dedicated_engine.dispose.assert_awaited_once_with()
+
+
+async def test_apply_migrations_preserves_shared_engine(
+    migration_environment: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    connection = SimpleNamespace(run_sync=AsyncMock())
+    connection_context = MagicMock()
+    connection_context.__aenter__ = AsyncMock(return_value=connection)
+    connection_context.__aexit__ = AsyncMock(return_value=None)
+    shared_engine = SimpleNamespace(
+        connect=MagicMock(return_value=connection_context),
+        dispose=AsyncMock(),
+    )
+    database_interface = SimpleNamespace(
+        engine=AsyncMock(return_value=shared_engine),
+        orm=SimpleNamespace(versions_dir="versions"),
+    )
+    engines = {"shared": shared_engine}
+    monkeypatch.setattr(migration_environment, "db_interface", database_interface)
+    monkeypatch.setattr(
+        migration_environment,
+        "migration_engine",
+        AsyncMock(return_value=shared_engine),
+    )
+    monkeypatch.setattr(migration_environment, "ENGINES", engines)
+    monkeypatch.setitem(
+        vars(alembic.context),
+        "script",
+        SimpleNamespace(version_locations=None),
+    )
+
+    await migration_environment.apply_migrations()
+
+    assert engines == {"shared": shared_engine}
+    shared_engine.dispose.assert_not_awaited()
+
+
+def test_event_resource_index_migration_rebuilds_invalid_index(
+    event_resource_index_migration: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    catalog_queries: list[str] = []
+    statements: list[str] = []
+
+    class Result:
+        def scalar(self) -> int:
+            return 1
+
+    class Bind:
+        def exec_driver_sql(self, statement: str) -> Result:
+            catalog_queries.append(" ".join(statement.split()))
+            return Result()
+
+    @contextlib.contextmanager
+    def autocommit_block():
+        yield
+
+    operation = SimpleNamespace(
+        get_context=lambda: SimpleNamespace(
+            as_sql=False,
+            autocommit_block=autocommit_block,
+        ),
+        get_bind=lambda: Bind(),
+        execute=lambda statement: statements.append(" ".join(statement.split())),
+    )
+    monkeypatch.setattr(event_resource_index_migration, "op", operation)
+
+    event_resource_index_migration.upgrade()
+
+    assert catalog_queries == [
+        "SELECT 1 FROM pg_class c JOIN pg_index i ON i.indexrelid = c.oid "
+        "WHERE c.relname = 'ix_event_resources__event_id' AND NOT i.indisvalid"
+    ]
+    assert statements == [
+        "DROP INDEX CONCURRENTLY IF EXISTS ix_event_resources__event_id",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_event_resources__event_id ON event_resources (event_id)",
+    ]
+
+
+def test_event_resource_index_migration_supports_postgres_dry_run(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    monkeypatch.setattr(
+        dependencies,
+        "MODELS_DEPENDENCIES",
+        {
+            "database_config": None,
+            "query_components": None,
+            "orm": None,
+            "interface_class": None,
+        },
+    )
+    monkeypatch.setattr(DBSingleton, "_instances", {})
+
+    with temporary_settings(
+        {
+            PREFECT_SERVER_DATABASE_CONNECTION_URL: (
+                "postgresql+asyncpg://localhost/prefect"
+            )
+        }
+    ):
+        alembic_upgrade("bad1e352c597:50737cdaee36", dry_run=True)
+
+    output = capsys.readouterr().out
+    assert (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_event_resources__event_id ON event_resources (event_id)"
+        in " ".join(output.split())
+    )
+
+
+@pytest.mark.timeout(120)
+async def test_schema_migrations_discard_stale_postgres_prepared_statements(
+    db: PrefectDBInterface, database_engine: AsyncEngine
+):
+    if db.dialect.name != "postgresql":
+        pytest.skip(reason="asyncpg prepared statement caches are PostgreSQL-specific")
+
+    external_engine = create_async_engine(database_engine.url, pool_pre_ping=True)
+    try:
+        async with external_engine.begin() as connection:
+            await connection.execute(
+                sa.insert(db.WorkPool).values(
+                    name="external-before-schema-change",
+                    type="process",
+                    status="NOT_READY",
+                )
+            )
+
+        async with _isolated_postgres_schema_changes(db, database_engine):
+            async with database_engine.begin() as connection:
+                await connection.execute(
+                    sa.insert(db.WorkPool).values(
+                        name="before-schema-change",
+                        type="process",
+                        status="NOT_READY",
+                    )
+                )
+
+            try:
+                await run_sync_in_worker_thread(
+                    alembic_downgrade, revision="15768c2ec702"
+                )
+            finally:
+                await run_sync_in_worker_thread(alembic_upgrade)
+
+        async with database_engine.begin() as connection:
+            await connection.execute(
+                sa.insert(db.WorkPool).values(
+                    name="after-schema-change",
+                    type="process",
+                    status="NOT_READY",
+                )
+            )
+        async with external_engine.begin() as connection:
+            await connection.execute(
+                sa.insert(db.WorkPool).values(
+                    name="external-after-schema-change",
+                    type="process",
+                    status="NOT_READY",
+                )
+            )
+            result = await connection.execute(
+                sa.select(sa.func.count())
+                .select_from(db.WorkPool)
+                .where(db.WorkPool.name == "external-after-schema-change")
+            )
+        assert result.scalar_one() == 1
+    finally:
+        await external_engine.dispose()
+
+
+def test_flow_run_deployment_id_index_migration_rebuilds_invalid_index(
+    flow_run_deployment_id_index_migration: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    catalog_queries: list[str] = []
+    statements: list[str] = []
+
+    class Result:
+        def scalar(self) -> int:
+            return 1
+
+    class Bind:
+        def exec_driver_sql(self, statement: str) -> Result:
+            catalog_queries.append(" ".join(statement.split()))
+            return Result()
+
+    @contextlib.contextmanager
+    def autocommit_block():
+        yield
+
+    operation = SimpleNamespace(
+        get_context=lambda: SimpleNamespace(
+            as_sql=False,
+            autocommit_block=autocommit_block,
+        ),
+        get_bind=lambda: Bind(),
+        execute=lambda statement: statements.append(" ".join(statement.split())),
+    )
+    monkeypatch.setattr(flow_run_deployment_id_index_migration, "op", operation)
+
+    flow_run_deployment_id_index_migration.upgrade()
+
+    assert catalog_queries == [
+        "SELECT 1 FROM pg_class c JOIN pg_index i ON i.indexrelid = c.oid "
+        "WHERE c.relname = 'ix_flow_run__deployment_id' AND NOT i.indisvalid"
+    ]
+    assert statements == [
+        "DROP INDEX CONCURRENTLY IF EXISTS ix_flow_run__deployment_id",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_flow_run__deployment_id ON flow_run (deployment_id)",
+    ]
+
+
+def test_flow_run_deployment_id_index_migration_supports_postgres_dry_run(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    monkeypatch.setattr(
+        dependencies,
+        "MODELS_DEPENDENCIES",
+        {
+            "database_config": None,
+            "query_components": None,
+            "orm": None,
+            "interface_class": None,
+        },
+    )
+    monkeypatch.setattr(DBSingleton, "_instances", {})
+
+    with temporary_settings(
+        {
+            PREFECT_SERVER_DATABASE_CONNECTION_URL: (
+                "postgresql+asyncpg://localhost/prefect"
+            )
+        }
+    ):
+        alembic_upgrade("50737cdaee36:9e9dadc36797", dry_run=True)
+
+    output = capsys.readouterr().out
+    assert (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_flow_run__deployment_id ON flow_run (deployment_id)"
+        in " ".join(output.split())
+    )
+
+
+@pytest.mark.parametrize("index_is_valid", [True, False, None])
+@pytest.mark.parametrize("rebuilt_index_is_valid", [True, False])
+def test_event_resources_occurred_index_repair_migration_handles_index_state(
+    event_resources_occurred_index_repair_migration: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    index_is_valid: bool | None,
+    rebuilt_index_is_valid: bool,
+):
+    catalog_queries: list[str] = []
+    statements: list[str] = []
+    qualified_index = '"public"."ix_event_resources__occurred"'
+    query_results = iter(
+        [
+            None if index_is_valid is None else (qualified_index, index_is_valid),
+            (qualified_index, rebuilt_index_is_valid),
+        ]
+    )
+
+    class Result:
+        def first(self) -> tuple[str, bool] | None:
+            return next(query_results)
+
+    class Bind:
+        def exec_driver_sql(self, statement: str) -> Result:
+            catalog_queries.append(" ".join(statement.split()))
+            return Result()
+
+    @contextlib.contextmanager
+    def autocommit_block():
+        yield
+
+    operation = SimpleNamespace(
+        get_context=lambda: SimpleNamespace(
+            as_sql=False,
+            autocommit_block=autocommit_block,
+        ),
+        get_bind=lambda: Bind(),
+        execute=lambda statement: statements.append(" ".join(statement.split())),
+    )
+    monkeypatch.setattr(
+        event_resources_occurred_index_repair_migration, "op", operation
+    )
+
+    if rebuilt_index_is_valid:
+        event_resources_occurred_index_repair_migration.upgrade()
+    else:
+        with pytest.raises(
+            RuntimeError,
+            match="ix_event_resources__occurred is missing or invalid after creation",
+        ):
+            event_resources_occurred_index_repair_migration.upgrade()
+
+    catalog_query = (
+        "SELECT format('%I.%I', n.nspname, c.relname), i.indisvalid "
+        "FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid "
+        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE i.indrelid = to_regclass('event_resources') "
+        "AND c.relname = 'ix_event_resources__occurred'"
+    )
+    assert catalog_queries == [catalog_query, catalog_query]
+    create_statement = (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_event_resources__occurred ON event_resources (occurred)"
+    )
+    expected_statements: list[str] = []
+    if index_is_valid is None:
+        expected_statements.append(create_statement)
+    elif not index_is_valid:
+        expected_statements.append(f"REINDEX INDEX CONCURRENTLY {qualified_index}")
+    assert statements == expected_statements
+
+
+def test_event_resources_occurred_index_repair_migration_rejects_postgres_dry_run(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        dependencies,
+        "MODELS_DEPENDENCIES",
+        {
+            "database_config": None,
+            "query_components": None,
+            "orm": None,
+            "interface_class": None,
+        },
+    )
+    monkeypatch.setattr(DBSingleton, "_instances", {})
+
+    with pytest.raises(
+        RuntimeError,
+        match="c8d5f2a71b3e requires an online PostgreSQL migration",
+    ):
+        with temporary_settings(
+            {
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: (
+                    "postgresql+asyncpg://localhost/prefect"
+                )
+            }
+        ):
+            alembic_upgrade("9e9dadc36797:c8d5f2a71b3e", dry_run=True)
+
+
+@pytest.mark.timeout(30)
+async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
+    db: PrefectDBInterface,
+    database_engine: AsyncEngine,
+):
+    if db.dialect.name != "postgresql":
+        pytest.skip(reason="invalid concurrent indexes are PostgreSQL-specific")
+
+    builder_engine = create_async_engine(database_engine.url, pool_pre_ping=True)
+    blocker = await database_engine.connect()
+    blocker_transaction = await blocker.begin()
+    try:
+        await run_sync_in_worker_thread(alembic_downgrade, revision="9e9dadc36797")
+        async with builder_engine.connect() as builder:
+            builder = await builder.execution_options(isolation_level="AUTOCOMMIT")
+            await builder.execute(
+                sa.text(
+                    "DROP INDEX CONCURRENTLY IF EXISTS "
+                    "public.ix_event_resources__occurred"
+                )
+            )
+            await blocker.execute(
+                sa.text(
+                    """
+                    INSERT INTO event_resources
+                        (occurred, resource_id, resource_role, resource, event_id)
+                    VALUES
+                        (now(), 'test', 'test', '{}', :event_id)
+                    """
+                ),
+                {"event_id": uuid4()},
+            )
+            await builder.execute(sa.text("SET statement_timeout = '1s'"))
+            with pytest.raises(sa.exc.DBAPIError, match="statement timeout"):
+                await builder.execute(
+                    sa.text(
+                        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+                        "ix_event_resources__occurred "
+                        "ON public.event_resources (occurred)"
+                    )
+                )
+
+        async with database_engine.connect() as connection:
+            assert await connection.scalar(
+                sa.text(
+                    """
+                    SELECT NOT i.indisvalid
+                    FROM pg_index i
+                    WHERE i.indexrelid =
+                        to_regclass('public.ix_event_resources__occurred')
+                    """
+                )
+            )
+
+        await blocker_transaction.rollback()
+        await run_sync_in_worker_thread(alembic_upgrade)
+
+        async with database_engine.connect() as connection:
+            assert await connection.scalar(
+                sa.text(
+                    """
+                    SELECT i.indisvalid
+                    FROM pg_index i
+                    WHERE i.indexrelid =
+                        to_regclass('public.ix_event_resources__occurred')
+                    """
+                )
+            )
+    finally:
+        if blocker_transaction.is_active:
+            await blocker_transaction.rollback()
+        await blocker.close()
+        await builder_engine.dispose()
+        await run_sync_in_worker_thread(alembic_upgrade)
 
 
 @pytest.fixture

@@ -106,6 +106,49 @@ describe("SchemaFormInputArrayList", () => {
 		});
 	});
 
+	describe("editing item values", () => {
+		test("typing into an item propagates the value to the form", async () => {
+			const user = userEvent.setup();
+			const spy = vi.fn();
+
+			function Wrapper() {
+				const [values, setValues] = useState<Record<string, unknown>>({});
+				spy.mockImplementation((value: Record<string, unknown>) =>
+					setValues(value),
+				);
+
+				const schema: SchemaObject = {
+					type: "object",
+					properties: {
+						items: {
+							type: "array",
+							items: { type: "string" },
+						},
+					},
+				};
+
+				return (
+					<TestSchemaForm
+						schema={schema}
+						values={values}
+						onValuesChange={spy}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+
+			await user.click(screen.getByRole("button", { name: /add item/i }));
+
+			const input = screen.getByRole("textbox");
+			await user.type(input, "foo");
+
+			await waitFor(() => {
+				expect(spy).toHaveBeenLastCalledWith({ items: ["foo"] });
+			});
+		});
+	});
+
 	describe("move up/down menu options", () => {
 		test("move up and move down options are available in menu for regular items", async () => {
 			const user = userEvent.setup();

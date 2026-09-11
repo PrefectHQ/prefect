@@ -96,8 +96,12 @@ async def read_automations_for_workspace(
 async def count_automations_for_workspace(
     db: PrefectDBInterface,
     session: AsyncSession,
+    automation_filter: Optional[filters.AutomationFilter] = None,
 ) -> int:
     query = sa.select(sa.func.count(None)).select_from(db.Automation)
+
+    if automation_filter:
+        query = query.where(automation_filter.as_sql_filter())
 
     result = await session.execute(query)
 

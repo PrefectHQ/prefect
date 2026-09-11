@@ -29,7 +29,7 @@ Events adhere to a structured [specification](https://app.prefect.cloud/api/docs
 | related  | Array  | no        | List of additional Resources involved in this event                |
 | payload  | Object | no        | Open-ended set of data describing what happened                   |
 | id       | String | yes       | Client-provided identifier of this event                         |
-| follows  | String | no        | ID of an event that is known to have occurred prior to this one |
+| follows  | String | no        | ID of an event that is known to have occurred prior to this one. See [Event ordering](#event-ordering). |
 
 ## Event grammar
 
@@ -88,6 +88,27 @@ Here is an example of a related resource:
   }
 ]
 ```
+
+## Event ordering
+
+Events arrive from many independent sources—your code, workers, and Prefect itself—so
+Prefect cannot infer the order of two events from their arrival alone. The `follows` field
+declares that order: set it on the later event, referencing the `id` of the earlier one,
+to establish that this event is known to have occurred after the other. The system uses
+this relationship to disambiguate the ordering of events that occur within a second or
+two of each other.
+
+Declare `follows` only between events in the same causal chain, where you know the earlier
+event occurred first—for example, a custom event describing how a flow run state change
+was handled. [`emit_event`](/v3/api-ref/python/prefect-events-utilities) sets the
+relationship when the two events occurred within five minutes of each other.
+
+Ordering matters most to [automation triggers](/v3/concepts/event-triggers/) whose `after`
+and `expect` clauses depend on seeing one event before another. See
+[event ordering and `after`](/v3/concepts/event-triggers#event-ordering-and-after) for how
+triggers use this relationship, and
+[emit events from state change hooks](/v3/how-to-guides/workflows/state-change-hooks#emit-events-from-state-change-hooks)
+for the most common way to declare it.
 
 ## Respond to events
 

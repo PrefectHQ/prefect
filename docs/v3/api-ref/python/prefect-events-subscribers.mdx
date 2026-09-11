@@ -23,3 +23,6 @@ a single async iterator. When a terminal event (Completed, Failed, or Crashed)
 is received, the event subscription stops but log subscription continues for a
 configurable timeout to catch any straggler logs.
 
+The underlying event and log subscribers own reconnection behavior. If either
+exhausts its retries or fails for another reason, that error is propagated.
+

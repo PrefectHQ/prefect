@@ -316,37 +316,43 @@ Raised when a flow pause times out
 Raised when a flow run takes longer than a given timeout
 
 
-### `PrefectImportError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunWatchError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Raised when watching a flow run stops before it reaches a terminal state
+
+
+### `PrefectImportError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L432" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An error raised when a Prefect object cannot be imported due to a move or removal.
 
 
-### `SerializationError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SerializationError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L441" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when an object cannot be serialized.
 
 
-### `ConfigurationError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L443" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ConfigurationError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L447" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a configuration is invalid.
 
 
-### `EventTooLarge` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L449" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventTooLarge` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L453" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when an event exceeds the configured maximum size.
 
 
-### `ProfileSettingsValidationError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProfileSettingsValidationError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L464" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a profile settings are invalid.
 
 
-### `HashError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L469" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `HashError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when hashing objects fails

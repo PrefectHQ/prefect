@@ -425,6 +425,10 @@ class FlowRunWaitTimeout(PrefectException):
     """Raised when a flow run takes longer than a given timeout"""
 
 
+class FlowRunWatchError(PrefectException):
+    """Raised when watching a flow run stops before it reaches a terminal state"""
+
+
 class PrefectImportError(ImportError):
     """
     An error raised when a Prefect object cannot be imported due to a move or removal.

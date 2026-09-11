@@ -1,6 +1,7 @@
 """Tests for ConcurrencySlotAcquisitionWithLeaseService."""
 
 import asyncio
+import threading
 from concurrent.futures import Future
 from typing import Any
 from unittest import mock
@@ -91,6 +92,138 @@ async def test_returns_successful_response(mocked_client: Any) -> None:
         lease_duration=expected_lease_duration,
         holder=expected_holder,
     )
+
+
+async def test_releases_lease_when_caller_is_cancelled(mocked_client: Any) -> None:
+    """A lease granted after the caller gave up must not leak its slots."""
+    lease_id = uuid4()
+    response = Response(
+        200,
+        json={
+            "lease_id": str(lease_id),
+            "limits": [{"id": str(uuid4()), "name": "test-limit", "limit": 10}],
+        },
+    )
+
+    acquiring = threading.Event()
+    caller_cancelled = threading.Event()
+
+    async def slow_increment(*args: Any, **kwargs: Any) -> Response:
+        acquiring.set()
+        await asyncio.get_running_loop().run_in_executor(None, caller_cancelled.wait)
+        return response
+
+    mocked_client.client.increment_concurrency_slots_with_lease.side_effect = (
+        slow_increment
+    )
+
+    with mock.patch.object(
+        mocked_client.client, "release_concurrency_slots_with_lease", autospec=True
+    ) as release:
+        service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+            frozenset(["test-limit"])
+        )
+        future: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, None)
+        )
+
+        await asyncio.get_running_loop().run_in_executor(None, acquiring.wait)
+        assert future.cancel()
+        caller_cancelled.set()
+
+        await service.drain()
+
+    release.assert_called_once_with(lease_id=lease_id)
+
+
+async def test_release_orphaned_lease_uses_the_acquiring_client(
+    mocked_client: Any,
+) -> None:
+    """Cleanup must go through the same client that acquired the slots."""
+    lease_id = uuid4()
+    response = Response(
+        200,
+        json={
+            "lease_id": str(lease_id),
+            "limits": [{"id": str(uuid4()), "name": "test-limit", "limit": 10}],
+        },
+    )
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["test-limit"])
+    )
+    # Give the service a chance to enter its lifespan and create its client.
+    await asyncio.wrap_future(
+        service.send((1, "concurrency", None, None, 60.0, False, None))
+    )
+
+    with mock.patch.object(
+        mocked_client.client, "release_concurrency_slots_with_lease", autospec=True
+    ) as release:
+        await asyncio.wrap_future(service.release_orphaned_lease(response))
+
+    release.assert_called_once_with(lease_id=lease_id)
+
+
+async def test_drain_waits_for_orphaned_lease_release(mocked_client: Any) -> None:
+    """Draining must not close the client out from under an in-flight release."""
+    lease_id = uuid4()
+    response = Response(
+        200,
+        json={
+            "lease_id": str(lease_id),
+            "limits": [{"id": str(uuid4()), "name": "test-limit", "limit": 10}],
+        },
+    )
+
+    released = threading.Event()
+
+    async def slow_release(*args: Any, **kwargs: Any) -> None:
+        # Yield repeatedly so an untracked release would outlive the drain.
+        for _ in range(100):
+            await asyncio.sleep(0)
+        released.set()
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["test-limit"])
+    )
+    await asyncio.wrap_future(
+        service.send((1, "concurrency", None, None, 60.0, False, None))
+    )
+
+    with mock.patch.object(
+        mocked_client.client,
+        "release_concurrency_slots_with_lease",
+        autospec=True,
+        side_effect=slow_release,
+    ) as release:
+        service.release_orphaned_lease(response)
+        await service.drain()
+
+    assert released.is_set()
+    release.assert_called_once_with(lease_id=lease_id)
+
+
+async def test_release_orphaned_lease_logs_unreadable_response(
+    mocked_client: Any, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A successful response we cannot parse leaves a lease we cannot release."""
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["test-limit"])
+    )
+    await asyncio.wrap_future(
+        service.send((1, "concurrency", None, None, 60.0, False, None))
+    )
+
+    with mock.patch.object(
+        mocked_client.client, "release_concurrency_slots_with_lease", autospec=True
+    ) as release:
+        await asyncio.wrap_future(
+            service.release_orphaned_lease(Response(200, content=b"not json"))
+        )
+
+    release.assert_not_called()
+    assert "Unable to read the lease id" in caplog.text
 
 
 async def test_retries_failed_call_respects_retry_after_header(

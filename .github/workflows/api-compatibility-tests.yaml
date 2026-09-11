@@ -46,7 +46,7 @@ jobs:
         uses: actions/setup-python@v7
         id: setup_python
         with:
-          python-version: "3.12"
+          python-version: "3.14"
 
       - name: UV Cache
         # Manually cache the uv cache directory

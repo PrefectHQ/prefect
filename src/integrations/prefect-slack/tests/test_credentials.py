@@ -96,6 +96,54 @@ async def test_slack_webhook_async_notify(monkeypatch):
     mock_client.send.assert_called_once_with(text="test message")
 
 
+@pytest.mark.parametrize(
+    "subject,expected_text",
+    [
+        ("test subject", "test subject\ntest message"),
+        (None, "test message"),
+        ("", "test message"),
+    ],
+)
+def test_slack_webhook_sync_notify_with_subject(monkeypatch, subject, expected_text):
+    """The subject is prepended to the message body in the sync path"""
+    mock_client = MagicMock()
+    mock_client.send.return_value = WebhookResponse(
+        url="http://test", status_code=200, body="ok", headers={}
+    )
+
+    webhook = SlackWebhook(url="http://test")
+    monkeypatch.setattr(webhook, "get_client", MagicMock(return_value=mock_client))
+
+    webhook.notify("test message", subject=subject)
+    mock_client.send.assert_called_once_with(text=expected_text)
+
+
+@pytest.mark.parametrize(
+    "subject,expected_text",
+    [
+        ("test subject", "test subject\ntest message"),
+        (None, "test message"),
+        ("", "test message"),
+    ],
+)
+async def test_slack_webhook_async_notify_with_subject(
+    monkeypatch, subject, expected_text
+):
+    """The subject is prepended to the message body in the async path"""
+    mock_client = MagicMock()
+    mock_client.send = AsyncMock(
+        return_value=WebhookResponse(
+            url="http://test", status_code=200, body="ok", headers={}
+        )
+    )
+
+    webhook = SlackWebhook(url="http://test")
+    monkeypatch.setattr(webhook, "get_client", MagicMock(return_value=mock_client))
+
+    await webhook.notify_async("test message", subject=subject)
+    mock_client.send.assert_called_once_with(text=expected_text)
+
+
 @pytest.mark.parametrize("message", ["test message 1", "test message 2"])
 async def test_slack_webhook_notify_async_dispatch(monkeypatch, message):
     """Test that async_dispatch properly handles both sync and async contexts"""

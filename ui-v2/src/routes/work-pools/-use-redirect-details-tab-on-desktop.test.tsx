@@ -38,7 +38,7 @@ function createMatchMediaMock(isDesktop: boolean) {
 }
 
 describe("useRedirectDetailsTabOnDesktop", () => {
-	const originalMatchMedia = window.matchMedia;
+	const originalMatchMedia = window.matchMedia.bind(window);
 	let matchMediaMock: MatchMediaMock;
 
 	beforeEach(() => {

@@ -1,5 +1,6 @@
 import abc
 import asyncio
+import base64
 from datetime import timedelta
 from types import TracebackType
 from typing import (
@@ -136,16 +137,21 @@ def get_events_client(
 def get_events_subscriber(
     filter: Optional["EventFilter"] = None,
     reconnection_attempts: int = 10,
+    reconnect_on_clean_close: bool = False,
 ) -> "PrefectEventSubscriber":
     api_url = PREFECT_API_URL.value()
 
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
         return PrefectCloudEventSubscriber(
-            filter=filter, reconnection_attempts=reconnection_attempts
+            filter=filter,
+            reconnection_attempts=reconnection_attempts,
+            reconnect_on_clean_close=reconnect_on_clean_close,
         )
     elif api_url:
         return PrefectEventSubscriber(
-            filter=filter, reconnection_attempts=reconnection_attempts
+            filter=filter,
+            reconnection_attempts=reconnection_attempts,
+            reconnect_on_clean_close=reconnect_on_clean_close,
         )
     elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         from prefect.server.api.server import SubprocessASGIServer
@@ -156,6 +162,7 @@ def get_events_subscriber(
             api_url=server.api_url,
             filter=filter,
             reconnection_attempts=reconnection_attempts,
+            reconnect_on_clean_close=reconnect_on_clean_close,
         )
     else:
         raise ValueError(
@@ -246,6 +253,11 @@ class AssertingEventsClient(EventsClient):
         return self
 
 
+def _basic_auth_token(auth_string: str) -> str:
+    """Encode an auth string of the form 'user:password' for basic authentication"""
+    return base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+
+
 def _get_api_url_and_key(
     api_url: Optional[str], api_key: Optional[str]
 ) -> Tuple[str, str]:
@@ -297,10 +309,15 @@ class PrefectEventsClient(EventsClient):
             auth_string.get_secret_value() if auth_string is not None else None
         )
         self._events_socket_url = events_in_socket_from_api_url(api_url)
-        self._connect = websocket_connect(
-            self._events_socket_url,
-            subprotocols=[Subprotocol("prefect")],
-        )
+        connect_kwargs: Dict[str, Any] = {"subprotocols": [Subprotocol("prefect")]}
+        if self._auth_token:
+            # Servers and proxies that require basic authentication reject the
+            # HTTP upgrade request before the "prefect" subprotocol auth
+            # handshake can run, so also send the credentials as a header.
+            connect_kwargs["additional_headers"] = {
+                "Authorization": f"Basic {_basic_auth_token(self._auth_token)}"
+            }
+        self._connect = websocket_connect(self._events_socket_url, **connect_kwargs)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
@@ -677,6 +694,10 @@ class PrefectEventSubscriber:
     """
     Subscribes to a Prefect event stream, yielding events as they occur.
 
+    Abnormal disconnects are retried. Clean disconnects end iteration unless
+    `reconnect_on_clean_close` is enabled. Event backfill and ID-based
+    deduplication cover the reconnect window.
+
     Example:
 
         from prefect.events.clients import PrefectEventSubscriber
@@ -693,6 +714,7 @@ class PrefectEventSubscriber:
     _websocket: Optional[ClientConnection]
     _filter: "EventFilter"
     _seen_events: MutableMapping[UUID, bool]
+    _backfill_since: Optional[prefect.types._datetime.DateTime]
 
     _api_key: Optional[str]
     _auth_token: Optional[str]
@@ -702,13 +724,15 @@ class PrefectEventSubscriber:
         api_url: Optional[str] = None,
         filter: Optional["EventFilter"] = None,
         reconnection_attempts: int = 10,
+        reconnect_on_clean_close: bool = False,
     ):
         """
         Args:
             api_url: The base URL for a Prefect Cloud workspace
-            api_key: The API of an actor with the manage_events scope
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
+            reconnect_on_clean_close: Whether to reconnect when the server closes
+                the connection normally instead of ending iteration
         """
         self._api_key = None
         auth_string = get_current_settings().api.auth_string
@@ -725,6 +749,7 @@ class PrefectEventSubscriber:
 
         self._filter = filter or EventFilter()  # type: ignore[call-arg]
         self._seen_events = TTLCache(maxsize=SEEN_EVENTS_SIZE, ttl=SEEN_EVENTS_TTL)
+        self._backfill_since = None
 
         socket_url = events_out_socket_from_api_url(api_url)
 
@@ -736,6 +761,7 @@ class PrefectEventSubscriber:
         )
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
+        self._reconnect_on_clean_close = reconnect_on_clean_close
         if self._reconnection_attempts < 0:
             raise ValueError("reconnection_attempts must be a non-negative integer")
 
@@ -808,9 +834,13 @@ class PrefectEventSubscriber:
 
         from prefect.events.filters import EventOccurredFilter
 
+        current_time = prefect.types._datetime.now("UTC")
+        if self._backfill_since is None:
+            self._backfill_since = current_time - timedelta(minutes=1)
+
         self._filter.occurred = EventOccurredFilter(
-            since=prefect.types._datetime.now("UTC") - timedelta(minutes=1),
-            until=prefect.types._datetime.now("UTC") + timedelta(days=365),
+            since=self._backfill_since,
+            until=current_time + timedelta(days=365),
         )
 
         logger.debug("  filtering events since %s...", self._filter.occurred.since)
@@ -841,6 +871,7 @@ class PrefectEventSubscriber:
     async def __anext__(self) -> Event:
         assert self._reconnection_attempts >= 0
         consecutive_failures = 0
+        consecutive_clean_closes = 0
         while consecutive_failures <= self._reconnection_attempts:
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
@@ -865,25 +896,39 @@ class PrefectEventSubscriber:
                     if event.id in self._seen_events:
                         continue
                     self._seen_events[event.id] = True
+                    replay_since = event.occurred - timedelta(minutes=1)
+                    if (
+                        self._backfill_since is None
+                        or replay_since > self._backfill_since
+                    ):
+                        self._backfill_since = replay_since
 
                     try:
                         return event
                     finally:
                         EVENTS_OBSERVED.labels(self.client_name).inc()
-            except ConnectionClosedOK:
-                logger.debug('Connection closed with "OK" status')
-                raise StopAsyncIteration
-            except RETRYABLE_EXCEPTIONS:
+            except RETRYABLE_EXCEPTIONS as exc:
+                if isinstance(exc, ConnectionClosedOK):
+                    if not self._reconnect_on_clean_close:
+                        logger.debug('Connection closed with "OK" status')
+                        raise StopAsyncIteration
+                    consecutive_clean_closes += 1
+
                 consecutive_failures += 1
+                attempts = (
+                    consecutive_clean_closes
+                    if isinstance(exc, ConnectionClosedOK)
+                    else consecutive_failures
+                )
                 logger.debug(
                     "Retryable error with %s/%s attempts",
-                    consecutive_failures,
+                    attempts,
                     self._reconnection_attempts,
                 )
-                if consecutive_failures > self._reconnection_attempts:
+                if attempts > self._reconnection_attempts:
                     raise
 
-                if consecutive_failures > 2:
+                if attempts > 2:
                     # let the first two attempts happen quickly in case this is just
                     # a standard load balancer timeout, but after that, just take a
                     # beat to let things come back around.
@@ -898,6 +943,7 @@ class PrefectCloudEventSubscriber(PrefectEventSubscriber):
         api_key: Optional[str] = None,
         filter: Optional["EventFilter"] = None,
         reconnection_attempts: int = 10,
+        reconnect_on_clean_close: bool = False,
     ):
         """
         Args:
@@ -905,6 +951,8 @@ class PrefectCloudEventSubscriber(PrefectEventSubscriber):
             api_key: The API of an actor with the manage_events scope
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
+            reconnect_on_clean_close: Whether to reconnect when the server closes
+                the connection normally instead of ending iteration
         """
         api_url, api_key = _get_api_url_and_key(api_url, api_key)
 
@@ -912,6 +960,7 @@ class PrefectCloudEventSubscriber(PrefectEventSubscriber):
             api_url=api_url,
             filter=filter,
             reconnection_attempts=reconnection_attempts,
+            reconnect_on_clean_close=reconnect_on_clean_close,
         )
 
         self._api_key = api_key
@@ -924,6 +973,7 @@ class PrefectCloudAccountEventSubscriber(PrefectCloudEventSubscriber):
         api_key: Optional[str] = None,
         filter: Optional["EventFilter"] = None,
         reconnection_attempts: int = 10,
+        reconnect_on_clean_close: bool = False,
     ):
         """
         Args:
@@ -931,6 +981,8 @@ class PrefectCloudAccountEventSubscriber(PrefectCloudEventSubscriber):
             api_key: The API of an actor with the manage_events scope
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
+            reconnect_on_clean_close: Whether to reconnect when the server closes
+                the connection normally instead of ending iteration
         """
         api_url, api_key = _get_api_url_and_key(api_url, api_key)
 
@@ -940,6 +992,7 @@ class PrefectCloudAccountEventSubscriber(PrefectCloudEventSubscriber):
             api_url=account_api_url,
             filter=filter,
             reconnection_attempts=reconnection_attempts,
+            reconnect_on_clean_close=reconnect_on_clean_close,
         )
 
         self._api_key = api_key

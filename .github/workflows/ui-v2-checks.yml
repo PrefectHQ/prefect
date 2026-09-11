@@ -123,6 +123,14 @@ jobs:
         working-directory: ./ui-v2
         run: npm run build
 
+      - name: Verify generated files are up-to-date
+        run: |
+          if [ -n "$(git status --porcelain ui-v2/)" ]; then
+            echo "Generated files are out of date; please regenerate and commit:"
+            git status --short
+            exit 1
+          fi
+
   test:
     name: Test
     runs-on: ubuntu-latest

@@ -12,6 +12,7 @@ from prefect._internal.concurrency.cancellation import (
     AlarmCancelScope,
     AsyncCancelScope,
     CancelledError,
+    CancelScope,
     WatcherThreadCancelScope,
     cancel_async_after,
     cancel_async_at,
@@ -143,6 +144,32 @@ def test_cancel_sync_after_in_worker_thread():
 
     assert scope.cancelled()
     assert not completed
+
+
+def test_watcher_thread_cancel_scope_enforcer_exits_when_teardown_interrupted(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    The enforcer thread injects its exception at an arbitrary instruction, which can
+    interrupt the scope's own teardown. It must still exit, otherwise it is leaked for
+    the lifetime of the process and blocks the supervised thread's join.
+    """
+
+    def interrupted_exit(self: CancelScope, *exc_info: object) -> None:
+        raise CancelledError()
+
+    monkeypatch.setattr(CancelScope, "__exit__", interrupted_exit)
+
+    scope = WatcherThreadCancelScope(timeout=30)
+    with pytest.raises(CancelledError):
+        with scope:
+            pass
+
+    try:
+        assert not scope._enforcer_thread.is_alive()
+    finally:
+        scope._event.set()
+        scope._enforcer_thread.join()
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
