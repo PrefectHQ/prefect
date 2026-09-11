@@ -40,13 +40,18 @@ async def revoke_expired_lease(
         logger.warning(f"Lease {lease_id} should be revoked but was not found")
         return
 
+    now = datetime.now(timezone.utc)
+    if expired_lease.expiration > now:
+        # The holder renewed the lease between it being listed as expired and
+        # this task running, so it is alive and must not be revoked.
+        logger.debug(f"Lease {lease_id} was renewed before revocation, skipping")
+        return
+
     if expired_lease.metadata is None:
         logger.warning(f"Lease {lease_id} should be revoked but has no metadata")
         return
 
-    occupancy_seconds = (
-        datetime.now(timezone.utc) - expired_lease.created_at
-    ).total_seconds()
+    occupancy_seconds = (now - expired_lease.created_at).total_seconds()
 
     logger.info(
         f"Revoking lease {lease_id} for {len(expired_lease.resource_ids)} "
