@@ -1460,6 +1460,49 @@ class TestDeleteFlowRuns:
         assert all([log.flow_run_id is None for log in logs])
 
 
+class TestReleaseFlowRunRetry:
+    async def test_releases_a_claimed_retry(self, flow, session, client):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.AwaitingRetry(),
+                empirical_policy=schemas.core.FlowRunPolicy(
+                    retries=2, retry_delay=5, retry_type="in_process"
+                ),
+            ),
+        )
+        await session.commit()
+
+        response = await client.post(f"/flow_runs/{flow_run.id}/release_retry")
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        response = await client.get(f"/flow_runs/{flow_run.id}")
+        run = FlowRunResponse.model_validate(response.json())
+        assert run.empirical_policy.retry_type == "reschedule"
+        assert run.empirical_policy.retries == 2
+        assert run.empirical_policy.retry_delay == 5
+        assert run.state and run.state.type is StateType.SCHEDULED
+
+    async def test_returns_404_for_a_missing_flow_run(self, client):
+        response = await client.post(f"/flow_runs/{uuid4()}/release_retry")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_returns_409_when_no_worker_can_resume_the_run(
+        self, flow, session, client
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running()
+            ),
+        )
+        await session.commit()
+
+        response = await client.post(f"/flow_runs/{flow_run.id}/release_retry")
+        assert response.status_code == status.HTTP_409_CONFLICT
+
+
 class TestResumeFlowrun:
     @pytest.fixture
     async def paused_flow_run_waiting_for_input(

@@ -333,6 +333,102 @@ class TestUpdateFlowRun:
         }
 
 
+class TestReleaseRetryToWorkers:
+    async def test_releases_a_claimed_retry_without_touching_other_policy_fields(
+        self, flow: orm_models.Flow, session: AsyncSession
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.AwaitingRetry(),
+                empirical_policy=schemas.core.FlowRunPolicy(
+                    retries=3,
+                    retry_delay=7,
+                    resuming=True,
+                    pause_keys={"a-pause"},
+                    retry_type="in_process",
+                ),
+            ),
+        )
+
+        assert await models.flow_runs.release_retry_to_workers(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert flow_run.empirical_policy == schemas.core.FlowRunPolicy(
+            retries=3,
+            retry_delay=7,
+            resuming=True,
+            pause_keys={"a-pause"},
+            retry_type="reschedule",
+        )
+        assert flow_run.state and flow_run.state.name == "AwaitingRetry"
+
+    async def test_schedules_an_abandoned_attempt(
+        self, deployment: orm_models.Deployment, session: AsyncSession
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id,
+                deployment_id=deployment.id,
+                state=schemas.states.Running(),
+                empirical_policy=schemas.core.FlowRunPolicy(retries=1),
+            ),
+        )
+
+        assert await models.flow_runs.release_retry_to_workers(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert flow_run.state
+        assert flow_run.state.type is schemas.states.StateType.SCHEDULED
+        assert flow_run.empirical_policy.retry_type == "reschedule"
+
+    async def test_cannot_schedule_an_attempt_no_worker_can_resume(
+        self, flow: orm_models.Flow, session: AsyncSession
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running()
+            ),
+        )
+
+        assert not await models.flow_runs.release_retry_to_workers(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert (
+            flow_run.state and flow_run.state.type is schemas.states.StateType.RUNNING
+        )
+
+    async def test_leaves_a_concluded_run_alone(
+        self, flow: orm_models.Flow, session: AsyncSession
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Completed()
+            ),
+        )
+
+        assert await models.flow_runs.release_retry_to_workers(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert flow_run.state
+        assert flow_run.state.type is schemas.states.StateType.COMPLETED
+        assert flow_run.empirical_policy.retry_type is None
+
+    async def test_raises_if_flow_run_does_not_exist(self, session: AsyncSession):
+        with pytest.raises(ObjectNotFoundError):
+            await models.flow_runs.release_retry_to_workers(
+                session=session, flow_run_id=uuid4()
+            )
+
+
 class TestReadFlowRun:
     async def test_read_flow_run(self, flow, session):
         # create a flow run to read

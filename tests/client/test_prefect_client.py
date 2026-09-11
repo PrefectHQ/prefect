@@ -1424,6 +1424,58 @@ async def test_update_flow_run_overrides_tags(prefect_client: PrefectClient):
     assert updated_flow_run.tags == ["hello", "world"]
 
 
+@flow
+def flow_with_a_retry():
+    pass
+
+
+class TestReleaseFlowRunRetry:
+    async def test_releases_a_claimed_retry(self, prefect_client: PrefectClient):
+        flow_run = await prefect_client.create_flow_run(flow_with_a_retry)
+        await prefect_client.update_flow_run(
+            flow_run.id,
+            empirical_policy=FlowRunPolicy(
+                retries=1, retry_delay=2, retry_type="in_process"
+            ),
+        )
+        await prefect_client.set_flow_run_state(flow_run.id, Scheduled())
+
+        await prefect_client.release_flow_run_retry(flow_run.id)
+
+        released = await prefect_client.read_flow_run(flow_run.id)
+        assert released.empirical_policy == FlowRunPolicy(
+            retries=1, retry_delay=2, retry_type="reschedule"
+        )
+
+    def test_sync_client_releases_a_claimed_retry(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        flow_run = sync_prefect_client.create_flow_run(flow_with_a_retry)
+        sync_prefect_client.update_flow_run(
+            flow_run.id,
+            empirical_policy=FlowRunPolicy(
+                retries=1, retry_delay=2, retry_type="in_process"
+            ),
+        )
+        sync_prefect_client.set_flow_run_state(flow_run.id, Scheduled())
+
+        sync_prefect_client.release_flow_run_retry(flow_run.id)
+
+        released = sync_prefect_client.read_flow_run(flow_run.id)
+        assert released.empirical_policy == FlowRunPolicy(
+            retries=1, retry_delay=2, retry_type="reschedule"
+        )
+
+    async def test_raises_when_the_retry_cannot_be_released(
+        self, prefect_client: PrefectClient
+    ):
+        flow_run = await prefect_client.create_flow_run(flow_with_a_retry)
+        await prefect_client.set_flow_run_state(flow_run.id, Running())
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await prefect_client.release_flow_run_retry(flow_run.id)
+
+
 async def test_create_then_read_task_run(prefect_client: PrefectClient):
     @flow
     def foo():
