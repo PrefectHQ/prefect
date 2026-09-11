@@ -1103,3 +1103,34 @@ class TestWorkerSignalForwarding:
             "When sending two SIGTERM shortly after each other, the main process should"
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_background_passes_profile_to_subprocess(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import prefect.cli.worker as worker_cli
+    from prefect.context import get_settings_context
+
+    mock_popen = MagicMock()
+    mock_popen.return_value.poll.return_value = None
+    mock_popen.return_value.pid = 12345
+    monkeypatch.setattr(worker_cli.subprocess, "Popen", mock_popen)
+    monkeypatch.setattr(worker_cli, "WORKER_PID_FILE", tmp_path / "worker.pid")
+
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "--background",
+            "-p",
+            "test-work-pool",
+            "-t",
+            "process",
+        ],
+        expected_code=0,
+        expected_output_contains="running in the background",
+    )
+
+    env = mock_popen.call_args.kwargs["env"]
+    assert env["PREFECT_PROFILE"] == get_settings_context().profile.name
