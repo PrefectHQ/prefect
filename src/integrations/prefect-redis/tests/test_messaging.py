@@ -8,8 +8,13 @@ from typing import AsyncGenerator, Generator, Optional
 from unittest.mock import patch
 
 import anyio
+import prefect_redis.messaging as messaging
 import pytest
-from prefect_redis.client import _client_cache, clear_cached_clients
+from prefect_redis.client import (
+    RedisMessagingSettings,
+    _client_cache,
+    clear_cached_clients,
+)
 from prefect_redis.messaging import (
     Cache,
     Consumer,
@@ -324,6 +329,16 @@ async def test_erroring_handler_does_not_ack(
     assert not remaining_message  # Finally acknowledged
 
 
+async def test_without_duplicates_without_claim_id_still_dedupes(cache: Cache):
+    message = RedisStreamsMessage(data=b"hello", attributes={"my-message-id": "1"})
+
+    first = await cache.without_duplicates("my-message-id", [message])
+    second = await cache.without_duplicates("my-message-id", [message])
+
+    assert first == [message]
+    assert second == []
+
+
 async def test_publisher_will_avoid_sending_duplicate_messages_in_same_batch(
     deduplicating_publisher: Publisher, consumer: Consumer
 ):
@@ -354,6 +369,37 @@ async def test_publisher_will_avoid_sending_duplicate_messages_in_same_batch(
 
     remaining_message = await drain_one(consumer)
     assert not remaining_message
+
+
+async def test_publish_during_blocked_deduplication_check(
+    redis: Redis, deduplicating_publisher: Publisher
+):
+    """A publish that lands while a flush is blocked inside the dedup pipeline
+    must not be dropped when that flush clears its batch."""
+    release = asyncio.Event()
+    original_without_duplicates = Cache.without_duplicates
+
+    async def blocked_without_duplicates(
+        self: Cache, attribute: str, messages: list, claim_id: str = "1"
+    ):
+        await release.wait()
+        return await original_without_duplicates(
+            self, attribute, messages, claim_id=claim_id
+        )
+
+    async with deduplicating_publisher as p:
+        with patch.object(Cache, "without_duplicates", blocked_without_duplicates):
+            await p.publish_data(b"first", {"my-message-id": "A"})
+            flush_task = asyncio.create_task(p._publish_current_batch())
+            await asyncio.sleep(0.1)  # let the flush park on the dedup call
+
+            await p.publish_data(b"second", {"my-message-id": "B"})
+
+            release.set()
+            await flush_task
+
+    entries = await redis.xrange(p.stream)
+    assert len(entries) == 2
 
 
 async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
@@ -583,6 +629,178 @@ async def test_publisher_respects_batch_size(
         assert message.attributes == {"id": str(i)}
 
 
+async def test_publisher_periodic_task_survives_outage_and_redelivers(
+    cache: Cache, redis: Redis
+):
+    """A failed periodic flush must not kill the periodic task or drop the
+    batch: the message should stay queued through the outage and be
+    delivered exactly once Redis recovers."""
+    async with Publisher(
+        "message-tests",
+        cache=cache,
+        batch_size=100,  # large enough that publish_data never auto-flushes
+        publish_every=timedelta(milliseconds=50),
+    ) as p:
+        real_xadd = p._client.xadd
+        calls = {"n": 0}
+
+        async def flaky_xadd(*args: object, **kwargs: object):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RedisConnectionError("simulated outage")
+            return await real_xadd(*args, **kwargs)
+
+        # Stays patched for the rest of the test so recovery is driven by the
+        # call count, not by unpatching mid-flight racing the periodic task.
+        with patch.object(p._client, "xadd", side_effect=flaky_xadd):
+            await p.publish_data(b"hello", {"id": "1"})
+            await asyncio.sleep(0.1)  # first periodic tick fails
+
+            assert p._periodic_task is not None
+            assert not p._periodic_task.done(), (
+                "periodic task must survive a flush failure"
+            )
+            assert len(p._batch) == 1, "unsent message must be re-queued, not dropped"
+
+            await asyncio.sleep(0.1)  # second tick succeeds; xlen becomes 1
+
+    assert await redis.xlen("message-tests") == 1
+    assert calls["n"] == 2
+
+
+async def test_publisher_redelivers_when_dedup_cleanup_also_fails(
+    cache: Cache, redis: Redis
+):
+    """If both xadd and forget_duplicates fail during an outage, the batch must
+    survive and each message must land exactly once on recovery."""
+    async with Publisher(
+        "message-tests",
+        cache=cache,
+        deduplicate_by="my-message-id",
+        batch_size=100,
+        publish_every=timedelta(milliseconds=50),
+    ) as p:
+        real_xadd = p._client.xadd
+        outage = {"on": True}
+
+        async def flaky_xadd(*args: object, **kwargs: object):
+            if outage["on"]:
+                raise RedisConnectionError("simulated outage")
+            return await real_xadd(*args, **kwargs)
+
+        async def failing_forget_duplicates(*args: object, **kwargs: object):
+            raise RedisConnectionError("simulated outage")
+
+        with (
+            patch.object(p._client, "xadd", side_effect=flaky_xadd),
+            patch.object(
+                p.cache, "forget_duplicates", side_effect=failing_forget_duplicates
+            ),
+        ):
+            await p.publish_data(b"hello", {"my-message-id": "1"})
+            await p.publish_data(b"world", {"my-message-id": "2"})
+            await asyncio.sleep(0.1)  # first periodic tick fails both xadd and cleanup
+
+            assert p._periodic_task is not None
+            assert not p._periodic_task.done()
+            assert len(p._batch) == 2, "unsent messages must be re-queued, not dropped"
+
+        outage["on"] = False
+        await asyncio.sleep(0.1)  # recovery tick; markers must not filter the re-queue
+
+    assert await redis.xlen("message-tests") == 2
+
+
+@pytest.mark.parametrize(
+    "call_real_before_raising",
+    [False, True],
+    ids=["raises_before_write", "raises_after_write"],
+)
+async def test_publisher_redelivers_when_dedup_check_also_fails(
+    cache: Cache, redis: Redis, call_real_before_raising: bool
+):
+    """If without_duplicates fails (whether or not its writes actually landed
+    before the reply was lost) and forget_duplicates also fails, the batch
+    must not be claimed wholesale, or a retry would skip dedup for a message
+    whose marker predates this batch and republish it."""
+    await cache.without_duplicates(
+        "my-message-id",
+        [RedisStreamsMessage(data=b"old", attributes={"my-message-id": "1"})],
+    )
+
+    async with Publisher(
+        "message-tests",
+        cache=cache,
+        deduplicate_by="my-message-id",
+        batch_size=100,
+        publish_every=timedelta(milliseconds=50),
+    ) as p:
+        real_without_duplicates = p.cache.without_duplicates
+        outage = {"on": True}
+
+        async def flaky_without_duplicates(*args: object, **kwargs: object):
+            if outage["on"]:
+                if call_real_before_raising:
+                    await real_without_duplicates(*args, **kwargs)
+                raise RedisConnectionError("simulated outage")
+            return await real_without_duplicates(*args, **kwargs)
+
+        async def failing_forget_duplicates(*args: object, **kwargs: object):
+            raise RedisConnectionError("simulated outage")
+
+        with (
+            patch.object(
+                p.cache, "without_duplicates", side_effect=flaky_without_duplicates
+            ),
+            patch.object(
+                p.cache, "forget_duplicates", side_effect=failing_forget_duplicates
+            ),
+        ):
+            await p.publish_data(b"hello", {"my-message-id": "1"})
+            await p.publish_data(b"world", {"my-message-id": "2"})
+            await asyncio.sleep(0.1)  # first periodic tick fails dedup and cleanup
+
+            assert len(p._batch) == 2, "unsent messages must be re-queued, not dropped"
+
+        outage["on"] = False
+        await asyncio.sleep(0.1)  # recovery tick; dedup must run again for "1"
+
+    assert await redis.xlen("message-tests") == 1
+
+
+async def test_publisher_exit_waits_for_inflight_periodic_flush(
+    cache: Cache, redis: Redis
+):
+    """Exiting while a periodic flush is stuck in xadd must not return until
+    that flush finishes; its failed message is republished, not dropped."""
+    real_xadd = redis.xadd
+    gate = asyncio.Event()
+    calls = {"n": 0}
+
+    async def gated_xadd(*args: object, **kwargs: object):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            await gate.wait()
+            raise RedisConnectionError("simulated outage")
+        return await real_xadd(*args, **kwargs)
+
+    with patch.object(redis, "xadd", side_effect=gated_xadd):
+        async with Publisher(
+            "message-tests",
+            cache=cache,
+            batch_size=100,
+            publish_every=timedelta(milliseconds=50),
+        ) as p:
+            await p.publish_data(b"hello", {"id": "1"})
+            await asyncio.sleep(0.1)  # periodic tick is now blocked inside xadd
+            assert calls["n"] == 1
+            asyncio.get_running_loop().call_later(0.05, gate.set)
+        # __aexit__ returned: it waited, and republished
+
+    assert await redis.xlen("message-tests") == 1
+    assert calls["n"] == 2
+
+
 async def test_trimming_streams(
     redis: Redis, publisher: Publisher, consumer_a: Consumer, consumer_b: Consumer
 ) -> None:
@@ -704,6 +922,47 @@ class TestRedisMessagingSettings:
         monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "10")
         settings = RedisMessagingConsumerSettings()
         assert settings.block == timedelta(seconds=10)
+
+    async def test_consumer_extends_socket_timeout_for_long_block(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A block longer than the socket timeout must not time out the read."""
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "90")
+        client = Consumer("message-tests")._get_redis_client()
+        try:
+            assert client.get_connection_kwargs()["socket_timeout"] == 150.0
+        finally:
+            await clear_cached_clients(client=client)
+
+    async def test_consumer_keeps_default_client_for_short_block(self, redis: Redis):
+        assert Consumer("message-tests")._get_redis_client() is redis
+
+    async def test_consumer_preserves_no_socket_timeout(
+        self, monkeypatch: pytest.MonkeyPatch, redis: Redis
+    ):
+        monkeypatch.setattr(
+            messaging,
+            "RedisMessagingSettings",
+            partial(RedisMessagingSettings, socket_timeout=None),
+        )
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "90")
+        assert Consumer("message-tests")._get_redis_client() is redis
+
+    async def test_consumer_extends_url_socket_timeout_for_long_block(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A `socket_timeout` set via the URL query takes precedence over the
+        settings field, so it must be the value that gets extended."""
+        monkeypatch.setenv(
+            "PREFECT_REDIS_MESSAGING_URL",
+            "redis://localhost:6379/0?socket_timeout=5",
+        )
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "10")
+        client = Consumer("message-tests")._get_redis_client()
+        try:
+            assert client.get_connection_kwargs()["socket_timeout"] == 15.0
+        finally:
+            await clear_cached_clients(client=client)
 
 
 async def test_trimming_with_no_delivered_messages(redis: Redis):
