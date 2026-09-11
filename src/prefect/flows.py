@@ -20,6 +20,7 @@ import warnings
 from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
+from types import CoroutineType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1785,6 +1786,11 @@ class Flow(Generic[P, R]):
 
     @overload
     def __call__(
+        self: "Flow[P, CoroutineType[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
+    ) -> Coroutine[Any, Any, T]: ...
+
+    @overload
+    def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
     ) -> Coroutine[Any, Any, T]: ...
 
@@ -1794,6 +1800,14 @@ class Flow(Generic[P, R]):
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> T: ...
+
+    @overload
+    def __call__(
+        self: "Flow[P, CoroutineType[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> Awaitable[State[T]]: ...
 
     @overload
     def __call__(
@@ -2122,6 +2136,14 @@ class Flow(Generic[P, R]):
             raise new_exception
 
 
+class _FlowDecoratorCallable(Protocol):
+    """The decorator returned by a configured `@flow(...)` call. Declared as a
+    protocol so applying it types like the bare `@flow` form. See
+    tests/typing/call_annotations.py."""
+
+    def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]: ...
+
+
 class FlowDecorator:
     @overload
     def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]: ...
@@ -2150,7 +2172,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
-    ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
+    ) -> "_FlowDecoratorCallable": ...
 
     @overload
     def __call__(
@@ -2176,7 +2198,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
-    ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
+    ) -> "_FlowDecoratorCallable": ...
 
     def __call__(
         self,
@@ -2436,6 +2458,13 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
     @overload
     def __call__(
+        self: "Flow[P, CoroutineType[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Coroutine[Any, Any, T]: ...
+
+    @overload
+    def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
@@ -2447,6 +2476,14 @@ class InfrastructureBoundFlow(Flow[P, R]):
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> T: ...
+
+    @overload
+    def __call__(
+        self: "Flow[P, CoroutineType[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> Awaitable[State[T]]: ...
 
     @overload
     def __call__(
