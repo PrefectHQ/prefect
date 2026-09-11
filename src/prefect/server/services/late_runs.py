@@ -52,6 +52,9 @@ async def mark_flow_run_late(
 
 @perpetual_service(
     enabled_getter=lambda: get_current_settings().server.services.late_runs.enabled,
+    display_name="Late Runs",
+    environment_variable="PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED",
+    description="Marks flow runs as Late if they are not started on time.",
 )
 async def monitor_late_runs(
     docket: Docket = CurrentDocket(),

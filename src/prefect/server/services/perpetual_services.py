@@ -34,6 +34,13 @@ class PerpetualServiceConfig:
     enabled_getter: EnabledGetter
     run_in_ephemeral: bool = False
     run_in_webserver: bool = False
+    display_name: str | None = None
+    environment_variable: str | None = None
+    description: str | None = None
+    component: str | None = None
+    shared_control: bool = False
+    extra_components: tuple[str, ...] = ()
+    show_component_state: bool = False
 
 
 # Registry of all perpetual service functions
@@ -70,6 +77,14 @@ def perpetual_service(
     enabled_getter: EnabledGetter,
     run_in_ephemeral: bool = False,
     run_in_webserver: bool = False,
+    *,
+    display_name: str | None = None,
+    environment_variable: str | None = None,
+    description: str | None = None,
+    component: str | None = None,
+    shared_control: bool = False,
+    extra_components: tuple[str, ...] = (),
+    show_component_state: bool = False,
 ) -> Callable[[F], F]:
     """
     Decorator to register a perpetual service function.
@@ -78,6 +93,18 @@ def perpetual_service(
         enabled_getter: A callable that returns whether the service is enabled.
         run_in_ephemeral: If True, this service runs in ephemeral server mode.
         run_in_webserver: If True, this service runs in webserver-only mode.
+        display_name: Operator-facing inventory group name. Functions that share
+            a display name are shown as one row, ordered by the perpetual module
+            load list and source order within each module.
+        environment_variable: Canonical setting name shown in the inventory.
+        description: Operator-facing inventory description.
+        component: Inventory component name. Defaults to the function name.
+        shared_control: If True, this group shares one enablement setting.
+        extra_components: Additional related component names, such as class-based
+            services that share this group's setting. These are prepended to
+            components derived from registered perpetual functions.
+        show_component_state: If True, the inventory shows per-component
+            enabled/disabled state.
 
     Example:
         @perpetual_service(
@@ -94,6 +121,13 @@ def perpetual_service(
                 enabled_getter=enabled_getter,
                 run_in_ephemeral=run_in_ephemeral,
                 run_in_webserver=run_in_webserver,
+                display_name=display_name,
+                environment_variable=environment_variable,
+                description=description,
+                component=component,
+                shared_control=shared_control,
+                extra_components=tuple(extra_components),
+                show_component_state=show_component_state,
             )
         )
         return func

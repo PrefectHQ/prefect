@@ -50,6 +50,9 @@ async def fail_expired_pause(
     enabled_getter=lambda: (
         get_current_settings().server.services.pause_expirations.enabled
     ),
+    display_name="Pause Expirations",
+    environment_variable="PREFECT_SERVER_SERVICES_PAUSE_EXPIRATIONS_ENABLED",
+    description="Fails paused flow runs that are not resumed before their timeout.",
 )
 async def monitor_expired_pauses(
     docket: Docket = CurrentDocket(),

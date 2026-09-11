@@ -164,7 +164,7 @@ class TestBackgroundServices:
 
         required_keys = {"name", "enabled", "environment_variable", "description"}
         for item in payload:
-            assert required_keys.issubset(item.keys())
+            assert set(item.keys()) == required_keys
 
     def test_list_services_json_output_short_flag(self):
         result = invoke_and_assert(
@@ -217,7 +217,7 @@ PERPETUAL_SERVICE_DISABLE_UPDATES: dict[str, bool | None] = {
     "PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED": False,
 }
 
-EXPECTED_SERVICE_LS_ORDER: list[str] = [
+LEGACY_JSON_SERVICE_NAMES: list[str] = [
     "TaskRunRecorder",
     "EventLogger",
     "EventPersister",
@@ -225,6 +225,10 @@ EXPECTED_SERVICE_LS_ORDER: list[str] = [
     "Actions",
     "Distributor",
     "LogDistributor",
+]
+LEGACY_JSON_KEYS = {"name", "enabled", "environment_variable", "description"}
+DETAILED_JSON_FIELDS = {"kind", "shared_control", "components", "component_state"}
+PERPETUAL_TABLE_NAMES = {
     "Scheduler",
     "Late Runs",
     "Cancellation Cleanup",
@@ -235,11 +239,11 @@ EXPECTED_SERVICE_LS_ORDER: list[str] = [
     "DB Vacuum",
     "Proactive Triggers",
     "Telemetry",
-]
+}
 
 
 class TestBackgroundServiceInventory:
-    def test_list_services_json_is_deterministic_and_keeps_required_fields(self):
+    def test_list_services_json_preserves_legacy_class_service_contract(self):
         first = invoke_and_assert(
             command=["server", "services", "ls", "--output", "json"],
             expected_code=0,
@@ -251,11 +255,14 @@ class TestBackgroundServiceInventory:
         assert first.stdout == second.stdout
 
         payload = json.loads(first.stdout)
-        required_keys = {"name", "enabled", "environment_variable", "description"}
+        assert isinstance(payload, list)
+        assert len(payload) == 7
+        assert [item["name"] for item in payload] == LEGACY_JSON_SERVICE_NAMES
         for item in payload:
-            assert required_keys.issubset(item.keys())
-
-        assert [item["name"] for item in payload] == EXPECTED_SERVICE_LS_ORDER
+            assert set(item.keys()) == LEGACY_JSON_KEYS
+            for field in DETAILED_JSON_FIELDS:
+                assert field not in item
+        assert PERPETUAL_TABLE_NAMES.isdisjoint(item["name"] for item in payload)
 
     def test_list_services_json_reports_canonical_distributor_env_var(self):
         result = invoke_and_assert(
@@ -269,54 +276,6 @@ class TestBackgroundServiceInventory:
             == "PREFECT_SERVER_EVENTS_STREAM_OUT_ENABLED"
         )
         assert "PREFECT_API_EVENTS_STREAM_OUT_ENABLED" not in json.dumps(payload)
-
-    def test_list_services_json_reports_shared_controls(self):
-        result = invoke_and_assert(
-            command=["server", "services", "ls", "--output", "json"],
-            expected_code=0,
-        )
-        payload = json.loads(result.stdout)
-        by_name = {item["name"]: item for item in payload}
-
-        scheduler = by_name["Scheduler"]
-        assert scheduler["shared_control"] is True
-        assert scheduler["components"] == [
-            "schedule_deployments",
-            "schedule_recent_deployments",
-        ]
-        assert (
-            scheduler["environment_variable"]
-            == "PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED"
-        )
-
-        cancellation = by_name["Cancellation Cleanup"]
-        assert cancellation["shared_control"] is True
-        assert cancellation["components"] == [
-            "ensure_cancelling_timeout_checks",
-            "monitor_cancelled_flow_runs",
-            "monitor_subflow_runs",
-        ]
-
-        for name in ("ReactiveTriggers", "Actions", "Proactive Triggers"):
-            item = by_name[name]
-            assert item["shared_control"] is True
-            assert (
-                item["environment_variable"]
-                == "PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED"
-            )
-            assert item["components"] == [
-                "ReactiveTriggers",
-                "Actions",
-                "evaluate_proactive_triggers_periodic",
-            ]
-
-        vacuum = by_name["DB Vacuum"]
-        assert vacuum["shared_control"] is True
-        assert vacuum["components"] == ["events", "flow_runs"]
-        assert "component_state" in vacuum
-
-        telemetry = by_name["Telemetry"]
-        assert telemetry["environment_variable"] == "PREFECT_SERVER_ANALYTICS_ENABLED"
 
     def test_class_only_configuration_starts(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr("prefect.cli._server_utils._run_all_services", AsyncMock())
@@ -412,19 +371,6 @@ class TestBackgroundServiceInventory:
                 "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED": "events",
             }
         ):
-            json_result = invoke_and_assert(
-                command=["server", "services", "ls", "--output", "json"],
-                expected_code=0,
-            )
-            payload = json.loads(json_result.stdout)
-            vacuum = next(item for item in payload if item["name"] == "DB Vacuum")
-            assert vacuum["shared_control"] is True
-            assert vacuum["components"] == ["events", "flow_runs"]
-            assert vacuum["component_state"] == {
-                "events": True,
-                "flow_runs": False,
-            }
-
             invoke_and_assert(
                 command=["server", "services", "ls"],
                 expected_code=0,

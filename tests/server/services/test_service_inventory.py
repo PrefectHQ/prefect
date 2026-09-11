@@ -6,6 +6,8 @@ import subprocess
 import sys
 import textwrap
 
+import pytest
+
 from prefect.server.events.services.actions import Actions
 from prefect.server.events.services.event_logger import EventLogger
 from prefect.server.events.services.event_persister import EventPersister
@@ -13,14 +15,15 @@ from prefect.server.events.services.triggers import ReactiveTriggers
 from prefect.server.events.stream import Distributor
 from prefect.server.logs.stream import LogDistributor
 from prefect.server.services._inventory import (
-    _CATALOGED_PERPETUAL_FUNCTIONS,
-    _TRIGGERS_ENVIRONMENT_VARIABLE,
-    _TRIGGERS_SHARED_COMPONENTS,
     _get_service_inventory,
     _has_enabled_background_services,
 )
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
-from prefect.server.services.perpetual_services import get_perpetual_services
+from prefect.server.services.perpetual_services import (
+    _PERPETUAL_SERVICES,
+    get_perpetual_services,
+    perpetual_service,
+)
 from prefect.server.services.task_run_recorder import TaskRunRecorder
 from prefect.settings.context import temporary_settings
 
@@ -34,18 +37,21 @@ CLASS_SERVICE_NAMES: tuple[str, ...] = (
     "LogDistributor",
 )
 
+# Canonical order: `_PERPETUAL_SERVICE_MODULES`, then source order within each module.
 PERPETUAL_GROUP_NAMES: tuple[str, ...] = (
-    "Scheduler",
-    "Late Runs",
+    "Proactive Triggers",
     "Cancellation Cleanup",
+    "Cleanup Reconciler",
+    "DB Vacuum",
+    "Foreman",
+    "Late Runs",
     "Pause Expirations",
     "Repossessor",
-    "Cleanup Reconciler",
-    "Foreman",
-    "DB Vacuum",
-    "Proactive Triggers",
+    "Scheduler",
     "Telemetry",
 )
+
+TRIGGERS_ENVIRONMENT_VARIABLE = "PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED"
 
 CLASS_SERVICE_DISABLE_UPDATES: dict[str, bool] = {
     "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED": False,
@@ -69,9 +75,25 @@ PERPETUAL_SERVICE_DISABLE_UPDATES: dict[str, bool | None] = {
     "PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED": False,
 }
 
+PRODUCTION_PERPETUAL_FUNCTION_COUNT = 14
+
 
 def _item(name: str, **kwargs: bool):
     return next(item for item in _get_service_inventory(**kwargs) if item.name == name)
+
+
+def _proactive_triggers_config():
+    return next(
+        config
+        for config in get_perpetual_services()
+        if config.display_name == "Proactive Triggers"
+    )
+
+
+def _proactive_triggers_components() -> tuple[str, ...]:
+    config = _proactive_triggers_config()
+    derived = config.component or config.function.__name__
+    return (*config.extra_components, derived)
 
 
 def test_existing_class_services_remain_discoverable():
@@ -96,9 +118,109 @@ def test_perpetual_groups_are_discoverable():
     assert names == list(PERPETUAL_GROUP_NAMES)
 
 
-def test_inventory_catalog_covers_all_registered_perpetual_functions():
-    registered = {config.function.__name__ for config in get_perpetual_services()}
-    assert registered == set(_CATALOGED_PERPETUAL_FUNCTIONS)
+def test_all_production_registrations_contain_inventory_metadata():
+    configs = get_perpetual_services()
+    assert len(configs) == PRODUCTION_PERPETUAL_FUNCTION_COUNT
+    for config in configs:
+        assert config.display_name
+        assert config.environment_variable
+        assert config.description
+
+
+def test_grouping_is_derived_from_registration_metadata():
+    scheduler_configs = [
+        config
+        for config in get_perpetual_services()
+        if config.display_name == "Scheduler"
+    ]
+    assert {config.function.__name__ for config in scheduler_configs} == {
+        "schedule_deployments",
+        "schedule_recent_deployments",
+    }
+    assert _item("Scheduler").components == (
+        "schedule_deployments",
+        "schedule_recent_deployments",
+    )
+
+    cancellation_configs = [
+        config
+        for config in get_perpetual_services()
+        if config.display_name == "Cancellation Cleanup"
+    ]
+    assert {config.function.__name__ for config in cancellation_configs} == {
+        "ensure_cancelling_timeout_checks",
+        "monitor_cancelled_flow_runs",
+        "monitor_subflow_runs",
+    }
+    assert _item("Cancellation Cleanup").components == (
+        "ensure_cancelling_timeout_checks",
+        "monitor_cancelled_flow_runs",
+        "monitor_subflow_runs",
+    )
+
+
+def test_proactive_triggers_extra_components_are_additive():
+    config = _proactive_triggers_config()
+    assert config.extra_components == ("ReactiveTriggers", "Actions")
+    assert config.function.__name__ not in config.extra_components
+    derived = config.component or config.function.__name__
+    assert derived == config.function.__name__
+    expected = (*config.extra_components, derived)
+    for name in ("Proactive Triggers", "ReactiveTriggers", "Actions"):
+        item = _item(name)
+        assert item.components == expected
+        assert item.shared_control is True
+
+
+def test_inconsistent_group_metadata_raises():
+    original = list(_PERPETUAL_SERVICES)
+
+    @perpetual_service(
+        enabled_getter=lambda: True,
+        display_name="Broken Group",
+        environment_variable="PREFECT_TEST_A",
+        description="One",
+        shared_control=True,
+    )
+    async def broken_a() -> None:
+        return None
+
+    @perpetual_service(
+        enabled_getter=lambda: True,
+        display_name="Broken Group",
+        environment_variable="PREFECT_TEST_B",
+        description="One",
+        shared_control=True,
+    )
+    async def broken_b() -> None:
+        return None
+
+    try:
+        with pytest.raises(ValueError, match="Inconsistent inventory metadata"):
+            _get_service_inventory()
+    finally:
+        _PERPETUAL_SERVICES[:] = original
+
+
+def test_new_registration_appears_without_static_catalog():
+    original = list(_PERPETUAL_SERVICES)
+
+    @perpetual_service(
+        enabled_getter=lambda: True,
+        display_name="Inventory Probe",
+        environment_variable="PREFECT_TEST_INVENTORY_PROBE",
+        description="Probe service proving registration is the catalog.",
+    )
+    async def inventory_probe() -> None:
+        return None
+
+    try:
+        names = [item.name for item in _get_service_inventory()]
+        assert "Inventory Probe" in names
+        assert names[-1] == "Inventory Probe"
+        assert len(names) == len(CLASS_SERVICE_NAMES) + len(PERPETUAL_GROUP_NAMES) + 1
+    finally:
+        _PERPETUAL_SERVICES[:] = original
 
 
 def test_inventory_order_is_deterministic():
@@ -106,6 +228,7 @@ def test_inventory_order_is_deterministic():
     second = [item.name for item in _get_service_inventory()]
     assert first == second
     assert first == [*CLASS_SERVICE_NAMES, *PERPETUAL_GROUP_NAMES]
+    assert len(first) == 17
 
 
 def test_scheduler_uses_shared_control():
@@ -155,18 +278,19 @@ def test_triggers_actions_and_proactive_share_one_setting():
     items = [
         item
         for item in _get_service_inventory()
-        if item.environment_variable == _TRIGGERS_ENVIRONMENT_VARIABLE
+        if item.environment_variable == TRIGGERS_ENVIRONMENT_VARIABLE
     ]
     names = {item.name for item in items}
     assert names == {"ReactiveTriggers", "Actions", "Proactive Triggers"}
     assert all(item.shared_control for item in items)
-    assert all(item.components == _TRIGGERS_SHARED_COMPONENTS for item in items)
+    expected_components = _proactive_triggers_components()
+    assert all(item.components == expected_components for item in items)
 
     with temporary_settings({"PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED": True}):
         enabled = {
             item.name: item.enabled
             for item in _get_service_inventory()
-            if item.environment_variable == _TRIGGERS_ENVIRONMENT_VARIABLE
+            if item.environment_variable == TRIGGERS_ENVIRONMENT_VARIABLE
         }
         assert enabled == {
             "ReactiveTriggers": True,
@@ -178,7 +302,7 @@ def test_triggers_actions_and_proactive_share_one_setting():
         disabled = {
             item.name: item.enabled
             for item in _get_service_inventory()
-            if item.environment_variable == _TRIGGERS_ENVIRONMENT_VARIABLE
+            if item.environment_variable == TRIGGERS_ENVIRONMENT_VARIABLE
         }
         assert disabled == {
             "ReactiveTriggers": False,
@@ -196,8 +320,8 @@ def test_db_vacuum_component_state_for_set_bool_and_none():
     ):
         item = _item("DB Vacuum")
         assert item.shared_control is True
-        assert item.components == ("events", "flow_runs")
-        assert dict(item.component_state) == {"events": True, "flow_runs": True}
+        assert item.components == ("flow_runs", "events")
+        assert dict(item.component_state) == {"flow_runs": True, "events": True}
         assert item.enabled is True
 
     with temporary_settings(
@@ -207,7 +331,7 @@ def test_db_vacuum_component_state_for_set_bool_and_none():
         }
     ):
         item = _item("DB Vacuum")
-        assert dict(item.component_state) == {"events": True, "flow_runs": True}
+        assert dict(item.component_state) == {"flow_runs": True, "events": True}
 
     with temporary_settings(
         {
@@ -216,7 +340,7 @@ def test_db_vacuum_component_state_for_set_bool_and_none():
         }
     ):
         item = _item("DB Vacuum")
-        assert dict(item.component_state) == {"events": True, "flow_runs": False}
+        assert dict(item.component_state) == {"flow_runs": False, "events": True}
         assert item.enabled is True
 
     with temporary_settings(
@@ -226,7 +350,7 @@ def test_db_vacuum_component_state_for_set_bool_and_none():
         }
     ):
         item = _item("DB Vacuum")
-        assert dict(item.component_state) == {"events": False, "flow_runs": False}
+        assert dict(item.component_state) == {"flow_runs": False, "events": False}
         assert item.enabled is False
 
 
@@ -238,7 +362,7 @@ def test_event_vacuum_disabled_when_event_persister_disabled():
         }
     ):
         item = _item("DB Vacuum")
-        assert dict(item.component_state) == {"events": False, "flow_runs": True}
+        assert dict(item.component_state) == {"flow_runs": True, "events": False}
         assert item.enabled is True
 
 
@@ -350,10 +474,7 @@ def test_normal_ephemeral_and_webserver_filtering():
 def test_discovery_is_independent_of_unrelated_import_order():
     script = textwrap.dedent(
         """\
-        from prefect.server.services._inventory import (
-            _CATALOGED_PERPETUAL_FUNCTIONS,
-            _get_service_inventory,
-        )
+        from prefect.server.services._inventory import _get_service_inventory
         from prefect.server.services.perpetual_services import get_perpetual_services
 
         items = _get_service_inventory()
@@ -379,10 +500,8 @@ def test_discovery_is_independent_of_unrelated_import_order():
         }
         missing = required - set(names)
         assert not missing, missing
-        registered = {
-            config.function.__name__ for config in get_perpetual_services()
-        }
-        assert registered == set(_CATALOGED_PERPETUAL_FUNCTIONS)
+        assert len(names) == 17
+        assert len(get_perpetual_services()) == 14
         print("ok")
         """
     )
@@ -425,8 +544,8 @@ def test_documentation_isolation_recipe_enables_only_scheduler_and_late_runs():
     """
     with temporary_settings(DOCUMENTATION_ISOLATION_UPDATES):
         enabled = [item.name for item in _get_service_inventory() if item.enabled]
-        assert enabled == ["Scheduler", "Late Runs"]
+        assert enabled == ["Late Runs", "Scheduler"]
 
         vacuum = _item("DB Vacuum")
         assert vacuum.enabled is False
-        assert dict(vacuum.component_state) == {"events": False, "flow_runs": False}
+        assert dict(vacuum.component_state) == {"flow_runs": False, "events": False}

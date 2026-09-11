@@ -368,6 +368,12 @@ async def handle_cancelling_timeout(
     enabled_getter=lambda: (
         get_current_settings().server.services.cancellation_cleanup.enabled
     ),
+    display_name="Cancellation Cleanup",
+    environment_variable="PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED",
+    description=(
+        "Cancels subflow runs and child tasks, and enforces CANCELLING timeouts."
+    ),
+    shared_control=True,
 )
 async def ensure_cancelling_timeout_checks(
     docket: Docket = CurrentDocket(),
@@ -443,6 +449,12 @@ async def ensure_cancelling_timeout_checks(
     enabled_getter=lambda: (
         get_current_settings().server.services.cancellation_cleanup.enabled
     ),
+    display_name="Cancellation Cleanup",
+    environment_variable="PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED",
+    description=(
+        "Cancels subflow runs and child tasks, and enforces CANCELLING timeouts."
+    ),
+    shared_control=True,
 )
 async def monitor_cancelled_flow_runs(
     docket: Docket = CurrentDocket(),
@@ -481,6 +493,12 @@ async def monitor_cancelled_flow_runs(
     enabled_getter=lambda: (
         get_current_settings().server.services.cancellation_cleanup.enabled
     ),
+    display_name="Cancellation Cleanup",
+    environment_variable="PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED",
+    description=(
+        "Cancels subflow runs and child tasks, and enforces CANCELLING timeouts."
+    ),
+    shared_control=True,
 )
 async def monitor_subflow_runs(
     docket: Docket = CurrentDocket(),

@@ -5,6 +5,7 @@ Start and manage the Prefect server.
 """
 
 import asyncio
+import inspect
 import os
 import signal
 import subprocess
@@ -560,20 +561,36 @@ def list_services(
     ] = None,
 ):
     """List all available services and their status."""
-    from prefect.server.services._inventory import _get_service_inventory
+    from prefect.server.services.base import Service
 
     if output is not None and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
-    inventory = _get_service_inventory()
-
     if output is not None:
-        payload = [item.to_json_dict() for item in inventory]
+        payload: list[dict[str, Any]] = []
+        for svc in Service.all_services():
+            name = svc.__name__
+            enabled = bool(svc.enabled())
+            environment_variable = svc.environment_variable_name()
+            doc = inspect.getdoc(svc) or ""
+            description = doc.split("\n", 1)[0].strip()
+            payload.append(
+                {
+                    "name": name,
+                    "enabled": enabled,
+                    "environment_variable": environment_variable,
+                    "description": description,
+                }
+            )
         _cli.console.print(
             orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode(),
             soft_wrap=True,
         )
         return
+
+    from prefect.server.services._inventory import _get_service_inventory
+
+    inventory = _get_service_inventory()
 
     table = Table(title="Available Services", expand=True)
     table.add_column("Name", no_wrap=True)
