@@ -1,10 +1,10 @@
 # The version used to build the V1 UI distributable.
-ARG NODE_VERSION=20.19.0
+ARG NODE_VERSION=20.20.2
 # The version used to build the V2 UI distributable (requires Node 22+).
-ARG NODE_V2_VERSION=22.12.0
+ARG NODE_V2_VERSION=22.23.2
 
 # Build the V1 UI distributable.
-FROM node:${NODE_VERSION}-bullseye-slim AS ui-builder
+FROM node:${NODE_VERSION}-bookworm-slim AS ui-builder
 
 WORKDIR /opt/ui
 
@@ -22,7 +22,7 @@ COPY ./ui .
 RUN npm run build
 
 # Build the V2 UI distributable.
-FROM node:${NODE_V2_VERSION}-bullseye-slim AS ui-v2-builder
+FROM node:${NODE_V2_VERSION}-bookworm-slim AS ui-v2-builder
 
 ARG VITE_AMPLITUDE_API_KEY=""
 ENV VITE_AMPLITUDE_API_KEY=$VITE_AMPLITUDE_API_KEY

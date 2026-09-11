@@ -10,7 +10,7 @@ Module for querying against Snowflake databases.
 
 ## Functions
 
-### `snowflake_query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-snowflake/prefect_snowflake/database.py#L829" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `snowflake_query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-snowflake/prefect_snowflake/database.py#L832" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 snowflake_query(query: str, snowflake_connector: SnowflakeConnector, params: Union[Tuple[Any], Dict[str, Any]] = None, cursor_type: Type[SnowflakeCursor] = SnowflakeCursor, poll_frequency_seconds: int = 1) -> List[Tuple[Any]]
@@ -63,7 +63,7 @@ snowflake_query_flow()
 ```
 
 
-### `snowflake_query_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-snowflake/prefect_snowflake/database.py#L896" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `snowflake_query_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-snowflake/prefect_snowflake/database.py#L899" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 snowflake_query_async(query: str, snowflake_connector: SnowflakeConnector, params: Union[Tuple[Any], Dict[str, Any]] = None, cursor_type: Type[SnowflakeCursor] = SnowflakeCursor, poll_frequency_seconds: int = 1) -> List[Tuple[Any]]
@@ -116,7 +116,7 @@ snowflake_query_flow()
 ```
 
 
-### `snowflake_multiquery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-snowflake/prefect_snowflake/database.py#L963" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `snowflake_multiquery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-snowflake/prefect_snowflake/database.py#L966" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 snowflake_multiquery(queries: List[str], snowflake_connector: SnowflakeConnector, params: Union[Tuple[Any], Dict[str, Any]] = None, cursor_type: Type[SnowflakeCursor] = SnowflakeCursor, as_transaction: bool = False, return_transaction_control_results: bool = False, poll_frequency_seconds: int = 1) -> List[List[Tuple[Any]]]
@@ -174,7 +174,7 @@ snowflake_multiquery_flow()
 ```
 
 
-### `snowflake_multiquery_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-snowflake/prefect_snowflake/database.py#L1048" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `snowflake_multiquery_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-snowflake/prefect_snowflake/database.py#L1051" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 snowflake_multiquery_async(queries: List[str], snowflake_connector: SnowflakeConnector, params: Union[Tuple[Any], Dict[str, Any]] = None, cursor_type: Type[SnowflakeCursor] = SnowflakeCursor, as_transaction: bool = False, return_transaction_control_results: bool = False, poll_frequency_seconds: int = 1) -> List[List[Tuple[Any]]]
@@ -232,7 +232,7 @@ snowflake_multiquery_flow()
 ```
 
 
-### `snowflake_query_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-snowflake/prefect_snowflake/database.py#L1133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `snowflake_query_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-snowflake/prefect_snowflake/database.py#L1136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 snowflake_query_sync(query: str, snowflake_connector: SnowflakeConnector, params: Union[Tuple[Any], Dict[str, Any]] = None, cursor_type: Type[SnowflakeCursor] = SnowflakeCursor) -> List[Tuple[Any]]
