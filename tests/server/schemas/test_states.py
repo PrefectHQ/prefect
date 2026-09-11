@@ -59,6 +59,23 @@ class TestState:
         # New state timestamp
         assert new_state.timestamp >= dt
 
+    def test_state_details_round_trip_upstream_cause(self):
+        task_run_id = uuid4()
+        flow_run_id = uuid4()
+        state_details = StateDetails(
+            upstream_cause_task_run_id=task_run_id,
+            upstream_cause_flow_run_id=flow_run_id,
+            upstream_cause_state_type=StateType.FAILED,
+            upstream_cause_state_name="Failed",
+        )
+
+        restored = StateDetails.model_validate(state_details.model_dump(mode="json"))
+
+        assert restored.upstream_cause_task_run_id == task_run_id
+        assert restored.upstream_cause_flow_run_id == flow_run_id
+        assert restored.upstream_cause_state_type == StateType.FAILED
+        assert restored.upstream_cause_state_name == "Failed"
+
 
 class TestStateTypeFunctions:
     @pytest.mark.parametrize("state_type", StateType)

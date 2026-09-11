@@ -31,6 +31,7 @@ from prefect.task_runners import (
 )
 from prefect.task_worker import TaskWorker
 from prefect.tasks import task
+from prefect.utilities.annotations import allow_failure
 
 
 @task(task_run_name=f"my_test_task_{uuid.uuid4()}")
@@ -797,6 +798,63 @@ class TestProcessPoolTaskRunner:
         assert upstream_state.is_failed()
         assert downstream_state.is_pending()
         assert downstream_state.name == "NotReady"
+        assert (
+            downstream_state.state_details.upstream_cause_task_run_id
+            == upstream_state.state_details.task_run_id
+        )
+        assert (
+            downstream_state.state_details.upstream_cause_state_type
+            == upstream_state.type
+        )
+
+    @pytest.mark.parametrize("include_blocked", [True, False])
+    def test_allow_failure_blocked_policy_is_preserved_in_process_pool(
+        self, include_blocked: bool
+    ):
+        @task
+        def failing_task() -> None:
+            raise RuntimeError("I failed!")
+
+        @task
+        def downstream_task() -> str:
+            return "downstream completed"
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
+        def test_flow():
+            upstream = failing_task.submit()
+            blocked = downstream_task.submit(wait_for=[upstream])
+            annotated_blocked = (
+                allow_failure(blocked)
+                if include_blocked
+                else allow_failure(blocked, include_blocked=False)
+            )
+            final = downstream_task.submit(wait_for=[annotated_blocked])
+            upstream.wait()
+            blocked.wait()
+            final.wait()
+            return upstream.state, blocked.state, final.state
+
+        upstream_state, blocked_state, final_state = test_flow()
+
+        assert upstream_state.is_failed()
+        assert blocked_state.is_pending()
+        assert (
+            blocked_state.state_details.upstream_cause_task_run_id
+            == upstream_state.state_details.task_run_id
+        )
+        if include_blocked:
+            assert final_state.is_completed()
+        else:
+            assert final_state.is_pending()
+            assert final_state.name == "NotReady"
+            assert (
+                final_state.state_details.upstream_cause_task_run_id
+                == upstream_state.state_details.task_run_id
+            )
+            assert (
+                final_state.state_details.upstream_cause_state_type
+                == upstream_state.type
+            )
 
     def test_submit_with_future_as_parameter(self):
         """

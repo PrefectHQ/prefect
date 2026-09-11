@@ -116,6 +116,24 @@ except TypeError as e:
 
         assert "flow_run_id" in result
 
+    def test_state_details_round_trip_upstream_cause(self):
+        task_run_id = uuid4()
+        flow_run_id = uuid4()
+        state_details = StateDetails(
+            upstream_cause_task_run_id=task_run_id,
+            upstream_cause_flow_run_id=flow_run_id,
+            upstream_cause_state_type=StateType.FAILED,
+            upstream_cause_state_name="Failed",
+        )
+
+        serialized = state_details.model_dump(mode="json")
+        restored = StateDetails.model_validate(serialized)
+
+        assert restored.upstream_cause_task_run_id == task_run_id
+        assert restored.upstream_cause_flow_run_id == flow_run_id
+        assert restored.upstream_cause_state_type == StateType.FAILED
+        assert restored.upstream_cause_state_name == "Failed"
+
     def test_state_details_serializer_is_not_mock(self):
         """
         Verify that StateDetails has a proper serializer, not MockValSer.

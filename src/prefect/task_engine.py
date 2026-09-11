@@ -38,6 +38,7 @@ import prefect.states
 import prefect.types._datetime
 from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.compatibility import deprecated
+from prefect._internal.dependency_policy import not_ready_state_from_upstream_error
 from prefect._internal.engine import dynamic_key_for_task_run, get_hook_name
 from prefect._internal.states import (
     exception_to_crashed_state_sync,
@@ -93,7 +94,6 @@ from prefect.states import (
     AwaitingRetry,
     Completed,
     Failed,
-    Pending,
     Retrying,
     Running,
     exception_to_crashed_state,
@@ -934,10 +934,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self._wait_for_dependencies()
                 except UpstreamTaskError as upstream_exc:
                     self.set_state(
-                        Pending(
-                            name="NotReady",
-                            message=str(upstream_exc),
-                        ),
+                        not_ready_state_from_upstream_error(upstream_exc),
                         # if orchestrating a run already in a pending state, force orchestration to
                         # update the state name
                         force=self.state.is_pending(),
@@ -1130,10 +1127,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self._set_custom_task_run_name()
         except UpstreamTaskError as upstream_exc:
             state = await self.set_state(
-                Pending(
-                    name="NotReady",
-                    message=str(upstream_exc),
-                ),
+                not_ready_state_from_upstream_error(upstream_exc),
                 # if orchestrating a run already in a pending state, force orchestration to
                 # update the state name
                 force=self.state.is_pending(),
@@ -1565,10 +1559,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self._wait_for_dependencies()
                 except UpstreamTaskError as upstream_exc:
                     await self.set_state(
-                        Pending(
-                            name="NotReady",
-                            message=str(upstream_exc),
-                        ),
+                        not_ready_state_from_upstream_error(upstream_exc),
                         # if orchestrating a run already in a pending state, force orchestration to
                         # update the state name
                         force=self.state.is_pending(),
