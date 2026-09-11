@@ -11,6 +11,7 @@ on:
       - ui/**
       - .nvmrc
       - Dockerfile
+      - .github/docker/old-sqlite.Dockerfile
       - integration-tests/*
   push:
     branches:
@@ -22,6 +23,7 @@ on:
       - ui/**
       - .nvmrc
       - Dockerfile
+      - .github/docker/old-sqlite.Dockerfile
 
 jobs:
   compatibility-tests:

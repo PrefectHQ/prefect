@@ -1296,6 +1296,7 @@ async def mark_deployments_ready(
 
     async with db.session_context(
         begin_transaction=True,
+        with_for_update=True,
     ) as session:
         # ORDER BY id locks rows in deterministic order so concurrent
         # calls cannot deadlock. SKIP LOCKED is intentionally avoided —
@@ -1367,6 +1368,7 @@ async def mark_deployments_not_ready(
 
         async with db.session_context(
             begin_transaction=True,
+            with_for_update=True,
         ) as session:
             # See comment in mark_deployments_ready.
             locked = (
