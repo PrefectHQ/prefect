@@ -10,11 +10,12 @@ import asyncio
 import logging
 import os
 import signal
+import sys
 import tempfile
 import webbrowser
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Optional, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 import anyio
@@ -93,6 +94,52 @@ LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
 logger: logging.Logger = get_logger(__name__)
 
 
+def _parse_flow_run_ids(
+    ids: Sequence[UUID] | None,
+    *,
+    from_stdin: bool,
+) -> list[UUID]:
+    """Resolve flow run IDs from positional args and/or stdin.
+
+    IDs are de-duplicated while preserving first-seen order. Stdin lines may be
+    bare UUIDs or whitespace-separated UUIDs; blank lines are ignored.
+    """
+    resolved: list[UUID] = []
+    seen: set[UUID] = set()
+
+    def _add(flow_run_id: UUID) -> None:
+        if flow_run_id not in seen:
+            seen.add(flow_run_id)
+            resolved.append(flow_run_id)
+
+    for flow_run_id in ids or ():
+        _add(flow_run_id)
+
+    if from_stdin:
+        if sys.stdin.isatty():
+            exit_with_error(
+                "No data on stdin. Pipe flow run IDs (one per line) or omit --stdin."
+            )
+        content = sys.stdin.read()
+        if not content.strip():
+            exit_with_error("No flow run IDs provided on stdin.")
+        for line_number, line in enumerate(content.splitlines(), start=1):
+            for token in line.split():
+                try:
+                    _add(UUID(token))
+                except ValueError:
+                    exit_with_error(
+                        f"Invalid flow run ID on stdin line {line_number}: {token!r}"
+                    )
+
+    if not resolved:
+        exit_with_error(
+            "No flow run IDs provided. Pass one or more IDs, or use --stdin."
+        )
+
+    return resolved
+
+
 async def _get_flow_run_by_id_or_name(
     client: PrefectClient,
     id_or_name: str,
@@ -141,7 +188,7 @@ async def inspect(
         cyclopts.Parameter("--web", help="Open the flow run in a web browser."),
     ] = False,
     output: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--output",
             alias="-o",
@@ -187,7 +234,7 @@ async def inspect(
 async def ls(
     *,
     flow_name: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         cyclopts.Parameter("--flow-name", help="Name of the flow"),
     ] = None,
     limit: Annotated[
@@ -195,15 +242,15 @@ async def ls(
         cyclopts.Parameter("--limit", help="Maximum number of flow runs to list"),
     ] = 15,
     state: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         cyclopts.Parameter("--state", help="Name of the flow run's state"),
     ] = None,
     state_type: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         cyclopts.Parameter("--state-type", help="Type of the flow run's state"),
     ] = None,
     output: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--output",
             alias="-o",
@@ -252,7 +299,7 @@ async def ls(
             else:
                 formatted_states.append(s)
                 logger.warning(
-                    f"State name {repr(s)} is not one of the official Prefect state names."
+                    f"State name {s!r} is not one of the official Prefect state names."
                 )
 
         state_filter["name"] = {"any_": formatted_states}
@@ -320,44 +367,113 @@ async def ls(
 
 @flow_run_app.command()
 @with_cli_exception_handling
-async def delete(id: UUID):
-    """Delete a flow run by ID."""
+async def delete(
+    ids: Annotated[
+        list[UUID] | None,
+        cyclopts.Parameter(
+            name="ids",
+            help="One or more flow run IDs to delete.",
+        ),
+    ] = None,
+    *,
+    stdin: Annotated[
+        bool,
+        cyclopts.Parameter(
+            name="--stdin",
+            help="Read flow run IDs from stdin (one per line).",
+        ),
+    ] = False,
+):
+    """Delete one or more flow runs by ID.
+
+    Examples:
+        ```bash
+        $ prefect flow-run delete <id>
+        $ prefect flow-run delete <id1> <id2> <id3>
+        $ prefect flow-run ls -o json | jq -r '.[].id' | prefect flow-run delete --stdin
+        ```
+    """
     from prefect.cli._prompts import confirm
 
-    async with get_client() as client:
-        try:
-            if _cli.is_interactive() and not confirm(
-                f"Are you sure you want to delete flow run with id {id!r}?",
-                default=False,
-            ):
-                exit_with_error("Deletion aborted.")
-            await client.delete_flow_run(id)
-        except ObjectNotFound:
-            exit_with_error(f"Flow run '{id}' not found!")
+    flow_run_ids = _parse_flow_run_ids(ids, from_stdin=stdin)
 
-    exit_with_success(f"Successfully deleted flow run '{id}'.")
+    # Skip the prompt when reading IDs from stdin — the pipe already consumed
+    # stdin, and scripted deletions are intentional.
+    if _cli.is_interactive() and not stdin:
+        if len(flow_run_ids) == 1:
+            prompt = (
+                f"Are you sure you want to delete flow run with id {flow_run_ids[0]!r}?"
+            )
+        else:
+            prompt = f"Are you sure you want to delete {len(flow_run_ids)} flow run(s)?"
+        if not confirm(prompt, default=False):
+            exit_with_error("Deletion aborted.")
+
+    async with get_client() as client:
+        for flow_run_id in flow_run_ids:
+            try:
+                await client.delete_flow_run(flow_run_id)
+            except ObjectNotFound:
+                exit_with_error(f"Flow run '{flow_run_id}' not found!")
+
+    if len(flow_run_ids) == 1:
+        exit_with_success(f"Successfully deleted flow run '{flow_run_ids[0]}'.")
+    exit_with_success(f"Successfully deleted {len(flow_run_ids)} flow run(s).")
 
 
 @flow_run_app.command()
 @with_cli_exception_handling
-async def cancel(id: UUID):
-    """Cancel a flow run by ID."""
+async def cancel(
+    ids: Annotated[
+        list[UUID] | None,
+        cyclopts.Parameter(
+            name="ids",
+            help="One or more flow run IDs to cancel.",
+        ),
+    ] = None,
+    *,
+    stdin: Annotated[
+        bool,
+        cyclopts.Parameter(
+            name="--stdin",
+            help="Read flow run IDs from stdin (one per line).",
+        ),
+    ] = False,
+):
+    """Cancel one or more flow runs by ID.
+
+    Examples:
+        ```bash
+        $ prefect flow-run cancel <id>
+        $ prefect flow-run cancel <id1> <id2> <id3>
+        $ prefect flow-run ls -o json | jq -r '.[].id' | prefect flow-run cancel --stdin
+        ```
+    """
+    flow_run_ids = _parse_flow_run_ids(ids, from_stdin=stdin)
+
     async with get_client() as client:
         cancelling_state = State(type=StateType.CANCELLING)
-        try:
-            result = await client.set_flow_run_state(
-                flow_run_id=id, state=cancelling_state
-            )
-        except ObjectNotFound:
-            exit_with_error(f"Flow run '{id}' not found!")
+        for flow_run_id in flow_run_ids:
+            try:
+                result = await client.set_flow_run_state(
+                    flow_run_id=flow_run_id, state=cancelling_state
+                )
+            except ObjectNotFound:
+                exit_with_error(f"Flow run '{flow_run_id}' not found!")
 
-    if result.status == SetStateStatus.ABORT:
-        exit_with_error(
-            f"Flow run '{id}' was unable to be cancelled. Reason:"
-            f" '{result.details.reason}'"
+            if result.status == SetStateStatus.ABORT:
+                exit_with_error(
+                    f"Flow run '{flow_run_id}' was unable to be cancelled. Reason:"
+                    f" '{result.details.reason}'"
+                )
+
+    if len(flow_run_ids) == 1:
+        exit_with_success(
+            f"Flow run '{flow_run_ids[0]}' was successfully scheduled for cancellation."
         )
-
-    exit_with_success(f"Flow run '{id}' was successfully scheduled for cancellation.")
+    exit_with_success(
+        f"{len(flow_run_ids)} flow run(s) were successfully scheduled for cancellation."
+    )
 
 
 @flow_run_app.command()
@@ -366,7 +482,7 @@ async def retry(
     id_or_name: str,
     *,
     entrypoint: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--entrypoint",
             alias="-e",
@@ -551,7 +667,7 @@ async def logs(
         ),
     ] = False,
     num_logs: Annotated[
-        Optional[int],
+        int | None,
         cyclopts.Parameter(
             "--num-logs",
             alias="-n",
@@ -581,7 +697,7 @@ async def logs(
         ),
     ] = False,
     output: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--output",
             alias="-o",
@@ -608,7 +724,7 @@ async def logs(
     log_filter = LogFilter(flow_run_id={"any_": [id]})
     sort = LogSort.TIMESTAMP_DESC if reverse or tail else LogSort.TIMESTAMP_ASC
 
-    def render(logs_to_render: "list[Log]") -> None:
+    def render(logs_to_render: list[Log]) -> None:
         if output_json:
             collected_logs.extend(log.model_dump(mode="json") for log in logs_to_render)
             return
@@ -630,7 +746,7 @@ async def logs(
         # Bounded requests start with the requested count to avoid overfetching.
         # If that exceeds the server maximum, retry without a limit to discover
         # the server page size from the first response.
-        page_size: Optional[int] = None
+        page_size: int | None = None
         offset = 0
         num_logs_collected = 0
         tail_buffer: list[Log] = []
@@ -715,7 +831,7 @@ async def watch(
     id: UUID,
     *,
     timeout: Annotated[
-        Optional[int],
+        int | None,
         cyclopts.Parameter("--timeout", help="Timeout in seconds."),
     ] = None,
 ):
@@ -747,7 +863,7 @@ async def watch(
 @flow_run_app.command()
 @with_cli_exception_handling
 async def execute(
-    id: Optional[UUID] = None,
+    id: UUID | None = None,
 ):
     """Execute a flow run by ID."""
     if id is None:
