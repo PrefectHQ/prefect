@@ -1,8 +1,10 @@
 import asyncio
+import signal
 import threading
 import time
 import uuid
 from collections import OrderedDict
+from collections.abc import Callable
 from concurrent.futures import Future
 from dataclasses import dataclass
 from typing import Any, List, Optional
@@ -10,6 +12,7 @@ from typing import Any, List, Optional
 import pytest
 
 from prefect import flow, task
+from prefect._internal.concurrency.cancellation import CancelledError
 from prefect.client.orchestration import PrefectClient
 from prefect.context import FlowRunContext
 from prefect.exceptions import MissingResult, Pause
@@ -198,6 +201,138 @@ class TestUtilityFunctions:
 
         results = [f.result() for f in as_completed([future], timeout=0)]
         assert results == [42]
+
+    def test_as_completed_with_zero_timeout_yields_completed_wrapped_future(self):
+        class WrappedFuture(PrefectWrappedFuture[int, Future[Any]]):
+            def wait(self, timeout: float | None = None) -> None:
+                pass
+
+            def result(
+                self,
+                timeout: float | None = None,
+                raise_on_failure: bool = True,
+            ) -> int:
+                return 42
+
+        wrapped_future: Future[Any] = Future()
+        wrapped_future.set_result(Completed(data=42))
+        future = WrappedFuture(uuid.uuid4(), wrapped_future)
+
+        assert list(as_completed([future], timeout=0)) == [future]
+
+    def test_as_completed_yields_completion_signaled_before_deadline(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        class CompletesDuringRegistration(PrefectFuture[int]):
+            def __init__(self) -> None:
+                self._final_state = None
+
+            def wait(self, timeout: float | None = None) -> None:
+                pass
+
+            def result(
+                self,
+                timeout: float | None = None,
+                raise_on_failure: bool = True,
+            ) -> int:
+                return 42
+
+            def add_done_callback(
+                self, fn: Callable[[PrefectFuture[int]], None]
+            ) -> None:
+                fn(self)
+
+        monotonic_times = iter([0.0, 0.5, 0.5, 2.0])
+        monkeypatch.setattr(time, "monotonic", lambda: next(monotonic_times))
+        future = CompletesDuringRegistration()
+
+        assert list(as_completed([future], timeout=1)) == [future]
+
+    def test_as_completed_does_not_yield_completion_observed_after_timeout(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        now = [0.0]
+
+        class CompletesDuringRegistration(PrefectFuture[int]):
+            def __init__(self) -> None:
+                self._final_state = None
+
+            def wait(self, timeout: float | None = None) -> None:
+                pass
+
+            def result(
+                self,
+                timeout: float | None = None,
+                raise_on_failure: bool = True,
+            ) -> int:
+                return 2
+
+            def add_done_callback(
+                self, fn: Callable[[PrefectFuture[int]], None]
+            ) -> None:
+                now[0] = 2.0
+                fn(self)
+
+        monkeypatch.setattr(time, "monotonic", lambda: now[0])
+        completed = MockFuture(data=1)
+        completed_after_timeout = CompletesDuringRegistration()
+        iterator = as_completed(
+            [completed, completed_after_timeout],
+            timeout=1,
+        )
+
+        assert next(iterator) is completed
+        with pytest.raises(TimeoutError, match=r"1 \(of 2\) futures unfinished"):
+            next(iterator)
+
+    @pytest.mark.skipif(
+        not hasattr(signal, "SIGALRM"), reason="SIGALRM is only available on Unix"
+    )
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_timeout_is_independent_of_alarm_handlers(self):
+        """
+        Timeouts must be enforced the same way whatever the state of the process,
+        because a handler installed by another library changes which cancellation
+        mechanism Prefect selects.
+        """
+        previous_handler = signal.getsignal(signal.SIGALRM)
+        signal.signal(signal.SIGALRM, lambda *_: None)
+        try:
+            completed_future = Future()
+            completed_future.set_result(Completed(data=42))
+            future = PrefectConcurrentFuture(uuid.uuid4(), completed_future)
+
+            results = [f.result() for f in as_completed([future], timeout=0)]
+            assert results == [42]
+        finally:
+            signal.signal(signal.SIGALRM, previous_handler)
+
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_abandoned_by_consumer_arms_no_enforcer_thread(self):
+        """
+        A consumer that stops iterating leaves the generator suspended at its
+        `yield`, so any timeout enforcer armed inside the generator outlives it
+        and delivers its cancellation to an unrelated frame later.
+        """
+        completed_future = Future()
+        completed_future.set_result(Completed(data=1))
+        hanging_future = Future()
+        futures = [
+            PrefectConcurrentFuture(uuid.uuid4(), completed_future),
+            PrefectConcurrentFuture(uuid.uuid4(), hanging_future),
+        ]
+
+        before = set(threading.enumerate())
+        generator = as_completed(futures, timeout=0.05)
+        try:
+            next(generator)
+
+            time.sleep(0.2)
+
+            new_threads = set(threading.enumerate()) - before
+            assert not [t for t in new_threads if "timeout-watcher" in t.name]
+        finally:
+            generator.close()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     def test_as_completed_yields_correct_order(self):
@@ -996,8 +1131,8 @@ class TestPrefectFutureList:
 
     @pytest.mark.timeout(method="thread")
     def test_result_timeout_covers_slow_result_retrieval(self):
-        """The timeout also bounds result retrieval, which runs while
-        `as_completed` is suspended at its `yield`."""
+        """Retrieval time counts against the timeout: a retrieval that overruns
+        the deadline raises when it returns."""
 
         class SlowResultFuture(MockFuture):
             def result(
@@ -1015,6 +1150,44 @@ class TestPrefectFutureList:
             match="Timed out waiting for all futures to complete within 0.1 seconds",
         ):
             futures.result(timeout=0.1)
+
+    def test_result_passes_remaining_timeout_to_future(self):
+        received_timeout: list[float | None] = []
+
+        class CapturingTimeoutFuture(MockFuture):
+            def result(
+                self,
+                timeout: float | None = None,
+                raise_on_failure: bool = True,
+            ) -> Any:
+                received_timeout.append(timeout)
+                return 42
+
+        futures = PrefectFutureList([CapturingTimeoutFuture()])
+
+        assert futures.result(timeout=5) == [42]
+        assert received_timeout[0] is not None
+        assert 0 < received_timeout[0] <= 5
+
+    def test_result_does_not_claim_an_enclosing_cancellation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        now = [0.0]
+
+        class CancelledResultFuture(MockFuture):
+            def result(
+                self,
+                timeout: float | None = None,
+                raise_on_failure: bool = True,
+            ) -> Any:
+                now[0] = 2.0
+                raise CancelledError
+
+        monkeypatch.setattr(time, "monotonic", lambda: now[0])
+        futures = PrefectFutureList([CancelledResultFuture()])
+
+        with pytest.raises(CancelledError):
+            futures.result(timeout=1)
 
     @pytest.mark.timeout(method="thread")
     def test_result_timeout_raises_dedicated_message(self):

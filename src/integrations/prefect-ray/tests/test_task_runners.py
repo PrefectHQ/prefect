@@ -5,6 +5,7 @@ import random
 import subprocess
 import sys
 import time
+import uuid
 import warnings
 
 import pytest
@@ -12,6 +13,7 @@ import ray
 import ray.cluster_utils
 from prefect_ray import RayTaskRunner
 from prefect_ray.context import remote_options
+from prefect_ray.task_runners import PrefectRayFuture
 
 from prefect import flow, task
 from prefect.assets import Asset, materialize
@@ -220,6 +222,19 @@ class TestRayTaskRunner:
         new = task_runner.duplicate()
         assert new == task_runner
         assert new is not task_runner
+
+    def test_as_completed_with_zero_timeout_yields_ready_future(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        object_ref = object()
+        monkeypatch.setattr(
+            ray,
+            "wait",
+            lambda refs, **kwargs: ([object_ref], []),
+        )
+        future = PrefectRayFuture(uuid.uuid4(), object_ref)
+
+        assert list(as_completed([future], timeout=0)) == [future]
 
     async def test_successful_flow_run(self, task_runner):
         @task

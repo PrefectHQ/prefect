@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Any, Callable, Generic
 from typing_extensions import NamedTuple, Self, TypeVar
 
 from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
-from prefect._internal.concurrency.cancellation import CancelledError
 from prefect._internal.waiters import FlowRunWaiter
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
@@ -105,6 +104,10 @@ class PrefectFuture(abc.ABC, Generic[R]):
             timeout: The maximum number of seconds to wait for the task run to complete.
               If the task run has not completed after the timeout has elapsed, this method will return.
         """
+
+    def _is_done(self) -> bool:
+        """Return whether this future is known locally to be complete."""
+        return self._final_state is not None
 
     @abc.abstractmethod
     def result(
@@ -197,6 +200,13 @@ class PrefectWrappedFuture(PrefectTaskRunFuture[R], abc.ABC, Generic[R, F]):
             return
         fn(self)
 
+    def _is_done(self) -> bool:
+        if super()._is_done():
+            return True
+
+        wrapped_is_done = getattr(self._wrapped_future, "done", None)
+        return bool(wrapped_is_done()) if callable(wrapped_is_done) else False
+
 
 class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[R]]):
     """
@@ -230,6 +240,9 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
 
         if call_immediately:
             fn(self)
+
+    def _is_done(self) -> bool:
+        return super()._is_done() or self._prefect_done_event.is_set()
 
     def _notify_prefect_done_callbacks(
         self, future: concurrent.futures.Future[R]
@@ -588,30 +601,26 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
 
         try:
             # `as_completed` de-duplicates internally; each unique future is
-            # yielded exactly once, in completion order. Its timeout scope stays
-            # entered while the loop body runs, so slow result retrieval (e.g.
-            # large data deserialization) is bounded by the caller's timeout too.
+            # yielded exactly once, in completion order.
             for future in as_completed(list(self), timeout=timeout):
-                result = future.result(raise_on_failure=raise_on_failure)
+                remaining = (
+                    max(deadline - time.monotonic(), 0.0)
+                    if deadline is not None
+                    else None
+                )
+                result = future.result(
+                    timeout=remaining,
+                    raise_on_failure=raise_on_failure,
+                )
                 for i in future_to_indices[future]:
                     results[i] = result
-                # Retrieval can overrun the deadline without cancellation
-                # arriving, e.g. on Windows where no sync cancel scope arms.
+                # Some result backends cannot interrupt retrieval (e.g. large data
+                # deserialization), so detect an overrun again once it returns.
                 if deadline is not None and time.monotonic() >= deadline:
                     raise TimeoutError(timeout_message)
         # A `TimeoutError` from inside a task is not a `_WaitTimeoutError` and
         # propagates unchanged.
         except _WaitTimeoutError as exc:
-            raise TimeoutError(timeout_message) from exc
-        except CancelledError as exc:
-            # Cancel scopes deliver cancellation to the frame the supervised
-            # thread is currently in. While `as_completed` is suspended at its
-            # `yield`, that frame is this one, so its `timeout_context` never
-            # sees the error and cannot convert it. Only claim the cancellation
-            # if our own deadline has passed; otherwise it belongs to an
-            # enclosing scope, such as a flow run timeout.
-            if deadline is None or time.monotonic() < deadline:
-                raise
             raise TimeoutError(timeout_message) from exc
 
         return results
@@ -636,44 +645,50 @@ def as_completed(
     unique_futures: set[PrefectFuture[R]] = set(futures)
     total_futures = len(unique_futures)
     pending = unique_futures
-    deadline: float | None = None
     try:
-        with timeout_context(timeout, timeout_exc_type=_WaitTimeoutError):
-            done = {f for f in unique_futures if f._final_state}  # type: ignore[privateUsage]
-            pending = unique_futures - done
-            yield from done
+        # The deadline is enforced by bounding every wait below rather than with a
+        # cancel scope: a scope delivers its cancellation to whatever frame the
+        # thread is in, which for a generator is the consumer's frame while we are
+        # suspended at a `yield`. The scope is then never exited and its watcher
+        # thread never stops, which keeps the process from terminating. The budget
+        # starts here so that time the consumer spends between yields counts
+        # against it.
+        deadline = time.monotonic() + timeout if timeout is not None else None
 
-            finished_event = threading.Event()
-            finished_lock = threading.Lock()
-            finished_futures: list[PrefectFuture[R]] = []
+        done = {f for f in unique_futures if f._is_done()}
+        pending = unique_futures - done
+        yield from done
 
-            def add_to_done(future: PrefectFuture[R]):
-                with finished_lock:
-                    finished_futures.append(future)
-                    finished_event.set()
+        finished_event = threading.Event()
+        finished_lock = threading.Lock()
+        finished_futures: list[PrefectFuture[R]] = []
 
-            for future in pending:
-                _register_prefect_done_callback(future, add_to_done)
+        def add_to_done(future: PrefectFuture[R]):
+            with finished_lock:
+                finished_futures.append(future)
+                finished_event.set()
 
-            deadline = time.monotonic() + timeout if timeout is not None else None
+        for future in pending:
+            if deadline is not None and time.monotonic() >= deadline:
+                raise _WaitTimeoutError
+            _register_prefect_done_callback(future, add_to_done)
 
-            while pending:
-                if timeout is None:
-                    finished_event.wait()
-                else:
-                    assert deadline is not None
-                    remaining = deadline - time.monotonic()
-                    if not finished_event.wait(timeout=max(remaining, 0.0)):
-                        raise _WaitTimeoutError
+        while pending:
+            if deadline is None:
+                finished_event.wait()
+            else:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not finished_event.wait(timeout=remaining):
+                    raise _WaitTimeoutError
 
-                with finished_lock:
-                    done = finished_futures
-                    finished_futures = []
-                    finished_event.clear()
+            with finished_lock:
+                done = finished_futures
+                finished_futures = []
+                finished_event.clear()
 
-                for future in done:
-                    pending.remove(future)
-                    yield future
+            for future in done:
+                pending.remove(future)
+                yield future
 
     except _WaitTimeoutError:
         raise _WaitTimeoutError(
