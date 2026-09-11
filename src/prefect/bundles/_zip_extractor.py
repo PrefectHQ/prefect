@@ -113,6 +113,15 @@ class ZipExtractor:
             # Extract all
             zf.extractall(target_dir)
 
+            # `extractall` drops the archived permission bits, so executable
+            # files would arrive without their executable mode.
+            for info in zf.infolist():
+                if info.is_dir():
+                    continue
+                mode = info.external_attr >> 16 & 0o7777
+                if mode:
+                    (target_dir / info.filename).chmod(mode)
+
             # Build extracted paths list
             for member in members:
                 if not member.endswith("/"):  # Skip directories
