@@ -2,6 +2,25 @@
 title: prefect-azure
 ---
 
+## 0.4.13
+
+_Released on September 08, 2026_
+
+**Features**
+
+- Add configurable base directory for included files [#22855](https://github.com/PrefectHQ/prefect/pull/22855) by [@desertaxle](https://github.com/desertaxle)
+
+**Documentation**
+
+- Fix stale Azure Container Instance examples [#22830](https://github.com/PrefectHQ/prefect/pull/22830) by [@samrusani](https://github.com/samrusani)
+- Canonicalize legacy setting names and update generators [#22503](https://github.com/PrefectHQ/prefect/pull/22503) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.8.4`
+
+---
+
 ## 0.4.12
 
 _Released on July 15, 2026_
@@ -63,12 +82,12 @@ _Released on February 12, 2026_
 
 **Bug Fixes**
 
-- fix: pin azure-mgmt-resource`<25` to avoid breaking import change [#20588](https://github.com/PrefectHQ/prefect/pull/20588) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Pin `azure-mgmt-resource<25` to avoid a breaking import change [#20588](https://github.com/PrefectHQ/prefect/pull/20588) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 **Maintenance**
 
 - Bump `prefect` lower bound to `>=3.6.17` [#20659](https://github.com/PrefectHQ/prefect/pull/20659) by [@desertaxle](https://github.com/desertaxle)
-- chore(deps-dev): bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@dependabot](https://github.com/apps/dependabot)
+- Bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@dependabot](https://github.com/apps/dependabot)
 
 ---
 
@@ -88,8 +107,8 @@ _Released on December 05, 2025_
 
 **Features**
 
-- feat(azure): add SPN authentication support to deployment steps [#19656](https://github.com/PrefectHQ/prefect/pull/19656) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
-- feat(azure): add service principal authentication for AzureBlobStorageCredentials [#19645](https://github.com/PrefectHQ/prefect/pull/19645) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Add SPN authentication support to deployment steps [#19656](https://github.com/PrefectHQ/prefect/pull/19656) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Add service principal authentication for `AzureBlobStorageCredentials` [#19645](https://github.com/PrefectHQ/prefect/pull/19645) by [@zzstoatzz](https://github.com/zzstoatzz)
 
 **Documentation**
 
@@ -108,4 +127,3 @@ _Released on October 16, 2025_
 **Bug Fixes**
 
 - Ensure ACI log timestamps are tz aware [#19021](https://github.com/PrefectHQ/prefect/pull/19021) by [@solms](https://github.com/solms)
-
