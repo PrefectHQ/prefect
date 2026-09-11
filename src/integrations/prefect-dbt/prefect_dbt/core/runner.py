@@ -123,6 +123,10 @@ def execute_dbt_node(
 
         if node_status in FAILURE_STATUSES:
             raise Exception(f"Node {node_id} finished with status {node_status}")
+        if node_status in SKIPPED_STATUSES:
+            raise Exception(
+                f"Node {node_id} was skipped, likely due to an upstream failure"
+            )
 
 
 class PrefectDbtRunner(DbtHookMixin):
