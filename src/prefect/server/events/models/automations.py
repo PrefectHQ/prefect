@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, Sequence, Union
@@ -20,7 +21,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.utilities.database import get_dialect
 from prefect.types._datetime import now
-from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.asyncutils import create_task, run_coro_as_sync
 
 logger: logging.Logger = get_logger(__name__)
 
@@ -185,13 +186,27 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
         # For SQLite, we need to update the cache after commit
         @sa.event.listens_for(sync_session, "after_commit", once=True)
         def update_cache_after_commit(session):
+            async def update() -> None:
+                try:
+                    await automation_changed(automation.id, event_key)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to update in-memory cache for automation {automation.id}, event: {event}: {e}",
+                        exc_info=True,
+                    )
+
+            # This listener runs inside `session.commit()` on the committing
+            # thread. When that thread is running an event loop, the update is
+            # scheduled as a task on that loop rather than run to completion
+            # here: `automation_changed` may have to wait on the automations
+            # lock held by other coroutines on the loop, and blocking the
+            # event-loop thread until it finishes would deadlock the server.
             try:
-                run_coro_as_sync(automation_changed(automation.id, event_key))
-            except Exception as e:
-                logger.error(
-                    f"Failed to update in-memory cache for automation {automation.id}, event: {event}: {e}",
-                    exc_info=True,
-                )
+                asyncio.get_running_loop()
+            except RuntimeError:
+                run_coro_as_sync(update())
+            else:
+                create_task(update())
 
 
 @db_injector

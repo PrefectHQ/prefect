@@ -1294,8 +1294,13 @@ async def mark_deployments_ready(
     if not deployment_ids and not work_queue_ids:
         return
 
+    # `with_for_update=True` makes SQLite start with `BEGIN IMMEDIATE` so the
+    # write lock is held before the read below; a deferred transaction that
+    # reads first cannot be upgraded to a write if another connection commits
+    # in between and fails immediately with "database is locked".
     async with db.session_context(
         begin_transaction=True,
+        with_for_update=True,
     ) as session:
         # ORDER BY id locks rows in deterministic order so concurrent
         # calls cannot deadlock. SKIP LOCKED is intentionally avoided —
@@ -1367,8 +1372,9 @@ async def mark_deployments_not_ready(
 
         async with db.session_context(
             begin_transaction=True,
+            with_for_update=True,
         ) as session:
-            # See comment in mark_deployments_ready.
+            # See comments in mark_deployments_ready.
             locked = (
                 select(db.Deployment.id, db.Deployment.status)
                 .where(

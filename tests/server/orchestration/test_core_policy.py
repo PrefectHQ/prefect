@@ -5,10 +5,10 @@ import random
 from collections.abc import Awaitable, Callable
 from datetime import timedelta, timezone
 from itertools import product
-from typing import Optional
+from typing import NoReturn, Optional
 from unittest import mock
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import sqlalchemy as sa
@@ -16,8 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.result_records import ResultRecordMetadata
 from prefect.server import schemas
-from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLimitLeaseMetadata,
+    get_concurrency_lease_storage,
+)
 from prefect.server.database import orm_models as orm
+from prefect.server.database import provide_database_interface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import (
     concurrency_limits,
@@ -64,6 +68,7 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas import actions, states
 from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.states import StateType
+from prefect.server.services.repossessor import revoke_expired_lease
 from prefect.settings import (
     PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS,
     PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION,
@@ -81,6 +86,10 @@ ALL_ORCHESTRATION_STATES = list(
 )
 CANONICAL_STATES = list(states.StateType)
 TERMINAL_STATES = list(sorted(TERMINAL_STATES))
+
+
+class ExpectedDeploymentConcurrencyAcquisitionAbortRace(AssertionError):
+    """An orphaned acquisition lease consumed replacement capacity."""
 
 
 def transition_names(transition):
@@ -3264,6 +3273,7 @@ class TestResumingFlows:
             states.StateType.FAILED,
             states.StateType.CRASHED,
             states.StateType.CANCELLED,
+            states.StateType.CANCELLING,
         ]
 
         if proposed_state_type in permitted_resuming_states:
@@ -3324,6 +3334,35 @@ class TestResumingFlows:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_allows_cancelling_a_paused_flow_run_after_pause_has_timed_out(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+    ):
+        """A blocking pause keeps the flow process alive even after its
+        deadline passes, so an explicit cancel must still reach Cancelling
+        rather than being rewritten to Failed."""
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.CANCELLING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        five_minutes_ago = now("UTC") - timedelta(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_ago
+        )
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.CANCELLING
 
     async def test_marks_flow_run_as_resuming_upon_leaving_paused_state(
         self,
@@ -4594,6 +4633,98 @@ class TestFlowConcurrencyLimits:
         await assert_deployment_concurrency_limit(
             session, deployment, expected_limit=1, expected_active_slots=1
         )
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=ExpectedDeploymentConcurrencyAcquisitionAbortRace,
+        reason="An external lease can outlive a rolled-back slot acquisition",
+    )
+    async def test_acquisition_abort_reaper_preserves_replacement_slot(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        assert deployment.concurrency_limit_id is not None
+        await session.commit()
+
+        lease_storage = get_concurrency_lease_storage()
+        original_create_lease = lease_storage.create_lease
+        orphan_lease_id: UUID | None = None
+
+        async def create_lease_then_raise(
+            resource_ids: list[UUID],
+            ttl: datetime.timedelta,
+            metadata: ConcurrencyLimitLeaseMetadata | None = None,
+        ) -> NoReturn:
+            nonlocal orphan_lease_id
+            assert ttl > datetime.timedelta(0)
+            orphan_lease = await original_create_lease(
+                resource_ids=resource_ids,
+                ttl=datetime.timedelta(seconds=-1),
+                metadata=metadata,
+            )
+            orphan_lease_id = orphan_lease.id
+            raise RuntimeError("lease creation response lost")
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        with (
+            mock.patch(
+                "prefect.server.orchestration.core_policy.get_concurrency_lease_storage",
+                return_value=lease_storage,
+            ),
+            mock.patch.object(
+                lease_storage,
+                "create_lease",
+                side_effect=create_lease_then_raise,
+            ),
+        ):
+            async with SecureFlowConcurrencySlots(ctx, *pending_transition) as ctx:
+                await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+        assert isinstance(ctx.orchestration_error, RuntimeError)
+        assert str(ctx.orchestration_error) == "lease creation response lost"
+
+        await session.rollback()
+        assert orphan_lease_id is not None
+        assert await lease_storage.read_lease(orphan_lease_id) is not None
+        await session.refresh(flow)
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+        replacement_ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        replacement_lease_id = replacement_ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert replacement_lease_id is not None
+        await session.commit()
+
+        await revoke_expired_lease(
+            orphan_lease_id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+
+        assert await lease_storage.read_lease(orphan_lease_id) is None
+        assert await lease_storage.read_lease(replacement_lease_id) is not None
+        assert set(await lease_storage.read_active_lease_ids()) == {
+            replacement_lease_id
+        }
+        await session.refresh(deployment)
+        limit = deployment.global_concurrency_limit
+        assert limit is not None
+        await session.refresh(limit)
+        if limit.active_slots != 1:
+            raise ExpectedDeploymentConcurrencyAcquisitionAbortRace
 
     async def test_cancel_new_collision_strategy(
         self,

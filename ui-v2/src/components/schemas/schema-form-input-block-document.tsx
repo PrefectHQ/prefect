@@ -8,16 +8,11 @@ import { BlockDocumentCreateDialog } from "@/components/blocks/block-document-cr
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
-
-type BlockDocumentReferenceValue =
-	| {
-			$ref: string;
-	  }
-	| undefined;
+import type { BlockDocumentReferenceValue } from "./types/block-document-value";
 
 type SchemaFormInputBlockDocumentProps = {
-	value: BlockDocumentReferenceValue;
-	onValueChange: (value: BlockDocumentReferenceValue) => void;
+	value: BlockDocumentReferenceValue | undefined;
+	onValueChange: (value: BlockDocumentReferenceValue | undefined) => void;
 	blockTypeSlug: string;
 	id: string;
 };
@@ -78,18 +73,18 @@ function SchemaFormInputBlockDocumentContent({
 	);
 
 	const hasBlockDocuments = blockDocumentCount > 0;
-	const selectedBlockDocumentId = value?.$ref;
+	const selectedBlockDocumentId = value?.$ref.block_document_id;
 
 	const handleSelect = (blockDocumentId: string | undefined) => {
 		if (blockDocumentId) {
-			onValueChange({ $ref: blockDocumentId });
+			onValueChange({ $ref: { block_document_id: blockDocumentId } });
 		} else {
 			onValueChange(undefined);
 		}
 	};
 
 	const handleCreated = (blockDocumentId: string) => {
-		onValueChange({ $ref: blockDocumentId });
+		onValueChange({ $ref: { block_document_id: blockDocumentId } });
 	};
 
 	return (
