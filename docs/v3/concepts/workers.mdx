@@ -182,7 +182,8 @@ In some cases, infrastructure takes longer than 10 seconds to start the flow run
 `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting.
 
 If this value is _more_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its 
-scheduled start time.
+scheduled start time. While it waits, the run holds any
+[deployment concurrency slot](/v3/concepts/deployments#concurrency-limiting) it acquired at submission.
 
 ### Polling for work
 

@@ -342,6 +342,13 @@ deployment can be active at once. To enable this behavior, deployments have the 
   slot is released. This is useful for deployments with slow-starting infrastructure. Must be between 60 and
   86400 seconds. If not set, falls back to the server setting (default 300 seconds / 5 minutes).
 
+A flow run takes a concurrency slot when it transitions to `Pending`, which is when a worker submits it, and releases
+the slot when it leaves `Running` or `Cancelling`. Because workers submit runs ahead of their scheduled start (see
+[prefetch](/v3/concepts/workers#configure-prefetch)), a slot can be held for the prefetch window plus the run's duration.
+With `CANCEL_NEW`, a run whose deployment slot is held when the worker submits it is cancelled before it starts, so the
+schedule interval should be longer than the prefetch window plus the expected run time. The slot is only guaranteed to be
+held until the run starts if the prefetch window is shorter than `grace_period_seconds`.
+
 <CodeGroup>
 
 ```sh prefect deploy
