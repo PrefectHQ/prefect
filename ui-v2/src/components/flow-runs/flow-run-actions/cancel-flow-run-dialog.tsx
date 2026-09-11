@@ -31,7 +31,7 @@ export const CancelFlowRunDialog = ({
 	open,
 	onOpenChange,
 }: CancelFlowRunDialogProps) => {
-	const [cancelSubFlows, setCancelSubFlows] = useState(false);
+	const [cancelSubFlows, setCancelSubFlows] = useState(true);
 	const { setFlowRunState, isPending } = useSetFlowRunState();
 
 	const { data: subFlowRuns = [] } = useQuery({
