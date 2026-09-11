@@ -294,6 +294,11 @@ env = [
     "PREFECT_TESTING_TEST_MODE=1",
     "PREFECT_TESTING_UNIT_TEST_MODE=1",
     "PREFECT_SERVER_LOGGING_LEVEL=DEBUG",
+    # Without a key in the environment, each process generates its own key and
+    # keeps it in the `configuration` table, which the database clearing removes.
+    # The test process and the hosted API server subprocess then encrypt and
+    # decrypt block document data with different keys.
+    "PREFECT_SERVER_ENCRYPTION_KEY=Rw3pP0nFbLnvKQjMh6XLZ0y5zY1kQ4kZfNvT8mVJ0hE=",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"

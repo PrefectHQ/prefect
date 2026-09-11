@@ -2,6 +2,70 @@
 title: 3.8
 ---
 
+## 3.8.5 - A little jitter never hurt anybody
+
+*Released on September 03, 2026*
+
+**Enhancements ➕➕**
+
+* Suggest existing deployment tags in the V2 deployments filter by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22939](https://github.com/PrefectHQ/prefect/pull/22939)
+* Use current settings for resource label validation by [@chuqCTC](https://github.com/chuqCTC) in [#22959](https://github.com/PrefectHQ/prefect/pull/22959)
+* Add parameter overrides to the deployment schedule dialog by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22805](https://github.com/PrefectHQ/prefect/pull/22805)
+* Use indexed flow run cleanup with separate orphan reconciliation by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22875](https://github.com/PrefectHQ/prefect/pull/22875)
+* Add `id` fields and matching filters to automation count and filter models by [@znicholasbrown](https://github.com/znicholasbrown) in [#22944](https://github.com/PrefectHQ/prefect/pull/22944)
+* Reduce event persister `INSERT` compilation CPU by [@chuqCTC](https://github.com/chuqCTC) in [#22961](https://github.com/PrefectHQ/prefect/pull/22961)
+
+**Bug Fixes 🐞**
+
+* Support new Microsoft Teams and Power Automate webhook URLs by [@Roshan931](https://github.com/Roshan931) in [#22908](https://github.com/PrefectHQ/prefect/pull/22908)
+* Keep run-context related resources within the maximum an event permits by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22835](https://github.com/PrefectHQ/prefect/pull/22835)
+* Keep enum selection in the Quick Run dialog from navigating away by [@vyagubov](https://github.com/vyagubov) in [#22953](https://github.com/PrefectHQ/prefect/pull/22953)
+* Keep deployment concurrency lease across flow retry transitions by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22886](https://github.com/PrefectHQ/prefect/pull/22886)
+* Fix scheduled flow run polling by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22970](https://github.com/PrefectHQ/prefect/pull/22970)
+* Remove the unbounded flow run count from the dashboard empty-state check by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22920](https://github.com/PrefectHQ/prefect/pull/22920)
+* Avoid importing `pandas` when `prefect.cache_policies` is imported by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22999](https://github.com/PrefectHQ/prefect/pull/22999)
+* Keep the flow run tooltip on the hovered run while moving into it by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23012](https://github.com/PrefectHQ/prefect/pull/23012)
+* Use the `const` value when a literal branch is selected in a schema form by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22911](https://github.com/PrefectHQ/prefect/pull/22911)
+* Fix dashboard flow run query ordering by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22917](https://github.com/PrefectHQ/prefect/pull/22917)
+* Avoid overwriting a final flow run state with `Crashed` after a post-completion `SIGTERM` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23026](https://github.com/PrefectHQ/prefect/pull/23026)
+* Fix the automation SDK filter model by [@znicholasbrown](https://github.com/znicholasbrown) in [#22945](https://github.com/PrefectHQ/prefect/pull/22945)
+* Apply jitter around the backed-off interval in `critical_service_loop` by [@ethanstoner](https://github.com/ethanstoner) in [#22980](https://github.com/PrefectHQ/prefect/pull/22980)
+* Fix spacing between items in the create flow run form by [@uinstinct](https://github.com/uinstinct) in [#23000](https://github.com/PrefectHQ/prefect/pull/23000)
+* Center the plus icon in the automation deployment combobox by [@uinstinct](https://github.com/uinstinct) in [#23014](https://github.com/PrefectHQ/prefect/pull/23014)
+* Fix border rounding in the date selector by [@uinstinct](https://github.com/uinstinct) in [#22735](https://github.com/PrefectHQ/prefect/pull/22735)
+* Remove placeholder fields from the create automation page by [@uinstinct](https://github.com/uinstinct) in [#23027](https://github.com/PrefectHQ/prefect/pull/23027)
+
+**Integrations & Dependencies 🤝**
+
+* Bump `snowflake-connector-python` from 4.4.0 to 4.7.1 by [@dependabot](https://github.com/dependabot)[bot] in [#22996](https://github.com/PrefectHQ/prefect/pull/22996)
+* Bump `browserslist` from 4.25.1 to 4.28.8 in the V2 UI by [@dependabot](https://github.com/dependabot)[bot] in [#23010](https://github.com/PrefectHQ/prefect/pull/23010)
+* Bump `fast-uri` from 3.1.5 to 3.1.7 in the V2 UI by [@dependabot](https://github.com/dependabot)[bot] in [#23021](https://github.com/PrefectHQ/prefect/pull/23021)
+* Bump `@xmldom/xmldom` from 0.8.13 to 0.8.15 in the V2 UI by [@dependabot](https://github.com/dependabot)[bot] in [#23022](https://github.com/PrefectHQ/prefect/pull/23022)
+* Bump `@humanfs/node` from 0.16.6 to 0.16.8 in the V2 UI by [@dependabot](https://github.com/dependabot)[bot] in [#23020](https://github.com/PrefectHQ/prefect/pull/23020)
+* Bump `qs` from 6.15.2 to 6.16.0 in the legacy UI by [@dependabot](https://github.com/dependabot)[bot] in [#23023](https://github.com/PrefectHQ/prefect/pull/23023)
+
+**Development & Tidiness 🧹**
+
+* Add a deployments-list regression test for the Quick Run enum dropdown by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22955](https://github.com/PrefectHQ/prefect/pull/22955)
+* Fix the CI Pyright check that silently analyzed no files by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22827](https://github.com/PrefectHQ/prefect/pull/22827)
+* Make `prefect_test_harness` settings visible in isolated asyncio test cases by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22962](https://github.com/PrefectHQ/prefect/pull/22962)
+* Reverify work pool state after navigation in the empty-state test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22933](https://github.com/PrefectHQ/prefect/pull/22933)
+* Make the test `storage_document_id` fixture and block data encryption deterministic by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22966](https://github.com/PrefectHQ/prefect/pull/22966)
+* Fix two flaky unit tests on `main` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22977](https://github.com/PrefectHQ/prefect/pull/22977)
+* Fix four Pyright errors that failed static analysis on `main` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22963](https://github.com/PrefectHQ/prefect/pull/22963)
+
+**Documentation 📓**
+
+* Add Prefect Cloud scope of support documentation by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22923](https://github.com/PrefectHQ/prefect/pull/22923)
+* Fix the Python client example in the tag-based concurrency limits guide by [@uinstinct](https://github.com/uinstinct) in [#22770](https://github.com/PrefectHQ/prefect/pull/22770)
+* Document how to disable logging by [@znicholasbrown](https://github.com/znicholasbrown) in [#23017](https://github.com/PrefectHQ/prefect/pull/23017)
+* Clarify that process worker project detection runs after pull steps by [@github-actions](https://github.com/github-actions)[bot] in [#22940](https://github.com/PrefectHQ/prefect/pull/22940)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.8.4...3.8.5
+
+
+---
+
 ## 3.8.4 - Seconds of the world, unite!
 
 *Released on August 25, 2026*

@@ -119,6 +119,65 @@ describe("property.type", () => {
 		expect(spy).toHaveBeenCalledWith({ name: "John Doe" });
 	});
 
+	test("propagates changes before the next task", async () => {
+		const spy = vi.fn();
+		const schema: SchemaObject = {
+			type: "object",
+			properties: {
+				name: { type: "string" },
+			},
+		};
+
+		render(<TestSchemaForm schema={schema} values={{}} onValuesChange={spy} />);
+
+		fireEvent.change(screen.getByRole("textbox"), {
+			target: { value: "Arthur Dent" },
+		});
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(spy).toHaveBeenCalledWith({ name: "Arthur Dent" });
+	});
+
+	test("preserves sibling and nested defaults across microtask batches", async () => {
+		const spy = vi.fn();
+
+		function Wrapper() {
+			const [values, setValues] = useState<SchemaFormValues>({});
+			spy.mockImplementation((value: SchemaFormValues) => setValues(value));
+
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					name: { type: "string", default: "Ford Prefect" },
+					location: {
+						type: "object",
+						properties: {
+							planet: { type: "string", default: "Betelgeuse Five" },
+						},
+					},
+				},
+			};
+
+			return (
+				<TestSchemaForm schema={schema} values={values} onValuesChange={spy} />
+			);
+		}
+
+		render(<Wrapper />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(spy).toHaveBeenLastCalledWith({
+			name: "Ford Prefect",
+			location: { planet: "Betelgeuse Five" },
+		});
+	});
+
 	describe("object without properties (Dict type)", () => {
 		test("auto-switches to JSON input for object with no properties", async () => {
 			const spy = vi.fn();
@@ -380,14 +439,19 @@ describe("property.type", () => {
 			fireEvent.change(input, { target: { value: "ba" } });
 			fireEvent.change(input, { target: { value: "bar" } });
 
+			// let the latest value emit before the parent commits an older snapshot
+			await act(async () => {
+				await Promise.resolve();
+			});
+
 			// the parent commits the value of the first keystroke after two more
 			fireEvent.click(screen.getByRole("button", { name: "commit" }));
 
-			// eslint-disable-next-line @typescript-eslint/require-await
 			await act(async () => {
-				vi.runAllTimers();
+				await Promise.resolve();
 			});
 
+			expect(pendingValues).toEqual([{ name: "bar" }, { name: "bar" }]);
 			expect(input).toHaveValue("bar");
 		});
 	});

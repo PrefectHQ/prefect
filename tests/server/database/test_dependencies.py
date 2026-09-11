@@ -83,16 +83,14 @@ async def test_injecting_really_dumb_query_components():
 
         def cast_to_json(self, json_obj): ...
 
-        def build_json_object(self, *args): ...
-
         def json_arr_agg(self, json_array): ...
 
         # --- dialect-optimized subqueries
 
-        def make_timestamp_intervals(
+        def make_timestamp_bucket_index(
             self,
+            timestamp,
             start_time,
-            end_time,
             interval,
         ): ...
 

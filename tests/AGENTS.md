@@ -54,6 +54,10 @@ uv run pytest tests/path/to/file.py --no-clear-db -x
 
 If it passes, delete the `pytestmark` (or per-test marker) and commit.
 
+### PREFECT_HOME cleanup
+
+`PREFECT_HOME` is a single temp directory created once per test session (`pytest_sessionstart`), not reset between tests. A test that writes a file directly into it (e.g. a PID file) must delete it in fixture teardown, or later tests in the same session can see it as real state.
+
 ### Event assertions
 
 Creating a domain object emits a lifecycle event: building a `flow`, `work_pool`, `variable`, block, concurrency limit, etc. (via fixture or model call) emits `prefect.<object>.{created,...}`. Server tests that assert on `AssertingEventsClient` totals or ordering must `AssertingEventsClient.reset()` after fixture setup, so they count only the events from the action under test rather than the events emitted while building fixtures.
