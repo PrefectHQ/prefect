@@ -810,8 +810,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             )
         )
         raise_if_flow_run_suspension_requested()
-        self.set_state(terminal_state)
         self._return_value = resolved_result
+        self.set_state(terminal_state)
 
         link_state_to_flow_run_result(terminal_state, resolved_result)
         self._telemetry.end_span_on_success()
@@ -1321,6 +1321,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 self.handle_timeout(exc)
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
+                if self.state.is_final() or self._return_value is not NotSet:
+                    raise
                 self.handle_exception(exc)
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
@@ -1520,8 +1522,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             write_result=should_persist_result(),
         )
         raise_if_flow_run_suspension_requested()
-        await self.set_state(terminal_state)
         self._return_value = resolved_result
+        await self.set_state(terminal_state)
 
         self._telemetry.end_span_on_success()
 
@@ -2053,6 +2055,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 await self.handle_timeout(exc)
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
+                if self.state.is_final() or self._return_value is not NotSet:
+                    raise
                 await self.handle_exception(exc)
 
     async def call_flow_fn(self) -> Coroutine[Any, Any, R]:
