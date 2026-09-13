@@ -17,16 +17,17 @@ FlexibleScheduleList = Sequence[
 
 def create_deployment_schedule_create(
     schedule: Union["SCHEDULE_TYPES", "Schedule"],
-    active: Optional[bool] = True,
+    active: Optional[bool] = None,
 ) -> DeploymentScheduleCreate:
     """Create a DeploymentScheduleCreate object from common schedule parameters."""
 
     if isinstance(schedule, Schedule):
         return DeploymentScheduleCreate.from_schedule(schedule)
-    return DeploymentScheduleCreate(
-        schedule=schedule,
-        active=active if active is not None else True,
-    )
+    # Leave `active` unset when not provided so an update payload built with
+    # `exclude_unset=True` doesn't force a paused schedule back to active.
+    if active is None:
+        return DeploymentScheduleCreate(schedule=schedule)
+    return DeploymentScheduleCreate(schedule=schedule, active=active)
 
 
 def normalize_to_deployment_schedule(
