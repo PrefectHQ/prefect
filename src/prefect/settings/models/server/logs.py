@@ -17,6 +17,12 @@ class ServerLogsSettings(PrefectBaseSettings):
         ("server", "logs")
     )
 
+    storage: str = Field(
+        default="prefect.server.logs.storage.default",
+        description="The module providing the server log storage implementation. "
+        "It must export a concrete LogStorage subclass.",
+    )
+
     stream_out_enabled: bool = Field(
         default=False,
         description="Whether or not to stream logs out to the API via websockets.",

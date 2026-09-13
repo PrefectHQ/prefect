@@ -133,6 +133,7 @@ SettingAccessor: TypeAlias = Literal[
     "server.flow_run_graph.max_nodes",
     "server.log_retryable_errors",
     "server.logging_level",
+    "server.logs.storage",
     "server.logs.stream_out_enabled",
     "server.logs.stream_publishing_enabled",
     "server.memo_store_path",

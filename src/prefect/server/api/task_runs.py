@@ -27,6 +27,7 @@ from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.logs.storage import LogStorage, get_log_storage
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.core_policy import CoreTaskPolicy
 from prefect.server.orchestration.policies import TaskRunOrchestrationPolicy
@@ -293,17 +294,16 @@ async def delete_task_run(
 
 async def delete_task_run_logs(
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    log_storage: LogStorage = DocketDepends(get_log_storage),
     task_run_id: UUID,
     retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
-    async with db.session_context(begin_transaction=True) as session:
-        await models.logs.delete_logs(
-            session=session,
-            log_filter=schemas.filters.LogFilter(
-                task_run_id=schemas.filters.LogFilterTaskRunId(any_=[task_run_id])
-            ),
-        )
+    """Delete logs associated with a task run using the configured storage."""
+    await log_storage.delete_logs(
+        log_filter=schemas.filters.LogFilter(
+            task_run_id=schemas.filters.LogFilterTaskRunId(any_=[task_run_id])
+        ),
+    )
 
 
 @router.post("/{id:uuid}/set_state")

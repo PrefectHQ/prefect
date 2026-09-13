@@ -37,6 +37,7 @@ from prefect.server.api.validation import validate_job_variables_for_deployment_
 from prefect.server.api.workers import WorkerLookups
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import FlowRunGraphTooLarge
+from prefect.server.logs.storage import LogStorage, get_log_storage
 from prefect.server.models.flow_runs import (
     DependencyResult,
     read_flow_run_graph,
@@ -653,17 +654,16 @@ async def delete_flow_run(
 
 async def delete_flow_run_logs(
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    log_storage: LogStorage = DocketDepends(get_log_storage),
     flow_run_id: UUID,
     retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
-    async with db.session_context(begin_transaction=True) as session:
-        await models.logs.delete_logs(
-            session=session,
-            log_filter=schemas.filters.LogFilter(
-                flow_run_id=schemas.filters.LogFilterFlowRunId(any_=[flow_run_id])
-            ),
-        )
+    """Delete logs associated with a flow run using the configured storage."""
+    await log_storage.delete_logs(
+        log_filter=schemas.filters.LogFilter(
+            flow_run_id=schemas.filters.LogFilterFlowRunId(any_=[flow_run_id])
+        ),
+    )
 
 
 BULK_OPERATION_LIMIT = 50
@@ -1061,10 +1061,9 @@ FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT = 1000
 async def download_logs(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
+    log_storage: LogStorage = Depends(get_log_storage),
 ) -> StreamingResponse:
-    """
-    Download all flow run logs as a CSV file, collecting all logs until there are no more logs to retrieve.
-    """
+    """Download all logs for a flow run from the configured storage as CSV."""
     async with db.session_context() as session:
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
@@ -1091,37 +1090,35 @@ async def download_logs(
         offset = 0
         limit = FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT
 
-        async with db.session_context() as session:
-            while True:
-                results = await models.logs.read_logs(
-                    session=session,
-                    log_filter=schemas.filters.LogFilter(
-                        flow_run_id={"any_": [flow_run_id]}
-                    ),
-                    offset=offset,
-                    limit=limit,
-                    sort=schemas.sorting.LogSort.TIMESTAMP_ASC,
+        while True:
+            results = await log_storage.read_logs(
+                log_filter=schemas.filters.LogFilter(
+                    flow_run_id={"any_": [flow_run_id]}
+                ),
+                offset=offset,
+                limit=limit,
+                sort=schemas.sorting.LogSort.TIMESTAMP_ASC,
+            )
+
+            if not results:
+                break
+
+            offset += limit
+
+            for log in results:
+                csv_writer.writerow(
+                    [
+                        log.timestamp,
+                        log.level,
+                        log.flow_run_id,
+                        log.task_run_id,
+                        log.message,
+                    ]
                 )
-
-                if not results:
-                    break
-
-                offset += limit
-
-                for log in results:
-                    csv_writer.writerow(
-                        [
-                            log.timestamp,
-                            log.level,
-                            log.flow_run_id,
-                            log.task_run_id,
-                            log.message,
-                        ]
-                    )
-                    data.seek(0)
-                    yield data.read()
-                    data.seek(0)
-                    data.truncate(0)
+                data.seek(0)
+                yield data.read()
+                data.seek(0)
+                data.truncate(0)
 
     return StreamingResponse(
         generate(),

@@ -1738,6 +1738,15 @@
         "ServerLogsSettings": {
             "description": "Settings for controlling behavior of the logs subsystem",
             "properties": {
+                "storage": {
+                    "default": "prefect.server.logs.storage.default",
+                    "description": "The module providing the server log storage implementation. It must export a concrete LogStorage subclass.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_LOGS_STORAGE"
+                    ],
+                    "title": "Storage",
+                    "type": "string"
+                },
                 "stream_out_enabled": {
                     "default": false,
                     "description": "Whether or not to stream logs out to the API via websockets.",

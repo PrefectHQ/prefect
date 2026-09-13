@@ -3,41 +3,34 @@ Functions for interacting with log ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import TYPE_CHECKING, Generator, Optional, Sequence, Tuple
+from typing import Generator, Optional, Sequence, Tuple
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
-from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
-from prefect.server.logs import messaging
 from prefect.server.schemas.actions import LogCreate
+from prefect.server.schemas.core import Log
 from prefect.utilities.collections import batched_iterable
 
 # We have a limit of 32,767 parameters at a time for a single query...
 MAXIMUM_QUERY_PARAMETERS = 32_767
 
 # ...and logs have a certain number of fields...
-NUMBER_OF_LOG_FIELDS = len(schemas.core.Log.model_fields)
+NUMBER_OF_LOG_FIELDS = len(Log.model_fields)
 
 # ...so we can only INSERT batches of a certain size at a time
 LOG_BATCH_SIZE = MAXIMUM_QUERY_PARAMETERS // NUMBER_OF_LOG_FIELDS
 
-if TYPE_CHECKING:
-    import logging
-
-logger: "logging.Logger" = get_logger(__name__)
-
-
 def split_logs_into_batches(
-    logs: Sequence[schemas.actions.LogCreate],
-) -> Generator[Tuple[LogCreate, ...], None, None]:
+    logs: Sequence[Log],
+) -> Generator[Tuple[Log, ...], None, None]:
     for batch in batched_iterable(logs, LOG_BATCH_SIZE):
         yield batch
 
 
-def _sanitize_log_strings(log: LogCreate) -> LogCreate:
+def _sanitize_log_strings(log: Log) -> Log:
     """Strip null bytes from log string fields.
 
     PostgreSQL rejects strings containing null bytes (0x00) with
@@ -55,36 +48,23 @@ def _sanitize_log_strings(log: LogCreate) -> LogCreate:
 
 @db_injector
 async def create_logs(
-    db: PrefectDBInterface, session: AsyncSession, logs: Sequence[LogCreate]
+    db: PrefectDBInterface, session: AsyncSession, logs: Sequence[Log]
 ) -> None:
-    """
-    Creates new logs
+    """Persist logs in the Prefect database.
 
     Args:
-        session: a database session
-        logs: a list of log schemas
+        session: A database session.
+        logs: The logs to persist.
 
     Returns:
         None
     """
-    try:
-        logs = [_sanitize_log_strings(log) for log in logs]
-        full_logs = [schemas.core.Log(**log.model_dump()) for log in logs]
-        await session.execute(
-            db.queries.insert(db.Log).values(
-                [log.model_dump(exclude={"created", "updated"}) for log in full_logs]
-            )
+    logs = [_sanitize_log_strings(log) for log in logs]
+    await session.execute(
+        db.queries.insert(db.Log).values(
+            [log.model_dump(exclude={"created", "updated"}) for log in logs]
         )
-        await messaging.publish_logs(full_logs)
-
-    except RuntimeError as exc:
-        if "can't create new thread at interpreter shutdown" in str(exc):
-            # Background logs sometimes fail to write when the interpreter is shutting down.
-            # This is a known issue in Python 3.12.2 that can be ignored and is fixed in Python 3.12.3.
-            # see e.g. https://github.com/python/cpython/issues/113964
-            logger.debug("Received event during interpreter shutdown, ignoring")
-        else:
-            raise
+    )
 
 
 @db_injector
