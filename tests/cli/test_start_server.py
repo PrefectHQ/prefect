@@ -25,6 +25,7 @@ from prefect.settings import (
     PREFECT_MESSAGING_BROKER,
     PREFECT_MESSAGING_CACHE,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_API_BASE_PATH,
     PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
     PREFECT_SERVER_EVENTS_CAUSAL_ORDERING,
     PREFECT_UI_API_URL,
@@ -906,6 +907,30 @@ class TestUIAPIURL:
         assert mock_foreground.called
         server_settings = mock_foreground.call_args[0][1]
         assert server_settings["PREFECT_UI_API_URL"] == "http://127.0.0.1:4242/api"
+
+    def test_ui_api_url_follows_a_custom_api_base_path(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """The server mounts its API under PREFECT_SERVER_API_BASE_PATH when that
+        is set, so the UI must be pointed at that path and not at `/api`."""
+        mock_foreground = self._mock_foreground(monkeypatch)
+
+        with temporary_settings(
+            {
+                PREFECT_API_URL: "http://127.0.0.1:4245/custom-api",
+                PREFECT_SERVER_API_BASE_PATH: "/custom-api",
+            }
+        ):
+            invoke_and_assert(
+                command=["server", "start", "--port", "4245"],
+                expected_code=0,
+            )
+
+        assert mock_foreground.called
+        server_settings = mock_foreground.call_args[0][1]
+        assert (
+            server_settings["PREFECT_UI_API_URL"] == "http://127.0.0.1:4245/custom-api"
+        )
 
     def test_explicit_ui_api_url_is_not_overridden(
         self, monkeypatch: pytest.MonkeyPatch

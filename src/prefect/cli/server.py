@@ -130,6 +130,7 @@ def start(
     from prefect.settings import (
         PREFECT_HOME,
         PREFECT_SERVER_ANALYTICS_ENABLED,
+        PREFECT_SERVER_API_BASE_PATH,
         PREFECT_SERVER_API_HOST,
         PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
         PREFECT_SERVER_API_PORT,
@@ -189,12 +190,15 @@ def start(
     # Unset, PREFECT_UI_API_URL falls back to PREFECT_API_URL — the active
     # profile's server, which may be Cloud. Only a user-set value is theirs to
     # keep; the reverse-proxy case is what that setting is for. A wildcard bind
-    # is not an address a browser can use, so leave that case alone too.
+    # is not an address a browser can use, so leave that case alone too. The API
+    # is mounted under PREFECT_SERVER_API_BASE_PATH when that is set, so the UI
+    # has to follow it rather than assume `/api`.
     if (
         host not in ("0.0.0.0", "::", "")
         and "api_url" not in get_current_settings().server.ui.model_fields_set
     ):
-        server_settings["PREFECT_UI_API_URL"] = f"{base_url}/api"
+        api_path = (PREFECT_SERVER_API_BASE_PATH.value() or "/api").rstrip("/")
+        server_settings["PREFECT_UI_API_URL"] = f"{base_url}{api_path}"
 
     pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
 
