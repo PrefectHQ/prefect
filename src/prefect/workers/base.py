@@ -616,6 +616,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     job_configuration_variables: Optional[Type[V]] = None
     cleanup_handlers: ClassVar[tuple[WorkerCleanupHandler, ...]] = ()
     cleanup_max_concurrency: ClassVar[int | None] = None
+    # Whether a flow run's infrastructure goes down with the worker, as a process
+    # worker's subprocess does. Most workers watch infrastructure that outlives
+    # them, so a run they are interrupted on may still be running somewhere and
+    # must not be reported as crashed.
+    flow_runs_end_with_worker: ClassVar[bool] = False
 
     _documentation_url = ""
     _logo_url = ""
@@ -1653,10 +1658,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 configuration=configuration,
             )
         except anyio.get_cancelled_exc_class():
-            # The worker is shutting down and this run's infrastructure went with
-            # it. Cancellation is a `BaseException`, so it does not reach the
-            # handler below and the run would otherwise be left `Running` for
-            # ever, holding a work pool concurrency slot that nothing releases.
+            # The worker is shutting down. Where the run's infrastructure goes
+            # down with it (`flow_runs_end_with_worker`), cancellation is a
+            # `BaseException`, so it does not reach the handler below and the run
+            # would otherwise be left `Running` for ever, holding a work pool
+            # concurrency slot that nothing releases. Any other worker leaves the
+            # run to its execution environment, as the handler below does.
             # Only report a run that actually started; one cancelled while still
             # being submitted never had infrastructure to lose. `done()` alone
             # does not say that here: the same cancellation cancels the future
@@ -1665,7 +1672,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             # that never carried one is the run that had not started. The scope
             # is already cancelled, so the call has to be shielded to survive.
             future = getattr(task_status, "_future") if task_status else None
-            if future is not None and future.done() and not future.cancelled():
+            if (
+                self.flow_runs_end_with_worker
+                and future is not None
+                and future.done()
+                and not future.cancelled()
+            ):
                 with anyio.CancelScope(shield=True):
                     await self._propose_crashed_state(
                         flow_run,

@@ -2307,6 +2307,7 @@ class TestInfrastructureIntegration:
 
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
             worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "flow_runs_end_with_worker", True)
             monkeypatch.setattr(worker, "run", start_and_never_return)
             await worker.get_and_submit_flow_runs()
 
@@ -2325,6 +2326,49 @@ class TestInfrastructureIntegration:
         assert state.is_crashed()
         with pytest.raises(CrashedRun, match="interrupted by worker shutdown"):
             await state.result()
+
+    async def test_worker_leaves_flow_run_alone_when_its_infrastructure_outlives_it(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_infra_wq1: WorkQueue,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        Most workers watch infrastructure that keeps running when the worker
+        stops, so a started run they are interrupted on must not be reported as
+        crashed — its execution environment decides how it ends.
+        """
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_infra_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+
+        running = anyio.Event()
+
+        async def start_and_never_return(
+            flow_run: FlowRun,
+            configuration: BaseJobConfiguration,
+            task_status: anyio.abc.TaskStatus[int] | None = None,
+        ) -> None:
+            if task_status:
+                task_status.started(42)
+            running.set()
+            await anyio.sleep_forever()
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "run", start_and_never_return)
+            await worker.get_and_submit_flow_runs()
+
+            with anyio.fail_after(10):
+                await running.wait()
+
+            assert worker._runs_task_group is not None
+            worker._runs_task_group.cancel_scope.cancel()
+
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
+        assert not state.is_crashed()
 
     async def test_worker_does_not_crash_flow_run_interrupted_before_it_started(
         self,
@@ -2355,6 +2399,7 @@ class TestInfrastructureIntegration:
 
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
             worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "flow_runs_end_with_worker", True)
             monkeypatch.setattr(worker, "run", never_reports_started)
             await worker.get_and_submit_flow_runs()
 
