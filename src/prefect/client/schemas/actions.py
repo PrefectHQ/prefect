@@ -180,7 +180,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
 
         # Only forward `active` when the user set it explicitly. Leaving it
         # unset lets a redeploy preserve a schedule that was paused server-side.
-        active_kwarg = (
+        active_kwarg: dict[str, Any] = (
             {"active": schedule.active}
             if getattr(schedule, "_active_provided", True)
             else {}
