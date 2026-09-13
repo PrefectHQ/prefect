@@ -61,6 +61,26 @@ def test_normalize_schedule_wrapper_keeps_explicit_active(active: bool):
     assert normalized.model_dump(exclude_unset=True)["active"] is active
 
 
+def test_normalize_direct_schedule_constructor_omits_unset_active():
+    # The direct `Schedule` constructor tracks omission the same way the
+    # factories do, so a redeploy preserves a paused schedule (#19302).
+    from prefect.schedules import Schedule
+
+    (normalized,) = normalize_to_deployment_schedule([Schedule(cron="0 0 * * *")])
+    assert "active" not in normalized.model_fields_set
+    assert "active" not in normalized.model_dump(exclude_unset=True)
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_normalize_direct_schedule_constructor_keeps_explicit_active(active: bool):
+    from prefect.schedules import Schedule
+
+    (normalized,) = normalize_to_deployment_schedule(
+        [Schedule(cron="0 0 * * *", active=active)]
+    )
+    assert normalized.model_dump(exclude_unset=True)["active"] is active
+
+
 def test_normalize_none_returns_empty_list():
     assert normalize_to_deployment_schedule(None) == []
 

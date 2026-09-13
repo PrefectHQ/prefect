@@ -60,12 +60,13 @@ class Schedule:
         default_factory=partial(datetime.datetime.now, tz=datetime.timezone.utc)
     )
     day_or: bool = True
-    active: bool = True
+    active: bool | _Unset = _UNSET
     parameters: dict[str, Any] = dataclasses.field(default_factory=dict)
     slug: str | None = None
-    # Internal: records whether `active` was set explicitly. The factories leave
-    # it False when `active` is omitted so a redeploy can preserve the schedule's
-    # server-side active state instead of forcing it back to True.
+    # Internal: records whether `active` was set explicitly. It is False when
+    # `active` is omitted (via the `_UNSET` default, normalized in
+    # `__post_init__`) so a redeploy can preserve the schedule's server-side
+    # active state instead of forcing it back to True.
     _active_provided: bool = dataclasses.field(default=True, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -83,6 +84,14 @@ class Schedule:
             validate_cron_string(self.cron)
         if self.rrule is not None:
             validate_rrule_string(self.rrule)
+
+        # The factories resolve the `_UNSET` sentinel before constructing, but
+        # the direct constructor can receive it. Normalize here (frozen
+        # dataclass, so `object.__setattr__`) so `active` is always a real bool
+        # while `_active_provided` still records whether it was given.
+        if isinstance(self.active, _Unset):
+            object.__setattr__(self, "active", True)
+            object.__setattr__(self, "_active_provided", False)
 
 
 def Cron(
