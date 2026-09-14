@@ -2,16 +2,19 @@ import asyncio
 import functools
 import warnings
 from typing import Any, Callable, Optional, Union
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from pydantic import Field, model_validator
 from redis.asyncio import Redis
 from typing_extensions import Self, TypeAlias
 
+from prefect.logging import get_logger
 from prefect.settings.base import (
     PrefectBaseSettings,
     build_settings_config,  # type: ignore[reportPrivateUsage]
 )
+
+logger = get_logger(__name__)
 
 _UNSET: Any = object()
 
@@ -57,17 +60,18 @@ class RedisMessagingSettings(PrefectBaseSettings):
         description="Whether to use SSL for the Redis connection",
     )
     socket_timeout: Optional[float] = Field(
-        default=None,
+        default=60.0,
         description=(
-            "Timeout in seconds for socket read operations. "
-            "None means no timeout (preserves pre-redis-py-8 behavior)."
+            "Timeout in seconds for socket read operations. None means no "
+            "timeout. Consumers with a longer PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK "
+            "extend this automatically for their own client, so idle blocking "
+            "reads (e.g. XREADGROUP) don't time out spuriously."
         ),
     )
     socket_connect_timeout: Optional[float] = Field(
-        default=None,
+        default=10.0,
         description=(
-            "Timeout in seconds for socket connect operations. "
-            "None means no timeout (preserves pre-redis-py-8 behavior)."
+            "Timeout in seconds for socket connect operations. None means no timeout."
         ),
     )
     protocol: int = Field(
@@ -115,6 +119,25 @@ def normalize_cluster_url(url: str) -> str:
         return url
 
     return urlunparse(parsed._replace(scheme=parsed.scheme.replace("+cluster", "")))
+
+
+def url_socket_timeout(url: str) -> Optional[float]:
+    """Return the `socket_timeout` query parameter of a Redis URL, if set.
+
+    `Redis.from_url` gives querystring arguments precedence over keyword
+    arguments, so this is the effective timeout regardless of what a caller
+    passes alongside the URL.
+    """
+    values = parse_qs(urlparse(url).query).get("socket_timeout")
+    return float(values[0]) if values else None
+
+
+def with_socket_timeout(url: str, socket_timeout: float) -> str:
+    """Return `url` with its `socket_timeout` query parameter set to `socket_timeout`."""
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    query["socket_timeout"] = [str(socket_timeout)]
+    return urlunparse(parsed._replace(query=urlencode(query, doseq=True)))
 
 
 @functools.cache
@@ -174,10 +197,31 @@ def close_all_cached_connections() -> None:
         loop.run_until_complete(client.aclose())
 
 
-async def clear_cached_clients() -> None:
-    """Clear cached Redis clients and the messaging URL lookup."""
+async def clear_cached_clients(client: Union[Redis, None] = None) -> None:
+    """Close and clear cached Redis clients and the messaging URL lookup.
+
+    Without closing, connections stuck in-use from a hung operation are never
+    released and the pool eventually exhausts its connection cap.
+
+    Args:
+        client: If given, only this cached client is closed and evicted;
+            other cached clients (e.g. for other endpoints) are left running.
+            If omitted, every current-loop client is closed.
+    """
     _get_redis_messaging_url.cache_clear()
-    _client_cache.clear()
+
+    current_loop = _running_loop()
+    for key, cached_client in list(_client_cache.items()):
+        if client is not None and cached_client is not client:
+            continue
+        _, _, _, loop = key
+        if loop is not None and loop is not current_loop:
+            continue  # can't await a client bound to another loop
+        _client_cache.pop(key, None)
+        try:
+            await cached_client.aclose()
+        except Exception:
+            logger.exception("Error closing cached Redis client")
 
 
 @cached
