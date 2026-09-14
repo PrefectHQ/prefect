@@ -44,6 +44,9 @@ with get_client(sync_client=True) as client:
 
 </CodeGroup>
 
+If you pass custom authentication, timeout, or transport objects through `httpx_settings`, use types from `httpx2`.
+Use `httpx2` exception classes when catching HTTP errors from the Prefect client.
+
 ## Pagination and default query limits
 
 Client methods that accept `limit` and `offset` parameters - such as `read_flow_runs`, `read_deployments`,

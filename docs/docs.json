@@ -251,7 +251,6 @@
             "pages": [
               "v3/how-to-guides/migrate/airflow",
               "v3/how-to-guides/migrate/upgrade-to-prefect-3",
-              "v3/how-to-guides/migrate/migrate-to-httpx2",
               "v3/how-to-guides/migrate/upgrade-agents-to-workers",
               "v3/how-to-guides/migrate/transfer-resources"
             ]
