@@ -2,6 +2,53 @@
 title: 3.8
 ---
 
+## 3.8.6
+
+*Released on September 11, 2026*
+
+**Enhancements ➕➕**
+
+* Reduce task run recorder `INSERT` compilation CPU by [@chuqCTC](https://github.com/chuqCTC) in [#23041](https://github.com/PrefectHQ/prefect/pull/23041)
+* Allow transitioning to cancelling from paused by [@znicholasbrown](https://github.com/znicholasbrown) in [#23039](https://github.com/PrefectHQ/prefect/pull/23039)
+* Allow cancelling a blocking paused flow run after its pause timeout elapses by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23064](https://github.com/PrefectHQ/prefect/pull/23064)
+
+**Bug Fixes 🐞**
+
+* Fix Docker work pool editing and block/env serialization in UI v2 by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23067](https://github.com/PrefectHQ/prefect/pull/23067)
+* Treat `ERROR_ACCESS_DENIED` as alive in Windows `_is_pid_alive` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23037](https://github.com/PrefectHQ/prefect/pull/23037)
+* Rebuild invalid `ix_event_resources__occurred` left by an interrupted build by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23033](https://github.com/PrefectHQ/prefect/pull/23033)
+* Resolve the Azure CLI executable through `PATH` in `AzureCLI.run_command` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23035](https://github.com/PrefectHQ/prefect/pull/23035)
+* Bucket run history with arithmetic instead of a range join by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22879](https://github.com/PrefectHQ/prefect/pull/22879)
+* Scan orphaned logs and artifacts by `flow_run_id` cursor instead of an anti-join per batch by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23080](https://github.com/PrefectHQ/prefect/pull/23080)
+* Default `local_storage_path` to `PREFECT_HOME/storage` by [@Tyagiquamar](https://github.com/Tyagiquamar) in [#23070](https://github.com/PrefectHQ/prefect/pull/23070)
+* Schedule automation cache updates on the event loop for SQLite by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23056](https://github.com/PrefectHQ/prefect/pull/23056)
+* Begin SQLite write transactions before reading in `mark_deployments_ready` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23052](https://github.com/PrefectHQ/prefect/pull/23052)
+* Fix the database-locked error when marking deployments ready by [@uinstinct](https://github.com/uinstinct) in [#22967](https://github.com/PrefectHQ/prefect/pull/22967)
+* Make the delete dialog confirmation text copyable by [@uinstinct](https://github.com/uinstinct) in [#23069](https://github.com/PrefectHQ/prefect/pull/23069)
+* Allow flow names with surrounding whitespace to complete by [@zzstoatzz](https://github.com/zzstoatzz) in [#23043](https://github.com/PrefectHQ/prefect/pull/23043)
+* Handle abstract container annotations for nested blocks by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23082](https://github.com/PrefectHQ/prefect/pull/23082)
+
+**Development & Tidiness 🧹**
+
+* Add a TLA+ model for deployment concurrency leases by [@desertaxle](https://github.com/desertaxle) in [#23030](https://github.com/PrefectHQ/prefect/pull/23030)
+* Move old SQLite Dockerfile UI builders from Bullseye to Bookworm by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23059](https://github.com/PrefectHQ/prefect/pull/23059)
+* Use Bookworm base images in the old SQLite Dockerfile by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23058](https://github.com/PrefectHQ/prefect/pull/23058)
+
+**Integrations & Dependencies 🤝**
+
+* Update `tornado` from 6.5.7 to 6.5.8 by [@dependabot](https://github.com/dependabot)[bot] in [#23009](https://github.com/PrefectHQ/prefect/pull/23009)
+
+**Documentation 📓**
+
+* Document Backoff Limit and `PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR` in the Kubernetes guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23028](https://github.com/PrefectHQ/prefect/pull/23028)
+* Document the published ChatGPT plugin and Claude connector by [@zzstoatzz](https://github.com/zzstoatzz) in [#23068](https://github.com/PrefectHQ/prefect/pull/23068)
+* Explain `commit_mode` in the transactions guide by [@bdalpe](https://github.com/bdalpe) in [#23077](https://github.com/PrefectHQ/prefect/pull/23077)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.8.5...3.8.6
+
+
+---
+
 ## 3.8.5 - A little jitter never hurt anybody
 
 *Released on September 03, 2026*
