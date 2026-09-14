@@ -495,7 +495,7 @@ def test_acquire_concurrency_slots_formats_server_validation_error(
 ):
     async def mocked_increment(*args: Any, **kwargs: Any) -> None:
         raise HTTPStatusError(
-            "Unprocessable Entity",
+            "Unprocessable Content",
             request=Request("POST", "http://test.com"),
             response=Response(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -533,7 +533,7 @@ def test_acquire_concurrency_slots_formats_server_validation_error(
                 pass
 
     assert str(exc_info.value) == (
-        "Unable to acquire concurrency slots on ['test']: 422 Unprocessable Entity: "
+        "Unable to acquire concurrency slots on ['test']: 422 Unprocessable Content: "
         "slots: Input should be greater than 0; "
         "lease_duration: Input should be greater than or equal to 60"
     )
