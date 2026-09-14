@@ -9,15 +9,15 @@ from prefect_dask.client import PrefectDaskClient
 from prefect import flow, task
 
 
-def _count_named_prefect_tasks_in_scheduler_process(
+def _named_prefect_task_ids_in_scheduler_process(
     task_names, dask_scheduler=None
-) -> int:
+) -> list[int]:
     import gc
 
     gc.collect()
     names = set(task_names)
-    return sum(
-        1
+    return sorted(
+        id(obj)
         for obj in gc.get_objects()
         if type(obj).__module__ == "prefect.tasks"
         and type(obj).__name__ == "Task"
@@ -48,27 +48,28 @@ def test_scheduler_does_not_retain_prefect_tasks():
             return [future.result() for future in futures]
 
         with distributed.Client(cluster) as client:
-            assert (
+            baseline_task_ids = set(
                 client.run_on_scheduler(
-                    _count_named_prefect_tasks_in_scheduler_process,
+                    _named_prefect_task_ids_in_scheduler_process,
                     tracked_task_names,
                 )
-                == 0
             )
 
         assert test_flow(10) == list(range(10))
 
         with distributed.Client(cluster) as client:
             for _ in range(20):
-                retained_prefect_tasks = client.run_on_scheduler(
-                    _count_named_prefect_tasks_in_scheduler_process,
-                    tracked_task_names,
-                )
-                if retained_prefect_tasks == 0:
+                retained_task_ids = set(
+                    client.run_on_scheduler(
+                        _named_prefect_task_ids_in_scheduler_process,
+                        tracked_task_names,
+                    )
+                ) - baseline_task_ids
+                if not retained_task_ids:
                     break
                 time.sleep(0.05)
 
-        assert retained_prefect_tasks == 0
+        assert retained_task_ids == set()
 
 
 def test_zero_worker_adaptive_cluster_can_run_prefect_task():
