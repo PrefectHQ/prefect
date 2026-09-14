@@ -189,6 +189,53 @@ def test_tls_scheme_covers_data_nodes_and_daemons(asynchronous: bool) -> None:
 
 
 @sync_and_async
+def test_caller_tls_defaults_reach_sentinel_daemons(asynchronous: bool) -> None:
+    # `async_redis_from_settings(..., ssl_ca_certs=...)` passes TLS options as
+    # kwargs rather than URL options; the daemons must trust the same CA or
+    # discovery fails while the master connections would have succeeded.
+    client = redis_from_url(
+        "rediss+sentinel://s1:26379/mymaster",
+        asynchronous=asynchronous,
+        ssl_ca_certs="/etc/ca.pem",
+        ssl_check_hostname=False,
+    )
+    assert client.connection_pool.connection_kwargs["ssl_ca_certs"] == "/etc/ca.pem"
+    for daemon in daemons(client):
+        assert daemon.connection_pool.connection_class is (
+            AsyncSSLConnection if asynchronous else SSLConnection
+        )
+        assert daemon.connection_pool.connection_kwargs["ssl_ca_certs"] == "/etc/ca.pem"
+        assert daemon.connection_pool.connection_kwargs["ssl_check_hostname"] is False
+
+
+@sync_and_async
+def test_url_tls_options_override_caller_defaults_for_daemons(
+    asynchronous: bool,
+) -> None:
+    client = redis_from_url(
+        "rediss+sentinel://s1:26379/mymaster?ssl_ca_certs=/url/ca.pem",
+        asynchronous=asynchronous,
+        ssl_ca_certs="/caller/ca.pem",
+    )
+    assert client.connection_pool.connection_kwargs["ssl_ca_certs"] == "/url/ca.pem"
+    for daemon in daemons(client):
+        assert daemon.connection_pool.connection_kwargs["ssl_ca_certs"] == "/url/ca.pem"
+
+
+def test_plain_scheme_does_not_share_tls_options_with_daemons() -> None:
+    # On redis+sentinel:// the daemons are plain TCP, so the TLS profile stays
+    # with whatever the caller meant it for and is not forced onto them.
+    client = redis_from_url(
+        "redis+sentinel://s1:26379/mymaster", socket_timeout=1.5, ssl_ca_certs="/x"
+    )
+    for daemon in daemons(client):
+        kwargs = daemon.connection_pool.connection_kwargs
+        assert daemon.connection_pool.connection_class is Connection
+        assert kwargs["socket_timeout"] == 1.5
+        assert "ssl_ca_certs" not in kwargs
+
+
+@sync_and_async
 def test_sentinel_query_options_use_redis_py_parsing(asynchronous: bool) -> None:
     client = redis_from_url(
         f"{SENTINEL_URL}?socket_timeout=2.5&health_check_interval=30"

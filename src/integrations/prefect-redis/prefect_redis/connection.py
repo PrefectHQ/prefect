@@ -11,8 +11,9 @@ otherwise defers to redis-py::
 Sentinel members default to port 26379. The `sentinel_username` and
 `sentinel_password` options authenticate to the Sentinel daemons; every other option
 is a standard redis-py URL option applied to the data-node connections with redis-py's
-own parsing, and on a TLS scheme the `ssl_*` options are shared with the daemon
-connections so one private CA covers the whole topology. The grammar is the one
+own parsing, and on a TLS scheme the `ssl_*` options (from the URL or from caller
+defaults) are shared with the daemon connections so one private CA covers the whole
+topology. The grammar is the one
 docket accepts for `PREFECT_SERVER_DOCKET_URL`, so a single URL serves both.
 """
 
@@ -81,9 +82,15 @@ def redis_from_url(
     connection_kwargs = {**kwargs, **url_options}
     # redis-py copies the socket_* options to the daemon connections only when
     # sentinel_kwargs is None; the explicit dict carrying the daemons' auth/TLS
-    # would suppress that, so apply the same fallback here.
+    # would suppress that, so apply the same fallback here. On a TLS scheme the
+    # daemons also share the data nodes' ssl_* profile: without this a private CA
+    # would apply to the master connections only and every daemon connection
+    # would fail certificate verification at discovery. Both are taken from the
+    # merged kwargs so a CA passed as a caller default counts too, while URL
+    # options keep precedence over caller defaults.
+    shared = ("socket_", "ssl_") if sentinel_kwargs.get("ssl") else ("socket_",)
     sentinel_kwargs = {
-        **{k: v for k, v in connection_kwargs.items() if k.startswith("socket_")},
+        **{k: v for k, v in connection_kwargs.items() if k.startswith(shared)},
         **sentinel_kwargs,
     }
     sentinel_class = (
@@ -158,13 +165,9 @@ def _parse_sentinel_url(
         # the `connection_class` redis-py resolved for the standalone URL.
         options.pop("connection_class")
         options["ssl"] = True
-        # The daemons share the data nodes' TLS profile: without this a private
-        # CA passed as ?ssl_ca_certs= would apply to the master connections only
-        # and every daemon connection would fail certificate verification.
+        # The daemons speak TLS too; `redis_from_url` gives them the data nodes'
+        # ssl_* profile once URL options and caller defaults are merged.
         sentinel_kwargs["ssl"] = True
-        sentinel_kwargs.update(
-            {key: value for key, value in options.items() if key.startswith("ssl_")}
-        )
     return _split_members(hostpart), service_name, sentinel_kwargs, options
 
 
