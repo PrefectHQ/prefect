@@ -106,6 +106,60 @@ test.describe("Deployment Detail Page", () => {
 		await expect(page.getByText(runName)).toBeVisible({ timeout: 10000 });
 	});
 
+	test("Runs tab toolbar and run cards fit within the run-list column at 1280x720", async ({
+		page,
+		apiClient,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 720 });
+
+		const timestamp = Date.now();
+		const flowName = `${TEST_PREFIX}layout-flow-${timestamp}`;
+		const depName = `${TEST_PREFIX}layout-dep-${timestamp}`;
+		const runName = `${TEST_PREFIX}layout-run-${timestamp}`;
+		const flow = await createFlow(apiClient, flowName);
+		const deployment = await createDeployment(apiClient, {
+			name: depName,
+			flowId: flow.id,
+		});
+		await createFlowRun(apiClient, {
+			flowId: flow.id,
+			name: runName,
+			deploymentId: deployment.id,
+			state: { type: "COMPLETED", name: "Completed" },
+		});
+
+		await page.goto(`/deployments/deployment/${deployment.id}`);
+		await expect(page.getByText(runName)).toBeVisible({ timeout: 10000 });
+
+		expect(
+			await page.evaluate(
+				() => document.documentElement.scrollWidth <= window.innerWidth,
+			),
+		).toBe(true);
+
+		const sidebarBox = await page.getByRole("complementary").boundingBox();
+		const searchBox = await page
+			.getByRole("textbox", { name: /search by run name/i })
+			.boundingBox();
+		const sortBox = await page
+			.getByRole("combobox", { name: /flow run sort order/i })
+			.boundingBox();
+		expect(sidebarBox).not.toBeNull();
+		expect(searchBox).not.toBeNull();
+		expect(sortBox).not.toBeNull();
+		if (!sidebarBox || !searchBox || !sortBox) {
+			throw new Error(
+				"Expected the run-list controls and sidebar to be visible",
+			);
+		}
+		expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(sidebarBox.x);
+		expect(sortBox.x + sortBox.width).toBeLessThanOrEqual(sidebarBox.x);
+
+		const parametersBox = await page.getByText(/\d+ Parameters?/).boundingBox();
+		expect(parametersBox).not.toBeNull();
+		expect(parametersBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(32);
+	});
+
 	test("Quick run from deployment detail", async ({ page, apiClient }) => {
 		const timestamp = Date.now();
 		const flowName = `${TEST_PREFIX}quick-flow-${timestamp}`;
