@@ -13,6 +13,7 @@ from prefect._internal.compatibility.httpx import (
     AsyncClient,
     Client,
     create_ssl_context,
+    warn_on_legacy_httpx,
 )
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.logging import LogEavesdropper
@@ -1009,7 +1010,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                     raise KeyError(f"{name}/{placeholder}")
 
     async def anotify(self, body: str, subject: str | None = None) -> None:
-
+        warn_on_legacy_httpx()
         request_args = self._build_request_args(body, subject)
         client_kwargs: dict[str, Any] = {
             "headers": {"user-agent": "Prefect Notifications"},
@@ -1029,7 +1030,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
 
     @async_dispatch(anotify)
     def notify(self, body: str, subject: str | None = None) -> None:
-
+        warn_on_legacy_httpx()
         request_args = self._build_request_args(body, subject)
         client_kwargs: dict[str, Any] = {
             "headers": {"user-agent": "Prefect Notifications"},

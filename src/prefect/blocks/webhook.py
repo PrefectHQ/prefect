@@ -10,6 +10,7 @@ from prefect._internal.compatibility.httpx import (
     AsyncHTTPTransport,
     Response,
     create_ssl_context,
+    warn_on_legacy_httpx,
 )
 from prefect.blocks.core import Block
 from prefect.types import SecretDict
@@ -82,6 +83,7 @@ class Webhook(Block):
         Args:
             payload: an optional payload to send when calling the webhook.
         """
+        warn_on_legacy_httpx()
         if not self.allow_private_urls:
             validate_restricted_url(self.url.get_secret_value())
 

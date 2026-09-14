@@ -182,6 +182,74 @@ def test_legacy_warning_is_visible_once_per_process(
 
 
 @pytest.mark.parametrize("backend", HTTP_BACKENDS)
+@pytest.mark.parametrize("entrypoint", ["webhook", "notify", "anotify"])
+def test_standalone_http_blocks_share_legacy_warning(
+    run_python: RunPython, backend: str, entrypoint: str
+):
+    result = run_python(
+        f"""
+        import asyncio
+        import warnings
+        from unittest.mock import patch
+
+        from prefect._internal.compatibility.httpx import (
+            PrefectHTTPXDeprecationWarning, httpx,
+        )
+        from prefect.blocks.notifications import CustomWebhookNotificationBlock
+        from prefect.blocks.webhook import Webhook
+        from prefect.client.base import PrefectHttpxAsyncClient, PrefectHttpxSyncClient
+
+        def respond(client, method, url, **kwargs):
+            assert isinstance(client, (httpx.Client, httpx.AsyncClient))
+            return httpx.Response(200, request=httpx.Request(method, url))
+
+        async def respond_async(client, method, url, **kwargs):
+            return respond(client, method, url, **kwargs)
+
+        def use_block():
+            if {entrypoint!r} == "webhook":
+                block = Webhook(url="https://example.test/")
+                response = asyncio.run(block.call(payload="test"))
+                assert type(response) is httpx.Response
+            else:
+                block = CustomWebhookNotificationBlock(
+                    name="test", url="https://example.test/",
+                )
+                if {entrypoint!r} == "notify":
+                    block.notify("test")
+                else:
+                    asyncio.run(block.anotify("test"))
+
+        async def use_async_client():
+            async with PrefectHttpxAsyncClient():
+                pass
+
+        with warnings.catch_warnings(record=True) as notices:
+            warnings.simplefilter("always", PrefectHTTPXDeprecationWarning)
+            with patch.object(httpx.Client, "request", respond), patch.object(
+                httpx.AsyncClient, "request", respond_async
+            ):
+                for _ in range(2):
+                    use_block()
+                    assert sum(
+                        issubclass(notice.category, PrefectHTTPXDeprecationWarning)
+                        for notice in notices
+                    ) == {1 if backend == "httpx" else 0}, notices
+
+            with PrefectHttpxSyncClient():
+                pass
+            asyncio.run(use_async_client())
+            assert sum(
+                issubclass(notice.category, PrefectHTTPXDeprecationWarning)
+                for notice in notices
+            ) == {1 if backend == "httpx" else 0}, notices
+        """,
+        backend,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("backend", HTTP_BACKENDS)
 def test_flow_subprocess_inherits_backend(
     run_python: RunPython, tmp_path: Path, backend: str
 ):
