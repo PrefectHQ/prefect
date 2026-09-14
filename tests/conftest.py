@@ -645,9 +645,6 @@ def leaves_no_extraneous_files():
 
 @pytest.fixture
 def respx_mock():
-    """
-    Temporary override of respx to mock httpx instead of httpcore until respx supports
-    httpx>=0.28.0
-    """
-    with respx.mock(using="httpx") as xmock:
+    """Mock HTTPX2 through the backend registered by pytest-httpx2."""
+    with respx.mock(using="httpcore2") as xmock:
         yield xmock

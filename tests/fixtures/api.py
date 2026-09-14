@@ -1,11 +1,11 @@
 from typing import Any, AsyncGenerator, Awaitable, Callable, Coroutine, Dict
 from uuid import uuid4
 
-import httpx
+import httpx2
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 
 from prefect.client.base import app_lifespan_context
 from prefect.server.api.server import create_app
@@ -36,7 +36,7 @@ async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
     """
     Yield a test client for testing the api
     """
-    async with httpx.AsyncClient(
+    async with httpx2.AsyncClient(
         transport=ASGITransport(app=app), base_url="https://test/api"
     ) as async_client:
         yield async_client
@@ -51,13 +51,13 @@ def sync_client(app: FastAPI) -> TestClient:
 async def hosted_api_client(use_hosted_api_server) -> AsyncGenerator[AsyncClient, Any]:
     # Use a generous timeout and transport retries to handle transient connection
     # failures under heavy parallel test execution (pytest-xdist). The default
-    # httpx timeout of 5s is too aggressive when the hosted server subprocess is
+    # httpx2 timeout of 5s is too aggressive when the hosted server subprocess is
     # under CPU pressure from concurrent tests, causing ConnectTimeout errors.
-    transport = httpx.AsyncHTTPTransport(retries=3)
-    async with httpx.AsyncClient(
+    transport = httpx2.AsyncHTTPTransport(retries=3)
+    async with httpx2.AsyncClient(
         base_url=use_hosted_api_server,
         transport=transport,
-        timeout=httpx.Timeout(30.0),
+        timeout=httpx2.Timeout(30.0),
     ) as async_client:
         yield async_client
 
@@ -73,7 +73,7 @@ async def ephemeral_client_with_lifespan(
     AssertingEventsClient. Otherwise, use the `hosted_api_client` fixture.
     """
     async with app_lifespan_context(app):
-        async with httpx.AsyncClient(
+        async with httpx2.AsyncClient(
             transport=ASGITransport(app=app), base_url="https://test/api"
         ) as async_client:
             yield async_client
@@ -89,7 +89,7 @@ async def client_with_unprotected_block_api(
     api_version = "0.8.0"
     version_header = {"X-PREFECT-API-VERSION": api_version}
     transport = ASGITransport(app=app, raise_app_exceptions=False)
-    async with httpx.AsyncClient(
+    async with httpx2.AsyncClient(
         transport=transport, base_url="https://test/api", headers=version_header
     ) as async_client:
         yield async_client
@@ -104,7 +104,7 @@ async def client_without_exceptions(app: ASGIApp) -> AsyncGenerator[AsyncClient,
     """
     transport = ASGITransport(app=app, raise_app_exceptions=False)
 
-    async with httpx.AsyncClient(
+    async with httpx2.AsyncClient(
         transport=transport, base_url="https://test/api"
     ) as async_client:
         yield async_client

@@ -14,7 +14,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, Mock
 
 import anyio.abc
 import cloudpickle
-import httpx
+import httpx2
 import orjson
 import pytest
 import respx
@@ -195,14 +195,14 @@ async def test_worker_requires_api_url_when_not_in_test_mode():
 
 class TestStartupWhenTheAPIIsUnreachable:
     @pytest.fixture
-    def connect_error(self) -> httpx.ConnectError:
-        return httpx.ConnectError("All connection attempts failed")
+    def connect_error(self) -> httpx2.ConnectError:
+        return httpx2.ConnectError("All connection attempts failed")
 
     async def test_setup_continues_when_the_api_is_unreachable(
         self,
         monkeypatch: pytest.MonkeyPatch,
         caplog: pytest.LogCaptureFixture,
-        connect_error: httpx.ConnectError,
+        connect_error: httpx2.ConnectError,
     ):
         monkeypatch.setattr(
             WorkerTestImpl, "sync_with_backend", AsyncMock(side_effect=connect_error)
@@ -219,24 +219,24 @@ class TestStartupWhenTheAPIIsUnreachable:
     async def test_setup_fails_for_non_transient_errors(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        request = httpx.Request("GET", "https://api.prefect.io/work_pools/test")
-        unauthorized = httpx.HTTPStatusError(
+        request = httpx2.Request("GET", "https://api.prefect.io/work_pools/test")
+        unauthorized = httpx2.HTTPStatusError(
             "Unauthorized",
             request=request,
-            response=httpx.Response(401, request=request),
+            response=httpx2.Response(401, request=request),
         )
         monkeypatch.setattr(
             WorkerTestImpl, "sync_with_backend", AsyncMock(side_effect=unauthorized)
         )
 
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(httpx2.HTTPStatusError):
             async with WorkerTestImpl(name="test", work_pool_name="test-work-pool"):
                 pass
 
     async def test_polling_waits_for_a_complete_sync(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        connect_error: httpx.ConnectError,
+        connect_error: httpx2.ConnectError,
         work_pool: WorkPool,
         worker_channel_endpoint_unavailable: None,
     ):
@@ -265,7 +265,7 @@ class TestStartupWhenTheAPIIsUnreachable:
     async def test_worker_recovers_and_initializes_sync_dependent_services(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        connect_error: httpx.ConnectError,
+        connect_error: httpx2.ConnectError,
         prefect_client: PrefectClient,
         worker_deployment_wq1: Deployment,
         work_pool: WorkPool,
@@ -380,7 +380,7 @@ class TestStartupWhenTheAPIIsUnreachable:
     async def test_sustained_sync_failures_stop_the_worker(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        connect_error: httpx.ConnectError,
+        connect_error: httpx2.ConnectError,
     ):
         monkeypatch.setattr(
             WorkerTestImpl, "sync_with_backend", AsyncMock(side_effect=connect_error)
@@ -500,7 +500,7 @@ async def test_worker_sends_heartbeat_gets_id(
 
     respx_mock.post(
         f"api/work_pools/{work_pool_name}/workers/heartbeat",
-    ).mock(return_value=httpx.Response(status.HTTP_200_OK, text=str(test_worker_id)))
+    ).respond(status.HTTP_200_OK, text=str(test_worker_id))
     async with WorkerTestImpl(name="test", work_pool_name=work_pool_name) as worker:
         worker._client.server_type = ServerType.CLOUD
 

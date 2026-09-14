@@ -2,7 +2,7 @@ import asyncio
 from unittest import mock
 
 import pytest
-from httpx import HTTPStatusError, Request, Response
+from httpx2 import HTTPStatusError, Request, Response
 
 from prefect.client.orchestration import get_client
 from prefect.concurrency.services import ConcurrencySlotAcquisitionService

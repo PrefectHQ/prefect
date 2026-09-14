@@ -11,9 +11,9 @@ from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, runtime_checkable
 
 import anyio
-import httpx
+import httpx2
 from asgi_lifespan import LifespanManager
-from httpx import HTTPStatusError, Request, Response
+from httpx2 import HTTPStatusError, Request, Response
 from typing_extensions import Self
 
 import prefect
@@ -144,9 +144,9 @@ async def app_lifespan_context(app: ASGIApp) -> AsyncGenerator[None, None]:
                     await context.__aexit__(*exc_info)
 
 
-class PrefectResponse(httpx.Response):
+class PrefectResponse(httpx2.Response):
     """
-    A Prefect wrapper for the `httpx.Response` class.
+    A Prefect wrapper for the `httpx2.Response` class.
 
     Provides more informative error messages.
     """
@@ -164,9 +164,9 @@ class PrefectResponse(httpx.Response):
             raise PrefectHTTPStatusError.from_httpx_error(exc) from exc.__cause__
 
     @classmethod
-    def from_httpx_response(cls: type[Self], response: httpx.Response) -> Response:
+    def from_httpx_response(cls: type[Self], response: httpx2.Response) -> Response:
         """
-        Create a `PrefectResponse` from an `httpx.Response`.
+        Create a `PrefectResponse` from an `httpx2.Response`.
 
         By changing the `__class__` attribute of the Response, we change the method
         resolution order to look for methods defined in PrefectResponse, while leaving
@@ -177,9 +177,9 @@ class PrefectResponse(httpx.Response):
         return new_response
 
 
-class PrefectHttpxAsyncClient(httpx.AsyncClient):
+class PrefectHttpxAsyncClient(httpx2.AsyncClient):
     """
-    A Prefect wrapper for the async httpx client with support for retry-after headers
+    A Prefect wrapper for the async httpx2 client with support for retry-after headers
     for the provided status codes (typically 429, 502 and 503).
 
     Additionally, this client will always call `raise_for_status` on responses.
@@ -362,24 +362,24 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
 
         # Base exceptions that are always retried
         retry_exceptions: tuple[type[Exception], ...] = (
-            httpx.ReadTimeout,
-            httpx.PoolTimeout,
-            httpx.ConnectTimeout,
+            httpx2.ReadTimeout,
+            httpx2.PoolTimeout,
+            httpx2.ConnectTimeout,
             # `ConnectionResetError` when reading socket raises as a `ReadError`
-            httpx.ReadError,
+            httpx2.ReadError,
             # Sockets can be closed during writes resulting in a `WriteError`
-            httpx.WriteError,
+            httpx2.WriteError,
             # Uvicorn bug, see https://github.com/PrefectHQ/prefect/issues/7512
-            httpx.RemoteProtocolError,
+            httpx2.RemoteProtocolError,
             # HTTP2 bug, see https://github.com/PrefectHQ/prefect/issues/7442
-            httpx.LocalProtocolError,
+            httpx2.LocalProtocolError,
         )
 
         # Only retry ConnectError after we've successfully connected once.
         # This allows fast failure on initial connection issues (e.g., wrong URL)
         # while still providing resilience during server restarts.
         if self._has_connected:
-            retry_exceptions = retry_exceptions + (httpx.ConnectError,)
+            retry_exceptions = retry_exceptions + (httpx2.ConnectError,)
 
         super_send = super().send
         response = await self._send_with_retry(
@@ -447,9 +447,9 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         request.headers["Prefect-Csrf-Client"] = str(self.csrf_client_id)
 
 
-class PrefectHttpxSyncClient(httpx.Client):
+class PrefectHttpxSyncClient(httpx2.Client):
     """
-    A Prefect wrapper for the async httpx client with support for retry-after headers
+    A Prefect wrapper for the async httpx2 client with support for retry-after headers
     for the provided status codes (typically 429, 502 and 503).
 
     Additionally, this client will always call `raise_for_status` on responses.
@@ -632,24 +632,24 @@ class PrefectHttpxSyncClient(httpx.Client):
 
         # Base exceptions that are always retried
         retry_exceptions: tuple[type[Exception], ...] = (
-            httpx.ReadTimeout,
-            httpx.PoolTimeout,
-            httpx.ConnectTimeout,
+            httpx2.ReadTimeout,
+            httpx2.PoolTimeout,
+            httpx2.ConnectTimeout,
             # `ConnectionResetError` when reading socket raises as a `ReadError`
-            httpx.ReadError,
+            httpx2.ReadError,
             # Sockets can be closed during writes resulting in a `WriteError`
-            httpx.WriteError,
+            httpx2.WriteError,
             # Uvicorn bug, see https://github.com/PrefectHQ/prefect/issues/7512
-            httpx.RemoteProtocolError,
+            httpx2.RemoteProtocolError,
             # HTTP2 bug, see https://github.com/PrefectHQ/prefect/issues/7442
-            httpx.LocalProtocolError,
+            httpx2.LocalProtocolError,
         )
 
         # Only retry ConnectError after we've successfully connected once.
         # This allows fast failure on initial connection issues (e.g., wrong URL)
         # while still providing resilience during server restarts.
         if self._has_connected:
-            retry_exceptions = retry_exceptions + (httpx.ConnectError,)
+            retry_exceptions = retry_exceptions + (httpx2.ConnectError,)
 
         super_send = super().send
         response = self._send_with_retry(

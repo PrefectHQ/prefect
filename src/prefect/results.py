@@ -22,7 +22,7 @@ from typing import (
 )
 from uuid import UUID
 
-import httpx
+import httpx2
 from cachetools import LRUCache
 from pydantic import (
     BaseModel,
@@ -100,7 +100,7 @@ async def _aread_server_default_result_storage_block_id() -> UUID | None:
     try:
         client = get_client()
         configuration = await client.read_server_default_result_storage()
-    except (PrefectHTTPStatusError, httpx.HTTPError, RuntimeError, ValueError):
+    except (PrefectHTTPStatusError, httpx2.HTTPError, RuntimeError, ValueError):
         logger.debug(
             "Unable to read server default result storage; falling back to local defaults.",
             exc_info=True,
@@ -116,7 +116,7 @@ def _read_server_default_result_storage_block_id() -> UUID | None:
     try:
         client = get_client(sync_client=True)
         configuration = client.read_server_default_result_storage()
-    except (PrefectHTTPStatusError, httpx.HTTPError, RuntimeError, ValueError):
+    except (PrefectHTTPStatusError, httpx2.HTTPError, RuntimeError, ValueError):
         logger.debug(
             "Unable to read server default result storage; falling back to local defaults.",
             exc_info=True,

@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Any, Literal, NoReturn, Optional, Union, overl
 from uuid import UUID
 
 import certifi
-import httpcore
-import httpx
+import httpcore2
+import httpx2
 
 import pydantic
 from asgi_lifespan import LifespanManager
@@ -303,7 +303,7 @@ class PrefectClient(
         api_key: An optional API key for authentication.
         api_version: The API version this client is compatible with.
         httpx_settings: An optional dictionary of settings to pass to the underlying
-            `httpx.AsyncClient`
+            `httpx2.AsyncClient`
 
     Examples:
 
@@ -378,7 +378,7 @@ class PrefectClient(
         if isinstance(api, str):
             if httpx_settings.get("app"):
                 raise ValueError(
-                    "Invalid httpx settings: `app` cannot be set when providing an "
+                    "Invalid httpx2 settings: `app` cannot be set when providing an "
                     "api url. `app` is only for use with ephemeral instances. Provide "
                     "it as the `api` parameter instead."
                 )
@@ -387,7 +387,7 @@ class PrefectClient(
             # See https://www.python-httpx.org/advanced/#pool-limit-configuration
             httpx_settings.setdefault(
                 "limits",
-                httpx.Limits(
+                httpx2.Limits(
                     # We see instability when allowing the client to open many connections at once.
                     # Limiting concurrency results in more stable performance.
                     max_connections=16,
@@ -429,7 +429,7 @@ class PrefectClient(
             # - https://github.com/tiangolo/fastapi/blob/8cc967a7605d3883bd04ceb5d25cc94ae079612f/fastapi/applications.py#L163-L164
             httpx_settings.setdefault(
                 "transport",
-                httpx.ASGITransport(
+                httpx2.ASGITransport(
                     app=self._ephemeral_app, raise_app_exceptions=False
                 ),
             )
@@ -438,7 +438,7 @@ class PrefectClient(
         # See https://www.python-httpx.org/advanced/#timeout-configuration
         httpx_settings.setdefault(
             "timeout",
-            httpx.Timeout(
+            httpx2.Timeout(
                 connect=PREFECT_API_REQUEST_TIMEOUT.value(),
                 read=PREFECT_API_REQUEST_TIMEOUT.value(),
                 write=PREFECT_API_REQUEST_TIMEOUT.value(),
@@ -470,20 +470,20 @@ class PrefectClient(
         # transport a user may have provided via httpx_settings.
         #
         # Making liberal use of getattr and isinstance checks here to avoid any
-        # surprises if the internals of httpx or httpcore change on us
+        # surprises if the internals of httpx2 or httpcore2 change on us
         if isinstance(api, str) and not httpx_settings.get("transport"):
             transport_for_url = getattr(self._client, "_transport_for_url", None)
             if callable(transport_for_url):
-                server_transport = transport_for_url(httpx.URL(api))
-                if isinstance(server_transport, httpx.AsyncHTTPTransport):
+                server_transport = transport_for_url(httpx2.URL(api))
+                if isinstance(server_transport, httpx2.AsyncHTTPTransport):
                     pool = getattr(server_transport, "_pool", None)
-                    if isinstance(pool, httpcore.AsyncConnectionPool):
+                    if isinstance(pool, httpcore2.AsyncConnectionPool):
                         setattr(pool, "_retries", 3)
 
         self.logger: Logger = get_logger("client")
 
     @property
-    def api_url(self) -> httpx.URL:
+    def api_url(self) -> httpx2.URL:
         """
         Get the base URL for the API.
         """
@@ -504,7 +504,7 @@ class PrefectClient(
         except Exception as exc:
             return exc
 
-    async def hello(self) -> httpx.Response:
+    async def hello(self) -> httpx2.Response:
         """
         Send a GET request to /hello for testing purposes.
         """
@@ -532,7 +532,7 @@ class PrefectClient(
 
         Raises:
             prefect.exceptions.ObjectAlreadyExists: If request returns 409
-            httpx.RequestError: If request fails
+            httpx2.RequestError: If request fails
 
         Returns:
             The created work queue
@@ -555,7 +555,7 @@ class PrefectClient(
                 )
             else:
                 response = await self._client.post("/work_queues/", json=data)
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             elif e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -579,7 +579,7 @@ class PrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: if no work queue is found
-            httpx.HTTPStatusError: other status errors
+            httpx2.HTTPStatusError: other status errors
 
         Returns:
             WorkQueue: a work queue API object
@@ -591,7 +591,7 @@ class PrefectClient(
                 )
             else:
                 response = await self._client.get(f"/work_queues/name/{name}")
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -610,7 +610,7 @@ class PrefectClient(
         Raises:
             ValueError: if no kwargs are provided
             prefect.exceptions.ObjectNotFound: if request returns 404
-            httpx.RequestError: if the request fails
+            httpx2.RequestError: if the request fails
 
         """
         if not kwargs:
@@ -619,7 +619,7 @@ class PrefectClient(
         data = WorkQueueUpdate(**kwargs).model_dump(mode="json", exclude_unset=True)
         try:
             await self._client.patch(f"/work_queues/{id}", json=data)
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -642,7 +642,7 @@ class PrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
+            httpx2.RequestError: If request fails
 
         Returns:
             List[FlowRun]: a list of FlowRun objects read from the queue
@@ -658,7 +658,7 @@ class PrefectClient(
                     "scheduled_before": scheduled_before.isoformat(),
                 },
             )
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -677,14 +677,14 @@ class PrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
+            httpx2.RequestError: If request fails
 
         Returns:
             WorkQueue: an instantiated WorkQueue object
         """
         try:
             response = await self._client.get(f"/work_queues/{id}")
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -703,14 +703,14 @@ class PrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
+            httpx2.RequestError: If request fails
 
         Returns:
             WorkQueueStatus: an instantiated WorkQueueStatus object
         """
         try:
             response = await self._client.get(f"/work_queues/{id}/status")
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -733,7 +733,7 @@ class PrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
+            httpx2.RequestError: If request fails
 
         Returns:
             Paginated WorkQueueConcurrencyStatus with flow run summaries
@@ -748,7 +748,7 @@ class PrefectClient(
             response = await self._client.post(
                 f"/work_queues/{id}/concurrency_status", json=body
             )
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -803,19 +803,19 @@ class PrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If requests fails
+            httpx2.RequestError: If requests fails
         """
         try:
             await self._client.delete(
                 f"/work_queues/{id}",
             )
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
 
-    async def set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response:
+    async def set_task_run_name(self, task_run_id: UUID, name: str) -> httpx2.Response:
         task_run_data = TaskRunUpdate(name=name)
         return await self._client.patch(
             f"/task_runs/{task_run_id}",
@@ -905,7 +905,7 @@ class PrefectClient(
         try:
             response = await self._client.get(f"/task_runs/{task_run_id}")
             return TaskRun.model_validate(response.json())
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -968,11 +968,11 @@ class PrefectClient(
             task_run_id: the task run ID of interest
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If requests fails
+            httpx2.RequestError: If requests fails
         """
         try:
             await self._client.delete(f"/task_runs/{task_run_id}")
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -1062,7 +1062,7 @@ class PrefectClient(
                     f"/work_pools/{work_pool_name}/queues/filter",
                     json=json,
                 )
-            except httpx.HTTPStatusError as e:
+            except httpx2.HTTPStatusError as e:
                 if e.response.status_code == status.HTTP_404_NOT_FOUND:
                     raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
                 else:
@@ -1165,7 +1165,7 @@ class PrefectClient(
         instance instead.
         """
         if self._closed:
-            # httpx.AsyncClient does not allow reuse so we will not either.
+            # httpx2.AsyncClient does not allow reuse so we will not either.
             raise RuntimeError(
                 "The client cannot be started again after closing. "
                 "Retrieve a new client with `get_client()` instead."
@@ -1197,7 +1197,7 @@ class PrefectClient(
                 f"Connecting to API at {strip_auth_from_url(str(self.api_url))}"
             )
 
-        # Enter the httpx client's context
+        # Enter the httpx2 client's context
         await self._exit_stack.enter_async_context(self._client)
 
         self._started = True
@@ -1250,7 +1250,7 @@ class SyncPrefectClient(
         api_key: An optional API key for authentication.
         api_version: The API version this client is compatible with.
         httpx_settings: An optional dictionary of settings to pass to the underlying
-            `httpx.Client`
+            `httpx2.Client`
 
     Examples:
 
@@ -1321,7 +1321,7 @@ class SyncPrefectClient(
         if isinstance(api, str):
             if httpx_settings.get("app"):
                 raise ValueError(
-                    "Invalid httpx settings: `app` cannot be set when providing an "
+                    "Invalid httpx2 settings: `app` cannot be set when providing an "
                     "api url. `app` is only for use with ephemeral instances. Provide "
                     "it as the `api` parameter instead."
                 )
@@ -1330,7 +1330,7 @@ class SyncPrefectClient(
             # See https://www.python-httpx.org/advanced/#pool-limit-configuration
             httpx_settings.setdefault(
                 "limits",
-                httpx.Limits(
+                httpx2.Limits(
                     # We see instability when allowing the client to open many connections at once.
                     # Limiting concurrency results in more stable performance.
                     max_connections=16,
@@ -1365,7 +1365,7 @@ class SyncPrefectClient(
         # See https://www.python-httpx.org/advanced/#timeout-configuration
         httpx_settings.setdefault(
             "timeout",
-            httpx.Timeout(
+            httpx2.Timeout(
                 connect=PREFECT_API_REQUEST_TIMEOUT.value(),
                 read=PREFECT_API_REQUEST_TIMEOUT.value(),
                 write=PREFECT_API_REQUEST_TIMEOUT.value(),
@@ -1396,20 +1396,20 @@ class SyncPrefectClient(
         # transport a user may have provided via httpx_settings.
         #
         # Making liberal use of getattr and isinstance checks here to avoid any
-        # surprises if the internals of httpx or httpcore change on us
+        # surprises if the internals of httpx2 or httpcore2 change on us
         if isinstance(api, str) and not httpx_settings.get("transport"):
             transport_for_url = getattr(self._client, "_transport_for_url", None)
             if callable(transport_for_url):
-                server_transport = transport_for_url(httpx.URL(api))
-                if isinstance(server_transport, httpx.HTTPTransport):
+                server_transport = transport_for_url(httpx2.URL(api))
+                if isinstance(server_transport, httpx2.HTTPTransport):
                     pool = getattr(server_transport, "_pool", None)
-                    if isinstance(pool, httpcore.ConnectionPool):
+                    if isinstance(pool, httpcore2.ConnectionPool):
                         setattr(pool, "_retries", 3)
 
         self.logger: Logger = get_logger("client")
 
     @property
-    def api_url(self) -> httpx.URL:
+    def api_url(self) -> httpx2.URL:
         """
         Get the base URL for the API.
         """
@@ -1427,7 +1427,7 @@ class SyncPrefectClient(
         instance instead.
         """
         if self._closed:
-            # httpx.Client does not allow reuse so we will not either.
+            # httpx2.Client does not allow reuse so we will not either.
             raise RuntimeError(
                 "The client cannot be started again after closing. "
                 "Retrieve a new client with `get_client()` instead."
@@ -1469,7 +1469,7 @@ class SyncPrefectClient(
         except Exception as exc:
             return exc
 
-    def hello(self) -> httpx.Response:
+    def hello(self) -> httpx2.Response:
         """
         Send a GET request to /hello for testing purposes.
         """
@@ -1546,7 +1546,7 @@ class SyncPrefectClient(
             except prefect.context.MissingContextError:
                 self.logger.warning(warning_message)
 
-    def set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response:
+    def set_task_run_name(self, task_run_id: UUID, name: str) -> httpx2.Response:
         task_run_data = TaskRunUpdate(name=name)
         return self._client.patch(
             f"/task_runs/{task_run_id}",
@@ -1644,7 +1644,7 @@ class SyncPrefectClient(
         try:
             response = self._client.get(f"/task_runs/{task_run_id}")
             return TaskRun.model_validate(response.json())
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -1753,11 +1753,11 @@ class SyncPrefectClient(
             task_run_id: the task run ID of interest
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If requests fails
+            httpx2.RequestError: If requests fails
         """
         try:
             self._client.delete(f"/task_runs/{task_run_id}")
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -1785,7 +1785,7 @@ class SyncPrefectClient(
 
         Raises:
             prefect.exceptions.ObjectAlreadyExists: If request returns 409
-            httpx.RequestError: If request fails
+            httpx2.RequestError: If request fails
 
         Returns:
             The created work queue
@@ -1808,7 +1808,7 @@ class SyncPrefectClient(
                 )
             else:
                 response = self._client.post("/work_queues/", json=data)
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             elif e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -1832,7 +1832,7 @@ class SyncPrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: if no work queue is found
-            httpx.HTTPStatusError: other status errors
+            httpx2.HTTPStatusError: other status errors
 
         Returns:
             WorkQueue: a work queue API object
@@ -1844,7 +1844,7 @@ class SyncPrefectClient(
                 )
             else:
                 response = self._client.get(f"/work_queues/name/{name}")
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -1863,7 +1863,7 @@ class SyncPrefectClient(
         Raises:
             ValueError: if no kwargs are provided
             prefect.exceptions.ObjectNotFound: if request returns 404
-            httpx.RequestError: if the request fails
+            httpx2.RequestError: if the request fails
 
         """
         if not kwargs:
@@ -1872,7 +1872,7 @@ class SyncPrefectClient(
         data = WorkQueueUpdate(**kwargs).model_dump(mode="json", exclude_unset=True)
         try:
             self._client.patch(f"/work_queues/{id}", json=data)
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -1895,7 +1895,7 @@ class SyncPrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
+            httpx2.RequestError: If request fails
 
         Returns:
             List[FlowRun]: a list of FlowRun objects read from the queue
@@ -1911,7 +1911,7 @@ class SyncPrefectClient(
                     "scheduled_before": scheduled_before.isoformat(),
                 },
             )
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -1930,14 +1930,14 @@ class SyncPrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
+            httpx2.RequestError: If request fails
 
         Returns:
             WorkQueue: an instantiated WorkQueue object
         """
         try:
             response = self._client.get(f"/work_queues/{id}")
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -1956,14 +1956,14 @@ class SyncPrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
+            httpx2.RequestError: If request fails
 
         Returns:
             WorkQueueStatus: an instantiated WorkQueueStatus object
         """
         try:
             response = self._client.get(f"/work_queues/{id}/status")
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -1986,7 +1986,7 @@ class SyncPrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
+            httpx2.RequestError: If request fails
 
         Returns:
             Paginated WorkQueueConcurrencyStatus with flow run summaries
@@ -2001,7 +2001,7 @@ class SyncPrefectClient(
             response = self._client.post(
                 f"/work_queues/{id}/concurrency_status", json=body
             )
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -2056,13 +2056,13 @@ class SyncPrefectClient(
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If requests fails
+            httpx2.RequestError: If requests fails
         """
         try:
             self._client.delete(
                 f"/work_queues/{id}",
             )
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
@@ -2104,7 +2104,7 @@ class SyncPrefectClient(
                     f"/work_pools/{work_pool_name}/queues/filter",
                     json=json,
                 )
-            except httpx.HTTPStatusError as e:
+            except httpx2.HTTPStatusError as e:
                 if e.response.status_code == status.HTTP_404_NOT_FOUND:
                     raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
                 else:

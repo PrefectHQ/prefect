@@ -13,11 +13,11 @@ from datetime import timedelta
 from typing import Any, AsyncGenerator
 from uuid import UUID, uuid4
 
-import httpx
+import httpx2
 import pytest
 from docket import Docket
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.compatibility.starlette import status
@@ -74,7 +74,7 @@ async def client_with_real_docket(
     The database session fixture handles DB setup separately.
     """
     async with docket_without_worker_lifespan(app):
-        async with httpx.AsyncClient(
+        async with httpx2.AsyncClient(
             transport=ASGITransport(app=app), base_url="https://test/api"
         ) as async_client:
             yield async_client

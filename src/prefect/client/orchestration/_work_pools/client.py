@@ -4,7 +4,7 @@ import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from httpx import HTTPStatusError
+from httpx2 import HTTPStatusError
 
 from prefect.client.base import ServerType
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient

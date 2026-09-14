@@ -14,7 +14,7 @@ from types import GeneratorType
 from typing import TYPE_CHECKING, Any, Optional
 
 import anyio
-import httpx
+import httpx2
 import sniffio
 
 try:
@@ -88,9 +88,9 @@ def exception_to_crashed_state_sync(
     elif isinstance(exc, SystemExit):
         state_message = "Execution was aborted by Python system exit call."
 
-    elif isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
+    elif isinstance(exc, (httpx2.TimeoutException, httpx2.ConnectError)):
         try:
-            request: httpx.Request = exc.request
+            request: httpx2.Request = exc.request
         except RuntimeError:
             # The request property is not set
             state_message = (

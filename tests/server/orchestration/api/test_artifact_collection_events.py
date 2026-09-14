@@ -1,5 +1,5 @@
 import pytest
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import ArtifactCreate

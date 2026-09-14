@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-import httpx
+import httpx2
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -53,7 +53,7 @@ async def create_server_block_document(
     return str(created_block_document.id)
 
 
-async def test_version(client: httpx.AsyncClient) -> None:
+async def test_version(client: httpx2.AsyncClient) -> None:
     response = await client.get("/admin/version")
     assert response.status_code == status.HTTP_200_OK
     assert prefect.__version__
@@ -61,7 +61,7 @@ async def test_version(client: httpx.AsyncClient) -> None:
 
 
 class TestSettings:
-    async def test_read_settings(self, client: httpx.AsyncClient) -> None:
+    async def test_read_settings(self, client: httpx2.AsyncClient) -> None:
         from prefect.settings import Settings, get_current_settings
 
         response = await client.get("/admin/settings")
@@ -76,7 +76,7 @@ class TestSettings:
 
 class TestServerDefaultResultStorage:
     async def test_read_server_default_result_storage_when_unset(
-        self, client: httpx.AsyncClient
+        self, client: httpx2.AsyncClient
     ) -> None:
         response = await client.get("/admin/storage")
 
@@ -84,7 +84,7 @@ class TestServerDefaultResultStorage:
         assert response.json() == {"default_result_storage_block_id": None}
 
     async def test_update_and_clear_server_default_result_storage(
-        self, client: httpx.AsyncClient, session: AsyncSession
+        self, client: httpx2.AsyncClient, session: AsyncSession
     ) -> None:
         block_document_id = await create_server_block_document(
             session=session,
@@ -115,7 +115,7 @@ class TestServerDefaultResultStorage:
         assert read_cleared_response.json() == {"default_result_storage_block_id": None}
 
     async def test_update_server_default_result_storage_rejects_missing_block_document(
-        self, client: httpx.AsyncClient
+        self, client: httpx2.AsyncClient
     ) -> None:
         block_document_id = str(uuid4())
 
@@ -130,14 +130,14 @@ class TestServerDefaultResultStorage:
         }
 
     async def test_update_server_default_result_storage_requires_block_document_id(
-        self, client: httpx.AsyncClient
+        self, client: httpx2.AsyncClient
     ) -> None:
         response = await client.put("/admin/storage", json={})
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     async def test_update_server_default_result_storage_rejects_non_storage_block(
-        self, client: httpx.AsyncClient, session: AsyncSession
+        self, client: httpx2.AsyncClient, session: AsyncSession
     ) -> None:
         block_document_id = await create_server_block_document(
             session=session,

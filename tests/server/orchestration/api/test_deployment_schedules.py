@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 import pytest
 import sqlalchemy as sa
 from fastapi import status
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface

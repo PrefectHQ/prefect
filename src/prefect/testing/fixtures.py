@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock
 from uuid import UUID
 
 import anyio
-import httpx
+import httpx2
 import pytest
 from starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.asyncio.server import (
@@ -117,13 +117,13 @@ async def hosted_api_server(
         api_url = f"http://localhost:{port}/api"
 
         # Wait for the server to be ready
-        async with httpx.AsyncClient() as client:
+        async with httpx2.AsyncClient() as client:
             response = None
             with anyio.move_on_after(20):
                 while True:
                     try:
                         response = await client.get(api_url + "/health")
-                    except httpx.ConnectError:
+                    except httpx2.ConnectError:
                         pass
                     else:
                         if response.status_code == 200:

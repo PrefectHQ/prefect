@@ -29,7 +29,7 @@ from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
 
 import anyio
 import asyncpg
-import httpx
+import httpx2
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
@@ -1135,7 +1135,7 @@ class SubprocessASGIServer:
                 self.running = True
                 self.server_process = self._run_uvicorn_command()
                 atexit.register(self.stop)
-                with httpx.Client() as client:
+                with httpx2.Client() as client:
                     response = None
                     elapsed_time = 0
                     max_wait_time = (
@@ -1149,7 +1149,7 @@ class SubprocessASGIServer:
                             continue
                         try:
                             response = client.get(f"{self.api_url}/health")
-                        except httpx.ConnectError:
+                        except httpx2.ConnectError:
                             pass
                         else:
                             if response.status_code == 200:

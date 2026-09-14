@@ -107,9 +107,9 @@ def _format_output(response: Any, verbose: bool) -> None:
 
 def _get_exit_code(error: Exception) -> int:
     """Determine the appropriate exit code for an error."""
-    import httpx
+    import httpx2
 
-    if isinstance(error, httpx.HTTPStatusError):
+    if isinstance(error, httpx2.HTTPStatusError):
         status = error.response.status_code
         if status in (401, 403):
             return 3
@@ -118,7 +118,7 @@ def _get_exit_code(error: Exception) -> int:
         elif 500 <= status < 600:
             return 5
     elif isinstance(
-        error, (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError)
+        error, (httpx2.ConnectError, httpx2.TimeoutException, httpx2.NetworkError)
     ):
         return 7
 
@@ -190,7 +190,7 @@ async def api_request(
         $ prefect api GET /me --root
         ```
     """
-    import httpx
+    import httpx2
     from rich.console import Console
     from rich.syntax import Syntax
 
@@ -271,7 +271,7 @@ async def api_request(
 
         _format_output(response, verbose)
 
-    except httpx.HTTPStatusError as e:
+    except httpx2.HTTPStatusError as e:
         if verbose:
             _format_output(e.response, verbose)
         else:
@@ -294,7 +294,7 @@ async def api_request(
 
         raise SystemExit(_get_exit_code(e))
 
-    except (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError) as e:
+    except (httpx2.ConnectError, httpx2.TimeoutException, httpx2.NetworkError) as e:
         console_err.print(f"[red]Error: Network error - {e}[/red]")
         console_err.print(f"\nCould not connect to API at: {configured_api_url}")
         raise SystemExit(7)

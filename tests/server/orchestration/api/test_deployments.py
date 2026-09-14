@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
-from httpx._client import AsyncClient
+from httpx2._client import AsyncClient
 from starlette import status
 
 from prefect._internal.testing import retry_asserts

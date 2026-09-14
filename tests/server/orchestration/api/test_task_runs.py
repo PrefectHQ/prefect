@@ -5,7 +5,7 @@ import uuid
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.compatibility.starlette import status
@@ -48,7 +48,7 @@ class TestCreateTaskRun:
         assert task_run.flow_run_id == flow_run.id
 
     async def test_create_task_run_with_content_no_content_type(self, flow_run, client):
-        """Old clients (<3.6.19) sent JSON via httpx's content= parameter,
+        """Old clients (<3.6.19) sent JSON via httpx2's content= parameter,
         which omits the Content-Type header. The server should still accept it."""
         task_run_data = {
             "flow_run_id": str(flow_run.id),

@@ -1,4 +1,3 @@
-import httpx
 import pytest
 import respx
 
@@ -29,11 +28,11 @@ FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
 
 @pytest.fixture
 async def mock_collection_registry_not_available():
-    with respx.mock as respx_mock:
+    with respx.mock(using="httpcore2") as respx_mock:
         respx_mock.get(
             "https://raw.githubusercontent.com/PrefectHQ/"
             "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(return_value=httpx.Response(503))
+        ).respond(503)
         yield
 
 

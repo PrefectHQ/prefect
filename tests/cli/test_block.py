@@ -2,7 +2,6 @@ import json
 import re
 import uuid
 
-import httpx
 import pytest
 import respx
 
@@ -37,7 +36,9 @@ class TestForFileRegister(Block):
 @pytest.fixture
 def mock_cloud_api():
     with respx.mock(
-        base_url="https://api.prefect.cloud/api", assert_all_called=False
+        using="httpcore2",
+        base_url="https://api.prefect.cloud/api",
+        assert_all_called=False,
     ) as respx_mock:
         # Block type object for 'secret'
         secret_block_type = {
@@ -53,45 +54,37 @@ def mock_cloud_api():
             "is_protected": False,
         }
         # Mock block type creation with complete response
-        respx_mock.post("/block_types/").mock(
-            return_value=httpx.Response(200, json=secret_block_type)
-        )
+        respx_mock.post("/block_types/").respond(200, json=secret_block_type)
         # Mock block type update (PATCH)
-        respx_mock.patch(re.compile(r"/block_types/.*")).mock(
-            return_value=httpx.Response(200, json=secret_block_type)
+        respx_mock.patch(re.compile(r"/block_types/.*")).respond(
+            200, json=secret_block_type
         )
         # Mock block type lookup for 'secret'
-        respx_mock.get("/block_types/slug/secret").mock(
-            return_value=httpx.Response(200, json=secret_block_type)
-        )
+        respx_mock.get("/block_types/slug/secret").respond(200, json=secret_block_type)
         # Mock block type lookup (not found for others)
-        respx_mock.get(re.compile(r"/block_types/slug/.*")).mock(
-            return_value=httpx.Response(404, json={"detail": "Not found"})
+        respx_mock.get(re.compile(r"/block_types/slug/.*")).respond(
+            404, json={"detail": "Not found"}
         )
         # Mock block schema creation
-        respx_mock.post("/block_schemas/").mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "id": str(uuid.uuid4()),
-                    "checksum": "sha256:test",
-                    "fields": {},
-                    "block_type_id": secret_block_type["id"],
-                    "capabilities": [],
-                    "version": "1.0.0",
-                    "created": "2024-01-01T00:00:00Z",
-                    "updated": "2024-01-01T00:00:00Z",
-                },
-            )
+        respx_mock.post("/block_schemas/").respond(
+            200,
+            json={
+                "id": str(uuid.uuid4()),
+                "checksum": "sha256:test",
+                "fields": {},
+                "block_type_id": secret_block_type["id"],
+                "capabilities": [],
+                "version": "1.0.0",
+                "created": "2024-01-01T00:00:00Z",
+                "updated": "2024-01-01T00:00:00Z",
+            },
         )
         # Mock block schema lookup (not found)
-        respx_mock.get(re.compile(r"/block_schemas/checksum/.*")).mock(
-            return_value=httpx.Response(404, json={"detail": "Not found"})
+        respx_mock.get(re.compile(r"/block_schemas/checksum/.*")).respond(
+            404, json={"detail": "Not found"}
         )
         # Mock block types filter (for block create command) - include secret block type
-        respx_mock.post("/block_types/filter").mock(
-            return_value=httpx.Response(200, json=[secret_block_type])
-        )
+        respx_mock.post("/block_types/filter").respond(200, json=[secret_block_type])
         yield respx_mock
 
 

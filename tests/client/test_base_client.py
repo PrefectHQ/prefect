@@ -5,9 +5,9 @@ from typing import Any, AsyncGenerator, Dict, List, Tuple
 from unittest import mock
 from unittest.mock import AsyncMock
 
-import httpx
+import httpx2
 import pytest
-from httpx import AsyncClient, Request, Response
+from httpx2 import AsyncClient, Request, Response
 
 import prefect
 import prefect.client
@@ -205,13 +205,13 @@ class TestPrefectHttpxAsyncClient:
     @pytest.mark.parametrize(
         "exception_type",
         [
-            httpx.RemoteProtocolError,
-            httpx.ReadError,
-            httpx.WriteError,
-            httpx.LocalProtocolError,
-            httpx.PoolTimeout,
-            httpx.ReadTimeout,
-            httpx.ConnectTimeout,
+            httpx2.RemoteProtocolError,
+            httpx2.ReadError,
+            httpx2.WriteError,
+            httpx2.LocalProtocolError,
+            httpx2.PoolTimeout,
+            httpx2.ReadTimeout,
+            httpx2.ConnectTimeout,
         ],
     )
     async def test_prefect_httpx_client_retries_on_designated_exceptions(
@@ -253,7 +253,7 @@ class TestPrefectHttpxAsyncClient:
     @pytest.mark.usefixtures("mock_anyio_sleep")
     @pytest.mark.parametrize(
         "response_or_exc",
-        [RESPONSE_429_RETRY_AFTER_0, httpx.RemoteProtocolError("test")],
+        [RESPONSE_429_RETRY_AFTER_0, httpx2.RemoteProtocolError("test")],
     )
     async def test_prefect_httpx_client_retries_up_to_five_times(
         self,
@@ -280,7 +280,7 @@ class TestPrefectHttpxAsyncClient:
     @pytest.mark.usefixtures("mock_anyio_sleep")
     @pytest.mark.parametrize(
         "response_or_exc",
-        [RESPONSE_429_RETRY_AFTER_0, httpx.RemoteProtocolError("test")],
+        [RESPONSE_429_RETRY_AFTER_0, httpx2.RemoteProtocolError("test")],
     )
     async def test_prefect_httpx_client_respects_max_retry_setting(
         self,
@@ -311,9 +311,9 @@ class TestPrefectHttpxAsyncClient:
         [
             (
                 RESPONSE_429_RETRY_AFTER_0,
-                httpx.HTTPStatusError,
+                httpx2.HTTPStatusError,
             ),
-            (httpx.RemoteProtocolError("test"), httpx.RemoteProtocolError),
+            (httpx2.RemoteProtocolError("test"), httpx2.RemoteProtocolError),
         ],
     )
     async def test_prefect_httpx_client_raises_final_error_after_retries(
@@ -324,7 +324,7 @@ class TestPrefectHttpxAsyncClient:
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
         # First throw a bunch of retryable errors, then the final one
-        base_client_send.side_effect = [httpx.ReadError("test")] * 5 + [final_response]
+        base_client_send.side_effect = [httpx2.ReadError("test")] * 5 + [final_response]
 
         with pytest.raises(expected_error_type):
             async with client:
@@ -369,7 +369,7 @@ class TestPrefectHttpxAsyncClient:
     @pytest.mark.usefixtures("disable_jitter")
     @pytest.mark.parametrize(
         "response_or_exc",
-        [RESPONSE_429_RETRY_AFTER_MISSING, httpx.RemoteProtocolError("test")],
+        [RESPONSE_429_RETRY_AFTER_MISSING, httpx2.RemoteProtocolError("test")],
     )
     async def test_prefect_httpx_client_uses_exponential_backoff_without_retry_after_header(
         self, mock_anyio_sleep, response_or_exc, monkeypatch
@@ -457,7 +457,7 @@ class TestPrefectHttpxAsyncClient:
 
     @pytest.mark.parametrize(
         "response_or_exc",
-        [RESPONSE_429_RETRY_AFTER_MISSING, httpx.RemoteProtocolError("test")],
+        [RESPONSE_429_RETRY_AFTER_MISSING, httpx2.RemoteProtocolError("test")],
     )
     async def test_prefect_httpx_client_adds_jitter_with_exponential_backoff(
         self, mock_anyio_sleep, response_or_exc, monkeypatch
@@ -515,9 +515,9 @@ class TestPrefectHttpxAsyncClient:
         client = PrefectHttpxAsyncClient()
 
         # Simulate connection refused on first attempt
-        base_client_send.side_effect = [httpx.ConnectError("Connection refused")]
+        base_client_send.side_effect = [httpx2.ConnectError("Connection refused")]
 
-        with pytest.raises(httpx.ConnectError, match="Connection refused"):
+        with pytest.raises(httpx2.ConnectError, match="Connection refused"):
             async with client:
                 await client.post(
                     url="fake.url/fake/route", data={"evenmorefake": "data"}
@@ -541,9 +541,9 @@ class TestPrefectHttpxAsyncClient:
         # First request succeeds, subsequent requests fail with ConnectError then succeed
         base_client_send.side_effect = [
             RESPONSE_200,  # First request succeeds, sets _has_connected=True
-            httpx.ConnectError("Connection refused"),  # Second request fails
-            httpx.ConnectError("Connection refused"),  # Retry 1
-            httpx.ConnectError("Connection refused"),  # Retry 2
+            httpx2.ConnectError("Connection refused"),  # Second request fails
+            httpx2.ConnectError("Connection refused"),  # Retry 1
+            httpx2.ConnectError("Connection refused"),  # Retry 2
             RESPONSE_200,  # Retry 3 succeeds
         ]
 
@@ -668,7 +668,7 @@ async def mocked_client(
     responses: List[Response],
     **client_kwargs: Dict[str, Any],
 ) -> AsyncGenerator[Tuple[PrefectHttpxAsyncClient, mock.AsyncMock], None]:
-    with mock.patch("httpx.AsyncClient.send", autospec=True) as send:
+    with mock.patch("httpx2.AsyncClient.send", autospec=True) as send:
         send.side_effect = responses
         client = PrefectHttpxAsyncClient(**client_kwargs)
         async with client:
@@ -692,7 +692,7 @@ class TestCsrfSupport:
             await client.get(url="fake.url/fake/route")
 
         request = send.call_args[0][1]
-        assert isinstance(request, httpx.Request)
+        assert isinstance(request, httpx2.Request)
 
         assert "Prefect-Csrf-Token" not in request.headers
         assert "Prefect-Csrf-Client" not in request.headers
@@ -709,17 +709,17 @@ class TestCsrfSupport:
 
         # The first call should be for the CSRF token
         request = send.call_args_list[0][0][1]
-        assert isinstance(request, httpx.Request)
+        assert isinstance(request, httpx2.Request)
         assert request.method == "GET"
-        assert request.url == httpx.URL(
+        assert request.url == httpx2.URL(
             f"/csrf-token?client={str(client.csrf_client_id)}"
         )
 
         # The second call should be for the actual request
         request = send.call_args_list[1][0][1]
-        assert isinstance(request, httpx.Request)
+        assert isinstance(request, httpx2.Request)
         assert request.method == method.upper()
-        assert request.url == httpx.URL("/fake.url/fake/route")
+        assert request.url == httpx2.URL("/fake.url/fake/route")
         assert request.headers["Prefect-Csrf-Token"] == "test_token"
         assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
 
@@ -744,31 +744,31 @@ class TestCsrfSupport:
 
         # The first call should be for the CSRF token
         request = send.call_args_list[0][0][1]
-        assert isinstance(request, httpx.Request)
+        assert isinstance(request, httpx2.Request)
         assert request.method == "GET"
-        assert request.url == httpx.URL(
+        assert request.url == httpx2.URL(
             f"/csrf-token?client={str(client.csrf_client_id)}"
         )
 
         # The second call should be for the actual request
         request = send.call_args_list[1][0][1]
-        assert isinstance(request, httpx.Request)
-        assert request.url == httpx.URL("/fake.url/fake/route")
+        assert isinstance(request, httpx2.Request)
+        assert request.url == httpx2.URL("/fake.url/fake/route")
         assert request.headers["Prefect-Csrf-Token"] == "test_token"
         assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
 
         # The third call should be a refresh of the CSRF token
         request = send.call_args_list[0][0][1]
-        assert isinstance(request, httpx.Request)
+        assert isinstance(request, httpx2.Request)
         assert request.method == "GET"
-        assert request.url == httpx.URL(
+        assert request.url == httpx2.URL(
             f"/csrf-token?client={str(client.csrf_client_id)}"
         )
 
         # The fourth call should be for the actual request
         request = send.call_args_list[1][0][1]
-        assert isinstance(request, httpx.Request)
-        assert request.url == httpx.URL("/fake.url/fake/route")
+        assert isinstance(request, httpx2.Request)
+        assert request.url == httpx2.URL("/fake.url/fake/route")
         assert request.headers["Prefect-Csrf-Token"] == "test_token"
         assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
 
@@ -784,8 +784,8 @@ class TestCsrfSupport:
         assert send.await_count == 1
 
         request = send.call_args_list[0][0][1]
-        assert isinstance(request, httpx.Request)
-        assert request.url == httpx.URL("/fake.url/fake/route")
+        assert isinstance(request, httpx2.Request)
+        assert request.url == httpx2.URL("/fake.url/fake/route")
         assert request.headers["Prefect-Csrf-Token"] == "fresh_token"
         assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
 
@@ -802,16 +802,16 @@ class TestCsrfSupport:
 
         # The first call should be for the CSRF token
         request = send.call_args_list[0][0][1]
-        assert isinstance(request, httpx.Request)
+        assert isinstance(request, httpx2.Request)
         assert request.method == "GET"
-        assert request.url == httpx.URL(
+        assert request.url == httpx2.URL(
             f"/csrf-token?client={str(client.csrf_client_id)}"
         )
 
         # The second call should be for the actual request
         request = send.call_args_list[1][0][1]
-        assert isinstance(request, httpx.Request)
-        assert request.url == httpx.URL("/fake.url/fake/route")
+        assert isinstance(request, httpx2.Request)
+        assert request.url == httpx2.URL("/fake.url/fake/route")
         assert request.headers["Prefect-Csrf-Token"] == "test_token"
         assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
 
@@ -866,7 +866,7 @@ class TestUserAgent:
             await client.get(url="fake.url/fake/route")
 
         request = send.call_args[0][1]
-        assert isinstance(request, httpx.Request)
+        assert isinstance(request, httpx2.Request)
 
         assert request.headers["User-Agent"] == "prefect/42.43.44 (API 45.46.47)"
 
@@ -879,7 +879,7 @@ class TestCustomHeaders:
         async with PrefectHttpxAsyncClient(base_url="http://localhost:4200") as client:
             # Should only have standard headers, no custom ones
             headers = dict(client.headers)
-            # httpx normalizes header names to lowercase
+            # httpx2 normalizes header names to lowercase
             assert "user-agent" in headers
             # Verify no unexpected custom headers
             custom_header_prefixes = ["x-", "authorization", "api-key"]
@@ -947,7 +947,7 @@ class TestCustomHeaders:
             async with PrefectHttpxAsyncClient(
                 base_url="http://localhost:4200"
             ) as client:
-                # User-Agent should still be the Prefect one (httpx normalizes to lowercase)
+                # User-Agent should still be the Prefect one (httpx2 normalizes to lowercase)
                 assert "prefect/" in client.headers["user-agent"]
                 assert "malicious-agent" not in client.headers["user-agent"]
 
@@ -1026,7 +1026,7 @@ class TestCustomHeaders:
                 base_url="http://localhost:4200"
             ) as client:
                 if protected_header.lower() == "user-agent":
-                    # User-Agent should still be the Prefect one (httpx normalizes to lowercase)
+                    # User-Agent should still be the Prefect one (httpx2 normalizes to lowercase)
                     assert "prefect/" in client.headers["user-agent"]
                     assert "should-be-blocked" not in client.headers["user-agent"]
                 else:

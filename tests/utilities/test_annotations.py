@@ -1,7 +1,7 @@
 import random
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from pydantic import TypeAdapter
 
@@ -42,7 +42,7 @@ class TestFreeze:
     @pytest.mark.parametrize(
         "value",
         [
-            httpx.AsyncClient(),
+            httpx2.AsyncClient(),
             lambda: None,
             type("foo", (object,), {}),
         ],

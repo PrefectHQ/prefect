@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import httpx
+import httpx2
 
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
@@ -33,7 +33,7 @@ class VariableClient(BaseClient):
                 "/variables/",
                 json=variable.model_dump(mode="json", exclude_unset=True),
             )
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == 409:
                 raise ObjectAlreadyExists(http_exc=e) from e
             else:
@@ -52,7 +52,7 @@ class VariableClient(BaseClient):
             from prefect.client.schemas.objects import Variable
 
             return Variable(**response.json())
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return None
             else:
@@ -89,7 +89,7 @@ class VariableClient(BaseClient):
                 path_params={"name": name},
             )
             return None
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
             else:
@@ -105,7 +105,7 @@ class VariableAsyncClient(BaseAsyncClient):
                 "/variables/",
                 json=variable.model_dump(mode="json", exclude_unset=True),
             )
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == 409:
                 raise ObjectAlreadyExists(http_exc=e) from e
             else:
@@ -126,7 +126,7 @@ class VariableAsyncClient(BaseAsyncClient):
             from prefect.client.schemas.objects import Variable
 
             return Variable.model_validate(response.json())
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return None
             else:
@@ -166,7 +166,7 @@ class VariableAsyncClient(BaseAsyncClient):
                 "/variables/name/{name}",
                 path_params={"name": name},
             )
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
             else:

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, AsyncGenerator, List
 from unittest import mock
 from uuid import uuid4
 
-import httpx
+import httpx2
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -143,7 +143,7 @@ async def test_read_deployment_raises_errors(orchestration_client: Orchestration
         "prefect.server.api.deployments.models.deployments.read_deployment",
         return_value=ValueError("woops"),
     ):
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(httpx2.HTTPStatusError):
             await orchestration_client.read_deployment(uuid4())
 
 
@@ -152,7 +152,7 @@ async def test_resume_flow_run_raises_errors(orchestration_client: Orchestration
         "prefect.server.api.flow_runs.models.flow_runs.read_flow_run",
         return_value=ValueError("woops"),
     ):
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(httpx2.HTTPStatusError):
             await orchestration_client.resume_flow_run(uuid4())
 
 
@@ -258,7 +258,7 @@ async def test_read_variables_with_error(orchestration_client: OrchestrationClie
         "prefect.server.api.variables.models.variables.read_variables",
         return_value=ValueError("woops"),
     ):
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(httpx2.HTTPStatusError):
             await orchestration_client.read_workspace_variables()
 
 

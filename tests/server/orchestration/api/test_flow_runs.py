@@ -8,12 +8,12 @@ from typing import Any, AsyncGenerator, Generator, List, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
-import httpx
+import httpx2
 import orjson
 import pytest
 import sqlalchemy as sa
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.compatibility.starlette import status
@@ -2280,7 +2280,7 @@ class TestSetFlowRunState:
 
         @pytest.fixture
         async def client(self, app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
-            async with httpx.AsyncClient(
+            async with httpx2.AsyncClient(
                 transport=ASGITransport(app=app), base_url="https://test/api"
             ) as async_client:
                 yield async_client

@@ -11,7 +11,7 @@ from typing import Callable
 from unittest.mock import MagicMock
 
 import anyio
-import httpx
+import httpx2
 import pytest
 import readchar
 from anyio.abc import Process
@@ -48,13 +48,13 @@ SHUTDOWN_TIMEOUT = 20
 
 async def wait_for_server(api_url: str, timeout: float | None = None) -> None:
     timeout = timeout or STARTUP_TIMEOUT
-    async with httpx.AsyncClient() as client:
+    async with httpx2.AsyncClient() as client:
         with anyio.move_on_after(timeout):
             response = None
             while True:
                 try:
                     response = await client.get(api_url + "/health")
-                except httpx.ConnectError:
+                except httpx2.ConnectError:
                     pass
                 else:
                     if response.status_code == 200:
@@ -249,7 +249,7 @@ class TestMultipleWorkerServer:
 
             pids = set()
             for _ in range(10):
-                async with httpx.AsyncClient() as client:
+                async with httpx2.AsyncClient() as client:
                     tasks = [fetch_pid(client, api_url) for _ in range(100)]
                     results = await asyncio.gather(*tasks)
 

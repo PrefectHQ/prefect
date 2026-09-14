@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
-from httpx import HTTPStatusError
+from httpx2 import HTTPStatusError
 from pydantic import Field
 from typing_extensions import TypedDict, Unpack
 

@@ -47,7 +47,7 @@ class TestHostedApiServerWindowsProcessHandling:
         mock_client.__aenter__ = mock.AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = mock.AsyncMock(return_value=None)
 
-        monkeypatch.setattr("httpx.AsyncClient", lambda: mock_client)
+        monkeypatch.setattr("httpx2.AsyncClient", lambda: mock_client)
 
         # Call the underlying generator function directly (not as a fixture)
         gen = fixtures.hosted_api_server.__wrapped__(
@@ -90,7 +90,7 @@ class TestHostedApiServerWindowsProcessHandling:
         mock_client.__aenter__ = mock.AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = mock.AsyncMock(return_value=None)
 
-        monkeypatch.setattr("httpx.AsyncClient", lambda: mock_client)
+        monkeypatch.setattr("httpx2.AsyncClient", lambda: mock_client)
 
         # Call the underlying generator function directly (not as a fixture)
         gen = fixtures.hosted_api_server.__wrapped__(
@@ -139,7 +139,7 @@ class TestHostedApiServerWindowsProcessHandling:
         mock_client.__aenter__ = mock.AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = mock.AsyncMock(return_value=None)
 
-        monkeypatch.setattr("httpx.AsyncClient", lambda: mock_client)
+        monkeypatch.setattr("httpx2.AsyncClient", lambda: mock_client)
 
         # Call the underlying generator function directly (not as a fixture)
         gen = fixtures.hosted_api_server.__wrapped__(

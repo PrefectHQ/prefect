@@ -3,7 +3,6 @@ import platform
 
 import pytest
 import respx
-from httpx import Response
 
 import prefect
 from prefect.server.services.telemetry import (
@@ -16,20 +15,20 @@ pytestmark = pytest.mark.clear_db
 
 @pytest.fixture
 def sens_o_matic_mock():
-    with respx.mock(using="httpx") as respx_mock:
+    with respx.mock(using="httpcore2") as respx_mock:
         sens_o_matic = respx_mock.post(
             "https://sens-o-matic.prefect.io/",
-        ).mock(return_value=Response(200, json={}))
+        ).respond(200, json={})
 
         yield sens_o_matic
 
 
 @pytest.fixture
 def error_sens_o_matic_mock():
-    with respx.mock(using="httpx") as respx_mock:
+    with respx.mock(using="httpcore2") as respx_mock:
         sens_o_matic = respx_mock.post(
             "https://sens-o-matic.prefect.io/",
-        ).mock(return_value=Response(500, json={}))
+        ).respond(500, json={})
 
         yield sens_o_matic
 

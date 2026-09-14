@@ -2,7 +2,7 @@ from typing import List
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from starlette import status
 
 from prefect.server import schemas

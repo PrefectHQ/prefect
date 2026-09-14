@@ -1,6 +1,5 @@
 import pytest
 import respx
-from httpx import Response
 
 pytestmark = pytest.mark.clear_db
 
@@ -60,16 +59,16 @@ class TestReadCollectionViews:
         mock_worker_response,
     ):
         with respx.mock(
-            using="httpx", assert_all_mocked=False, assert_all_called=False
+            using="httpcore2", assert_all_mocked=False, assert_all_called=False
         ) as respx_mock:
-            flow_route = respx_mock.get(self.collection_view_url("flow")).mock(
-                return_value=Response(200, json=mock_flow_response)
+            flow_route = respx_mock.get(self.collection_view_url("flow")).respond(
+                200, json=mock_flow_response
             )
-            block_route = respx_mock.get(self.collection_view_url("block")).mock(
-                return_value=Response(200, json=mock_block_response)
+            block_route = respx_mock.get(self.collection_view_url("block")).respond(
+                200, json=mock_block_response
             )
-            worker_route = respx_mock.get(self.collection_view_url("worker")).mock(
-                return_value=Response(200, json=mock_worker_response)
+            worker_route = respx_mock.get(self.collection_view_url("worker")).respond(
+                200, json=mock_worker_response
             )
             respx_mock.route(host="test").pass_through()
 
@@ -83,19 +82,19 @@ class TestReadCollectionViews:
         mock_collection_response,
     ):
         with respx.mock(
-            using="httpx",
+            using="httpcore2",
             assert_all_mocked=False,
             assert_all_called=False,
             base_url="https://raw.githubusercontent.com",
         ) as respx_mock:
-            respx_mock.get(self.collection_view_url("flow")).mock(
-                return_value=Response(404, json=mock_flow_response)
+            respx_mock.get(self.collection_view_url("flow")).respond(
+                404, json=mock_flow_response
             )
-            respx_mock.get(self.collection_view_url("block")).mock(
-                return_value=Response(404, json=mock_block_response)
+            respx_mock.get(self.collection_view_url("block")).respond(
+                404, json=mock_block_response
             )
-            respx_mock.get(self.collection_view_url("worker")).mock(
-                return_value=Response(404, json=mock_collection_response)
+            respx_mock.get(self.collection_view_url("worker")).respond(
+                404, json=mock_collection_response
             )
             respx_mock.route(host="test").pass_through()
 

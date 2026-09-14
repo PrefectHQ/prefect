@@ -19,7 +19,7 @@ from uuid import UUID
 
 import anyio
 import cyclopts
-import httpx
+import httpx2
 import orjson
 from rich.markup import escape
 from rich.pretty import Pretty
@@ -156,7 +156,7 @@ async def inspect(
     async with get_client() as client:
         try:
             flow_run = await client.read_flow_run(id)
-        except httpx.HTTPStatusError as exc:
+        except httpx2.HTTPStatusError as exc:
             if exc.response.status_code == status.HTTP_404_NOT_FOUND:
                 exit_with_error(f"Flow run {id!r} not found!")
             else:
@@ -653,7 +653,7 @@ async def logs(
                     offset=offset,
                     sort=sort,
                 )
-            except httpx.HTTPStatusError as exc:
+            except httpx2.HTTPStatusError as exc:
                 if (
                     page_size is None
                     and limit is not None

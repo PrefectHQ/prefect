@@ -3,11 +3,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Generator
 
-import httpx
+import httpx2
 import pytest
 import sqlalchemy as sa
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.client import schemas as client_schemas
@@ -56,7 +56,7 @@ def app(use_filesystem_lease_storage: None) -> Generator[FastAPI, Any, None]:
 
 @pytest.fixture
 async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
-    async with httpx.AsyncClient(
+    async with httpx2.AsyncClient(
         transport=ASGITransport(app=app), base_url="https://test/api"
     ) as async_client:
         yield async_client

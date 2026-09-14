@@ -13,7 +13,7 @@ import threading
 from urllib.parse import urlparse, urlunparse
 
 import certifi
-import httpx
+import httpx2
 from packaging import version
 
 import prefect
@@ -148,7 +148,7 @@ async def check_server_version(
         httpx_kwargs["headers"] = headers
 
     try:
-        async with httpx.AsyncClient(**httpx_kwargs) as http_client:  # type: ignore[arg-type]
+        async with httpx2.AsyncClient(**httpx_kwargs) as http_client:  # type: ignore[arg-type]
             response = await http_client.get(f"{api_url}/admin/version")
             response.raise_for_status()
             api_version_str: str = response.json()

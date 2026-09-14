@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import ANY, AsyncMock, MagicMock
 
 import anyio
-import httpx
+import httpx2
 import pytest
 import readchar
 import respx
@@ -62,28 +62,26 @@ async def kubernetes_work_pool(prefect_client: PrefectClient):
     )
 
     with respx.mock(
-        assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpx"
+        assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpcore2"
     ) as respx_mock:
         respx_mock.get("/csrf-token", params={"client": ANY}).pass_through()
         respx_mock.route(path__startswith="/work_pools/").pass_through()
-        respx_mock.get("/collections/views/aggregate-worker-metadata").mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "prefect": {
-                        "prefect-agent": {
-                            "type": "prefect-agent",
-                            "default_base_job_configuration": {},
-                        }
-                    },
-                    "prefect-kubernetes": {
-                        "kubernetes-test": {
-                            "type": "kubernetes-test",
-                            "default_base_job_configuration": {},
-                        }
-                    },
+        respx_mock.get("/collections/views/aggregate-worker-metadata").respond(
+            200,
+            json={
+                "prefect": {
+                    "prefect-agent": {
+                        "type": "prefect-agent",
+                        "default_base_job_configuration": {},
+                    }
                 },
-            )
+                "prefect-kubernetes": {
+                    "kubernetes-test": {
+                        "type": "kubernetes-test",
+                        "default_base_job_configuration": {},
+                    }
+                },
+            },
         )
 
         yield work_pool
@@ -195,7 +193,7 @@ async def test_start_worker_creates_work_pool_with_base_config(
 @pytest.fixture
 def unreachable_api(monkeypatch: pytest.MonkeyPatch) -> None:
     async def raise_connect_error(*args: object, **kwargs: object) -> None:
-        raise httpx.ConnectError("All connection attempts failed")
+        raise httpx2.ConnectError("All connection attempts failed")
 
     monkeypatch.setattr(PrefectClient, "read_work_pool", raise_connect_error)
     monkeypatch.setattr(PrefectClient, "read_work_queues", raise_connect_error)
@@ -235,10 +233,10 @@ def test_start_worker_without_type_when_api_request_fails(
     status_code: int | None,
     should_recommend_type: bool,
 ):
-    request = httpx.Request("GET", "https://api.prefect.io/work_pools/test-work-pool")
-    api_error: httpx.HTTPError
+    request = httpx2.Request("GET", "https://api.prefect.io/work_pools/test-work-pool")
+    api_error: httpx2.HTTPError
     if status_code is None:
-        api_error = httpx.ConnectError(
+        api_error = httpx2.ConnectError(
             "All connection attempts failed", request=request
         )
     else:
@@ -247,10 +245,10 @@ def test_start_worker_without_type_when_api_request_fails(
             403: "Forbidden",
             503: "Service unavailable",
         }[status_code]
-        api_error = httpx.HTTPStatusError(
+        api_error = httpx2.HTTPStatusError(
             message,
             request=request,
-            response=httpx.Response(status_code, request=request),
+            response=httpx2.Response(status_code, request=request),
         )
 
     async def raise_api_error(*args: object, **kwargs: object) -> None:

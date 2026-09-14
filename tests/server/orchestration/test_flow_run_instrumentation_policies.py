@@ -4,10 +4,10 @@ from typing import Any, Dict
 from unittest import mock
 from uuid import uuid4
 
-import httpx
+import httpx2
 import pytest
 from fastapi.applications import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
@@ -769,7 +769,7 @@ async def client(app: FastAPI):
 
     transport = ASGITransport(app=app, raise_app_exceptions=False)
 
-    async with httpx.AsyncClient(
+    async with httpx2.AsyncClient(
         transport=transport, base_url="https://test/api"
     ) as async_client:
         yield async_client

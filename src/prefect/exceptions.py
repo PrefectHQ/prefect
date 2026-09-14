@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from types import ModuleType, TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from httpx import HTTPStatusError
+from httpx2 import HTTPStatusError
 from pydantic import ValidationError
 from typing_extensions import Self
 
@@ -344,7 +344,7 @@ class PrefectHTTPStatusError(HTTPStatusError):
     @classmethod
     def from_httpx_error(cls: type[Self], httpx_error: HTTPStatusError) -> Self:
         """
-        Generate a `PrefectHTTPStatusError` from an `httpx.HTTPStatusError`.
+        Generate a `PrefectHTTPStatusError` from an `httpx2.HTTPStatusError`.
         """
         try:
             details = httpx_error.response.json()

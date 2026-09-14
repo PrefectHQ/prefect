@@ -7,7 +7,7 @@ import sys
 from typing import Any, Optional
 
 import anyio
-import httpx
+import httpx2
 import pytest
 from fastapi import Body, FastAPI, status
 from fastapi.exceptions import RequestValidationError
@@ -81,13 +81,13 @@ async def run_storage_server():
     )
     try:
         # Wait for the server to be ready
-        async with httpx.AsyncClient() as client:
+        async with httpx2.AsyncClient() as client:
             response = None
             with anyio.move_on_after(10):
                 while True:
                     try:
                         response = await client.get("http://127.0.0.1:1234/debug")
-                    except httpx.ConnectError:
+                    except httpx2.ConnectError:
                         pass
                     else:
                         if response.status_code == status.HTTP_200_OK:

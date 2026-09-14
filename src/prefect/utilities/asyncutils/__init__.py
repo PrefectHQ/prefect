@@ -153,7 +153,7 @@ def run_coro_as_sync(
 
     The coroutine is scheduled to run in the "run sync" event loop, which is
     running in its own thread and is started the first time it is needed. This
-    allows us to share objects like async httpx clients among all coroutines
+    allows us to share objects like async httpx2 clients among all coroutines
     running in the loop.
 
     If run_sync is called from within the run_sync loop, it will run the

@@ -25,14 +25,8 @@ async def async_handler(result, state):
 
 
 @pytest.fixture
-def respx_mock_with_pass_through(respx_mock):
-    respx_mock.route(host="127.0.0.1").pass_through()
-    yield respx_mock
-
-
-@pytest.fixture
-def run_now_mocks(respx_mock_with_pass_through):
-    respx_mock_with_pass_through.post(
+def run_now_mocks(respx_mock):
+    respx_mock.post(
         "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/run-now",
         headers={"Authorization": "Bearer testing_token"},
     ).mock(
@@ -60,8 +54,8 @@ def databricks_credentials():
 
 
 @pytest.fixture
-def common_mocks(respx_mock_with_pass_through):
-    respx_mock_with_pass_through.post(
+def common_mocks(respx_mock):
+    respx_mock.post(
         "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/submit",
         headers={"Authorization": "Bearer testing_token"},
     ).mock(return_value=Response(200, json={"run_id": 36108}))
@@ -141,9 +135,7 @@ def successful_job_path(request, route):
 
 class TestJobsRunsSubmitAndWaitForCompletion:
     @pytest.mark.respx(assert_all_called=True)
-    async def test_run_success(
-        self, common_mocks, respx_mock_with_pass_through, databricks_credentials
-    ):
+    async def test_run_success(self, common_mocks, respx_mock, databricks_credentials):
         json = {
             "state": {
                 "life_cycle_state": "TERMINATED",
@@ -152,12 +144,12 @@ class TestJobsRunsSubmitAndWaitForCompletion:
             },
             "tasks": [{"run_id": 36260, "task_key": "prefect-task"}],
         }
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=36108",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(return_value=Response(200, json=json))
 
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get-output",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(return_value=Response(200, json={"notebook_output": {"cell": "output"}}))
@@ -181,14 +173,14 @@ class TestJobsRunsSubmitAndWaitForCompletion:
 
     @pytest.mark.respx(assert_all_called=True)
     async def test_run_non_notebook_success(
-        self, common_mocks, respx_mock_with_pass_through, databricks_credentials
+        self, common_mocks, respx_mock, databricks_credentials
     ):
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=36108",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(side_effect=successful_job_path)
 
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get-output",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(return_value=Response(200, json={"metadata": {"cell": "output"}}))
@@ -217,10 +209,10 @@ class TestJobsRunsSubmitAndWaitForCompletion:
         self,
         result_state,
         common_mocks,
-        respx_mock_with_pass_through,
+        respx_mock,
         databricks_credentials,
     ):
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=36108",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -257,10 +249,8 @@ class TestJobsRunsSubmitAndWaitForCompletion:
             )
 
     @pytest.mark.respx(assert_all_called=True)
-    async def test_run_skipped(
-        self, common_mocks, respx_mock_with_pass_through, databricks_credentials
-    ):
-        respx_mock_with_pass_through.get(
+    async def test_run_skipped(self, common_mocks, respx_mock, databricks_credentials):
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=36108",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -296,9 +286,9 @@ class TestJobsRunsSubmitAndWaitForCompletion:
 
     @pytest.mark.respx(assert_all_called=True)
     async def test_run_internal_error(
-        self, common_mocks, respx_mock_with_pass_through, databricks_credentials
+        self, common_mocks, respx_mock, databricks_credentials
     ):
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=36108",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -335,9 +325,9 @@ class TestJobsRunsSubmitAndWaitForCompletion:
 
     @pytest.mark.respx(assert_all_called=True)
     async def test_run_timeout_error(
-        self, common_mocks, respx_mock_with_pass_through, databricks_credentials
+        self, common_mocks, respx_mock, databricks_credentials
     ):
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=36108",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -374,9 +364,9 @@ class TestJobsRunsSubmitAndWaitForCompletion:
 
     @pytest.mark.respx(assert_all_called=True)
     async def test_run_success_missing_run_name(
-        self, common_mocks, respx_mock_with_pass_through, databricks_credentials
+        self, common_mocks, respx_mock, databricks_credentials
     ):
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=36108",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -393,7 +383,7 @@ class TestJobsRunsSubmitAndWaitForCompletion:
             )
         )
 
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get-output",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(return_value=Response(200, json={"notebook_output": {"cell": "output"}}))
@@ -422,12 +412,12 @@ class TestJobsRunsSubmitAndWaitForCompletion:
     async def test_handler_invoked(
         self,
         common_mocks,
-        respx_mock_with_pass_through,
+        respx_mock,
         databricks_credentials,
         handler,
         global_state,
     ):
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=36108",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -444,7 +434,7 @@ class TestJobsRunsSubmitAndWaitForCompletion:
             )
         )
 
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get-output",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(return_value=Response(200, json={"notebook_output": {"cell": "output"}}))
@@ -464,10 +454,10 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
         self,
         common_mocks,
         run_now_mocks,
-        respx_mock_with_pass_through,
+        respx_mock,
         databricks_credentials,
     ):
-        respx_mock_with_pass_through.post(
+        respx_mock.post(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/run-now?job_id=11223344",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -475,7 +465,7 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
                 200, json={"run_id": 11223344, "number_in_job": 11223344}
             )
         )
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=11223344",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -491,7 +481,7 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
                 },
             )
         )
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get-output",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(return_value=Response(200, json={"notebook_output": {"cell": "output"}}))
@@ -508,10 +498,10 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
         result_state,
         common_mocks,
         run_now_mocks,
-        respx_mock_with_pass_through,
+        respx_mock,
         databricks_credentials,
     ):
-        respx_mock_with_pass_through.post(
+        respx_mock.post(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/run-now?job_id=11223344",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -519,7 +509,7 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
                 200, json={"run_id": 11223344, "number_in_job": 11223344}
             )
         )
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=11223344",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -550,10 +540,10 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
         self,
         common_mocks,
         run_now_mocks,
-        respx_mock_with_pass_through,
+        respx_mock,
         databricks_credentials,
     ):
-        respx_mock_with_pass_through.post(
+        respx_mock.post(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/run-now?job_id=11223344",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -561,7 +551,7 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
                 200, json={"run_id": 11223344, "number_in_job": 11223344}
             )
         )
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=11223344",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -591,10 +581,10 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
         self,
         common_mocks,
         run_now_mocks,
-        respx_mock_with_pass_through,
+        respx_mock,
         databricks_credentials,
     ):
-        respx_mock_with_pass_through.post(
+        respx_mock.post(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/run-now?job_id=11223344",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -602,7 +592,7 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
                 200, json={"run_id": 11223344, "number_in_job": 11223344}
             )
         )
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=11223344",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -641,11 +631,11 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
         handler,
         common_mocks,
         run_now_mocks,
-        respx_mock_with_pass_through,
+        respx_mock,
         databricks_credentials,
         global_state,
     ):
-        respx_mock_with_pass_through.post(
+        respx_mock.post(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/run-now?job_id=11223344",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -653,7 +643,7 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
                 200, json={"run_id": 11223344, "number_in_job": 11223344}
             )
         )
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=11223344",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(
@@ -669,7 +659,7 @@ class TestJobsRunsIdSubmitAndWaitForCompletion:
                 },
             )
         )
-        respx_mock_with_pass_through.get(
+        respx_mock.get(
             "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get-output",  # noqa
             headers={"Authorization": "Bearer testing_token"},
         ).mock(return_value=Response(200, json={"notebook_output": {"cell": "output"}}))

@@ -34,7 +34,7 @@ from uuid import UUID
 import jinja2
 import orjson
 from cachetools import TTLCache
-from httpx import Response
+from httpx2 import Response
 from pydantic import (
     Field,
     PrivateAttr,

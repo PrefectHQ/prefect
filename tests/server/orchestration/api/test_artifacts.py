@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pydantic
 import pytest
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from starlette import status
 
 from prefect.server import models, schemas

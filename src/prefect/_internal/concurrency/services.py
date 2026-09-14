@@ -118,7 +118,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         # cannot be spawned after the interpreter finalizes threads which
         #  happens _before_ the normal `atexit` hook is called resulting in
         # failure to process items. This is particularly relevant for services
-        # which use an httpx client. See related issue at
+        # which use an httpx2 client. See related issue at
         # https://github.com/python/cpython/issues/86813
         threading._register_atexit(self._at_exit)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
 

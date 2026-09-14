@@ -11,8 +11,8 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 import anyio.to_thread
-import httpcore
-import httpx
+import httpcore2
+import httpx2
 from pydantic import BaseModel
 
 from prefect import settings
@@ -168,20 +168,20 @@ def _validate_resolved_hostname(hostname: str) -> list[str]:
     return resolved
 
 
-class _SSRFProtectedAsyncBackend(httpcore.AsyncNetworkBackend):
-    """An `httpcore.AsyncNetworkBackend` that validates resolved addresses.
+class _SSRFProtectedAsyncBackend(httpcore2.AsyncNetworkBackend):
+    """An `httpcore2.AsyncNetworkBackend` that validates resolved addresses.
 
     Wraps an existing backend and, on each `connect_tcp` call, resolves the
     hostname itself, rejects any resolved address that is private, and then
     connects to the validated IP directly (rather than the hostname) so that
     the underlying backend cannot re-resolve to a different address.
 
-    TLS SNI / certificate validation is unaffected because httpcore passes the
+    TLS SNI / certificate validation is unaffected because httpcore2 passes the
     original hostname to `start_tls` via `server_hostname`, independently of
     the host used for the TCP connection.
     """
 
-    def __init__(self, wrapped: httpcore.AsyncNetworkBackend) -> None:
+    def __init__(self, wrapped: httpcore2.AsyncNetworkBackend) -> None:
         self._wrapped = wrapped
 
     async def connect_tcp(
@@ -191,7 +191,7 @@ class _SSRFProtectedAsyncBackend(httpcore.AsyncNetworkBackend):
         timeout: Optional[float] = None,
         local_address: Optional[str] = None,
         socket_options: Optional[Iterable[Any]] = None,
-    ) -> httpcore.AsyncNetworkStream:
+    ) -> httpcore2.AsyncNetworkStream:
         # Resolve in a worker thread so the event loop is not blocked during
         # DNS lookups (which can be slow or intermittently failing).
         validated_ips = await anyio.to_thread.run_sync(
@@ -211,7 +211,7 @@ class _SSRFProtectedAsyncBackend(httpcore.AsyncNetworkBackend):
                     local_address=local_address,
                     socket_options=socket_options,
                 )
-            except (httpcore.ConnectError, httpcore.ConnectTimeout, OSError) as exc:
+            except (httpcore2.ConnectError, httpcore2.ConnectTimeout, OSError) as exc:
                 last_exc = exc
         assert last_exc is not None
         raise last_exc
@@ -221,7 +221,7 @@ class _SSRFProtectedAsyncBackend(httpcore.AsyncNetworkBackend):
         path: str,
         timeout: Optional[float] = None,
         socket_options: Optional[Iterable[Any]] = None,
-    ) -> httpcore.AsyncNetworkStream:
+    ) -> httpcore2.AsyncNetworkStream:
         return await self._wrapped.connect_unix_socket(
             path, timeout=timeout, socket_options=socket_options
         )
@@ -230,10 +230,10 @@ class _SSRFProtectedAsyncBackend(httpcore.AsyncNetworkBackend):
         await self._wrapped.sleep(seconds)
 
 
-class _SSRFProtectedSyncBackend(httpcore.NetworkBackend):
+class _SSRFProtectedSyncBackend(httpcore2.NetworkBackend):
     """Synchronous counterpart of `_SSRFProtectedAsyncBackend`."""
 
-    def __init__(self, wrapped: httpcore.NetworkBackend) -> None:
+    def __init__(self, wrapped: httpcore2.NetworkBackend) -> None:
         self._wrapped = wrapped
 
     def connect_tcp(
@@ -243,7 +243,7 @@ class _SSRFProtectedSyncBackend(httpcore.NetworkBackend):
         timeout: Optional[float] = None,
         local_address: Optional[str] = None,
         socket_options: Optional[Iterable[Any]] = None,
-    ) -> httpcore.NetworkStream:
+    ) -> httpcore2.NetworkStream:
         validated_ips = _resolve_and_validate_for_connect(host)
         last_exc: Optional[BaseException] = None
         deadline = time.monotonic() + timeout if timeout is not None else None
@@ -259,7 +259,7 @@ class _SSRFProtectedSyncBackend(httpcore.NetworkBackend):
                     local_address=local_address,
                     socket_options=socket_options,
                 )
-            except (httpcore.ConnectError, httpcore.ConnectTimeout, OSError) as exc:
+            except (httpcore2.ConnectError, httpcore2.ConnectTimeout, OSError) as exc:
                 last_exc = exc
         assert last_exc is not None
         raise last_exc
@@ -269,7 +269,7 @@ class _SSRFProtectedSyncBackend(httpcore.NetworkBackend):
         path: str,
         timeout: Optional[float] = None,
         socket_options: Optional[Iterable[Any]] = None,
-    ) -> httpcore.NetworkStream:
+    ) -> httpcore2.NetworkStream:
         return self._wrapped.connect_unix_socket(
             path, timeout=timeout, socket_options=socket_options
         )
@@ -298,7 +298,7 @@ def _resolve_and_validate_for_connect(host: str) -> list[str]:
     callers iterate them in order and retry on connect failures so that dual-
     stack hostnames still work in single-stack environments.
 
-    Raises `httpcore.ConnectError` if any resolved address is private or if the
+    Raises `httpcore2.ConnectError` if any resolved address is private or if the
     hostname cannot be resolved.  The returned IPs are passed to the underlying
     network backend as IP literals, so it will not perform further DNS
     resolution — eliminating the DNS rebinding TOCTOU window.
@@ -306,13 +306,15 @@ def _resolve_and_validate_for_connect(host: str) -> list[str]:
     try:
         return _validate_resolved_hostname(host)
     except _RestrictedHostError as exc:
-        raise httpcore.ConnectError(f"Refusing to connect to {host!r}: {exc}") from None
+        raise httpcore2.ConnectError(
+            f"Refusing to connect to {host!r}: {exc}"
+        ) from None
 
 
-class SSRFProtectedAsyncHTTPTransport(httpx.AsyncHTTPTransport):
-    """An `httpx.AsyncHTTPTransport` that guards against DNS rebinding SSRF.
+class SSRFProtectedAsyncHTTPTransport(httpx2.AsyncHTTPTransport):
+    """An `httpx2.AsyncHTTPTransport` that guards against DNS rebinding SSRF.
 
-    Behaves identically to `httpx.AsyncHTTPTransport` except that, for every
+    Behaves identically to `httpx2.AsyncHTTPTransport` except that, for every
     request, the hostname is resolved, every resolved address is checked
     against the private-address blocklist, and the connection is made to the
     specific validated IP.  This closes the TOCTOU window between a pre-flight
@@ -326,7 +328,7 @@ class SSRFProtectedAsyncHTTPTransport(httpx.AsyncHTTPTransport):
         )
 
 
-class SSRFProtectedHTTPTransport(httpx.HTTPTransport):
+class SSRFProtectedHTTPTransport(httpx2.HTTPTransport):
     """Synchronous counterpart of `SSRFProtectedAsyncHTTPTransport`."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

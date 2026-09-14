@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from httpx import AsyncClient, AsyncHTTPTransport, Response
+from httpx2 import AsyncClient, AsyncHTTPTransport, Response
 from pydantic import Field, HttpUrl, SecretStr
 from typing_extensions import Literal
 

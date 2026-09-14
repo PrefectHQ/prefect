@@ -3,7 +3,7 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from httpx import HTTPStatusError, Request, Response
+from httpx2 import HTTPStatusError, Request, Response
 
 from prefect.client.orchestration import get_client
 from prefect.concurrency.v1.services import ConcurrencySlotAcquisitionService

@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterator, List
 import pytest
 import sqlalchemy as sa
 from fastapi import status
-from httpx import Response
+from httpx2 import Response
 from pydantic import TypeAdapter
 from whenever import Instant
 

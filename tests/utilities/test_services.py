@@ -2,7 +2,7 @@ import statistics
 from typing import Generator
 from unittest.mock import AsyncMock
 
-import httpx
+import httpx2
 import pytest
 
 from prefect.settings import (
@@ -52,7 +52,7 @@ async def test_tolerates_single_intermittent_error():
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.ConnectError("woops"),
+            httpx2.ConnectError("woops"),
             None,
             None,
             None,
@@ -70,8 +70,8 @@ async def test_tolerates_two_consecutive_errors():
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.ConnectError("woops"),
-            httpx.TimeoutException("oofta"),
+            httpx2.ConnectError("woops"),
+            httpx2.TimeoutException("oofta"),
             None,
             None,
             UncapturedException,
@@ -87,10 +87,10 @@ async def test_tolerates_two_consecutive_errors():
 async def test_tolerates_majority_errors():
     workload = AsyncMock(
         side_effect=[
-            httpx.ConnectError("woops"),
+            httpx2.ConnectError("woops"),
             None,
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
             None,
             UncapturedException,
         ]
@@ -106,9 +106,9 @@ async def test_quits_after_3_consecutive_errors(capsys: pytest.CaptureFixture):
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
-            httpx.ConnectError("woops"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
+            httpx2.ConnectError("woops"),
             None,
             None,
         ]
@@ -121,8 +121,8 @@ async def test_quits_after_3_consecutive_errors(capsys: pytest.CaptureFixture):
     result = capsys.readouterr()
     assert "Failed the last 3 attempts" in result.out
     assert "Examples of recent errors" in result.out
-    assert "httpx.ConnectError: woops" in result.out
-    assert "httpx.TimeoutException: boo" in result.out
+    assert "httpx2.ConnectError: woops" in result.out
+    assert "httpx2.TimeoutException: boo" in result.out
 
 
 async def test_consistent_sleeps_between_loops(monkeypatch):
@@ -185,19 +185,19 @@ async def test_captures_all_http_500_errors():
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.HTTPStatusError(
-                "foo", request=None, response=httpx.Response(status_code=500)
+            httpx2.HTTPStatusError(
+                "foo", request=None, response=httpx2.Response(status_code=500)
             ),
             None,
-            httpx.HTTPStatusError(
-                "foo", request=None, response=httpx.Response(status_code=501)
+            httpx2.HTTPStatusError(
+                "foo", request=None, response=httpx2.Response(status_code=501)
             ),
             None,
-            httpx.HTTPStatusError(
-                "foo", request=None, response=httpx.Response(status_code=502)
+            httpx2.HTTPStatusError(
+                "foo", request=None, response=httpx2.Response(status_code=502)
             ),
-            httpx.HTTPStatusError(
-                "foo", request=None, response=httpx.Response(status_code=503)
+            httpx2.HTTPStatusError(
+                "foo", request=None, response=httpx2.Response(status_code=503)
             ),
             UncapturedException,
         ]
@@ -213,15 +213,15 @@ async def test_does_not_capture_other_http_status_errors():
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.HTTPStatusError(
-                "foo", request=None, response=httpx.Response(status_code=403)
+            httpx2.HTTPStatusError(
+                "foo", request=None, response=httpx2.Response(status_code=403)
             ),
             None,
             UncapturedException,
         ]
     )
 
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(httpx2.HTTPStatusError):
         await critical_service_loop(workload, 0.0)
 
     assert workload.await_count == 2
@@ -233,12 +233,12 @@ async def test_backoff_quits_after_6_consecutive_errors_twice(
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
-            httpx.ConnectError("woops"),
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
-            httpx.ConnectError("woops"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
+            httpx2.ConnectError("woops"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
+            httpx2.ConnectError("woops"),
             None,
         ]
     )
@@ -250,8 +250,8 @@ async def test_backoff_quits_after_6_consecutive_errors_twice(
     result = capsys.readouterr()
     assert "Failed the last 3 attempts" in result.out
     assert "Examples of recent errors" in result.out
-    assert "httpx.ConnectError: woops" in result.out
-    assert "httpx.TimeoutException: boo" in result.out
+    assert "httpx2.ConnectError: woops" in result.out
+    assert "httpx2.TimeoutException: boo" in result.out
 
 
 async def test_backoff_does_not_exit_after_5_consecutive_errors(
@@ -260,11 +260,11 @@ async def test_backoff_does_not_exit_after_5_consecutive_errors(
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
-            httpx.ConnectError("woops"),
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
+            httpx2.ConnectError("woops"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
             None,
             UncapturedException,
         ]
@@ -277,8 +277,8 @@ async def test_backoff_does_not_exit_after_5_consecutive_errors(
     result = capsys.readouterr()
     assert "Failed the last 3 attempts" in result.out
     assert "Examples of recent errors" in result.out
-    assert "httpx.ConnectError: woops" in result.out
-    assert "httpx.TimeoutException: boo" in result.out
+    assert "httpx2.ConnectError: woops" in result.out
+    assert "httpx2.TimeoutException: boo" in result.out
 
 
 async def test_backoff_reset_on_success(
@@ -287,17 +287,17 @@ async def test_backoff_reset_on_success(
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
-            httpx.ConnectError("woops"),
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
+            httpx2.ConnectError("woops"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
             None,  # Reset on success so another 5 should run
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
-            httpx.ConnectError("woops"),
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
+            httpx2.ConnectError("woops"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
             None,
             UncapturedException,
         ]
@@ -310,8 +310,8 @@ async def test_backoff_reset_on_success(
     result = capsys.readouterr()
     assert "Failed the last 3 attempts" in result.out
     assert "Examples of recent errors" in result.out
-    assert "httpx.ConnectError: woops" in result.out
-    assert "httpx.TimeoutException: boo" in result.out
+    assert "httpx2.ConnectError: woops" in result.out
+    assert "httpx2.TimeoutException: boo" in result.out
 
 
 async def test_backoff_increases_interval_on_each_consecutive_group(
@@ -320,26 +320,26 @@ async def test_backoff_increases_interval_on_each_consecutive_group(
     workload = AsyncMock(
         side_effect=[
             # 1s
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
             # 2s
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
-            httpx.TimeoutException("oofta"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
+            httpx2.TimeoutException("oofta"),
             # 4s
-            httpx.TimeoutException("boo"),
-            httpx.ConnectError("woops"),
-            httpx.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
+            httpx2.ConnectError("woops"),
+            httpx2.TimeoutException("oofta"),
             # 8s
-            httpx.TimeoutException("boo"),
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
+            httpx2.TimeoutException("boo"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
             # 16s
-            httpx.ConnectError("woops"),
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
+            httpx2.ConnectError("woops"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
             # 32s
-            httpx.ConnectError("woops"),
+            httpx2.ConnectError("woops"),
             # exit
             UncapturedException,
         ]
@@ -356,7 +356,7 @@ async def test_backoff_increases_interval_on_each_consecutive_group(
 
 async def test_backoff_increases_interval_when_jittered(monkeypatch):
     workload = AsyncMock(
-        side_effect=[httpx.TimeoutException("boo")] * 15 + [UncapturedException]
+        side_effect=[httpx2.TimeoutException("boo")] * 15 + [UncapturedException]
     )
     sleeper = AsyncMock()
 
@@ -380,8 +380,8 @@ async def test_backoff_increases_interval_when_jittered(monkeypatch):
 async def test_sleeps_for_interval(capsys: pytest.CaptureFixture, mock_anyio_sleep):
     workload = AsyncMock(
         side_effect=[
-            httpx.TimeoutException("oofta"),
-            httpx.TimeoutException("boo"),
+            httpx2.TimeoutException("oofta"),
+            httpx2.TimeoutException("boo"),
             None,
             UncapturedException,
         ]
@@ -409,8 +409,8 @@ def metrics_server_url(unused_tcp_port: int) -> Generator[str, None, None]:
 
         while True:
             try:
-                httpx.get(url)
-            except httpx.ConnectError:
+                httpx2.get(url)
+            except httpx2.ConnectError:
                 pass
             else:
                 break
@@ -421,26 +421,26 @@ def metrics_server_url(unused_tcp_port: int) -> Generator[str, None, None]:
 
 
 def test_metrics_server(metrics_server_url: str):
-    response = httpx.get(metrics_server_url)
+    response = httpx2.get(metrics_server_url)
     assert response.status_code == 200
     assert response.headers["Content-Type"].startswith("text/plain")
     assert response.content.startswith(b"# HELP")
 
 
 def test_stopping_metrics_server(metrics_server_url: str):
-    response = httpx.get(metrics_server_url)
+    response = httpx2.get(metrics_server_url)
     assert response.status_code == 200
     assert response.headers["Content-Type"].startswith("text/plain")
     assert response.content.startswith(b"# HELP")
 
     stop_client_metrics_server()
 
-    with pytest.raises(httpx.ConnectError):
-        httpx.get(metrics_server_url, timeout=0.1)
+    with pytest.raises(httpx2.ConnectError):
+        httpx2.get(metrics_server_url, timeout=0.1)
 
 
 def test_starting_metrics_server_is_idempotent(metrics_server_url: str):
-    response = httpx.get(metrics_server_url)
+    response = httpx2.get(metrics_server_url)
     assert response.status_code == 200
     assert response.headers["Content-Type"].startswith("text/plain")
     assert response.content.startswith(b"# HELP")
@@ -450,7 +450,7 @@ def test_starting_metrics_server_is_idempotent(metrics_server_url: str):
 
 
 def test_stopping_metrics_server_is_idempotent(metrics_server_url: str):
-    response = httpx.get(metrics_server_url)
+    response = httpx2.get(metrics_server_url)
     assert response.status_code == 200
     assert response.headers["Content-Type"].startswith("text/plain")
     assert response.content.startswith(b"# HELP")
@@ -460,7 +460,7 @@ def test_stopping_metrics_server_is_idempotent(metrics_server_url: str):
 
 
 async def test_stopping_and_starting_from_async(metrics_server_url: str):
-    async with httpx.AsyncClient() as client:
+    async with httpx2.AsyncClient() as client:
         response = await client.get(metrics_server_url)
         assert response.status_code == 200
         assert response.headers["Content-Type"].startswith("text/plain")
@@ -468,8 +468,8 @@ async def test_stopping_and_starting_from_async(metrics_server_url: str):
 
         stop_client_metrics_server()
 
-        with pytest.raises(httpx.ConnectError):
-            httpx.get(metrics_server_url, timeout=0.1)
+        with pytest.raises(httpx2.ConnectError):
+            httpx2.get(metrics_server_url, timeout=0.1)
 
         start_client_metrics_server()
 

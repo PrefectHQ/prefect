@@ -4,7 +4,7 @@ from typing import List
 from unittest.mock import AsyncMock
 
 import pytest
-from httpx import AsyncClient, Headers
+from httpx2 import AsyncClient, Headers
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import (
     WS_1002_PROTOCOL_ERROR,

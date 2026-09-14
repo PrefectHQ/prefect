@@ -7,9 +7,9 @@ import os
 from unittest import mock
 from uuid import uuid4
 
-import httpx
+import httpx2
 import pytest
-from httpx import Request, Response
+from httpx2 import Request, Response
 
 from prefect import flow
 from prefect._internal.compatibility.starlette import status
@@ -227,13 +227,13 @@ class TestAsyncClientAttributionHeaders:
                 "PREFECT__FLOW_NAME": flow_name,
             },
         ):
-            with mock.patch("httpx.AsyncClient.send", autospec=True) as send:
+            with mock.patch("httpx2.AsyncClient.send", autospec=True) as send:
                 send.return_value = RESPONSE_200
                 async with PrefectHttpxAsyncClient() as client:
                     await client.get(url="fake.url/fake/route")
 
                 request = send.call_args[0][1]
-                assert isinstance(request, httpx.Request)
+                assert isinstance(request, httpx2.Request)
 
                 assert request.headers["X-Prefect-Worker-Id"] == worker_id
                 assert request.headers["X-Prefect-Worker-Name"] == worker_name
@@ -257,13 +257,13 @@ class TestAsyncClientAttributionHeaders:
 
         with mock.patch.dict(os.environ, env, clear=True):
             with mock.patch.object(FlowRunContext, "get", return_value=None):
-                with mock.patch("httpx.AsyncClient.send", autospec=True) as send:
+                with mock.patch("httpx2.AsyncClient.send", autospec=True) as send:
                     send.return_value = RESPONSE_200
                     async with PrefectHttpxAsyncClient() as client:
                         await client.get(url="fake.url/fake/route")
 
                     request = send.call_args[0][1]
-                    assert isinstance(request, httpx.Request)
+                    assert isinstance(request, httpx2.Request)
 
                     assert "X-Prefect-Worker-Id" not in request.headers
                     assert "X-Prefect-Worker-Name" not in request.headers
@@ -290,13 +290,13 @@ class TestSyncClientAttributionHeaders:
                 "PREFECT__FLOW_NAME": flow_name,
             },
         ):
-            with mock.patch("httpx.Client.send", autospec=True) as send:
+            with mock.patch("httpx2.Client.send", autospec=True) as send:
                 send.return_value = RESPONSE_200
                 with PrefectHttpxSyncClient() as client:
                     client.get(url="fake.url/fake/route")
 
                 request = send.call_args[0][1]
-                assert isinstance(request, httpx.Request)
+                assert isinstance(request, httpx2.Request)
 
                 assert request.headers["X-Prefect-Worker-Id"] == worker_id
                 assert request.headers["X-Prefect-Worker-Name"] == worker_name

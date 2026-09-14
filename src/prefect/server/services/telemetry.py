@@ -8,7 +8,7 @@ import platform
 from datetime import timedelta
 from uuid import uuid4
 
-import httpx
+import httpx2
 from docket import Perpetual
 
 import prefect
@@ -100,7 +100,7 @@ async def send_telemetry_heartbeat(
     }
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx2.AsyncClient() as client:
             result = await client.post(
                 "https://sens-o-matic.prefect.io/",
                 json=heartbeat,

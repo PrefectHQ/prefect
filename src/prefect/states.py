@@ -10,7 +10,7 @@ from types import GeneratorType, TracebackType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type
 
 import anyio
-import httpx
+import httpx2
 from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
@@ -222,9 +222,9 @@ async def exception_to_crashed_state(
     elif isinstance(exc, SystemExit):
         state_message = "Execution was aborted by Python system exit call."
 
-    elif isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
+    elif isinstance(exc, (httpx2.TimeoutException, httpx2.ConnectError)):
         try:
-            request: httpx.Request = exc.request
+            request: httpx2.Request = exc.request
         except RuntimeError:
             # The request property is not set
             state_message = (

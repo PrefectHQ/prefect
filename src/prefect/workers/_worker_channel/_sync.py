@@ -8,7 +8,7 @@ from uuid import UUID
 
 import anyio
 import anyio.abc
-import httpx
+import httpx2
 
 from prefect._internal.uuid7 import uuid7
 from prefect._internal.websockets import websocket_connect
@@ -211,7 +211,7 @@ class WorkPoolWorkerChannel:
         worker_id = None
         try:
             worker_id = await self._client.send_worker_heartbeat(**params)
-        except httpx.HTTPStatusError as exc:
+        except httpx2.HTTPStatusError as exc:
             if exc.response.status_code == 422 and should_get_worker_id:
                 self._logger.warning(
                     "Failed to retrieve worker ID from the Prefect API server."

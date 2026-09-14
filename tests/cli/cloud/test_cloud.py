@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
-import httpx
+import httpx2
 import pytest
 import readchar
 import respx
@@ -131,8 +131,8 @@ def mock_webbrowser(monkeypatch: pytest.MonkeyPatch):
 def test_login_with_invalid_key(
     key: str, expected_output: str, respx_mock: respx.MockRouter
 ):
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(status.HTTP_403_FORBIDDEN)
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_403_FORBIDDEN
     )
     invoke_and_assert(
         ["cloud", "login", "--key", key, "--workspace", "foo"],
@@ -186,8 +186,8 @@ def test_login_with_prefect_api_key_env_var_different_than_key_exits_with_error(
 def test_login_with_prefect_api_key_env_var_equal_to_invalid_key_exits_with_error(
     key: str, expected_output: str, env_var_api_key: str, respx_mock: respx.MockRouter
 ):
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(status.HTTP_403_FORBIDDEN)
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_403_FORBIDDEN
     )
     with temporary_settings({PREFECT_API_KEY: env_var_api_key}):
         invoke_and_assert(
@@ -202,11 +202,9 @@ def test_login_with_prefect_api_key_env_var_equal_to_valid_key_succeeds(
 ):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[foo_workspace.model_dump(mode="json")],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[foo_workspace.model_dump(mode="json")],
     )
 
     with temporary_settings({PREFECT_API_KEY: "pnu_foo"}):
@@ -223,14 +221,12 @@ def test_login_with_key_and_missing_workspace(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[
+            foo_workspace.model_dump(mode="json"),
+            bar_workspace.model_dump(mode="json"),
+        ],
     )
 
     invoke_and_assert(
@@ -244,8 +240,8 @@ def test_login_with_key_and_missing_workspace(respx_mock: respx.MockRouter):
 
 
 def test_login_with_key_and_workspace_with_no_workspaces(respx_mock: respx.MockRouter):
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(status.HTTP_200_OK, json=[])
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK, json=[]
     )
     invoke_and_assert(
         ["cloud", "login", "--key", "foo", "--workspace", "bar"],
@@ -258,14 +254,12 @@ def test_login_with_key_and_workspace(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[
+            foo_workspace.model_dump(mode="json"),
+            bar_workspace.model_dump(mode="json"),
+        ],
     )
 
     invoke_and_assert(
@@ -297,14 +291,12 @@ def test_login_with_key_and_workspace_overrides_current_workspace(
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[
+            foo_workspace.model_dump(mode="json"),
+            bar_workspace.model_dump(mode="json"),
+        ],
     )
 
     # Set up a current profile with a different workspace
@@ -327,11 +319,9 @@ def test_login_with_key_and_workspace_overrides_current_workspace(
 
 @pytest.mark.usefixtures("interactive_console")
 def test_login_with_key_and_no_workspaces(respx_mock: respx.MockRouter):
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[],
     )
     invoke_and_assert(
         ["cloud", "login", "--key", "foo"],
@@ -348,14 +338,12 @@ def test_login_with_key_and_no_workspaces(respx_mock: respx.MockRouter):
 def test_login_with_key_and_select_first_workspace(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[
+            foo_workspace.model_dump(mode="json"),
+            bar_workspace.model_dump(mode="json"),
+        ],
     )
     invoke_and_assert(
         ["cloud", "login", "--key", "foo"],
@@ -378,14 +366,12 @@ def test_login_with_key_and_select_first_workspace(respx_mock: respx.MockRouter)
 def test_login_with_key_and_select_second_workspace(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[
+            foo_workspace.model_dump(mode="json"),
+            bar_workspace.model_dump(mode="json"),
+        ],
     )
     invoke_and_assert(
         ["cloud", "login", "--key", "foo"],
@@ -408,11 +394,9 @@ def test_login_with_key_and_select_second_workspace(respx_mock: respx.MockRouter
 def test_login_with_interactive_key_single_workspace(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[foo_workspace.model_dump(mode="json")],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[foo_workspace.model_dump(mode="json")],
     )
 
     invoke_and_assert(
@@ -441,14 +425,12 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock: respx.MockRo
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[
+            foo_workspace.model_dump(mode="json"),
+            bar_workspace.model_dump(mode="json"),
+        ],
     )
 
     invoke_and_assert(
@@ -487,11 +469,9 @@ def test_login_with_browser_single_workspace(
 ):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[foo_workspace.model_dump(mode="json")],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[foo_workspace.model_dump(mode="json")],
     )
 
     def post_success(ui_url: str):
@@ -501,7 +481,7 @@ def test_login_with_browser_single_workspace(
         )
         # Bypass the mocks
         respx_mock.route(url__startswith=callback).pass_through()
-        httpx.post(
+        httpx2.post(
             callback + "/success",
             json=LoginSuccess(api_key="foo").model_dump(mode="json"),
         )
@@ -542,7 +522,7 @@ def test_login_with_browser_failure_in_browser(
         )
         # Bypass the mocks
         respx_mock.route(url__startswith=callback).pass_through()
-        httpx.post(
+        httpx2.post(
             callback + "/failure",
             json=LoginFailed(reason="Oh no!").model_dump(mode="json"),
         )
@@ -579,11 +559,9 @@ def test_login_already_logged_in_to_current_profile_no_reauth(
 ):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[foo_workspace.model_dump(mode="json")],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[foo_workspace.model_dump(mode="json")],
     )
 
     profile_name = f"logged-in-profile-{uuid.uuid4()}"
@@ -627,14 +605,12 @@ def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[
+            foo_workspace.model_dump(mode="json"),
+            bar_workspace.model_dump(mode="json"),
+        ],
     )
 
     profile_name = f"logged-in-profile-{uuid.uuid4()}"
@@ -691,11 +667,9 @@ def test_login_already_logged_in_to_current_profile_yes_reauth(
 ):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[foo_workspace.model_dump(mode="json")],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[foo_workspace.model_dump(mode="json")],
     )
 
     profile_name = f"logged-in-profile-{uuid.uuid4()}"
@@ -755,14 +729,12 @@ def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[
+            foo_workspace.model_dump(mode="json"),
+            bar_workspace.model_dump(mode="json"),
+        ],
     )
 
     profile_name = f"logged-in-profile-{uuid.uuid4()}"
@@ -816,11 +788,9 @@ def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
 def test_login_already_logged_in_to_another_profile(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[foo_workspace.model_dump(mode="json")],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[foo_workspace.model_dump(mode="json")],
     )
 
     current_profile = load_current_profile()
@@ -878,11 +848,9 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(
 ):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[foo_workspace.model_dump(mode="json")],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[foo_workspace.model_dump(mode="json")],
     )
 
     current_profile = load_current_profile()
@@ -1003,14 +971,12 @@ def test_set_workspace_updates_profile(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[
+            foo_workspace.model_dump(mode="json"),
+            bar_workspace.model_dump(mode="json"),
+        ],
     )
 
     cloud_profile = f"cloud-foo-{uuid.uuid4()}"
@@ -1052,16 +1018,14 @@ def test_set_workspace_with_account_selection():
     bar_workspace = gen_test_workspace(account_handle="test2", workspace_handle="bar")
 
     with respx.mock(
-        using="httpx", base_url=PREFECT_CLOUD_API_URL.value()
+        using="httpcore2", base_url=PREFECT_CLOUD_API_URL.value()
     ) as respx_mock:
-        respx_mock.get("/me/workspaces").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK,
-                json=[
-                    foo_workspace.model_dump(mode="json"),
-                    bar_workspace.model_dump(mode="json"),
-                ],
-            )
+        respx_mock.get("/me/workspaces").respond(
+            status.HTTP_200_OK,
+            json=[
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
+            ],
         )
 
         cloud_profile = f"cloud-foo-{uuid.uuid4()}"
@@ -1102,14 +1066,12 @@ def test_set_workspace_with_less_than_10_workspaces(respx_mock: respx.MockRouter
     foo_workspace = gen_test_workspace(account_handle="test1", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test2", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[
+            foo_workspace.model_dump(mode="json"),
+            bar_workspace.model_dump(mode="json"),
+        ],
     )
 
     cloud_profile = f"cloud-foo-{uuid.uuid4()}"
@@ -1155,14 +1117,12 @@ class TestCloudWorkspaceLs:
             account_handle="test2", workspace_handle="bar"
         )
 
-        respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK,
-                json=[
-                    foo_workspace.model_dump(mode="json"),
-                    bar_workspace.model_dump(mode="json"),
-                ],
-            )
+        respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+            status.HTTP_200_OK,
+            json=[
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
+            ],
         )
 
         cloud_profile = f"cloud-foo-{uuid.uuid4()}"
@@ -1287,15 +1247,11 @@ def test_set_workspace_with_go_back_to_account_selection():
     target_workspace = account2_workspaces[1]  # workspace2 in account2
 
     with respx.mock(
-        using="httpx", base_url=PREFECT_CLOUD_API_URL.value()
+        using="httpcore2", base_url=PREFECT_CLOUD_API_URL.value()
     ) as respx_mock:
-        respx_mock.get("/me/workspaces").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK,
-                json=[
-                    workspace.model_dump(mode="json") for workspace in all_workspaces
-                ],
-            )
+        respx_mock.get("/me/workspaces").respond(
+            status.HTTP_200_OK,
+            json=[workspace.model_dump(mode="json") for workspace in all_workspaces],
         )
 
         cloud_profile = f"cloud-foo-{uuid.uuid4()}"
@@ -1376,11 +1332,9 @@ def test_login_with_go_back_to_account_selection(respx_mock: respx.MockRouter):
 
     target_workspace = account2_workspaces[1]  # workspace2 in account2
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[workspace.model_dump(mode="json") for workspace in all_workspaces],
-        )
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").respond(
+        status.HTTP_200_OK,
+        json=[workspace.model_dump(mode="json") for workspace in all_workspaces],
     )
 
     invoke_and_assert(

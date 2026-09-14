@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Callable, NoReturn, Optional, Type
 
-import httpx
+import httpx2
 
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.client.collections import get_collections_metadata_client
@@ -30,7 +30,7 @@ async def _check_work_pool_paused(work_pool_name: str) -> bool:
             return work_pool.is_paused
     except ObjectNotFound:
         return False
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         logger.debug(
             "Unable to check if work pool %r is paused: %s", work_pool_name, exc
         )
@@ -59,7 +59,7 @@ async def _check_work_queues_paused(
             return all(queue.is_paused for queue in wqs) if wqs else False
     except ObjectNotFound:
         return False
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         logger.debug(
             "Unable to check if the work queues in work pool %r are paused: %s",
             work_pool_name,
@@ -105,7 +105,7 @@ async def _retrieve_worker_type_from_pool(
             style="yellow",
         )
         worker_type = "process"
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         if _is_transient_api_error(exc):
             exit_fn(
                 f"Unable to reach the Prefect API to determine the type of work pool"

@@ -1,7 +1,7 @@
 from unittest import mock
 
 import pytest
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 
 pytestmark = pytest.mark.clear_db
 

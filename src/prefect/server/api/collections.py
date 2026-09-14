@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict
 
-import httpx
+import httpx2
 from anyio import Path
 from cachetools import TTLCache
 from fastapi import HTTPException, status
@@ -35,7 +35,7 @@ async def read_view_content(view: str) -> Dict[str, Any]:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"View {view} not found in registry",
         )
-    except httpx.HTTPStatusError as exc:
+    except httpx2.HTTPStatusError as exc:
         if exc.response.status_code == 404:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -52,7 +52,7 @@ async def get_collection_view(view: str) -> dict[str, Any]:
         pass
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx2.AsyncClient() as client:
             resp = await client.get(KNOWN_VIEWS[view])
             resp.raise_for_status()
 

@@ -12,8 +12,8 @@ from uuid import UUID, uuid4
 
 import anyio
 import certifi
-import httpcore
-import httpx
+import httpcore2
+import httpx2
 import pydantic
 import pytest
 import respx
@@ -149,51 +149,51 @@ class TestGetClient:
 class TestClientProxyAwareness:
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2356, where
     a customer reported that the Cloud client supported proxies, but the client
-    did not.  This test suite is implementation-specific to httpx/httpcore, as there are
+    did not.  This test suite is implementation-specific to httpx2/httpcore2, as there are
     no other inexpensive ways to confirm both the proxy-awareness and preserving the
     retry behavior without probing into the implementation details of the libraries."""
 
     @pytest.fixture()
-    def remote_https_api(self) -> Generator[httpx.URL, None, None]:
+    def remote_https_api(self) -> Generator[httpx2.URL, None, None]:
         api_url = "https://127.0.0.1:4242/"
         with temporary_settings(updates={PREFECT_API_URL: api_url}):
-            yield httpx.URL(api_url)
+            yield httpx2.URL(api_url)
 
-    def test_unproxied_remote_client_will_retry(self, remote_https_api: httpx.URL):
+    def test_unproxied_remote_client_will_retry(self, remote_https_api: httpx2.URL):
         """The original issue here was that we were overriding the `transport` in
         order to set the retries to 3; this is what circumvented the proxy support.
         This test (and those below) should confirm that we are setting the retries on
         the transport's pool in all cases."""
         httpx_client = get_client()._client
-        assert isinstance(httpx_client, httpx.AsyncClient)
+        assert isinstance(httpx_client, httpx2.AsyncClient)
 
         transport_for_api = httpx_client._transport_for_url(remote_https_api)
-        assert isinstance(transport_for_api, httpx.AsyncHTTPTransport)
+        assert isinstance(transport_for_api, httpx2.AsyncHTTPTransport)
 
         pool = transport_for_api._pool
-        assert isinstance(pool, httpcore.AsyncConnectionPool)
+        assert isinstance(pool, httpcore2.AsyncConnectionPool)
         assert pool._retries == 3  # set in prefect.client.orchestration.get_client()
 
-    def test_users_can_still_provide_transport(self, remote_https_api: httpx.URL):
+    def test_users_can_still_provide_transport(self, remote_https_api: httpx2.URL):
         """If users want to supply an alternative transport, they still can and
         we will not alter it"""
-        httpx_settings = {"transport": httpx.AsyncHTTPTransport(retries=11)}
+        httpx_settings = {"transport": httpx2.AsyncHTTPTransport(retries=11)}
         httpx_client = get_client(httpx_settings)._client
-        assert isinstance(httpx_client, httpx.AsyncClient)
+        assert isinstance(httpx_client, httpx2.AsyncClient)
 
         transport_for_api = httpx_client._transport_for_url(remote_https_api)
-        assert isinstance(transport_for_api, httpx.AsyncHTTPTransport)
+        assert isinstance(transport_for_api, httpx2.AsyncHTTPTransport)
 
         pool = transport_for_api._pool
-        assert isinstance(pool, httpcore.AsyncConnectionPool)
+        assert isinstance(pool, httpcore2.AsyncConnectionPool)
         assert pool._retries == 11  # not overridden by get_client() in this case
 
     @pytest.fixture
-    def https_proxy(self) -> Generator[httpcore.URL, None, None]:
+    def https_proxy(self) -> Generator[httpcore2.URL, None, None]:
         original = os.environ.get("HTTPS_PROXY")
         try:
             os.environ["HTTPS_PROXY"] = "https://127.0.0.1:6666"
-            yield httpcore.URL(os.environ["HTTPS_PROXY"])
+            yield httpcore2.URL(os.environ["HTTPS_PROXY"])
         finally:
             if original is None:
                 del os.environ["HTTPS_PROXY"]
@@ -201,31 +201,31 @@ class TestClientProxyAwareness:
                 os.environ["HTTPS_PROXY"] = original
 
     async def test_client_is_aware_of_https_proxy(
-        self, remote_https_api: httpx.URL, https_proxy: httpcore.URL
+        self, remote_https_api: httpx2.URL, https_proxy: httpcore2.URL
     ):
         httpx_client = get_client()._client
-        assert isinstance(httpx_client, httpx.AsyncClient)
+        assert isinstance(httpx_client, httpx2.AsyncClient)
 
         transport_for_api = httpx_client._transport_for_url(remote_https_api)
-        assert isinstance(transport_for_api, httpx.AsyncHTTPTransport)
+        assert isinstance(transport_for_api, httpx2.AsyncHTTPTransport)
 
         pool = transport_for_api._pool
-        assert isinstance(pool, httpcore.AsyncHTTPProxy)
+        assert isinstance(pool, httpcore2.AsyncHTTPProxy)
         assert pool._proxy_url == https_proxy
         assert pool._retries == 3  # set in prefect.client.orchestration.get_client()
 
     @pytest.fixture()
-    def remote_http_api(self) -> Generator[httpx.URL, None, None]:
+    def remote_http_api(self) -> Generator[httpx2.URL, None, None]:
         api_url = "http://127.0.0.1:4242/"
         with temporary_settings(updates={PREFECT_API_URL: api_url}):
-            yield httpx.URL(api_url)
+            yield httpx2.URL(api_url)
 
     @pytest.fixture
-    def http_proxy(self) -> Generator[httpcore.URL, None, None]:
+    def http_proxy(self) -> Generator[httpcore2.URL, None, None]:
         original = os.environ.get("HTTP_PROXY")
         try:
             os.environ["HTTP_PROXY"] = "http://127.0.0.1:6666"
-            yield httpcore.URL(os.environ["HTTP_PROXY"])
+            yield httpcore2.URL(os.environ["HTTP_PROXY"])
         finally:
             if original is None:
                 del os.environ["HTTP_PROXY"]
@@ -233,16 +233,16 @@ class TestClientProxyAwareness:
                 os.environ["HTTP_PROXY"] = original
 
     async def test_client_is_aware_of_http_proxy(
-        self, remote_http_api: httpx.URL, http_proxy: httpcore.URL
+        self, remote_http_api: httpx2.URL, http_proxy: httpcore2.URL
     ):
         httpx_client = get_client()._client
-        assert isinstance(httpx_client, httpx.AsyncClient)
+        assert isinstance(httpx_client, httpx2.AsyncClient)
 
         transport_for_api = httpx_client._transport_for_url(remote_http_api)
-        assert isinstance(transport_for_api, httpx.AsyncHTTPTransport)
+        assert isinstance(transport_for_api, httpx2.AsyncHTTPTransport)
 
         pool = transport_for_api._pool
-        assert isinstance(pool, httpcore.AsyncHTTPProxy)
+        assert isinstance(pool, httpcore2.AsyncHTTPProxy)
         assert pool._proxy_url == http_proxy
         assert pool._retries == 3  # set in prefect.client.orchestration.get_client()
 
@@ -637,7 +637,7 @@ async def test_client_does_not_run_migrations_for_hosted_app(
 
 async def test_client_api_url():
     url = PrefectClient("http://foo.test/bar").api_url
-    assert isinstance(url, httpx.URL)
+    assert isinstance(url, httpx2.URL)
     assert str(url) == "http://foo.test/bar/"
     assert PrefectClient(FastAPI()).api_url is not None
 
@@ -1788,7 +1788,7 @@ class TestClientAPIVersionRequests:
         api_version = f"{major_version - 1}.{minor_version}.{patch_version}"
         async with PrefectClient(app, api_version=api_version) as client:
             with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+                httpx2.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ):
                 await client.hello()
 
@@ -1811,7 +1811,7 @@ class TestClientAPIVersionRequests:
         api_version = f"{major_version}.{minor_version - 1}.{patch_version}"
         async with PrefectClient(app, api_version=api_version) as client:
             with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+                httpx2.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ):
                 await client.hello()
 
@@ -1835,7 +1835,7 @@ class TestClientAPIVersionRequests:
         res = await client.hello()
         async with PrefectClient(app, api_version=api_version) as client:
             with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+                httpx2.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ):
                 await client.hello()
 
@@ -1844,7 +1844,7 @@ class TestClientAPIVersionRequests:
         api_version = "not a real version header"
         async with PrefectClient(app, api_version=api_version) as client:
             with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+                httpx2.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ) as e:
                 await client.hello()
             assert (
@@ -1877,7 +1877,7 @@ class TestClientAPIKey:
     async def test_client_no_auth_header_without_api_key(self, test_app: FastAPI):
         async with PrefectClient(test_app) as client:
             with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_401_UNAUTHORIZED)
+                httpx2.HTTPStatusError, match=str(status.HTTP_401_UNAUTHORIZED)
             ):
                 await client._client.get("/check_for_auth_header")
 
@@ -1911,7 +1911,7 @@ class TestClientAuthString:
 
     async def test_client_no_auth_header_without_auth_string(self, test_app):
         async with PrefectClient(test_app) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="401"):
+            with pytest.raises(httpx2.HTTPStatusError, match="401"):
                 await client._client.get("/check_for_auth_header")
 
     async def test_get_client_includes_auth_string_from_context(self):
@@ -2612,12 +2612,12 @@ class TestAutomations:
 
     async def test_create_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpcore2"
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
-            create_route = router.post("/automations/").mock(
-                return_value=httpx.Response(200, json=created_automation)
+            create_route = router.post("/automations/").respond(
+                200, json=created_automation
             )
 
             automation_id = await cloud_client.create_automation(automation)
@@ -2630,15 +2630,15 @@ class TestAutomations:
 
     async def test_read_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpcore2"
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
             created_automation_id = created_automation["id"]
 
-            read_route = router.get(f"/automations/{created_automation_id}").mock(
-                return_value=httpx.Response(200, json=created_automation)
+            read_route = router.get(f"/automations/{created_automation_id}").respond(
+                200, json=created_automation
             )
 
             read_automation = await cloud_client.read_automation(created_automation_id)
@@ -2650,15 +2650,15 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpcore2"
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
             created_automation_id = created_automation["id"]
 
-            read_route = router.get(f"/automations/{created_automation_id}").mock(
-                return_value=httpx.Response(404)
+            read_route = router.get(f"/automations/{created_automation_id}").respond(
+                404
             )
 
             with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="404"):
@@ -2670,12 +2670,12 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpcore2"
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(200, json=[created_automation])
+            read_route = router.post("/automations/filter").respond(
+                200, json=[created_automation]
             )
 
             result = await cloud_client.read_automations()
@@ -2695,12 +2695,12 @@ class TestAutomations:
         from prefect.events.filters import AutomationFilter, AutomationFilterName
 
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpcore2"
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(200, json=[created_automation])
+            read_route = router.post("/automations/filter").respond(
+                200, json=[created_automation]
             )
 
             automation_filter = AutomationFilter(
@@ -2727,13 +2727,13 @@ class TestAutomations:
         from prefect.events.filters import AutomationFilter, AutomationFilterId
 
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpcore2"
         ) as router:
             created_automation = automation.model_dump(mode="json")
             automation_id = uuid4()
             created_automation["id"] = str(automation_id)
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(200, json=[created_automation])
+            read_route = router.post("/automations/filter").respond(
+                200, json=[created_automation]
             )
 
             automation_filter = AutomationFilter(
@@ -2754,12 +2754,12 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpcore2"
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(200, json=[created_automation])
+            read_route = router.post("/automations/filter").respond(
+                200, json=[created_automation]
             )
             read_automation = await cloud_client.read_automations_by_name(
                 automation.name
@@ -2789,7 +2789,7 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore, automation2: AutomationCore
     ):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpcore2"
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
@@ -2797,10 +2797,8 @@ class TestAutomations:
             created_automation2 = automation2.model_dump(mode="json")
             created_automation2["id"] = str(uuid4())
 
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(
-                    200, json=[created_automation, created_automation2]
-                )
+            read_route = router.post("/automations/filter").respond(
+                200, json=[created_automation, created_automation2]
             )
             read_automation = await cloud_client.read_automations_by_name(
                 automation.name
@@ -2821,14 +2819,12 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpcore2"
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             created_automation["name"] = "nonexistent"
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(200, json=[])
-            )
+            read_route = router.post("/automations/filter").respond(200, json=[])
 
             nonexistent_automation = await cloud_client.read_automations_by_name(
                 name="nonexistent"
@@ -2840,12 +2836,12 @@ class TestAutomations:
 
     async def test_delete_owned_automations(self, cloud_client):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpcore2"
         ) as router:
             resource_id = f"prefect.deployment.{uuid4()}"
-            delete_route = router.delete(f"/automations/owned-by/{resource_id}").mock(
-                return_value=httpx.Response(204)
-            )
+            delete_route = router.delete(
+                f"/automations/owned-by/{resource_id}"
+            ).respond(204)
             await cloud_client.delete_resource_owned_automations(resource_id)
             assert delete_route.called
 
@@ -3365,7 +3361,7 @@ class TestPrefectClientRaiseForAPIVersionMismatch:
         self, prefect_client, monkeypatch
     ):
         async def something_went_wrong(*args, **kwargs):
-            raise httpx.ConnectError
+            raise httpx2.ConnectError
 
         monkeypatch.setattr(prefect_client, "api_version", something_went_wrong)
         with pytest.raises(RuntimeError) as e:
@@ -3380,7 +3376,7 @@ class TestPrefectClientRaiseForAPIVersionMismatch:
         monkeypatch.setattr(client, "server_type", ServerType.SERVER)
 
         async def connect_error(*args, **kwargs):
-            raise httpx.ConnectError
+            raise httpx2.ConnectError
 
         monkeypatch.setattr(client, "api_version", connect_error)
 
@@ -3562,7 +3558,7 @@ class TestSyncClientRaiseForAPIVersionMismatch:
         self, sync_prefect_client, monkeypatch
     ):
         def something_went_wrong(*args, **kwargs):
-            raise httpx.ConnectError
+            raise httpx2.ConnectError
 
         monkeypatch.setattr(sync_prefect_client, "api_version", something_went_wrong)
         with pytest.raises(RuntimeError) as e:
@@ -3575,7 +3571,7 @@ class TestSyncClientRaiseForAPIVersionMismatch:
         monkeypatch.setattr(client, "server_type", ServerType.SERVER)
 
         def connect_error(*args, **kwargs):
-            raise httpx.ConnectError
+            raise httpx2.ConnectError
 
         monkeypatch.setattr(client, "api_version", connect_error)
 
@@ -3744,10 +3740,10 @@ class TestCheckServerVersionCustomHeaders:
                 PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers,
             }
         ):
-            with respx.mock:
-                route = respx.get("http://fake-server:4200/api/admin/version").mock(
-                    return_value=httpx.Response(200, json=prefect.__version__)
-                )
+            with respx.mock(using="httpcore2") as respx_mock:
+                route = respx_mock.get(
+                    "http://fake-server:4200/api/admin/version"
+                ).respond(200, json=prefect.__version__)
 
                 await check_server_version(
                     "http://fake-server:4200/api",
@@ -3772,10 +3768,10 @@ class TestCheckServerVersionCustomHeaders:
                 PREFECT_CLIENT_CUSTOM_HEADERS: {"Authorization": "Bearer custom-token"},
             }
         ):
-            with respx.mock:
-                route = respx.get("http://fake-server:4200/api/admin/version").mock(
-                    return_value=httpx.Response(200, json=prefect.__version__)
-                )
+            with respx.mock(using="httpcore2") as respx_mock:
+                route = respx_mock.get(
+                    "http://fake-server:4200/api/admin/version"
+                ).respond(200, json=prefect.__version__)
 
                 await check_server_version(
                     "http://fake-server:4200/api",
@@ -3796,10 +3792,10 @@ class TestCheckServerVersionCustomHeaders:
                 PREFECT_CLIENT_CUSTOM_HEADERS: {"X-Custom": "value"},
             }
         ):
-            with respx.mock:
-                route = respx.get("http://fake-server:4200/api/admin/version").mock(
-                    return_value=httpx.Response(200, json=prefect.__version__)
-                )
+            with respx.mock(using="httpcore2") as respx_mock:
+                route = respx_mock.get(
+                    "http://fake-server:4200/api/admin/version"
+                ).respond(200, json=prefect.__version__)
 
                 await check_server_version(
                     "http://fake-server:4200/api",
@@ -3831,7 +3827,7 @@ class TestPrefectClientWorkerHeartbeat:
     ):
         with mock.patch(
             "prefect.client.orchestration.base.BaseAsyncClient.request",
-            return_value=httpx.Response(status_code=204),
+            return_value=httpx2.Response(status_code=204),
         ) as mock_post:
             await prefect_client.send_worker_heartbeat(
                 work_pool_name="work-pool",
@@ -3854,7 +3850,7 @@ class TestPrefectClientWorkerHeartbeat:
     ):
         with mock.patch(
             "prefect.client.orchestration.base.BaseAsyncClient.request",
-            return_value=httpx.Response(status_code=204),
+            return_value=httpx2.Response(status_code=204),
         ) as mock_post:
             await prefect_client.send_worker_heartbeat(
                 work_pool_name="work-pool",

@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 import orjson
 import pytest
-from httpx import Response
+from httpx2 import Response
 from pydantic import TypeAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 

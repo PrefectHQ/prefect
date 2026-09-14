@@ -2,7 +2,7 @@ import uuid
 from typing import Any, List
 
 import pytest
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.models.variables import create_variable

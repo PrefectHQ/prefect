@@ -6,7 +6,7 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from pydantic.networks import AnyHttpUrl
 
 import prefect.types._datetime

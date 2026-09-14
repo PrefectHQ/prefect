@@ -20,7 +20,7 @@ class SlaClient(BaseClient):
             deployment_id: The ID of the deployment to update SLAs for
             slas: List of SLAs to associate with the deployment
         Raises:
-            httpx.RequestError: if the SLAs were not updated for any reason
+            httpx2.RequestError: if the SLAs were not updated for any reason
         Returns:
             SlaMergeResponse: The response from the backend, containing the names of the created, updated, and deleted SLAs
         """
@@ -61,7 +61,7 @@ class SlaAsyncClient(BaseAsyncClient):
             deployment_id: The ID of the deployment to update SLAs for
             slas: List of SLAs to associate with the deployment
         Raises:
-            httpx.RequestError: if the SLAs were not updated for any reason
+            httpx2.RequestError: if the SLAs were not updated for any reason
         Returns:
             SlaMergeResponse: The response from the backend, containing the names of the created, updated, and deleted SLAs
         """

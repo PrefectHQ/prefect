@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
-    from httpx import AsyncClient, Client, Response
+    from httpx2 import AsyncClient, Client, Response
 
     from prefect.client.base import ServerType
     from prefect.client.orchestration.routes import ServerRoutes

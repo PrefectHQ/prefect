@@ -8,7 +8,7 @@ from unittest import mock
 from uuid import uuid4
 
 import pytest
-from httpx import HTTPStatusError, Request, Response
+from httpx2 import HTTPStatusError, Request, Response
 
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import ConcurrencyLeaseHolder

@@ -2,7 +2,7 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from httpx import HTTPStatusError, Request, Response
+from httpx2 import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task

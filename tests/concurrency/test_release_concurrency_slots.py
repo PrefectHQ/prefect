@@ -2,7 +2,7 @@ import uuid
 from unittest import mock
 
 import pytest
-from httpx import Response
+from httpx2 import Response
 
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.concurrency._asyncio import arelease_concurrency_slots

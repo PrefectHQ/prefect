@@ -1,0 +1,87 @@
+---
+title: How to update custom HTTP clients for HTTPX2
+sidebarTitle: Migrate to HTTPX2
+description: Update custom client settings, exception handlers, and HTTP mocks for Prefect's HTTPX2 transport.
+keywords: ["httpx", "httpcore", "authentication", "timeout", "ssl"]
+---
+
+Prefect uses HTTPX2 for its core HTTP clients. Both `prefect` and `prefect-client` install HTTPX2 automatically.
+Update your code if you pass HTTPX objects to Prefect, inspect its HTTP response types, catch HTTPX exceptions, or mock its HTTP requests.
+Ordinary flows and tasks that do not use these interfaces need no changes.
+
+## Construct client settings with HTTPX2
+
+Import client configuration types from `httpx2`. The `httpx_settings` keyword and Prefect client class names stay the same.
+
+| Configuration | Use with Prefect |
+| --- | --- |
+| Authentication | `httpx2.BasicAuth`, or a subclass of `httpx2.Auth` |
+| Timeouts and connection limits | `httpx2.Timeout` and `httpx2.Limits` |
+| Synchronous transport | `httpx2.HTTPTransport` or `httpx2.BaseTransport` |
+| Asynchronous transport | `httpx2.AsyncHTTPTransport` or `httpx2.AsyncBaseTransport` |
+| Mock transport | `httpx2.MockTransport` returning `httpx2.Response` objects |
+| Request and response hooks | `httpx2.Request` and `httpx2.Response` annotations |
+
+For example, this client uses HTTPX2 settings and a mock transport without contacting a server:
+
+```python
+import httpx2
+
+from prefect.client.orchestration import SyncPrefectClient
+
+
+def respond(request: httpx2.Request) -> httpx2.Response:
+    return httpx2.Response(200, json={"message": "Hello from Prefect"})
+
+
+with SyncPrefectClient(
+    "https://prefect.example.com/api",
+    httpx_settings={
+        "auth": httpx2.BasicAuth("example-user", "example-password"),
+        "timeout": httpx2.Timeout(30.0, connect=10.0),
+        "transport": httpx2.MockTransport(respond),
+    },
+) as client:
+    response = client.hello()
+    print(response.json())
+```
+
+The same settings dictionary can be passed to `get_client(httpx_settings=...)`; use an asynchronous transport with its default asynchronous client.
+If a custom transport imports `httpcore` directly, update those imports to `httpcore2` as well.
+
+HTTPX and HTTPX2 objects are distinct types. An existing `httpx.Auth`, `httpx.Timeout`, or `httpx.Response` cannot substitute for its HTTPX2 counterpart.
+Legacy HTTPX remains installed for integrations that still use it, but Prefect's core clients always use HTTPX2.
+Keep HTTPX objects within those integrations until they migrate. See the [upstream migration guide](https://pydantic.dev/docs/httpx2/get-started/migration/) for details about using both packages.
+
+## Update exception handlers and response types
+
+Replace `except httpx.HTTPStatusError` with `except httpx2.HTTPStatusError` for requests made by Prefect.
+`prefect.exceptions.PrefectHTTPStatusError` now inherits from `httpx2.HTTPStatusError`; catching `PrefectHTTPStatusError` directly continues to work.
+Likewise, use `httpx2.HTTPError`, `httpx2.ConnectError`, and other HTTPX2 exceptions when handling transport failures from Prefect.
+Exception handlers for integrations that still use HTTPX must continue to catch HTTPX exceptions.
+
+Update type annotations and `isinstance` checks for these return values:
+
+| Interface | HTTPX2 type |
+| --- | --- |
+| `PrefectClient.api_url` and `SyncPrefectClient.api_url` | `httpx2.URL` |
+| `PrefectClient.hello()` and `SyncPrefectClient.hello()` | `httpx2.Response` |
+| `CloudClient.raw_request()` | `httpx2.Response` |
+| `Webhook.call()` | `httpx2.Response` |
+| `PrefectResponse` | Subclass of `httpx2.Response` |
+
+Use `str(client.api_url)` when another library needs a URL string.
+Mocks and patches targeting `httpx.Client` or `httpx.AsyncClient` no longer intercept Prefect requests. Target HTTPX2 or pass an HTTPX2 mock transport, as in the example above.
+
+## Check logging and certificate configuration
+
+Update custom logging configuration from `httpx` to `httpx2`, and from `httpcore` to `httpcore2` (including child loggers).
+Prefect's own logger names, such as `prefect.client`, stay the same.
+Prefect API clients retain their `prefect/...` User-Agent. Direct HTTPX2 clients use `python-httpx2/...` by default; update any filters or mocks that match the old `python-httpx/...` value.
+
+The synchronous and asynchronous orchestration clients retain their existing certificate policy: they use `PREFECT_API_SSL_CERT_FILE` when set, otherwise the certifi CA bundle.
+An explicit `ssl.SSLContext` passed through `httpx_settings={"verify": context}` continues to override this policy.
+
+Other core clients, including `CloudClient` and `Webhook`, use HTTPX2's system trust store default unless they supply an explicit certificate configuration.
+HTTPX2 honors `SSL_CERT_FILE` and `SSL_CERT_DIR` for its default verification. Set `PREFECT_API_SSL_CERT_FILE` for orchestration requests and `SSL_CERT_FILE` for other HTTPX2 requests when both need a custom CA bundle.
+See [configure network access](/v3/advanced/configure-network-access) and [HTTPX2 TLS configuration](https://pydantic.dev/docs/httpx2/advanced/ssl/).

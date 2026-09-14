@@ -9,12 +9,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import asyncpg
-import httpx
+import httpx2
 import pytest
 import sqlalchemy as sa
 import toml
 from fastapi.testclient import TestClient
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 
 import prefect
 from prefect._internal.compatibility.starlette import status
@@ -963,7 +963,7 @@ def test_create_ui_app_does_not_reuse_unmarked_static_directory_root(
 @pytest.mark.skip(reason="This test is flaky and needs to be fixed")
 async def test_cors_middleware_settings():
     with SubprocessASGIServer() as server:
-        health_response = httpx.options(
+        health_response = httpx2.options(
             f"{server.api_url}/health",
             headers={
                 "Origin": "http://example.com",
@@ -986,7 +986,7 @@ async def test_cors_middleware_settings():
         }
     ):
         with SubprocessASGIServer() as server:
-            health_response = httpx.options(
+            health_response = httpx2.options(
                 f"{server.api_url}/health",
                 headers={
                     "Origin": "http://example.com",
@@ -1240,21 +1240,21 @@ class TestSubprocessASGIServer:
     def test_start_and_stop_server(self):
         server = SubprocessASGIServer()
         server.start()
-        health_response = httpx.get(f"{server.address}/api/health")
+        health_response = httpx2.get(f"{server.address}/api/health")
         assert health_response.status_code == 200
 
         server.stop()
-        with pytest.raises(httpx.RequestError):
-            httpx.get(f"{server.api_url}/health")
+        with pytest.raises(httpx2.RequestError):
+            httpx2.get(f"{server.api_url}/health")
 
     @pytest.mark.skip(reason="This test is flaky and needs to be fixed")
     def test_run_as_context_manager(self):
         with SubprocessASGIServer() as server:
-            health_response = httpx.get(f"{server.api_url}/health")
+            health_response = httpx2.get(f"{server.api_url}/health")
             assert health_response.status_code == 200
 
-        with pytest.raises(httpx.RequestError):
-            httpx.get(f"{server.api_url}/health")
+        with pytest.raises(httpx2.RequestError):
+            httpx2.get(f"{server.api_url}/health")
 
     @pytest.mark.skip(reason="This test is flaky and needs to be fixed")
     def test_run_a_flow_against_subprocess_server(self):

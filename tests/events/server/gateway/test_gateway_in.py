@@ -3,7 +3,7 @@ from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from starlette.status import WS_1002_PROTOCOL_ERROR, WS_1008_POLICY_VIOLATION
 from starlette.testclient import WebSocketTestSession
 from starlette.websockets import WebSocketDisconnect
