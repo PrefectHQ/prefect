@@ -1,3 +1,5 @@
+import type { Locator } from "@playwright/test";
+
 import {
 	cleanupDeployments,
 	cleanupFlowRuns,
@@ -131,33 +133,45 @@ test.describe("Deployment Detail Page", () => {
 		await page.goto(`/deployments/deployment/${deployment.id}`);
 		await expect(page.getByText(runName)).toBeVisible({ timeout: 10000 });
 
-		expect(
-			await page.evaluate(
-				() => document.documentElement.scrollWidth <= window.innerWidth,
-			),
-		).toBe(true);
+		await expect
+			.poll(
+				() =>
+					page.evaluate(
+						() => document.documentElement.scrollWidth <= window.innerWidth,
+					),
+				{ timeout: 5000 },
+			)
+			.toBe(true);
 
-		const sidebarBox = await page.getByRole("complementary").boundingBox();
-		const searchBox = await page
-			.getByRole("textbox", { name: /search by run name/i })
-			.boundingBox();
-		const sortBox = await page
-			.getByRole("combobox", { name: /flow run sort order/i })
-			.boundingBox();
-		expect(sidebarBox).not.toBeNull();
-		expect(searchBox).not.toBeNull();
-		expect(sortBox).not.toBeNull();
-		if (!sidebarBox || !searchBox || !sortBox) {
-			throw new Error(
-				"Expected the run-list controls and sidebar to be visible",
-			);
-		}
-		expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(sidebarBox.x);
-		expect(sortBox.x + sortBox.width).toBeLessThanOrEqual(sidebarBox.x);
+		const rightEdgeIsLeftOfSidebar = async (locator: Locator) => {
+			const [box, sidebarBox] = await Promise.all([
+				locator.boundingBox(),
+				page.getByRole("complementary").boundingBox(),
+			]);
+			if (!box || !sidebarBox) return false;
+			return box.x + box.width <= sidebarBox.x;
+		};
+		const searchInput = page.getByRole("textbox", {
+			name: /search by run name/i,
+		});
+		const sortSelect = page.getByRole("combobox", {
+			name: /flow run sort order/i,
+		});
+		await expect
+			.poll(() => rightEdgeIsLeftOfSidebar(searchInput), { timeout: 5000 })
+			.toBe(true);
+		await expect
+			.poll(() => rightEdgeIsLeftOfSidebar(sortSelect), { timeout: 5000 })
+			.toBe(true);
 
-		const parametersBox = await page.getByText(/\d+ Parameters?/).boundingBox();
-		expect(parametersBox).not.toBeNull();
-		expect(parametersBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(32);
+		await expect
+			.poll(
+				async () =>
+					(await page.getByText(/\d+ Parameters?/).boundingBox())?.height ??
+					Number.POSITIVE_INFINITY,
+				{ timeout: 5000 },
+			)
+			.toBeLessThan(32);
 	});
 
 	test("Quick run from deployment detail", async ({ page, apiClient }) => {
