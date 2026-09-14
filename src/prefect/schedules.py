@@ -92,6 +92,15 @@ class Schedule:
         if isinstance(self.active, _Unset):
             object.__setattr__(self, "active", True)
             object.__setattr__(self, "_active_provided", False)
+        elif self.active is False and self._active_provided is False:
+            # `dataclasses.replace()` replays every init field, so an explicit
+            # `active=False` override applied to a schedule created with
+            # `active` omitted arrives here as (active=False,
+            # _active_provided=False). A replayed `active` from an omitted
+            # schedule is always the normalized `True`, so `False` here can
+            # only have been explicitly provided: record it so the pause is
+            # not silently dropped from the deployment payload.
+            object.__setattr__(self, "_active_provided", True)
 
 
 def Cron(
@@ -275,3 +284,4 @@ def RRule(
         slug=slug,
         _active_provided=active_provided,
     )
+

@@ -81,6 +81,35 @@ def test_normalize_direct_schedule_constructor_keeps_explicit_active(active: boo
     assert normalized.model_dump(exclude_unset=True)["active"] is active
 
 
+def test_normalize_replace_keeps_explicit_active_override():
+    # `dataclasses.replace()` replays every init field, so an explicit
+    # `active=False` override applied to a schedule created with `active`
+    # omitted must still be recorded as explicitly provided; otherwise the
+    # pause would be silently dropped from the deployment payload.
+    import dataclasses
+
+    from prefect.schedules import Schedule
+
+    (normalized,) = normalize_to_deployment_schedule(
+        [dataclasses.replace(Schedule(cron="0 0 * * *"), active=False)]
+    )
+    assert normalized.model_dump(exclude_unset=True)["active"] is False
+
+
+def test_normalize_replace_preserves_omitted_active():
+    # Replacing an unrelated field on a schedule created with `active`
+    # omitted must not mark `active` as explicitly provided.
+    import dataclasses
+
+    from prefect.schedules import Schedule
+
+    (normalized,) = normalize_to_deployment_schedule(
+        [dataclasses.replace(Schedule(cron="0 0 * * *"), timezone="America/New_York")]
+    )
+    assert "active" not in normalized.model_fields_set
+    assert "active" not in normalized.model_dump(exclude_unset=True)
+
+
 def test_normalize_none_returns_empty_list():
     assert normalize_to_deployment_schedule(None) == []
 
@@ -175,3 +204,4 @@ def test_normalize_server_schema():
 def test_normalize_incompatible():
     with pytest.raises(ValueError, match="Invalid schedule provided"):
         normalize_to_deployment_schedule(schedules=[1, 2, 3])
+
