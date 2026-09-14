@@ -1,16 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback } from "react";
 import type { Deployment } from "@/api/deployments";
+import { FormattedDate } from "@/components/ui/formatted-date";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/utils";
-import { formatDate } from "@/utils/date";
 
 type DeploymentMetadataProps = {
 	deployment: Deployment;
@@ -29,20 +23,6 @@ const FieldValue = ({
 	children: React.ReactNode;
 }) => <dd className={cn("text-sm", className)}>{children}</dd>;
 
-const TimestampValue = ({ value }: { value: string }) => (
-	<FieldValue>
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger className="cursor-default">
-					<time dateTime={value}>{formatDate(value, "dateTime")}</time>
-				</TooltipTrigger>
-				<TooltipContent>
-					<p className="font-mono">{value}</p>
-				</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
-	</FieldValue>
-);
 export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 	const navigate = useNavigate();
 
@@ -69,7 +49,9 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 			field: "Created",
 			ComponentValue: () =>
 				deployment.created ? (
-					<TimestampValue value={deployment.created} />
+					<FieldValue>
+						<FormattedDate date={deployment.created} format="absolute" />
+					</FieldValue>
 				) : (
 					<None />
 				),
@@ -78,7 +60,9 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 			field: "Updated",
 			ComponentValue: () =>
 				deployment.updated ? (
-					<TimestampValue value={deployment.updated} />
+					<FieldValue>
+						<FormattedDate date={deployment.updated} format="absolute" />
+					</FieldValue>
 				) : (
 					<None />
 				),

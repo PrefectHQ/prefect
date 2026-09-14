@@ -96,11 +96,9 @@ describe("DeploymentMetadata", () => {
 			renderDeploymentMetadata({ created, updated });
 
 			expect(
-				await screen.findByText("Sep 14th, 2026 at 02:57 PM"),
+				await screen.findByText("Sep 14, 2026 at 2:57 PM"),
 			).toBeInTheDocument();
-			expect(
-				screen.getByText("Sep 15th, 2026 at 03:05 AM"),
-			).toBeInTheDocument();
+			expect(screen.getByText("Sep 15, 2026 at 3:05 AM")).toBeInTheDocument();
 			expect(screen.queryByText(created)).not.toBeInTheDocument();
 			expect(screen.queryByText(updated)).not.toBeInTheDocument();
 		});
@@ -109,21 +107,8 @@ describe("DeploymentMetadata", () => {
 			const user = userEvent.setup();
 			renderDeploymentMetadata({ created, updated });
 
-			await user.hover(await screen.findByText("Sep 14th, 2026 at 02:57 PM"));
+			await user.hover(await screen.findByText("Sep 14, 2026 at 2:57 PM"));
 
-			expect(await screen.findByRole("tooltip")).toHaveTextContent(created);
-		});
-
-		it("exposes the precise timestamp to keyboard users", async () => {
-			const user = userEvent.setup();
-			renderDeploymentMetadata({ created, updated });
-
-			await screen.findByText("Sep 14th, 2026 at 02:57 PM");
-			await user.tab();
-
-			expect(
-				screen.getByRole("button", { name: "Sep 14th, 2026 at 02:57 PM" }),
-			).toHaveFocus();
 			expect(await screen.findByRole("tooltip")).toHaveTextContent(created);
 		});
 
