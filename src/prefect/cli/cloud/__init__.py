@@ -74,7 +74,7 @@ async def login(
     Creates a new profile configured to use the specified PREFECT_API_KEY.
     Uses a previously configured profile if it exists.
     """
-    import httpx2
+    from prefect._internal.compatibility.httpx import httpx
 
     from prefect.cli._prompts import confirm
     from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
@@ -209,7 +209,7 @@ async def login(
             exit_with_error(
                 f"Unable to authenticate with Prefect Cloud. {help_message}"
             )
-        except httpx2.HTTPStatusError as exc:
+        except httpx.HTTPStatusError as exc:
             exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
 
     if workspace_handle:

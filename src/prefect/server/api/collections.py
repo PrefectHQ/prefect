@@ -1,11 +1,11 @@
 import json
 from typing import Any, Dict
 
-import httpx2
 from anyio import Path
 from cachetools import TTLCache
 from fastapi import HTTPException, status
 
+from prefect._internal.compatibility.httpx import AsyncClient, create_ssl_context, httpx
 from prefect.server.utilities.server import PrefectRouter
 
 router: PrefectRouter = PrefectRouter(prefix="/collections", tags=["Collections"])
@@ -35,7 +35,7 @@ async def read_view_content(view: str) -> Dict[str, Any]:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"View {view} not found in registry",
         )
-    except httpx2.HTTPStatusError as exc:
+    except httpx.HTTPStatusError as exc:
         if exc.response.status_code == 404:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -52,7 +52,7 @@ async def get_collection_view(view: str) -> dict[str, Any]:
         pass
 
     try:
-        async with httpx2.AsyncClient() as client:
+        async with AsyncClient(verify=create_ssl_context()) as client:
             resp = await client.get(KNOWN_VIEWS[view])
             resp.raise_for_status()
 

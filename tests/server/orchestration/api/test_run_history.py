@@ -4,10 +4,10 @@ from typing import Any, Dict, Iterator, List
 import pytest
 import sqlalchemy as sa
 from fastapi import status
-from httpx2 import Response
 from pydantic import TypeAdapter
 from whenever import Instant
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models
 from prefect.server.api.run_history import run_history
 from prefect.server.schemas import actions, core, filters, responses, states
@@ -45,7 +45,7 @@ def assert_datetime_dictionaries_equal(a, b):
             assert v == dictionary_b[k]
 
 
-def validate_response(response: Response, include=None) -> List[Dict[str, Any]]:
+def validate_response(response: httpx.Response, include=None) -> List[Dict[str, Any]]:
     assert response.status_code == status.HTTP_200_OK
     parsed = TypeAdapter(List[responses.HistoryResponse]).validate_python(
         response.json()

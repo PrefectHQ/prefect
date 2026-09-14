@@ -70,8 +70,7 @@ Set `PREFECT_SERVER_ANALYTICS_ENABLED=false` on the server to disable the server
 
 ## Configure a proxy
 
-The Prefect client uses [HTTPX2](https://pydantic.dev/docs/httpx2/) for HTTP requests.
-HTTPX2 respects standard proxy environment variables, so you can route Prefect traffic through a
+The Prefect client respects standard proxy environment variables, so you can route Prefect traffic through a
 corporate proxy:
 
 {/* pmd-metadata: notest */}
@@ -81,7 +80,7 @@ export PREFECT_API_SSL_CERT_FILE=/path/to/corporate-ca-bundle.crt
 export SSL_CERT_FILE=/path/to/corporate-ca-bundle.crt
 ```
 
-Use `PREFECT_API_SSL_CERT_FILE` for orchestration requests and `SSL_CERT_FILE` for other HTTPX2
+Use `PREFECT_API_SSL_CERT_FILE` for orchestration requests and `SSL_CERT_FILE` for other HTTP
 requests, such as Cloud account operations.
 
 See the [GitHub Discussion on using Prefect Cloud with proxies](https://github.com/PrefectHQ/prefect/discussions/16175)

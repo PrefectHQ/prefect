@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from httpx2 import HTTPStatusError
-
+from prefect._internal.compatibility.httpx import HTTPStatusError
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
@@ -64,7 +63,7 @@ class BlocksSchemaClient(BaseClient):
         """
         Read all block schemas
         Raises:
-            httpx2.RequestError: if a valid block schema was not found
+            httpx.RequestError: if a valid block schema was not found
 
         Returns:
             A BlockSchema.
@@ -85,7 +84,7 @@ class BlocksSchemaClient(BaseClient):
             block_type_id: The ID of the block type.
 
         Raises:
-            httpx2.RequestError: If the request fails for any reason.
+            httpx.RequestError: If the request fails for any reason.
 
         Returns:
             The most recent block schema or None.
@@ -158,7 +157,7 @@ class BlocksSchemaAsyncClient(BaseAsyncClient):
         """
         Read all block schemas
         Raises:
-            httpx2.RequestError: if a valid block schema was not found
+            httpx.RequestError: if a valid block schema was not found
 
         Returns:
             A BlockSchema.
@@ -179,7 +178,7 @@ class BlocksSchemaAsyncClient(BaseAsyncClient):
             block_type_id: The ID of the block type.
 
         Raises:
-            httpx2.RequestError: If the request fails for any reason.
+            httpx.RequestError: If the request fails for any reason.
 
         Returns:
             The most recent block schema or None.

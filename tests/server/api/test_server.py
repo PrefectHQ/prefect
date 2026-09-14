@@ -9,14 +9,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import asyncpg
-import httpx2
 import pytest
 import sqlalchemy as sa
 import toml
 from fastapi.testclient import TestClient
-from httpx2 import ASGITransport, AsyncClient
 
 import prefect
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.compatibility.starlette import status
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import get_client
@@ -113,8 +112,8 @@ async def test_sqlite_database_locked_handler(errorname, ephemeral):
     app.api_app.add_api_route("/raise_busy_error", raise_busy_error)
     app.api_app.add_api_route("/raise_other_error", raise_other_error)
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app, raise_app_exceptions=False),
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
         base_url="https://test",
     ) as client:
         response = await client.get("/api/raise_busy_error")
@@ -233,8 +232,8 @@ async def test_retryable_exception_handler(exc):
     app.api_app.add_api_route("/raise_retryable_error", raise_retryable_error)
     app.api_app.add_api_route("/raise_other_error", raise_other_error)
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app, raise_app_exceptions=False),
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
         base_url="https://test",
     ) as client:
         response = await client.get("/api/raise_retryable_error")
@@ -963,7 +962,7 @@ def test_create_ui_app_does_not_reuse_unmarked_static_directory_root(
 @pytest.mark.skip(reason="This test is flaky and needs to be fixed")
 async def test_cors_middleware_settings():
     with SubprocessASGIServer() as server:
-        health_response = httpx2.options(
+        health_response = httpx.options(
             f"{server.api_url}/health",
             headers={
                 "Origin": "http://example.com",
@@ -986,7 +985,7 @@ async def test_cors_middleware_settings():
         }
     ):
         with SubprocessASGIServer() as server:
-            health_response = httpx2.options(
+            health_response = httpx.options(
                 f"{server.api_url}/health",
                 headers={
                     "Origin": "http://example.com",
@@ -1240,21 +1239,21 @@ class TestSubprocessASGIServer:
     def test_start_and_stop_server(self):
         server = SubprocessASGIServer()
         server.start()
-        health_response = httpx2.get(f"{server.address}/api/health")
+        health_response = httpx.get(f"{server.address}/api/health")
         assert health_response.status_code == 200
 
         server.stop()
-        with pytest.raises(httpx2.RequestError):
-            httpx2.get(f"{server.api_url}/health")
+        with pytest.raises(httpx.RequestError):
+            httpx.get(f"{server.api_url}/health")
 
     @pytest.mark.skip(reason="This test is flaky and needs to be fixed")
     def test_run_as_context_manager(self):
         with SubprocessASGIServer() as server:
-            health_response = httpx2.get(f"{server.api_url}/health")
+            health_response = httpx.get(f"{server.api_url}/health")
             assert health_response.status_code == 200
 
-        with pytest.raises(httpx2.RequestError):
-            httpx2.get(f"{server.api_url}/health")
+        with pytest.raises(httpx.RequestError):
+            httpx.get(f"{server.api_url}/health")
 
     @pytest.mark.skip(reason="This test is flaky and needs to be fixed")
     def test_run_a_flow_against_subprocess_server(self):

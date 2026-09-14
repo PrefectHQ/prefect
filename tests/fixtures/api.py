@@ -1,12 +1,11 @@
 from typing import Any, AsyncGenerator, Awaitable, Callable, Coroutine, Dict
 from uuid import uuid4
 
-import httpx2
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from httpx2 import ASGITransport, AsyncClient
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.base import app_lifespan_context
 from prefect.server.api.server import create_app
 from prefect.settings import PREFECT_SERVER_DOCKET_NAME, temporary_settings
@@ -32,12 +31,12 @@ def test_client(app: FastAPI) -> TestClient:
 
 
 @pytest.fixture
-async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
+async def client(app: FastAPI) -> AsyncGenerator[httpx.AsyncClient, Any]:
     """
     Yield a test client for testing the api
     """
-    async with httpx2.AsyncClient(
-        transport=ASGITransport(app=app), base_url="https://test/api"
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="https://test/api"
     ) as async_client:
         yield async_client
 
@@ -48,16 +47,18 @@ def sync_client(app: FastAPI) -> TestClient:
 
 
 @pytest.fixture
-async def hosted_api_client(use_hosted_api_server) -> AsyncGenerator[AsyncClient, Any]:
+async def hosted_api_client(
+    use_hosted_api_server,
+) -> AsyncGenerator[httpx.AsyncClient, Any]:
     # Use a generous timeout and transport retries to handle transient connection
     # failures under heavy parallel test execution (pytest-xdist). The default
-    # httpx2 timeout of 5s is too aggressive when the hosted server subprocess is
+    # HTTPX timeout of 5s is too aggressive when the hosted server subprocess is
     # under CPU pressure from concurrent tests, causing ConnectTimeout errors.
-    transport = httpx2.AsyncHTTPTransport(retries=3)
-    async with httpx2.AsyncClient(
+    transport = httpx.AsyncHTTPTransport(retries=3)
+    async with httpx.AsyncClient(
         base_url=use_hosted_api_server,
         transport=transport,
-        timeout=httpx2.Timeout(30.0),
+        timeout=httpx.Timeout(30.0),
     ) as async_client:
         yield async_client
 
@@ -65,7 +66,7 @@ async def hosted_api_client(use_hosted_api_server) -> AsyncGenerator[AsyncClient
 @pytest.fixture
 async def ephemeral_client_with_lifespan(
     app: FastAPI,
-) -> AsyncGenerator[AsyncClient, Any]:
+) -> AsyncGenerator[httpx.AsyncClient, Any]:
     """
     Yield a test client for testing the api with a lifespan context.
 
@@ -73,8 +74,8 @@ async def ephemeral_client_with_lifespan(
     AssertingEventsClient. Otherwise, use the `hosted_api_client` fixture.
     """
     async with app_lifespan_context(app):
-        async with httpx2.AsyncClient(
-            transport=ASGITransport(app=app), base_url="https://test/api"
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="https://test/api"
         ) as async_client:
             yield async_client
 
@@ -82,29 +83,31 @@ async def ephemeral_client_with_lifespan(
 @pytest.fixture
 async def client_with_unprotected_block_api(
     app: ASGIApp,
-) -> AsyncGenerator[AsyncClient, Any]:
+) -> AsyncGenerator[httpx.AsyncClient, Any]:
     """
     Yield a test client for testing the api
     """
     api_version = "0.8.0"
     version_header = {"X-PREFECT-API-VERSION": api_version}
-    transport = ASGITransport(app=app, raise_app_exceptions=False)
-    async with httpx2.AsyncClient(
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    async with httpx.AsyncClient(
         transport=transport, base_url="https://test/api", headers=version_header
     ) as async_client:
         yield async_client
 
 
 @pytest.fixture
-async def client_without_exceptions(app: ASGIApp) -> AsyncGenerator[AsyncClient, Any]:
+async def client_without_exceptions(
+    app: ASGIApp,
+) -> AsyncGenerator[httpx.AsyncClient, Any]:
     """
     Yield a test client that does not raise app exceptions.
 
     This is useful if you need to test e.g. 500 error responses.
     """
-    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
 
-    async with httpx2.AsyncClient(
+    async with httpx.AsyncClient(
         transport=transport, base_url="https://test/api"
     ) as async_client:
         yield async_client

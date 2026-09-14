@@ -4131,9 +4131,8 @@ dependencies = [
     { name = "fsspec" },
     { name = "graphviz" },
     { name = "griffe" },
-    { name = "httpcore2" },
+    { name = "httpcore" },
     { name = "httpx", extra = ["http2"] },
-    { name = "httpx2", extra = ["http2"] },
     { name = "humanize" },
     { name = "jinja2" },
     { name = "jinja2-humanize-extension" },
@@ -4210,6 +4209,10 @@ github = [
 ]
 gitlab = [
     { name = "prefect-gitlab" },
+]
+httpx2 = [
+    { name = "httpcore2" },
+    { name = "httpx2", extra = ["http2"] },
 ]
 kubernetes = [
     { name = "prefect-kubernetes" },
@@ -4338,9 +4341,10 @@ requires-dist = [
     { name = "fsspec", specifier = ">=2022.5.0" },
     { name = "graphviz", specifier = ">=0.20.1" },
     { name = "griffe", specifier = ">=0.49.0,<3.0.0" },
-    { name = "httpcore2", specifier = ">=2.13.0,<3.0.0" },
+    { name = "httpcore", specifier = ">=1.0.5,<2.0.0" },
+    { name = "httpcore2", marker = "extra == 'httpx2'", specifier = ">=2.13.0,<3.0.0" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.23,!=0.23.2" },
-    { name = "httpx2", extras = ["http2"], specifier = ">=2.13.0,<3.0.0" },
+    { name = "httpx2", extras = ["http2"], marker = "extra == 'httpx2'", specifier = ">=2.13.0,<3.0.0" },
     { name = "humanize", specifier = ">=4.9.0,<5.0.0" },
     { name = "jinja2", specifier = ">=3.1.6,<4.0.0" },
     { name = "jinja2-humanize-extension", specifier = ">=0.4.0" },
@@ -4395,7 +4399,7 @@ requires-dist = [
     { name = "semver", specifier = ">=3.0.4" },
     { name = "sniffio", specifier = ">=1.3.0,<2.0.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0,<3.0.0" },
-    { name = "starlette", specifier = ">=1.2.0" },
+    { name = "starlette", specifier = ">=1.0.1" },
     { name = "toml", specifier = ">=0.10.0" },
     { name = "typing-extensions", specifier = ">=4.10.0,<5.0.0" },
     { name = "uv", marker = "extra == 'bundles'", specifier = ">=0.6.0" },
@@ -4403,7 +4407,7 @@ requires-dist = [
     { name = "websockets", specifier = ">=15.0.1,<17.0" },
     { name = "whenever", marker = "python_full_version >= '3.13'", specifier = ">=0.7.3,<0.11.0" },
 ]
-provides-extras = ["aws", "azure", "bitbucket", "buildx", "bundles", "dask", "databricks", "dbt", "docker", "email", "gcp", "github", "gitlab", "kubernetes", "otel", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy"]
+provides-extras = ["aws", "azure", "bitbucket", "buildx", "bundles", "dask", "databricks", "dbt", "docker", "email", "gcp", "github", "gitlab", "httpx2", "kubernetes", "otel", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 benchmark = [

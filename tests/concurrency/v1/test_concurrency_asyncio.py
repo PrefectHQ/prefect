@@ -2,10 +2,10 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from httpx2 import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
+from prefect._internal.compatibility.httpx import httpx
 from prefect.concurrency.v1._asyncio import (
     acquire_concurrency_slots,
     release_concurrency_slots,
@@ -170,13 +170,13 @@ async def test_concurrency_emits_events(
 @pytest.fixture
 def mock_increment_concurrency_slots(monkeypatch):
     async def mocked_increment_concurrency_slots(*args, **kwargs):
-        response = Response(
+        response = httpx.Response(
             status_code=status.HTTP_423_LOCKED,
             headers={"Retry-After": "0.01"},
         )
-        raise HTTPStatusError(
+        raise httpx.HTTPStatusError(
             message="Locked",
-            request=Request("GET", "http://test.com"),
+            request=httpx.Request("GET", "http://test.com"),
             response=response,
         )
 
@@ -197,12 +197,12 @@ async def test_concurrency_respects_timeout():
 @pytest.fixture
 def mock_increment_concurrency_locked_with_no_retry_after(monkeypatch):
     async def mocked_increment_concurrency_slots(*args, **kwargs):
-        response = Response(
+        response = httpx.Response(
             status_code=status.HTTP_423_LOCKED,
         )
-        raise HTTPStatusError(
+        raise httpx.HTTPStatusError(
             message="Locked",
-            request=Request("GET", "http://test.com"),
+            request=httpx.Request("GET", "http://test.com"),
             response=response,
         )
 
@@ -227,13 +227,13 @@ def mock_increment_concurrency_locked_with_details_and_no_retry_after(
     monkeypatch,
 ):
     async def mocked_increment_concurrency_slots(*args, **kwargs):
-        response = Response(
+        response = httpx.Response(
             status_code=status.HTTP_423_LOCKED,
             json={"details": "It's broken"},
         )
-        raise HTTPStatusError(
+        raise httpx.HTTPStatusError(
             message="Locked",
-            request=Request("GET", "http://test.com"),
+            request=httpx.Request("GET", "http://test.com"),
             response=response,
         )
 

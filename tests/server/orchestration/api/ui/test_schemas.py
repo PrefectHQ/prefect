@@ -1,7 +1,8 @@
 from unittest import mock
 
 import pytest
-from httpx2 import AsyncClient
+
+from prefect._internal.compatibility.httpx import httpx
 
 pytestmark = pytest.mark.clear_db
 
@@ -9,7 +10,7 @@ pytestmark = pytest.mark.clear_db
 class TestUISchemasValidate:
     async def test_empty_schema_and_values(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.post(
             "/ui/schemas/validate",
@@ -19,7 +20,7 @@ class TestUISchemasValidate:
 
     async def test_invalid_schema(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.post(
             "/ui/schemas/validate",
@@ -44,7 +45,7 @@ class TestUISchemasValidate:
 
     async def test_validation_passed(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.post(
             "/ui/schemas/validate",
@@ -67,7 +68,7 @@ class TestUISchemasValidate:
 
     async def test_validation_failed(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.post(
             "/ui/schemas/validate",
@@ -95,7 +96,7 @@ class TestUISchemasValidate:
 
     async def test_circular_schema_reference(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.post(
             "/ui/schemas/validate",
@@ -148,7 +149,7 @@ class TestUISchemasValidate:
     async def test_external_ref_does_not_fetch_remote_schema(
         self,
         ref: str,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         with mock.patch("urllib.request.urlopen") as urlopen:
             urlopen.side_effect = AssertionError(

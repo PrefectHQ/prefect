@@ -53,6 +53,7 @@ from prefect._flow_run_suspension import (
 )
 from prefect._internal.attempt_control import EngineOutcomeReceipt
 from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.compatibility.httpx import HTTP_BACKEND
 from prefect._internal.control_listener import (
     Intent,
     configure_from_env,
@@ -2316,6 +2317,19 @@ def run_flow_in_subprocess(
     Returns:
         A multiprocessing.context.SpawnProcess representing the process that is running the flow.
     """
+    startup_backend = os.environ.get("PREFECT_CLIENT_HTTP_BACKEND", "httpx")
+    requested_backend = (env or {}).get("PREFECT_CLIENT_HTTP_BACKEND", startup_backend)
+    if requested_backend is None:
+        requested_backend = "httpx"
+    if any(
+        backend.strip().lower() != HTTP_BACKEND
+        for backend in (startup_backend, requested_backend)
+    ):
+        raise ValueError(
+            "PREFECT_CLIENT_HTTP_BACKEND must be configured before starting the worker; "
+            "it cannot change between a worker and its flow-run subprocesses."
+        )
+
     from prefect.flow_engine import run_flow
 
     @wraps(run_flow)

@@ -1,10 +1,10 @@
 import random
 from typing import Any
 
-import httpx2
 import pytest
 from pydantic import TypeAdapter
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.utilities.annotations import freeze, unmapped
 
 
@@ -42,7 +42,7 @@ class TestFreeze:
     @pytest.mark.parametrize(
         "value",
         [
-            httpx2.AsyncClient(),
+            httpx.AsyncClient(),
             lambda: None,
             type("foo", (object,), {}),
         ],

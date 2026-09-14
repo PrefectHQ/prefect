@@ -11,6 +11,7 @@ from httpx import Response as MockResponse
 from opentelemetry import trace
 
 from prefect import flow
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRunResult
 from prefect.context import FlowRunContext
@@ -123,7 +124,9 @@ class TestRunDeployment:
         }
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(), assert_all_mocked=True, using="httpcore2"
+            base_url=PREFECT_API_URL.value(),
+            assert_all_mocked=True,
+            using=httpcore.__name__,
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(
@@ -158,7 +161,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
-            using="httpcore2",
+            using=httpcore.__name__,
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(
@@ -212,7 +215,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
-            using="httpcore2",
+            using=httpcore.__name__,
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(
@@ -257,7 +260,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
-            using="httpcore2",
+            using=httpcore.__name__,
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(

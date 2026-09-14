@@ -84,7 +84,9 @@ class TestWebhook:
 
     async def test_webhook_sends(self, monkeypatch):
         send_mock = AsyncMock()
-        monkeypatch.setattr("httpx2.AsyncClient.request", send_mock)
+        monkeypatch.setattr(
+            "prefect._internal.compatibility.httpx.httpx.AsyncClient.request", send_mock
+        )
 
         await Webhook(
             method="POST", url="http://yahoo.com", headers={"authorization": "password"}
@@ -113,7 +115,9 @@ class TestWebhook:
 
     async def test_webhook_sends_get_request_with_no_payload(self, monkeypatch):
         send_mock = AsyncMock()
-        monkeypatch.setattr("httpx2.AsyncClient.request", send_mock)
+        monkeypatch.setattr(
+            "prefect._internal.compatibility.httpx.httpx.AsyncClient.request", send_mock
+        )
         await Webhook(
             method="GET", url="http://google.com", headers={"foo": "bar"}
         ).call(payload=None)
@@ -155,7 +159,9 @@ class TestWebhook:
         # Test for call method
         # Test Prefect client
         send_mock = AsyncMock()
-        monkeypatch.setattr("httpx2.AsyncClient.request", send_mock)
+        monkeypatch.setattr(
+            "prefect._internal.compatibility.httpx.httpx.AsyncClient.request", send_mock
+        )
 
         rendered_payload = json.dumps({"json": "data"})
 

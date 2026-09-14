@@ -4,12 +4,12 @@ import re
 from typing import Any, NoReturn, Optional, cast
 
 import anyio
-import httpx2
 import pydantic
 from starlette import status
 from typing_extensions import Self
 
 import prefect.settings
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.client.schemas.objects import (
     IPAllowlist,
@@ -195,22 +195,22 @@ class CloudClient:
         params: dict[str, Any] | None = None,
         path_params: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> httpx2.Response:
+    ) -> httpx.Response:
         """
         Make a raw HTTP request and return the Response object.
 
         Unlike request(), this does not parse JSON or raise special exceptions,
-        returning the raw httpx2.Response for direct access to headers, status, etc.
+        returning the raw httpx.Response for direct access to headers, status, etc.
 
         Args:
             method: HTTP method (GET, POST, etc.)
             path: API path/route
             params: Query parameters
             path_params: Path parameters for formatting
-            **kwargs: Additional arguments passed to httpx2 (json, headers, etc.)
+            **kwargs: Additional arguments passed to httpx (json, headers, etc.)
 
         Returns:
-            Raw httpx2.Response object
+            Raw httpx.Response object
         """
         if path_params:
             path = path.format(**path_params)
@@ -221,7 +221,7 @@ class CloudClient:
         try:
             res = await self._client.request(method, route, **kwargs)
             res.raise_for_status()
-        except httpx2.HTTPStatusError as exc:
+        except httpx.HTTPStatusError as exc:
             if exc.response.status_code in (
                 status.HTTP_401_UNAUTHORIZED,
                 status.HTTP_403_FORBIDDEN,

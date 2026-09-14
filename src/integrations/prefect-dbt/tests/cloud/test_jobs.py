@@ -42,6 +42,10 @@ from prefect.assets import Asset, AssetProperties
 from prefect.context import AssetContext
 from prefect.logging.loggers import disable_run_logger
 
+USES_LEGACY_HTTPX = (
+    os.environ.get("PREFECT_CLIENT_HTTP_BACKEND", "httpx").strip().lower() == "httpx"
+)
+
 
 @pytest.fixture
 def dbt_cloud_credentials():
@@ -207,6 +211,8 @@ class TestDbtCloudAssetCreation:
 class TestTriggerDbtCloudJobRun:
     async def test_get_dbt_cloud_job_info(self, dbt_cloud_credentials):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.get(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/12/",
                 headers=HEADERS,
@@ -244,6 +250,8 @@ class TestTriggerDbtCloudJobRun:
 
     async def test_trigger_with_custom_options(self, dbt_cloud_credentials):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -295,6 +303,8 @@ class TestTriggerDbtCloudJobRun:
 
     async def test_trigger_nonexistent_job(self, dbt_cloud_credentials):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -321,6 +331,8 @@ class TestTriggerDbtCloudJobRun:
         self, dbt_cloud_credentials, caplog
     ):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -342,6 +354,8 @@ class TestTriggerDbtCloudJobRun:
 class TestTriggerDbtCloudJobRunAndWaitForCompletion:
     async def test_run_success(self, dbt_cloud_credentials):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -391,6 +405,8 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
 
     async def test_run_success_with_wait(self, dbt_cloud_credentials):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -427,6 +443,8 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
 
     async def test_run_failure_with_wait_and_retry(self, dbt_cloud_credentials):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -458,6 +476,8 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
 
     async def test_run_with_unexpected_status(self, dbt_cloud_credentials):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -491,6 +511,8 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
 
     async def test_run_failure_no_run_id(self, dbt_cloud_credentials):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -505,6 +527,8 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
 
     async def test_run_cancelled_with_wait(self, dbt_cloud_credentials):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -534,6 +558,8 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
 
     async def test_run_timed_out(self, dbt_cloud_credentials):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -567,6 +593,8 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
         self, dbt_cloud_credentials
     ):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -609,6 +637,8 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
 
     async def test_run_success_failed_artifacts(self, dbt_cloud_credentials):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
                 headers=HEADERS,
@@ -681,6 +711,8 @@ class TestRetryDbtCloudRunJobSubsetAndWaitForCompletion:
         dbt_cloud_credentials,
     ):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.get(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/",
                 headers=HEADERS,
@@ -840,6 +872,8 @@ class TestGetRunId:
 class TestTriggerWaitRetryDbtCloudJobRun:
     async def test_run_success(self, dbt_cloud_job):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -869,6 +903,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
     @patch("prefect_dbt.cloud.jobs.emit_event")
     async def test_run_success_with_create_assets(self, emit_event_mock, dbt_cloud_job):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -967,6 +1003,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
         self, emit_event_mock, dbt_cloud_job
     ):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -1064,6 +1102,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
         }
 
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -1221,6 +1261,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
         self, emit_event_mock, dbt_cloud_job, caplog
     ):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -1279,6 +1321,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
 
     async def test_run_timeout(self, dbt_cloud_job):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -1304,6 +1348,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
     )
     async def test_fail(self, dbt_cloud_job, exe_command):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.get(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/",
                 headers=HEADERS,
@@ -1428,6 +1474,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
 
     async def test_cancel(self, dbt_cloud_job):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -1448,6 +1496,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
 
     async def test_fetch_result_running(self, dbt_cloud_job):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -1469,6 +1519,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
 
     async def test_fail_auth(self, dbt_cloud_job):
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -1487,6 +1539,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
         and return results on success rather than immediately failing.
         """
         with respx.mock(using="httpx") as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -1523,6 +1577,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
         before raising the error, rather than failing immediately.
         """
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
                 headers=HEADERS,
@@ -1549,6 +1605,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
 
 def test_get_job(dbt_cloud_job):
     with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+        if USES_LEGACY_HTTPX:
+            respx_mock.route(host="127.0.0.1").pass_through()
         respx_mock.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/",
             headers=HEADERS,
@@ -1563,6 +1621,8 @@ def test_get_job(dbt_cloud_job):
 class TestCreateDbtCloudJob:
     async def test_create_job_success(self, dbt_cloud_credentials):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/",
                 headers=HEADERS,
@@ -1600,6 +1660,8 @@ class TestCreateDbtCloudJob:
 
     async def test_create_job_with_default_steps(self, dbt_cloud_credentials):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/",
                 headers=HEADERS,
@@ -1623,6 +1685,8 @@ class TestCreateDbtCloudJob:
 
     async def test_create_job_failure(self, dbt_cloud_credentials):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.post(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/",
                 headers=HEADERS,
@@ -1651,6 +1715,8 @@ class TestCreateDbtCloudJob:
 class TestDeleteDbtCloudJob:
     async def test_delete_job_success(self, dbt_cloud_credentials):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.delete(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/99999/",
                 headers=HEADERS,
@@ -1664,6 +1730,8 @@ class TestDeleteDbtCloudJob:
 
     async def test_delete_job_not_found(self, dbt_cloud_credentials):
         with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            if USES_LEGACY_HTTPX:
+                respx_mock.route(host="127.0.0.1").pass_through()
             respx_mock.delete(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/99999/",
                 headers=HEADERS,

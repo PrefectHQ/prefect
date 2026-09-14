@@ -6,10 +6,10 @@ from uuid import UUID, uuid4
 
 import orjson
 import pytest
-from httpx2 import Response
 from pydantic import TypeAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.blocks.webhook import Webhook
 from prefect.server.database.orm_models import (
     ORMDeployment,
@@ -261,7 +261,7 @@ async def test_sending_webhook(
     action = call_webhook.action
 
     call = AsyncMock()
-    call.return_value = Response(status_code=200)
+    call.return_value = httpx.Response(status_code=200)
     monkeypatch.setattr("prefect.blocks.webhook.Webhook.call", call)
 
     assert isinstance(action, actions.CallWebhook)
@@ -280,7 +280,7 @@ async def test_sending_webhook_with_payload(
     action = call_webhook_with_templated_payload.action
 
     call = AsyncMock()
-    call.return_value = Response(
+    call.return_value = httpx.Response(
         status_code=200,
         headers={
             "foo": "bar",
@@ -357,7 +357,7 @@ async def test_success_event(
     action = call_webhook.action
 
     webhook_call = AsyncMock()
-    webhook_call.return_value = Response(status_code=200, text="🦊")
+    webhook_call.return_value = httpx.Response(status_code=200, text="🦊")
     monkeypatch.setattr("prefect.blocks.webhook.Webhook.call", webhook_call)
 
     # Ignore lifecycle events emitted while creating the webhook block fixtures

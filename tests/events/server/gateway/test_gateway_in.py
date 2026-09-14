@@ -3,11 +3,11 @@ from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx2 import AsyncClient
 from starlette.status import WS_1002_PROTOCOL_ERROR, WS_1008_POLICY_VIOLATION
 from starlette.testclient import WebSocketTestSession
 from starlette.websockets import WebSocketDisconnect
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import Event
 from prefect.server.events.storage import database
@@ -213,7 +213,7 @@ def test_post_events(
 
 
 async def test_post_events_ephemeral(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     event1: Event,
     event2: Event,
     monkeypatch: pytest.MonkeyPatch,

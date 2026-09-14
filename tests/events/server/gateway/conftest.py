@@ -17,7 +17,7 @@ def events_app(app: FastAPI) -> FastAPI:
 
 @pytest.fixture
 def test_client(events_app: FastAPI) -> Generator[TestClient, None, None]:
-    # We typically use the httpx2.AsyncClient with an async ASGI transport for testing,
+    # We typically use the HTTPX AsyncClient with an async ASGI transport for testing,
     # but for tests that involve websockets, we need to use the FastAPI TestClient.
     # Using the TestClient as a context manager ensures proper lifespan management
     # and cleanup of database connections (e.g., aiosqlite background threads).

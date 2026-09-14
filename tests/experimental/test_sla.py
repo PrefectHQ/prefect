@@ -18,6 +18,7 @@ from prefect._experimental.sla.objects import (
     ServiceLevelAgreement,
     TimeToCompletionSla,
 )
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.cli.deploy._sla import (
     _create_slas,
     _initialize_deployment_slas,
@@ -125,7 +126,7 @@ class TestClientApplySla:
                 assert_all_mocked=True,
                 assert_all_called=False,
                 base_url=prefect_api_url,
-                using="httpcore2",
+                using=httpcore.__name__,
             ) as router:
                 sla_name = "test-sla"
 

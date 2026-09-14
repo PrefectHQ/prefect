@@ -1,6 +1,7 @@
 import pytest
 import respx
 
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
 from prefect.workers.utilities import (
@@ -28,7 +29,7 @@ FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
 
 @pytest.fixture
 async def mock_collection_registry_not_available():
-    with respx.mock(using="httpcore2") as respx_mock:
+    with respx.mock(using=httpcore.__name__) as respx_mock:
         respx_mock.get(
             "https://raw.githubusercontent.com/PrefectHQ/"
             "prefect-collection-registry/main/views/aggregate-worker-metadata.json"

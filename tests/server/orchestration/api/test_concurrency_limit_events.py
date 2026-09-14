@@ -1,7 +1,7 @@
 import pytest
-from httpx2 import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import ConcurrencyLimitV2Create
@@ -15,7 +15,7 @@ def reset_events():
 
 
 class TestConcurrencyLimitV2LifecycleEvents:
-    async def test_create_emits_created_event(self, client: AsyncClient):
+    async def test_create_emits_created_event(self, client: httpx.AsyncClient):
         response = await client.post(
             "/v2/concurrency_limits/",
             json=ConcurrencyLimitV2Create(name="gcl-create", limit=7).model_dump(
@@ -39,7 +39,7 @@ class TestConcurrencyLimitV2LifecycleEvents:
             },
         )
 
-    async def test_update_emits_updated_event(self, client: AsyncClient):
+    async def test_update_emits_updated_event(self, client: httpx.AsyncClient):
         created = await client.post(
             "/v2/concurrency_limits/",
             json=ConcurrencyLimitV2Create(name="gcl-update", limit=1).model_dump(
@@ -69,7 +69,7 @@ class TestConcurrencyLimitV2LifecycleEvents:
             },
         )
 
-    async def test_delete_emits_deleted_event(self, client: AsyncClient):
+    async def test_delete_emits_deleted_event(self, client: httpx.AsyncClient):
         created = await client.post(
             "/v2/concurrency_limits/",
             json=ConcurrencyLimitV2Create(name="gcl-delete", limit=1).model_dump(

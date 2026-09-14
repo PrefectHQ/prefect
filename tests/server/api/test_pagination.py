@@ -1,7 +1,7 @@
 import pytest
 from fastapi import Body, FastAPI
-from httpx2 import ASGITransport, AsyncClient
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.compatibility.starlette import status
 from prefect.server.api.dependencies import LimitBody
 
@@ -15,8 +15,8 @@ def app():
 
 @pytest.fixture
 async def client(app):
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test/"
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test/"
     ) as async_client:
         yield async_client
 

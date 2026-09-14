@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
-import httpx2
 import pytest
 import readchar
 import respx
 from starlette import status
 
+from prefect._internal.compatibility.httpx import httpcore, httpx
 from prefect.cli._cloud_utils import LoginFailed, LoginSuccess
 from prefect.client.schemas import Workspace
 from prefect.context import get_settings_context, use_profile
@@ -481,7 +481,7 @@ def test_login_with_browser_single_workspace(
         )
         # Bypass the mocks
         respx_mock.route(url__startswith=callback).pass_through()
-        httpx2.post(
+        httpx.post(
             callback + "/success",
             json=LoginSuccess(api_key="foo").model_dump(mode="json"),
         )
@@ -522,7 +522,7 @@ def test_login_with_browser_failure_in_browser(
         )
         # Bypass the mocks
         respx_mock.route(url__startswith=callback).pass_through()
-        httpx2.post(
+        httpx.post(
             callback + "/failure",
             json=LoginFailed(reason="Oh no!").model_dump(mode="json"),
         )
@@ -1018,7 +1018,7 @@ def test_set_workspace_with_account_selection():
     bar_workspace = gen_test_workspace(account_handle="test2", workspace_handle="bar")
 
     with respx.mock(
-        using="httpcore2", base_url=PREFECT_CLOUD_API_URL.value()
+        using=httpcore.__name__, base_url=PREFECT_CLOUD_API_URL.value()
     ) as respx_mock:
         respx_mock.get("/me/workspaces").respond(
             status.HTTP_200_OK,
@@ -1247,7 +1247,7 @@ def test_set_workspace_with_go_back_to_account_selection():
     target_workspace = account2_workspaces[1]  # workspace2 in account2
 
     with respx.mock(
-        using="httpcore2", base_url=PREFECT_CLOUD_API_URL.value()
+        using=httpcore.__name__, base_url=PREFECT_CLOUD_API_URL.value()
     ) as respx_mock:
         respx_mock.get("/me/workspaces").respond(
             status.HTTP_200_OK,

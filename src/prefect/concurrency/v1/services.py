@@ -5,10 +5,10 @@ from json import JSONDecodeError
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-import httpx2
 from starlette import status
 from typing_extensions import Unpack
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import FutureQueueService
 from prefect.client.orchestration import get_client
@@ -23,7 +23,7 @@ class ConcurrencySlotAcquisitionServiceError(Exception):
 
 
 class ConcurrencySlotAcquisitionService(
-    FutureQueueService[Unpack[tuple[UUID, Optional[float]]], httpx2.Response]
+    FutureQueueService[Unpack[tuple[UUID, Optional[float]]], httpx.Response]
 ):
     def __init__(self, concurrency_limit_names: frozenset[str]) -> None:
         super().__init__(concurrency_limit_names)
@@ -38,7 +38,7 @@ class ConcurrencySlotAcquisitionService(
 
     async def acquire(
         self, task_run_id: UUID, timeout_seconds: Optional[float] = None
-    ) -> httpx2.Response:
+    ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
                 try:
@@ -46,7 +46,7 @@ class ConcurrencySlotAcquisitionService(
                         task_run_id=task_run_id,
                         names=self.concurrency_limit_names,
                     )
-                except httpx2.HTTPStatusError as exc:
+                except httpx.HTTPStatusError as exc:
                     if not exc.response.status_code == status.HTTP_423_LOCKED:
                         raise
 

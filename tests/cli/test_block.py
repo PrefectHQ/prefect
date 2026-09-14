@@ -5,6 +5,7 @@ import uuid
 import pytest
 import respx
 
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.blocks import system
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
@@ -36,7 +37,7 @@ class TestForFileRegister(Block):
 @pytest.fixture
 def mock_cloud_api():
     with respx.mock(
-        using="httpcore2",
+        using=httpcore.__name__,
         base_url="https://api.prefect.cloud/api",
         assert_all_called=False,
     ) as respx_mock:

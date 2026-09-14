@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, AsyncGenerator, Literal, Optional
 from uuid import UUID
 
 import anyio
-import httpx2
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import (
     ConcurrencyLimitWithLeaseResponse,
@@ -44,7 +44,7 @@ class AcquireConcurrencySlotTimeoutError(TimeoutError):
 logger: logging.Logger = get_logger("concurrency")
 
 
-def _format_http_status_error(exc: httpx2.HTTPStatusError) -> str:
+def _format_http_status_error(exc: httpx.HTTPStatusError) -> str:
     """Format an HTTP status error from the server into a compact string.
 
     Handles both Prefect API payloads (`exception_detail`) and raw FastAPI
@@ -105,7 +105,7 @@ async def aacquire_concurrency_slots(
         raise AcquireConcurrencySlotTimeoutError(
             f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
         ) from timeout
-    except httpx2.HTTPStatusError as exc:
+    except httpx.HTTPStatusError as exc:
         raise ConcurrencySlotAcquisitionError(
             f"Unable to acquire concurrency slots on {names!r}: "
             f"{_format_http_status_error(exc)}"
@@ -158,7 +158,7 @@ async def aacquire_concurrency_slots_with_lease(
         raise AcquireConcurrencySlotTimeoutError(
             f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
         ) from timeout
-    except httpx2.HTTPStatusError as exc:
+    except httpx.HTTPStatusError as exc:
         raise ConcurrencySlotAcquisitionError(
             f"Unable to acquire concurrency slots on {names!r}: "
             f"{_format_http_status_error(exc)}"
@@ -231,7 +231,7 @@ def _discard_cleanup_lease(lease_id: UUID) -> None:
 
 def _release_lease_when_granted(
     service: ConcurrencySlotAcquisitionWithLeaseService,
-    future: "concurrent.futures.Future[httpx2.Response]",
+    future: "concurrent.futures.Future[httpx.Response]",
 ) -> None:
     """Release the lease for an acquisition whose caller has been cancelled.
 
@@ -241,7 +241,7 @@ def _release_lease_when_granted(
     the service that acquired the slots is asked to release them.
     """
 
-    def _release(completed: "concurrent.futures.Future[httpx2.Response]") -> None:
+    def _release(completed: "concurrent.futures.Future[httpx.Response]") -> None:
         if completed.cancelled() or completed.exception() is not None:
             # Nothing was granted, so there is nothing to release.
             return
@@ -252,7 +252,7 @@ def _release_lease_when_granted(
 
 
 def _response_to_minimal_concurrency_limit_response(
-    response: httpx2.Response,
+    response: httpx.Response,
 ) -> list[MinimalConcurrencyLimitResponse]:
     return [
         MinimalConcurrencyLimitResponse.model_validate(obj_) for obj_ in response.json()

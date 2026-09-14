@@ -6,10 +6,10 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from httpx2 import AsyncClient
 from pydantic.networks import AnyHttpUrl
 
 import prefect.types._datetime
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server.events.counting import Countable, TimeUnit
 from prefect.server.events.filters import (
     EventFilter,
@@ -116,7 +116,7 @@ def last_events_page(
 
 
 async def test_querying_for_events_returns_first_page(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     filter: EventFilter,
     query_events: mock.AsyncMock,
     events_page_one: List[ReceivedEvent],
@@ -145,7 +145,7 @@ async def test_querying_for_events_returns_first_page(
 
 
 async def test_querying_for_events_returns_first_page_with_no_more(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     filter: EventFilter,
     query_events: mock.AsyncMock,
     events_page_one: List[ReceivedEvent],
@@ -174,7 +174,7 @@ async def test_querying_for_events_returns_first_page_with_no_more(
 
 
 async def test_querying_for_events_with_not_arguments_uses_the_default_filter(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     query_events: mock.AsyncMock,
     filter: EventFilter,
     events_page_one: List[ReceivedEvent],
@@ -194,7 +194,7 @@ async def test_querying_for_events_with_not_arguments_uses_the_default_filter(
 
 
 async def test_querying_for_subsequent_page_returns_it(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     query_events: mock.AsyncMock,
     events_page_two: List[ReceivedEvent],
     query_next_page: mock.AsyncMock,
@@ -224,7 +224,7 @@ async def test_querying_for_subsequent_page_returns_it(
 
 
 async def test_querying_for_last_page_returns_no_token(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     query_events: mock.AsyncMock,
     events_page_three: List[ReceivedEvent],
     last_events_page: mock.AsyncMock,
@@ -249,7 +249,7 @@ async def test_querying_for_last_page_returns_no_token(
 
 
 async def test_token_shenanigans_will_not_be_tolerated(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     query_events: mock.AsyncMock,
     query_next_page: mock.AsyncMock,
 ):
@@ -262,7 +262,7 @@ async def test_token_shenanigans_will_not_be_tolerated(
 
 
 async def test_inner_token_shenanigans_will_not_be_tolerated(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     query_events: mock.AsyncMock,
     query_next_page: mock.AsyncMock,
 ):
@@ -276,7 +276,7 @@ async def test_inner_token_shenanigans_will_not_be_tolerated(
 
 
 async def test_events_api_returns_times_with_timezone_offsets(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     filter: EventFilter,
     query_events,
 ):
@@ -322,7 +322,7 @@ def count_events() -> Generator[mock.AsyncMock, None, None]:
 
 
 async def test_counting_events_by_day(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     filter: EventFilter,
     count_events: mock.AsyncMock,
     frozen_time: DateTime,
@@ -362,7 +362,7 @@ async def test_counting_events_by_day(
 
 
 async def test_counting_events_by_time(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     filter: EventFilter,
     count_events: mock.AsyncMock,
     frozen_time: DateTime,
@@ -406,7 +406,7 @@ async def test_counting_events_by_time(
 
 
 async def test_counting_events_by_time_minimum_time_interval(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     filter: EventFilter,
     count_events: mock.AsyncMock,
 ):
@@ -426,7 +426,7 @@ async def test_counting_events_by_time_minimum_time_interval(
 
 
 async def test_counting_events_by_event_with_a_filter(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     filter: EventFilter,
     count_events: mock.AsyncMock,
     frozen_time: DateTime,
@@ -469,7 +469,7 @@ async def test_counting_events_by_event_with_a_filter(
 
 
 async def test_counting_events_too_many_buckets(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     filter: EventFilter,
 ):
     response = await client.post(

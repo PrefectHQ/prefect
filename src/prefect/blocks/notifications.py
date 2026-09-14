@@ -9,6 +9,11 @@ from pydantic import AnyHttpUrl, Field, HttpUrl, SecretStr
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.httpx import (
+    AsyncClient,
+    Client,
+    create_ssl_context,
+)
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.logging import LogEavesdropper
 from prefect.types import SecretDict
@@ -954,7 +959,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
     )
 
     def _build_request_args(self, body: str, subject: str | None) -> dict[str, Any]:
-        """Build kwargs for httpx2.AsyncClient.request"""
+        """Build kwargs for httpx.AsyncClient.request"""
         # prepare values
         values = self.secrets.get_secret_value()
         # use 'null' when subject is None
@@ -965,7 +970,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                 "name": self.name,
             }
         )
-        # httpx2 uses 'data' for form-encoded dicts, 'content' for raw string/bytes
+        # httpx uses 'data' for form-encoded dicts, 'content' for raw string/bytes
         if isinstance(self.form_data, str):
             data_key = "content"
         else:
@@ -1004,11 +1009,11 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                     raise KeyError(f"{name}/{placeholder}")
 
     async def anotify(self, body: str, subject: str | None = None) -> None:
-        import httpx2
 
         request_args = self._build_request_args(body, subject)
         client_kwargs: dict[str, Any] = {
             "headers": {"user-agent": "Prefect Notifications"},
+            "verify": create_ssl_context(),
         }
         if not self.allow_private_urls:
             validate_restricted_url(request_args["url"])
@@ -1017,26 +1022,26 @@ class CustomWebhookNotificationBlock(NotificationBlock):
             client_kwargs["transport"] = SSRFProtectedAsyncHTTPTransport()
         cookies = request_args.pop("cookies", dict())
         client_kwargs["cookies"] = cookies
-        # make request with httpx2
-        async with httpx2.AsyncClient(**client_kwargs) as client:
+        # make request with httpx
+        async with AsyncClient(**client_kwargs) as client:
             resp = await client.request(**request_args)
         resp.raise_for_status()
 
     @async_dispatch(anotify)
     def notify(self, body: str, subject: str | None = None) -> None:
-        import httpx2
 
         request_args = self._build_request_args(body, subject)
         client_kwargs: dict[str, Any] = {
             "headers": {"user-agent": "Prefect Notifications"},
+            "verify": create_ssl_context(),
         }
         if not self.allow_private_urls:
             validate_restricted_url(request_args["url"])
             client_kwargs["transport"] = SSRFProtectedHTTPTransport()
         cookies = request_args.pop("cookies", dict())
         client_kwargs["cookies"] = cookies
-        # make request with httpx2
-        with httpx2.Client(**client_kwargs) as client:
+        # make request with httpx
+        with Client(**client_kwargs) as client:
             resp = client.request(**request_args)
         resp.raise_for_status()
 

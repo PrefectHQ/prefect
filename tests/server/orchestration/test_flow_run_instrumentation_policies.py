@@ -4,12 +4,11 @@ from typing import Any, Dict
 from unittest import mock
 from uuid import uuid4
 
-import httpx2
 import pytest
 from fastapi.applications import FastAPI
-from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models
 from prefect.server.database.orm_models import (
     ORMDeployment,
@@ -767,9 +766,9 @@ async def client(app: FastAPI):
     # serve any server-side errors as HTTP responses.  This is different than some other
     # parts of the general test suite, so we'll override the fixture here.
 
-    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
 
-    async with httpx2.AsyncClient(
+    async with httpx.AsyncClient(
         transport=transport, base_url="https://test/api"
     ) as async_client:
         yield async_client
@@ -777,7 +776,7 @@ async def client(app: FastAPI):
 
 async def test_cancelling_to_cancelled_transitions(
     session: AsyncSession,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     flow_run: ORMFlowRun,
     start_of_test: DateTime,
 ):

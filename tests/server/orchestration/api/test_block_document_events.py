@@ -1,7 +1,7 @@
 import pytest
-from httpx2 import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import (
@@ -20,7 +20,7 @@ def reset_events():
 
 class TestBlockDocumentLifecycleEvents:
     async def test_create_block_document_emits_created_event(
-        self, client: AsyncClient, block_schema, block_type_x
+        self, client: httpx.AsyncClient, block_schema, block_type_x
     ):
         response = await client.post(
             "/block_documents/",
@@ -65,7 +65,7 @@ class TestBlockDocumentLifecycleEvents:
         )
 
     async def test_update_block_document_emits_updated_event(
-        self, client: AsyncClient, block_schema, block_type_x
+        self, client: httpx.AsyncClient, block_schema, block_type_x
     ):
         created = await client.post(
             "/block_documents/",
@@ -105,7 +105,7 @@ class TestBlockDocumentLifecycleEvents:
         )
 
     async def test_delete_block_document_emits_deleted_event(
-        self, client: AsyncClient, block_schema, block_type_x
+        self, client: httpx.AsyncClient, block_schema, block_type_x
     ):
         created = await client.post(
             "/block_documents/",
@@ -131,7 +131,7 @@ class TestBlockDocumentLifecycleEvents:
         )
 
     async def test_created_event_excludes_secret_field_values(
-        self, client: AsyncClient, session: AsyncSession
+        self, client: httpx.AsyncClient, session: AsyncSession
     ):
         block_type = await models.block_types.create_block_type(
             session=session,

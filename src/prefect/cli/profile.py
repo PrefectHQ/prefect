@@ -409,8 +409,7 @@ class ConnectionStatus(AutoEnum):
 
 
 async def check_server_connection() -> ConnectionStatus:
-    import httpx2
-
+    from prefect._internal.compatibility.httpx import httpx
     from prefect.client.base import determine_server_type
     from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
     from prefect.client.orchestration import ServerType, get_client
@@ -429,7 +428,7 @@ async def check_server_connection() -> ConnectionStatus:
                 return ConnectionStatus.CLOUD_CONNECTED
             except CloudUnauthorizedError:
                 return ConnectionStatus.CLOUD_UNAUTHORIZED
-            except (httpx2.HTTPStatusError, Exception):
+            except (httpx.HTTPStatusError, Exception):
                 return ConnectionStatus.CLOUD_ERROR
 
         if server_type == ServerType.EPHEMERAL:
@@ -465,5 +464,5 @@ async def check_server_connection() -> ConnectionStatus:
                 return ConnectionStatus.SERVER_CONNECTED
         except Exception:
             return ConnectionStatus.SERVER_ERROR
-    except (httpx2.ConnectError, httpx2.UnsupportedProtocol):
+    except (httpx.ConnectError, httpx.UnsupportedProtocol):
         return ConnectionStatus.INVALID_API

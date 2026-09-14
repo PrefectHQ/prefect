@@ -4,7 +4,6 @@ from typing import List
 from unittest.mock import AsyncMock
 
 import pytest
-from httpx2 import AsyncClient, Headers
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import (
     WS_1002_PROTOCOL_ERROR,
@@ -17,6 +16,7 @@ from starlette.websockets import WebSocketDisconnect
 import prefect
 import prefect.server
 import prefect.server.database.orm_models
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.compatibility.starlette import status
 from prefect._internal.testing import retry_asserts
 from prefect.client.schemas.actions import WorkPoolCreate
@@ -190,7 +190,7 @@ def _connect_worker_channel(
     work_pool_name: str,
     *,
     subprotocols: tuple[str, ...] | None = ("prefect",),
-    headers: Headers | None = None,
+    headers: httpx.Headers | None = None,
 ):
     return test_client.websocket_connect(
         f"/api/work_pools/{work_pool_name}/workers/connect",
@@ -513,7 +513,7 @@ class TestCreateWorkPool:
 
     async def test_create_work_pool_with_3_3_7_client_version_does_not_include_default_result_storage_block_id(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         response = await client.post(
             "/work_pools/",
@@ -583,7 +583,7 @@ class TestUpdateWorkPool:
     async def test_update_work_pool_propagates_snapshot_publish_failure(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        client_without_exceptions: AsyncClient,
+        client_without_exceptions: httpx.AsyncClient,
         work_pool,
     ) -> None:
         async def fail_publish(
@@ -1090,7 +1090,7 @@ class TestReadWorkPool:
         assert response.json()["name"] == "wp-1"
 
     async def test_read_work_pool_with_3_3_7_client_version_does_not_include_default_result_storage_block_id(
-        self, client: AsyncClient, work_pool: WorkPool
+        self, client: httpx.AsyncClient, work_pool: WorkPool
     ):
         response = await client.get(
             f"/work_pools/{work_pool.name}",
@@ -1297,7 +1297,7 @@ class TestReadWorkPools:
 
     async def test_read_work_pool_with_3_3_7_client_version_does_not_include_default_result_storage_block_id(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         response = await client.post(
             "/work_pools/filter",
@@ -1927,7 +1927,7 @@ class TestWorkQueueSnapshotInvalidations:
     async def test_work_pool_queue_changes_do_not_publish_snapshot_invalidation(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         work_pool,
     ) -> None:
         publish = AsyncMock()
@@ -1964,7 +1964,7 @@ class TestWorkQueueSnapshotInvalidations:
     async def test_work_queue_id_routes_do_not_publish_snapshot_invalidation(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         session: AsyncSession,
         work_pool,
     ) -> None:
@@ -2261,7 +2261,7 @@ class TestWorkerChannelConnect:
     def test_connect_accepts_prefect_subprotocol_from_repeated_headers(
         self, test_client: TestClient, work_pool
     ):
-        headers = Headers(
+        headers = httpx.Headers(
             [
                 ("sec-websocket-protocol", "json"),
                 ("sec-websocket-protocol", "prefect"),
@@ -2792,7 +2792,7 @@ class TestWorkerChannelConnect:
         assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
 
     async def test_work_pool_update_sends_snapshot(
-        self, test_client: TestClient, client: AsyncClient, work_pool
+        self, test_client: TestClient, client: httpx.AsyncClient, work_pool
     ) -> None:
         updated_base_job_template = _valid_base_job_template(["echo", "updated"])
 
@@ -2886,7 +2886,7 @@ class TestWorkerChannelConnect:
         self,
         monkeypatch: pytest.MonkeyPatch,
         test_client: TestClient,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         work_pool,
     ) -> None:
         monkeypatch.setattr(
@@ -2950,7 +2950,7 @@ class TestWorkerChannelConnect:
         assert snapshot.payload.work_pool.base_job_template == updated_template
 
     async def test_heartbeat_with_unchanged_pool_sends_no_snapshot(
-        self, test_client: TestClient, client: AsyncClient, work_pool
+        self, test_client: TestClient, client: httpx.AsyncClient, work_pool
     ) -> None:
         """A heartbeat on an unchanged pool should not produce a snapshot.
         Verified by sending a heartbeat, then triggering a real update; the
@@ -2982,7 +2982,7 @@ class TestWorkerChannelConnect:
     async def test_heartbeat_after_normal_invalidation_does_not_duplicate_snapshot(
         self,
         test_client: TestClient,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         work_pool,
     ) -> None:
         """After a snapshot delivered via the normal invalidation path, a
@@ -3031,7 +3031,7 @@ class TestWorkerChannelConnect:
     async def test_two_heartbeats_after_change_produce_exactly_one_reconciliation(
         self,
         test_client: TestClient,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         session: AsyncSession,
         work_pool,
     ) -> None:
@@ -3079,7 +3079,7 @@ class TestWorkerChannelConnect:
         assert probe_snapshot.payload.work_pool.base_job_template == probe_template
 
     async def test_work_pool_delete_closes_connection_without_snapshot(
-        self, test_client: TestClient, client: AsyncClient, work_pool
+        self, test_client: TestClient, client: httpx.AsyncClient, work_pool
     ) -> None:
         with pytest.raises(WebSocketDisconnect) as exception:
             with _connect_worker_channel(test_client, work_pool.name) as websocket:
@@ -3194,7 +3194,7 @@ class TestWorkerProcess:
     async def test_worker_heartbeat_does_not_publish_snapshot_invalidation(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         work_pool,
     ) -> None:
         publish = AsyncMock()
@@ -3486,7 +3486,7 @@ class TestWorkPoolConcurrencyStatus:
         await session.commit()
         return {"work_pool": wp, "wq_a": wq_a, "wq_b": wq_b}
 
-    async def test_happy_path(self, client: AsyncClient, setup: dict) -> None:
+    async def test_happy_path(self, client: httpx.AsyncClient, setup: dict) -> None:
         wp = setup["work_pool"]
         response = await client.post(f"/work_pools/{wp.name}/concurrency_status")
         assert response.status_code == status.HTTP_200_OK, response.text
@@ -3514,7 +3514,7 @@ class TestWorkPoolConcurrencyStatus:
         assert run["state_name"] == "Running"
 
     async def test_response_shape_flow_run_summary(
-        self, client: AsyncClient, setup: dict
+        self, client: httpx.AsyncClient, setup: dict
     ) -> None:
         wp = setup["work_pool"]
         response = await client.post(f"/work_pools/{wp.name}/concurrency_status")
@@ -3525,12 +3525,12 @@ class TestWorkPoolConcurrencyStatus:
                 assert "time_in_current_state" in run
                 assert "start_time" in run
 
-    async def test_404_for_missing_pool(self, client: AsyncClient) -> None:
+    async def test_404_for_missing_pool(self, client: httpx.AsyncClient) -> None:
         response = await client.post("/work_pools/nonexistent-pool/concurrency_status")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_excludes_terminal_states(
-        self, client: AsyncClient, setup: dict
+        self, client: httpx.AsyncClient, setup: dict
     ) -> None:
         wp = setup["work_pool"]
         response = await client.post(f"/work_pools/{wp.name}/concurrency_status")
@@ -3543,7 +3543,9 @@ class TestWorkPoolConcurrencyStatus:
         assert "CANCELLED" not in all_state_types
         assert "CANCELLING" not in all_state_types
 
-    async def test_empty_pool(self, session: AsyncSession, client: AsyncClient) -> None:
+    async def test_empty_pool(
+        self, session: AsyncSession, client: httpx.AsyncClient
+    ) -> None:
         wp = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(name="empty-pool", type="test"),
@@ -3557,7 +3559,9 @@ class TestWorkPoolConcurrencyStatus:
         assert data["page"] == 1
         assert data["count"] >= 0
 
-    async def test_queue_pagination(self, client: AsyncClient, setup: dict) -> None:
+    async def test_queue_pagination(
+        self, client: httpx.AsyncClient, setup: dict
+    ) -> None:
         wp = setup["work_pool"]
         # Page 1, limit 1
         response = await client.post(
@@ -3584,7 +3588,9 @@ class TestWorkPoolConcurrencyStatus:
         assert data2["page"] == 2
         assert data2["queues"][0]["queue_id"] != data["queues"][0]["queue_id"]
 
-    async def test_page_beyond_results(self, client: AsyncClient, setup: dict) -> None:
+    async def test_page_beyond_results(
+        self, client: httpx.AsyncClient, setup: dict
+    ) -> None:
         wp = setup["work_pool"]
         response = await client.post(
             f"/work_pools/{wp.name}/concurrency_status",
@@ -3596,7 +3602,7 @@ class TestWorkPoolConcurrencyStatus:
         assert data["page"] == 999
         assert data["active_slots"] == 3
 
-    async def test_flow_run_limit(self, client: AsyncClient, setup: dict) -> None:
+    async def test_flow_run_limit(self, client: httpx.AsyncClient, setup: dict) -> None:
         wp = setup["work_pool"]
         response = await client.post(
             f"/work_pools/{wp.name}/concurrency_status",

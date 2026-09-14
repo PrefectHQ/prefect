@@ -4,11 +4,11 @@ import uuid
 from typing import cast
 from uuid import UUID
 
-import httpx2
 import pytest
 from fastapi.testclient import TestClient
 
 from prefect import flow, task
+from prefect._internal.compatibility.httpx import httpx
 from prefect.artifacts import (
     Artifact,
     acreate_link_artifact,
@@ -39,7 +39,7 @@ class TestCreateArtifacts:
         )
 
     async def test_create_and_read_link_artifact_with_linktext_succeeds(
-        self, artifact: ArtifactCreate, client: httpx2.AsyncClient
+        self, artifact: ArtifactCreate, client: httpx.AsyncClient
     ):
         my_link = "prefect.io"
         link_text = "Prefect"
@@ -60,7 +60,7 @@ class TestCreateArtifacts:
         assert result.data == f"[{link_text}]({my_link})"
 
     async def test_create_link_artifact_in_task_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @task
         def my_special_task():
@@ -94,7 +94,7 @@ class TestCreateArtifacts:
         assert my_link_artifact.task_run_id == task_run_id
 
     async def test_create_link_artifact_in_flow_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @flow
         def my_flow():
@@ -121,7 +121,7 @@ class TestCreateArtifacts:
         assert my_link_artifact.task_run_id is None
 
     async def test_create_link_artifact_in_subflow_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @flow
         def my_subflow():
@@ -177,7 +177,7 @@ class TestCreateArtifacts:
         assert my_big_nums == [11, 12, 13]
 
     async def test_create_markdown_artifact_in_task_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @task
         def my_special_task():
@@ -211,7 +211,7 @@ class TestCreateArtifacts:
         assert my_markdown_artifact.task_run_id == task_run_id
 
     async def test_create_markdown_artifact_in_flow_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @flow
         def my_flow():
@@ -238,7 +238,7 @@ class TestCreateArtifacts:
         assert my_markdown_artifact.task_run_id is None
 
     async def test_create_markdown_artifact_in_subflow_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @flow
         def my_subflow():
@@ -291,7 +291,7 @@ class TestCreateArtifacts:
         assert my_big_nums == [11, 12, 13]
 
     async def test_create_and_read_dict_of_list_table_artifact_succeeds(
-        self, artifact: ArtifactCreate, client: httpx2.AsyncClient
+        self, artifact: ArtifactCreate, client: httpx.AsyncClient
     ):
         my_table = {"a": [1, 3], "b": [2, 4]}
 
@@ -312,7 +312,7 @@ class TestCreateArtifacts:
         assert result_data == my_table
 
     async def test_create_and_read_list_of_dict_table_artifact_succeeds(
-        self, artifact: ArtifactCreate, client: httpx2.AsyncClient
+        self, artifact: ArtifactCreate, client: httpx.AsyncClient
     ):
         my_table = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
 
@@ -334,7 +334,7 @@ class TestCreateArtifacts:
         assert result_data == my_table
 
     async def test_create_and_read_list_of_list_table_artifact_succeeds(
-        self, artifact: ArtifactCreate, client: httpx2.AsyncClient
+        self, artifact: ArtifactCreate, client: httpx.AsyncClient
     ):
         my_table = [[1, 2], [None, 4]]
 
@@ -355,7 +355,7 @@ class TestCreateArtifacts:
         assert result_data == my_table
 
     async def test_create_table_artifact_in_task_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @task
         def my_special_task():
@@ -392,7 +392,7 @@ class TestCreateArtifacts:
         assert result_data == {"a": [1, 3], "b": [2, 4]}
 
     async def test_create_table_artifact_in_flow_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @flow
         def my_flow():
@@ -423,7 +423,7 @@ class TestCreateArtifacts:
         assert result_data == {"a": [1, 3], "b": [2, 4]}
 
     async def test_create_table_artifact_in_subflow_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @flow
         def my_subflow():
@@ -496,7 +496,7 @@ class TestCreateArtifacts:
         my_flow()
 
     async def test_create_dict_table_artifact_with_nan_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         my_table = {"a": [1, 3], "b": [2, float("nan")]}
 
@@ -533,7 +533,7 @@ class TestCreateArtifacts:
         await my_flow()
 
     async def test_create_list_table_artifact_with_nan_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         my_table = [
             {"a": 1, "b": 2},
@@ -560,7 +560,7 @@ class TestCreateArtifacts:
         ]
 
     async def test_create_progress_artifact_without_key(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         progress = 0.0
 
@@ -578,7 +578,7 @@ class TestCreateArtifacts:
         assert my_artifact.type == "progress"
         assert my_artifact.description == "my-description"
 
-    async def test_create_progress_artifact_with_key(self, client: httpx2.AsyncClient):
+    async def test_create_progress_artifact_with_key(self, client: httpx.AsyncClient):
         progress = 0.0
         artifact_key = f"progress-artifact-{uuid.uuid4()}"
 
@@ -598,7 +598,7 @@ class TestCreateArtifacts:
         assert my_artifact.description == "my-description"
 
     async def test_create_progress_artifact_in_task_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @task
         def my_task():
@@ -636,7 +636,7 @@ class TestCreateArtifacts:
         assert my_progress_artifact.description == "my-artifact-description"
 
     async def test_create_progess_artifact_in_flow_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @flow
         def my_flow():
@@ -666,7 +666,7 @@ class TestCreateArtifacts:
         assert my_progress_artifact.description == "my-artifact-description"
 
     async def test_create_image_artifact_in_task_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @task
         def my_task():
@@ -707,7 +707,7 @@ class TestCreateArtifacts:
         assert my_image_artifact.description == "my-artifact-description"
 
     async def test_create_image_artifact_in_flow_succeeds(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @flow
         def my_flow():
@@ -749,7 +749,7 @@ class TestCreateArtifacts:
 
 class TestUpdateArtifacts:
     async def test_update_progress_artifact_updates_progress_async(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         progress = 0.0
 
@@ -796,7 +796,7 @@ class TestUpdateArtifacts:
 
         my_flow()
 
-    async def test_update_progress_artifact_in_task(self, client: httpx2.AsyncClient):
+    async def test_update_progress_artifact_in_task(self, client: httpx.AsyncClient):
         @task
         def my_task():
             run_context = get_run_context()
@@ -837,7 +837,7 @@ class TestUpdateArtifacts:
         assert my_progress_artifact.description == "my-artifact-description"
 
     async def test_update_progress_artifact_in_async_task(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @task
         async def my_task():
@@ -882,7 +882,7 @@ class TestUpdateArtifacts:
         assert my_progress_artifact.type == "progress"
         assert my_progress_artifact.description == "my-artifact-description"
 
-    async def test_update_progress_artifact_in_flow(self, client: httpx2.AsyncClient):
+    async def test_update_progress_artifact_in_flow(self, client: httpx.AsyncClient):
         @flow
         def my_flow():
             run_context = get_run_context()
@@ -913,7 +913,7 @@ class TestUpdateArtifacts:
         assert my_progress_artifact.description == "my-artifact-description"
 
     async def test_update_progress_artifact_in_async_flow(
-        self, client: httpx2.AsyncClient
+        self, client: httpx.AsyncClient
     ):
         @flow
         async def my_flow():

@@ -5,12 +5,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from urllib.parse import quote
 from uuid import UUID
 
-import httpx2
 import pydantic
-from httpx2 import Response
 from starlette import status
 from typing_extensions import Self
 
+from prefect._internal.compatibility.httpx import Response, httpx
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.exceptions import ObjectNotFound
 from prefect.logging import get_logger
@@ -48,7 +47,7 @@ class BaseClient:
                 additional_headers.setdefault("Authorization", f"Basic {token}")
 
         self._http_client = PrefectHttpxAsyncClient(
-            transport=httpx2.ASGITransport(app=api_app, raise_app_exceptions=False),
+            transport=httpx.ASGITransport(app=api_app, raise_app_exceptions=False),
             headers={**additional_headers},
             base_url=f"http://prefect-in-memory{settings.server.api.base_path or '/api'}",
             enable_csrf_support=settings.server.api.csrf_protection_enabled,
@@ -73,7 +72,7 @@ class OrchestrationClient(BaseClient):
         try:
             response = await self.read_deployment_raw(deployment_id)
             response.raise_for_status()
-        except httpx2.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 return None
             raise
@@ -243,7 +242,7 @@ class WorkPoolsOrchestrationClient(BaseClient):
             response = await self._http_client.get(f"/work_pools/{work_pool_name}")
             response.raise_for_status()
             return WorkPool.model_validate(response.json())
-        except httpx2.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise ObjectNotFound(http_exc=e) from e
             else:

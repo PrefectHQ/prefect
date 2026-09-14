@@ -5,6 +5,7 @@ import pytest
 import respx
 
 import prefect
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.server.services.telemetry import (
     _fetch_or_set_telemetry_session,
     send_telemetry_heartbeat,
@@ -15,7 +16,7 @@ pytestmark = pytest.mark.clear_db
 
 @pytest.fixture
 def sens_o_matic_mock():
-    with respx.mock(using="httpcore2") as respx_mock:
+    with respx.mock(using=httpcore.__name__) as respx_mock:
         sens_o_matic = respx_mock.post(
             "https://sens-o-matic.prefect.io/",
         ).respond(200, json={})
@@ -25,7 +26,7 @@ def sens_o_matic_mock():
 
 @pytest.fixture
 def error_sens_o_matic_mock():
-    with respx.mock(using="httpcore2") as respx_mock:
+    with respx.mock(using=httpcore.__name__) as respx_mock:
         sens_o_matic = respx_mock.post(
             "https://sens-o-matic.prefect.io/",
         ).respond(500, json={})

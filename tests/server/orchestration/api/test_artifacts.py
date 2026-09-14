@@ -2,9 +2,9 @@ from uuid import uuid4
 
 import pydantic
 import pytest
-from httpx2 import AsyncClient
 from starlette import status
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import Deployment, Flow
 from prefect.server.schemas import actions
@@ -85,7 +85,7 @@ async def artifacts(flow_run, task_run, client):
 
 
 @pytest.fixture
-async def flow_artifacts(client: AsyncClient, flow: Flow, deployment: Deployment):
+async def flow_artifacts(client: httpx.AsyncClient, flow: Flow, deployment: Deployment):
     flow_data = {"name": flow.name}
     response = await client.post("/flows/", json=flow_data)
 

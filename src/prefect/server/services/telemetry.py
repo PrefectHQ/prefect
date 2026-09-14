@@ -8,10 +8,10 @@ import platform
 from datetime import timedelta
 from uuid import uuid4
 
-import httpx2
 from docket import Perpetual
 
 import prefect
+from prefect._internal.compatibility.httpx import AsyncClient, create_ssl_context
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models import configuration
@@ -100,7 +100,7 @@ async def send_telemetry_heartbeat(
     }
 
     try:
-        async with httpx2.AsyncClient() as client:
+        async with AsyncClient(verify=create_ssl_context()) as client:
             result = await client.post(
                 "https://sens-o-matic.prefect.io/",
                 json=heartbeat,

@@ -11,11 +11,11 @@ from typing import Callable
 from unittest.mock import MagicMock
 
 import anyio
-import httpx2
 import pytest
 import readchar
 from anyio.abc import Process
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.cli._server_utils import SERVER_PID_FILE_NAME, _format_host_for_url
 from prefect.context import get_settings_context
 from prefect.settings import (
@@ -48,13 +48,13 @@ SHUTDOWN_TIMEOUT = 20
 
 async def wait_for_server(api_url: str, timeout: float | None = None) -> None:
     timeout = timeout or STARTUP_TIMEOUT
-    async with httpx2.AsyncClient() as client:
+    async with httpx.AsyncClient() as client:
         with anyio.move_on_after(timeout):
             response = None
             while True:
                 try:
                     response = await client.get(api_url + "/health")
-                except httpx2.ConnectError:
+                except httpx.ConnectError:
                     pass
                 else:
                     if response.status_code == 200:
@@ -249,7 +249,7 @@ class TestMultipleWorkerServer:
 
             pids = set()
             for _ in range(10):
-                async with httpx2.AsyncClient() as client:
+                async with httpx.AsyncClient() as client:
                     tasks = [fetch_pid(client, api_url) for _ in range(100)]
                     results = await asyncio.gather(*tasks)
 

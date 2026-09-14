@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Literal, Optional
 from uuid import UUID, uuid4
 
 import cachetools
-import httpx2
 from starlette import status
 from typing_extensions import TypeAlias, Unpack
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import FutureQueueService
 from prefect.client.orchestration import get_client
@@ -45,7 +45,7 @@ _ItemWithLease: TypeAlias = tuple[
 
 
 class ConcurrencySlotAcquisitionService(
-    FutureQueueService[Unpack[_Item], httpx2.Response]
+    FutureQueueService[Unpack[_Item], httpx.Response]
 ):
     def __init__(self, concurrency_limit_names: frozenset[str]):
         super().__init__(concurrency_limit_names)
@@ -64,7 +64,7 @@ class ConcurrencySlotAcquisitionService(
         mode: Literal["concurrency", "rate_limit"],
         timeout_seconds: Optional[float] = None,
         max_retries: Optional[int] = None,
-    ) -> httpx2.Response:
+    ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
                 try:
@@ -73,7 +73,7 @@ class ConcurrencySlotAcquisitionService(
                         slots=slots,
                         mode=mode,
                     )
-                except httpx2.HTTPStatusError as exc:
+                except httpx.HTTPStatusError as exc:
                     if not exc.response.status_code == status.HTTP_423_LOCKED:
                         raise
 
@@ -89,7 +89,7 @@ class ConcurrencySlotAcquisitionService(
 
 
 class ConcurrencySlotAcquisitionWithLeaseService(
-    FutureQueueService[Unpack[_ItemWithLease], httpx2.Response]
+    FutureQueueService[Unpack[_ItemWithLease], httpx.Response]
 ):
     """A service that acquires concurrency slots with leases.
 
@@ -134,7 +134,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
         lease_duration: float = 300,
         strict: bool = False,
         holder: Optional["ConcurrencyLeaseHolder"] = None,
-    ) -> httpx2.Response:
+    ) -> httpx.Response:
         """Acquire concurrency slots with a lease, with retry logic for 423 responses.
 
         Args:
@@ -150,7 +150,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
             HTTP response from the server
 
         Raises:
-            httpx2.HTTPStatusError: If the server returns an error other than 423 LOCKED
+            httpx.HTTPStatusError: If the server returns an error other than 423 LOCKED
             TimeoutError: If acquisition times out
         """
         use_cache = _should_use_cache(self.concurrency_limit_names, holder)
@@ -184,7 +184,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                             pass
 
                     return response
-                except httpx2.HTTPStatusError as exc:
+                except httpx.HTTPStatusError as exc:
                     if exc.response.status_code != status.HTTP_423_LOCKED:
                         raise
 
@@ -199,7 +199,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                     if max_retries is not None:
                         max_retries -= 1
 
-    async def _discard(self, response: httpx2.Response) -> None:
+    async def _discard(self, response: httpx.Response) -> None:
         """Release a lease granted to a caller that was cancelled while waiting.
 
         Without this the slots stay occupied until the lease expires, because the
@@ -219,7 +219,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
             )
 
     def release_orphaned_lease(
-        self, response: httpx2.Response
+        self, response: httpx.Response
     ) -> "concurrent.futures.Future[None]":
         """Release a lease that was delivered to a caller which is already gone.
 
@@ -247,7 +247,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
         release.add_done_callback(self._pending_releases.discard)
         return release
 
-    def _lease_id_from_response(self, response: httpx2.Response) -> Optional[UUID]:
+    def _lease_id_from_response(self, response: httpx.Response) -> Optional[UUID]:
         """Read the lease id out of a successful acquisition response.
 
         Returns `None` when no slots were acquired, and logs when the response is
@@ -286,14 +286,14 @@ def _should_use_cache(
     return all(name.startswith("tag:") for name in names)
 
 
-def _create_empty_limits_response() -> httpx2.Response:
-    """Create a synthetic httpx2.Response indicating no concurrency limits exist.
+def _create_empty_limits_response() -> httpx.Response:
+    """Create a synthetic httpx.Response indicating no concurrency limits exist.
 
     This is used when we've cached that a set of tags has no limits,
     allowing us to skip the API call entirely.
     """
     response_data = {"lease_id": str(uuid4()), "limits": []}
-    return httpx2.Response(
+    return httpx.Response(
         status_code=200,
         content=json.dumps(response_data).encode(),
         headers={"content-type": "application/json"},

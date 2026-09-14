@@ -2,9 +2,8 @@ import asyncio
 from typing import Optional
 from uuid import UUID
 
-import httpx2
-
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 
@@ -144,7 +143,7 @@ def release_concurrency_slots(
 
 
 def _response_to_concurrency_limit_response(
-    response: httpx2.Response,
+    response: httpx.Response,
 ) -> list[MinimalConcurrencyLimitResponse]:
     data: list[MinimalConcurrencyLimitResponse] = response.json() or []
     return [

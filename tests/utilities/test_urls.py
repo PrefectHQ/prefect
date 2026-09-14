@@ -6,10 +6,9 @@ from datetime import timedelta
 from typing import Any, Literal, cast
 from unittest.mock import patch
 
-import httpcore2
-import httpx2
 import pytest
 
+from prefect._internal.compatibility.httpx import httpcore, httpx
 from prefect.blocks.webhook import Webhook
 from prefect.events.schemas.automations import Automation, EventTrigger, Posture
 from prefect.events.schemas.events import ReceivedEvent, Resource
@@ -531,9 +530,9 @@ class TestSSRFProtectedTransportTOCTOU:
             "prefect.utilities.urls.socket.getaddrinfo",
             side_effect=_fake_getaddrinfo(["127.0.0.1"]),
         ):
-            async with httpx2.AsyncClient(transport=transport) as client:
+            async with httpx.AsyncClient(transport=transport) as client:
                 with pytest.raises(
-                    httpx2.ConnectError, match="private address 127.0.0.1"
+                    httpx.ConnectError, match="private address 127.0.0.1"
                 ):
                     await client.get("http://example.com")
 
@@ -543,9 +542,9 @@ class TestSSRFProtectedTransportTOCTOU:
             "prefect.utilities.urls.socket.getaddrinfo",
             side_effect=_fake_getaddrinfo(["192.168.1.1"]),
         ):
-            with httpx2.Client(transport=transport) as client:
+            with httpx.Client(transport=transport) as client:
                 with pytest.raises(
-                    httpx2.ConnectError, match="private address 192.168.1.1"
+                    httpx.ConnectError, match="private address 192.168.1.1"
                 ):
                     client.get("http://example.com")
 
@@ -558,9 +557,9 @@ class TestSSRFProtectedTransportTOCTOU:
             "prefect.utilities.urls.socket.getaddrinfo",
             side_effect=_fake_getaddrinfo(["8.8.8.8", "10.0.0.1"]),
         ):
-            async with httpx2.AsyncClient(transport=transport) as client:
+            async with httpx.AsyncClient(transport=transport) as client:
                 with pytest.raises(
-                    httpx2.ConnectError, match="private address 10.0.0.1"
+                    httpx.ConnectError, match="private address 10.0.0.1"
                 ):
                     await client.get("http://example.com")
 
@@ -570,14 +569,14 @@ class TestSSRFProtectedTransportTOCTOU:
             "prefect.utilities.urls.socket.getaddrinfo",
             side_effect=socket.gaierror("resolution failed"),
         ):
-            async with httpx2.AsyncClient(transport=transport) as client:
-                with pytest.raises(httpx2.ConnectError, match="could not be resolved"):
+            async with httpx.AsyncClient(transport=transport) as client:
+                with pytest.raises(httpx.ConnectError, match="could not be resolved"):
                     await client.get("http://example.com")
 
     async def test_async_transport_rejects_private_ip_literal(self):
         transport = SSRFProtectedAsyncHTTPTransport()
-        async with httpx2.AsyncClient(transport=transport) as client:
-            with pytest.raises(httpx2.ConnectError, match="private address"):
+        async with httpx.AsyncClient(transport=transport) as client:
+            with pytest.raises(httpx.ConnectError, match="private address"):
                 await client.get("http://127.0.0.1")
 
     def test_transport_wraps_existing_network_backend(self):
@@ -597,7 +596,7 @@ class TestSSRFProtectedBackendPinsIP:
     re-resolve DNS and pick up a different (private) address."""
 
     async def test_async_backend_connects_to_validated_ip(self):
-        class RecordingBackend(httpcore2.AsyncNetworkBackend):
+        class RecordingBackend(httpcore.AsyncNetworkBackend):
             def __init__(self):
                 self.connected_host: str | None = None
 
@@ -606,7 +605,7 @@ class TestSSRFProtectedBackendPinsIP:
             ):
                 self.connected_host = host
                 # Return a mock stream — we don't actually connect.
-                raise httpcore2.ConnectError("stop here")
+                raise httpcore.ConnectError("stop here")
 
             async def connect_unix_socket(self, *args, **kwargs):
                 raise NotImplementedError
@@ -621,7 +620,7 @@ class TestSSRFProtectedBackendPinsIP:
             "prefect.utilities.urls.socket.getaddrinfo",
             side_effect=_fake_getaddrinfo(["8.8.8.8"]),
         ):
-            with pytest.raises(httpcore2.ConnectError, match="stop here"):
+            with pytest.raises(httpcore.ConnectError, match="stop here"):
                 await backend.connect_tcp("example.com", 443)
 
         assert inner.connected_host == "8.8.8.8"
@@ -634,7 +633,7 @@ class TestSSRFProtectedBackendFallbackAcrossIPs:
     break dual-stack hostnames in single-stack environments."""
 
     async def test_async_backend_falls_back_to_next_validated_ip(self):
-        class FlakyBackend(httpcore2.AsyncNetworkBackend):
+        class FlakyBackend(httpcore.AsyncNetworkBackend):
             def __init__(self):
                 self.connected_hosts: list[str] = []
 
@@ -644,8 +643,8 @@ class TestSSRFProtectedBackendFallbackAcrossIPs:
                 self.connected_hosts.append(host)
                 # First IP is unreachable, second succeeds.
                 if len(self.connected_hosts) == 1:
-                    raise httpcore2.ConnectError("network unreachable")
-                return cast(httpcore2.AsyncNetworkStream, object())
+                    raise httpcore.ConnectError("network unreachable")
+                return cast(httpcore.AsyncNetworkStream, object())
 
             async def connect_unix_socket(self, *args, **kwargs):
                 raise NotImplementedError
@@ -665,7 +664,7 @@ class TestSSRFProtectedBackendFallbackAcrossIPs:
         assert inner.connected_hosts == ["2606:4700:4700::1111", "93.184.216.34"]
 
     async def test_async_backend_raises_last_error_when_all_fail(self):
-        class AlwaysFailingBackend(httpcore2.AsyncNetworkBackend):
+        class AlwaysFailingBackend(httpcore.AsyncNetworkBackend):
             def __init__(self):
                 self.attempts = 0
 
@@ -673,7 +672,7 @@ class TestSSRFProtectedBackendFallbackAcrossIPs:
                 self, host, port, timeout=None, local_address=None, socket_options=None
             ):
                 self.attempts += 1
-                raise httpcore2.ConnectError(f"attempt {self.attempts} failed")
+                raise httpcore.ConnectError(f"attempt {self.attempts} failed")
 
             async def connect_unix_socket(self, *args, **kwargs):
                 raise NotImplementedError
@@ -688,13 +687,13 @@ class TestSSRFProtectedBackendFallbackAcrossIPs:
             "prefect.utilities.urls.socket.getaddrinfo",
             side_effect=_fake_getaddrinfo(["2606:4700:4700::1111", "93.184.216.34"]),
         ):
-            with pytest.raises(httpcore2.ConnectError, match="attempt 2 failed"):
+            with pytest.raises(httpcore.ConnectError, match="attempt 2 failed"):
                 await backend.connect_tcp("example.com", 443)
 
         assert inner.attempts == 2
 
     def test_sync_backend_falls_back_to_next_validated_ip(self):
-        class FlakyBackend(httpcore2.NetworkBackend):
+        class FlakyBackend(httpcore.NetworkBackend):
             def __init__(self):
                 self.connected_hosts: list[str] = []
 
@@ -703,8 +702,8 @@ class TestSSRFProtectedBackendFallbackAcrossIPs:
             ):
                 self.connected_hosts.append(host)
                 if len(self.connected_hosts) == 1:
-                    raise httpcore2.ConnectError("network unreachable")
-                return cast(httpcore2.NetworkStream, object())
+                    raise httpcore.ConnectError("network unreachable")
+                return cast(httpcore.NetworkStream, object())
 
             def connect_unix_socket(self, *args, **kwargs):
                 raise NotImplementedError
@@ -730,7 +729,7 @@ class TestSSRFProtectedBackendTimeoutBudget:
     resolved addresses could take up to N * timeout to fail."""
 
     async def test_async_backend_shares_timeout_budget_across_retries(self):
-        class SlowFailingBackend(httpcore2.AsyncNetworkBackend):
+        class SlowFailingBackend(httpcore.AsyncNetworkBackend):
             def __init__(self):
                 self.timeouts: list[float | None] = []
 
@@ -738,7 +737,7 @@ class TestSSRFProtectedBackendTimeoutBudget:
                 self, host, port, timeout=None, local_address=None, socket_options=None
             ):
                 self.timeouts.append(timeout)
-                raise httpcore2.ConnectError("nope")
+                raise httpcore.ConnectError("nope")
 
             async def connect_unix_socket(self, *args, **kwargs):
                 raise NotImplementedError
@@ -753,7 +752,7 @@ class TestSSRFProtectedBackendTimeoutBudget:
             "prefect.utilities.urls.socket.getaddrinfo",
             side_effect=_fake_getaddrinfo(["2606:4700:4700::1111", "93.184.216.34"]),
         ):
-            with pytest.raises(httpcore2.ConnectError):
+            with pytest.raises(httpcore.ConnectError):
                 await backend.connect_tcp("example.com", 443, timeout=5.0)
 
         # Each attempt receives a timeout no greater than the caller's budget;
@@ -765,7 +764,7 @@ class TestSSRFProtectedBackendTimeoutBudget:
         assert inner.timeouts[1] <= inner.timeouts[0]
 
     def test_sync_backend_shares_timeout_budget_across_retries(self):
-        class SlowFailingBackend(httpcore2.NetworkBackend):
+        class SlowFailingBackend(httpcore.NetworkBackend):
             def __init__(self):
                 self.timeouts: list[float | None] = []
 
@@ -773,7 +772,7 @@ class TestSSRFProtectedBackendTimeoutBudget:
                 self, host, port, timeout=None, local_address=None, socket_options=None
             ):
                 self.timeouts.append(timeout)
-                raise httpcore2.ConnectError("nope")
+                raise httpcore.ConnectError("nope")
 
             def connect_unix_socket(self, *args, **kwargs):
                 raise NotImplementedError
@@ -788,7 +787,7 @@ class TestSSRFProtectedBackendTimeoutBudget:
             "prefect.utilities.urls.socket.getaddrinfo",
             side_effect=_fake_getaddrinfo(["2606:4700:4700::1111", "93.184.216.34"]),
         ):
-            with pytest.raises(httpcore2.ConnectError):
+            with pytest.raises(httpcore.ConnectError):
                 backend.connect_tcp("example.com", 443, timeout=5.0)
 
         assert len(inner.timeouts) == 2
@@ -810,9 +809,9 @@ class TestSSRFProtectedAsyncBackendNonBlockingDNS:
             observed_threads.append(threading.get_ident())
             return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 0))]
 
-        class StopBackend(httpcore2.AsyncNetworkBackend):
+        class StopBackend(httpcore.AsyncNetworkBackend):
             async def connect_tcp(self, *args, **kwargs):
-                raise httpcore2.ConnectError("stop")
+                raise httpcore.ConnectError("stop")
 
             async def connect_unix_socket(self, *args, **kwargs):
                 raise NotImplementedError
@@ -825,10 +824,48 @@ class TestSSRFProtectedAsyncBackendNonBlockingDNS:
         with patch(
             "prefect.utilities.urls.socket.getaddrinfo", side_effect=fake_getaddrinfo
         ):
-            with pytest.raises(httpcore2.ConnectError, match="stop"):
+            with pytest.raises(httpcore.ConnectError, match="stop"):
                 await backend.connect_tcp("example.com", 443)
 
         assert observed_threads, "getaddrinfo should have been invoked"
         assert observed_threads[0] != loop_thread, (
             "getaddrinfo must run off the event loop thread"
         )
+
+
+@pytest.mark.parametrize("sync", [False, True])
+@pytest.mark.parametrize(
+    "args, kwargs",
+    [
+        ((), {"trust_env": False}),
+        ((), {"http1": True, "http2": True, "trust_env": False}),
+        ((False, None, False), {}),
+    ],
+)
+async def test_ssrf_transport_preserves_native_constructor_contract(
+    sync: bool, args: tuple, kwargs: dict
+):
+    native_type = httpx.HTTPTransport if sync else httpx.AsyncHTTPTransport
+    protected_type = (
+        SSRFProtectedHTTPTransport if sync else SSRFProtectedAsyncHTTPTransport
+    )
+    native = native_type(*args, **kwargs)
+    protected = protected_type(*args, **kwargs)
+    try:
+        assert protected._pool._http1 == native._pool._http1
+        assert protected._pool._http2 == native._pool._http2
+        assert (
+            protected._pool._ssl_context.verify_mode
+            == native._pool._ssl_context.verify_mode
+        )
+        assert (
+            protected._pool._ssl_context.check_hostname
+            == native._pool._ssl_context.check_hostname
+        )
+    finally:
+        if sync:
+            native.close()
+            protected.close()
+        else:
+            await native.aclose()
+            await protected.aclose()

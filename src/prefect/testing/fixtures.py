@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock
 from uuid import UUID
 
 import anyio
-import httpx2
 import pytest
 from starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.asyncio.server import (
@@ -23,6 +22,7 @@ from websockets.asyncio.server import (
 from websockets.exceptions import ConnectionClosed
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.httpx import AsyncClient, create_ssl_context, httpx
 from prefect.events import Event
 from prefect.events.clients import (
     AssertingEventsClient,
@@ -117,13 +117,13 @@ async def hosted_api_server(
         api_url = f"http://localhost:{port}/api"
 
         # Wait for the server to be ready
-        async with httpx2.AsyncClient() as client:
+        async with AsyncClient(verify=create_ssl_context()) as client:
             response = None
             with anyio.move_on_after(20):
                 while True:
                     try:
                         response = await client.get(api_url + "/health")
-                    except httpx2.ConnectError:
+                    except httpx.ConnectError:
                         pass
                     else:
                         if response.status_code == 200:

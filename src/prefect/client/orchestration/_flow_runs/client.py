@@ -3,9 +3,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
-import httpx2
 from typing_extensions import TypeVar
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectNotFound
 
@@ -68,7 +68,7 @@ class FlowRunClient(BaseClient):
             job_variables: The job variables to use when setting up flow run infrastructure.
 
         Raises:
-            httpx2.RequestError: if the Prefect API does not successfully create a run for any reason
+            httpx.RequestError: if the Prefect API does not successfully create a run for any reason
 
         Returns:
             The flow run model
@@ -136,7 +136,7 @@ class FlowRunClient(BaseClient):
         empirical_policy: "FlowRunPolicy | None" = None,
         infrastructure_pid: str | None = None,
         job_variables: dict[str, Any] | None = None,
-    ) -> httpx2.Response:
+    ) -> httpx.Response:
         """
         Update a flow run's details.
 
@@ -154,7 +154,7 @@ class FlowRunClient(BaseClient):
                 infrastructure block.
 
         Returns:
-            an `httpx2.Response` object from the PATCH request
+            an `httpx.Response` object from the PATCH request
         """
         params: dict[str, Any] = {}
         if flow_version is not None:
@@ -194,11 +194,11 @@ class FlowRunClient(BaseClient):
             flow_run_id: The flow run UUID of interest.
         Raises:
             ObjectNotFound: If request returns 404
-            httpx2.RequestError: If requests fails
+            httpx.RequestError: If requests fails
         """
         try:
             self.request("DELETE", "/flow_runs/{id}", path_params={"id": flow_run_id})
-        except httpx2.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
             else:
@@ -218,7 +218,7 @@ class FlowRunClient(BaseClient):
             response = self.request(
                 "GET", "/flow_runs/{id}", path_params={"id": flow_run_id}
             )
-        except httpx2.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
             else:
@@ -247,7 +247,7 @@ class FlowRunClient(BaseClient):
                 path_params={"id": flow_run_id},
                 json={"run_input": run_input},
             )
-        except httpx2.HTTPStatusError:
+        except httpx.HTTPStatusError:
             raise
         from prefect.client.schemas import OrchestrationResult
 
@@ -404,7 +404,7 @@ class FlowRunClient(BaseClient):
                     force=force,
                 ),
             )
-        except httpx2.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
             else:
@@ -435,7 +435,7 @@ class FlowRunClient(BaseClient):
                 "/flow_run_states/{id}",
                 path_params={"id": flow_run_state_id},
             )
-        except httpx2.HTTPStatusError as exc:
+        except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 404:
                 raise ObjectNotFound(http_exc=exc) from exc
             raise
@@ -462,7 +462,7 @@ class FlowRunClient(BaseClient):
 
         return State.model_validate_list(response.json())
 
-    def set_flow_run_name(self, flow_run_id: "UUID", name: str) -> httpx2.Response:
+    def set_flow_run_name(self, flow_run_id: "UUID", name: str) -> httpx.Response:
         from prefect.client.schemas.actions import FlowRunUpdate
 
         flow_run_data = FlowRunUpdate(name=name)
@@ -595,7 +595,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
             job_variables: The job variables to use when setting up flow run infrastructure.
 
         Raises:
-            httpx2.RequestError: if the Prefect API does not successfully create a run for any reason
+            httpx.RequestError: if the Prefect API does not successfully create a run for any reason
 
         Returns:
             The flow run model
@@ -663,7 +663,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
         empirical_policy: "FlowRunPolicy | None" = None,
         infrastructure_pid: str | None = None,
         job_variables: dict[str, Any] | None = None,
-    ) -> httpx2.Response:
+    ) -> httpx.Response:
         """
         Update a flow run's details.
 
@@ -681,7 +681,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
                 infrastructure block.
 
         Returns:
-            an `httpx2.Response` object from the PATCH request
+            an `httpx.Response` object from the PATCH request
         """
         params: dict[str, Any] = {}
         if flow_version is not None:
@@ -720,13 +720,13 @@ class FlowRunAsyncClient(BaseAsyncClient):
             flow_run_id: The flow run UUID of interest.
         Raises:
             ObjectNotFound: If request returns 404
-            httpx2.RequestError: If requests fails
+            httpx.RequestError: If requests fails
         """
         try:
             await self.request(
                 "DELETE", "/flow_runs/{id}", path_params={"id": flow_run_id}
             )
-        except httpx2.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
             else:
@@ -746,7 +746,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
             response = await self.request(
                 "GET", "/flow_runs/{id}", path_params={"id": flow_run_id}
             )
-        except httpx2.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
             else:
@@ -775,7 +775,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
                 path_params={"id": flow_run_id},
                 json={"run_input": run_input},
             )
-        except httpx2.HTTPStatusError:
+        except httpx.HTTPStatusError:
             raise
         from prefect.client.schemas import OrchestrationResult
 
@@ -932,7 +932,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
                     force=force,
                 ),
             )
-        except httpx2.HTTPStatusError as e:
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
             else:
@@ -963,7 +963,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
                 "/flow_run_states/{id}",
                 path_params={"id": flow_run_state_id},
             )
-        except httpx2.HTTPStatusError as exc:
+        except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 404:
                 raise ObjectNotFound(http_exc=exc) from exc
             raise
@@ -990,9 +990,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
 
         return State.model_validate_list(response.json())
 
-    async def set_flow_run_name(
-        self, flow_run_id: "UUID", name: str
-    ) -> httpx2.Response:
+    async def set_flow_run_name(self, flow_run_id: "UUID", name: str) -> httpx.Response:
         from prefect.client.schemas.actions import FlowRunUpdate
 
         flow_run_data = FlowRunUpdate(name=name)

@@ -1,8 +1,8 @@
 from uuid import uuid4
 
 import pytest
-from httpx2 import AsyncClient
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import BlockTypeCreate
 
@@ -14,7 +14,7 @@ def reset_events():
     AssertingEventsClient.reset()
 
 
-async def _create_block_type(client: AsyncClient, name: str, slug: str) -> dict:
+async def _create_block_type(client: httpx.AsyncClient, name: str, slug: str) -> dict:
     data = BlockTypeCreate(
         name=name,
         slug=slug,
@@ -26,7 +26,9 @@ async def _create_block_type(client: AsyncClient, name: str, slug: str) -> dict:
 
 
 class TestBlockTypeLifecycleEvents:
-    async def test_create_block_type_emits_created_event(self, client: AsyncClient):
+    async def test_create_block_type_emits_created_event(
+        self, client: httpx.AsyncClient
+    ):
         block_type = await _create_block_type(client, "Events Create", "events-create")
 
         AssertingEventsClient.assert_emitted_event_with(
@@ -43,7 +45,9 @@ class TestBlockTypeLifecycleEvents:
             },
         )
 
-    async def test_update_block_type_emits_updated_event(self, client: AsyncClient):
+    async def test_update_block_type_emits_updated_event(
+        self, client: httpx.AsyncClient
+    ):
         block_type = await _create_block_type(client, "Events Update", "events-update")
         AssertingEventsClient.reset()
 
@@ -67,7 +71,9 @@ class TestBlockTypeLifecycleEvents:
             },
         )
 
-    async def test_delete_block_type_emits_deleted_event(self, client: AsyncClient):
+    async def test_delete_block_type_emits_deleted_event(
+        self, client: httpx.AsyncClient
+    ):
         block_type = await _create_block_type(client, "Events Delete", "events-delete")
         AssertingEventsClient.reset()
 
@@ -83,7 +89,7 @@ class TestBlockTypeLifecycleEvents:
         )
 
     async def test_delete_nonexistent_block_type_does_not_emit_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         response = await client.delete(f"/block_types/{uuid4()}")
         assert response.status_code == 404

@@ -2,10 +2,10 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from httpx2 import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
+from prefect._internal.compatibility.httpx import httpx
 from prefect.concurrency.v1._asyncio import (
     aacquire_concurrency_slots,
     acquire_concurrency_slots,
@@ -171,13 +171,13 @@ async def test_concurrency_can_be_used_while_event_loop_is_running(
 @pytest.fixture
 def mock_increment_concurrency_slots(monkeypatch):
     async def mocked_increment_concurrency_slots(*args, **kwargs):
-        response = Response(
+        response = httpx.Response(
             status_code=status.HTTP_423_LOCKED,
             headers={"Retry-After": "0.01"},
         )
-        raise HTTPStatusError(
+        raise httpx.HTTPStatusError(
             message="Locked",
-            request=Request("GET", "http://test.com"),
+            request=httpx.Request("GET", "http://test.com"),
             response=response,
         )
 
@@ -248,7 +248,7 @@ class TestAsyncDispatchMigration:
         with mock.patch(
             "prefect.client.orchestration.PrefectClient.decrement_v1_concurrency_slots"
         ) as mock_decrement:
-            response = Response(
+            response = httpx.Response(
                 200, json=[limit.model_dump(mode="json") for limit in limits]
             )
             mock_decrement.return_value = response
@@ -273,7 +273,7 @@ class TestAsyncDispatchMigration:
         with mock.patch(
             "prefect.client.orchestration.SyncPrefectClient.decrement_v1_concurrency_slots"
         ) as mock_decrement:
-            response = Response(
+            response = httpx.Response(
                 200, json=[limit.model_dump(mode="json") for limit in limits]
             )
             mock_decrement.return_value = response
@@ -302,7 +302,7 @@ class TestAsyncDispatchMigration:
         with mock.patch(
             "prefect.client.orchestration.PrefectClient.decrement_v1_concurrency_slots"
         ) as mock_decrement:
-            response = Response(
+            response = httpx.Response(
                 200, json=[limit.model_dump(mode="json") for limit in limits]
             )
             mock_decrement.return_value = response

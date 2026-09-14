@@ -4,10 +4,10 @@ from uuid import uuid4
 
 import pytest
 from fastapi import status
-from httpx2 import AsyncClient
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models
 from prefect.server.api.ui.task_runs import TaskRunCount
 from prefect.server.database import orm_models
@@ -73,7 +73,7 @@ class TestReadDashboardTaskRunCounts:
     async def test_requires_task_run_filter_start_time(
         self,
         url: str,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         task_run_filter = filters.TaskRunFilter()
         response = await client.post(
@@ -86,7 +86,7 @@ class TestReadDashboardTaskRunCounts:
         self,
         url: str,
         task_run_filter: filters.TaskRunFilter,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         response = await client.post(
             url, json={"task_runs": task_run_filter.model_dump(mode="json")}
@@ -103,7 +103,7 @@ class TestReadDashboardTaskRunCounts:
         self,
         url: str,
         task_run_filter: filters.TaskRunFilter,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         response = await client.post(
             url, json={"task_runs": task_run_filter.model_dump(mode="json")}
@@ -241,7 +241,7 @@ class TestReadTaskRunCountsByState:
     async def test_returns_all_state_types(
         self,
         url: str,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         response = await client.post(url)
         assert response.status_code == 200
@@ -253,7 +253,7 @@ class TestReadTaskRunCountsByState:
     async def test_none(
         self,
         url: str,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         session: AsyncSession,
     ):
         # ensure there are no task runs in the database
@@ -280,7 +280,7 @@ class TestReadTaskRunCountsByState:
     async def test_returns_counts(
         self,
         url: str,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         response = await client.post(url)
         assert response.status_code == 200
@@ -303,7 +303,7 @@ class TestReadTaskRunCountsByState:
     async def test_returns_counts_with_filter(
         self,
         url: str,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         response = await client.post(
             url,
@@ -340,7 +340,7 @@ class TestReadTaskRun:
         self,
         flow_run: orm_models.FlowRun,
         task_run: orm_models.TaskRun,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         response = await client.get(f"/ui/task_runs/{task_run.id}")
         assert response.status_code == status.HTTP_200_OK
@@ -349,7 +349,7 @@ class TestReadTaskRun:
         assert response.json()["flow_run_name"] == flow_run.name
 
     async def test_read_task_without_flow_run(
-        self, task_run_without_flow_run: orm_models.TaskRun, client: AsyncClient
+        self, task_run_without_flow_run: orm_models.TaskRun, client: httpx.AsyncClient
     ):
         response = await client.get(f"/ui/task_runs/{task_run_without_flow_run.id}")
         assert response.status_code == status.HTTP_200_OK
@@ -358,7 +358,7 @@ class TestReadTaskRun:
         assert response.json()["flow_run_name"] is None
 
     async def test_read_task_run_returns_404_if_does_not_exist(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         response = await client.get(f"/ui/task_runs/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND

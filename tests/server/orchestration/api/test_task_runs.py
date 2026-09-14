@@ -5,9 +5,9 @@ import uuid
 from uuid import uuid4
 
 import pytest
-from httpx2 import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.compatibility.starlette import status
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import Flow, State
@@ -48,7 +48,7 @@ class TestCreateTaskRun:
         assert task_run.flow_run_id == flow_run.id
 
     async def test_create_task_run_with_content_no_content_type(self, flow_run, client):
-        """Old clients (<3.6.19) sent JSON via httpx2's content= parameter,
+        """Old clients (<3.6.19) sent JSON via HTTPX's content= parameter,
         which omits the Content-Type header. The server should still accept it."""
         task_run_data = {
             "flow_run_id": str(flow_run.id),
@@ -397,7 +397,7 @@ class TestReadTaskRuns:
 
 class TestPaginateTaskRuns:
     async def test_paginate_task_runs_basic(
-        self, task_run: TaskRun, client: AsyncClient
+        self, task_run: TaskRun, client: httpx.AsyncClient
     ):
         """Test basic pagination functionality with default parameters."""
         response = await client.post("/task_runs/paginate")
@@ -409,7 +409,7 @@ class TestPaginateTaskRuns:
         assert data["results"][0]["flow_run_id"] == str(task_run.flow_run_id)
 
     async def test_paginate_task_runs_response_structure(
-        self, task_run: TaskRun, client: AsyncClient
+        self, task_run: TaskRun, client: httpx.AsyncClient
     ):
         """Test that the pagination response structure is correct."""
         response = await client.post("/task_runs/paginate")
@@ -428,7 +428,7 @@ class TestPaginateTaskRuns:
         assert data["limit"] > 0
 
     async def test_paginate_task_runs_with_custom_page_and_limit(
-        self, flow_run: FlowRun, session: AsyncSession, client: AsyncClient
+        self, flow_run: FlowRun, session: AsyncSession, client: httpx.AsyncClient
     ):
         """Test pagination with custom page size and page number."""
         # Create multiple task runs
@@ -478,7 +478,7 @@ class TestPaginateTaskRuns:
         assert data["page"] == 3
 
     async def test_paginate_task_runs_with_task_run_filter(
-        self, task_run: TaskRun, client: AsyncClient
+        self, task_run: TaskRun, client: httpx.AsyncClient
     ):
         """Test pagination with task run filter."""
         task_run_filter = dict(
@@ -510,7 +510,7 @@ class TestPaginateTaskRuns:
         assert data["count"] == 0
 
     async def test_paginate_task_runs_with_flow_run_filter(
-        self, task_run: TaskRun, client: AsyncClient
+        self, task_run: TaskRun, client: httpx.AsyncClient
     ):
         """Test pagination with flow run filter."""
         flow_run_filter = dict(
@@ -542,7 +542,7 @@ class TestPaginateTaskRuns:
         assert data["count"] == 0
 
     async def test_paginate_task_runs_with_flow_filter(
-        self, flow: Flow, task_run: TaskRun, client: AsyncClient
+        self, flow: Flow, task_run: TaskRun, client: httpx.AsyncClient
     ):
         """Test pagination with flow filter."""
         flow_filter = dict(
@@ -574,7 +574,7 @@ class TestPaginateTaskRuns:
         assert data["count"] == 0
 
     async def test_paginate_task_runs_applies_sort(
-        self, flow_run: FlowRun, session: AsyncSession, client: AsyncClient
+        self, flow_run: FlowRun, session: AsyncSession, client: httpx.AsyncClient
     ):
         """Test pagination with sorting."""
         now = now_fn("UTC")
@@ -661,7 +661,10 @@ class TestPaginateTaskRuns:
         "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]
     )
     async def test_paginate_task_runs_succeeds_for_all_sort_values(
-        self, sort: schemas.sorting.TaskRunSort, task_run: TaskRun, client: AsyncClient
+        self,
+        sort: schemas.sorting.TaskRunSort,
+        task_run: TaskRun,
+        client: httpx.AsyncClient,
     ):
         """Test pagination with all sort values."""
         response = await client.post("/task_runs/paginate", json=dict(sort=sort))
@@ -671,7 +674,9 @@ class TestPaginateTaskRuns:
         assert len(data["results"]) == 1
         assert data["results"][0]["id"] == str(task_run.id)
 
-    async def test_paginate_task_runs_with_invalid_page(self, client: AsyncClient):
+    async def test_paginate_task_runs_with_invalid_page(
+        self, client: httpx.AsyncClient
+    ):
         """Test pagination with invalid page parameter."""
         response = await client.post("/task_runs/paginate", json=dict(page=0))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -680,7 +685,7 @@ class TestPaginateTaskRuns:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     async def test_paginate_task_runs_includes_duration_fields(
-        self, flow_run: FlowRun, session: AsyncSession, client: AsyncClient
+        self, flow_run: FlowRun, session: AsyncSession, client: httpx.AsyncClient
     ):
         """Test that paginate returns duration fields like total_run_time."""
         now = now_fn("UTC")
@@ -986,7 +991,7 @@ class TestSetTaskRunState:
         assert response_2.status == responses.SetStateStatus.ABORT
 
     async def test_set_task_run_state_with_long_cache_key_rejects_transition(
-        self, task_run: TaskRun, client: AsyncClient
+        self, task_run: TaskRun, client: httpx.AsyncClient
     ):
         await client.post(
             f"/flow_runs/{task_run.flow_run_id}/set_state",

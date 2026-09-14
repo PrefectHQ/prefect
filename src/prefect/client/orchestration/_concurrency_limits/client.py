@@ -2,16 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal
 
-from httpx2 import HTTPStatusError, RequestError
-
+from prefect._internal.compatibility.httpx import HTTPStatusError, RequestError
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from httpx2 import Response
-
+    from prefect._internal.compatibility.httpx import Response
     from prefect.client.schemas.actions import (
         GlobalConcurrencyLimitCreate,
         GlobalConcurrencyLimitUpdate,
@@ -35,7 +33,7 @@ class ConcurrencyLimitClient(BaseClient):
             concurrency_limit: the maximum number of concurrent task runs for a given tag
 
         Raises:
-            httpx2.RequestError: if the concurrency limit was not created for any reason
+            httpx.RequestError: if the concurrency limit was not created for any reason
 
         Returns:
             the ID of the concurrency limit in the backend
@@ -72,7 +70,7 @@ class ConcurrencyLimitClient(BaseClient):
 
         Raises:
             ObjectNotFound: If request returns 404
-            httpx2.RequestError: if the concurrency limit was not created for any reason
+            httpx.RequestError: if the concurrency limit was not created for any reason
 
         Returns:
             the concurrency limit set on a specific tag
@@ -140,7 +138,7 @@ class ConcurrencyLimitClient(BaseClient):
 
         Raises:
             ObjectNotFound: If request returns 404
-            httpx2.RequestError: If request fails
+            httpx.RequestError: If request fails
 
         """
         if slot_override is not None:
@@ -171,7 +169,7 @@ class ConcurrencyLimitClient(BaseClient):
 
         Raises:
             ObjectNotFound: If request returns 404
-            httpx2.RequestError: If request fails
+            httpx.RequestError: If request fails
 
         """
         try:
@@ -496,7 +494,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             concurrency_limit: the maximum number of concurrent task runs for a given tag
 
         Raises:
-            httpx2.RequestError: if the concurrency limit was not created for any reason
+            httpx.RequestError: if the concurrency limit was not created for any reason
 
         Returns:
             the ID of the concurrency limit in the backend
@@ -533,7 +531,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
 
         Raises:
             ObjectNotFound: If request returns 404
-            httpx2.RequestError: if the concurrency limit was not created for any reason
+            httpx.RequestError: if the concurrency limit was not created for any reason
 
         Returns:
             the concurrency limit set on a specific tag
@@ -601,7 +599,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
 
         Raises:
             ObjectNotFound: If request returns 404
-            httpx2.RequestError: If request fails
+            httpx.RequestError: If request fails
 
         """
         if slot_override is not None:
@@ -632,7 +630,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
 
         Raises:
             ObjectNotFound: If request returns 404
-            httpx2.RequestError: If request fails
+            httpx.RequestError: If request fails
 
         """
         try:

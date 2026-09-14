@@ -2,9 +2,9 @@ import uuid
 from typing import Any, List
 
 import pytest
-from httpx2 import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server.models.variables import create_variable
 from prefect.server.schemas import core, sorting
 from prefect.server.schemas.actions import VariableCreate, VariableUpdate
@@ -55,7 +55,7 @@ async def variables(
 class TestCreateVariable:
     async def test_create_variable(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         variable = VariableCreate(
             name="my_variable", value="my-value", tags=["123", "456"]
@@ -93,7 +93,7 @@ class TestCreateVariable:
     )
     async def test_create_variable_json_types(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         value: Any,
     ):
         response = await client.post(
@@ -114,7 +114,7 @@ class TestCreateVariable:
     @pytest.mark.parametrize("variable_name", ["my-variable", "my_variable"])
     async def test_variable_name_may_contain_dashes_or_underscores(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable_name: str,
     ):
         response = await client.post(
@@ -136,7 +136,7 @@ class TestCreateVariable:
     @pytest.mark.parametrize("variable_name", ["MY_VARIABLE", "my variable", "!@#$%"])
     async def test_name_constraints(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable_name: str,
     ):
         res = await client.post(
@@ -152,7 +152,7 @@ class TestCreateVariable:
 
     async def test_name_unique(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         same_name_variable = VariableCreate(name=variable.name, value="other-value")
@@ -165,7 +165,7 @@ class TestCreateVariable:
 
     async def test_name_max_length(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         max_length = 255
 
@@ -188,7 +188,7 @@ class TestCreateVariable:
 
     async def test_value_max_length(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         max_length = MAX_VARIABLE_VALUE_LENGTH - 2  # 2 characters for quotes
 
@@ -216,7 +216,7 @@ class TestCreateVariable:
 class TestReadVariable:
     async def test_read_variable(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         res = await client.get(
@@ -230,7 +230,7 @@ class TestReadVariable:
 
     async def test_does_not_exist(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.get(
             f"/variables/{uuid.uuid4()}",
@@ -241,7 +241,7 @@ class TestReadVariable:
 class TestReadVariableByName:
     async def test_read_variable(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         res = await client.get(
@@ -255,7 +255,7 @@ class TestReadVariableByName:
 
     async def test_does_not_exist(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.get(
             "/variables/name/doesntexist",
@@ -266,7 +266,7 @@ class TestReadVariableByName:
 class TestReadVariables:
     async def test_no_results(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.post(
             "/variables/filter",
@@ -276,7 +276,7 @@ class TestReadVariables:
 
     async def test_no_filter(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variables,
     ):
         res = await client.post(
@@ -289,7 +289,7 @@ class TestReadVariables:
 
     async def test_filter_name(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variables,
     ):
         # any filter
@@ -322,7 +322,7 @@ class TestReadVariables:
 
     async def test_filter_id(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variables,
     ):
         variable = variables[0]
@@ -342,7 +342,7 @@ class TestReadVariables:
 
     async def test_filter_tags(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variables,
     ):
         # any filter
@@ -361,7 +361,7 @@ class TestReadVariables:
 
     async def test_name_sorted_forwards(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variables,
     ):
         # name sorted forwards
@@ -376,7 +376,7 @@ class TestReadVariables:
 
     async def test_name_sorted_backwards(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variables,
     ):
         # name sorted backwards
@@ -395,7 +395,7 @@ class TestReadVariables:
 class TestCountVariables:
     async def test_no_results(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.post(
             "/variables/count",
@@ -405,7 +405,7 @@ class TestCountVariables:
 
     async def test_no_filter(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variables,
     ):
         res = await client.post(
@@ -416,7 +416,7 @@ class TestCountVariables:
 
     async def test_filter_name(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variables,
     ):
         # any filter
@@ -445,7 +445,7 @@ class TestCountVariables:
 
     async def test_filter_id(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variables,
     ):
         variable = variables[0]
@@ -462,7 +462,7 @@ class TestCountVariables:
 
     async def test_filter_tags(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variables,
     ):
         # any filter
@@ -481,7 +481,7 @@ class TestCountVariables:
 class TestUpdateVariable:
     async def test_update_variable(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         update = VariableUpdate(
@@ -519,7 +519,7 @@ class TestUpdateVariable:
     )
     async def test_update_variable_json_types(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
         value: Any,
     ):
@@ -538,7 +538,7 @@ class TestUpdateVariable:
 
     async def test_does_not_exist(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         update = VariableUpdate(
             name="updated_variable", value="updated-value", tags=["updated-tag"]
@@ -551,7 +551,7 @@ class TestUpdateVariable:
 
     async def test_name_unique(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         same_name_update = VariableUpdate(name=variable.name)
@@ -564,7 +564,7 @@ class TestUpdateVariable:
 
     async def test_name_max_length(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         res = await client.patch(
@@ -584,7 +584,7 @@ class TestUpdateVariable:
 
     async def test_value_max_length(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         max_length = MAX_VARIABLE_VALUE_LENGTH - 2  # 2 characters for quotes
@@ -611,7 +611,7 @@ class TestUpdateVariable:
 class TestUpdateVariableByName:
     async def test_update_variable(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         update = VariableUpdate(
@@ -649,7 +649,7 @@ class TestUpdateVariableByName:
     )
     async def test_update_variable_json_types(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
         value: Any,
     ):
@@ -668,7 +668,7 @@ class TestUpdateVariableByName:
 
     async def test_does_not_exist(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         update = VariableUpdate(
             name="updated_variable", value="updated-value", tags=["updated-tag"]
@@ -681,7 +681,7 @@ class TestUpdateVariableByName:
 
     async def test_name_unique(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         same_name_update = VariableUpdate(name=variable.name)
@@ -693,7 +693,7 @@ class TestUpdateVariableByName:
 
     async def test_name_max_length(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         max_length = MAX_VARIABLE_NAME_LENGTH
@@ -715,7 +715,7 @@ class TestUpdateVariableByName:
 
     async def test_value_max_length(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         max_length = MAX_VARIABLE_VALUE_LENGTH - 2  # 2 characters for quotes
@@ -742,7 +742,7 @@ class TestUpdateVariableByName:
 class TestDeleteVariable:
     async def test_delete_variable(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         res = await client.delete(
@@ -756,7 +756,7 @@ class TestDeleteVariable:
 
     async def test_does_not_exist(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.delete(
             f"/variables/{uuid.uuid4()}",
@@ -767,7 +767,7 @@ class TestDeleteVariable:
 class TestDeleteVariableByName:
     async def test_delete_variable(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         res = await client.delete(
@@ -781,7 +781,7 @@ class TestDeleteVariableByName:
 
     async def test_does_not_exist(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         res = await client.delete(
             "/variables/name/doesntexist",
@@ -792,7 +792,7 @@ class TestDeleteVariableByName:
 class TestDuplicateVariable:
     async def test_duplicate_variable_basic(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         duplicate_data = {
@@ -814,7 +814,7 @@ class TestDuplicateVariable:
 
     async def test_duplicate_variable_fails_same_name(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         duplicate_data = {
@@ -830,7 +830,7 @@ class TestDuplicateVariable:
 
     async def test_duplicate_variable_preserves_original(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         duplicate_data = {
@@ -849,7 +849,7 @@ class TestDuplicateVariable:
 
     async def test_duplicate_variable_multiple_copies(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         copies = []
@@ -875,7 +875,7 @@ class TestDuplicateVariable:
 
     async def test_duplicate_variable_chain_duplication(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         variable,
     ):
         first_duplicate_data = {
@@ -908,7 +908,7 @@ class TestDuplicateVariable:
 
     async def test_duplicate_variable_with_json_value(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         session: AsyncSession,
     ):
         json_value = {"config": {"timeout": 300, "retries": 3}, "enabled": True}
@@ -935,7 +935,7 @@ class TestDuplicateVariable:
 
     async def test_duplicate_variable_with_null_value(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         session: AsyncSession,
     ):
         await create_variable(

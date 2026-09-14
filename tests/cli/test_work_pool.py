@@ -6,11 +6,11 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-import httpx2
 import pytest
 import readchar
 
 from prefect import flow as flow_decorator
+from prefect._internal.compatibility.httpx import httpx
 from prefect.cli.work_pool import work_pool_storage_configure_app
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import (
@@ -463,13 +463,13 @@ class TestCreate:
             "You have reached the maximum number of work pools for your workspace: 4."
         )
 
-        mock_request = httpx2.Request("POST", "https://api.prefect.cloud/work_pools/")
-        mock_response = httpx2.Response(
+        mock_request = httpx.Request("POST", "https://api.prefect.cloud/work_pools/")
+        mock_response = httpx.Response(
             status_code=403,
             json={"detail": error_detail},
             request=mock_request,
         )
-        http_error = httpx2.HTTPStatusError(
+        http_error = httpx.HTTPStatusError(
             "Client error '403 Forbidden'",
             request=mock_request,
             response=mock_response,

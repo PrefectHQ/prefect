@@ -14,9 +14,9 @@ from typing import (
 )
 from uuid import UUID
 
-import httpx2
 from typing_extensions import Self, TypeAlias
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.logging import get_logger
 from prefect.server.events import messaging
@@ -252,7 +252,7 @@ class PrefectServerEventsAPIClient:
         api_app = create_app()
 
         self._http_client = PrefectHttpxAsyncClient(
-            transport=httpx2.ASGITransport(app=api_app, raise_app_exceptions=False),
+            transport=httpx.ASGITransport(app=api_app, raise_app_exceptions=False),
             headers={**additional_headers},
             base_url="http://prefect-in-memory/api",
             enable_csrf_support=False,
@@ -266,12 +266,12 @@ class PrefectServerEventsAPIClient:
     async def __aexit__(self, *args: Any) -> None:
         await self._http_client.__aexit__(*args)
 
-    async def pause_automation(self, automation_id: UUID) -> httpx2.Response:
+    async def pause_automation(self, automation_id: UUID) -> httpx.Response:
         return await self._http_client.patch(
             f"/automations/{automation_id}", json={"enabled": False}
         )
 
-    async def resume_automation(self, automation_id: UUID) -> httpx2.Response:
+    async def resume_automation(self, automation_id: UUID) -> httpx.Response:
         return await self._http_client.patch(
             f"/automations/{automation_id}", json={"enabled": True}
         )

@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 import respx
 
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.cli.profile import show_profile_changes  # re-exported alias
 from prefect.client.cloud import CloudUnauthorizedError
 from prefect.context import use_profile
@@ -85,7 +86,7 @@ class TestChangingProfileAndCheckingServerConnection:
     def authorized_cloud(self):
         # attempts to reach the Cloud API implies a good connection
         # to Prefect Cloud as opposed to a hosted Prefect server instance
-        with respx.mock(using="httpcore2", assert_all_called=False) as respx_mock:
+        with respx.mock(using=httpcore.__name__, assert_all_called=False) as respx_mock:
             # Mock the health endpoint for cloud
             health = respx_mock.get(
                 "https://api.prefect.cloud/api/health",
@@ -101,7 +102,7 @@ class TestChangingProfileAndCheckingServerConnection:
     @pytest.fixture
     def unauthorized_cloud(self):
         # requests to cloud with an invalid key will result in a 401 response
-        with respx.mock(using="httpcore2", assert_all_called=False) as respx_mock:
+        with respx.mock(using=httpcore.__name__, assert_all_called=False) as respx_mock:
             # Mock the health endpoint for cloud
             health = respx_mock.get(
                 "https://api.prefect.cloud/api/health",
@@ -117,7 +118,7 @@ class TestChangingProfileAndCheckingServerConnection:
     @pytest.fixture
     def unhealthy_cloud(self):
         # requests to cloud with an invalid key will result in a 401 response
-        with respx.mock(using="httpcore2", assert_all_called=False) as respx_mock:
+        with respx.mock(using=httpcore.__name__, assert_all_called=False) as respx_mock:
             # Mock the health endpoint for cloud with an error
             unhealthy = respx_mock.get(
                 "https://api.prefect.cloud/api/health",
@@ -133,7 +134,7 @@ class TestChangingProfileAndCheckingServerConnection:
     @pytest.fixture
     def hosted_server_has_no_cloud_api(self):
         # if the API URL points to a hosted Prefect server instance, no Cloud API will be found
-        with respx.mock(using="httpcore2", assert_all_called=False) as respx_mock:
+        with respx.mock(using=httpcore.__name__, assert_all_called=False) as respx_mock:
             # We don't need to mock the cloud API endpoint anymore since we check server type first
             hosted = respx_mock.get(
                 "https://hosted-server.prefect.io/api/me/workspaces",
@@ -143,7 +144,7 @@ class TestChangingProfileAndCheckingServerConnection:
 
     @pytest.fixture
     def healthy_hosted_server(self):
-        with respx.mock(using="httpcore2", assert_all_called=False) as respx_mock:
+        with respx.mock(using=httpcore.__name__, assert_all_called=False) as respx_mock:
             hosted = respx_mock.get(
                 "https://hosted-server.prefect.io/api/health",
             ).respond(200, json={})
@@ -155,7 +156,7 @@ class TestChangingProfileAndCheckingServerConnection:
 
     @pytest.fixture
     def unhealthy_hosted_server(self):
-        with respx.mock(using="httpcore2", assert_all_called=False) as respx_mock:
+        with respx.mock(using=httpcore.__name__, assert_all_called=False) as respx_mock:
             badly_hosted = respx_mock.get(
                 "https://hosted-server.prefect.io/api/health",
             ).mock(side_effect=self.connection_error)

@@ -5,9 +5,9 @@ from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
-from httpx2._client import AsyncClient
 from starlette import status
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.testing import retry_asserts
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas
@@ -1129,7 +1129,7 @@ class TestCreateDeployment:
 
     async def test_create_deployment_with_concurrency_limit(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         response = await client.post(
@@ -1157,7 +1157,7 @@ class TestCreateDeployment:
 
     async def test_create_deployment_retains_concurrency_limit_on_upsert_if_not_specified(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         """Ensure that old prefect clients that don't know about concurrency limits can still use them server-side.
@@ -1193,7 +1193,7 @@ class TestCreateDeployment:
 
     async def test_upsert_deployment_can_remove_schedules(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         # Create deployment with a schedule
@@ -1226,7 +1226,7 @@ class TestCreateDeployment:
 
     async def test_create_deployment_with_oversized_parameters_returns_422(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         large_params = {"data": "x" * 1_000_000}
@@ -1242,7 +1242,7 @@ class TestCreateDeployment:
 
     async def test_create_deployment_with_small_parameters_succeeds(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         small_params = {"data": "x" * 100}
@@ -2686,7 +2686,7 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_schedule_with_replaces_renames_slug(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         """When a schedule has 'replaces', it should update the existing schedule with that slug."""
@@ -2740,7 +2740,7 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_schedule_replaces_nonexistent_slug_warns_and_creates(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         """When 'replaces' points to a non-existent slug, warn and create new schedule."""
@@ -2795,7 +2795,7 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_schedule_multiple_replaces_same_target_errors(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         """When multiple schedules have 'replaces' pointing to the same slug, return 422."""
@@ -2851,7 +2851,7 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_schedule_replaces_collision_with_existing_slug(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         """When 'replaces' renames to a slug that already exists, return 422."""
@@ -2910,7 +2910,7 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_schedule_replaces_chain_rename(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         """Chain rename (a->b, b->c) should update both schedules without collisions."""
@@ -2968,7 +2968,7 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_schedule_replaces_slug_swap(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow: Flow,
     ):
         """Slug swap (x->y, y->x) should update both schedules without collisions."""

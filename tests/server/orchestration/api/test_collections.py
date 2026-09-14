@@ -1,6 +1,8 @@
 import pytest
 import respx
 
+from prefect._internal.compatibility.httpx import httpcore
+
 pytestmark = pytest.mark.clear_db
 
 
@@ -59,7 +61,7 @@ class TestReadCollectionViews:
         mock_worker_response,
     ):
         with respx.mock(
-            using="httpcore2", assert_all_mocked=False, assert_all_called=False
+            using=httpcore.__name__, assert_all_mocked=False, assert_all_called=False
         ) as respx_mock:
             flow_route = respx_mock.get(self.collection_view_url("flow")).respond(
                 200, json=mock_flow_response
@@ -82,7 +84,7 @@ class TestReadCollectionViews:
         mock_collection_response,
     ):
         with respx.mock(
-            using="httpcore2",
+            using=httpcore.__name__,
             assert_all_mocked=False,
             assert_all_called=False,
             base_url="https://raw.githubusercontent.com",

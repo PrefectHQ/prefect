@@ -1,8 +1,8 @@
 from uuid import uuid4
 
 import pytest
-from httpx2 import AsyncClient
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import FlowCreate
 
@@ -15,7 +15,7 @@ def reset_events():
 
 
 class TestFlowLifecycleEvents:
-    async def test_create_flow_emits_created_event(self, client: AsyncClient):
+    async def test_create_flow_emits_created_event(self, client: httpx.AsyncClient):
         data = FlowCreate(name="events-flow-create", tags=["a", "b"]).model_dump(
             mode="json"
         )
@@ -33,7 +33,7 @@ class TestFlowLifecycleEvents:
         )
 
     async def test_create_existing_flow_does_not_emit_created_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         data = FlowCreate(name="events-flow-idempotent").model_dump(mode="json")
         first = await client.post("/flows/", json=data)
@@ -47,7 +47,7 @@ class TestFlowLifecycleEvents:
             event="prefect.flow.created",
         )
 
-    async def test_update_flow_emits_updated_event(self, client: AsyncClient):
+    async def test_update_flow_emits_updated_event(self, client: httpx.AsyncClient):
         created = await client.post(
             "/flows/",
             json=FlowCreate(name="events-flow-update").model_dump(mode="json"),
@@ -74,7 +74,7 @@ class TestFlowLifecycleEvents:
             },
         )
 
-    async def test_delete_flow_emits_deleted_event(self, client: AsyncClient):
+    async def test_delete_flow_emits_deleted_event(self, client: httpx.AsyncClient):
         created = await client.post(
             "/flows/",
             json=FlowCreate(name="events-flow-delete").model_dump(mode="json"),
@@ -93,7 +93,9 @@ class TestFlowLifecycleEvents:
             },
         )
 
-    async def test_bulk_delete_flows_emits_deleted_events(self, client: AsyncClient):
+    async def test_bulk_delete_flows_emits_deleted_events(
+        self, client: httpx.AsyncClient
+    ):
         f1 = await client.post(
             "/flows/", json=FlowCreate(name="bulk-flow-1").model_dump(mode="json")
         )
@@ -126,7 +128,7 @@ class TestFlowLifecycleEvents:
         )
 
     async def test_update_nonexistent_flow_does_not_emit_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         response = await client.patch(f"/flows/{uuid4()}", json={"tags": ["x"]})
         assert response.status_code == 404
@@ -134,7 +136,7 @@ class TestFlowLifecycleEvents:
         AssertingEventsClient.assert_no_emitted_event_with(event="prefect.flow.updated")
 
     async def test_delete_nonexistent_flow_does_not_emit_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         response = await client.delete(f"/flows/{uuid4()}")
         assert response.status_code == 404

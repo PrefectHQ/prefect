@@ -4,6 +4,7 @@ import pytest
 import respx
 from respx.patterns import M
 
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.client.cloud import get_cloud_client
 from prefect.settings import (
     PREFECT_API_URL,
@@ -32,7 +33,9 @@ mock_work_pool_types_response = {
 @pytest.fixture
 async def mock_work_pool_types():
     with respx.mock(
-        using="httpcore2", assert_all_mocked=False, base_url=PREFECT_API_URL.value()
+        using=httpcore.__name__,
+        assert_all_mocked=False,
+        base_url=PREFECT_API_URL.value(),
     ) as respx_mock:
         respx_mock.route(
             M(
@@ -82,7 +85,9 @@ async def test_get_cloud_work_pool_types():
         }
     ):
         with respx.mock(
-            assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpcore2"
+            assert_all_mocked=False,
+            base_url=PREFECT_API_URL.value(),
+            using=httpcore.__name__,
         ) as respx_mock:
             respx_mock.route(
                 M(
@@ -108,7 +113,9 @@ async def test_read_current_workspace():
 
     with temporary_settings(updates={PREFECT_API_URL: api_url}):
         with respx.mock(
-            assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpcore2"
+            assert_all_mocked=False,
+            base_url=PREFECT_API_URL.value(),
+            using=httpcore.__name__,
         ) as respx_mock:
             respx_mock.get("https://api.prefect.cloud/api/me/workspaces").respond(
                 200,

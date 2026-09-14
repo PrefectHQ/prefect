@@ -44,8 +44,24 @@ with get_client(sync_client=True) as client:
 
 </CodeGroup>
 
-If you pass custom authentication, timeout, or transport objects through `httpx_settings`, use types from `httpx2`.
-Use `httpx2` exception classes when catching HTTP errors from the Prefect client.
+### HTTP backend compatibility
+
+Prefect continues to use HTTPX by default, including its authentication, transport, response, and exception types.
+The HTTPX backend is deprecated. It remains available for at least six months and three minor version increases
+after the first release announcing its deprecation, following the [versioning policy](/v3/release-notes/versioning#deprecation).
+
+To opt into HTTPX2, install `prefect[httpx2]` (or `prefect-client[httpx2]`) and set this environment variable
+before starting Python or a worker:
+
+{/* pmd-metadata: notest */}
+```bash
+export PREFECT_CLIENT_HTTP_BACKEND=httpx2
+```
+
+Each process selects its backend once, and flow-run subprocesses inherit the selection.
+Installing the extra alone does not change the backend.
+When using HTTPX2, pass `httpx2` authentication, timeout, and transport objects through `httpx_settings`,
+and catch `httpx2` exceptions instead of `httpx` exceptions.
 
 ## Pagination and default query limits
 
@@ -552,4 +568,3 @@ for artifact in response.json():
 If you don't specify a key or that a key must exist, you will also return results, which are a type of key-less artifact.
 
 See the [Prefect REST API documentation](/v3/api-ref/rest-api/) on artifacts for more information.
-

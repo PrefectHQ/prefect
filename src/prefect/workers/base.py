@@ -26,7 +26,6 @@ from zoneinfo import ZoneInfo
 
 import anyio
 import anyio.abc
-import httpx2
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
@@ -35,6 +34,7 @@ from typing_extensions import Literal, Self, TypeVar
 import prefect
 import prefect.types._datetime
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect._internal.launchers import resolve_bundle_step_with_launcher
 from prefect._internal.observers import FlowRunCancellingObserver
@@ -119,11 +119,11 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
 
 
-def _is_transient_api_error(exc: httpx2.HTTPError) -> bool:
+def _is_transient_api_error(exc: httpx.HTTPError) -> bool:
     """Whether an API error is likely to resolve itself if retried."""
-    if isinstance(exc, httpx2.HTTPStatusError):
+    if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code >= 500
-    return isinstance(exc, httpx2.TransportError)
+    return isinstance(exc, httpx.TransportError)
 
 
 class BaseJobConfiguration(BaseModel):
@@ -1242,7 +1242,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         try:
             await self._sync_and_initialize()
-        except httpx2.HTTPError as exc:
+        except httpx.HTTPError as exc:
             if not _is_transient_api_error(exc):
                 raise
             self._logger.warning(

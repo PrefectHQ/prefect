@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from httpx2 import HTTPStatusError
-
+from prefect._internal.compatibility.httpx import HTTPStatusError
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
@@ -116,7 +115,7 @@ class BlocksDocumentClient(BaseClient):
                 Block may not work if this is `False`.
 
         Raises:
-            httpx2.RequestError: if the block document was not found for any reason
+            httpx.RequestError: if the block document was not found for any reason
 
         Returns:
             A block document or None.
@@ -274,7 +273,7 @@ class BlocksDocumentAsyncClient(BaseAsyncClient):
                 Block may not work if this is `False`.
 
         Raises:
-            httpx2.RequestError: if the block document was not found for any reason
+            httpx.RequestError: if the block document was not found for any reason
 
         Returns:
             A block document or None.

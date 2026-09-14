@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from httpx2 import HTTPStatusError, RequestError
-
+from prefect._internal.compatibility.httpx import HTTPStatusError, RequestError
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectNotFound
 
@@ -34,7 +33,7 @@ class FlowClient(BaseClient):
             flow: a `Flow` object
 
         Raises:
-            httpx2.RequestError: if a flow was not created for any reason
+            httpx.RequestError: if a flow was not created for any reason
 
         Returns:
             the ID of the flow in the backend
@@ -49,7 +48,7 @@ class FlowClient(BaseClient):
             flow_name: the name of the new flow
 
         Raises:
-            httpx2.RequestError: if a flow was not created for any reason
+            httpx.RequestError: if a flow was not created for any reason
 
         Returns:
             the ID of the flow in the backend
@@ -93,7 +92,7 @@ class FlowClient(BaseClient):
             flow_id: ID of the flow to be deleted
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx2.RequestError: If requests fail
+            httpx.RequestError: If requests fail
         """
         try:
             self.request("DELETE", "/flows/{id}", path_params={"id": flow_id})
@@ -194,7 +193,7 @@ class FlowAsyncClient(BaseAsyncClient):
             flow: a `Flow` object
 
         Raises:
-            httpx2.RequestError: if a flow was not created for any reason
+            httpx.RequestError: if a flow was not created for any reason
 
         Returns:
             the ID of the flow in the backend
@@ -209,7 +208,7 @@ class FlowAsyncClient(BaseAsyncClient):
             flow_name: the name of the new flow
 
         Raises:
-            httpx2.RequestError: if a flow was not created for any reason
+            httpx.RequestError: if a flow was not created for any reason
 
         Returns:
             the ID of the flow in the backend
@@ -253,7 +252,7 @@ class FlowAsyncClient(BaseAsyncClient):
             flow_id: ID of the flow to be deleted
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx2.RequestError: If requests fail
+            httpx.RequestError: If requests fail
         """
         try:
             await self.request("DELETE", "/flows/{id}", path_params={"id": flow_id})

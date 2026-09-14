@@ -3,6 +3,7 @@ from unittest.mock import ANY
 import pytest
 import respx
 
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.server.api import collections
 from prefect.settings import PREFECT_API_URL
 
@@ -477,7 +478,7 @@ def mock_collection_registry(
     }
 
     with respx.mock(
-        using="httpcore2",
+        using=httpcore.__name__,
         assert_all_mocked=False,
         assert_all_called=False,
         base_url=PREFECT_API_URL.value(),
