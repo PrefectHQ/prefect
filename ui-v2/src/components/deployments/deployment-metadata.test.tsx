@@ -114,6 +114,19 @@ describe("DeploymentMetadata", () => {
 			expect(await screen.findByRole("tooltip")).toHaveTextContent(created);
 		});
 
+		it("exposes the precise timestamp to keyboard users", async () => {
+			const user = userEvent.setup();
+			renderDeploymentMetadata({ created, updated });
+
+			await screen.findByText("Sep 14th, 2026 at 02:57 PM");
+			await user.tab();
+
+			expect(
+				screen.getByRole("button", { name: "Sep 14th, 2026 at 02:57 PM" }),
+			).toHaveFocus();
+			expect(await screen.findByRole("tooltip")).toHaveTextContent(created);
+		});
+
 		it("shows 'None' when timestamps are missing", async () => {
 			renderDeploymentMetadata({ created: undefined, updated: undefined });
 

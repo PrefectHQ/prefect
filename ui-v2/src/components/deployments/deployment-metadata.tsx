@@ -33,7 +33,7 @@ const TimestampValue = ({ value }: { value: string }) => (
 	<FieldValue>
 		<TooltipProvider>
 			<Tooltip>
-				<TooltipTrigger asChild>
+				<TooltipTrigger className="cursor-default">
 					<time dateTime={value}>{formatDate(value, "dateTime")}</time>
 				</TooltipTrigger>
 				<TooltipContent>
