@@ -11,10 +11,13 @@ import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import { createFakeDeployment } from "@/mocks";
+import { formatDate } from "@/utils/date";
 import { DeploymentMetadata } from "./deployment-metadata";
 
-const renderDeploymentMetadata = ({ tags }: { tags: string[] }) => {
-	const deployment = createFakeDeployment({ tags });
+const renderDeploymentMetadata = (
+	overrides?: Parameters<typeof createFakeDeployment>[0],
+) => {
+	const deployment = createFakeDeployment(overrides);
 
 	const rootRoute = createRootRoute();
 	const deploymentsRoute = createRoute({
@@ -83,5 +86,56 @@ describe("DeploymentMetadata", () => {
 		const tagsDt = screen.getByText("Tags");
 		const tagsDd = tagsDt.parentElement?.querySelector("dd");
 		expect(tagsDd).toHaveTextContent("None");
+	});
+
+	it("renders created and updated as readable dates", async () => {
+		const created = "2026-09-14T14:57:45.535230Z";
+		const updated = "2026-09-15T09:03:12.000000Z";
+
+		renderDeploymentMetadata({ created, updated });
+
+		await waitFor(() => {
+			expect(screen.getByText("Created")).toBeInTheDocument();
+		});
+
+		expect(
+			screen.getByText(formatDate(created, "dateTime")),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText(formatDate(updated, "dateTime")),
+		).toBeInTheDocument();
+	});
+
+	it("keeps the precise timestamp reachable in the tooltip", async () => {
+		const user = userEvent.setup();
+		const created = "2026-09-14T14:57:45.535230Z";
+
+		renderDeploymentMetadata({ created });
+
+		await waitFor(() => {
+			expect(screen.getByText("Created")).toBeInTheDocument();
+		});
+
+		await user.hover(screen.getByText(formatDate(created, "dateTime")));
+
+		const tooltip = await screen.findByRole("tooltip");
+		expect(tooltip).toHaveTextContent(created);
+	});
+
+	it("shows 'None' when a timestamp is missing", async () => {
+		renderDeploymentMetadata({ created: undefined, updated: undefined });
+
+		await waitFor(() => {
+			expect(screen.getByText("Created")).toBeInTheDocument();
+		});
+
+		const createdDd = screen
+			.getByText("Created")
+			.parentElement?.querySelector("dd");
+		const updatedDd = screen
+			.getByText("Updated")
+			.parentElement?.querySelector("dd");
+		expect(createdDd).toHaveTextContent("None");
+		expect(updatedDd).toHaveTextContent("None");
 	});
 });

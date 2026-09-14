@@ -3,7 +3,13 @@ import { useCallback } from "react";
 import type { Deployment } from "@/api/deployments";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/utils";
+import { formatDate } from "@/utils/date";
 
 type DeploymentMetadataProps = {
 	deployment: Deployment;
@@ -21,6 +27,20 @@ const FieldValue = ({
 	className?: string;
 	children: React.ReactNode;
 }) => <dd className={cn("text-sm", className)}>{children}</dd>;
+
+const FormattedTimestamp = ({ value }: { value: string }) => (
+	<Tooltip>
+		<FieldValue>
+			<TooltipTrigger asChild>
+				<span>{formatDate(value, "dateTime")}</span>
+			</TooltipTrigger>
+		</FieldValue>
+		<TooltipContent>
+			<p>{value}</p>
+		</TooltipContent>
+	</Tooltip>
+);
+
 export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 	const navigate = useNavigate();
 
@@ -47,7 +67,7 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 			field: "Created",
 			ComponentValue: () =>
 				deployment.created ? (
-					<FieldValue className="font-mono">{deployment.created}</FieldValue>
+					<FormattedTimestamp value={deployment.created} />
 				) : (
 					<None />
 				),
@@ -56,7 +76,7 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 			field: "Updated",
 			ComponentValue: () =>
 				deployment.updated ? (
-					<FieldValue className="font-mono">{deployment.updated}</FieldValue>
+					<FormattedTimestamp value={deployment.updated} />
 				) : (
 					<None />
 				),
