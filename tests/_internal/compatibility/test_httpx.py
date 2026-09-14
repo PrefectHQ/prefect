@@ -1,3 +1,4 @@
+import importlib.util
 import os
 import subprocess
 import sys
@@ -8,6 +9,17 @@ from pathlib import Path
 import pytest
 
 RunPython = Callable[[str, str | None], subprocess.CompletedProcess[str]]
+
+HTTP_BACKENDS = [
+    "httpx",
+    pytest.param(
+        "httpx2",
+        marks=pytest.mark.skipif(
+            importlib.util.find_spec("httpx2") is None,
+            reason="Requires the httpx2 extra; exercised by the HTTPX2 CI job",
+        ),
+    ),
+]
 
 
 @pytest.fixture
@@ -39,12 +51,13 @@ def run_python(tmp_path: Path, hosted_api_server: str) -> RunPython:
     return run
 
 
-@pytest.mark.parametrize("backend", [None, "httpx", "httpx2"])
+@pytest.mark.parametrize("backend", [None, *HTTP_BACKENDS])
 def test_backend_selection_is_explicit(run_python: RunPython, backend: str | None):
     result = run_python(
         f"""
-        import importlib
-        import httpx2
+        import importlib.util
+        if importlib.util.find_spec("httpx2") is not None:
+            import httpx2
         from prefect.client.base import PrefectHttpxSyncClient
         from prefect.exceptions import PrefectHTTPStatusError
 
@@ -118,7 +131,7 @@ def test_invalid_backend_has_configuration_error(run_python: RunPython):
     assert "got 'unsupported'" in result.stderr
 
 
-@pytest.mark.parametrize("backend", ["httpx", "httpx2"])
+@pytest.mark.parametrize("backend", HTTP_BACKENDS)
 def test_backend_cannot_change_after_import(run_python: RunPython, backend: str):
     other_backend = "httpx2" if backend == "httpx" else "httpx"
     result = run_python(
@@ -139,7 +152,7 @@ def test_backend_cannot_change_after_import(run_python: RunPython, backend: str)
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize("backend", ["httpx", "httpx2"])
+@pytest.mark.parametrize("backend", HTTP_BACKENDS)
 def test_legacy_warning_is_visible_once_per_process(
     run_python: RunPython, backend: str
 ):
@@ -168,7 +181,7 @@ def test_legacy_warning_is_visible_once_per_process(
         assert "PREFECT_CLIENT_HTTP_BACKEND=httpx2" in result.stderr
 
 
-@pytest.mark.parametrize("backend", ["httpx", "httpx2"])
+@pytest.mark.parametrize("backend", HTTP_BACKENDS)
 def test_flow_subprocess_inherits_backend(
     run_python: RunPython, tmp_path: Path, backend: str
 ):
@@ -206,7 +219,7 @@ def test_flow_subprocess_inherits_backend(
     assert (tmp_path / "backend-result.txt").read_text() == backend
 
 
-@pytest.mark.parametrize("backend", ["httpx", "httpx2"])
+@pytest.mark.parametrize("backend", HTTP_BACKENDS)
 @pytest.mark.parametrize(
     "override_location", ["flow_environment", "process_environment"]
 )
