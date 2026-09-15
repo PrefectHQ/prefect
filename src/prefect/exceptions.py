@@ -7,12 +7,14 @@ import traceback
 from collections.abc import Iterable
 from types import ModuleType, TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Optional
+from uuid import UUID
 
 from httpx import HTTPStatusError
 from pydantic import ValidationError
 from typing_extensions import Self
 
 if TYPE_CHECKING:
+    from prefect.client.schemas.objects import StateType
     from prefect.states import State
 
 
@@ -265,6 +267,29 @@ class UpstreamTaskError(PrefectException):
     Raised when a task relies on the result of another task but that task is not
     'COMPLETE'
     """
+
+    def __init__(
+        self,
+        *args: Any,
+        upstream_flow_run_id: UUID | None = None,
+        upstream_task_run_id: UUID | None = None,
+        upstream_state_type: "StateType | None" = None,
+        upstream_state_name: str | None = None,
+        root_cause_flow_run_id: UUID | None = None,
+        root_cause_task_run_id: UUID | None = None,
+        root_cause_state_type: "StateType | None" = None,
+        root_cause_state_name: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.upstream_flow_run_id = upstream_flow_run_id
+        self.upstream_task_run_id = upstream_task_run_id
+        self.upstream_state_type = upstream_state_type
+        self.upstream_state_name = upstream_state_name
+        self.root_cause_flow_run_id = root_cause_flow_run_id
+        self.root_cause_task_run_id = root_cause_task_run_id
+        self.root_cause_state_type = root_cause_state_type
+        self.root_cause_state_name = root_cause_state_name
 
 
 class MissingContextError(PrefectException, RuntimeError):
