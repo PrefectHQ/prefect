@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Union
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, Response, status
@@ -24,7 +24,11 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import (
+    PrefectDBInterface,
+    orm_models,
+    provide_database_interface,
+)
 from prefect.server.models import concurrency_limits
 from prefect.server.models import concurrency_limits_v2 as cl_v2_models
 from prefect.server.utilities.server import PrefectRouter
@@ -187,10 +191,31 @@ async def read_concurrency_limit_by_tag(
     return v1_model
 
 
+def _v2_filter_for_tag_filter(
+    concurrency_limits: Optional[schemas.filters.ConcurrencyLimitFilter],
+) -> schemas.filters.ConcurrencyLimitV2Filter:
+    """
+    Convert a v1 tag filter into a v2 filter for the `tag:` prefixed limits that
+    back tag-based concurrency limits.
+    """
+    tag_filter = concurrency_limits.tag if concurrency_limits else None
+
+    return schemas.filters.ConcurrencyLimitV2Filter(
+        name=schemas.filters.ConcurrencyLimitV2FilterName(
+            starts_with_="tag:",
+            like_=tag_filter.like_ if tag_filter else None,
+            any_=[f"tag:{tag}" for tag in tag_filter.any_]
+            if tag_filter and tag_filter.any_ is not None
+            else None,
+        )
+    )
+
+
 @router.post("/filter")
 async def read_concurrency_limits(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
+    concurrency_limits: Optional[schemas.filters.ConcurrencyLimitFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> Sequence[schemas.core.ConcurrencyLimit]:
     """
@@ -199,42 +224,83 @@ async def read_concurrency_limits(
     For each concurrency limit the `active slots` field contains a list of TaskRun IDs
     currently using a concurrency slot for the specified tag.
     """
-    # Get both V1 and V2, then merge
+    # Get both V1 and V2, then merge. Each source gives all of the rows up to the
+    # end of the requested page, because a tag can come from either source. V1
+    # also gives one row for each V2 row, because the merge can remove that many
+    # V1 rows.
     async with db.session_context() as session:
-        v1_limits = await models.concurrency_limits.read_concurrency_limits(
-            session=session, limit=limit + offset, offset=0
-        )
         v2_limits = await cl_v2_models.read_all_concurrency_limits(
-            session=session, limit=limit + offset, offset=0
+            session=session,
+            limit=limit + offset,
+            offset=0,
+            concurrency_limit_filter=_v2_filter_for_tag_filter(concurrency_limits),
         )
+        v1_limits = await models.concurrency_limits.read_concurrency_limits(
+            session=session,
+            limit=limit + offset + len(v2_limits),
+            offset=0,
+            concurrency_limit_filter=concurrency_limits,
+        )
+
+    # Merge and deduplicate by tag (prefer V2), then keep the requested page
+    v2_by_tag = {v2_limit.name.removeprefix("tag:"): v2_limit for v2_limit in v2_limits}
+    combined: list[
+        tuple[str, Union[orm_models.ConcurrencyLimit, orm_models.ConcurrencyLimitV2]]
+    ] = list(v2_by_tag.items()) + [
+        (v1_limit.tag, v1_limit)
+        for v1_limit in v1_limits
+        if v1_limit.tag not in v2_by_tag
+    ]
+    page = sorted(combined, key=lambda item: item[0])[offset : offset + limit]
 
     # Convert V2 to V1 format
-    converted_v2: list[schemas.core.ConcurrencyLimit] = []
     lease_storage = get_concurrency_lease_storage()
+    results: list[schemas.core.ConcurrencyLimit] = []
 
-    for v2_limit in v2_limits:
-        if not v2_limit.name.startswith("tag:"):
+    for tag, model in page:
+        if isinstance(model, orm_models.ConcurrencyLimit):
+            results.append(schemas.core.ConcurrencyLimit.model_validate(model))
             continue
-        tag = v2_limit.name.removeprefix("tag:")
-        holders = await lease_storage.list_holders_for_limit(v2_limit.id)
+
+        holders = await lease_storage.list_holders_for_limit(model.id)
         active_slots = [h.id for _, h in holders if h.type == "task_run"]
 
-        converted_v2.append(
+        results.append(
             schemas.core.ConcurrencyLimit(
-                id=v2_limit.id,
+                id=model.id,
                 tag=tag,
-                concurrency_limit=v2_limit.limit,
+                concurrency_limit=model.limit,
                 active_slots=active_slots,
-                created=v2_limit.created,
-                updated=v2_limit.updated,
+                created=model.created,
+                updated=model.updated,
             )
         )
 
-    # Merge and deduplicate by tag (prefer V2)
-    seen_tags = {cl.tag for cl in converted_v2}
-    combined = converted_v2 + [cl for cl in v1_limits if cl.tag not in seen_tags]
+    return results
 
-    return combined[offset : offset + limit]
+
+@router.post("/count")
+async def count_concurrency_limits(
+    concurrency_limits: Optional[schemas.filters.ConcurrencyLimitFilter] = Body(
+        None, embed=True
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    """
+    Count concurrency limits.
+    """
+    async with db.session_context() as session:
+        v2_count = await cl_v2_models.count_concurrency_limits(
+            session=session,
+            concurrency_limit_filter=_v2_filter_for_tag_filter(concurrency_limits),
+        )
+        v1_count = await models.concurrency_limits.count_concurrency_limits(
+            session=session,
+            concurrency_limit_filter=concurrency_limits,
+            exclude_tags_with_v2_limit=True,
+        )
+
+    return v2_count + v1_count
 
 
 @router.post("/tag/{tag}/reset")
