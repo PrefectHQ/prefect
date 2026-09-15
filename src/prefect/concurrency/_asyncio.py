@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, AsyncGenerator, Literal, Optional
 from uuid import UUID
 
 import anyio
-import httpx
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import (
     ConcurrencyLimitWithLeaseResponse,

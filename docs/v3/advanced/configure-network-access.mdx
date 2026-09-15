@@ -70,15 +70,18 @@ Set `PREFECT_SERVER_ANALYTICS_ENABLED=false` on the server to disable the server
 
 ## Configure a proxy
 
-The Prefect client uses [`httpx`](https://www.python-httpx.org/) for HTTP requests.
-`httpx` respects standard proxy environment variables, so you can route Prefect traffic through a
+The Prefect client respects standard proxy environment variables, so you can route Prefect traffic through a
 corporate proxy:
 
 {/* pmd-metadata: notest */}
 ```bash
 export HTTPS_PROXY=http://proxy.example.com:8080
+export PREFECT_API_SSL_CERT_FILE=/path/to/corporate-ca-bundle.crt
 export SSL_CERT_FILE=/path/to/corporate-ca-bundle.crt
 ```
+
+Use `PREFECT_API_SSL_CERT_FILE` for orchestration requests and `SSL_CERT_FILE` for other HTTP
+requests, such as Cloud account operations.
 
 See the [GitHub Discussion on using Prefect Cloud with proxies](https://github.com/PrefectHQ/prefect/discussions/16175)
 for additional configuration examples.

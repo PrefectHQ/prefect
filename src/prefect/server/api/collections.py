@@ -1,11 +1,11 @@
 import json
 from typing import Any, Dict
 
-import httpx
 from anyio import Path
 from cachetools import TTLCache
 from fastapi import HTTPException, status
 
+from prefect._internal.compatibility.httpx import AsyncClient, create_ssl_context, httpx
 from prefect.server.utilities.server import PrefectRouter
 
 router: PrefectRouter = PrefectRouter(prefix="/collections", tags=["Collections"])
@@ -52,7 +52,7 @@ async def get_collection_view(view: str) -> dict[str, Any]:
         pass
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with AsyncClient(verify=create_ssl_context()) as client:
             resp = await client.get(KNOWN_VIEWS[view])
             resp.raise_for_status()
 

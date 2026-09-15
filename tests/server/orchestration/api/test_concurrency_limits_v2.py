@@ -3,13 +3,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Generator
 
-import httpx
 import pytest
 import sqlalchemy as sa
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client import schemas as client_schemas
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import (
@@ -55,9 +54,9 @@ def app(use_filesystem_lease_storage: None) -> Generator[FastAPI, Any, None]:
 
 
 @pytest.fixture
-async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
+async def client(app: FastAPI) -> AsyncGenerator[httpx.AsyncClient, Any]:
     async with httpx.AsyncClient(
-        transport=ASGITransport(app=app), base_url="https://test/api"
+        transport=httpx.ASGITransport(app=app), base_url="https://test/api"
     ) as async_client:
         yield async_client
 
@@ -137,7 +136,7 @@ async def expiring_concurrency_lease(
     )
 
 
-async def test_create_concurrency_limit(client: AsyncClient):
+async def test_create_concurrency_limit(client: httpx.AsyncClient):
     data = client_schemas.actions.ConcurrencyLimitV2Create(
         name="limiter",
         limit=42,
@@ -150,7 +149,7 @@ async def test_create_concurrency_limit(client: AsyncClient):
 
 async def test_read_concurrency_limit_by_id(
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
     assert response.status_code == 200, response.text
@@ -161,7 +160,7 @@ async def test_read_concurrency_limit_by_id(
 
 async def test_read_concurrency_limit_by_name(
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.name}")
     assert response.status_code == 200
@@ -173,7 +172,7 @@ async def test_read_concurrency_limit_by_name(
 async def test_read_concurrency_limit_returns_decayed_active_slots(
     session: AsyncSession,
     db: PrefectDBInterface,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     concurrency_limit = await create_concurrency_limit(
         session=session,
@@ -201,7 +200,7 @@ async def test_read_concurrency_limit_returns_decayed_active_slots(
 
 
 async def test_read_concurrency_non_existent_limit(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     response = await client.get(f"/v2/concurrency_limits/{uuid.uuid4()}")
     assert response.status_code == 404
@@ -211,7 +210,7 @@ async def test_read_all_concurrency_limits(
     concurrency_limit: ConcurrencyLimitV2,
     locked_concurrency_limit: ConcurrencyLimitV2,
     concurrency_limit_with_decay: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     response = await client.post("/v2/concurrency_limits/filter")
     assert response.status_code == 200
@@ -228,7 +227,7 @@ async def test_read_all_concurrency_limits(
 async def test_read_all_concurrency_limits_returns_decayed_active_slots(
     session: AsyncSession,
     db: PrefectDBInterface,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     concurrency_limit = await create_concurrency_limit(
         session=session,
@@ -256,7 +255,7 @@ async def test_read_all_concurrency_limits_returns_decayed_active_slots(
 
 async def test_update_concurrency_limit_by_id(
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     response = await client.patch(
@@ -277,7 +276,7 @@ async def test_update_concurrency_limit_by_id(
 async def test_update_concurrency_limit_does_not_persist_decayed_active_slots(
     session: AsyncSession,
     db: PrefectDBInterface,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     concurrency_limit = await create_concurrency_limit(
         session=session,
@@ -315,7 +314,7 @@ async def test_update_concurrency_limit_does_not_persist_decayed_active_slots(
 
 async def test_update_concurrency_limit_by_name(
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     response = await client.patch(
@@ -334,7 +333,7 @@ async def test_update_concurrency_limit_by_name(
 
 
 async def test_update_concurrency_non_existent_limit(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     response = await client.patch(
         f"/v2/concurrency_limits/{uuid.uuid4()}",
@@ -347,7 +346,7 @@ async def test_update_concurrency_non_existent_limit(
 
 async def test_delete_concurrency_limit_by_id(
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     response = await client.delete(f"/v2/concurrency_limits/{concurrency_limit.id}")
@@ -360,7 +359,7 @@ async def test_delete_concurrency_limit_by_id(
 
 async def test_delete_concurrency_limit_by_name(
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     response = await client.delete(f"/v2/concurrency_limits/{concurrency_limit.name}")
@@ -372,7 +371,7 @@ async def test_delete_concurrency_limit_by_name(
 
 
 async def test_delete_concurrency_non_existent_limit(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     response = await client.delete(f"/v2/concurrency_limits/{uuid.uuid4()}")
     assert response.status_code == 404
@@ -381,7 +380,7 @@ async def test_delete_concurrency_non_existent_limit(
 @pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_slots_gt_zero_422(
     endpoint: str,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     response = await client.post(
         f"/v2/concurrency_limits/{endpoint}",
@@ -393,7 +392,7 @@ async def test_increment_concurrency_limit_slots_gt_zero_422(
 @pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_slots_with_unknown_name(
     endpoint: str,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     response = await client.post(
         f"/v2/concurrency_limits/{endpoint}",
@@ -406,7 +405,7 @@ async def test_increment_concurrency_limit_slots_with_unknown_name(
 
 async def test_increment_concurrency_limit_simple(
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     assert concurrency_limit.active_slots == 0
@@ -426,7 +425,7 @@ async def test_increment_concurrency_limit_simple(
 
 @pytest.mark.usefixtures("use_filesystem_lease_storage")
 async def test_increment_concurrency_limit_with_lease_simple(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     concurrency_limit: ConcurrencyLimitV2,
 ):
     assert concurrency_limit.active_slots == 0
@@ -450,7 +449,7 @@ async def test_increment_concurrency_limit_with_lease_simple(
 
 
 async def test_increment_concurrency_limit_with_lease_and_holder(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     concurrency_limit: ConcurrencyLimitV2,
 ):
     # Test with flow_run holder
@@ -480,7 +479,7 @@ async def test_increment_concurrency_limit_with_lease_and_holder(
 
 
 async def test_increment_concurrency_limit_with_different_holder_types(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     concurrency_limit: ConcurrencyLimitV2,
 ):
     # Test with task_run holder
@@ -527,7 +526,7 @@ async def test_increment_concurrency_limit_with_different_holder_types(
 
 
 async def test_increment_concurrency_limit_with_invalid_holder(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     concurrency_limit: ConcurrencyLimitV2,
 ):
     # Test with invalid holder type
@@ -583,7 +582,7 @@ async def test_increment_concurrency_limit_with_invalid_holder(
 
 
 async def test_increment_concurrency_limit_with_lease_no_holder(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     concurrency_limit: ConcurrencyLimitV2,
 ):
     # Test without holder (should still work for backward compatibility)
@@ -600,7 +599,7 @@ async def test_increment_concurrency_limit_with_lease_no_holder(
 
 
 async def test_increment_concurrency_limit_with_lease_ttl(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     concurrency_limit: ConcurrencyLimitV2,
 ):
     assert concurrency_limit.active_slots == 0
@@ -629,7 +628,7 @@ async def test_increment_concurrency_limit_with_lease_ttl(
 
 
 async def test_increment_concurrency_limit_with_lease_ttl_out_of_range(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     concurrency_limit: ConcurrencyLimitV2,
 ):
     response = await client.post(
@@ -659,7 +658,7 @@ async def test_increment_concurrency_limit_with_lease_ttl_out_of_range(
 async def test_increment_concurrency_limit_multi(
     endpoint: str,
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     db: PrefectDBInterface,
 ):
     async with db.session_context() as session:
@@ -704,7 +703,7 @@ async def test_increment_concurrency_limit_multi(
 @pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_inactive(
     endpoint: str,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     inactive = await create_concurrency_limit(
@@ -737,7 +736,7 @@ async def test_increment_concurrency_limit_inactive(
 async def test_increment_concurrency_limit_locked(
     endpoint: str,
     locked_concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     assert locked_concurrency_limit.active_slots == locked_concurrency_limit.limit
@@ -763,7 +762,7 @@ async def test_increment_concurrency_limit_locked(
 async def test_increment_concurrency_limit_locked_no_decay_retry_after_header(
     endpoint: str,
     locked_concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     await bulk_update_denied_slots(
@@ -795,7 +794,7 @@ async def test_increment_concurrency_limit_locked_no_decay_retry_after_header(
 async def test_increment_concurrency_limit_with_decay_locked_retry_after_header(
     endpoint: str,
     locked_concurrency_limit_with_decay: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     await bulk_update_denied_slots(
@@ -848,7 +847,7 @@ async def locked_tag_concurrency_limit(session: AsyncSession) -> ConcurrencyLimi
 async def test_increment_concurrency_limit_locked_caps_excessive_retry_after(
     endpoint: str,
     locked_tag_concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     """
@@ -918,7 +917,7 @@ async def locked_tag_concurrency_limit_low_avg(
 async def test_increment_concurrency_limit_locked_respects_low_avg(
     endpoint: str,
     locked_tag_concurrency_limit_low_avg: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     """
@@ -986,7 +985,7 @@ async def locked_concurrency_limit_moderate_avg(
 async def test_increment_concurrency_limit_caps_retry_after_with_high_denied_slots(
     endpoint: str,
     locked_concurrency_limit_moderate_avg: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     """
@@ -1039,7 +1038,7 @@ async def test_increment_concurrency_limit_caps_retry_after_with_high_denied_slo
 async def test_increment_concurrency_limit_slot_request_higher_than_limit(
     endpoint: str,
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     response = await client.post(
@@ -1064,7 +1063,7 @@ async def test_increment_concurrency_limit_slot_request_higher_than_limit(
 async def test_increment_concurrency_limit_rate_limit_mode(
     endpoint: str,
     concurrency_limit_with_decay: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     response = await client.post(
@@ -1087,7 +1086,7 @@ async def test_increment_concurrency_limit_rate_limit_mode(
 @pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_rate_limit_mode_doesnt_create_by_default(
     endpoint: str,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     response = await client.post(
@@ -1111,7 +1110,7 @@ async def test_increment_concurrency_limit_rate_limit_mode_doesnt_create_by_defa
 async def test_increment_concurrency_limit_rate_limit_mode_limit_without_decay(
     endpoint: str,
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     response = await client.post(
@@ -1138,7 +1137,7 @@ async def test_increment_concurrency_limit_rate_limit_mode_limit_without_decay(
     assert refreshed_limit.active_slots == 0
 
 
-async def test_decrement_concurrency_limit_slots_gt_zero_422(client: AsyncClient):
+async def test_decrement_concurrency_limit_slots_gt_zero_422(client: httpx.AsyncClient):
     response = await client.post(
         "/v2/concurrency_limits/decrement",
         json={"names": ["my-limit"], "slots": 0, "mode": "concurrency"},
@@ -1150,7 +1149,7 @@ async def test_decrement_concurrency_limit_slots_gt_zero_422(client: AsyncClient
 async def test_decrement_concurrency_limit(
     locked_concurrency_limit: ConcurrencyLimitV2,
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     assert concurrency_limit.active_slots == 0
@@ -1187,7 +1186,7 @@ async def test_decrement_concurrency_limit(
 @pytest.mark.usefixtures("use_filesystem_lease_storage")
 async def test_decrement_concurrency_limit_with_lease(
     concurrency_limit: ConcurrencyLimitV2,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     session: AsyncSession,
 ):
     assert concurrency_limit.active_slots == 0
@@ -1226,7 +1225,7 @@ async def test_decrement_concurrency_limit_with_lease(
 
 async def test_renew_concurrency_lease(
     expiring_concurrency_lease: ResourceLease[ConcurrencyLimitLeaseMetadata],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     lease_storage = get_concurrency_lease_storage()
     expired_lease_ids = await lease_storage.read_expired_lease_ids()
@@ -1250,7 +1249,7 @@ async def test_renew_concurrency_lease(
 
 
 async def test_renew_concurrency_lease_not_found(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
 ):
     response = await client.post(
         f"/v2/concurrency_limits/leases/{uuid.uuid4()}/renew",
@@ -1261,7 +1260,7 @@ async def test_renew_concurrency_lease_not_found(
 
 async def test_renew_concurrency_lease_with_legacy_implementation(
     expiring_concurrency_lease: ResourceLease[ConcurrencyLimitLeaseMetadata],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     monkeypatch,
 ):
     """Test that None return value from legacy implementations is treated as success when lease exists."""
@@ -1294,7 +1293,7 @@ async def test_renew_concurrency_lease_with_legacy_implementation(
 
 
 async def test_renew_concurrency_lease_with_legacy_implementation_not_found(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     monkeypatch,
 ):
     """Test that None return value from legacy implementations is treated as error when lease doesn't exist."""

@@ -14,8 +14,9 @@ from types import GeneratorType
 from typing import TYPE_CHECKING, Any, Optional
 
 import anyio
-import httpx
 import sniffio
+
+from prefect._internal.compatibility.httpx import httpx
 
 try:
     _AnyioNoEventLoopError: type[BaseException] = anyio.NoEventLoopError

@@ -7,10 +7,11 @@ from uuid import uuid4
 
 import pytest
 import respx
-from httpx import Response
+from httpx import Response as MockResponse
 from opentelemetry import trace
 
 from prefect import flow
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRunResult
 from prefect.context import FlowRunContext
@@ -123,7 +124,9 @@ class TestRunDeployment:
         }
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(), assert_all_mocked=True, using="httpx"
+            base_url=PREFECT_API_URL.value(),
+            assert_all_mocked=True,
+            using=httpcore.__name__,
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(
@@ -132,10 +135,8 @@ class TestRunDeployment:
             router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
             flow_polls = router.request(
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
-            ).mock(
-                return_value=Response(
-                    200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
-                )
+            ).respond(
+                200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
             )
 
             flow_run = await run_deployment(
@@ -160,7 +161,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
-            using="httpx",
+            using=httpcore.__name__,
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(
@@ -169,10 +170,8 @@ class TestRunDeployment:
             router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
             flow_polls = router.request(
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
-            ).mock(
-                return_value=Response(
-                    200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
-                )
+            ).respond(
+                200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
             )
 
             flow_run = await run_deployment(
@@ -196,13 +195,14 @@ class TestRunDeployment:
             "flow_id": str(uuid4()),
         }
 
+        # RESPX response sequences still use legacy HTTPX at the mocking boundary.
         side_effects = [
-            Response(
+            MockResponse(
                 200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
             )
         ]
         side_effects.append(
-            Response(
+            MockResponse(
                 200,
                 json={
                     **mock_flowrun_response,
@@ -215,7 +215,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
-            using="httpx",
+            using=httpcore.__name__,
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(
@@ -244,13 +244,14 @@ class TestRunDeployment:
             "flow_id": str(uuid4()),
         }
 
+        # RESPX response sequences still use legacy HTTPX at the mocking boundary.
         side_effects = [
-            Response(
+            MockResponse(
                 200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
             )
         ] * 99
         side_effects.append(
-            Response(
+            MockResponse(
                 200, json={**mock_flowrun_response, "state": {"type": "COMPLETED"}}
             )
         )
@@ -259,7 +260,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
-            using="httpx",
+            using=httpcore.__name__,
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(

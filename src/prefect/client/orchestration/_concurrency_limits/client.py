@@ -2,16 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal
 
-from httpx import HTTPStatusError, RequestError
-
+from prefect._internal.compatibility.httpx import HTTPStatusError, RequestError
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from httpx import Response
-
+    from prefect._internal.compatibility.httpx import Response
     from prefect.client.schemas.actions import (
         GlobalConcurrencyLimitCreate,
         GlobalConcurrencyLimitUpdate,

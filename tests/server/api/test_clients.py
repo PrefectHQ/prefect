@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING, AsyncGenerator, List
 from unittest import mock
 from uuid import uuid4
 
-import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server.api.clients import OrchestrationClient
 from prefect.server.api.server import create_app
 from prefect.server.models import deployments, flow_runs, flows

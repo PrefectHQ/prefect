@@ -5,8 +5,8 @@ from uuid import UUID, uuid4
 import pytest
 import sqlalchemy as sa
 from fastapi import status
-from httpx import AsyncClient
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
 from prefect.types._datetime import now
@@ -95,7 +95,7 @@ class TestCreateDeploymentSchedules:
     async def test_can_create_schedules_for_deployment(
         self,
         get_server_session: AsyncSessionGetter,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         schedules_url: Callable[..., str],
         deployment,
     ):
@@ -142,7 +142,7 @@ class TestCreateDeploymentSchedules:
     async def test_schedule_slug_must_be_unique_within_deployment(
         self,
         get_server_session: AsyncSessionGetter,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         schedules_url: Callable[..., str],
         deployment,
     ):
@@ -176,7 +176,7 @@ class TestCreateDeploymentSchedules:
 
     async def test_404_non_existent_deployment(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         schedules_url: Callable[..., str],
     ):
         url = schedules_url(uuid4())
@@ -204,7 +204,7 @@ class TestCreateDeploymentSchedules:
 class TestReadDeploymentSchedules:
     async def test_can_read_schedules_for_deployment(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         deployment_with_schedules,
         schedules_url: Callable[..., str],
         get_server_session: AsyncSessionGetter,
@@ -225,7 +225,7 @@ class TestReadDeploymentSchedules:
 
     async def test_404_non_existent_deployment(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         schedules_url: Callable[..., str],
     ):
         url = schedules_url(uuid4())
@@ -251,7 +251,7 @@ class TestUpdateDeploymentSchedule:
     async def test_can_update_schedules_for_deployment(
         self,
         get_server_session: AsyncSessionGetter,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         deployment_with_schedules,
         schedules_url: Callable[..., str],
         schedule_to_update: schemas.core.DeploymentSchedule,
@@ -285,7 +285,7 @@ class TestUpdateDeploymentSchedule:
 
     async def test_404_non_existent_deployment(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         schedules_url: Callable[..., str],
         schedule_to_update: schemas.core.DeploymentSchedule,
     ):
@@ -305,7 +305,7 @@ class TestUpdateDeploymentSchedule:
     async def test_404_non_existent_schedule(
         self,
         deployment,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         schedules_url: Callable[..., str],
     ):
         url = schedules_url(deployment.id, schedule_id=uuid4())
@@ -323,7 +323,7 @@ class TestUpdateDeploymentSchedule:
         self,
         db: PrefectDBInterface,
         get_server_session: AsyncSessionGetter,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         deployment_with_schedules,
         schedules_url: Callable[..., str],
         schedule_to_update: schemas.core.DeploymentSchedule,
@@ -372,7 +372,7 @@ class TestDeleteDeploymentSchedule:
     async def test_can_delete_schedule(
         self,
         get_server_session: AsyncSessionGetter,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         deployment_with_schedules,
         schedules_url: Callable[..., str],
         schedule_to_delete: schemas.core.DeploymentSchedule,
@@ -402,7 +402,7 @@ class TestDeleteDeploymentSchedule:
 
     async def test_404_non_existent_deployment(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         schedules_url: Callable[..., str],
         schedule_to_delete: schemas.core.DeploymentSchedule,
     ):
@@ -414,7 +414,7 @@ class TestDeleteDeploymentSchedule:
     async def test_404_non_existent_schedule(
         self,
         deployment,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         schedules_url: Callable[..., str],
     ):
         url = schedules_url(deployment.id, schedule_id=uuid4())
@@ -426,7 +426,7 @@ class TestDeleteDeploymentSchedule:
         self,
         db: PrefectDBInterface,
         get_server_session: AsyncSessionGetter,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         deployment_with_schedules,
         schedules_url: Callable[..., str],
         schedule_to_delete: schemas.core.DeploymentSchedule,

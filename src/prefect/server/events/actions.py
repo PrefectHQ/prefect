@@ -34,7 +34,6 @@ from uuid import UUID
 import jinja2
 import orjson
 from cachetools import TTLCache
-from httpx import Response
 from pydantic import (
     Field,
     PrivateAttr,
@@ -44,6 +43,7 @@ from pydantic import (
 )
 from typing_extensions import Self, TypeAlias
 
+from prefect._internal.compatibility.httpx import Response
 from prefect._internal.uuid7 import uuid7
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.core import Block

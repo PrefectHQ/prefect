@@ -9,9 +9,9 @@ from zoneinfo import ZoneInfo
 
 import pytest
 import sqlalchemy as sa
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, orm_models
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
@@ -1555,7 +1555,7 @@ def model_method_mock(graph: Graph, monkeypatch: pytest.MonkeyPatch) -> AsyncMoc
 
 
 async def test_missing_flow_run_returns_404(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     model_method_mock: AsyncMock,
 ):
     flow_run_id = uuid4()
@@ -1571,7 +1571,7 @@ async def test_missing_flow_run_returns_404(
 
 
 async def test_api_full(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     model_method_mock: AsyncMock,
     graph: Graph,
 ):
@@ -1586,7 +1586,7 @@ async def test_api_full(
     assert response.json() == graph.model_dump(mode="json")
 
 
-async def test_simple_call(client: AsyncClient, flow_run: orm_models.FlowRun):
+async def test_simple_call(client: httpx.AsyncClient, flow_run: orm_models.FlowRun):
     """
     Regression test for https://github.com/PrefectHQ/prefect/issues/17729. Doesn't
     use a mock to ensure we go all the way to the database to verify the default
@@ -1598,7 +1598,7 @@ async def test_simple_call(client: AsyncClient, flow_run: orm_models.FlowRun):
 
 
 async def test_api_incremental(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     model_method_mock: AsyncMock,
     graph: Graph,
 ):
@@ -1639,7 +1639,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_too_many_nodes(
 
 
 async def test_api_response_with_too_many_nodes(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     model_method_mock: AsyncMock,
 ):
     model_method_mock.side_effect = FlowRunGraphTooLarge("too much, bro")

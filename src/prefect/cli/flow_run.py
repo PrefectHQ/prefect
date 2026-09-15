@@ -19,7 +19,6 @@ from uuid import UUID
 
 import anyio
 import cyclopts
-import httpx
 import orjson
 from rich.markup import escape
 from rich.pretty import Pretty
@@ -27,6 +26,7 @@ from rich.table import Table
 from starlette import status
 
 import prefect.cli._app as _cli
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.control_listener import Intent
 from prefect.cli._utilities import (
     exit_with_error,

@@ -6,12 +6,12 @@ from pathlib import Path
 from unittest.mock import ANY, AsyncMock, MagicMock
 
 import anyio
-import httpx
 import pytest
 import readchar
 import respx
 import uv
 
+from prefect._internal.compatibility.httpx import httpcore, httpx
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.settings import (
@@ -62,28 +62,28 @@ async def kubernetes_work_pool(prefect_client: PrefectClient):
     )
 
     with respx.mock(
-        assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpx"
+        assert_all_mocked=False,
+        base_url=PREFECT_API_URL.value(),
+        using=httpcore.__name__,
     ) as respx_mock:
         respx_mock.get("/csrf-token", params={"client": ANY}).pass_through()
         respx_mock.route(path__startswith="/work_pools/").pass_through()
-        respx_mock.get("/collections/views/aggregate-worker-metadata").mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "prefect": {
-                        "prefect-agent": {
-                            "type": "prefect-agent",
-                            "default_base_job_configuration": {},
-                        }
-                    },
-                    "prefect-kubernetes": {
-                        "kubernetes-test": {
-                            "type": "kubernetes-test",
-                            "default_base_job_configuration": {},
-                        }
-                    },
+        respx_mock.get("/collections/views/aggregate-worker-metadata").respond(
+            200,
+            json={
+                "prefect": {
+                    "prefect-agent": {
+                        "type": "prefect-agent",
+                        "default_base_job_configuration": {},
+                    }
                 },
-            )
+                "prefect-kubernetes": {
+                    "kubernetes-test": {
+                        "type": "kubernetes-test",
+                        "default_base_job_configuration": {},
+                    }
+                },
+            },
         )
 
         yield work_pool

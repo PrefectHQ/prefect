@@ -1,10 +1,10 @@
 import random
 from typing import Any
 
-import httpx
 import pytest
 from pydantic import TypeAdapter
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.utilities.annotations import freeze, unmapped
 
 

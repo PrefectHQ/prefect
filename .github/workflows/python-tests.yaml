@@ -293,6 +293,59 @@ jobs:
           && docker container logs ${{ job.services.postgres.id }} \
           || echo "Ignoring bad exit code"
 
+  run-httpx2-tests:
+    if: ${{ github.event_name != 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    name: HTTPX2 compatibility - python:3.12
+    timeout-minutes: 15
+    env:
+      PREFECT_CLIENT_HTTP_BACKEND: httpx2
+
+    steps:
+      - *python-test-checkout
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install packages with HTTPX2
+        run: uv sync --locked --group httpx2
+
+      - name: Run HTTPX2 compatibility tests
+        # The broad test matrix exercises the default HTTPX backend.
+        run: |
+          uv run --no-sync pytest \
+          tests/_internal/compatibility/test_httpx.py \
+          tests/client/test_httpx2.py \
+          tests/client/test_base_client.py \
+          tests/client/test_prefect_client.py \
+          tests/client/test_cloud_client.py \
+          tests/utilities/test_urls.py \
+          tests/utilities/test_services.py \
+          tests/blocks/test_webhook.py \
+          tests/blocks/test_notifications.py::TestCustomWebhook \
+          tests/blocks/test_notifications.py::TestCustomWebhookRestrictedUrls \
+          tests/concurrency/ \
+          -m "not windows" \
+          --numprocesses auto \
+          --maxprocesses 4 \
+          --dist worksteal \
+          --disable-docker-image-builds \
+          --exclude-services \
+          --durations 15
+
+      - name: Verify older HTTPX transport compatibility
+        env:
+          PREFECT_CLIENT_HTTP_BACKEND: httpx
+        run: |
+          uv run --no-sync --with 'httpx==0.25.2' pytest \
+          tests/utilities/test_urls.py \
+          -k test_ssrf_transport_preserves_native_constructor_contract \
+          --exclude-services
+
   prepare-canonical-test-durations:
     if: ${{ github.event_name != 'repository_dispatch' }}
     runs-on: ubuntu-latest

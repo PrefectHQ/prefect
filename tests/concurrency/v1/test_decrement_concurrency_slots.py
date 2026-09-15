@@ -2,8 +2,8 @@ import uuid
 from unittest import mock
 
 import pytest
-from httpx import Response
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.concurrency.v1._asyncio import release_concurrency_slots
 
@@ -21,7 +21,7 @@ async def test_calls_release_client_method():
     with mock.patch(
         "prefect.client.orchestration.PrefectClient.decrement_v1_concurrency_slots"
     ) as client_decrement_v1_concurrency_slots:
-        response = Response(
+        response = httpx.Response(
             200, json=[limit.model_dump(mode="json") for limit in limits]
         )
         client_decrement_v1_concurrency_slots.return_value = response
@@ -47,7 +47,7 @@ async def test_returns_minimal_concurrency_limit():
     with mock.patch(
         "prefect.client.orchestration.PrefectClient.decrement_v1_concurrency_slots"
     ) as client_decrement_v1_concurrency_slots:
-        response = Response(
+        response = httpx.Response(
             200, json=[limit.model_dump(mode="json") for limit in limits]
         )
         client_decrement_v1_concurrency_slots.return_value = response
