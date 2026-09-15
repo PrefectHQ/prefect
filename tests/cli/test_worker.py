@@ -1103,3 +1103,64 @@ class TestWorkerSignalForwarding:
             "When sending two SIGTERM shortly after each other, the main process should"
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="SIGTERM is only used in non-Windows environments",
+    )
+    async def test_shutdown_crashes_a_flow_run_that_was_running(
+        self,
+        worker_process,
+        prefect_client: PrefectClient,
+        tmp_path: Path,
+    ):
+        """
+        The reported behaviour: a run left `Running` for ever after the worker
+        stops, holding a work pool concurrency slot nothing releases.
+        """
+        (tmp_path / "sleeper.py").write_text(
+            "import time\n"
+            "\n"
+            "from prefect import flow\n"
+            "\n"
+            "\n"
+            "@flow\n"
+            "def sleeper():\n"
+            "    time.sleep(120)\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("sleeper")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="sleeper-deployment",
+            work_pool_name="my-pool",
+            path=str(tmp_path),
+            entrypoint="sleeper.py:sleeper",
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        with anyio.fail_after(45):
+            while True:
+                flow_run = await prefect_client.read_flow_run(flow_run.id)
+                if flow_run.state and flow_run.state.is_running():
+                    break
+                await anyio.sleep(0.5)
+
+        worker_process.send_signal(signal.SIGTERM)
+        await safe_shutdown(worker_process)
+
+        # `move_on_after` rather than `fail_after`: without the fix this loop
+        # never ends, and a bare timeout says only that the test hung. Falling
+        # out of it lets the assertion below name the state it was left in.
+        with anyio.move_on_after(20):
+            while True:
+                flow_run = await prefect_client.read_flow_run(flow_run.id)
+                if flow_run.state and flow_run.state.is_final():
+                    break
+                await anyio.sleep(0.5)
+
+        assert flow_run.state is not None
+        assert flow_run.state.is_crashed(), (
+            "A flow run whose worker shut down under it must reach a terminal"
+            f" state, but this one is still {flow_run.state.type.value}."
+        )
