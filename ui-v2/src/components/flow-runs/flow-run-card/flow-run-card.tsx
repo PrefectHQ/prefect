@@ -44,7 +44,7 @@ export const FlowRunCard = ({ flowRun, ...props }: FlowRunCardProps) => {
 					)}
 					<FlowRunName flowRun={flowRun} />
 				</div>
-				<div>
+				<div className="min-w-0 flex justify-end">
 					<TagBadgeGroup tags={flowRun.tags} />
 				</div>
 			</div>
