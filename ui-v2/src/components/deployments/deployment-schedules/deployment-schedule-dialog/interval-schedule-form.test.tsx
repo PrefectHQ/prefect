@@ -138,7 +138,10 @@ describe("IntervalScheduleForm", () => {
 			wrapper: createWrapper(),
 		});
 
-		const fifteenth = set(new Date(), { date: 15 });
+		// The day picker labels today as "Today, <date>, selected", so the
+		// target day must not be the current day of the month.
+		const today = new Date();
+		const otherDay = set(today, { date: today.getDate() === 15 ? 16 : 15 });
 
 		await user.click(screen.getByLabelText(/anchor date/i));
 		fireEvent.change(screen.getByLabelText("Time"), {
@@ -146,12 +149,12 @@ describe("IntervalScheduleForm", () => {
 		});
 		await user.click(
 			screen.getByRole("button", {
-				name: format(fifteenth, "EEEE, MMMM do, yyyy"),
+				name: format(otherDay, "EEEE, MMMM do, yyyy"),
 			}),
 		);
 
 		expect(screen.getByLabelText(/anchor date/i)).toHaveTextContent(
-			`${format(fifteenth, "MMM do, yyyy")} at 02:35 PM`,
+			`${format(otherDay, "MMM do, yyyy")} at 02:35 PM`,
 		);
 	});
 
