@@ -1,7 +1,9 @@
 import statistics
+from types import ModuleType
 from typing import Generator
 from unittest.mock import AsyncMock
 
+import httpx as legacy_httpx
 import pytest
 
 from prefect._internal.compatibility.httpx import httpx
@@ -48,11 +50,14 @@ async def test_critical_service_loop_does_not_capture_keyboard_interrupt():
     assert workload.await_count == 1
 
 
-async def test_tolerates_single_intermittent_error():
+@pytest.mark.parametrize(
+    "http_library", [legacy_httpx, httpx], ids=["legacy", "selected"]
+)
+async def test_tolerates_single_intermittent_error(http_library: ModuleType):
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.ConnectError("woops"),
+            http_library.ConnectError("woops"),
             None,
             None,
             None,
@@ -181,23 +186,26 @@ async def test_jittered_sleeps_between_loops(monkeypatch):
     assert max(sleep_times) < 42 * (1 + 0.3)
 
 
-async def test_captures_all_http_500_errors():
+@pytest.mark.parametrize(
+    "http_library", [legacy_httpx, httpx], ids=["legacy", "selected"]
+)
+async def test_captures_all_http_500_errors(http_library: ModuleType):
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.HTTPStatusError(
-                "foo", request=None, response=httpx.Response(status_code=500)
+            http_library.HTTPStatusError(
+                "foo", request=None, response=http_library.Response(status_code=500)
             ),
             None,
-            httpx.HTTPStatusError(
-                "foo", request=None, response=httpx.Response(status_code=501)
+            http_library.HTTPStatusError(
+                "foo", request=None, response=http_library.Response(status_code=501)
             ),
             None,
-            httpx.HTTPStatusError(
-                "foo", request=None, response=httpx.Response(status_code=502)
+            http_library.HTTPStatusError(
+                "foo", request=None, response=http_library.Response(status_code=502)
             ),
-            httpx.HTTPStatusError(
-                "foo", request=None, response=httpx.Response(status_code=503)
+            http_library.HTTPStatusError(
+                "foo", request=None, response=http_library.Response(status_code=503)
             ),
             UncapturedException,
         ]
@@ -209,19 +217,22 @@ async def test_captures_all_http_500_errors():
     assert workload.await_count == 8
 
 
-async def test_does_not_capture_other_http_status_errors():
+@pytest.mark.parametrize(
+    "http_library", [legacy_httpx, httpx], ids=["legacy", "selected"]
+)
+async def test_does_not_capture_other_http_status_errors(http_library: ModuleType):
     workload = AsyncMock(
         side_effect=[
             None,
-            httpx.HTTPStatusError(
-                "foo", request=None, response=httpx.Response(status_code=403)
+            http_library.HTTPStatusError(
+                "foo", request=None, response=http_library.Response(status_code=403)
             ),
             None,
             UncapturedException,
         ]
     )
 
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(http_library.HTTPStatusError):
         await critical_service_loop(workload, 0.0)
 
     assert workload.await_count == 2

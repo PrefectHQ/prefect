@@ -16,7 +16,10 @@ HTTP_BACKENDS = [
         "httpx2",
         marks=pytest.mark.skipif(
             importlib.util.find_spec("httpx2") is None,
-            reason="Requires the httpx2 extra; exercised by the HTTPX2 CI job",
+            reason=(
+                "Requires 'httpx2[http2]>=2.13.0,<3.0.0'; "
+                "exercised by the HTTPX2 CI job"
+            ),
         ),
     ),
 ]
@@ -117,11 +120,8 @@ def test_missing_optional_dependency_has_install_hint(
         "httpx2",
     )
     assert result.returncode != 0
-    assert (
-        "PREFECT_CLIENT_HTTP_BACKEND=httpx2 requires the HTTPX2 extra" in result.stderr
-    )
-    assert "prefect[httpx2]" in result.stderr
-    assert "prefect-client[httpx2]" in result.stderr
+    assert "PREFECT_CLIENT_HTTP_BACKEND=httpx2 requires" in result.stderr
+    assert "httpx2[http2]>=2.13.0,<3.0.0" in result.stderr
 
 
 def test_invalid_backend_has_configuration_error(run_python: RunPython):
@@ -178,6 +178,7 @@ def test_legacy_warning_is_visible_once_per_process(
     )
     if backend == "httpx":
         assert "six months and three minor version increases" in result.stderr
+        assert "httpx2[http2]>=2.13.0,<3.0.0" in result.stderr
         assert "PREFECT_CLIENT_HTTP_BACKEND=httpx2" in result.stderr
 
 
@@ -243,6 +244,79 @@ def test_standalone_http_blocks_share_legacy_warning(
                 issubclass(notice.category, PrefectHTTPXDeprecationWarning)
                 for notice in notices
             ) == {1 if backend == "httpx" else 0}, notices
+        """,
+        backend,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("backend", HTTP_BACKENDS)
+@pytest.mark.parametrize("subscriber_type", ["events", "logs"])
+@pytest.mark.parametrize("version_check", ["enabled", "disabled", "cloud"])
+def test_standalone_subscribers_warn_only_when_using_http(
+    run_python: RunPython, backend: str, subscriber_type: str, version_check: str
+):
+    result = run_python(
+        f"""
+        import asyncio
+        import warnings
+        from unittest.mock import AsyncMock, patch
+
+        import prefect
+        from prefect._internal.compatibility.httpx import (
+            PrefectHTTPXDeprecationWarning, httpx,
+        )
+        from prefect.events.clients import PrefectEventSubscriber
+        from prefect.logging.clients import PrefectLogsSubscriber
+        from prefect.settings import (
+            PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED,
+            PREFECT_CLOUD_API_URL,
+            temporary_settings,
+        )
+
+        subscriber_class = (
+            PrefectEventSubscriber if {subscriber_type!r} == "events"
+            else PrefectLogsSubscriber
+        )
+        module = "prefect.events.clients" if {subscriber_type!r} == "events" else "prefect.logging.clients"
+        api_url = (
+            str(PREFECT_CLOUD_API_URL.value()) + "/accounts/test/workspaces/test"
+            if {version_check!r} == "cloud" else "https://example.test/api"
+        )
+        requests = []
+
+        async def get_version(client, url, **kwargs):
+            assert isinstance(client, httpx.AsyncClient)
+            requests.append(url)
+            return httpx.Response(
+                200, request=httpx.Request("GET", url), json=prefect.__version__,
+            )
+
+        async def connect_subscriber():
+            websocket = AsyncMock()
+            pong = asyncio.get_running_loop().create_future()
+            pong.set_result(None)
+            websocket.ping.return_value = pong
+            websocket.recv.return_value = '{{"type": "auth_success"}}'
+            connection = AsyncMock()
+            connection.__aenter__.return_value = websocket
+            with patch(module + ".websocket_connect", return_value=connection):
+                async with subscriber_class(api_url=api_url):
+                    pass
+            websocket.send.assert_awaited()
+
+        with warnings.catch_warnings(record=True) as notices:
+            warnings.simplefilter("always", PrefectHTTPXDeprecationWarning)
+            with temporary_settings({{
+                PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: {version_check != "disabled"!r},
+            }}), patch.object(httpx.AsyncClient, "get", get_version):
+                for _ in range(2):
+                    asyncio.run(connect_subscriber())
+                    assert sum(
+                        issubclass(notice.category, PrefectHTTPXDeprecationWarning)
+                        for notice in notices
+                    ) == {int(backend == "httpx" and version_check == "enabled")}, notices
+                    assert len(requests) == {int(version_check == "enabled")}, requests
         """,
         backend,
     )

@@ -312,7 +312,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install packages with HTTPX2
-        run: uv sync --locked --extra httpx2
+        run: uv sync --locked --group httpx2
 
       - name: Run HTTPX2 compatibility tests
         # The broad test matrix exercises the default HTTPX backend.
@@ -324,6 +324,7 @@ jobs:
           tests/client/test_prefect_client.py \
           tests/client/test_cloud_client.py \
           tests/utilities/test_urls.py \
+          tests/utilities/test_services.py \
           tests/blocks/test_webhook.py \
           tests/blocks/test_notifications.py::TestCustomWebhook \
           tests/blocks/test_notifications.py::TestCustomWebhookRestrictedUrls \

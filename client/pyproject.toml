@@ -75,8 +75,6 @@ Documentation = "https://docs.prefect.io"
 Source = "https://github.com/PrefectHQ/prefect"
 Tracker = "https://github.com/PrefectHQ/prefect/issues"
 [project.optional-dependencies]
-httpx2 = ["httpx2[http2]>=2.13.0,<3.0.0", "httpcore2>=2.13.0,<3.0.0"]
-
 notifications = ["apprise>=1.13.0, <2.0.0"]
 
 

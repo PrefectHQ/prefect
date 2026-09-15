@@ -64,8 +64,8 @@ else:
         if exc.name not in {"httpx2", "httpcore2"}:
             raise
         raise ImportError(
-            "PREFECT_CLIENT_HTTP_BACKEND=httpx2 requires the HTTPX2 extra. "
-            "Install 'prefect[httpx2]' (or 'prefect-client[httpx2]') "
+            "PREFECT_CLIENT_HTTP_BACKEND=httpx2 requires HTTPX2. "
+            "Install 'httpx2[http2]>=2.13.0,<3.0.0' "
             "in this environment before starting Python."
         ) from exc
 
@@ -129,8 +129,8 @@ def warn_on_legacy_httpx() -> None:
         warnings.warn(
             "Prefect's legacy HTTPX backend is deprecated. It will remain "
             "available for at least six months and three minor version increases "
-            "after this deprecation is first released. Install 'prefect[httpx2]' "
-            "(or 'prefect-client[httpx2]'), set PREFECT_CLIENT_HTTP_BACKEND=httpx2 "
+            "after this deprecation is first released. Install "
+            "'httpx2[http2]>=2.13.0,<3.0.0', set PREFECT_CLIENT_HTTP_BACKEND=httpx2 "
             "before starting Python, and use HTTPX2 types for custom HTTP "
             "objects and exception handlers.",
             PrefectHTTPXDeprecationWarning,

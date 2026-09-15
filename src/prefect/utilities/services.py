@@ -8,6 +8,7 @@ from typing import Any, Callable, Optional
 from wsgiref.simple_server import WSGIServer
 
 import anyio
+import httpx as legacy_httpx
 
 from prefect._internal.compatibility.httpx import httpx
 from prefect.logging.loggers import get_logger
@@ -71,7 +72,8 @@ async def critical_service_loop(
                 backoff_count = 0
 
             track_record.append(True)
-        except httpx.TransportError as exc:
+        except (legacy_httpx.TransportError, httpx.TransportError) as exc:
+            # Workloads can use HTTPX independently of Prefect's selected backend.
             # httpx.TransportError is the base class for any kind of communications
             # error, like timeouts, connection failures, etc.  This does _not_ cover
             # routine HTTP error codes (even 5xx errors like 502/503) so this
@@ -83,7 +85,7 @@ async def critical_service_loop(
             logger.debug(
                 f"Run of {workload!r} failed with TransportError", exc_info=exc
             )
-        except httpx.HTTPStatusError as exc:
+        except (legacy_httpx.HTTPStatusError, httpx.HTTPStatusError) as exc:
             if exc.response.status_code >= 500:
                 # 5XX codes indicate a potential outage of the Prefect API which is
                 # likely to be temporary and transient.  Don't quit over these unless

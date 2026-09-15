@@ -93,8 +93,6 @@ Source = "https://github.com/PrefectHQ/prefect"
 Tracker = "https://github.com/PrefectHQ/prefect/issues"
 
 [project.optional-dependencies]
-httpx2 = ["httpx2[http2]>=2.13.0,<3.0.0", "httpcore2>=2.13.0,<3.0.0"]
-
 otel = [
     "opentelemetry-distro>=0.48b0,<1.0.0",
     "opentelemetry-exporter-otlp>=1.27.0,<2.0.0",
@@ -140,6 +138,8 @@ prefect = "prefect.cli:app"
 render_swagger = "prefect.utilities.render_swagger:SwaggerPlugin"
 
 [dependency-groups]
+httpx2 = ["httpx2[http2]>=2.13.0,<3.0.0", "httpcore2>=2.13.0,<3.0.0"]
+
 dev = [
     "cairosvg>=2.7.1; python_version<'3.14'",
     "ipython",
