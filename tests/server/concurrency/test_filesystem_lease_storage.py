@@ -1,5 +1,7 @@
+import asyncio
 import json
 import tempfile
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -667,3 +669,215 @@ class TestFilesystemConcurrencyLeaseStorage:
         # Verify no temp files left behind
         temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
         assert len(temp_files) == 0
+
+    async def test_concurrent_index_updates_do_not_lose_a_write(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Two renewals whose index reads and writes interleave should both
+        end up recorded, not just whichever one saved last. The lock around
+        the read-modify-write cycle is what's supposed to guarantee that, so
+        this forces the interleaving instead of hoping the event loop
+        schedules things unluckily on its own.
+        """
+        ttl = timedelta(minutes=5)
+        lease_a = await storage.create_lease(sample_resource_ids, ttl)
+        lease_b = await storage.create_lease(sample_resource_ids, ttl)
+
+        original_load = storage._load_expiration_index
+        call_count = 0
+
+        async def load_with_a_delay_on_the_first_call():
+            nonlocal call_count
+            call_count += 1
+            result = await original_load()
+            if call_count == 1:
+                # Give the second update a chance to read, write, and finish
+                # before this one acts on what it already read.
+                await asyncio.sleep(0.05)
+            return result
+
+        monkeypatch.setattr(
+            storage, "_load_expiration_index", load_with_a_delay_on_the_first_call
+        )
+
+        new_expiration_a = datetime.now(timezone.utc) + timedelta(minutes=10)
+        new_expiration_b = datetime.now(timezone.utc) + timedelta(minutes=20)
+
+        await asyncio.gather(
+            storage._update_expiration_index(lease_a.id, new_expiration_a),
+            storage._update_expiration_index(lease_b.id, new_expiration_b),
+        )
+
+        monkeypatch.undo()
+        index = await storage._load_expiration_index()
+        assert index.get(str(lease_a.id)) == new_expiration_a.isoformat()
+        assert index.get(str(lease_b.id)) == new_expiration_b.isoformat()
+
+    async def test_concurrent_updates_from_separate_instances_do_not_lose_a_write(
+        self,
+        temp_dir: Path,
+        sample_resource_ids: list[UUID],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """get_concurrency_lease_storage() builds a fresh instance per call, so
+        two concurrent renewals never share the same Python object even though
+        they share the same storage_path. The lock has to be shared across
+        those instances for it to serialize anything in production.
+        """
+        storage_a = ConcurrencyLeaseStorage(storage_path=temp_dir)
+        storage_b = ConcurrencyLeaseStorage(storage_path=temp_dir)
+
+        ttl = timedelta(minutes=5)
+        lease_a = await storage_a.create_lease(sample_resource_ids, ttl)
+        lease_b = await storage_a.create_lease(sample_resource_ids, ttl)
+
+        original_load = storage_a._load_expiration_index
+        call_count = 0
+
+        async def load_with_a_delay_on_the_first_call():
+            nonlocal call_count
+            call_count += 1
+            result = await original_load()
+            if call_count == 1:
+                # Give the second instance's update a chance to read, write,
+                # and finish before this one acts on what it already read.
+                await asyncio.sleep(0.05)
+            return result
+
+        monkeypatch.setattr(
+            storage_a, "_load_expiration_index", load_with_a_delay_on_the_first_call
+        )
+
+        new_expiration_a = datetime.now(timezone.utc) + timedelta(minutes=10)
+        new_expiration_b = datetime.now(timezone.utc) + timedelta(minutes=20)
+
+        await asyncio.gather(
+            storage_a._update_expiration_index(lease_a.id, new_expiration_a),
+            storage_b._update_expiration_index(lease_b.id, new_expiration_b),
+        )
+
+        monkeypatch.undo()
+        index = await storage_a._load_expiration_index()
+        assert index.get(str(lease_a.id)) == new_expiration_a.isoformat()
+        assert index.get(str(lease_b.id)) == new_expiration_b.isoformat()
+
+    async def test_concurrent_updates_from_separate_event_loops_do_not_lose_a_write(
+        self,
+        temp_dir: Path,
+        sample_resource_ids: list[UUID],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Two renewals landing on separate event loops in separate threads,
+        which is what actually happens when multiple worker threads each run
+        their own loop against the same storage_path, have to serialize the
+        same way two renewals on the same loop do. A lock keyed per event
+        loop hands each thread's loop its own lock and lets both critical
+        sections run at once, losing whichever update saves first; this
+        forces that overlap instead of hoping the OS schedules the threads
+        unluckily on its own.
+        """
+        setup_storage = ConcurrencyLeaseStorage(storage_path=temp_dir)
+        ttl = timedelta(minutes=5)
+        lease_a = await setup_storage.create_lease(sample_resource_ids, ttl)
+        lease_b = await setup_storage.create_lease(sample_resource_ids, ttl)
+
+        original_load = ConcurrencyLeaseStorage._load_expiration_index
+        thread_a_is_mid_update = threading.Event()
+
+        async def load_then_hold_the_critical_section_open(self):
+            result = await original_load(self)
+            thread_a_is_mid_update.set()
+            # Keep the critical section open long enough that a genuinely
+            # concurrent second thread, if nothing serializes it, reads the
+            # same stale snapshot and clobbers this update on save. A fixed
+            # sleep is unavoidable here rather than some cross-thread signal:
+            # with the lock actually working, thread B cannot reach this
+            # function at all until thread A releases it, so waiting for any
+            # signal from B before proceeding would deadlock on the very
+            # serialization this test exists to confirm.
+            await asyncio.sleep(0.2)
+            return result
+
+        monkeypatch.setattr(
+            ConcurrencyLeaseStorage,
+            "_load_expiration_index",
+            load_then_hold_the_critical_section_open,
+        )
+
+        new_expiration_a = datetime.now(timezone.utc) + timedelta(minutes=10)
+        new_expiration_b = datetime.now(timezone.utc) + timedelta(minutes=20)
+        errors: list[Exception] = []
+
+        def update_lease_a_on_its_own_loop() -> None:
+            async def update() -> None:
+                storage = ConcurrencyLeaseStorage(storage_path=temp_dir)
+                await storage._update_expiration_index(lease_a.id, new_expiration_a)
+
+            try:
+                asyncio.run(update())
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        def update_lease_b_on_its_own_loop() -> None:
+            # Wait for thread A to already be mid-update before starting, so
+            # this is a genuine overlap rather than a lucky race.
+            assert thread_a_is_mid_update.wait(timeout=5)
+
+            async def update() -> None:
+                storage = ConcurrencyLeaseStorage(storage_path=temp_dir)
+                await storage._update_expiration_index(lease_b.id, new_expiration_b)
+
+            try:
+                asyncio.run(update())
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        thread_a = threading.Thread(target=update_lease_a_on_its_own_loop)
+        thread_b = threading.Thread(target=update_lease_b_on_its_own_loop)
+        thread_a.start()
+        thread_b.start()
+        thread_a.join(timeout=5)
+        thread_b.join(timeout=5)
+        assert not thread_a.is_alive(), "thread A did not finish within the timeout"
+        assert not thread_b.is_alive(), "thread B did not finish within the timeout"
+
+        monkeypatch.undo()
+        assert not errors, f"concurrent updates from separate loops raised: {errors!r}"
+
+        index = await setup_storage._load_expiration_index()
+        assert index.get(str(lease_a.id)) == new_expiration_a.isoformat()
+        assert index.get(str(lease_b.id)) == new_expiration_b.isoformat()
+
+    async def test_read_expired_lease_ids_trusts_the_lease_file_over_a_stale_index(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """If the index says a lease expired but the lease file (the thing
+        renew_lease actually stamped) says it's still good, the reaper
+        shouldn't kill it. A stale index entry, from a lost update or just an
+        old read, is meant to be harmless rather than fatal.
+        """
+        ttl = timedelta(minutes=30)
+        lease = await storage.create_lease(sample_resource_ids, ttl)
+
+        # Back the index entry up to look expired, without touching the
+        # lease file itself, exactly what a lost update would leave behind.
+        stale_expiration = datetime.now(timezone.utc) - timedelta(minutes=5)
+        index = await storage._load_expiration_index()
+        index[str(lease.id)] = stale_expiration.isoformat()
+        storage._save_expiration_index(index)
+
+        expired_ids = await storage.read_expired_lease_ids()
+        assert lease.id not in expired_ids
+
+        # An entry with no matching lease file at all is a genuine orphan,
+        # and should still come back as expired so it gets cleaned up.
+        orphan_id = uuid4()
+        index = await storage._load_expiration_index()
+        index[str(orphan_id)] = stale_expiration.isoformat()
+        storage._save_expiration_index(index)
+
+        expired_ids = await storage.read_expired_lease_ids()
+        assert orphan_id in expired_ids
