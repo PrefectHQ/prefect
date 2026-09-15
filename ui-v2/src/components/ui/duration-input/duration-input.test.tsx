@@ -73,11 +73,16 @@ describe("DurationInput", () => {
 		expect(onChange).toHaveBeenLastCalledWith(3600);
 	});
 
-	it("filters available units based on min prop", () => {
-		render(<DurationInput value={3600} onChange={vi.fn()} min={60} />);
+	it("enforces the minimum duration", async () => {
+		const user = userEvent.setup();
+		const onChange = vi.fn();
+		render(<DurationInput value={30} onChange={onChange} min={10} />);
 
-		const unitSelect = screen.getByLabelText("Duration unit");
-		expect(unitSelect).toHaveTextContent("Hours");
+		const quantityInput = screen.getByLabelText("Duration quantity");
+		expect(quantityInput).toHaveAttribute("min", "10");
+
+		await user.clear(quantityInput);
+		expect(onChange).toHaveBeenLastCalledWith(10);
 	});
 
 	it("disables inputs when disabled prop is true", () => {
