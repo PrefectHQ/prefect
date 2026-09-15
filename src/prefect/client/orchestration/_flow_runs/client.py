@@ -562,6 +562,27 @@ class FlowRunClient(BaseClient):
         )
         response.raise_for_status()
 
+    def release_flow_run_retry(self, flow_run_id: "UUID") -> None:
+        """
+        Hands a flow run's pending retry to the workers.
+
+        A retry claimed by a process that is no longer running is released, and an
+        attempt abandoned before it concluded is scheduled, so that a worker can pick
+        the run up.
+
+        Args:
+            flow_run_id: The flow run id.
+
+        Raises:
+            httpx.HTTPStatusError: if the retry could not be handed to the workers.
+        """
+        response = self.request(
+            "POST",
+            "/flow_runs/{id}/release_retry",
+            path_params={"id": flow_run_id},
+        )
+        response.raise_for_status()
+
 
 class FlowRunAsyncClient(BaseAsyncClient):
     async def create_flow_run(
@@ -1088,5 +1109,26 @@ class FlowRunAsyncClient(BaseAsyncClient):
             "/flow_runs/{id}/labels",
             path_params={"id": flow_run_id},
             json=labels,
+        )
+        response.raise_for_status()
+
+    async def release_flow_run_retry(self, flow_run_id: "UUID") -> None:
+        """
+        Hands a flow run's pending retry to the workers.
+
+        A retry claimed by a process that is no longer running is released, and an
+        attempt abandoned before it concluded is scheduled, so that a worker can pick
+        the run up.
+
+        Args:
+            flow_run_id: The flow run id.
+
+        Raises:
+            httpx.HTTPStatusError: if the retry could not be handed to the workers.
+        """
+        response = await self.request(
+            "POST",
+            "/flow_runs/{id}/release_retry",
+            path_params={"id": flow_run_id},
         )
         response.raise_for_status()

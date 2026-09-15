@@ -782,10 +782,13 @@ async def execute(
                 await executor.submit()
                 return
 
+            release_retry = False
+            stranded = False
+
             async with anyio.create_task_group() as tg:
 
                 async def _terminate_on_signal() -> None:
-                    nonlocal terminated
+                    nonlocal terminated, release_retry
                     await terminating.wait()
                     logger.info("SIGTERM received, initiating graceful shutdown...")
 
@@ -797,6 +800,9 @@ async def execute(
                         logger.info(
                             "Engine already reported a final state; leaving it unchanged."
                         )
+                        # The engine may have concluded with a `Failed` report that
+                        # the server turned into an in-process retry.
+                        release_retry = intent == "reschedule"
                         return
 
                     acknowledged = signal_status is ControlSignalStatus.ACKNOWLEDGED
@@ -817,6 +823,8 @@ async def execute(
                         except Exception:
                             logger.exception("Failed to reschedule flow run")
 
+                        release_retry = True
+
                     await ctx.process_manager.kill(id, force=not acknowledged)
                     terminated = True
                     # We own the run's next state now, so stop the executor before it
@@ -831,8 +839,26 @@ async def execute(
                 if not terminating.is_set():
                     tg.cancel_scope.cancel()
 
+            # Once the engine is stopped it can no longer claim a retry of its own, so
+            # this runs here rather than beside the reschedule proposal above. The
+            # server hands the retry over atomically, which also fences the report of
+            # an engine that was killed mid-proposal.
+            if release_retry:
+                try:
+                    await ctx.client.release_flow_run_retry(id)
+                except Exception:
+                    logger.exception(
+                        "Failed to release the retry of the flow run to the workers"
+                    )
+                    stranded = True
+
     # Exits go here, not inside the context: a `SystemExit` unwinding through an
     # anyio task group gets wrapped in an exception group, losing the exit code.
+    if stranded:
+        # No worker can poll a run still claimed by this process, so the exit code
+        # asks the infrastructure to retry the attempt instead of claiming success.
+        exit_with_error("Flow run could not be released for rescheduling.")
+
     if terminated:
         if intent == "reschedule":
             exit_with_success("Flow run successfully rescheduled.")

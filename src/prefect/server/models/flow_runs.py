@@ -32,7 +32,7 @@ import prefect.server.schemas as schemas
 from prefect.logging.loggers import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.orchestration.core_policy import MinimalFlowPolicy
+from prefect.server.orchestration.core_policy import CoreFlowPolicy, MinimalFlowPolicy
 from prefect.server.orchestration.global_policy import GlobalFlowPolicy
 from prefect.server.orchestration.policies import (
     FlowRunOrchestrationPolicy,
@@ -730,6 +730,64 @@ async def with_system_labels_for_flow_run(
     parent_labels = await models.flows.read_flow_labels(session, flow_run.flow_id) or {}
 
     return parent_labels | default_labels | user_supplied_labels
+
+
+async def release_retry_to_workers(
+    session: AsyncSession,
+    flow_run_id: UUID,
+) -> bool:
+    """
+    Hand a flow run's pending retry to the workers.
+
+    A retry claimed with `retry_type="in_process"` belongs to the process that
+    reported the failure, and workers exclude those runs when they poll. When that
+    process is gone the claim has to be released, and an attempt it abandoned while
+    still running has to be scheduled, or the run is never picked up again.
+
+    The run is locked for the whole operation so a state transition cannot
+    interleave, and only `retry_type` is written to the run's policy.
+
+    Args:
+        session: A database session
+        flow_run_id: the flow run to hand over
+
+    Returns:
+        bool: whether the run's retry now belongs to the workers
+    """
+    run = await read_flow_run(session, flow_run_id, for_update=True)
+    if not run:
+        raise ObjectNotFoundError(f"Flow run with id {flow_run_id} not found")
+
+    if run.state is None:
+        return False
+
+    if run.state.type in (
+        schemas.states.StateType.PENDING,
+        schemas.states.StateType.RUNNING,
+    ):
+        # The abandoned attempt still holds the run, so schedule the retry the
+        # departing process was claiming before handing it over.
+        if run.deployment_id is None:
+            return False
+        result = await set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run_id,
+            state=schemas.states.AwaitingRetry(),
+            flow_policy=CoreFlowPolicy,
+        )
+        if result.status is not schemas.responses.SetStateStatus.ACCEPT:
+            return False
+    elif run.state.type is not schemas.states.StateType.SCHEDULED:
+        # A concluded, cancelling, or paused run has no retry to hand over.
+        return True
+    elif run.empirical_policy.retry_type != "in_process":
+        # The scheduled retry is already the workers' to pick up.
+        return True
+
+    run.empirical_policy = run.empirical_policy.model_copy(
+        update={"retry_type": "reschedule"}
+    )
+    return True
 
 
 @db_injector

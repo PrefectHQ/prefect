@@ -133,6 +133,7 @@ class CoreFlowPolicy(FlowRunOrchestrationPolicy):
             [
                 PreserveDeploymentConcurrencyLeaseId,
                 PreventDuplicateTransitions,
+                PreventReportsFromReleasedRetries,
                 HandleFlowTerminalStateTransitions,
                 EnforceCancellingToCancelledTransition,
                 BypassCancellingFlowRunsWithNoInfra,
@@ -1148,6 +1149,38 @@ class RetryFailedFlows(FlowRunOrchestrationRule):
             initial_state.state_details.deployment_concurrency_lease_id
         )
         await self.reject_transition(state=retry_state, reason="Retrying")
+
+
+class PreventReportsFromReleasedRetries(FlowRunOrchestrationRule):
+    """
+    Rejects reports from an attempt whose retry was handed to the workers.
+
+    A scheduled run with `retry_type="reschedule"` is waiting for a worker to start a
+    new attempt, so a failure report can only come from the attempt that was
+    abandoned. Accepting it would either conclude a run that is due to retry or hand
+    the retry back to a process that is gone, leaving the run unpollable.
+    """
+
+    FROM_STATES = {StateType.SCHEDULED}
+    TO_STATES = {StateType.FAILED, StateType.CRASHED}
+
+    async def before_transition(
+        self,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
+        if context.run.empirical_policy.retry_type != "reschedule":
+            return
+
+        await self.reject_transition(
+            # state=None will return the initial (current) state
+            state=None,
+            reason="This run is awaiting a retry from a worker.",
+        )
 
 
 class RetryFailedTasks(TaskRunOrchestrationRule):
