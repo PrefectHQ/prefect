@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -60,17 +60,41 @@ export function DurationInput({
 	const quantity = useMemo(() => {
 		return value / unit;
 	}, [value, unit]);
+	const [quantityInput, setQuantityInput] = useState(String(quantity));
+
+	useEffect(() => {
+		setQuantityInput(String(quantity));
+	}, [quantity]);
 
 	const handleQuantityChange = useCallback(
-		(newQuantity: number) => {
-			let newValue = Math.max(newQuantity * unit, min);
-			if (max !== undefined && newValue > max) {
-				newValue = max;
+		(newQuantity: string) => {
+			setQuantityInput(newQuantity);
+			const newValue = Number(newQuantity) * unit;
+			if (
+				newQuantity !== "" &&
+				newValue >= min &&
+				(max === undefined || newValue <= max)
+			) {
+				onChange(newValue);
 			}
-			onChange(newValue);
 		},
 		[onChange, unit, min, max],
 	);
+
+	const handleQuantityBlur = useCallback(() => {
+		const parsedQuantity = Number(quantityInput);
+		let newValue = Math.max(
+			(Number.isFinite(parsedQuantity) ? parsedQuantity : 0) * unit,
+			min,
+		);
+		if (max !== undefined && newValue > max) {
+			newValue = max;
+		}
+		setQuantityInput(String(newValue / unit));
+		if (newValue !== value) {
+			onChange(newValue);
+		}
+	}, [quantityInput, unit, min, max, value, onChange]);
 
 	const handleUnitChange = useCallback(
 		(newUnitValue: string) => {
@@ -91,8 +115,10 @@ export function DurationInput({
 			<Input
 				type="number"
 				min={min / unit}
-				value={quantity}
-				onChange={(e) => handleQuantityChange(Number(e.target.value))}
+				step="any"
+				value={quantityInput}
+				onChange={(e) => handleQuantityChange(e.target.value)}
+				onBlur={handleQuantityBlur}
 				disabled={disabled}
 				aria-label="Duration quantity"
 			/>
