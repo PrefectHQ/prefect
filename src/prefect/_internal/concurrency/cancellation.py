@@ -410,6 +410,10 @@ class WatcherThreadCancelScope(CancelScope):
     def __enter__(self):
         super().__enter__()
         self._event = threading.Event()
+        # Serializes the enforcer's timeout check-and-inject with the supervised
+        # thread's exit, so the exception is never injected into a thread that has
+        # already left the scope and is running arbitrary code.
+        self._exit_lock = threading.Lock()
         self._enforcer_thread = None
         self._supervised_thread = threading.current_thread()
 
@@ -428,7 +432,8 @@ class WatcherThreadCancelScope(CancelScope):
         # this frame, so the event must be set from a `finally` to guarantee the
         # enforcer is always released.
         try:
-            retval = super().__exit__(*_)
+            with self._exit_lock:
+                retval = super().__exit__(*_)
         finally:
             self._event.set()
             if self._enforcer_thread:
@@ -461,8 +466,11 @@ class WatcherThreadCancelScope(CancelScope):
         """
         if not self._event.wait(self.timeout):
             logger.debug("%r enforcer detected timeout!", self)
-            if self.cancel(throw=False):
-                with _get_thread_shield(self._supervised_thread):
+            # The shield is acquired before the exit lock; the supervised thread may
+            # exit the scope while shielded and must not be blocked by the enforcer
+            # waiting on that same shield.
+            with _get_thread_shield(self._supervised_thread), self._exit_lock:
+                if self.cancel(throw=False):
                     self._send_cancelled_error()
 
     def cancel(self, throw: bool = True):

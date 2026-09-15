@@ -172,6 +172,38 @@ def test_watcher_thread_cancel_scope_enforcer_exits_when_teardown_interrupted(
         scope._enforcer_thread.join()
 
 
+def test_watcher_thread_cancel_scope_does_not_inject_into_exiting_thread(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    If the timeout elapses while the supervised thread is already exiting the scope,
+    the enforcer must not inject an exception: it would land at an arbitrary
+    instruction outside the scope (e.g. inside a logging handler) and can leave
+    locks held forever.
+    """
+    original_exit = CancelScope.__exit__
+
+    def slow_exit(self: CancelScope, *exc_info: object) -> None:
+        time.sleep(0.3)
+        return original_exit(self, *exc_info)
+
+    monkeypatch.setattr(CancelScope, "__exit__", slow_exit)
+
+    def on_worker_thread():
+        with WatcherThreadCancelScope(timeout=0.1) as scope:
+            pass
+
+        # Give a stray injected exception time to surface
+        time.sleep(0.1)
+        return scope
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        scope = executor.submit(on_worker_thread).result()
+
+    assert scope.completed()
+    assert not scope.cancelled()
+
+
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_manual_in_main_thread():
     completed = False
