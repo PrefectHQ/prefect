@@ -4,12 +4,17 @@ from collections.abc import Iterable, Mapping
 import importlib
 import logging
 from typing import Any, ClassVar, Literal
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
-from pydantic import ConfigDict, Field
+from pydantic import UUID7, ConfigDict, Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.client.schemas.worker_channel import CleanupKind, CleanupOperationStatus
+from prefect.client.schemas.worker_channel import (
+    PENDING_CLAIM_TEARDOWN,
+    CleanupKind,
+    CleanupOperationStatus,
+    pending_claim_teardown_idempotency_key,
+)
 from prefect.logging import get_logger
 from prefect.settings.context import get_current_settings
 from prefect.types import DateTime, NonNegativeInteger, PositiveInteger
@@ -43,6 +48,14 @@ else:
     CLEANUP_QUEUE_DEAD_LETTERS = None
     CLEANUP_QUEUE_LEASE_EXPIRATIONS = None
     CLEANUP_QUEUE_OPERATIONS = None
+
+
+def cleanup_queue_message_id(idempotency_key: str) -> UUID:
+    """Derive a deterministic cleanup message ID from its producer identity."""
+
+    if not idempotency_key:
+        raise ValueError("idempotency_key must be non-empty")
+    return uuid5(NAMESPACE_URL, f"prefect:{idempotency_key}")
 
 
 class CleanupQueueMessage(PrefectBaseModel):
@@ -101,6 +114,15 @@ class CleanupQueueWakeup(PrefectBaseModel):
 
     work_pool_id: UUID
     sequence: PositiveInteger
+
+
+class _PendingClaimTeardownTargetCreate(PrefectBaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+    flow_run_id: UUID
+    claim_id: UUID7
+    execution_id: UUID7 | None = None
+    infrastructure_pid: str | None = Field(default=None, min_length=1)
 
 
 class WorkerCleanupQueue:
@@ -281,6 +303,39 @@ class WorkerCleanupQueue:
         ...
 
 
+async def enqueue_pending_claim_teardown(
+    cleanup_queue: WorkerCleanupQueue,
+    *,
+    work_pool_id: UUID,
+    flow_run_id: UUID,
+    claim_id: UUID,
+    execution_id: UUID | None = None,
+    infrastructure_pid: str | None = None,
+    work_queue_id: UUID | None = None,
+    data: Mapping[str, Any] | None = None,
+) -> CleanupQueueMessage:
+    """Enqueue one strictly authored pending-claim teardown operation."""
+
+    target = _PendingClaimTeardownTargetCreate(
+        flow_run_id=flow_run_id,
+        claim_id=claim_id,
+        execution_id=execution_id,
+        infrastructure_pid=infrastructure_pid,
+    )
+    idempotency_key = pending_claim_teardown_idempotency_key(
+        target.flow_run_id, target.claim_id
+    )
+    return await cleanup_queue.enqueue(
+        message_id=cleanup_queue_message_id(idempotency_key),
+        idempotency_key=idempotency_key,
+        work_pool_id=work_pool_id,
+        work_queue_id=work_queue_id,
+        kind=PENDING_CLAIM_TEARDOWN,
+        target=target.model_dump(mode="json", exclude_none=True),
+        data=dict(data or {}),
+    )
+
+
 def record_cleanup_queue_dead_letter(
     dead_letter: CleanupQueueDeadLetter, *, source: str
 ) -> None:
@@ -383,6 +438,8 @@ __all__ = [
     "CleanupQueueReservation",
     "CleanupQueueWakeup",
     "WorkerCleanupQueue",
+    "cleanup_queue_message_id",
+    "enqueue_pending_claim_teardown",
     "get_worker_cleanup_queue",
     "record_cleanup_queue_dead_letter",
     "record_cleanup_queue_lease_expiry_result",
