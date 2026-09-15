@@ -159,7 +159,10 @@ def app() -> None:
         print(prefect.__version__)
         raise SystemExit(0)
 
-    from pydantic_settings.exceptions import SettingsError
+    try:
+        from pydantic_settings.exceptions import SettingsError
+    except ImportError:
+        from pydantic_settings import SettingsError
 
     try:
         _app.meta(_normalize_top_level_flags(args))
