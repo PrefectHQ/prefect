@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -57,23 +57,19 @@ export function DurationInput({
 }: DurationInputProps) {
 	const [unit, setUnit] = useState<number>(() => getDefaultUnitForValue(value));
 
-	const availableUnits = useMemo(() => {
-		return DURATION_UNITS.filter((u) => u.value >= min);
-	}, [min]);
-
 	const quantity = useMemo(() => {
 		return value / unit;
 	}, [value, unit]);
 
 	const handleQuantityChange = useCallback(
 		(newQuantity: number) => {
-			let newValue = newQuantity * unit;
+			let newValue = Math.max(newQuantity * unit, min);
 			if (max !== undefined && newValue > max) {
 				newValue = max;
 			}
 			onChange(newValue);
 		},
-		[onChange, unit, max],
+		[onChange, unit, min, max],
 	);
 
 	const handleUnitChange = useCallback(
@@ -81,29 +77,20 @@ export function DurationInput({
 			const newUnit = Number(newUnitValue);
 			const oldUnit = unit;
 			setUnit(newUnit);
-			let newValue = (value / oldUnit) * newUnit;
+			let newValue = Math.max((value / oldUnit) * newUnit, min);
 			if (max !== undefined && newValue > max) {
 				newValue = max;
 			}
 			onChange(newValue);
 		},
-		[onChange, unit, value, max],
+		[onChange, unit, value, min, max],
 	);
-
-	useEffect(() => {
-		if (!availableUnits.some((u) => u.value === unit)) {
-			const firstAvailable = availableUnits[0];
-			if (firstAvailable) {
-				setUnit(firstAvailable.value);
-			}
-		}
-	}, [availableUnits, unit]);
 
 	return (
 		<div className={cn("grid grid-cols-[1fr_7rem] gap-2 w-full", className)}>
 			<Input
 				type="number"
-				min={0}
+				min={min / unit}
 				value={quantity}
 				onChange={(e) => handleQuantityChange(Number(e.target.value))}
 				disabled={disabled}
@@ -118,7 +105,7 @@ export function DurationInput({
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
-					{availableUnits.map((u) => (
+					{DURATION_UNITS.map((u) => (
 						<SelectItem key={u.value} value={String(u.value)}>
 							{u.label}
 						</SelectItem>
