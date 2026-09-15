@@ -42,6 +42,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import DateTime, now
 
 T = TypeVar("T", bound=tuple[Any, ...])
@@ -1294,6 +1295,12 @@ async def mark_deployments_ready(
     if not deployment_ids and not work_queue_ids:
         return
 
+    # Refresh at half the Foreman's timeout, so `last_polled` never goes stale.
+    foreman = get_current_settings().server.services.foreman
+    refresh_threshold = now("UTC") - datetime.timedelta(
+        seconds=foreman.deployment_last_polled_timeout_seconds / 2
+    )
+
     # `with_for_update=True` makes SQLite start with `BEGIN IMMEDIATE` so the
     # write lock is held before the read below; a deferred transaction that
     # reads first cannot be upgraded to a write if another connection commits
@@ -1312,6 +1319,12 @@ async def mark_deployments_ready(
                 sa.or_(
                     db.Deployment.id.in_(deployment_ids),
                     db.Deployment.work_queue_id.in_(work_queue_ids),
+                ),
+                # Already READY and recently polled: nothing to lock or write.
+                sa.or_(
+                    db.Deployment.status != DeploymentStatus.READY,
+                    db.Deployment.last_polled.is_(None),
+                    db.Deployment.last_polled < refresh_threshold,
                 ),
             )
             .order_by(db.Deployment.id)

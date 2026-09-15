@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import datetime
 import sqlite3
 from typing import List
@@ -15,7 +16,11 @@ from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.schemas import filters, states
 from prefect.server.schemas.states import StateType
 from prefect.server.schemas.statuses import DeploymentStatus
-from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
+from prefect.settings import (
+    PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
+    temporary_settings,
+)
 from prefect.types._datetime import now, start_of_day
 
 pytestmark = pytest.mark.clear_db
@@ -2023,6 +2028,30 @@ class TestDeploymentLabels:
         assert merged_labels == expected
 
 
+@contextlib.contextmanager
+def capture_deployment_updates(engine: sa.Engine):
+    statements: list[str] = []
+
+    def record(conn, cursor, statement, *args, **kwargs):
+        if "UPDATE deployment SET" in statement:
+            statements.append(statement)
+
+    sa.event.listen(engine, "before_cursor_execute", record)
+    try:
+        yield statements
+    finally:
+        sa.event.remove(engine, "before_cursor_execute", record)
+
+
+async def set_deployment_columns(db, deployment_id, **values):
+    async with db.session_context(begin_transaction=True) as session:
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(db.Deployment.id == deployment_id)
+            .values(**values)
+        )
+
+
 class TestMarkDeploymentsReady:
     async def test_marks_not_ready_deployments_as_ready(
         self,
@@ -2065,6 +2094,114 @@ class TestMarkDeploymentsReady:
             )
         await session.refresh(deployment)
         assert deployment.status == DeploymentStatus.READY
+
+    async def test_recently_polled_deployment_is_not_rewritten(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        # Every poll would otherwise rewrite every deployment on the queue.
+        db = provide_database_interface()
+        await models.deployments.mark_deployments_ready(
+            db=db, deployment_ids=[deployment.id]
+        )
+        await session.refresh(deployment)
+        first_polled = deployment.last_polled
+
+        engine = await db.engine()
+        with capture_deployment_updates(engine.sync_engine) as updates:
+            await models.deployments.mark_deployments_ready(
+                db=db, deployment_ids=[deployment.id]
+            )
+
+        assert updates == []
+        await session.refresh(deployment)
+        assert deployment.status == DeploymentStatus.READY
+        assert deployment.last_polled == first_polled
+
+    async def test_last_polled_is_refreshed_before_it_can_go_stale(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        # Not stale yet (the timeout is 60s), but past the halfway refresh point.
+        db = provide_database_interface()
+        aged = now("UTC") - datetime.timedelta(seconds=59)
+        await set_deployment_columns(
+            db, deployment.id, status=DeploymentStatus.READY, last_polled=aged
+        )
+
+        await models.deployments.mark_deployments_ready(
+            db=db, deployment_ids=[deployment.id]
+        )
+
+        await session.refresh(deployment)
+        assert deployment.last_polled is not None
+        assert deployment.last_polled > aged
+
+    async def test_refresh_point_follows_the_foreman_timeout(
+        self,
+        deployment: orm_models.Deployment,
+    ):
+        # A longer timeout leaves the same 59s-old deployment fresh.
+        db = provide_database_interface()
+        await set_deployment_columns(
+            db,
+            deployment.id,
+            status=DeploymentStatus.READY,
+            last_polled=now("UTC") - datetime.timedelta(seconds=59),
+        )
+
+        engine = await db.engine()
+        with temporary_settings(
+            {
+                PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS: 3600
+            }
+        ):
+            with capture_deployment_updates(engine.sync_engine) as updates:
+                await models.deployments.mark_deployments_ready(
+                    db=db, deployment_ids=[deployment.id]
+                )
+
+        assert updates == []
+
+    async def test_not_ready_deployment_is_marked_ready_when_recently_polled(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        db = provide_database_interface()
+        await set_deployment_columns(
+            db,
+            deployment.id,
+            status=DeploymentStatus.NOT_READY,
+            last_polled=now("UTC"),
+        )
+
+        await models.deployments.mark_deployments_ready(
+            db=db, deployment_ids=[deployment.id]
+        )
+
+        await session.refresh(deployment)
+        assert deployment.status == DeploymentStatus.READY
+
+    async def test_missing_last_polled_is_recorded(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        # A null poll time is never "older than" the threshold.
+        db = provide_database_interface()
+        await set_deployment_columns(
+            db, deployment.id, status=DeploymentStatus.READY, last_polled=None
+        )
+
+        await models.deployments.mark_deployments_ready(
+            db=db, deployment_ids=[deployment.id]
+        )
+
+        await session.refresh(deployment)
+        assert deployment.last_polled is not None
 
     async def test_waits_for_concurrent_write_transaction_on_sqlite(
         self,
