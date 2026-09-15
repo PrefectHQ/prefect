@@ -4,13 +4,15 @@ import json
 import os
 import signal
 import subprocess
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from time import sleep
-from typing import Any, Awaitable, Callable
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import anyio
+import anyio.lowlevel
 import pytest
 
 import prefect.exceptions
@@ -146,11 +148,72 @@ def test_delete_flow_run_succeeds(
     invoke_and_assert(
         command=["flow-run", "delete", str(flow_run.id)],
         user_input="y",
-        expected_output_contains=f"Successfully deleted flow run '{str(flow_run.id)}'.",
+        expected_output_contains=f"Successfully deleted flow run '{flow_run.id!s}'.",
         expected_code=0,
     )
 
     assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run.id)
+
+
+def test_delete_multiple_flow_runs_succeeds(
+    sync_prefect_client: SyncPrefectClient,
+    flow_run: FlowRun,
+    scheduled_flow_run: FlowRun,
+):
+    invoke_and_assert(
+        command=[
+            "flow-run",
+            "delete",
+            str(flow_run.id),
+            str(scheduled_flow_run.id),
+        ],
+        user_input="y",
+        expected_output_contains="Successfully deleted 2 flow run(s).",
+        expected_code=0,
+    )
+
+    assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run.id)
+    assert_flow_run_is_deleted_sync(sync_prefect_client, scheduled_flow_run.id)
+
+
+def test_delete_multiple_flow_runs_fails_correctly(flow_run: FlowRun):
+    missing_flow_run_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
+
+    invoke_and_assert(
+        command=[
+            "flow-run",
+            "delete",
+            str(flow_run.id),
+            missing_flow_run_id,
+        ],
+        user_input="y",
+        expected_output_contains=f"Flow run '{missing_flow_run_id}' not found!",
+        expected_code=1,
+    )
+
+
+def test_delete_flow_runs_from_stdin(
+    sync_prefect_client: SyncPrefectClient,
+    flow_run: FlowRun,
+    scheduled_flow_run: FlowRun,
+):
+    invoke_and_assert(
+        command=["flow-run", "delete", "--stdin"],
+        user_input=f"{flow_run.id}\n{scheduled_flow_run.id}\n",
+        expected_output_contains="Successfully deleted 2 flow run(s).",
+        expected_code=0,
+    )
+
+    assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run.id)
+    assert_flow_run_is_deleted_sync(sync_prefect_client, scheduled_flow_run.id)
+
+
+def test_delete_flow_runs_requires_ids():
+    invoke_and_assert(
+        command=["flow-run", "delete"],
+        expected_output_contains="No flow run IDs provided",
+        expected_code=1,
+    )
 
 
 @pytest.fixture
@@ -518,6 +581,88 @@ class TestCancelFlowRun:
             expected_code=1,
             expected_output_contains=f"Flow run '{bad_id}' not found!\n",
         )
+
+    async def test_cancel_multiple_flow_runs(self, prefect_client: PrefectClient):
+        first = await prefect_client.create_flow_run(
+            name="first",
+            flow=hello_flow,
+            state=Running(),
+        )
+        second = await prefect_client.create_flow_run(
+            name="second",
+            flow=hello_flow,
+            state=Pending(),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "cancel",
+                str(first.id),
+                str(second.id),
+            ],
+            expected_code=0,
+            expected_output_contains=(
+                "2 flow run(s) were successfully scheduled for cancellation."
+            ),
+        )
+
+        first_after = await prefect_client.read_flow_run(first.id)
+        second_after = await prefect_client.read_flow_run(second.id)
+
+        assert first_after.state.type == StateType.CANCELLING
+        assert second_after.state.type == StateType.CANCELLING
+
+    async def test_cancel_multiple_flow_runs_with_bad_id(
+        self, prefect_client: PrefectClient
+    ):
+        flow_run = await prefect_client.create_flow_run(
+            name="flow-run",
+            flow=hello_flow,
+            state=Running(),
+        )
+        bad_id = str(uuid4())
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "cancel",
+                str(flow_run.id),
+                bad_id,
+            ],
+            expected_code=1,
+            expected_output_contains=f"Flow run '{bad_id}' not found!",
+        )
+
+    async def test_cancel_flow_runs_from_stdin(self, prefect_client: PrefectClient):
+        first = await prefect_client.create_flow_run(
+            name="first",
+            flow=hello_flow,
+            state=Running(),
+        )
+        second = await prefect_client.create_flow_run(
+            name="second",
+            flow=hello_flow,
+            state=Pending(),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "cancel", "--stdin"],
+            user_input=f"{first.id}\n{second.id}\n",
+            expected_code=0,
+            expected_output_contains=(
+                "2 flow run(s) were successfully scheduled for cancellation."
+            ),
+        )
+
+        first_after = await prefect_client.read_flow_run(first.id)
+        second_after = await prefect_client.read_flow_run(second.id)
+
+        assert first_after.state.type == StateType.CANCELLING
+        assert second_after.state.type == StateType.CANCELLING
 
 
 class TestGetFlowRunByIdOrName:
@@ -2052,7 +2197,7 @@ class TestSignalHandling:
 
         async def fake_submit(*_: Any, **__: Any) -> None:
             handlers[0]()
-            await anyio.sleep(0)
+            await anyio.lowlevel.checkpoint()
 
         with (
             patch(
