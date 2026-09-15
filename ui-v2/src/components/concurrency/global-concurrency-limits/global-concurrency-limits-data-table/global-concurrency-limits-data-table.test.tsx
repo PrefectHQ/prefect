@@ -16,11 +16,16 @@ const MOCK_ROW = {
 	slot_decay_per_second: 0,
 };
 
+const DEFAULT_PAGINATION = { pageIndex: 0, pageSize: 10 };
+
 describe("GlobalConcurrencyLimitTable -- table", () => {
 	it("renders row data", () => {
 		render(
 			<Table
 				data={[MOCK_ROW]}
+				currentCount={1}
+				pagination={DEFAULT_PAGINATION}
+				onPaginationChange={vi.fn()}
 				onDeleteRow={vi.fn()}
 				onEditRow={vi.fn()}
 				onResetRow={vi.fn()}
@@ -47,6 +52,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		render(
 			<Table
 				data={[MOCK_ROW]}
+				currentCount={1}
+				pagination={DEFAULT_PAGINATION}
+				onPaginationChange={vi.fn()}
 				onDeleteRow={mockFn}
 				onEditRow={vi.fn()}
 				onResetRow={vi.fn()}
@@ -70,6 +78,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		render(
 			<Table
 				data={[MOCK_ROW]}
+				currentCount={1}
+				pagination={DEFAULT_PAGINATION}
+				onPaginationChange={vi.fn()}
 				onDeleteRow={vi.fn()}
 				onEditRow={mockFn}
 				onResetRow={vi.fn()}
@@ -94,6 +105,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		render(
 			<Table
 				data={[MOCK_ROW]}
+				currentCount={1}
+				pagination={DEFAULT_PAGINATION}
+				onPaginationChange={vi.fn()}
 				onDeleteRow={vi.fn()}
 				onEditRow={vi.fn()}
 				onResetRow={mockFn}
@@ -119,6 +133,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				<Toaster />
 				<Table
 					data={[MOCK_ROW]}
+					currentCount={1}
+					pagination={DEFAULT_PAGINATION}
+					onPaginationChange={vi.fn()}
 					onDeleteRow={vi.fn()}
 					onEditRow={vi.fn()}
 					onResetRow={vi.fn()}
@@ -147,6 +164,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		rerender(
 			<Table
 				data={[{ ...MOCK_ROW, active: false }]}
+				currentCount={1}
+				pagination={DEFAULT_PAGINATION}
+				onPaginationChange={vi.fn()}
 				onDeleteRow={vi.fn()}
 				onEditRow={vi.fn()}
 				onResetRow={vi.fn()}
