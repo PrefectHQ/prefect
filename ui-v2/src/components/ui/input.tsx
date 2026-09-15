@@ -9,11 +9,25 @@ type InputProps = React.ComponentProps<"input"> & {
 	type?: React.HTMLInputTypeAttribute | undefined;
 };
 
+function blurFocusedNumberInput(event: React.WheelEvent<HTMLInputElement>) {
+	if (event.currentTarget === document.activeElement) {
+		event.currentTarget.blur();
+	}
+}
+
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-	({ className, type, ...props }, ref) => {
+	({ className, type, onWheel, ...props }, ref) => {
 		return (
 			<input
 				type={type}
+				onWheel={
+					type === "number"
+						? (event) => {
+								blurFocusedNumberInput(event);
+								onWheel?.(event);
+							}
+						: onWheel
+				}
 				className={cn(
 					"flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
 					className,
