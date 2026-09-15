@@ -172,34 +172,10 @@ Using the Prefect UI in development requires installation of [npm](https://githu
 We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions.
 Once installed, run `nvm use` from the root of the Prefect repository to initialize the proper version of `npm` and `node`.
 
-Start a development UI that reloads on code changes:
-
-```bash
-prefect dev ui
-```
-
-This command is most useful if you are working directly on the UI codebase.
-
-Alternatively, you can build a static UI that will be served when running `prefect server start`:
+Build a static UI that will be served when running `prefect server start`:
 
 ```bash
 prefect dev build-ui --include-v2
-```
-
-## Working with a development server
-
-The Prefect CLI provides several helpful commands to aid development of server-side changes.
-
-You can start all services with hot-reloading on code changes (note that this requires installation of UI dependencies):
-
-```bash
-prefect dev start
-```
-
-Start a Prefect API that reloads on code changes:
-
-```bash
-prefect dev api
 ```
 
 ## Add database migrations
