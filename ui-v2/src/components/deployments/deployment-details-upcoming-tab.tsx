@@ -67,7 +67,7 @@ export const DeploymentDetailsUpcomingTab = ({
 
 	return (
 		<div className="flex flex-col gap-2">
-			<div className="flex items-center justify-between">
+			<div className="flex flex-wrap items-center justify-between gap-2">
 				<FlowRunsRowCount
 					count={dataWithDeployment?.count}
 					results={dataWithDeployment?.results}

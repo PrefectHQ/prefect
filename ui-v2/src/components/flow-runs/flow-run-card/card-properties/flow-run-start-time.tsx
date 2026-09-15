@@ -32,7 +32,7 @@ export const FlowRunStartTime = ({ flowRun }: FlowRunStartTimeProps) => {
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger asChild disabled={!text}>
-					<div className="text-xs font-mono flex gap-2 items-center">
+					<div className="text-xs font-mono flex gap-2 items-center shrink-0 whitespace-nowrap">
 						<Icon id="Calendar" className="size-4" />
 						{text ?? "No start time"}
 					</div>
