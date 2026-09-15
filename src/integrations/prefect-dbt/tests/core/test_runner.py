@@ -1446,6 +1446,28 @@ class TestExecuteDbtNode:
         # Should complete without error when no status is available
         mock_task_state.wait_for_node_completion.assert_called_once_with(node_id)
 
+    @pytest.mark.parametrize("skipped_status", ["skipped"])
+    def test_execute_dbt_node_raises_on_skipped_status(
+        self, mock_task_state, skipped_status
+    ):
+        """Test that execute_dbt_node raises when a node is skipped.
+
+        Nodes can be skipped when an upstream node fails (e.g. a pre-hook
+        error in strict static analysis mode where dbt emits NodeStart before
+        the upstream Run phase completes).  Without this check, the task
+        function would return normally and Prefect would record the task as
+        successful even though nothing ran.
+        """
+        node_id = "model.test_project.test_model"
+        asset_id = "test_asset"
+
+        mock_task_state.get_node_status.return_value = {
+            "event_data": {"node_info": {"node_status": skipped_status}}
+        }
+
+        with pytest.raises(Exception, match="Node .* was skipped"):
+            execute_dbt_node(mock_task_state, node_id, asset_id)
+
     def test_execute_dbt_node_with_asset_context(self, mock_task_state):
         """Test that execute_dbt_node works with asset context."""
         node_id = "model.test_project.test_model"
