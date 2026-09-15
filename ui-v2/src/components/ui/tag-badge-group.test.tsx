@@ -12,7 +12,10 @@ const OVERFLOW_WIDTH = 30;
  * jsdom has no layout, so give the group container a fixed width and each
  * tag/overflow control a fixed width to exercise the fit calculation.
  */
-const mockLayout = (containerWidth: number) => {
+const mockLayout = (
+	containerWidth: number,
+	overflowWidth: (label: string) => number = () => OVERFLOW_WIDTH,
+) => {
 	const clientWidth = Object.getOwnPropertyDescriptor(
 		Element.prototype,
 		"clientWidth",
@@ -35,8 +38,8 @@ const mockLayout = (containerWidth: number) => {
 			switch (this.getAttribute("data-slot")) {
 				case "tag-badge-group-item":
 					return TAG_WIDTH;
-				case "tag-badge-group-overflow":
-					return OVERFLOW_WIDTH;
+				case "tag-badge-group-overflow-sizer":
+					return overflowWidth(this.textContent ?? "");
 				default:
 					return 0;
 			}
@@ -105,6 +108,35 @@ describe("TagBadgeGroup", () => {
 		expect(screen.getAllByText("alpha")).toHaveLength(2);
 		expect(getOverflowButton()).toHaveTextContent("+2");
 		expect(getOverflowButton()).toHaveAttribute("title", "beta, beta");
+	});
+
+	it("keeps keys unique when a tag equals another tag's generated key", () => {
+		const consoleError = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => {});
+		render(<TagBadgeGroup tags={["alpha#1", "1:alpha", "alpha", "alpha"]} />);
+
+		expect(screen.getAllByText("alpha")).toHaveLength(2);
+		const keyWarnings = consoleError.mock.calls.filter(([message]) =>
+			String(message).includes("same key"),
+		);
+		consoleError.mockRestore();
+		expect(keyWarnings).toHaveLength(0);
+	});
+
+	it("reserves room for the widest possible overflow counter", () => {
+		// container 165: two tags plus a 30px one-digit counter would fit (150),
+		// but a two-digit counter is 50px wide, so only one tag may stay visible
+		restoreLayout = mockLayout(165, (label) => (label.length > 2 ? 50 : 30));
+		const tags = Array.from({ length: 12 }, (_, i) => `tag-${i}`);
+		render(<TagBadgeGroup tags={tags} />);
+
+		expect(getVisibleTag("tag-0")).toBeVisible();
+		expect(getOverflowButton()).toHaveTextContent("+11");
+		expect(getOverflowButton()).toHaveAttribute(
+			"title",
+			expect.stringMatching(/^tag-1, /),
+		);
 	});
 
 	it("renders a non-interactive overflow badge with overflow='badge'", () => {
