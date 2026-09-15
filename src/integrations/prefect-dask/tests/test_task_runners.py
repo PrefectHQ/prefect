@@ -1,6 +1,8 @@
 import asyncio
 import time
+import uuid
 from typing import Generator, List
+from unittest.mock import MagicMock
 
 import dask.dataframe as dd
 import distributed
@@ -83,6 +85,13 @@ class TestDaskTaskRunner:
         new = task_runner.duplicate()
         assert new == task_runner
         assert new is not task_runner
+
+    def test_as_completed_with_zero_timeout_yields_ready_future(self):
+        wrapped_future = MagicMock(spec=distributed.Future)
+        wrapped_future.done.return_value = True
+        future = PrefectDaskFuture(uuid.uuid4(), wrapped_future)
+
+        assert list(as_completed([future], timeout=0)) == [future]
 
     async def test_successful_flow_run(self, task_runner: DaskTaskRunner):
         @task

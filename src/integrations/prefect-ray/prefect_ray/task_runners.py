@@ -115,6 +115,13 @@ R = TypeVar("R")
 
 
 class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
+    def _is_done(self) -> bool:
+        if super()._is_done():
+            return True
+
+        ready, _ = ray.wait([self._wrapped_future], timeout=0, fetch_local=False)
+        return bool(ready)
+
     def wait(self, timeout: float | None = None) -> None:
         try:
             result = ray.get(self.wrapped_future, timeout=timeout)
