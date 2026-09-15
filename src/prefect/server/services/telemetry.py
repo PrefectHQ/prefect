@@ -65,6 +65,9 @@ async def _fetch_or_set_telemetry_session(
     enabled_getter=lambda: get_current_settings().server.analytics_enabled,
     run_in_ephemeral=True,
     run_in_webserver=True,
+    display_name="Telemetry",
+    environment_variable="PREFECT_SERVER_ANALYTICS_ENABLED",
+    description="Sends anonymous telemetry data to Prefect to help improve the product.",
 )
 async def send_telemetry_heartbeat(
     perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=600)),

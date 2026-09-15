@@ -31,6 +31,9 @@ logger: logging.Logger = get_logger(__name__)
 
 @perpetual_service(
     enabled_getter=lambda: get_current_settings().server.services.foreman.enabled,
+    display_name="Foreman",
+    environment_variable="PREFECT_SERVER_SERVICES_FOREMAN_ENABLED",
+    description="Monitors workers and marks stale resources as offline or not ready.",
 )
 async def monitor_worker_health(
     perpetual: Perpetual = Perpetual(

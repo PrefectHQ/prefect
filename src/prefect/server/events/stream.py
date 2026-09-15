@@ -144,8 +144,8 @@ class Distributor(RunInEphemeralServers, RunInWebservers, Service):
         raise NotImplementedError("Distributor does not have settings")
 
     @classmethod
-    def environment_variable_name(cls) -> dict[str, str]:
-        return "PREFECT_API_EVENTS_STREAM_OUT_ENABLED"
+    def environment_variable_name(cls) -> str:
+        return "PREFECT_SERVER_EVENTS_STREAM_OUT_ENABLED"
 
     @classmethod
     def enabled(cls) -> bool:
