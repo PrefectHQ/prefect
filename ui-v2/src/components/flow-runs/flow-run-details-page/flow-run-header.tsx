@@ -184,7 +184,7 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 								</Badge>
 							)}
 							{flowRun.tags && flowRun.tags.length > 0 && (
-								<div className="ml-2 shrink-0">
+								<div className="ml-2 min-w-12 flex">
 									<TagBadgeGroup tags={flowRun.tags} maxTagsDisplayed={3} />
 								</div>
 							)}

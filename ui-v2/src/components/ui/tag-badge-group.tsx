@@ -21,6 +21,13 @@ type TagBadgeGroupProps = {
 	 * column); by default tags size to their content.
 	 */
 	tagClassName?: string;
+	/**
+	 * `popover` (default) renders the `+N` summary as a button that opens the
+	 * hidden tags. Use `badge` when the group is rendered inside another
+	 * interactive element (e.g. a combobox trigger), where a nested button is
+	 * invalid; the hidden tag names are then exposed through `title`/`aria-label`.
+	 */
+	overflow?: "popover" | "badge";
 };
 
 /**
@@ -36,10 +43,11 @@ export const TagBadgeGroup = ({
 	onTagsChange,
 	onTagClick,
 	tagClassName,
+	overflow: overflowMode = "popover",
 }: TagBadgeGroupProps) => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const overflowRef = useRef<HTMLSpanElement>(null);
-	const tagRefs = useRef(new Map<string, HTMLSpanElement>());
+	const tagRefs = useRef(new Map<number, HTMLSpanElement>());
 	const [visibleCount, setVisibleCount] = useState(tags.length);
 
 	const cap = Math.min(tags.length, maxTagsDisplayed ?? tags.length);
@@ -60,7 +68,7 @@ export const TagBadgeGroup = ({
 			let used = 0;
 			let count = 0;
 			for (let i = 0; i < cap; i++) {
-				const width = tagRefs.current.get(tags[i])?.offsetWidth ?? 0;
+				const width = tagRefs.current.get(i)?.offsetWidth ?? 0;
 				const hasOverflow = i + 1 < tags.length;
 				const needed = used + width + (hasOverflow ? overflowWidth : 0);
 				if (needed > available) {
@@ -86,9 +94,9 @@ export const TagBadgeGroup = ({
 		return null;
 	}
 
-	const renderTag = (tag: string) => (
+	const renderTag = ({ tag, key }: TagEntry) => (
 		<TagBadge
-			key={tag}
+			key={key}
 			tag={tag}
 			onRemove={onTagsChange ? () => removeTag(tag) : undefined}
 			onClick={onTagClick ? () => onTagClick(tag) : undefined}
@@ -97,10 +105,26 @@ export const TagBadgeGroup = ({
 		/>
 	);
 
+	const renderMeasuredTag = (entry: TagEntry, hidden: boolean) => (
+		<span
+			key={entry.key}
+			ref={(node) => setTagRef(tagRefs.current, entry.index, node)}
+			data-slot="tag-badge-group-item"
+			className={cn("inline-flex", hidden && hiddenItemClassName)}
+			inert={hidden}
+			aria-hidden={hidden}
+		>
+			{renderTag(entry)}
+		</span>
+	);
+
+	const entries = toTagEntries(tags);
 	const count = Math.min(visibleCount, cap);
-	const visibleTags = tags.slice(0, count);
-	const hiddenTags = tags.slice(count);
+	const visibleTags = entries.slice(0, count);
+	const hiddenTags = entries.slice(count);
 	const hasOverflow = hiddenTags.length > 0;
+
+	const hiddenTagNames = hiddenTags.map((entry) => entry.tag).join(", ");
 
 	const overflow = (
 		<span
@@ -110,25 +134,36 @@ export const TagBadgeGroup = ({
 			inert={!hasOverflow}
 			aria-hidden={!hasOverflow}
 		>
-			<Popover>
-				<PopoverTrigger asChild>
-					<Badge asChild variant={variant} className="ml-1 cursor-pointer">
-						<button
-							type="button"
-							aria-label={`Show ${hiddenTags.length} more tags`}
-							title={hiddenTags.join(", ")}
-						>
-							+{hiddenTags.length}
-						</button>
-					</Badge>
-				</PopoverTrigger>
-				<PopoverContent
-					align="start"
-					className="flex flex-wrap gap-1 w-auto max-w-72 p-2"
+			{overflowMode === "badge" ? (
+				<Badge
+					variant={variant}
+					className="ml-1"
+					title={hiddenTagNames}
+					aria-label={`${hiddenTags.length} more tags: ${hiddenTagNames}`}
 				>
-					{hiddenTags.map(renderTag)}
-				</PopoverContent>
-			</Popover>
+					+{hiddenTags.length}
+				</Badge>
+			) : (
+				<Popover>
+					<PopoverTrigger asChild>
+						<Badge asChild variant={variant} className="ml-1 cursor-pointer">
+							<button
+								type="button"
+								aria-label={`Show ${hiddenTags.length} more tags`}
+								title={hiddenTagNames}
+							>
+								+{hiddenTags.length}
+							</button>
+						</Badge>
+					</PopoverTrigger>
+					<PopoverContent
+						align="start"
+						className="flex flex-wrap gap-1 w-auto max-w-72 p-2"
+					>
+						{hiddenTags.map(renderTag)}
+					</PopoverContent>
+				</Popover>
+			)}
 		</span>
 	);
 
@@ -138,30 +173,10 @@ export const TagBadgeGroup = ({
 			data-slot="tag-badge-group"
 			className="flex flex-wrap items-center min-w-0 max-w-full overflow-hidden"
 		>
-			{visibleTags.map((tag) => (
-				<span
-					key={tag}
-					ref={(node) => setTagRef(tagRefs.current, tag, node)}
-					data-slot="tag-badge-group-item"
-					className="inline-flex"
-				>
-					{renderTag(tag)}
-				</span>
-			))}
+			{visibleTags.map((entry) => renderMeasuredTag(entry, false))}
 			{hasOverflow && overflow}
 			<span className="basis-full" aria-hidden />
-			{hiddenTags.map((tag) => (
-				<span
-					key={tag}
-					ref={(node) => setTagRef(tagRefs.current, tag, node)}
-					data-slot="tag-badge-group-item"
-					className={cn("inline-flex", hiddenItemClassName)}
-					inert
-					aria-hidden
-				>
-					{renderTag(tag)}
-				</span>
-			))}
+			{hiddenTags.map((entry) => renderMeasuredTag(entry, true))}
 			{!hasOverflow && overflow}
 		</div>
 	);
@@ -169,14 +184,26 @@ export const TagBadgeGroup = ({
 
 const hiddenItemClassName = "h-0 overflow-hidden invisible";
 
+type TagEntry = { tag: string; key: string; index: number };
+
+/** Gives repeated tag values distinct keys (`alpha`, `alpha#1`, ...). */
+function toTagEntries(tags: string[]): TagEntry[] {
+	const seen = new Map<string, number>();
+	return tags.map((tag, index) => {
+		const occurrence = seen.get(tag) ?? 0;
+		seen.set(tag, occurrence + 1);
+		return { tag, key: occurrence === 0 ? tag : `${tag}#${occurrence}`, index };
+	});
+}
+
 function setTagRef(
-	refs: Map<string, HTMLSpanElement>,
-	tag: string,
+	refs: Map<number, HTMLSpanElement>,
+	index: number,
 	node: HTMLSpanElement | null,
 ) {
 	if (node) {
-		refs.set(tag, node);
+		refs.set(index, node);
 	} else {
-		refs.delete(tag);
+		refs.delete(index);
 	}
 }

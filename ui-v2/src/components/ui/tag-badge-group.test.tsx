@@ -97,6 +97,25 @@ describe("TagBadgeGroup", () => {
 		);
 	});
 
+	it("measures duplicate tags independently", () => {
+		// 2 tags (120) + overflow (30) fit in 160
+		restoreLayout = mockLayout(160);
+		render(<TagBadgeGroup tags={["alpha", "alpha", "beta", "beta"]} />);
+
+		expect(screen.getAllByText("alpha")).toHaveLength(2);
+		expect(getOverflowButton()).toHaveTextContent("+2");
+		expect(getOverflowButton()).toHaveAttribute("title", "beta, beta");
+	});
+
+	it("renders a non-interactive overflow badge with overflow='badge'", () => {
+		render(<TagBadgeGroup tags={TAGS} maxTagsDisplayed={2} overflow="badge" />);
+
+		expect(screen.queryByRole("button")).not.toBeInTheDocument();
+		const badge = screen.getByText("+3");
+		expect(badge).toHaveAttribute("title", "gamma, delta, epsilon");
+		expect(badge).toHaveAccessibleName("3 more tags: gamma, delta, epsilon");
+	});
+
 	it("caps the inline tags with maxTagsDisplayed even when there is room", () => {
 		render(<TagBadgeGroup tags={TAGS} maxTagsDisplayed={2} />);
 
