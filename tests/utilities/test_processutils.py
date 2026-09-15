@@ -1,6 +1,9 @@
+import signal
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from types import FrameType
 from unittest import mock
 
 import pytest
@@ -12,6 +15,7 @@ from prefect.utilities.processutils import (
     open_process,
     run_process,
     sanitize_subprocess_env,
+    setup_signal_handlers_worker,
 )
 
 
@@ -103,6 +107,45 @@ class TestCommandSerialization:
             "-X",
             "utf8",
         ]
+
+
+class TestWorkerSignalHandlers:
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="SIGTERM drain handling is only used in non-Windows environments",
+    )
+    @pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM])
+    def test_first_signal_requests_drain_then_second_signal_escalates(
+        self, signum: signal.Signals, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        registered_handlers: dict[
+            signal.Signals, Callable[[int, FrameType | None], None]
+        ] = {}
+        request_drain = mock.Mock()
+        print_fn = mock.Mock()
+        kill = mock.Mock()
+
+        monkeypatch.setattr(
+            prefect.utilities.processutils,
+            "_register_signal",
+            lambda signum, handler: registered_handlers.__setitem__(
+                signal.Signals(signum), handler
+            ),
+        )
+        monkeypatch.setattr(prefect.utilities.processutils.os, "kill", kill)
+
+        setup_signal_handlers_worker(
+            1234, "the process worker", print_fn, request_drain=request_drain
+        )
+
+        registered_handlers[signum](signum, None)
+
+        request_drain.assert_called_once_with()
+        kill.assert_not_called()
+
+        registered_handlers[signum](signum, None)
+
+        kill.assert_called_once_with(1234, signal.SIGKILL)
 
 
 class TestRunProcess:
