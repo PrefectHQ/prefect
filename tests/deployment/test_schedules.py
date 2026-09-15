@@ -204,4 +204,3 @@ def test_normalize_server_schema():
 def test_normalize_incompatible():
     with pytest.raises(ValueError, match="Invalid schedule provided"):
         normalize_to_deployment_schedule(schedules=[1, 2, 3])
-

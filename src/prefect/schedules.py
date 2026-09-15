@@ -284,4 +284,3 @@ def RRule(
         slug=slug,
         _active_provided=active_provided,
     )
-
