@@ -130,7 +130,7 @@
     "@types/lodash.throttle": "^4.1.9",
     "@types/node": "^26.1.2",
     "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.5",
+    "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "^6.0.5",
     "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^10.8.0",

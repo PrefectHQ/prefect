@@ -56,7 +56,7 @@ export const FlowRunCard = ({ flowRun, ...props }: FlowRunCardProps) => {
 				</div>
 			</div>
 			{/** Second Row */}
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
 				{flowRun.state && (
 					<StateBadge type={flowRun.state.type} name={flowRun.state.name} />
 				)}
@@ -73,7 +73,7 @@ export const FlowRunCard = ({ flowRun, ...props }: FlowRunCardProps) => {
 			</div>
 			{/** Third Row */}
 			{hasRelationships && (
-				<div className="flex items-center gap-4">
+				<div className="flex flex-wrap items-center gap-x-4 gap-y-1">
 					{flowRun.deployment && (
 						<FlowRunDeployment deployment={flowRun.deployment} />
 					)}
