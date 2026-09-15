@@ -399,6 +399,18 @@
                     ],
                     "default": null,
                     "title": "Sla"
+                },
+                "replaces": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Replaces"
                 }
             },
             "title": "DeploymentConfig",
