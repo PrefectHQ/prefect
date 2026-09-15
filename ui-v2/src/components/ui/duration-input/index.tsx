@@ -119,6 +119,11 @@ export function DurationInput({
 				value={quantityInput}
 				onChange={(e) => handleQuantityChange(e.target.value)}
 				onBlur={handleQuantityBlur}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") {
+						handleQuantityBlur();
+					}
+				}}
 				disabled={disabled}
 				aria-label="Duration quantity"
 			/>

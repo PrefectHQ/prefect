@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { useState } from "react";
@@ -107,6 +107,35 @@ describe("DurationInput", () => {
 
 		expect(quantityInput).toHaveValue(15);
 		expect(screen.getByRole("status")).toHaveTextContent("15");
+	});
+
+	it("commits the minimum before submitting an empty duration", async () => {
+		const user = userEvent.setup();
+		const onSubmit = vi.fn();
+
+		function ControlledForm() {
+			const [value, setValue] = useState(30);
+			return (
+				<form
+					aria-label="Duration form"
+					onSubmit={(event) => {
+						event.preventDefault();
+						onSubmit(value);
+					}}
+				>
+					<DurationInput value={value} onChange={setValue} min={10} />
+					<button type="submit">Submit</button>
+				</form>
+			);
+		}
+
+		render(<ControlledForm />);
+		const quantityInput = screen.getByLabelText("Duration quantity");
+		await user.clear(quantityInput);
+		fireEvent.keyDown(quantityInput, { key: "Enter" });
+		fireEvent.submit(screen.getByRole("form"));
+
+		expect(onSubmit).toHaveBeenCalledWith(10);
 	});
 
 	it("allows valid quantities when the converted minimum is fractional", () => {
