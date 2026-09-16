@@ -89,6 +89,12 @@ export const TagBadgeGroup = ({
 		measure();
 		const resizeObserver = new ResizeObserver(measure);
 		resizeObserver.observe(container);
+		// Tag widths change without the tags changing (e.g. when the web font
+		// loads); the sizer badge changes with them and lives outside the clipped
+		// container box, so observing it re-runs the fit calculation.
+		if (overflowSizerRef.current) {
+			resizeObserver.observe(overflowSizerRef.current);
+		}
 		return () => resizeObserver.disconnect();
 	}, [tags, cap]);
 
