@@ -936,9 +936,11 @@ async def test_network_config_from_vpc_id(
     session = aws_credentials.get_boto3_session()
 
     async with ECSWorker(work_pool_name="test") as worker:
-        # Capture the task run call because moto does not track 'networkConfiguration'
-        original_run_task = worker._create_task_run
-        mock_run_task = MagicMock(side_effect=original_run_task)
+        # Capture the request without asking moto to emulate AWS selecting the default
+        # security group when the optional field is omitted.
+        mock_run_task = MagicMock(
+            return_value={"taskArn": "task-arn", "clusterArn": "cluster-arn"}
+        )
         worker._create_task_run = mock_run_task
 
         await worker.run(flow_run, configuration)
@@ -950,7 +952,6 @@ async def test_network_config_from_vpc_id(
         "awsvpcConfiguration": {
             "subnets": [subnet.id],
             "assignPublicIp": "ENABLED",
-            "securityGroups": [],
         }
     }
 
@@ -1223,9 +1224,11 @@ async def test_network_config_from_default_vpc(
     configuration = await construct_configuration(aws_credentials=aws_credentials)
 
     async with ECSWorker(work_pool_name="test") as worker:
-        # Capture the task run call because moto does not track 'networkConfiguration'
-        original_run_task = worker._create_task_run
-        mock_run_task = MagicMock(side_effect=original_run_task)
+        # Capture the request without asking moto to emulate AWS selecting the default
+        # security group when the optional field is omitted.
+        mock_run_task = MagicMock(
+            return_value={"taskArn": "task-arn", "clusterArn": "cluster-arn"}
+        )
         worker._create_task_run = mock_run_task
 
         await worker.run(flow_run, configuration)
@@ -1237,7 +1240,6 @@ async def test_network_config_from_default_vpc(
         "awsvpcConfiguration": {
             "subnets": [subnet["SubnetId"] for subnet in default_subnets],
             "assignPublicIp": "ENABLED",
-            "securityGroups": [],
         }
     }
 
