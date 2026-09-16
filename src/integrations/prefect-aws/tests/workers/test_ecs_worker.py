@@ -1,5 +1,6 @@
 import json
 import logging
+from copy import deepcopy
 from functools import partial
 from itertools import product
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
@@ -12,6 +13,7 @@ from exceptiongroup import ExceptionGroup, catch
 from moto import mock_aws
 from moto.backends import get_backend
 from moto.ec2.utils import generate_instance_identity_document
+from moto.ecs.models import Task
 from moto.moto_api import state_manager
 from prefect_aws.workers.ecs_worker import (
     _TAG_REGEX,
@@ -194,8 +196,23 @@ def patch_calculate_task_resource_requirements(
     return _calculate_task_resource_requirements(task_definition)
 
 
+def patch_task_init(_task_init):
+    def patched_task_init(self, *args, **kwargs):
+        networking_configuration = kwargs.get("networking_configuration")
+        if networking_configuration:
+            networking_configuration = deepcopy(networking_configuration)
+            networking_configuration["awsvpcConfiguration"].setdefault(
+                "securityGroups", []
+            )
+            kwargs["networking_configuration"] = networking_configuration
+
+        return _task_init(self, *args, **kwargs)
+
+    return patched_task_init
+
+
 @pytest.fixture
-def ecs_mocks(aws_credentials: AwsCredentials):
+def ecs_mocks(aws_credentials: AwsCredentials, monkeypatch: pytest.MonkeyPatch):
     with mock_aws():
         session = aws_credentials.get_boto3_session()
         ecs_client = session.client("ecs")
@@ -216,6 +233,11 @@ def ecs_mocks(aws_credentials: AwsCredentials):
                 backend._calculate_task_resource_requirements = partial(
                     patch_calculate_task_resource_requirements, orig
                 )
+        monkeypatch.setattr(
+            Task,
+            "__init__",
+            patch_task_init(Task.__init__),
+        )
         yield
 
 
