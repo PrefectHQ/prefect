@@ -176,13 +176,12 @@ describe("WorkQueueIconText", () => {
 			},
 		);
 
-		await waitFor(() => {
-			expect(screen.getByText("my-work-queue")).toBeInTheDocument();
-		});
+		expect(await screen.findByText("my-work-queue")).toBeInTheDocument();
 
 		// StatusIcon renders a Circle SVG for READY status
-		const statusIcon = container.querySelector("svg.lucide-circle");
-		expect(statusIcon).toBeInTheDocument();
+		await waitFor(() => {
+			expect(container.querySelector("svg.lucide-circle")).toBeInTheDocument();
+		});
 	});
 
 	it("shows both label and status when both props are true", async () => {
@@ -204,13 +203,37 @@ describe("WorkQueueIconText", () => {
 			},
 		);
 
-		await waitFor(() => {
-			expect(screen.getByText("Work Queue")).toBeInTheDocument();
-			expect(screen.getByText("my-work-queue")).toBeInTheDocument();
-		});
+		expect(await screen.findByText("Work Queue")).toBeInTheDocument();
+		expect(screen.getByText("my-work-queue")).toBeInTheDocument();
 
-		const statusIcon = container.querySelector("svg.lucide-circle");
-		expect(statusIcon).toBeInTheDocument();
+		await waitFor(() => {
+			expect(container.querySelector("svg.lucide-circle")).toBeInTheDocument();
+		});
+	});
+
+	it("renders the link when the work queue lookup fails", async () => {
+		server.use(
+			http.get(buildApiUrl("/work_pools/:work_pool_name/queues/:name"), () => {
+				return HttpResponse.json({ detail: "Not found" }, { status: 404 });
+			}),
+		);
+
+		render(
+			<WorkQueueIconTextRouter
+				workPoolName="my-work-pool"
+				workQueueName="deleted-queue"
+				showStatus
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
+
+		expect(await screen.findByRole("link")).toHaveAttribute(
+			"href",
+			"/work-pools/work-pool/my-work-pool/queue/deleted-queue",
+		);
+		expect(screen.getByText("deleted-queue")).toBeInTheDocument();
 	});
 
 	it("applies custom className to the link", async () => {
