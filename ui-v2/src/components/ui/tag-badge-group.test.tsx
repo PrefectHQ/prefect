@@ -20,10 +20,6 @@ const mockLayout = (
 		Element.prototype,
 		"clientWidth",
 	);
-	const offsetWidth = Object.getOwnPropertyDescriptor(
-		HTMLElement.prototype,
-		"offsetWidth",
-	);
 	Object.defineProperty(Element.prototype, "clientWidth", {
 		configurable: true,
 		get(this: Element) {
@@ -32,25 +28,36 @@ const mockLayout = (
 				: 0;
 		},
 	});
-	Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
-		configurable: true,
-		get(this: HTMLElement) {
-			switch (this.getAttribute("data-slot")) {
-				case "tag-badge-group-item":
-					return TAG_WIDTH;
-				case "tag-badge-group-overflow-sizer":
-					return overflowWidth(this.textContent ?? "");
-				default:
-					return 0;
-			}
-		},
-	});
+	const widthOf = (element: Element) => {
+		switch (element.getAttribute("data-slot")) {
+			case "tag-badge-group-item":
+				return TAG_WIDTH;
+			case "tag-badge-group-overflow-sizer":
+				return overflowWidth(element.textContent ?? "");
+			default:
+				return 0;
+		}
+	};
+	const spy = vi
+		.spyOn(Element.prototype, "getBoundingClientRect")
+		.mockImplementation(function (this: Element) {
+			const width = widthOf(this);
+			return {
+				x: 0,
+				y: 0,
+				top: 0,
+				left: 0,
+				bottom: 0,
+				right: width,
+				width,
+				height: 0,
+				toJSON: () => ({}),
+			};
+		});
 	return () => {
+		spy.mockRestore();
 		if (clientWidth) {
 			Object.defineProperty(Element.prototype, "clientWidth", clientWidth);
-		}
-		if (offsetWidth) {
-			Object.defineProperty(HTMLElement.prototype, "offsetWidth", offsetWidth);
 		}
 	};
 };
@@ -137,6 +144,29 @@ describe("TagBadgeGroup", () => {
 			"title",
 			expect.stringMatching(/^tag-1, /),
 		);
+	});
+
+	it("asks its parent for the width of every tag, not just the visible ones", () => {
+		// only 2 of 5 tags fit, but the group must still request room for all
+		// 5 (300px) so it can grow back when the parent widens
+		restoreLayout = mockLayout(160);
+		const { container } = render(<TagBadgeGroup tags={TAGS} />);
+
+		expect(getOverflowButton()).toHaveTextContent("+3");
+		expect(container.firstElementChild).toHaveStyle({
+			width: `${TAGS.length * TAG_WIDTH}px`,
+		});
+	});
+
+	it("asks only for the room maxTagsDisplayed tags and the counter need", () => {
+		restoreLayout = mockLayout(160);
+		const { container } = render(
+			<TagBadgeGroup tags={TAGS} maxTagsDisplayed={3} />,
+		);
+
+		expect(container.firstElementChild).toHaveStyle({
+			width: `${3 * TAG_WIDTH + OVERFLOW_WIDTH}px`,
+		});
 	});
 
 	it("renders a non-interactive overflow badge with overflow='badge'", () => {

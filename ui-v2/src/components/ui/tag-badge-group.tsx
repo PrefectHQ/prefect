@@ -31,10 +31,11 @@ type TagBadgeGroupProps = {
 };
 
 /**
- * Tags that do not fit stay in the DOM on a zero-height, clipped second row
- * so their widths can be measured and so the container's max-content width
- * still reflects every tag; that lets the group grow back when the parent
- * gets wider.
+ * Tags that do not fit stay in the DOM on an absolutely positioned, invisible
+ * row so their widths can be measured. The container asks for the width of
+ * every tag it may show (capped by its parent) so it can grow back when the
+ * parent gets wider; that request does not depend on how many tags currently
+ * fit, so the fit calculation cannot feed back into the container's own size.
  */
 export const TagBadgeGroup = ({
 	tags = [],
@@ -49,6 +50,7 @@ export const TagBadgeGroup = ({
 	const overflowSizerRef = useRef<HTMLSpanElement>(null);
 	const tagRefs = useRef(new Map<number, HTMLSpanElement>());
 	const [visibleCount, setVisibleCount] = useState(tags.length);
+	const [fullWidth, setFullWidth] = useState<number>();
 
 	const cap = Math.min(tags.length, maxTagsDisplayed ?? tags.length);
 
@@ -64,20 +66,24 @@ export const TagBadgeGroup = ({
 				setVisibleCount(cap);
 				return;
 			}
-			const overflowWidth = overflowSizerRef.current?.offsetWidth ?? 0;
+			const overflowWidth = widthOf(overflowSizerRef.current);
+			const widths = tags.map((_, i) => widthOf(tagRefs.current.get(i)));
 			let used = 0;
 			let count = 0;
 			for (let i = 0; i < cap; i++) {
-				const width = tagRefs.current.get(i)?.offsetWidth ?? 0;
 				const hasOverflow = i + 1 < tags.length;
-				const needed = used + width + (hasOverflow ? overflowWidth : 0);
+				const needed = used + widths[i] + (hasOverflow ? overflowWidth : 0);
 				if (needed > available) {
 					break;
 				}
-				used += width;
+				used += widths[i];
 				count = i + 1;
 			}
 			setVisibleCount(count);
+			setFullWidth(
+				widths.slice(0, cap).reduce((sum, width) => sum + width, 0) +
+					(cap < tags.length ? overflowWidth : 0),
+			);
 		};
 
 		measure();
@@ -105,14 +111,12 @@ export const TagBadgeGroup = ({
 		/>
 	);
 
-	const renderMeasuredTag = (entry: TagEntry, hidden: boolean) => (
+	const renderMeasuredTag = (entry: TagEntry) => (
 		<span
 			key={entry.key}
 			ref={(node) => setTagRef(tagRefs.current, entry.index, node)}
 			data-slot="tag-badge-group-item"
-			className={cn("inline-flex", hidden && hiddenItemClassName)}
-			inert={hidden}
-			aria-hidden={hidden}
+			className="inline-flex shrink-0"
 		>
 			{renderTag(entry)}
 		</span>
@@ -128,19 +132,25 @@ export const TagBadgeGroup = ({
 
 	const overflowClassName = "ml-1 tabular-nums";
 
-	// Measures the widest possible counter (every tag hidden) so the fit
-	// calculation never reserves less room than the rendered `+N` needs.
-	const overflowSizer = (
+	// The hidden tags plus the widest possible counter (every tag hidden), so
+	// the fit calculation never reserves less room than the rendered `+N` needs.
+	const measurementRow = (
 		<span
-			ref={overflowSizerRef}
-			data-slot="tag-badge-group-overflow-sizer"
-			className={cn("inline-flex", hiddenItemClassName)}
+			data-slot="tag-badge-group-measure"
+			className="absolute top-0 left-0 flex flex-nowrap invisible"
 			inert
 			aria-hidden
 		>
-			<Badge variant={variant} className={overflowClassName}>
-				+{tags.length}
-			</Badge>
+			{hiddenTags.map(renderMeasuredTag)}
+			<span
+				ref={overflowSizerRef}
+				data-slot="tag-badge-group-overflow-sizer"
+				className="inline-flex"
+			>
+				<Badge variant={variant} className={overflowClassName}>
+					+{tags.length}
+				</Badge>
+			</span>
 		</span>
 	);
 
@@ -187,18 +197,19 @@ export const TagBadgeGroup = ({
 		<div
 			ref={containerRef}
 			data-slot="tag-badge-group"
-			className="flex flex-wrap items-center min-w-0 max-w-full overflow-hidden"
+			className="relative flex flex-nowrap items-center min-w-0 max-w-full overflow-hidden"
+			style={{ width: fullWidth }}
 		>
-			{visibleTags.map((entry) => renderMeasuredTag(entry, false))}
+			{visibleTags.map(renderMeasuredTag)}
 			{hasOverflow && overflow}
-			<span className="basis-full" aria-hidden />
-			{hiddenTags.map((entry) => renderMeasuredTag(entry, true))}
-			{overflowSizer}
+			{measurementRow}
 		</div>
 	);
 };
 
-const hiddenItemClassName = "h-0 overflow-hidden invisible";
+// Rounded up so the requested container width never clips a fractional tag.
+const widthOf = (element: HTMLElement | null | undefined) =>
+	Math.ceil(element?.getBoundingClientRect().width ?? 0);
 
 type TagEntry = { tag: string; key: string; index: number };
 
