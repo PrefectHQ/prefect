@@ -325,6 +325,7 @@ jobs:
           tests/client/test_cloud_client.py \
           tests/utilities/test_urls.py \
           tests/utilities/test_services.py \
+          tests/test_states.py::TestHTTPExceptionToCrashedState \
           tests/blocks/test_webhook.py \
           tests/blocks/test_notifications.py::TestCustomWebhook \
           tests/blocks/test_notifications.py::TestCustomWebhookRestrictedUrls \

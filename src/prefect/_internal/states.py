@@ -14,6 +14,7 @@ from types import GeneratorType
 from typing import TYPE_CHECKING, Any, Optional
 
 import anyio
+import httpx as legacy_httpx
 import sniffio
 
 from prefect._internal.compatibility.httpx import httpx
@@ -89,7 +90,15 @@ def exception_to_crashed_state_sync(
     elif isinstance(exc, SystemExit):
         state_message = "Execution was aborted by Python system exit call."
 
-    elif isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
+    elif isinstance(
+        exc,
+        (
+            legacy_httpx.TimeoutException,
+            legacy_httpx.ConnectError,
+            httpx.TimeoutException,
+            httpx.ConnectError,
+        ),
+    ):
         try:
             request: httpx.Request = exc.request
         except RuntimeError:
