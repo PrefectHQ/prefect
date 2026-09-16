@@ -22,6 +22,21 @@ module.exports = {
   title: 'Prefect Docs',
   description: "Don't Panic.",
   head: [
+    [
+      'script',
+      {
+        src: 'https://cmp.osano.com/16CVGvUGMuXuz33ME/908ae3fc-0206-4cd2-9d54-c4932c848252/osano.js'
+      }
+    ],
+    [
+      'script',
+      {},
+      `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N633BZ8');`
+    ],
     ['link', { rel: 'icon', href: '/favicon.ico' }],
     ['meta', { name: 'robots', content: 'noindex' }]
   ],
