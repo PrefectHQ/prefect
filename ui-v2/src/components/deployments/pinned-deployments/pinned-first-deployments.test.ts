@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
@@ -6,6 +7,7 @@ import type { DeploymentsFilter } from "@/api/deployments";
 import { createFakeDeployment } from "@/mocks";
 import {
 	getPinnedFirstWindow,
+	prefetchPinnedFirstDeployments,
 	usePinnedFirstDeployments,
 } from "./pinned-first-deployments";
 
@@ -208,4 +210,45 @@ describe("usePinnedFirstDeployments", () => {
 
 		expect(seen).toEqual(["c", "e", "a", "b", "d", "f", "g"]);
 	});
+});
+
+describe("prefetchPinnedFirstDeployments", () => {
+	it.each([
+		{
+			title: "without pins",
+			pinnedDeploymentIds: [],
+			expected: ["a", "b", "c"],
+		},
+		{
+			title: "with pins",
+			pinnedDeploymentIds: ["id-f", "id-d"],
+			expected: ["d", "f", "a"],
+		},
+	])(
+		"resolves the page and fills the cache the hook reads, $title",
+		async ({ pinnedDeploymentIds, expected }) => {
+			mockDeploymentsApi();
+			const queryClient = new QueryClient();
+			const options = {
+				...LIST_OPTIONS,
+				page: 1,
+				limit: 3,
+				pinnedDeploymentIds,
+			};
+
+			const deployments = await prefetchPinnedFirstDeployments(
+				queryClient,
+				options,
+			);
+			expect(names(deployments)).toEqual(expected);
+			await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+
+			const { result } = renderHook(() => usePinnedFirstDeployments(options), {
+				wrapper: createWrapper({ queryClient }),
+			});
+
+			expect(result.current.isPending).toBe(false);
+			expect(names(result.current.deployments)).toEqual(expected);
+		},
+	);
 });

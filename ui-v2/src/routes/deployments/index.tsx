@@ -15,10 +15,8 @@ import { DeploymentsDataTable } from "@/components/deployments/data-table";
 import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
 import { DeploymentsPageHeader } from "@/components/deployments/header";
 import {
-	buildPinnedDeploymentsQuery,
-	buildUnpinnedDeploymentsCountQuery,
-	buildUnpinnedDeploymentsQuery,
 	getPinnedDeploymentIds,
+	prefetchPinnedFirstDeployments,
 	usePinnedDeployments,
 	usePinnedFirstDeployments,
 } from "@/components/deployments/pinned-deployments";
@@ -205,27 +203,13 @@ export const Route = createFileRoute("/deployments/")({
 		// while results update.
 		void context.queryClient.prefetchQuery(buildCountDeploymentsQuery());
 
-		const pinnedDeploymentIds = getPinnedDeploymentIds();
-		if (pinnedDeploymentIds.length > 0) {
-			// Which deployments follow the pinned ones depends on this result, so
-			// the component fetches the rest once it is available.
-			void context.queryClient.prefetchQuery(
-				buildPinnedDeploymentsQuery({ ...deps, pinnedDeploymentIds }),
-			);
-			return;
-		}
-
-		const unpinnedOptions = { ...deps, excludedDeploymentIds: [] };
-		void context.queryClient.prefetchQuery(
-			buildUnpinnedDeploymentsCountQuery(unpinnedOptions),
-		);
-
 		// In the background, prefetch the flows for the deployments on this page
-		// once the list query is available.
+		// once the list is available.
 		void (async () => {
 			try {
-				const deployments = await context.queryClient.ensureQueryData(
-					buildUnpinnedDeploymentsQuery(unpinnedOptions),
+				const deployments = await prefetchPinnedFirstDeployments(
+					context.queryClient,
+					{ ...deps, pinnedDeploymentIds: getPinnedDeploymentIds() },
 				);
 				const flowIds = [
 					...new Set(deployments.map((deployment) => deployment.flow_id)),

@@ -1,9 +1,7 @@
 export { PinDeploymentButton } from "./pin-deployment-button";
 export {
-	buildPinnedDeploymentsQuery,
-	buildUnpinnedDeploymentsCountQuery,
-	buildUnpinnedDeploymentsQuery,
 	getPinnedFirstWindow,
+	prefetchPinnedFirstDeployments,
 	usePinnedFirstDeployments,
 } from "./pinned-first-deployments";
 export {

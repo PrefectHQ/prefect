@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { type QueryClient, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
 	buildCountDeploymentsQuery,
@@ -52,7 +52,7 @@ export const getPinnedFirstWindow = ({
  * configured default; if there are more pins than that, the server truncates
  * the list and the remaining pins sort with the unpinned deployments.
  */
-export const buildPinnedDeploymentsQuery = ({
+const buildPinnedDeploymentsQuery = ({
 	sort,
 	deployments,
 	pinnedDeploymentIds,
@@ -83,19 +83,11 @@ const buildUnpinnedFilter = ({
 	},
 });
 
-/**
- * Query for how many deployments match the current filters, not counting the
- * `excludedDeploymentIds` already shown as pinned.
- */
-export const buildUnpinnedDeploymentsCountQuery = (
+const buildUnpinnedDeploymentsCountQuery = (
 	options: DeploymentsListOptions & { excludedDeploymentIds: string[] },
 ) => buildCountDeploymentsQuery(buildUnpinnedFilter(options));
 
-/**
- * Query for the deployments that fill the rest of a page once the
- * `excludedDeploymentIds` shown as pinned have been placed ahead of them.
- */
-export const buildUnpinnedDeploymentsQuery = (
+const buildUnpinnedDeploymentsQuery = (
 	options: DeploymentsListOptions &
 		PageOptions & { excludedDeploymentIds: string[] },
 	{ enabled = true }: { enabled?: boolean } = {},
@@ -114,15 +106,48 @@ export const buildUnpinnedDeploymentsQuery = (
 	);
 };
 
+type PinnedFirstOptions = DeploymentsListOptions &
+	PageOptions & { pinnedDeploymentIds: readonly string[] };
+
+/**
+ * Warms the cache for `usePinnedFirstDeployments` from a route loader and
+ * resolves to the deployments on the page, so the loader can prefetch what
+ * depends on them.
+ */
+export const prefetchPinnedFirstDeployments = async (
+	queryClient: QueryClient,
+	options: PinnedFirstOptions,
+) => {
+	const pinned =
+		options.pinnedDeploymentIds.length > 0
+			? await queryClient.ensureQueryData(buildPinnedDeploymentsQuery(options))
+			: [];
+	const unpinnedOptions = {
+		...options,
+		excludedDeploymentIds: pinned.map((deployment) => deployment.id),
+	};
+	const { pinnedStart, pinnedEnd, unpinnedLimit } = getPinnedFirstWindow({
+		...options,
+		pinnedCount: pinned.length,
+	});
+	void queryClient.prefetchQuery(
+		buildUnpinnedDeploymentsCountQuery(unpinnedOptions),
+	);
+	const unpinned =
+		unpinnedLimit > 0
+			? await queryClient.ensureQueryData(
+					buildUnpinnedDeploymentsQuery(unpinnedOptions),
+				)
+			: [];
+	return [...pinned.slice(pinnedStart, pinnedEnd), ...unpinned];
+};
+
 /**
  * Fetches one page of deployments with this browser's pinned deployments
  * sorted ahead of the rest, across pages: pinned deployments fill the first
  * page(s), and the remaining deployments follow in the requested sort order.
  */
-export function usePinnedFirstDeployments(
-	options: DeploymentsListOptions &
-		PageOptions & { pinnedDeploymentIds: readonly string[] },
-) {
+export function usePinnedFirstDeployments(options: PinnedFirstOptions) {
 	const hasPins = options.pinnedDeploymentIds.length > 0;
 
 	const pinnedQuery = useQuery(buildPinnedDeploymentsQuery(options));
