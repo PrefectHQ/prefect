@@ -71,8 +71,8 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 	return (
 		<>
 			<div className="flex flex-col gap-4">
-				<div className="flex items-center justify-between">
-					<div className="flex flex-col gap-2">
+				<div className="flex flex-wrap items-center justify-between gap-2">
+					<div className="flex min-w-0 flex-col gap-2">
 						<DeploymentDetailsHeader deployment={deployment} />
 						<DeploymentLinks deployment={deployment} />
 					</div>

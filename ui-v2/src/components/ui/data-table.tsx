@@ -1,4 +1,5 @@
 import { flexRender, type RowData } from "@tanstack/react-table";
+import { useRef } from "react";
 import {
 	Pagination,
 	PaginationContent,
@@ -23,6 +24,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { useAnimatedReorder } from "@/hooks/use-animated-reorder";
 import type { Header, Table as TanstackTable } from "@/lib/tanstack-table";
 import { cn } from "@/utils";
 
@@ -60,11 +62,24 @@ export function DataTable<TData extends RowData>({
 	table,
 	onPrefetchPage,
 	onRowClick,
+	animateRowReorder = false,
 }: {
 	table: TanstackTable<TData>;
 	onPrefetchPage?: (page: number) => void;
 	onRowClick?: (row: TData) => void;
+	/**
+	 * Slide rows to their new positions when they change order. Rows need a
+	 * stable identity for this, so pass `getRowId` to the table as well.
+	 */
+	animateRowReorder?: boolean;
 }) {
+	const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+	useAnimatedReorder(
+		tableBodyRef,
+		table.getRowModel().rows.map((row) => row.id),
+		animateRowReorder,
+	);
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="rounded-md border overflow-x-auto">
@@ -110,11 +125,12 @@ export function DataTable<TData extends RowData>({
 							</TableRow>
 						))}
 					</TableHeader>
-					<TableBody>
+					<TableBody ref={tableBodyRef}>
 						{table.getRowModel().rows?.length ? (
 							table.getRowModel().rows.map((row) => (
 								<TableRow
 									key={row.id}
+									data-reorder-id={animateRowReorder ? row.id : undefined}
 									data-state={row.getIsSelected() && "selected"}
 									className={
 										onRowClick ? "cursor-pointer hover:bg-muted" : undefined

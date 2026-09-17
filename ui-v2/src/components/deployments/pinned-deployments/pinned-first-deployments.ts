@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import {
 	buildCountDeploymentsQuery,
 	buildFilterDeploymentsQuery,
@@ -149,25 +150,54 @@ export function usePinnedFirstDeployments(
 		enabled: isPinnedReady,
 	});
 
-	const unpinned = needsUnpinned ? (unpinnedQuery.data ?? []) : [];
-	const count = pinned.length + (unpinnedCountQuery.data ?? 0);
-
 	const queries = [
 		...(hasPins ? [pinnedQuery] : []),
 		...(needsUnpinned ? [unpinnedQuery] : []),
 		unpinnedCountQuery,
 	];
 	const failedQuery = queries.find((query) => query.isError);
+	const isPending = queries.some((query) => query.isPending);
+	const isPlaceholderData = queries.some((query) => query.isPlaceholderData);
+
+	const pinnedData = pinnedQuery.data;
+	const unpinnedData = unpinnedQuery.data;
+	const unpinnedCount = unpinnedCountQuery.data;
+	const { pinnedStart, pinnedEnd } = pageWindow;
+	const current = useMemo(() => {
+		const pinnedOnPage = hasPins ? (pinnedData ?? []) : [];
+		return {
+			deployments: [
+				...pinnedOnPage.slice(pinnedStart, pinnedEnd),
+				...(needsUnpinned ? (unpinnedData ?? []) : []),
+			],
+			count: pinnedOnPage.length + (unpinnedCount ?? 0),
+		};
+	}, [
+		hasPins,
+		needsUnpinned,
+		pinnedData,
+		unpinnedData,
+		unpinnedCount,
+		pinnedStart,
+		pinnedEnd,
+	]);
+
+	// The queries resolve at different times. Mixing a fresh pinned list with a
+	// stale unpinned one shows a deployment twice or not at all for a moment,
+	// so keep the last list whose parts agree until the next one is complete.
+	const isConsistent = !isPending && !isPlaceholderData;
+	const [consistent, setConsistent] = useState(current);
+	if (isConsistent && consistent !== current) {
+		setConsistent(current);
+	}
+	const { deployments, count } = isConsistent ? current : consistent;
 
 	return {
-		deployments: [
-			...pinned.slice(pageWindow.pinnedStart, pageWindow.pinnedEnd),
-			...unpinned,
-		],
+		deployments,
 		count,
 		pages: Math.ceil(count / options.limit),
-		isPending: queries.some((query) => query.isPending),
-		isPlaceholderData: queries.some((query) => query.isPlaceholderData),
+		isPending,
+		isPlaceholderData,
 		isError: failedQuery !== undefined,
 		error: failedQuery?.error ?? null,
 		refetch: () => Promise.all(queries.map((query) => query.refetch())),

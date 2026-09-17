@@ -242,6 +242,7 @@ export const DeploymentsDataTable = ({
 				confirmDelete({ ...deployment, name });
 			},
 		}),
+		getRowId: (deployment) => deployment.id,
 		pageCount,
 		manualPagination: true,
 		enableColumnResizing: true,
@@ -300,6 +301,7 @@ export const DeploymentsDataTable = ({
 				<FlowRunActivityBarGraphTooltipProvider>
 					<DataTable
 						table={table}
+						animateRowReorder
 						onRowClick={(row) =>
 							void navigate({
 								to: "/deployments/deployment/$id",
