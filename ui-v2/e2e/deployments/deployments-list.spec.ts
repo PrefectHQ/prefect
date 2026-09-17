@@ -184,44 +184,40 @@ test.describe("Deployments List Page", () => {
 		await expect(page.getByText(depName)).toBeVisible();
 	});
 
-	test("Pin deployments and view only pinned", async ({ page, apiClient }) => {
+	test("Pinned deployments sort first", async ({ page, apiClient }) => {
 		const timestamp = Date.now();
 		const flow = await createFlow(
 			apiClient,
 			`${TEST_PREFIX}pin-flow-${timestamp}`,
 		);
-		const pinnedName = `${TEST_PREFIX}pin-yes-${timestamp}`;
-		const unpinnedName = `${TEST_PREFIX}pin-no-${timestamp}`;
-		await createDeployment(apiClient, { name: pinnedName, flowId: flow.id });
-		await createDeployment(apiClient, { name: unpinnedName, flowId: flow.id });
+		const firstName = `${TEST_PREFIX}pin-a-${timestamp}`;
+		const secondName = `${TEST_PREFIX}pin-b-${timestamp}`;
+		await createDeployment(apiClient, { name: firstName, flowId: flow.id });
+		await createDeployment(apiClient, { name: secondName, flowId: flow.id });
+
+		const deploymentLinks = page.locator(
+			'tbody a[href*="/deployments/deployment/"]',
+		);
 
 		await expect(async () => {
 			await page.goto(
-				`/deployments?flowOrDeploymentName=${encodeURIComponent(`${TEST_PREFIX}pin-`)}`,
+				`/deployments?sort=NAME_ASC&flowOrDeploymentName=${encodeURIComponent(`${TEST_PREFIX}pin-`)}`,
 			);
-			await expect(page.getByText(pinnedName)).toBeVisible({ timeout: 2000 });
-			await expect(page.getByText(unpinnedName)).toBeVisible({
+			await expect(deploymentLinks).toHaveText([firstName, secondName], {
 				timeout: 2000,
 			});
 		}).toPass({ timeout: 15000 });
 
 		await page
-			.getByRole("row", { name: new RegExp(pinnedName) })
+			.getByRole("row", { name: new RegExp(secondName) })
 			.getByRole("button", { name: "Pin deployment" })
 			.click();
-		await page.getByRole("tab", { name: "Pinned" }).click();
-
-		await expect(page).toHaveURL(/pinned=true/);
-		await expect(page.getByText(pinnedName)).toBeVisible();
-		await expect(page.getByText(unpinnedName)).not.toBeVisible();
+		await expect(deploymentLinks).toHaveText([secondName, firstName]);
 
 		await page.reload();
-		await waitForDeploymentsPageReady(page);
-		await expect(page.getByText(pinnedName)).toBeVisible();
-		await expect(page.getByText(unpinnedName)).not.toBeVisible();
+		await expect(deploymentLinks).toHaveText([secondName, firstName]);
 
 		await page.getByRole("button", { name: "Unpin deployment" }).click();
-		await page.getByRole("button", { name: "Clear filters" }).click();
-		await expect(page.getByText("No pinned deployments")).toBeVisible();
+		await expect(deploymentLinks).toHaveText([firstName, secondName]);
 	});
 });

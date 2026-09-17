@@ -51,6 +51,40 @@ describe("PinDeploymentButton", () => {
 		);
 	});
 
+	it("always shows by default", () => {
+		render(<PinDeploymentButton deploymentId="deployment-1" />);
+
+		expect(
+			screen.getByRole("button", { name: "Pin deployment" }),
+		).not.toHaveClass("opacity-0");
+	});
+
+	it("hides until its row is hovered when revealOnRowHover is set", () => {
+		render(
+			<PinDeploymentButton deploymentId="deployment-1" revealOnRowHover />,
+		);
+
+		const button = screen.getByRole("button", { name: "Pin deployment" });
+		expect(button).toHaveClass("opacity-0");
+		expect(button).toHaveClass("[tr:hover_&]:opacity-100");
+		expect(button).toHaveClass("focus-visible:opacity-100");
+		expect(button).toHaveClass("[@media(hover:none)]:opacity-100");
+	});
+
+	it("always shows a pinned deployment, even with revealOnRowHover", () => {
+		localStorage.setItem(
+			PINNED_DEPLOYMENTS_STORAGE_KEY,
+			JSON.stringify(["deployment-1"]),
+		);
+		render(
+			<PinDeploymentButton deploymentId="deployment-1" revealOnRowHover />,
+		);
+
+		expect(
+			screen.getByRole("button", { name: "Unpin deployment" }),
+		).not.toHaveClass("opacity-0");
+	});
+
 	it("does not trigger click handlers on its container", async () => {
 		const onContainerClick = vi.fn();
 		const user = userEvent.setup();

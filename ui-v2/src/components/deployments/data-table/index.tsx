@@ -23,7 +23,6 @@ import {
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
 import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
-import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
 import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import {
@@ -34,7 +33,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { createColumnHelper, useTable } from "@/lib/tanstack-table";
@@ -55,8 +53,6 @@ export type DeploymentsDataTableProps = {
 	isPending?: boolean;
 	isPlaceholderData?: boolean;
 	onClearFilters?: () => void;
-	pinnedOnly?: boolean;
-	onPinnedOnlyChange?: (pinnedOnly: boolean) => void;
 };
 
 const columnHelper = createColumnHelper<DeploymentWithFlow>();
@@ -70,7 +66,9 @@ const createColumns = ({
 		columnHelper.display({
 			id: "pin",
 			header: () => <span className="sr-only">Pin</span>,
-			cell: ({ row }) => <PinDeploymentButton deploymentId={row.original.id} />,
+			cell: ({ row }) => (
+				<PinDeploymentButton deploymentId={row.original.id} revealOnRowHover />
+			),
 			enableResizing: false,
 			size: 48,
 		}),
@@ -172,10 +170,13 @@ export const DeploymentsDataTable = ({
 	isPending = false,
 	isPlaceholderData = false,
 	onClearFilters,
-	pinnedOnly = false,
-	onPinnedOnlyChange,
 }: DeploymentsDataTableProps) => {
 	const filteredCount = filteredCountProp ?? deployments.length;
+	const showFilteredEmptyState =
+		filteredCount === 0 &&
+		!isPending &&
+		!isPlaceholderData &&
+		Boolean(onClearFilters);
 	const navigate = useNavigate();
 	const [deleteConfirmationDialogState, confirmDelete] =
 		useDeleteDeploymentConfirmationDialog();
@@ -185,13 +186,6 @@ export const DeploymentsDataTable = ({
 	)?.value ?? "") as string;
 	const tagsSearchValue = (columnFilters.find((filter) => filter.id === "tags")
 		?.value ?? []) as string[];
-
-	const hasActiveFilters =
-		nameSearchValue.length > 0 || tagsSearchValue.length > 0;
-	const isEmpty = filteredCount === 0 && !isPending && !isPlaceholderData;
-	const showPinnedEmptyState = isEmpty && pinnedOnly && !hasActiveFilters;
-	const showFilteredEmptyState =
-		isEmpty && !showPinnedEmptyState && Boolean(onClearFilters);
 
 	const handleNameSearchChange = useCallback(
 		(value?: string) => {
@@ -261,21 +255,6 @@ export const DeploymentsDataTable = ({
 	});
 	return (
 		<div>
-			{onPinnedOnlyChange && (
-				<Tabs
-					value={pinnedOnly ? "pinned" : "all"}
-					onValueChange={(value) => onPinnedOnlyChange(value === "pinned")}
-					className="pb-4"
-				>
-					<TabsList aria-label="Deployments view">
-						<TabsTrigger value="all">All</TabsTrigger>
-						<TabsTrigger value="pinned">
-							<Icon id="Pin" />
-							Pinned
-						</TabsTrigger>
-					</TabsList>
-				</Tabs>
-			)}
 			<div className="grid sm:grid-cols-2 md:grid-cols-12 gap-2 pb-4 items-center">
 				<div className="sm:col-span-2 md:col-span-3 lg:col-span-4 md:order-first lg:order-first">
 					<p className="text-sm text-muted-foreground">
@@ -315,13 +294,7 @@ export const DeploymentsDataTable = ({
 			</div>
 
 			<DeleteConfirmationDialog {...deleteConfirmationDialogState} />
-			{showPinnedEmptyState ? (
-				<DeploymentsPinnedEmptyState
-					onViewAll={
-						onPinnedOnlyChange ? () => onPinnedOnlyChange(false) : undefined
-					}
-				/>
-			) : showFilteredEmptyState ? (
+			{showFilteredEmptyState ? (
 				<DeploymentsFilteredEmptyState onClearFilters={onClearFilters} />
 			) : (
 				<FlowRunActivityBarGraphTooltipProvider>
@@ -356,27 +329,5 @@ const DeploymentsFilteredEmptyState = ({
 				Clear filters
 			</Button>
 		</EmptyStateActions>
-	</EmptyState>
-);
-
-const DeploymentsPinnedEmptyState = ({
-	onViewAll,
-}: {
-	onViewAll?: () => void;
-}) => (
-	<EmptyState>
-		<EmptyStateIcon id="Pin" />
-		<EmptyStateTitle>No pinned deployments</EmptyStateTitle>
-		<EmptyStateDescription>
-			Pin the deployments you use most to find them here. Pins are saved in this
-			browser.
-		</EmptyStateDescription>
-		{onViewAll && (
-			<EmptyStateActions>
-				<Button variant="outline" onClick={onViewAll}>
-					View all deployments
-				</Button>
-			</EmptyStateActions>
-		)}
 	</EmptyState>
 );
