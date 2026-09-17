@@ -104,6 +104,15 @@ def _maintenance_database_config(
         cached.timeout = None
         cached.sqlalchemy_pool_size = 1
         cached.sqlalchemy_max_overflow = 0
+        # AsyncPostgresConfiguration.engine() caches engines keyed on
+        # (connection_url, echo, timeout, pool_size, max_overflow,
+        # connection_app_name) — giving each kind a distinct application name
+        # is what actually makes flow_runs/events/orphans resolve to distinct
+        # engines (and therefore distinct pools) instead of all sharing
+        # whichever one happened to be built first. It also shows up as
+        # `application_name` in `pg_stat_activity`, so an operator can tell
+        # the three vacuum connections apart.
+        cached.connection_app_name = f"prefect-db-vacuum-{kind}"
         _MAINTENANCE_CONFIGS[cache_key] = cached
     return cached
 

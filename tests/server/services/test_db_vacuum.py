@@ -1118,6 +1118,38 @@ class TestMaintenanceSession:
             assert config.sqlalchemy_pool_size == 1
             assert config.sqlalchemy_max_overflow == 0
 
+    async def test_different_kinds_get_separate_engines(self) -> None:
+        """Comparing `AsyncPostgresConfiguration` identities isn't enough:
+        `AsyncPostgresConfiguration.engine()` has its own module-level cache
+        (`ENGINES`), keyed separately from `_MAINTENANCE_CONFIGS`. Two distinct
+        config *objects* with otherwise-identical settings previously resolved
+        to the exact same cached `AsyncEngine` (and therefore the same
+        connection pool) — this asserts the actual engines differ, not just
+        their wrapper objects.
+        """
+        db = SimpleNamespace(
+            database_config=AsyncPostgresConfiguration(
+                connection_url="postgresql+asyncpg://u:p@host/db"
+            )
+        )
+
+        flow_runs_config = _maintenance_database_config(db, "flow_runs")
+        events_config = _maintenance_database_config(db, "events")
+        orphans_config = _maintenance_database_config(db, "orphans")
+        assert flow_runs_config and events_config and orphans_config
+
+        flow_runs_engine = await flow_runs_config.engine()
+        events_engine = await events_config.engine()
+        orphans_engine = await orphans_config.engine()
+
+        assert flow_runs_engine is not events_engine
+        assert flow_runs_engine is not orphans_engine
+        assert events_engine is not orphans_engine
+
+        # Repeated requests for the *same* kind still reuse one engine (no
+        # pool leak from re-fetching the maintenance config every call).
+        assert await flow_runs_config.engine() is flow_runs_engine
+
     def test_non_postgres_returns_none(self) -> None:
         db = SimpleNamespace(
             database_config=AioSqliteConfiguration(
