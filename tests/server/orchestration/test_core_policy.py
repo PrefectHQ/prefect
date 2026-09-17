@@ -3016,8 +3016,9 @@ class TestTaskConcurrencyLimits:
 class TestPausingFlows:
     async def test_can_not_nonblocking_pause_subflows(
         self,
-        session,
+        session: AsyncSession,
         initialize_orchestration,
+        task_run: orm.TaskRun,
     ):
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.PAUSED
@@ -3028,7 +3029,7 @@ class TestPausingFlows:
             *intended_transition,
         )
         ctx.proposed_state.state_details = states.StateDetails(pause_reschedule=True)
-        ctx.run.parent_task_run_id == uuid4()
+        ctx.run.parent_task_run_id = task_run.id
 
         state_protection = HandlePausingFlows(ctx, *intended_transition)
 
