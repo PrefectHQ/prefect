@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
 {% block extrahead %}
+  <meta name="robots" content="noindex, nofollow">
+  {{ super() }}
+{% endblock %}
+
+{% block analytics %}
   <script src="https://cmp.osano.com/16CVGvUGMuXuz33ME/908ae3fc-0206-4cd2-9d54-c4932c848252/osano.js"></script>
   <!-- Google Tag Manager -->
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -9,12 +14,7 @@
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
   })(window,document,'script','dataLayer','GTM-N633BZ8');</script>
   <!-- End Google Tag Manager -->
-  <meta name="robots" content="noindex, nofollow">
   {{ super() }}
-{% endblock %}
-
-{% block analytics %}
-{{ super() }}
 {% endblock %}
 
 {% block announce %}
