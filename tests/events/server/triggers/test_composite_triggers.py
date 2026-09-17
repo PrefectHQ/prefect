@@ -327,7 +327,7 @@ class TestCompoundTriggerAny:
         for received_event in flow_run_events:
             await triggers.reactive_evaluation(received_event)
 
-        act.call_count == 2
+        assert act.call_count == 2
 
         firing: Firing = act.call_args.args[0]
 
@@ -849,7 +849,7 @@ class TestCompoundTriggerAll:
         for received_event in flow_run_events:
             await triggers.reactive_evaluation(received_event)
 
-        act.call_count == 1
+        assert act.call_count == 1
 
         firing: Firing = act.call_args.args[0]
 
