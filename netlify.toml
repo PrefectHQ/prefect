@@ -886,6 +886,7 @@ Strict-Transport-Security = """
 #   'self' - all connections to current current origin are permitted
 #   https://api.github.com - required to display release information
 #   https://www.google-analytics.com - Google Analytics
+#   https://*.osano.com - Osano consent management APIs
 # font-src
 #   https://fonts.gstatic.com - load fonts from Google Fonts
 # frame-ancestors
@@ -893,6 +894,7 @@ Strict-Transport-Security = """
 # frame-src
 #   'none' - prevent framing by default
 #   https://www.youtube.com - allow embedding of YouTube videos
+#   https://*.osano.com - Osano consent manager frames
 # img-src
 #   'self' - all images from current origin are permitted
 #   data: - images embedded inline are permitted
@@ -906,17 +908,20 @@ Strict-Transport-Security = """
 #            https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/object-src
 # script-src
 #   'self' - all resources from current origin are permitted
+#   blob: and https://*.osano.com - Osano consent manager and web workers
 # script-src-elem
 #   'self' - all resources from current origin are permitted
 #   'unsafe-inline' - required for scripts loaded in partials
 #   https://unpkg.com - required for Swagger rendering plugin
 #   https://www.googletagmanager.com - allow snippet customization using Google Tag Manager
+#   blob: and https://*.osano.com - Osano consent manager
 # style-src
 #   'self' - all styles from current origin are permitted
 #   'unsafe-inline' - required for styles loaded in partials
 # worker-src
 #   'self' - allow web workers from current origin
 #   blob: - required by Redocly for a generated Worker
+#   https://*.osano.com - Osano consent manager workers
 Content-Security-Policy = """\
       default-src \
         'none' \
@@ -925,6 +930,7 @@ Content-Security-Policy = """\
         'self' \
         https://api.github.com \
         https://www.google-analytics.com \
+        https://*.osano.com \
         ; \
       font-src 
         https://fonts.gstatic.com \
@@ -933,6 +939,7 @@ Content-Security-Policy = """\
         ; \
       frame-src 
         https://www.youtube.com \
+        https://*.osano.com \
         ; \
       img-src \
         'self' \
@@ -949,21 +956,27 @@ Content-Security-Policy = """\
         ; \
       script-src \
         'self' \
+        blob: \
+        https://*.osano.com \
       ; \
       script-src-elem \
         'self' \
         'unsafe-inline' \
+        blob: \
         https://unpkg.com \
         https://www.googletagmanager.com \
+        https://*.osano.com \
         ; \
       style-src \
         'self' \
         'unsafe-inline' \
         https://fonts.googleapis.com/ \
+        https://*.osano.com \
         ; \
       worker-src \
         'self' \
         blob: \
+        https://*.osano.com \
         ; \
       """
 
