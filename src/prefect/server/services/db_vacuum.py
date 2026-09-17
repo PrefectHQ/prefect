@@ -65,7 +65,14 @@ logger: logging.Logger = get_logger(__name__)
 # work runs on a dedicated connection with no statement timeout so it can run to
 # completion; sqlite's `timeout` is a lock-wait, not a statement deadline, so it
 # is left as-is.
-_MAINTENANCE_CONFIGS: dict[str, AsyncPostgresConfiguration] = {}
+#
+# Keyed by (connection_url, kind) rather than just connection_url: each vacuum
+# *kind* (flow_runs / events / orphans) gets its own single-connection pool.
+# Docket can run their tasks concurrently within one worker's event loop (or
+# across workers sharing Redis), so a single shared pool_size=1 engine would
+# serialize unrelated vacuum kinds against each other, not just batches within
+# the same kind.
+_MAINTENANCE_CONFIGS: dict[tuple[str, str], AsyncPostgresConfiguration] = {}
 
 # Binds a batched delete spends on top of its id list (the `LIMIT`/`OFFSET` of
 # the subquery that bounds how many rows one statement removes).
@@ -74,8 +81,13 @@ _DELETE_BIND_OVERHEAD = 2
 
 def _maintenance_database_config(
     db: PrefectDBInterface,
+    kind: str,
 ) -> AsyncPostgresConfiguration | None:
     """Return a Postgres config with no statement timeout for vacuum work.
+
+    `kind` identifies the vacuum category (e.g. "flow_runs", "events",
+    "orphans") so each gets its own dedicated single-connection pool instead
+    of contending with the others for one shared connection.
 
     Returns `None` for non-Postgres backends, signalling callers to use the
     default session.
@@ -83,21 +95,23 @@ def _maintenance_database_config(
     config = db.database_config
     if not isinstance(config, AsyncPostgresConfiguration):
         return None
-    cached = _MAINTENANCE_CONFIGS.get(config.connection_url)
+    cache_key = (config.connection_url, kind)
+    cached = _MAINTENANCE_CONFIGS.get(cache_key)
     if cached is None:
         cached = AsyncPostgresConfiguration(connection_url=config.connection_url)
         # Opt out of the API statement timeout and keep a minimal pool, since
-        # vacuum tasks run sequentially on maintenance loops.
+        # batches within a single vacuum kind run sequentially.
         cached.timeout = None
         cached.sqlalchemy_pool_size = 1
         cached.sqlalchemy_max_overflow = 0
-        _MAINTENANCE_CONFIGS[config.connection_url] = cached
+        _MAINTENANCE_CONFIGS[cache_key] = cached
     return cached
 
 
 @asynccontextmanager
 async def _maintenance_session(
     db: PrefectDBInterface,
+    kind: str,
     with_for_update: bool = False,
 ) -> AsyncIterator[AsyncSession]:
     """A transactional session for vacuum maintenance queries.
@@ -106,8 +120,11 @@ async def _maintenance_session(
     other backends fall back to the default session context. Locking queries
     should pass `with_for_update=True` so SQLite starts with `BEGIN IMMEDIATE`;
     Postgres callers must also add `FOR UPDATE` to the locking query.
+
+    `kind` identifies the vacuum category and determines which dedicated
+    connection pool this session uses; see `_maintenance_database_config`.
     """
-    config = _maintenance_database_config(db)
+    config = _maintenance_database_config(db, kind)
     if config is None:
         async with db.session_context(
             begin_transaction=True, with_for_update=with_for_update
@@ -305,12 +322,14 @@ async def vacuum_old_flow_runs(
         for flow_run_id_batch in batched_iterable(flow_run_ids, ids_per_statement):
             logs_deleted += await _batch_delete(
                 db,
+                "flow_runs",
                 db.Log,
                 db.Log.flow_run_id.in_(flow_run_id_batch),
                 settings.batch_size,
             )
             artifacts_deleted += await _batch_delete(
                 db,
+                "flow_runs",
                 db.Artifact,
                 db.Artifact.flow_run_id.in_(flow_run_id_batch),
                 settings.batch_size,
@@ -358,6 +377,7 @@ async def vacuum_events_with_retention_overrides(
         )
         resources_deleted = await _batch_delete(
             db,
+            "events",
             db.EventResource,
             db.EventResource.event_id.in_(event_ids),
             batch_size,
@@ -366,6 +386,7 @@ async def vacuum_events_with_retention_overrides(
         # Then delete the events themselves
         events_deleted = await _batch_delete(
             db,
+            "events",
             db.Event,
             sa.and_(
                 db.Event.event == event_type,
@@ -398,6 +419,7 @@ async def vacuum_old_events(
     # events themselves are deleted by Event.occurred below.
     resources_deleted = await _batch_delete(
         db,
+        "events",
         db.EventResource,
         db.EventResource.occurred < retention_cutoff,
         batch_size,
@@ -406,6 +428,7 @@ async def vacuum_old_events(
     # Then delete old events
     events_deleted = await _batch_delete(
         db,
+        "events",
         db.Event,
         db.Event.occurred < retention_cutoff,
         batch_size,
@@ -435,7 +458,7 @@ async def _delete_flow_run_batch(
     blocking the vacuum on their row locks. Returning only committed deletions
     ensures child cleanup can never target a surviving run.
     """
-    async with _maintenance_session(db, with_for_update=True) as session:
+    async with _maintenance_session(db, "flow_runs", with_for_update=True) as session:
         flow_run_ids = (
             (
                 await session.execute(
@@ -484,7 +507,7 @@ async def _delete_orphaned_by_flow_run(
         if cursor is not None:
             candidates = candidates.where(model.flow_run_id > cursor)
 
-        async with _maintenance_session(db) as session:
+        async with _maintenance_session(db, "orphans") as session:
             flow_run_ids = (await session.execute(candidates)).scalars().all()
             if not flow_run_ids:
                 break
@@ -505,6 +528,7 @@ async def _delete_orphaned_by_flow_run(
         if orphaned:
             total += await _batch_delete(
                 db,
+                "orphans",
                 model,
                 sa.and_(
                     model.flow_run_id.in_(orphaned),
@@ -539,7 +563,7 @@ async def _reconcile_artifact_collections(
     )
 
     while True:
-        async with _maintenance_session(db) as session:
+        async with _maintenance_session(db, "orphans") as session:
             rows = (
                 await session.execute(
                     sa.select(db.ArtifactCollection.id, db.ArtifactCollection.key)
@@ -593,14 +617,20 @@ async def _reconcile_artifact_collections(
 
 async def _batch_delete(
     db: PrefectDBInterface,
+    kind: str,
     model: type,
     condition: sa.ColumnElement[bool],
     batch_size: int,
 ) -> int:
-    """Delete matching rows in batches. Each batch gets its own DB transaction."""
+    """Delete matching rows in batches. Each batch gets its own DB transaction.
+
+    `kind` identifies the vacuum category this delete belongs to (e.g.
+    "flow_runs", "events", "orphans") so it uses that category's dedicated
+    connection pool; see `_maintenance_database_config`.
+    """
     total = 0
     while True:
-        async with _maintenance_session(db) as session:
+        async with _maintenance_session(db, kind) as session:
             subquery = (
                 sa.select(model.id).where(condition).limit(batch_size).scalar_subquery()
             )

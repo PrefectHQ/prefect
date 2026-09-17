@@ -546,6 +546,7 @@ class TestVacuumOrphanedLogs:
 
         async def create_flow_run_before_delete(
             db: PrefectDBInterface,
+            kind: str,
             model: type[orm_models.Log | orm_models.Artifact],
             condition: sa.ColumnElement[bool],
             batch_size: int,
@@ -563,7 +564,7 @@ class TestVacuumOrphanedLogs:
                             end_time=RECENT,
                         ),
                     )
-            return await original_batch_delete(db, model, condition, batch_size)
+            return await original_batch_delete(db, kind, model, condition, batch_size)
 
         monkeypatch.setattr(db_vacuum, "_batch_delete", create_flow_run_before_delete)
 
@@ -1073,7 +1074,7 @@ class TestMaintenanceSession:
         )
         db = SimpleNamespace(database_config=base)
 
-        config = _maintenance_database_config(db)
+        config = _maintenance_database_config(db, "flow_runs")
 
         assert config is not None
         assert config is not base
@@ -1081,17 +1082,41 @@ class TestMaintenanceSession:
         assert config.sqlalchemy_pool_size == 1
         assert config.sqlalchemy_max_overflow == 0
 
-    def test_postgres_config_is_cached_per_url(self) -> None:
+    def test_postgres_config_is_cached_per_url_and_kind(self) -> None:
         db = SimpleNamespace(
             database_config=AsyncPostgresConfiguration(
                 connection_url="postgresql+asyncpg://u:p@host/db"
             )
         )
 
-        first = _maintenance_database_config(db)
-        second = _maintenance_database_config(db)
+        first = _maintenance_database_config(db, "flow_runs")
+        second = _maintenance_database_config(db, "flow_runs")
 
         assert first is second
+
+    def test_different_kinds_get_separate_pools(self) -> None:
+        """Regression test: flow_runs/events/orphans vacuum must not share a
+        single-connection pool, or one kind's batches serialize the others
+        whenever Docket runs their tasks concurrently. See PrefectHQ/prefect#22839.
+        """
+        db = SimpleNamespace(
+            database_config=AsyncPostgresConfiguration(
+                connection_url="postgresql+asyncpg://u:p@host/db"
+            )
+        )
+
+        flow_runs_config = _maintenance_database_config(db, "flow_runs")
+        events_config = _maintenance_database_config(db, "events")
+        orphans_config = _maintenance_database_config(db, "orphans")
+
+        assert flow_runs_config is not events_config
+        assert flow_runs_config is not orphans_config
+        assert events_config is not orphans_config
+        # Each kind still gets its own minimal single-connection pool.
+        for config in (flow_runs_config, events_config, orphans_config):
+            assert config is not None
+            assert config.sqlalchemy_pool_size == 1
+            assert config.sqlalchemy_max_overflow == 0
 
     def test_non_postgres_returns_none(self) -> None:
         db = SimpleNamespace(
@@ -1100,14 +1125,14 @@ class TestMaintenanceSession:
             )
         )
 
-        assert _maintenance_database_config(db) is None
+        assert _maintenance_database_config(db, "flow_runs") is None
 
     async def test_maintenance_session_is_usable(self):
         """The maintenance session yields a working transactional session
         regardless of backend (falls back to the default on non-Postgres)."""
         db = provide_database_interface()
 
-        async with _maintenance_session(db) as session:
+        async with _maintenance_session(db, "flow_runs") as session:
             assert await session.execute(sa.select(sa.literal(1))) is not None
 
     async def test_flow_run_vacuum_uses_immediate_sqlite_transaction(self):
