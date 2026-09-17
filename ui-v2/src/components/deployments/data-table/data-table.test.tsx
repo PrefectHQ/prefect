@@ -8,7 +8,10 @@ import {
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { mockPointerEvents } from "@tests/utils/browser";
+import {
+	mockInMemoryLocalStorage,
+	mockPointerEvents,
+} from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DeploymentWithFlow } from "@/api/deployments";
@@ -626,5 +629,115 @@ describe("DeploymentsDataTable", () => {
 		expect(onColumnFiltersChange).toHaveBeenCalledWith([
 			{ id: "tags", value: ["tag3", "tag4"] },
 		]);
+	});
+
+	describe("pinned deployments", () => {
+		let restoreLocalStorage: () => void;
+
+		beforeEach(() => {
+			restoreLocalStorage = mockInMemoryLocalStorage();
+		});
+
+		afterEach(() => {
+			restoreLocalStorage();
+		});
+
+		it("pins a deployment from its row without navigating to it", async () => {
+			const user = userEvent.setup();
+			const [, router] = renderDeploymentsDataTableRouter(defaultProps);
+
+			await user.click(
+				await screen.findByRole("button", { name: "Pin deployment" }),
+			);
+
+			expect(
+				screen.getByRole("button", { name: "Unpin deployment" }),
+			).toHaveAttribute("aria-pressed", "true");
+			expect(router.state.location.pathname).toBe("/deployments");
+		});
+
+		it("does not render the view tabs without onPinnedOnlyChange", async () => {
+			renderDeploymentsDataTableRouter(defaultProps);
+
+			expect(await screen.findByText("Test Deployment")).toBeInTheDocument();
+			expect(
+				screen.queryByRole("tab", { name: "Pinned" }),
+			).not.toBeInTheDocument();
+		});
+
+		it.each([
+			{ pinnedOnly: false, selected: "All", other: "Pinned", expected: true },
+			{ pinnedOnly: true, selected: "Pinned", other: "All", expected: false },
+		])(
+			"calls onPinnedOnlyChange($expected) when switching to the $other view",
+			async ({ pinnedOnly, selected, other, expected }) => {
+				const user = userEvent.setup();
+				const onPinnedOnlyChange = vi.fn();
+				renderDeploymentsDataTableRouter({
+					...defaultProps,
+					pinnedOnly,
+					onPinnedOnlyChange,
+				});
+
+				expect(
+					await screen.findByRole("tab", { name: selected }),
+				).toHaveAttribute("aria-selected", "true");
+
+				await user.click(screen.getByRole("tab", { name: other }));
+
+				expect(onPinnedOnlyChange).toHaveBeenCalledWith(expected);
+			},
+		);
+
+		it("explains how to pin when the pinned view is empty", async () => {
+			const user = userEvent.setup();
+			const onPinnedOnlyChange = vi.fn();
+			await waitFor(() =>
+				render(
+					<DeploymentsDataTableRouter
+						{...defaultProps}
+						deployments={[]}
+						filteredCount={0}
+						pinnedOnly
+						onPinnedOnlyChange={onPinnedOnlyChange}
+						onClearFilters={vi.fn()}
+					/>,
+					{ wrapper: createWrapper() },
+				),
+			);
+
+			expect(
+				await screen.findByText("No pinned deployments"),
+			).toBeInTheDocument();
+
+			await user.click(
+				screen.getByRole("button", { name: "View all deployments" }),
+			);
+			expect(onPinnedOnlyChange).toHaveBeenCalledWith(false);
+		});
+
+		it("shows the filtered empty state when filters hide every pinned deployment", async () => {
+			await waitFor(() =>
+				render(
+					<DeploymentsDataTableRouter
+						{...defaultProps}
+						deployments={[]}
+						filteredCount={0}
+						columnFilters={[{ id: "flowOrDeploymentName", value: "nope" }]}
+						pinnedOnly
+						onPinnedOnlyChange={vi.fn()}
+						onClearFilters={vi.fn()}
+					/>,
+					{ wrapper: createWrapper() },
+				),
+			);
+
+			expect(
+				await screen.findByText("No deployments match your filters"),
+			).toBeInTheDocument();
+			expect(
+				screen.queryByText("No pinned deployments"),
+			).not.toBeInTheDocument();
+		});
 	});
 });

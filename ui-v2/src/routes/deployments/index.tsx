@@ -18,6 +18,10 @@ import type { components } from "@/api/prefect";
 import { DeploymentsDataTable } from "@/components/deployments/data-table";
 import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
 import { DeploymentsPageHeader } from "@/components/deployments/header";
+import {
+	getPinnedDeploymentIds,
+	usePinnedDeployments,
+} from "@/components/deployments/pinned-deployments";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { usePageSizePreference } from "@/hooks/use-page-size-preference";
@@ -37,12 +41,14 @@ const searchParams = z.object({
 		.catch("NAME_ASC"),
 	flowOrDeploymentName: z.string().optional().catch(""),
 	tags: z.array(z.string()).optional().catch([]),
+	pinned: z.boolean().optional().catch(undefined),
 });
 
 /**
  * Builds pagination parameters for deployments query from search params
  *
  * @param search - Optional validated search parameters containing page and limit
+ * @param pinnedDeploymentIds - Deployment ids pinned in this browser, applied when `search.pinned` is set
  * @returns DeploymentsPaginationFilter with page, limit and sort order
  *
  * @example
@@ -52,7 +58,8 @@ const searchParams = z.object({
  * ```
  */
 const buildPaginationBody = (
-	search?: z.infer<typeof searchParams>,
+	search: z.infer<typeof searchParams> | undefined,
+	pinnedDeploymentIds: readonly string[],
 ): DeploymentsPaginationFilter => ({
 	page: search?.page ?? 1,
 	limit: search?.limit ?? 10,
@@ -61,6 +68,7 @@ const buildPaginationBody = (
 		operator: "and_",
 		flow_or_deployment_name: { like_: search?.flowOrDeploymentName ?? "" },
 		tags: { operator: "and_", all_: search?.tags ?? [] },
+		...(search?.pinned ? { id: { any_: [...pinnedDeploymentIds] } } : {}),
 	},
 });
 
@@ -73,6 +81,8 @@ export const Route = createFileRoute("/deployments/")({
 		const [sort, onSortChange] = useSort();
 		const [columnFilters, onColumnFiltersChange] =
 			useDeploymentsColumnFilters();
+		const { pinnedDeploymentIds } = usePinnedDeployments();
+		const pinnedOnly = search.pinned ?? false;
 
 		const { data: deploymentsCount } = useSuspenseQuery(
 			buildCountDeploymentsQuery(),
@@ -85,10 +95,29 @@ export const Route = createFileRoute("/deployments/")({
 			isError,
 			error: deploymentsPageError,
 			refetch: refetchDeploymentsPage,
-		} = useQuery(buildPaginateDeploymentsQuery(buildPaginationBody(search)));
+		} = useQuery(
+			buildPaginateDeploymentsQuery(
+				buildPaginationBody(search, pinnedDeploymentIds),
+			),
+		);
 
 		const deployments = deploymentsPage?.results ?? [];
 		const filteredCount = deploymentsPage?.count ?? 0;
+
+		const onPinnedOnlyChange = useCallback(
+			(nextPinnedOnly: boolean) => {
+				void navigate({
+					to: ".",
+					search: (prev) => ({
+						...prev,
+						page: 1,
+						pinned: nextPinnedOnly || undefined,
+					}),
+					replace: true,
+				});
+			},
+			[navigate],
+		);
 
 		const onClearFilters = useCallback(() => {
 			void navigate({
@@ -155,7 +184,9 @@ export const Route = createFileRoute("/deployments/")({
 				) : (
 					<DeploymentsDataTable
 						deployments={deploymentsWithFlows}
-						currentDeploymentsCount={deploymentsCount}
+						currentDeploymentsCount={
+							pinnedOnly ? filteredCount : deploymentsCount
+						}
 						filteredCount={filteredCount}
 						isPending={isPending}
 						isPlaceholderData={isPlaceholderData}
@@ -167,6 +198,8 @@ export const Route = createFileRoute("/deployments/")({
 						onSortChange={onSortChange}
 						onColumnFiltersChange={onColumnFiltersChange}
 						onClearFilters={onClearFilters}
+						pinnedOnly={pinnedOnly}
+						onPinnedOnlyChange={onPinnedOnlyChange}
 					/>
 				)}
 			</div>
@@ -194,7 +227,8 @@ export const Route = createFileRoute("/deployments/")({
 			</div>
 		);
 	},
-	loaderDeps: ({ search }) => buildPaginationBody(search),
+	loaderDeps: ({ search }) =>
+		buildPaginationBody(search, getPinnedDeploymentIds()),
 	loader: ({ deps, context }) => {
 		// Prefetch stable count and paginated deployments without blocking the loader.
 		// The paginated query uses keepPreviousData so the search/filter UI stays

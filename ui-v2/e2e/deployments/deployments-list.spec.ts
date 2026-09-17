@@ -183,4 +183,45 @@ test.describe("Deployments List Page", () => {
 		await expect(page).toHaveURL(/\/deployments\/deployment\//);
 		await expect(page.getByText(depName)).toBeVisible();
 	});
+
+	test("Pin deployments and view only pinned", async ({ page, apiClient }) => {
+		const timestamp = Date.now();
+		const flow = await createFlow(
+			apiClient,
+			`${TEST_PREFIX}pin-flow-${timestamp}`,
+		);
+		const pinnedName = `${TEST_PREFIX}pin-yes-${timestamp}`;
+		const unpinnedName = `${TEST_PREFIX}pin-no-${timestamp}`;
+		await createDeployment(apiClient, { name: pinnedName, flowId: flow.id });
+		await createDeployment(apiClient, { name: unpinnedName, flowId: flow.id });
+
+		await expect(async () => {
+			await page.goto(
+				`/deployments?flowOrDeploymentName=${encodeURIComponent(`${TEST_PREFIX}pin-`)}`,
+			);
+			await expect(page.getByText(pinnedName)).toBeVisible({ timeout: 2000 });
+			await expect(page.getByText(unpinnedName)).toBeVisible({
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
+
+		await page
+			.getByRole("row", { name: new RegExp(pinnedName) })
+			.getByRole("button", { name: "Pin deployment" })
+			.click();
+		await page.getByRole("tab", { name: "Pinned" }).click();
+
+		await expect(page).toHaveURL(/pinned=true/);
+		await expect(page.getByText(pinnedName)).toBeVisible();
+		await expect(page.getByText(unpinnedName)).not.toBeVisible();
+
+		await page.reload();
+		await waitForDeploymentsPageReady(page);
+		await expect(page.getByText(pinnedName)).toBeVisible();
+		await expect(page.getByText(unpinnedName)).not.toBeVisible();
+
+		await page.getByRole("button", { name: "Unpin deployment" }).click();
+		await page.getByRole("button", { name: "Clear filters" }).click();
+		await expect(page.getByText("No pinned deployments")).toBeVisible();
+	});
 });

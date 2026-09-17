@@ -100,3 +100,14 @@ export const Empty: StoryObj = {
 		deployments: [],
 	},
 };
+
+export const NoPinnedDeployments: StoryObj = {
+	name: "No Pinned Deployments",
+	args: {
+		deployments: [],
+		filteredCount: 0,
+		columnFilters: [],
+		pinnedOnly: true,
+		onPinnedOnlyChange: fn(),
+	},
+};
