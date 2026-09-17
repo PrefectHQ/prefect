@@ -36,8 +36,10 @@ export const PinDeploymentButton = ({
 					aria-label={label}
 					aria-pressed={pinned}
 					className={cn(
-						"size-8 p-0 text-muted-foreground",
-						pinned && "text-foreground",
+						"size-8 p-0",
+						pinned
+							? "text-foreground"
+							: "text-foreground/60 hover:text-foreground",
 						revealOnRowHover &&
 							!pinned &&
 							"opacity-0 transition-opacity focus-visible:opacity-100 [tr:hover_&]:opacity-100 [@media(hover:none)]:opacity-100",
