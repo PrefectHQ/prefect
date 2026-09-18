@@ -191,6 +191,10 @@ class ConcurrencyLeaseHolder(PrefectBaseModel):
 class StateDetails(PrefectBaseModel):
     flow_run_id: Optional[UUID] = None
     task_run_id: Optional[UUID] = None
+    upstream_cause_flow_run_id: UUID | None = None
+    upstream_cause_task_run_id: UUID | None = None
+    upstream_cause_state_type: StateType | None = None
+    upstream_cause_state_name: str | None = None
     child_flow_run_id: Optional[UUID] = None
     scheduled_time: Optional[DateTime] = None
     cache_key: Optional[str] = None
