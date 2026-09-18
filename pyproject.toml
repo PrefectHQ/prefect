@@ -219,6 +219,7 @@ markdown-docs = [
 ]
 
 type-checking = [
+    "mypy==2.3.0",
     "pandas>=2.2.3",
     "pandas-stubs>=2.2.2.240807",
     "pyright>=1.1.394",
