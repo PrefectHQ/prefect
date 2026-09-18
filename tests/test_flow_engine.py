@@ -2099,6 +2099,147 @@ class TestLoadSubflowRun:
         )
 
 
+class TestCompletedSubflowRerunOnParentRetry:
+    async def test_sync_completed_child_without_persisted_result_gets_fresh_run_on_parent_retry(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        parent_attempts = 0
+        child_attempts = 0
+        child_flow_run_ids: list[UUID] = []
+
+        @flow(retries=1, persist_result=False)
+        def child():
+            nonlocal child_attempts
+            child_attempts += 1
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+            if child_attempts == 2:
+                raise ValueError("Transient child failure; the next call would succeed")
+            return "ok"
+
+        @flow(retries=1, persist_result=False)
+        def parent():
+            nonlocal parent_attempts
+            parent_attempts += 1
+            result = child()
+            if parent_attempts == 1:
+                raise ValueError("Retry parent after child succeeded")
+            return result
+
+        state = parent(return_state=True)
+
+        assert state.is_completed()
+        assert child_attempts == 3
+        assert len(set(child_flow_run_ids)) == 2
+
+        first_run = sync_prefect_client.read_flow_run(child_flow_run_ids[0])
+        second_run = sync_prefect_client.read_flow_run(child_flow_run_ids[1])
+        assert first_run.state is not None
+        assert first_run.state.is_completed()
+        assert second_run.state is not None
+        assert second_run.state.is_completed()
+        assert second_run.run_count == 2
+
+    async def test_async_completed_child_without_persisted_result_gets_fresh_run_on_parent_retry(
+        self, prefect_client: PrefectClient
+    ):
+        parent_attempts = 0
+        child_attempts = 0
+        child_flow_run_ids: list[UUID] = []
+
+        @flow(retries=1, persist_result=False)
+        async def child():
+            nonlocal child_attempts
+            child_attempts += 1
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+            if child_attempts == 2:
+                raise ValueError("Transient child failure; the next call would succeed")
+            return "ok"
+
+        @flow(retries=1, persist_result=False)
+        async def parent():
+            nonlocal parent_attempts
+            parent_attempts += 1
+            result = await child()
+            if parent_attempts == 1:
+                raise ValueError("Retry parent after child succeeded")
+            return result
+
+        state = await parent(return_state=True)
+
+        assert state.is_completed()
+        assert child_attempts == 3
+        assert len(set(child_flow_run_ids)) == 2
+
+        first_run = await prefect_client.read_flow_run(child_flow_run_ids[0])
+        second_run = await prefect_client.read_flow_run(child_flow_run_ids[1])
+        assert first_run.state is not None
+        assert first_run.state.is_completed()
+        assert second_run.state is not None
+        assert second_run.state.is_completed()
+        assert second_run.run_count == 2
+
+    async def test_completed_child_with_persisted_result_is_reused_on_parent_retry(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        parent_attempts = 0
+        child_calls = 0
+        child_flow_run_ids: list[UUID] = []
+
+        @flow(persist_result=True)
+        def child():
+            nonlocal child_calls
+            child_calls += 1
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+            return "ok"
+
+        @flow(retries=1)
+        def parent():
+            nonlocal parent_attempts
+            parent_attempts += 1
+            result = child()
+            if parent_attempts == 1:
+                raise ValueError("Retry parent after child succeeded")
+            return result
+
+        state = parent(return_state=True)
+
+        assert state.is_completed()
+        assert await state.result() == "ok"
+        assert child_calls == 1
+        assert len(set(child_flow_run_ids)) == 1
+        child_run = sync_prefect_client.read_flow_run(child_flow_run_ids[0])
+        assert child_run.state is not None
+        assert child_run.state.is_completed()
+
+    async def test_failed_child_still_gets_fresh_run_on_parent_retry(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        parent_attempts = 0
+        child_calls = 0
+        child_flow_run_ids: list[UUID] = []
+
+        @flow(retries=0)
+        def child():
+            nonlocal child_calls
+            child_calls += 1
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+            if child_calls == 1:
+                raise ValueError("Transient child failure")
+            return "ok"
+
+        @flow(retries=1)
+        def parent():
+            nonlocal parent_attempts
+            parent_attempts += 1
+            return child()
+
+        state = parent(return_state=True)
+
+        assert state.is_completed()
+        assert child_calls == 2
+        assert len(set(child_flow_run_ids)) == 2
+
+
 class TestSubflowDynamicKeyRace:
     """Regression tests for concurrent subflow calls adopting the wrong
     persisted result on parent flow retry (OSS-8038 / #22259).
@@ -2258,7 +2399,7 @@ class TestSubflowDynamicKeyRace:
         assert parent() == "hello"
 
         assert child_attempt == 2
-        assert len(set(grandchild_flow_run_ids)) == 1
+        assert len(set(grandchild_flow_run_ids)) == 2
         grandchild_run = sync_prefect_client.read_flow_run(grandchild_flow_run_ids[0])
         assert grandchild_run.parent_task_run_id is not None
         task_run = sync_prefect_client.read_task_run(grandchild_run.parent_task_run_id)

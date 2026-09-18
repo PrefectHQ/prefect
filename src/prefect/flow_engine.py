@@ -61,6 +61,7 @@ from prefect._internal.control_listener import (
 )
 from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
 from prefect._internal.metrics import RunMetrics
+from prefect._internal.result_records import ResultRecordMetadata
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -931,8 +932,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
         If the parent task run is in a final state, we return the existing
         subflow run to avoid re-execution (unless the parent is being rerun
-        and the subflow did not complete, in which case a fresh run is
-        desired).
+        and the subflow did not complete or completed without a persisted
+        result, in which case a fresh run is desired).
 
         If the parent task run is in a non-final state (e.g. still Running
         after a process restart), we also look for an existing subflow run
@@ -972,6 +973,17 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         )
         if flow_runs:
             loaded_flow_run = flow_runs[0]
+            # A completed child that did not persist its result would be
+            # re-executed under the same run id on a parent retry and inherit
+            # its exhausted run_count; give it a fresh run instead.
+            if (
+                rerunning
+                and parent_task_run.state.is_final()
+                and loaded_flow_run.state is not None
+                and loaded_flow_run.state.is_completed()
+                and not isinstance(loaded_flow_run.state.data, ResultRecordMetadata)
+            ):
+                return None
             # When the parent task run is final the subflow has already
             # finished; cache the result so the engine skips re-execution.
             if parent_task_run.state.is_final():
@@ -1639,8 +1651,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         If the parent task run is in a final state, we return the existing
         subflow run to avoid re-execution (unless the parent is being rerun
-        and the subflow did not complete, in which case a fresh run is
-        desired).
+        and the subflow did not complete or completed without a persisted
+        result, in which case a fresh run is desired).
 
         If the parent task run is in a non-final state (e.g. still Running
         after a process restart), we also look for an existing subflow run
@@ -1680,6 +1692,17 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         )
         if flow_runs:
             loaded_flow_run = flow_runs[0]
+            # A completed child that did not persist its result would be
+            # re-executed under the same run id on a parent retry and inherit
+            # its exhausted run_count; give it a fresh run instead.
+            if (
+                rerunning
+                and parent_task_run.state.is_final()
+                and loaded_flow_run.state is not None
+                and loaded_flow_run.state.is_completed()
+                and not isinstance(loaded_flow_run.state.data, ResultRecordMetadata)
+            ):
+                return None
             # When the parent task run is final the subflow has already
             # finished; cache the result so the engine skips re-execution.
             if parent_task_run.state.is_final():
