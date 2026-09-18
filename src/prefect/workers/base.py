@@ -26,7 +26,6 @@ from zoneinfo import ZoneInfo
 
 import anyio
 import anyio.abc
-import httpx
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
@@ -35,6 +34,7 @@ from typing_extensions import Literal, Self, TypeVar
 import prefect
 import prefect.types._datetime
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect._internal.launchers import resolve_bundle_step_with_launcher
 from prefect._internal.observers import FlowRunCancellingObserver

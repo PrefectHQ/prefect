@@ -1,3 +1,4 @@
+import os
 import re
 from functools import partial
 
@@ -15,6 +16,10 @@ from prefect_databricks.flows import (
 
 from prefect.testing.utilities import prefect_test_harness
 
+USES_LEGACY_HTTPX = (
+    os.environ.get("PREFECT_CLIENT_HTTP_BACKEND", "httpx").strip().lower() == "httpx"
+)
+
 
 def sync_handler(result, state):
     state["result"] = result
@@ -26,7 +31,8 @@ async def async_handler(result, state):
 
 @pytest.fixture
 def respx_mock_with_pass_through(respx_mock):
-    respx_mock.route(host="127.0.0.1").pass_through()
+    if USES_LEGACY_HTTPX:
+        respx_mock.route(host="127.0.0.1").pass_through()
     yield respx_mock
 
 

@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Literal, Optional
 from uuid import UUID, uuid4
 
 import cachetools
-import httpx
 from starlette import status
 from typing_extensions import TypeAlias, Unpack
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import FutureQueueService
 from prefect.client.orchestration import get_client

@@ -2,9 +2,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 import sqlalchemy as sa
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
 from prefect.settings import PREFECT_SERVER_CSRF_PROTECTION_ENABLED, temporary_settings
@@ -18,7 +18,7 @@ def enable_csrf_protection():
         yield
 
 
-async def test_can_get_csrf_token(client: AsyncClient, session: AsyncSession):
+async def test_can_get_csrf_token(client: httpx.AsyncClient, session: AsyncSession):
     response = await client.get("/csrf-token?client=client123")
     assert response.status_code == 200
 
@@ -32,7 +32,7 @@ async def test_can_get_csrf_token(client: AsyncClient, session: AsyncSession):
     assert token.token == db_token.token
 
 
-async def test_client_param_required(client: AsyncClient):
+async def test_client_param_required(client: httpx.AsyncClient):
     response = await client.get("/csrf-token")
     assert response.status_code == 422
     assert response.json() == {
@@ -49,7 +49,7 @@ async def test_client_param_required(client: AsyncClient):
     }
 
 
-async def test_422_when_csrf_protection_disabled(client: AsyncClient):
+async def test_422_when_csrf_protection_disabled(client: httpx.AsyncClient):
     with temporary_settings({PREFECT_SERVER_CSRF_PROTECTION_ENABLED: False}):
         response = await client.get("/csrf-token?client=client123")
         assert response.status_code == 422
@@ -57,7 +57,7 @@ async def test_422_when_csrf_protection_disabled(client: AsyncClient):
 
 
 async def test_deletes_expired_tokens(
-    db: PrefectDBInterface, session: AsyncSession, client: AsyncClient
+    db: PrefectDBInterface, session: AsyncSession, client: httpx.AsyncClient
 ):
     # Create some tokens
     for i in range(5):

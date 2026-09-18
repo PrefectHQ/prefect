@@ -409,8 +409,7 @@ class ConnectionStatus(AutoEnum):
 
 
 async def check_server_connection() -> ConnectionStatus:
-    import httpx
-
+    from prefect._internal.compatibility.httpx import httpx
     from prefect.client.base import determine_server_type
     from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
     from prefect.client.orchestration import ServerType, get_client

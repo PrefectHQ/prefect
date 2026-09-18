@@ -8,8 +8,8 @@ from unittest import mock
 from uuid import uuid4
 
 import pytest
-from httpx import HTTPStatusError, Request, Response
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import ConcurrencyLeaseHolder
 from prefect.concurrency.services import (
@@ -56,7 +56,7 @@ async def test_returns_successful_response(mocked_client: Any) -> None:
         "lease_id": str(lease_id),
         "limits": [{"id": str(uuid4()), "name": "test-limit", "limit": 10}],
     }
-    response = Response(200, json=response_data)
+    response = httpx.Response(200, json=response_data)
 
     mocked_method = mocked_client.client.increment_concurrency_slots_with_lease
     mocked_method.return_value = response
@@ -70,7 +70,7 @@ async def test_returns_successful_response(mocked_client: Any) -> None:
     service = ConcurrencySlotAcquisitionWithLeaseService.instance(
         frozenset(expected_names)
     )
-    future: Future[Response] = service.send(
+    future: Future[httpx.Response] = service.send(
         (
             expected_slots,
             expected_mode,
@@ -97,7 +97,7 @@ async def test_returns_successful_response(mocked_client: Any) -> None:
 async def test_releases_lease_when_caller_is_cancelled(mocked_client: Any) -> None:
     """A lease granted after the caller gave up must not leak its slots."""
     lease_id = uuid4()
-    response = Response(
+    response = httpx.Response(
         200,
         json={
             "lease_id": str(lease_id),
@@ -108,7 +108,7 @@ async def test_releases_lease_when_caller_is_cancelled(mocked_client: Any) -> No
     acquiring = threading.Event()
     caller_cancelled = threading.Event()
 
-    async def slow_increment(*args: Any, **kwargs: Any) -> Response:
+    async def slow_increment(*args: Any, **kwargs: Any) -> httpx.Response:
         acquiring.set()
         await asyncio.get_running_loop().run_in_executor(None, caller_cancelled.wait)
         return response
@@ -123,7 +123,7 @@ async def test_releases_lease_when_caller_is_cancelled(mocked_client: Any) -> No
         service = ConcurrencySlotAcquisitionWithLeaseService.instance(
             frozenset(["test-limit"])
         )
-        future: Future[Response] = service.send(
+        future: Future[httpx.Response] = service.send(
             (1, "concurrency", None, None, 60.0, False, None)
         )
 
@@ -141,7 +141,7 @@ async def test_release_orphaned_lease_uses_the_acquiring_client(
 ) -> None:
     """Cleanup must go through the same client that acquired the slots."""
     lease_id = uuid4()
-    response = Response(
+    response = httpx.Response(
         200,
         json={
             "lease_id": str(lease_id),
@@ -168,7 +168,7 @@ async def test_release_orphaned_lease_uses_the_acquiring_client(
 async def test_drain_waits_for_orphaned_lease_release(mocked_client: Any) -> None:
     """Draining must not close the client out from under an in-flight release."""
     lease_id = uuid4()
-    response = Response(
+    response = httpx.Response(
         200,
         json={
             "lease_id": str(lease_id),
@@ -219,7 +219,7 @@ async def test_release_orphaned_lease_logs_unreadable_response(
         mocked_client.client, "release_concurrency_slots_with_lease", autospec=True
     ) as release:
         await asyncio.wrap_future(
-            service.release_orphaned_lease(Response(200, content=b"not json"))
+            service.release_orphaned_lease(httpx.Response(200, content=b"not json"))
         )
 
     release.assert_not_called()
@@ -232,12 +232,14 @@ async def test_retries_failed_call_respects_retry_after_header(
     """Test that the service respects Retry-After headers on 423 responses."""
     lease_id = uuid4()
     responses = [
-        HTTPStatusError(
+        httpx.HTTPStatusError(
             "Limit is locked",
-            request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
-            response=Response(423, headers={"Retry-After": "10"}),
+            request=httpx.Request(
+                "post", "/v2/concurrency_limits/increment-with-lease"
+            ),
+            response=httpx.Response(423, headers={"Retry-After": "10"}),
         ),
-        Response(
+        httpx.Response(
             200,
             json={
                 "lease_id": str(lease_id),
@@ -254,7 +256,7 @@ async def test_retries_failed_call_respects_retry_after_header(
     )
 
     with mock.patch("asyncio.sleep") as sleep:
-        future: Future[Response] = service.send(
+        future: Future[httpx.Response] = service.send(
             (
                 1,  # slots
                 "concurrency",  # mode
@@ -283,10 +285,10 @@ async def test_failed_call_status_code_not_retryable_returns_exception(
     mocked_client: Any,
 ) -> None:
     """Test that non-423 errors are not retried and are returned as exceptions."""
-    response = HTTPStatusError(
+    response = httpx.HTTPStatusError(
         "Internal server error",
-        request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
-        response=Response(500, headers={"Retry-After": "2"}),
+        request=httpx.Request("post", "/v2/concurrency_limits/increment-with-lease"),
+        response=httpx.Response(500, headers={"Retry-After": "2"}),
     )
 
     mocked_client.client.increment_concurrency_slots_with_lease.side_effect = response
@@ -296,12 +298,12 @@ async def test_failed_call_status_code_not_retryable_returns_exception(
         frozenset(limit_names)
     )
 
-    future: Future[Response] = service.send(
+    future: Future[httpx.Response] = service.send(
         (1, "concurrency", None, None, 60.0, False, None)
     )
     await service.drain()
 
-    with pytest.raises(HTTPStatusError) as exc_info:
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
         await asyncio.wrap_future(future)
 
     assert exc_info.value == response
@@ -310,10 +312,12 @@ async def test_failed_call_status_code_not_retryable_returns_exception(
 async def test_max_retries_honored(mocked_client: Any) -> None:
     """Test that max_retries limit is respected and acquisition stops after exhausting retries."""
     responses = [
-        HTTPStatusError(
+        httpx.HTTPStatusError(
             "Limit is locked",
-            request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
-            response=Response(423, headers={"Retry-After": "1"}),
+            request=httpx.Request(
+                "post", "/v2/concurrency_limits/increment-with-lease"
+            ),
+            response=httpx.Response(423, headers={"Retry-After": "1"}),
         )
     ] * 5  # More 423s than max_retries
 
@@ -325,7 +329,7 @@ async def test_max_retries_honored(mocked_client: Any) -> None:
     )
 
     with mock.patch("asyncio.sleep"):
-        future: Future[Response] = service.send(
+        future: Future[httpx.Response] = service.send(
             (
                 1,  # slots
                 "concurrency",  # mode
@@ -339,7 +343,7 @@ async def test_max_retries_honored(mocked_client: Any) -> None:
         await service.drain()
 
         # Should get an exception after max_retries is exhausted
-        with pytest.raises(HTTPStatusError):
+        with pytest.raises(httpx.HTTPStatusError):
             await asyncio.wrap_future(future)
 
         # Should have called increment 3 times (initial + 2 retries)
@@ -358,7 +362,7 @@ async def test_basic_exception_returns_exception(mocked_client: Any) -> None:
         frozenset(limit_names)
     )
 
-    future: Future[Response] = service.send(
+    future: Future[httpx.Response] = service.send(
         (1, "concurrency", None, None, 60.0, False, None)
     )
     await service.drain()
@@ -396,7 +400,7 @@ async def test_serialization_behavior(mocked_client: Any) -> None:
     """
     call_order: list[dict[str, int | None]] = []
 
-    async def mock_increment(*args: Any, **kwargs: Any) -> Response:
+    async def mock_increment(*args: Any, **kwargs: Any) -> httpx.Response:
         # Record when this call starts
         call_index = len(call_order)
         call_order.append({"start": call_index, "end": None})
@@ -404,7 +408,7 @@ async def test_serialization_behavior(mocked_client: Any) -> None:
         await asyncio.sleep(0.01)
         # Record when this call ends
         call_order[-1]["end"] = len([c for c in call_order if c["end"] is not None])
-        return Response(
+        return httpx.Response(
             200,
             json={
                 "lease_id": str(uuid4()),
@@ -420,7 +424,7 @@ async def test_serialization_behavior(mocked_client: Any) -> None:
     service = ConcurrencySlotAcquisitionWithLeaseService.instance(limit_names)
 
     # Send 10 concurrent acquisition requests
-    futures: list[Future[Response]] = []
+    futures: list[Future[httpx.Response]] = []
     for i in range(10):
         future = service.send((1, "concurrency", None, None, 60.0, False, None))
         futures.append(future)
@@ -520,7 +524,7 @@ class TestCachingBehavior:
         self, mocked_client: Any
     ) -> None:
         """Test that empty limits responses are cached for task_run with tag names."""
-        response = Response(200, json={"lease_id": str(uuid4()), "limits": []})
+        response = httpx.Response(200, json={"lease_id": str(uuid4()), "limits": []})
         mocked_client.client.increment_concurrency_slots_with_lease.return_value = (
             response
         )
@@ -529,10 +533,10 @@ class TestCachingBehavior:
         holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
         service = ConcurrencySlotAcquisitionWithLeaseService.instance(limit_names)
 
-        future1: Future[Response] = service.send(
+        future1: Future[httpx.Response] = service.send(
             (1, "concurrency", None, None, 60.0, False, holder)
         )
-        future2: Future[Response] = service.send(
+        future2: Future[httpx.Response] = service.send(
             (1, "concurrency", None, None, 60.0, False, holder)
         )
 
@@ -550,7 +554,7 @@ class TestCachingBehavior:
 
     async def test_does_not_cache_when_limits_exist(self, mocked_client: Any) -> None:
         """Test that responses with limits are not cached."""
-        response = Response(
+        response = httpx.Response(
             200,
             json={
                 "lease_id": str(uuid4()),
@@ -565,10 +569,10 @@ class TestCachingBehavior:
         holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
         service = ConcurrencySlotAcquisitionWithLeaseService.instance(limit_names)
 
-        future1: Future[Response] = service.send(
+        future1: Future[httpx.Response] = service.send(
             (1, "concurrency", None, None, 60.0, False, holder)
         )
-        future2: Future[Response] = service.send(
+        future2: Future[httpx.Response] = service.send(
             (1, "concurrency", None, None, 60.0, False, holder)
         )
 
@@ -582,7 +586,7 @@ class TestCachingBehavior:
 
     async def test_does_not_cache_when_holder_is_none(self, mocked_client: Any) -> None:
         """Test that caching is disabled when holder is None."""
-        response = Response(200, json={"lease_id": str(uuid4()), "limits": []})
+        response = httpx.Response(200, json={"lease_id": str(uuid4()), "limits": []})
         mocked_client.client.increment_concurrency_slots_with_lease.return_value = (
             response
         )
@@ -590,10 +594,10 @@ class TestCachingBehavior:
         limit_names = frozenset(["tag:test-no-holder"])
         service = ConcurrencySlotAcquisitionWithLeaseService.instance(limit_names)
 
-        future1: Future[Response] = service.send(
+        future1: Future[httpx.Response] = service.send(
             (1, "concurrency", None, None, 60.0, False, None)
         )
-        future2: Future[Response] = service.send(
+        future2: Future[httpx.Response] = service.send(
             (1, "concurrency", None, None, 60.0, False, None)
         )
 
@@ -607,7 +611,7 @@ class TestCachingBehavior:
 
     async def test_does_not_cache_for_non_tag_names(self, mocked_client: Any) -> None:
         """Test that caching is disabled for non-tag limit names."""
-        response = Response(200, json={"lease_id": str(uuid4()), "limits": []})
+        response = httpx.Response(200, json={"lease_id": str(uuid4()), "limits": []})
         mocked_client.client.increment_concurrency_slots_with_lease.return_value = (
             response
         )
@@ -616,10 +620,10 @@ class TestCachingBehavior:
         holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
         service = ConcurrencySlotAcquisitionWithLeaseService.instance(limit_names)
 
-        future1: Future[Response] = service.send(
+        future1: Future[httpx.Response] = service.send(
             (1, "concurrency", None, None, 60.0, False, holder)
         )
-        future2: Future[Response] = service.send(
+        future2: Future[httpx.Response] = service.send(
             (1, "concurrency", None, None, 60.0, False, holder)
         )
 

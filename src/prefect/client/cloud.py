@@ -4,12 +4,12 @@ import re
 from typing import Any, NoReturn, Optional, cast
 
 import anyio
-import httpx
 import pydantic
 from starlette import status
 from typing_extensions import Self
 
 import prefect.settings
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.client.schemas.objects import (
     IPAllowlist,

@@ -107,7 +107,7 @@ def _format_output(response: Any, verbose: bool) -> None:
 
 def _get_exit_code(error: Exception) -> int:
     """Determine the appropriate exit code for an error."""
-    import httpx
+    from prefect._internal.compatibility.httpx import httpx
 
     if isinstance(error, httpx.HTTPStatusError):
         status = error.response.status_code
@@ -190,10 +190,10 @@ async def api_request(
         $ prefect api GET /me --root
         ```
     """
-    import httpx
     from rich.console import Console
     from rich.syntax import Syntax
 
+    from prefect._internal.compatibility.httpx import httpx
     from prefect.client.cloud import get_cloud_client
     from prefect.client.orchestration import get_client
     from prefect.settings import get_current_settings

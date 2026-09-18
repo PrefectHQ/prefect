@@ -1,6 +1,5 @@
 import uuid
 
-import httpx
 import pytest
 import readchar
 import respx
@@ -58,10 +57,8 @@ class TestAssetList:
         self, respx_mock: respx.MockRouter, cloud_workspace: tuple[Workspace, str]
     ) -> None:
         workspace, profile_name = cloud_workspace
-        respx_mock.post(f"{workspace.api_url()}/assets/filter").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK, json={"assets": [], "total": 0}
-            )
+        respx_mock.post(f"{workspace.api_url()}/assets/filter").respond(
+            status.HTTP_200_OK, json={"assets": [], "total": 0}
         )
 
         with use_profile(profile_name):
@@ -79,10 +76,8 @@ class TestAssetList:
             {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"},
             {"key": "postgres://db/users", "last_seen": "2026-01-21T10:30:00Z"},
         ]
-        respx_mock.post(f"{workspace.api_url()}/assets/filter").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK, json={"assets": assets, "total": 2}
-            )
+        respx_mock.post(f"{workspace.api_url()}/assets/filter").respond(
+            status.HTTP_200_OK, json={"assets": assets, "total": 2}
         )
 
         with use_profile(profile_name):
@@ -108,10 +103,8 @@ class TestAssetList:
     ) -> None:
         workspace, profile_name = cloud_workspace
         asset = {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"}
-        respx_mock.post(f"{workspace.api_url()}/assets/filter").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK, json={"assets": [asset], "total": 1}
-            )
+        respx_mock.post(f"{workspace.api_url()}/assets/filter").respond(
+            status.HTTP_200_OK, json={"assets": [asset], "total": 1}
         )
 
         with use_profile(profile_name):
@@ -128,10 +121,8 @@ class TestAssetList:
         assets = [
             {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"},
         ]
-        respx_mock.post(f"{workspace.api_url()}/assets/filter").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK, json={"assets": assets, "total": 100}
-            )
+        respx_mock.post(f"{workspace.api_url()}/assets/filter").respond(
+            status.HTTP_200_OK, json={"assets": assets, "total": 100}
         )
 
         with use_profile(profile_name):
@@ -157,10 +148,8 @@ class TestAssetList:
     ) -> None:
         workspace, profile_name = cloud_workspace
         asset = {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"}
-        respx_mock.post(f"{workspace.api_url()}/assets/filter").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK, json={"assets": [asset], "total": 1}
-            )
+        respx_mock.post(f"{workspace.api_url()}/assets/filter").respond(
+            status.HTTP_200_OK, json={"assets": [asset], "total": 1}
         )
 
         with use_profile(profile_name):
@@ -185,10 +174,8 @@ class TestAssetList:
         self, respx_mock: respx.MockRouter, cloud_workspace: tuple[Workspace, str]
     ) -> None:
         workspace, profile_name = cloud_workspace
-        respx_mock.post(f"{workspace.api_url()}/assets/filter").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK, json={"assets": [], "total": 0}
-            )
+        respx_mock.post(f"{workspace.api_url()}/assets/filter").respond(
+            status.HTTP_200_OK, json={"assets": [], "total": 0}
         )
 
         with use_profile(profile_name):
@@ -225,8 +212,8 @@ class TestAssetDelete:
 
         monkeypatch.setattr(_cli, "is_interactive", lambda: True)
 
-        respx_mock.delete(f"{workspace.api_url()}/assets/key").mock(
-            return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
+        respx_mock.delete(f"{workspace.api_url()}/assets/key").respond(
+            status.HTTP_204_NO_CONTENT
         )
 
         with use_profile(profile_name):
@@ -241,8 +228,8 @@ class TestAssetDelete:
         self, respx_mock: respx.MockRouter, cloud_workspace: tuple[Workspace, str]
     ) -> None:
         workspace, profile_name = cloud_workspace
-        respx_mock.delete(f"{workspace.api_url()}/assets/key").mock(
-            return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
+        respx_mock.delete(f"{workspace.api_url()}/assets/key").respond(
+            status.HTTP_204_NO_CONTENT
         )
 
         with use_profile(profile_name):
@@ -256,10 +243,8 @@ class TestAssetDelete:
         self, respx_mock: respx.MockRouter, cloud_workspace: tuple[Workspace, str]
     ) -> None:
         workspace, profile_name = cloud_workspace
-        respx_mock.delete(f"{workspace.api_url()}/assets/key").mock(
-            return_value=httpx.Response(
-                status.HTTP_404_NOT_FOUND, json={"detail": "Asset not found"}
-            )
+        respx_mock.delete(f"{workspace.api_url()}/assets/key").respond(
+            status.HTTP_404_NOT_FOUND, json={"detail": "Asset not found"}
         )
 
         with use_profile(profile_name):

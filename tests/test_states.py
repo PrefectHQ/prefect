@@ -1,10 +1,13 @@
 import signal
 import uuid
 from pathlib import Path
+from types import ModuleType
 
+import httpx as legacy_httpx
 import pytest
 
 from prefect import flow
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.states import (
     exception_to_crashed_state_sync,
     exception_to_failed_state_sync,
@@ -31,6 +34,7 @@ from prefect.states import (
     Submitting,
     aget_state_exception,
     araise_state_exception,
+    exception_to_crashed_state,
     get_state_exception,
     is_state_iterable,
     raise_state_exception,
@@ -440,6 +444,43 @@ def test_state_returns_expected_result(ignore_prefect_deprecation_warnings):
         )
     )
     assert state.result() == "test"
+
+
+@pytest.mark.parametrize(
+    "http_library",
+    [pytest.param(legacy_httpx, id="legacy"), pytest.param(httpx, id="selected")],
+)
+@pytest.mark.parametrize("error_name", ["TimeoutException", "ConnectError"])
+@pytest.mark.parametrize("with_request", [True, False])
+@pytest.mark.parametrize("use_sync", [True, False], ids=["sync", "async"])
+class TestHTTPExceptionToCrashedState:
+    async def test_preserves_request_diagnostic(
+        self,
+        http_library: ModuleType,
+        error_name: str,
+        with_request: bool,
+        use_sync: bool,
+    ):
+        url = "https://example.test/api/hello"
+        request = http_library.Request("GET", url) if with_request else None
+        exc = getattr(http_library, error_name)("connection failed", request=request)
+
+        state = (
+            exception_to_crashed_state_sync(exc)
+            if use_sync
+            else await exception_to_crashed_state(exc)
+        )
+
+        assert state.is_crashed()
+        assert state.data is exc
+        assert state.message is not None
+        if with_request:
+            assert state.message.startswith(f"Request to {url} failed:")
+        else:
+            assert state.message.startswith(
+                "Request failed while attempting to contact the server:"
+            )
+        assert f"{error_name}: connection failed" in state.message
 
 
 class TestExceptionToCrashedStateSync:

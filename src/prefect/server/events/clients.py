@@ -14,9 +14,9 @@ from typing import (
 )
 from uuid import UUID
 
-import httpx
 from typing_extensions import Self, TypeAlias
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.logging import get_logger
 from prefect.server.events import messaging

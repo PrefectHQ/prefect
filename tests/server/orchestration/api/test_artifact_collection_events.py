@@ -1,6 +1,6 @@
 import pytest
-from httpx import AsyncClient
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import ArtifactCreate
 
@@ -12,7 +12,7 @@ def reset_events():
     AssertingEventsClient.reset()
 
 
-async def _create_artifact(client: AsyncClient, key: str, data: str) -> dict:
+async def _create_artifact(client: httpx.AsyncClient, key: str, data: str) -> dict:
     response = await client.post(
         "/artifacts/",
         json=ArtifactCreate(
@@ -28,7 +28,7 @@ async def _create_artifact(client: AsyncClient, key: str, data: str) -> dict:
 
 class TestArtifactCollectionLifecycleEvents:
     async def test_first_keyed_artifact_emits_collection_created_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         artifact = await _create_artifact(client, "events-collection", "# hello")
 
@@ -49,7 +49,7 @@ class TestArtifactCollectionLifecycleEvents:
         )
 
     async def test_second_keyed_artifact_emits_collection_updated_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         await _create_artifact(client, "events-collection-update", "v1")
         AssertingEventsClient.reset()
@@ -73,7 +73,7 @@ class TestArtifactCollectionLifecycleEvents:
         )
 
     async def test_delete_latest_with_prior_emits_collection_updated_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         first = await _create_artifact(client, "events-collection-repoint", "v1")
         second = await _create_artifact(client, "events-collection-repoint", "v2")
@@ -99,7 +99,7 @@ class TestArtifactCollectionLifecycleEvents:
         )
 
     async def test_delete_last_artifact_emits_collection_deleted_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         only = await _create_artifact(client, "events-collection-delete", "v1")
         AssertingEventsClient.reset()
