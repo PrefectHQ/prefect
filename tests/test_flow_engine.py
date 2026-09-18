@@ -1610,6 +1610,114 @@ class TestFlowRetries:
         assert flow_run_count == 2
         assert child_run_count == 1, "Child flow should not run again"
 
+    @pytest.mark.parametrize(
+        "persist_result, child_failures", [(False, 1), (False, 2), (True, 1)]
+    )
+    async def test_sync_completed_subflow_gets_fresh_retries_on_parent_retry(
+        self,
+        prefect_client: PrefectClient,
+        persist_result: bool,
+        child_failures: int,
+    ):
+        parent_attempts = 0
+        child_attempts: list[tuple[UUID, int]] = []
+
+        @flow(retries=1, persist_result=persist_result)
+        def child() -> str:
+            child_run = get_run_context().flow_run
+            child_attempts.append((child_run.id, child_run.run_count))
+            if 2 <= len(child_attempts) <= child_failures + 1:
+                raise ValueError("Child failed on parent retry")
+            return "hello"
+
+        @flow(retries=1, persist_result=False)
+        def parent() -> str:
+            nonlocal parent_attempts
+            parent_attempts += 1
+            result = child()
+            if parent_attempts == 1:
+                raise ValueError("Parent failed after child completed")
+            return result
+
+        parent_state = parent(return_state=True)
+        assert parent_attempts == 2
+        if persist_result or child_failures == 1:
+            assert parent_state.is_completed()
+            assert await parent_state.result() == "hello"
+        else:
+            assert parent_state.is_failed()
+
+        original_id = child_attempts[0][0]
+        original_run = await prefect_client.read_flow_run(original_id)
+        assert original_run.state.is_completed()
+        assert original_run.run_count == 1
+
+        if persist_result:
+            assert child_attempts == [(original_id, 1)]
+        else:
+            assert len(child_attempts) == 3
+            new_id = child_attempts[1][0]
+            assert new_id != original_id
+            assert child_attempts == [(original_id, 1), (new_id, 1), (new_id, 2)]
+            new_run = await prefect_client.read_flow_run(new_id)
+            assert new_run.parent_task_run_id == original_run.parent_task_run_id
+            assert new_run.state.is_completed() == (child_failures == 1)
+            assert new_run.state.is_failed() == (child_failures == 2)
+
+    @pytest.mark.parametrize(
+        "persist_result, child_failures", [(False, 1), (False, 2), (True, 1)]
+    )
+    async def test_async_completed_subflow_gets_fresh_retries_on_parent_retry(
+        self,
+        prefect_client: PrefectClient,
+        persist_result: bool,
+        child_failures: int,
+    ):
+        parent_attempts = 0
+        child_attempts: list[tuple[UUID, int]] = []
+
+        @flow(retries=1, persist_result=persist_result)
+        async def child() -> str:
+            child_run = get_run_context().flow_run
+            child_attempts.append((child_run.id, child_run.run_count))
+            if 2 <= len(child_attempts) <= child_failures + 1:
+                raise ValueError("Child failed on parent retry")
+            return "hello"
+
+        @flow(retries=1, persist_result=False)
+        async def parent() -> str:
+            nonlocal parent_attempts
+            parent_attempts += 1
+            result = await child()
+            if parent_attempts == 1:
+                raise ValueError("Parent failed after child completed")
+            return result
+
+        parent_state = await parent(return_state=True)
+        assert parent_attempts == 2
+        if persist_result or child_failures == 1:
+            assert parent_state.is_completed()
+            assert await parent_state.result() == "hello"
+        else:
+            assert parent_state.is_failed()
+
+        original_id = child_attempts[0][0]
+        original_run = await prefect_client.read_flow_run(original_id)
+        assert original_run.state.is_completed()
+        assert original_run.run_count == 1
+
+        if persist_result:
+            assert child_attempts == [(original_id, 1)]
+        else:
+            assert len(child_attempts) == 3
+            new_id = child_attempts[1][0]
+            assert new_id != original_id
+            assert child_attempts == [(original_id, 1), (new_id, 1), (new_id, 2)]
+            new_run = await prefect_client.read_flow_run(new_id)
+            assert new_run.parent_task_run_id == original_run.parent_task_run_id
+            assert new_run.state.is_completed() == (child_failures == 1)
+            assert new_run.state.is_failed() == (child_failures == 2)
+
     async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
         self, sync_prefect_client: SyncPrefectClient
     ):
@@ -2225,8 +2333,9 @@ class TestSubflowDynamicKeyRace:
             f"Expected stable key '0', got: {task_run.dynamic_key}"
         )
 
+    @pytest.mark.parametrize("persist_result", [False, True])
     async def test_nested_direct_subflow_from_task_keeps_stable_key(
-        self, sync_prefect_client: SyncPrefectClient
+        self, sync_prefect_client: SyncPrefectClient, persist_result: bool
     ):
         """A direct nested subflow should keep stable tracking identity even
         when its parent flow was called from a task context."""
@@ -2247,7 +2356,7 @@ class TestSubflowDynamicKeyRace:
                 raise ValueError("child fails after grandchild")
             return result
 
-        @task
+        @task(persist_result=persist_result)
         def run_child() -> str:
             return child()
 
@@ -2258,10 +2367,19 @@ class TestSubflowDynamicKeyRace:
         assert parent() == "hello"
 
         assert child_attempt == 2
-        assert len(set(grandchild_flow_run_ids)) == 1
-        grandchild_run = sync_prefect_client.read_flow_run(grandchild_flow_run_ids[0])
-        assert grandchild_run.parent_task_run_id is not None
-        task_run = sync_prefect_client.read_task_run(grandchild_run.parent_task_run_id)
+        # The enclosing task context controls actual result persistence here.
+        # A fresh child run must still attach to the same tracking task.
+        assert len(grandchild_flow_run_ids) == (1 if persist_result else 2)
+        assert len(set(grandchild_flow_run_ids)) == (1 if persist_result else 2)
+        grandchild_runs = [
+            sync_prefect_client.read_flow_run(run_id)
+            for run_id in grandchild_flow_run_ids
+        ]
+        tracking_ids = {run.parent_task_run_id for run in grandchild_runs}
+        assert len(tracking_ids) == 1
+        tracking_id = tracking_ids.pop()
+        assert tracking_id is not None
+        task_run = sync_prefect_client.read_task_run(tracking_id)
         assert task_run.dynamic_key == "0", (
             f"Expected stable key '0', got: {task_run.dynamic_key}"
         )
