@@ -753,8 +753,84 @@ def test_write_path_in_sync_context(s3_bucket):
     assert content == b"hello"
 
 
-def test_resolve_path(s3_bucket):
-    assert s3_bucket._resolve_path("") == ""
+@pytest.mark.parametrize(
+    "bucket_folder, path, expected",
+    [
+        # No bucket_folder: the path is returned untouched, slashes and all.
+        ("", "", ""),
+        ("", "file.txt", "file.txt"),
+        ("", "/file.txt", "/file.txt"),
+        # The bug: an absolute-looking path made `Path.__truediv__` discard
+        # bucket_folder entirely, silently writing to the bucket root.
+        ("prefix", "/file.txt", "prefix/file.txt"),
+        ("prefix", "/folder/file.txt", "prefix/folder/file.txt"),
+        ("prefix/", "/file.txt", "prefix/file.txt"),
+        # Unchanged behaviour, kept here so the fix cannot quietly move it.
+        ("prefix", "", "prefix"),
+        ("prefix", "file.txt", "prefix/file.txt"),
+        ("prefix/", "file.txt", "prefix/file.txt"),
+        # A leading slash on bucket_folder is preserved exactly as configured,
+        # so `_resolve_path` keeps agreeing with `_join_bucket_folder`.
+        ("/prefix", "file.txt", "/prefix/file.txt"),
+        ("/prefix", "/file.txt", "/prefix/file.txt"),
+    ],
+)
+def test_resolve_path(bucket_folder, path, expected):
+    """`bucket_folder` survives a leading slash on the path."""
+    s3_bucket = S3Bucket(bucket_name=BUCKET_NAME, bucket_folder=bucket_folder)
+    assert s3_bucket._resolve_path(path) == expected
+
+
+@pytest.mark.parametrize("bucket_folder", ["prefix", "prefix/", "/prefix", "/prefix/"])
+@pytest.mark.parametrize("path", ["file.txt", "/file.txt", "folder/file.txt"])
+def test_resolve_path_agrees_with_join_bucket_folder(bucket_folder, path):
+    """The two prefix helpers must produce the same key.
+
+    `write_path`/`get_directory` resolve through `_resolve_path` while the
+    object-level methods (`upload_from_path`, `download_object_to_path`, ...) go
+    through `_join_bucket_folder`. If the two disagree, an object written by one
+    cannot be found by the other.
+    """
+    s3_bucket = S3Bucket(bucket_name=BUCKET_NAME, bucket_folder=bucket_folder)
+    assert s3_bucket._resolve_path(path) == s3_bucket._join_bucket_folder(
+        path.lstrip("/")
+    )
+
+
+async def test_leading_slash_path_writes_under_bucket_folder(s3_bucket, s3):
+    """A leading slash must not silently drop `bucket_folder`.
+
+    Object keys are not rooted, so `write_path("/test.txt")` and
+    `write_path("test.txt")` name the same object. Before the fix the absolute
+    form bypassed `bucket_folder` and wrote to the bucket root instead.
+    """
+    s3_bucket.bucket_folder = "prefix"
+
+    key = await s3_bucket.write_path("/test.txt", content=b"hello")
+
+    assert key == "prefix/test.txt"
+    assert await s3_bucket.read_path("/test.txt") == b"hello"
+    # The object really is under the folder, not at the bucket root.
+    keys = {
+        obj["Key"] for obj in s3.list_objects_v2(Bucket=BUCKET_NAME).get("Contents", [])
+    }
+    assert keys == {"prefix/test.txt"}
+
+
+async def test_leading_slash_path_is_reachable_through_the_object_api(s3_bucket, tmp_path):
+    """`write_path` and the object-level API must agree on the resulting key.
+
+    `write_path` resolves through `_resolve_path` while `download_object_to_path`
+    goes through `_join_bucket_folder`. If a fix moved only one of them, an object
+    written here could not be downloaded back.
+    """
+    s3_bucket.bucket_folder = "prefix"
+    await s3_bucket.write_path("/test.txt", content=b"hello")
+
+    destination = tmp_path / "test.txt"
+    await s3_bucket.download_object_to_path("test.txt", destination)
+
+    assert destination.read_bytes() == b"hello"
 
 
 def test_resolve_path_no_double_prefix(s3_bucket):
