@@ -8,6 +8,10 @@ import type {
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { buildCountDeploymentsQuery } from "@/api/deployments";
+import {
+	prefetchPinnedFirstDeployments,
+	usePinnedFirstDeployments,
+} from "@/api/deployments/use-pinned-first-deployments";
 import { categorizeError } from "@/api/error-utils";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { components } from "@/api/prefect";
@@ -16,9 +20,7 @@ import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
 import { DeploymentsPageHeader } from "@/components/deployments/header";
 import {
 	getPinnedDeploymentIds,
-	prefetchPinnedFirstDeployments,
 	usePinnedDeployments,
-	usePinnedFirstDeployments,
 } from "@/components/deployments/pinned-deployments";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";

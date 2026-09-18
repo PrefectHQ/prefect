@@ -9,7 +9,7 @@ import {
 	getPinnedFirstWindow,
 	prefetchPinnedFirstDeployments,
 	usePinnedFirstDeployments,
-} from "./pinned-first-deployments";
+} from "./use-pinned-first-deployments";
 
 const NAMES = ["a", "b", "c", "d", "e", "f", "g"];
 const DEPLOYMENTS = NAMES.map((name) =>
