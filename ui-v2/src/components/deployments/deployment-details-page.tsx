@@ -12,6 +12,7 @@ import { DeploymentMetadata } from "./deployment-metadata";
 import { DeploymentScheduleDialog } from "./deployment-schedules/deployment-schedule-dialog";
 import { DeploymentSchedules } from "./deployment-schedules/deployment-schedules";
 import { DeploymentTriggers } from "./deployment-triggers";
+import { PinDeploymentButton } from "./pinned-deployments";
 import { RunFlowButton } from "./run-flow-button";
 import { useDeleteDeploymentConfirmationDialog } from "./use-delete-deployment-confirmation-dialog";
 
@@ -70,12 +71,13 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 	return (
 		<>
 			<div className="flex flex-col gap-4">
-				<div className="flex items-center justify-between">
-					<div className="flex flex-col gap-2">
+				<div className="flex flex-wrap items-center justify-between gap-2">
+					<div className="flex min-w-0 flex-col gap-2">
 						<DeploymentDetailsHeader deployment={deployment} />
 						<DeploymentLinks deployment={deployment} />
 					</div>
 					<div className="flex items-center gap-2">
+						<PinDeploymentButton deploymentId={id} />
 						<RunFlowButton deployment={deployment} />
 						<DeploymentActionMenu
 							id={id}

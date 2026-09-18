@@ -9,6 +9,7 @@ import { useCallback } from "react";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import type { components } from "@/api/prefect";
 import { DeploymentTagsSelect } from "@/components/deployments/deployment-tags-select";
+import { PinDeploymentButton } from "@/components/deployments/pinned-deployments";
 import { useDeleteDeploymentConfirmationDialog } from "@/components/deployments/use-delete-deployment-confirmation-dialog";
 import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,15 @@ const createColumns = ({
 	onDelete: (deployment: DeploymentWithFlow) => void;
 }) =>
 	columnHelper.columns([
+		columnHelper.display({
+			id: "pin",
+			header: () => <span className="sr-only">Pin</span>,
+			cell: ({ row }) => (
+				<PinDeploymentButton deploymentId={row.original.id} revealOnRowHover />
+			),
+			enableResizing: false,
+			size: 48,
+		}),
 		columnHelper.display({
 			id: "name",
 			header: "Deployment",
@@ -232,6 +242,7 @@ export const DeploymentsDataTable = ({
 				confirmDelete({ ...deployment, name });
 			},
 		}),
+		getRowId: (deployment) => deployment.id,
 		pageCount,
 		manualPagination: true,
 		enableColumnResizing: true,
@@ -290,6 +301,7 @@ export const DeploymentsDataTable = ({
 				<FlowRunActivityBarGraphTooltipProvider>
 					<DataTable
 						table={table}
+						animateRowReorder
 						onRowClick={(row) =>
 							void navigate({
 								to: "/deployments/deployment/$id",
