@@ -19,11 +19,16 @@ const meta = {
 	decorators: [reactQueryDecorator, toastDecorator],
 	args: {
 		data: MOCK_DATA,
+		currentCount: MOCK_DATA.length,
+		pagination: { pageIndex: 0, pageSize: 10 },
+		onPaginationChange: fn(),
 		onDeleteRow: fn(),
 		onEditRow: fn(),
 		onResetRow: fn(),
 		onSearchChange: fn(),
 		searchValue: "",
+		showFilteredEmptyState: false,
+		onClearSearch: fn(),
 	},
 } satisfies Meta<typeof GlobalConcurrencyLimitsDataTable>;
 

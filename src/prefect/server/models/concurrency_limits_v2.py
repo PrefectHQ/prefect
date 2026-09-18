@@ -162,8 +162,12 @@ async def read_all_concurrency_limits(
     session: AsyncSession,
     limit: int,
     offset: int,
+    concurrency_limit_filter: Optional[schemas.filters.ConcurrencyLimitV2Filter] = None,
 ) -> Sequence[orm_models.ConcurrencyLimitV2]:
     query = sa.select(db.ConcurrencyLimitV2).order_by(db.ConcurrencyLimitV2.name)
+
+    if concurrency_limit_filter:
+        query = query.where(concurrency_limit_filter.as_sql_filter())
 
     if offset is not None:
         query = query.offset(offset)
@@ -172,6 +176,48 @@ async def read_all_concurrency_limits(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+@db_injector
+async def read_all_concurrency_limits_with_active_slots(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    limit: int,
+    offset: int,
+    concurrency_limit_filter: Optional[schemas.filters.ConcurrencyLimitV2Filter] = None,
+) -> Sequence[sa.Row[tuple[orm_models.ConcurrencyLimitV2, float]]]:
+    """Like `read_all_concurrency_limits`, but each row also carries the
+    decay-adjusted `active_slots` value, matching `read_concurrency_limit`."""
+    query = sa.select(
+        db.ConcurrencyLimitV2,
+        active_slots_after_decay(db).label("active_slots"),
+    ).order_by(db.ConcurrencyLimitV2.name)
+
+    if concurrency_limit_filter:
+        query = query.where(concurrency_limit_filter.as_sql_filter())
+
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    result = await session.execute(query)
+    return result.all()
+
+
+@db_injector
+async def count_concurrency_limits(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    concurrency_limit_filter: Optional[schemas.filters.ConcurrencyLimitV2Filter] = None,
+) -> int:
+    query = sa.select(sa.func.count()).select_from(db.ConcurrencyLimitV2)
+
+    if concurrency_limit_filter:
+        query = query.where(concurrency_limit_filter.as_sql_filter())
+
+    result = await session.execute(query)
+    return result.scalar_one()
 
 
 @db_injector

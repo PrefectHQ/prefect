@@ -1,4 +1,5 @@
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -11,6 +12,8 @@ export type GlobalConcurrencyLimit =
 	components["schemas"]["GlobalConcurrencyLimitResponse"];
 export type GlobalConcurrencyLimitsFilter =
 	components["schemas"]["Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post"];
+export type GlobalConcurrencyLimitsCountFilter =
+	components["schemas"]["Body_count_concurrency_limits_v2_v2_concurrency_limits_count_post"];
 
 /**
  * ```
@@ -19,6 +22,8 @@ export type GlobalConcurrencyLimitsFilter =
  *  list  =>   ['global-concurrency-limits', 'list'] // key to match ['global-concurrency-limits', 'list', ...
  *             ['global-concurrency-limits', 'list', { ...filter1 }]
  *             ['global-concurrency-limits', 'list', { ...filter2 }]
+ *  counts =>  ['global-concurrency-limits', 'counts']
+ *  count  =>  ['global-concurrency-limits', 'counts', { ...filter }]
  * ```
  * */
 export const queryKeyFactory = {
@@ -26,7 +31,46 @@ export const queryKeyFactory = {
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: GlobalConcurrencyLimitsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
+	counts: () => [...queryKeyFactory.all(), "counts"] as const,
+	count: (filter?: GlobalConcurrencyLimitsCountFilter) =>
+		[...queryKeyFactory.counts(), filter] as const,
 };
+
+export type GlobalConcurrencyLimitsSearch = {
+	search?: string;
+	offset?: number;
+	limit?: number;
+};
+
+/**
+ * Builds the server-side filter for the global concurrency limits list query from the
+ * page's search parameters, so name filtering and pagination apply across the full
+ * dataset rather than only whatever page was fetched from the API.
+ */
+export const buildGlobalConcurrencyLimitsFilter = (
+	search?: GlobalConcurrencyLimitsSearch,
+): GlobalConcurrencyLimitsFilter => ({
+	offset: search?.offset ?? 0,
+	limit: search?.limit ?? 10,
+	...(search?.search && {
+		concurrency_limits: {
+			operator: "and_" as const,
+			name: { like_: search.search },
+		},
+	}),
+});
+
+export const buildGlobalConcurrencyLimitsCountFilter = (
+	search?: GlobalConcurrencyLimitsSearch,
+): GlobalConcurrencyLimitsCountFilter | undefined =>
+	search?.search
+		? {
+				concurrency_limits: {
+					operator: "and_" as const,
+					name: { like_: search.search },
+				},
+			}
+		: undefined;
 
 // ----- 🔑 Queries 🗄️
 // ----------------------------
@@ -43,6 +87,7 @@ export const buildListGlobalConcurrencyLimitsQuery = (
 			return res.data ?? [];
 		},
 		refetchInterval: 30_000,
+		placeholderData: keepPreviousData,
 	});
 
 /**
@@ -54,6 +99,27 @@ export const buildListGlobalConcurrencyLimitsQuery = (
 export const useListGlobalConcurrencyLimits = (
 	filter: GlobalConcurrencyLimitsFilter = { offset: 0 },
 ) => useSuspenseQuery(buildListGlobalConcurrencyLimitsQuery(filter));
+
+/**
+ * Builds a query configuration for counting global concurrency limits based on filter criteria
+ *
+ * @param filter - Optional filter options for the count query
+ * @returns Query configuration object for use with TanStack Query
+ */
+export const buildCountGlobalConcurrencyLimitsQuery = (
+	filter?: GlobalConcurrencyLimitsCountFilter,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.count(filter),
+		queryFn: async () => {
+			const res = await (await getQueryService()).POST(
+				"/v2/concurrency_limits/count",
+				{ body: filter },
+			);
+			return res.data ?? 0;
+		},
+		placeholderData: keepPreviousData,
+	});
 
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
@@ -86,9 +152,10 @@ export const useDeleteGlobalConcurrencyLimit = () => {
 				params: { path: { id_or_name } },
 			}),
 		onSuccess: () => {
-			// After a successful deletion, invalidate the listing queries only to refetch
+			// After a successful deletion, invalidate the listing and count queries to refetch
+			void queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() });
 			return queryClient.invalidateQueries({
-				queryKey: queryKeyFactory.lists(),
+				queryKey: queryKeyFactory.counts(),
 			});
 		},
 	});
@@ -135,9 +202,10 @@ export const useCreateGlobalConcurrencyLimit = () => {
 				body,
 			}),
 		onSuccess: () => {
-			// After a successful creation, invalidate the listing queries only to refetch
+			// After a successful creation, invalidate the listing and count queries to refetch
+			void queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() });
 			return queryClient.invalidateQueries({
-				queryKey: queryKeyFactory.lists(),
+				queryKey: queryKeyFactory.counts(),
 			});
 		},
 	});
