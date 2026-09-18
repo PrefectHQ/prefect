@@ -1,3 +1,4 @@
+import asyncio
 import json
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -667,3 +668,150 @@ class TestFilesystemConcurrencyLeaseStorage:
         # Verify no temp files left behind
         temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
         assert len(temp_files) == 0
+
+
+class _ReadBarrier:
+    """Holds each index read until `n` of them are in flight.
+
+    That makes the read-modify-write phases of concurrent index updates
+    provably overlap, instead of relying on timing. It falls through on a
+    timeout so that an implementation which serializes the section -- and
+    therefore can never have `n` readers in flight -- still completes.
+    """
+
+    def __init__(self, n: int, timeout: float = 0.5):
+        self.n = n
+        self.timeout = timeout
+        self.arrived = 0
+        self.gate = asyncio.Event()
+
+    async def wait(self) -> None:
+        self.arrived += 1
+        if self.arrived >= self.n:
+            self.gate.set()
+            return
+        try:
+            await asyncio.wait_for(self.gate.wait(), self.timeout)
+        except asyncio.TimeoutError:
+            pass
+
+
+class TestExpirationIndexRaces:
+    """The expiration index must not be able to lose a live lease.
+
+    The index is one shared file rewritten in full on every update, and
+    `read_expired_lease_ids` used to trust it on its own. A renewal whose index
+    write was clobbered by a concurrent one therefore left a stale expiration
+    behind, the repossessor revoked the lease, and the holder -- still alive,
+    still renewing -- got a 410 on its next renewal.
+    """
+
+    @pytest.fixture
+    def temp_dir(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            yield Path(temp_dir)
+
+    @pytest.fixture
+    def storage(self, temp_dir: Path) -> ConcurrencyLeaseStorage:
+        return ConcurrencyLeaseStorage(storage_path=temp_dir)
+
+    async def test_concurrent_renewals_both_reach_the_index(self, temp_dir: Path):
+        """Interleaved index updates must not drop each other's write."""
+        barrier = _ReadBarrier(2)
+
+        class Interleaving(ConcurrencyLeaseStorage):
+            async def _load_expiration_index(self) -> dict[str, str]:
+                index = await super()._load_expiration_index()
+                await barrier.wait()
+                return index
+
+        storage = Interleaving(storage_path=temp_dir)
+        ttl = timedelta(minutes=5)
+        first = await storage.create_lease([uuid4()], ttl)
+        second = await storage.create_lease([uuid4()], ttl)
+
+        index_path = temp_dir / "expirations.json"
+        before = json.loads(index_path.read_text())
+
+        barrier.arrived = 0
+        barrier.gate = asyncio.Event()
+        await asyncio.gather(
+            storage.renew_lease(first.id, ttl), storage.renew_lease(second.id, ttl)
+        )
+
+        after = json.loads(index_path.read_text())
+        assert after[str(first.id)] != before[str(first.id)]
+        assert after[str(second.id)] != before[str(second.id)]
+
+    async def test_stale_index_entry_does_not_expire_a_live_lease(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """A lease file that is still in the future outranks the index."""
+        ttl = timedelta(minutes=5)
+        lease = await storage.create_lease([uuid4()], ttl)
+
+        # What a clobbered index write leaves behind: an expiration in the past
+        # for a lease whose file still says it is alive.
+        index_path = temp_dir / "expirations.json"
+        index = json.loads(index_path.read_text())
+        index[str(lease.id)] = (
+            datetime.now(timezone.utc) - timedelta(seconds=30)
+        ).isoformat()
+        index_path.write_text(json.dumps(index))
+
+        assert await storage.read_expired_lease_ids() == []
+
+    async def test_stale_index_entry_is_repaired(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """The scan heals the entry, so the active-lease reads agree again."""
+        ttl = timedelta(minutes=5)
+        lease = await storage.create_lease([uuid4()], ttl)
+
+        index_path = temp_dir / "expirations.json"
+        index = json.loads(index_path.read_text())
+        index[str(lease.id)] = (
+            datetime.now(timezone.utc) - timedelta(seconds=30)
+        ).isoformat()
+        index_path.write_text(json.dumps(index))
+
+        assert await storage.read_active_lease_ids() == []
+        await storage.read_expired_lease_ids()
+        assert await storage.read_active_lease_ids() == [lease.id]
+
+    async def test_expired_lease_is_still_reported(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """Verifying against the lease file must not stop expiry altogether."""
+        lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+
+        assert await storage.read_expired_lease_ids() == [lease.id]
+
+    async def test_orphaned_index_entry_is_still_reported(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """An entry with no lease file behind it is garbage and must be cleared."""
+        lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+        (temp_dir / f"{lease.id}.json").unlink()
+
+        assert await storage.read_expired_lease_ids() == [lease.id]
+
+    async def test_unusable_index_entry_is_skipped(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """A bad entry is skipped, not raised, and does not hide the good ones.
+
+        A naive datetime is the interesting case: it parses, so it survives
+        `fromisoformat`, and only blows up on the comparison against an aware
+        `now`.
+        """
+        lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+
+        index_path = temp_dir / "expirations.json"
+        index = json.loads(index_path.read_text())
+        index[str(uuid4())] = datetime.now().isoformat()  # naive
+        index[str(uuid4())] = "not a datetime"
+        index["not-a-uuid"] = datetime.now(timezone.utc).isoformat()
+        index_path.write_text(json.dumps(index))
+
+        assert await storage.read_expired_lease_ids() == [lease.id]
