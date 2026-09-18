@@ -36,13 +36,16 @@ from prefect.server.models.events import (
     deployment_updated_event,
 )
 from prefect.server.schemas.statuses import DeploymentStatus
+from prefect.server.utilities.database import get_max_query_parameters
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import DateTime, now
+from prefect.utilities.collections import batched_iterable
 
 T = TypeVar("T", bound=tuple[Any, ...])
 
@@ -1307,7 +1310,7 @@ async def mark_deployments_ready(
         # a fresh poll must wait for a concurrent stale transition,
         # not no-op and let the stale transition overwrite it.
         locked = (
-            select(db.Deployment.id, db.Deployment.status)
+            select(db.Deployment.id, db.Deployment.status, db.Deployment.last_polled)
             .where(
                 sa.or_(
                     db.Deployment.id.in_(deployment_ids),
@@ -1319,7 +1322,7 @@ async def mark_deployments_ready(
             .cte("locked")
         )
 
-        result = await session.execute(select(locked.c.id, locked.c.status))
+        result = await session.execute(select(locked))
         rows = result.all()
 
         if not rows:
@@ -1331,16 +1334,35 @@ async def mark_deployments_ready(
 
         last_polled = now("UTC")
 
-        # keeps `updated` untouched to not trigger recent schedules calculation
-        await session.execute(
-            sa.update(db.Deployment)
-            .where(db.Deployment.id.in_(select(locked.c.id)))
-            .values(
-                status=DeploymentStatus.READY,
-                last_polled=last_polled,
-                updated=db.Deployment.updated,
-            )
+        # A deployment is refreshed once `last_polled` is older than half the
+        # Foreman's timeout. The Foreman marks it NOT_READY at the full
+        # timeout, so half leaves room for the next poll to arrive first.
+        foreman = get_current_settings().server.services.foreman
+        cutoff = last_polled - datetime.timedelta(
+            seconds=foreman.deployment_last_polled_timeout_seconds / 2
         )
+        needs_write = [
+            row.id
+            for row in rows
+            if row.status != DeploymentStatus.READY
+            or row.last_polled is None
+            or row.last_polled < cutoff
+        ]
+
+        for id_batch in batched_iterable(
+            needs_write,
+            get_max_query_parameters() - 2,  # `status` and `last_polled` bind too
+        ):
+            # keeps `updated` untouched to not trigger recent schedules calculation
+            await session.execute(
+                sa.update(db.Deployment)
+                .where(db.Deployment.id.in_(id_batch))
+                .values(
+                    status=DeploymentStatus.READY,
+                    last_polled=last_polled,
+                    updated=db.Deployment.updated,
+                )
+            )
 
         if not unready_deployments:
             return
