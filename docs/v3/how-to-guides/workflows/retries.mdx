@@ -17,6 +17,16 @@ def troublesome_workflow():
     raise Exception("oopsie daisy")
 ```
 
+### Retry nested flows
+
+When a parent flow retries a direct call to a [nested flow](/v3/concepts/flows#organize-flows-with-subflows-and-tasks),
+Prefect reuses the child's completed result if it was [persisted](/v3/advanced/results).
+Set `persist_result=True` on the child flow to enable result persistence.
+
+If the child failed or completed without a persisted result, the parent retry creates a new child flow run.
+The new run has its own retry budget, while the previous run keeps its state and history.
+Because the child has a new flow-run ID, task caches that include the flow-run ID do not carry over from the previous child run.
+
 ### Wait between retries
 
 To add a wait between retries, pass a value to the `retry_delay_seconds` parameter.
