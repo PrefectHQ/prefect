@@ -1,4 +1,5 @@
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -10,6 +11,8 @@ import { getQueryService } from "@/api/service";
 export type TaskRunConcurrencyLimit = components["schemas"]["ConcurrencyLimit"];
 export type TaskRunConcurrencyLimitsFilter =
 	components["schemas"]["Body_read_concurrency_limits_concurrency_limits_filter_post"];
+export type TaskRunConcurrencyLimitsCountFilter =
+	components["schemas"]["Body_count_concurrency_limits_concurrency_limits_count_post"];
 
 /**
  * ```
@@ -18,6 +21,10 @@ export type TaskRunConcurrencyLimitsFilter =
  *  list  =>          ['task-run-concurrency-limits', 'list'] // key to match ['task-run-concurrency-limits', 'list', ...
  *                    ['task-run-concurrency-limits', 'list', { ...filter1 }]
  *                    ['task-run-concurrency-limits', 'list', { ...filter2 }]
+ *  listsPaginate =>  ['task-run-concurrency-limits', 'list', 'paginate']
+ *                    ['task-run-concurrency-limits', 'list', 'paginate', { ...filter1 }]
+ *  counts =>         ['task-run-concurrency-limits', 'counts'] // key to match ['task-run-concurrency-limits', 'counts', ...
+ *                    ['task-run-concurrency-limits', 'counts', { ...filter1 }]
  *  details =>        ['task-run-concurrency-limits', 'details'] // key to match ['task-run-concurrency-limits', 'details', ...
  *                    ['task-run-concurrency-limits', 'details', id1]
  *                    ['task-run-concurrency-limits', 'details', id2]
@@ -31,6 +38,12 @@ export const queryKeyFactory = {
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: TaskRunConcurrencyLimitsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
+	listsPaginate: () => [...queryKeyFactory.lists(), "paginate"] as const,
+	listPaginate: (filter: TaskRunConcurrencyLimitsFilter) =>
+		[...queryKeyFactory.listsPaginate(), filter] as const,
+	counts: () => [...queryKeyFactory.all(), "counts"] as const,
+	count: (filter: TaskRunConcurrencyLimitsCountFilter) =>
+		[...queryKeyFactory.counts(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 	activeTaskRuns: () =>
@@ -54,6 +67,74 @@ export const buildListTaskRunConcurrencyLimitsQuery = (
 				},
 			);
 			return res.data ?? [];
+		},
+		refetchInterval: 30_000,
+	});
+
+/**
+ * Builds the request body for a page of task run concurrency limits
+ *
+ * @param options - the page number (1-based), page size and tag search value
+ * @returns a filter that pages and filters task run concurrency limits server-side
+ */
+export const buildTaskRunConcurrencyLimitsPaginationBody = ({
+	page = 1,
+	limit = 10,
+	search = "",
+}: {
+	page?: number;
+	limit?: number;
+	search?: string;
+}): TaskRunConcurrencyLimitsFilter => ({
+	limit,
+	offset: (page - 1) * limit,
+	concurrency_limits: {
+		operator: "and_",
+		tag: { like_: search },
+	},
+});
+
+/**
+ * Builds a query for a page of task run concurrency limits.
+ *
+ * The server applies the tag filter and the page bounds, so the page can be any
+ * page of the full set of limits.
+ *
+ * @param filter - the page bounds and the tag filter to apply
+ * @returns a queryOptions object for the requested page
+ */
+export const buildPaginateTaskRunConcurrencyLimitsQuery = (
+	filter: TaskRunConcurrencyLimitsFilter = { offset: 0 },
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.listPaginate(filter),
+		queryFn: async () => {
+			const res = await (await getQueryService()).POST(
+				"/concurrency_limits/filter",
+				{ body: filter },
+			);
+			return res.data ?? [];
+		},
+		placeholderData: keepPreviousData,
+		refetchInterval: 30_000,
+	});
+
+/**
+ *
+ * @param filter
+ * @returns count of task run concurrency limits matching the filter as a queryOptions object
+ */
+export const buildCountTaskRunConcurrencyLimitsQuery = (
+	filter: TaskRunConcurrencyLimitsCountFilter = {},
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.count(filter),
+		queryFn: async () => {
+			const res = await (await getQueryService()).POST(
+				"/concurrency_limits/count",
+				{ body: filter },
+			);
+			return res.data ?? 0;
 		},
 		refetchInterval: 30_000,
 	});
@@ -121,10 +202,13 @@ export const useDeleteTaskRunConcurrencyLimit = () => {
 			(await getQueryService()).DELETE("/concurrency_limits/{id}", {
 				params: { path: { id } },
 			}),
-		onSuccess: () => {
-			// After a successful deletion, invalidate the listing queries only to refetch
-			return queryClient.invalidateQueries({
+		onSuccess: async () => {
+			// After a successful deletion, invalidate the listing and count queries only to refetch
+			await queryClient.invalidateQueries({
 				queryKey: queryKeyFactory.lists(),
+			});
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.counts(),
 			});
 		},
 	});
@@ -166,10 +250,13 @@ export const useCreateTaskRunConcurrencyLimit = () => {
 			(await getQueryService()).POST("/concurrency_limits/", {
 				body,
 			}),
-		onSuccess: () => {
-			// After a successful creation, invalidate the listing queries only to refetch
-			return queryClient.invalidateQueries({
+		onSuccess: async () => {
+			// After a successful creation, invalidate the listing and count queries only to refetch
+			await queryClient.invalidateQueries({
 				queryKey: queryKeyFactory.lists(),
+			});
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.counts(),
 			});
 		},
 	});

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "storybook/test";
 import { createFakeGlobalConcurrencyLimit } from "@/mocks";
 import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
-import { Table as GlobalConcurrencyLimitsDataTable } from "./global-concurrency-limits-data-table";
+import { GlobalConcurrencyLimitsDataTable } from "./global-concurrency-limits-data-table";
 
 const MOCK_DATA = [
 	createFakeGlobalConcurrencyLimit(),
@@ -24,6 +24,11 @@ const meta = {
 		onResetRow: fn(),
 		onSearchChange: fn(),
 		searchValue: "",
+		onClearSearch: fn(),
+		showFilteredEmptyState: false,
+		pageCount: 1,
+		pagination: { pageIndex: 0, pageSize: 10 },
+		onPaginationChange: fn(),
 	},
 } satisfies Meta<typeof GlobalConcurrencyLimitsDataTable>;
 
