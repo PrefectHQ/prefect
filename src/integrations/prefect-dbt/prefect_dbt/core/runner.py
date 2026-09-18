@@ -3,6 +3,7 @@ Runner for dbt commands
 """
 
 import json
+import logging
 import os
 import queue
 import threading
@@ -59,6 +60,7 @@ from prefect.cache_policies import NO_CACHE
 from prefect.client.orchestration import PrefectClient
 from prefect.context import AssetContext, hydrated_context, serialize_context
 from prefect.exceptions import MissingContextError
+from prefect.logging.loggers import LoggingAdapter
 from prefect.tasks import MaterializingTask, Task, TaskOptions
 from prefect_dbt.core._hooks import DbtHookContext, DbtHookMixin
 from prefect_dbt.core._tracker import NodeTaskTracker
@@ -592,6 +594,48 @@ class PrefectDbtRunner(DbtHookMixin):
     def get_dbt_event_msg(event: EventMsg) -> str:
         return event.info.msg  # type: ignore[reportUnknownMemberType]
 
+    @staticmethod
+    def _get_run_logger(
+        context: dict[str, Any],
+    ) -> Union[logging.Logger, LoggingAdapter, None]:
+        """Get the logger for the run that called `invoke()`, if there is one."""
+        try:
+            with hydrated_context(context) as run_context:
+                return get_run_logger(run_context)
+        except MissingContextError:
+            return None
+
+    def _get_event_logger(
+        self,
+        event: EventMsg,
+        event_data: dict[str, Any],
+        task_state: NodeTaskTracker,
+        context: dict[str, Any],
+    ) -> Union[logging.Logger, LoggingAdapter, None]:
+        """Get the logger that a dbt event should be logged to.
+
+        Events for nodes that have a Prefect task representation are logged to
+        that task run. Every other event - including events for nodes without a
+        task, such as sources during `dbt source freshness` - is logged to the
+        flow or task run that called `invoke()`.
+        """
+        if not event_data.get("node_info"):
+            return self._get_run_logger(context)
+
+        node_id = self._get_dbt_event_node_id(event)
+        if node_id in self._skipped_nodes:
+            return None
+
+        if task_state.get_task_run_id(node_id) is None:
+            return self._get_run_logger(context)
+
+        flow_run_context: Optional[dict[str, Any]] = context.get("flow_run_context")
+        return task_state.get_task_logger(
+            node_id,
+            flow_run_context.get("flow_run") if flow_run_context else None,
+            flow_run_context.get("flow") if flow_run_context else None,
+        )
+
     def _get_dbt_event_node_id(self, event: EventMsg) -> str:
         return event.data.node_info.unique_id  # type: ignore[reportUnknownMemberType]
 
@@ -748,29 +792,7 @@ class PrefectDbtRunner(DbtHookMixin):
             """Actual logging logic - runs in background thread."""
             event_data = MessageToDict(event.data, preserving_proto_field_name=True)
 
-            # Handle logging for all events with node_info
-            if event_data.get("node_info"):
-                node_id = self._get_dbt_event_node_id(event)
-
-                # Skip logging for skipped nodes
-                if node_id not in self._skipped_nodes:
-                    flow_run_context: Optional[dict[str, Any]] = context.get(
-                        "flow_run_context"
-                    )
-                    logger = task_state.get_task_logger(
-                        node_id,
-                        flow_run_context.get("flow_run") if flow_run_context else None,
-                        flow_run_context.get("flow") if flow_run_context else None,
-                    )
-                else:
-                    logger = None
-            else:
-                # Get logger for events without node_info
-                try:
-                    with hydrated_context(context) as run_context:
-                        logger = get_run_logger(run_context)
-                except MissingContextError:
-                    logger = None
+            logger = self._get_event_logger(event, event_data, task_state, context)
 
             # Log the event if logger is available
             if logger is not None:
