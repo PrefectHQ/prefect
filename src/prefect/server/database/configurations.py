@@ -226,11 +226,23 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
         loop = get_running_loop()
 
+        # sqlalchemy_pool_size/sqlalchemy_max_overflow are baked into the
+        # engine's pool at construction (see the `kwargs["pool_size"]` /
+        # `kwargs["max_overflow"]` assignments below), and connection_app_name
+        # is forwarded to Postgres as `application_name`, distinguishing this
+        # connection from others in `pg_stat_activity`. All three must be part
+        # of the cache key: two configurations that differ only in one of
+        # these currently collapse onto whichever engine was constructed
+        # first, silently discarding the other's pool sizing or connection
+        # identity.
         cache_key = (
             loop,
             self.connection_url,
             self.echo,
             self.timeout,
+            self.sqlalchemy_pool_size,
+            self.sqlalchemy_max_overflow,
+            self.connection_app_name,
         )
         if cache_key not in ENGINES:
             kwargs: dict[str, Any] = (
