@@ -370,7 +370,7 @@ async def return_value_to_state(
 
     # Determine a new state from the aggregate of contained states
     if isinstance(retval, State) or is_state_iterable(retval):
-        states = StateGroup(ensure_iterable(retval))
+        states = StateGroup(_flatten_state_iterable(ensure_iterable(retval)))
 
         # Determine the new state type
         if states.all_completed():
@@ -516,7 +516,7 @@ async def aget_state_exception(state: State) -> BaseException:
 
     elif is_state_iterable(result):
         # Return the first failure
-        for state in result:
+        for state in _flatten_state_iterable(result):
             if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return await aget_state_exception(state)
 
@@ -617,7 +617,7 @@ def get_state_exception(state: State) -> BaseException:
 
     elif is_state_iterable(result):
         # Return the first failure
-        for state in result:
+        for state in _flatten_state_iterable(result):
             if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return get_state_exception(state)
 
@@ -655,12 +655,15 @@ def raise_state_exception(state: State) -> None:
 
 def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
     """
-    Check if a the given object is an iterable of states types
+    Check if the given object is an iterable of state types.
 
     Supported iterables are:
     - set
     - list
     - tuple
+
+    Nested `set`, `list`, and `tuple` of states are supported. Each element must
+    be a state or a nested supported iterable of states.
 
     Other iterables will return `False` even if they contain states.
     """
@@ -671,9 +674,19 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
         and isinstance(obj, (list, set, tuple))
         and obj
     ):
-        return all([isinstance(o, State) for o in obj])
+        return all(isinstance(o, State) or is_state_iterable(o) for o in obj)
     else:
         return False
+
+
+def _flatten_state_iterable(obj: Iterable[Any]) -> list[State]:
+    states: list[State] = []
+    for item in obj:
+        if isinstance(item, State):
+            states.append(item)
+        else:
+            states.extend(_flatten_state_iterable(item))
+    return states
 
 
 class StateGroup:

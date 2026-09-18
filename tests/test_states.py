@@ -44,6 +44,14 @@ def test_is_state_iterable(iterable_type):
     assert is_state_iterable(iterable_type([Completed(), Completed()]))
 
 
+def test_is_state_iterable_with_nested_iterables():
+    assert is_state_iterable([[Completed()], (Completed(),)])
+
+
+def test_is_not_state_iterable_if_nested_iterable_contains_non_state():
+    assert not is_state_iterable([[Completed()], [1]])
+
+
 def test_is_not_state_iterable_if_unsupported_iterable_type():
     assert not is_state_iterable({Completed(): i for i in range(3)})
 
@@ -91,6 +99,20 @@ class TestRaiseStateException:
         ]
         with pytest.raises(ValueError, match="Test"):
             await raise_state_exception(state_cls(data=inner_states))
+
+    async def test_aget_state_exception_from_nested_multistate(self, state_cls):
+        exception = ValueError("Test")
+        result = await aget_state_exception(
+            state_cls(data=[[Completed()], (Failed(data=exception),)])
+        )
+        assert result is exception
+
+    def test_get_state_exception_from_nested_multistate(self, state_cls):
+        exception = ValueError("Test")
+        result = get_state_exception(
+            state_cls(data=[[Completed()], (Failed(data=exception),)])
+        )
+        assert result is exception
 
     async def test_value_error_if_all_multistates_are_not_failed(self, state_cls):
         inner_states = [
@@ -256,6 +278,16 @@ class TestReturnValueToState:
         # Message explains aggregate
         assert result_state.message == "2/3 states failed."
         # Aggregate type is failed
+        assert result_state.is_failed()
+
+    async def test_some_nested_failed_states(self, store):
+        states = [
+            [Completed(message="hi"), Failed(message="bye")],
+            (Failed(message="err"),),
+        ]
+        result_state = await return_value_to_state(states, store)
+        assert await result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "2/3 states failed."
         assert result_state.is_failed()
 
     async def test_some_unfinal_states(self, store):
@@ -660,6 +692,16 @@ class TestReturnValueToStateSync:
             Completed(message="hi"),
             Failed(message="bye"),
             Failed(message="err"),
+        ]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "2/3 states failed."
+        assert result_state.is_failed()
+
+    def test_some_nested_failed_states(self, store):
+        states = [
+            [Completed(message="hi"), Failed(message="bye")],
+            (Failed(message="err"),),
         ]
         result_state = return_value_to_state_sync(states, store)
         assert result_state.result(raise_on_failure=False) == states
