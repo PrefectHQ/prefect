@@ -15,7 +15,10 @@ from pydantic_settings import (
     EnvSettingsSource,
     PydanticBaseSettingsSource,
 )
-from pydantic_settings.exceptions import SettingsError
+try:
+    from pydantic_settings.exceptions import SettingsError
+except ImportError:
+    from pydantic_settings import SettingsError
 from pydantic_settings.sources import (
     ENV_FILE_SENTINEL,
     ConfigFileSourceMixin,
