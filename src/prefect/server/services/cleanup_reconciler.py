@@ -39,6 +39,9 @@ def _get_service_worker_cleanup_queue() -> WorkerCleanupQueue:
     enabled_getter=lambda: (
         get_current_settings().server.services.cleanup_reconciler.enabled
     ),
+    display_name="Cleanup Reconciler",
+    environment_variable="PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_ENABLED",
+    description="Reconciles expired worker cleanup message leases.",
 )
 async def reconcile_cleanup_delivery(
     cleanup_queue: WorkerCleanupQueue = Depends(_get_service_worker_cleanup_queue),

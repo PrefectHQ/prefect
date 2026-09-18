@@ -127,12 +127,23 @@ async def _maintenance_session(
 # Finder (perpetual service)
 # ---------------------------------------------------------------------------
 
+_DB_VACUUM_INVENTORY_DESCRIPTION = (
+    "Cleans up old flow runs, events, and orphaned logs and artifacts. "
+    "Event vacuum also requires the Event Persister to be enabled."
+)
+
 
 @perpetual_service(
     enabled_getter=lambda: (
         "flow_runs"
         in get_current_settings().server.services.db_vacuum.enabled_vacuum_types
     ),
+    display_name="DB Vacuum",
+    environment_variable="PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED",
+    description=_DB_VACUUM_INVENTORY_DESCRIPTION,
+    shared_control=True,
+    show_component_state=True,
+    component="flow_runs",
 )
 async def schedule_vacuum_tasks(
     docket: Docket = CurrentDocket(),
@@ -162,6 +173,12 @@ async def schedule_vacuum_tasks(
         and get_current_settings().server.services.event_persister.enabled
     ),
     run_in_ephemeral=True,
+    display_name="DB Vacuum",
+    environment_variable="PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED",
+    description=_DB_VACUUM_INVENTORY_DESCRIPTION,
+    shared_control=True,
+    show_component_state=True,
+    component="events",
 )
 async def schedule_event_vacuum_tasks(
     docket: Docket = CurrentDocket(),
@@ -191,6 +208,12 @@ async def schedule_event_vacuum_tasks(
         "orphans"
         in get_current_settings().server.services.db_vacuum.enabled_vacuum_types
     ),
+    display_name="DB Vacuum",
+    environment_variable="PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED",
+    description=_DB_VACUUM_INVENTORY_DESCRIPTION,
+    shared_control=True,
+    show_component_state=True,
+    component="orphans",
 )
 async def schedule_orphan_vacuum_tasks(
     docket: Docket = CurrentDocket(),

@@ -65,6 +65,9 @@ async def revoke_expired_lease(
 
 @perpetual_service(
     enabled_getter=lambda: get_current_settings().server.services.repossessor.enabled,
+    display_name="Repossessor",
+    environment_variable="PREFECT_SERVER_SERVICES_REPOSSESSOR_ENABLED",
+    description="Revokes expired concurrency leases.",
 )
 async def monitor_expired_leases(
     docket: Docket = CurrentDocket(),
