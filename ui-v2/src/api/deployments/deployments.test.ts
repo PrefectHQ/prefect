@@ -253,6 +253,41 @@ describe("deployments api", () => {
 			);
 			expect(newDeployment).toEqual(mockDeployment);
 		});
+
+		it("refreshes cached counts so pagination can reach the new deployment", async () => {
+			const mockDeployment = createFakeDeployment();
+			mockCreateDeploymentAPI(mockDeployment);
+			let count = 0;
+			server.use(
+				http.post(buildApiUrl("/deployments/count"), () =>
+					HttpResponse.json(count),
+				),
+			);
+			const queryClient = new QueryClient();
+
+			const { result: countResult } = renderHook(
+				() =>
+					useQuery(buildCountDeploymentsQuery({ offset: 0, sort: "NAME_ASC" })),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+			await waitFor(() => expect(countResult.current.data).toBe(0));
+			count = 1;
+
+			const { result: createResult } = renderHook(useCreateDeployment, {
+				wrapper: createWrapper({ queryClient }),
+			});
+			act(() =>
+				createResult.current.createDeployment({
+					enforce_parameter_schema: mockDeployment.enforce_parameter_schema,
+					flow_id: mockDeployment.flow_id,
+					name: mockDeployment.name,
+					paused: mockDeployment.paused,
+				}),
+			);
+
+			await waitFor(() => expect(createResult.current.isSuccess).toBe(true));
+			await waitFor(() => expect(countResult.current.data).toBe(1));
+		});
 	});
 
 	describe("useUpdateDeployment", () => {

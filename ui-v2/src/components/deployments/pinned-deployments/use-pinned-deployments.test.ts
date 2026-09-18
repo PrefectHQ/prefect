@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { mockInMemoryLocalStorage } from "@tests/utils/browser";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	getPinnedDeploymentIds,
 	PINNED_DEPLOYMENTS_STORAGE_KEY,
@@ -28,11 +28,15 @@ describe("usePinnedDeployments", () => {
 	it("pins and unpins a deployment", () => {
 		const { result } = renderHook(() => usePinnedDeployments());
 
-		act(() => result.current.togglePin("deployment-1"));
+		act(() => {
+			result.current.togglePin("deployment-1");
+		});
 		expect(result.current.pinnedDeploymentIds).toEqual(["deployment-1"]);
 		expect(result.current.isPinned("deployment-1")).toBe(true);
 
-		act(() => result.current.togglePin("deployment-1"));
+		act(() => {
+			result.current.togglePin("deployment-1");
+		});
 		expect(result.current.pinnedDeploymentIds).toEqual([]);
 		expect(result.current.isPinned("deployment-1")).toBe(false);
 	});
@@ -40,8 +44,12 @@ describe("usePinnedDeployments", () => {
 	it("persists pins to localStorage", () => {
 		const { result } = renderHook(() => usePinnedDeployments());
 
-		act(() => result.current.togglePin("deployment-1"));
-		act(() => result.current.togglePin("deployment-2"));
+		act(() => {
+			result.current.togglePin("deployment-1");
+		});
+		act(() => {
+			result.current.togglePin("deployment-2");
+		});
 
 		expect(localStorage.getItem(PINNED_DEPLOYMENTS_STORAGE_KEY)).toBe(
 			JSON.stringify(["deployment-1", "deployment-2"]),
@@ -64,7 +72,9 @@ describe("usePinnedDeployments", () => {
 		const first = renderHook(() => usePinnedDeployments());
 		const second = renderHook(() => usePinnedDeployments());
 
-		act(() => first.result.current.togglePin("deployment-1"));
+		act(() => {
+			first.result.current.togglePin("deployment-1");
+		});
 
 		expect(second.result.current.isPinned("deployment-1")).toBe(true);
 	});
@@ -94,6 +104,24 @@ describe("usePinnedDeployments", () => {
 		const { result } = renderHook(() => usePinnedDeployments());
 
 		expect(result.current.pinnedDeploymentIds).toEqual([]);
+	});
+
+	it("reports a refused write and leaves pins unchanged", () => {
+		const { result } = renderHook(() => usePinnedDeployments());
+		act(() => {
+			result.current.togglePin("deployment-1");
+		});
+		vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+			throw new DOMException("quota exceeded", "QuotaExceededError");
+		});
+
+		let saved: boolean | undefined;
+		act(() => {
+			saved = result.current.togglePin("deployment-2");
+		});
+
+		expect(saved).toBe(false);
+		expect(result.current.pinnedDeploymentIds).toEqual(["deployment-1"]);
 	});
 
 	it("keeps the same list reference while pins are unchanged", () => {

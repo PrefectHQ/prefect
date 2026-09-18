@@ -26,10 +26,16 @@ const LIST_OPTIONS = {
  * id filters, offset, and limit. `maxResults` stands in for the server's
  * configured default limit.
  */
-const mockDeploymentsApi = ({ maxResults = 200 } = {}) => {
+const mockDeploymentsApi = ({
+	maxResults = 200,
+	deployments = () => DEPLOYMENTS,
+}: {
+	maxResults?: number;
+	deployments?: () => typeof DEPLOYMENTS;
+} = {}) => {
 	const match = (body: DeploymentsFilter) => {
 		const id = body.deployments?.id;
-		return DEPLOYMENTS.filter(
+		return deployments().filter(
 			(deployment) =>
 				(!id?.any_ || id.any_.includes(deployment.id)) &&
 				!id?.not_any_?.includes(deployment.id),
@@ -191,6 +197,42 @@ describe("usePinnedFirstDeployments", () => {
 		await waitFor(() => expect(result.current.isPending).toBe(false));
 		expect(names(result.current.deployments)).toEqual(["c", "a", "b"]);
 		expect(result.current.count).toBe(7);
+	});
+
+	it("never shows a mixed page while a background refetch changes which pins match", async () => {
+		let onServer = DEPLOYMENTS.filter((deployment) => deployment.id !== "id-b");
+		mockDeploymentsApi({ deployments: () => onServer });
+		const pinnedDeploymentIds = ["id-b", "id-e"];
+		const pages: string[][] = [];
+		const { result } = renderHook(
+			() => {
+				const value = usePinnedFirstDeployments({
+					...LIST_OPTIONS,
+					page: 1,
+					limit: 3,
+					pinnedDeploymentIds,
+				});
+				pages.push(names(value.deployments));
+				return value;
+			},
+			{ wrapper: createWrapper() },
+		);
+		await waitFor(() => expect(result.current.isPending).toBe(false));
+		expect(names(result.current.deployments)).toEqual(["e", "a", "c"]);
+
+		// A pinned deployment starts matching the filters, so the pinned list
+		// grows and the rest of the page has to shift.
+		onServer = DEPLOYMENTS;
+		await result.current.refetch();
+		await waitFor(() =>
+			expect(names(result.current.deployments)).toEqual(["b", "e", "a"]),
+		);
+
+		for (const page of pages) {
+			expect(new Set(page).size).toBe(page.length);
+			expect(page.length).toBeLessThanOrEqual(3);
+			expect([[], ["e", "a", "c"], ["b", "e", "a"]]).toContainEqual(page);
+		}
 	});
 
 	it("keeps pins the server truncated in the rest of the list", async () => {

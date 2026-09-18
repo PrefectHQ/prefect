@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import {
@@ -45,9 +46,10 @@ export const PinDeploymentButton = ({
 							"opacity-0 transition-opacity focus-visible:opacity-100 [tr:hover_&]:opacity-100 [@media(hover:none)]:opacity-100",
 						className,
 					)}
-					onClick={(event) => {
-						event.stopPropagation();
-						togglePin(deploymentId);
+					onClick={() => {
+						if (!togglePin(deploymentId)) {
+							toast.error("Could not save the pin in this browser");
+						}
 					}}
 				>
 					<Icon id="Pin" className={cn("size-4", pinned && "fill-current")} />

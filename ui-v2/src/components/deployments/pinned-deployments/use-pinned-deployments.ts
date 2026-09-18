@@ -64,19 +64,20 @@ const writePinnedDeploymentIds = (pinnedDeploymentIds: readonly string[]) => {
 			PINNED_DEPLOYMENTS_STORAGE_KEY,
 			JSON.stringify(pinnedDeploymentIds),
 		);
-	} catch (error) {
-		console.error("Failed to save pinned deployments", error);
-		return;
+	} catch {
+		return false;
 	}
 	for (const listener of listeners) {
 		listener();
 	}
+	return true;
 };
 
 /**
  * Pins deployments for the current browser. Pins are stored in localStorage
  * rather than on the server, so they are not shared between browsers or users.
  * Every component using this hook sees the same pins, including across tabs.
+ * `togglePin` returns false when the browser refused to store the change.
  *
  * @example
  * ```tsx
@@ -100,7 +101,7 @@ export function usePinnedDeployments() {
 
 	const togglePin = useCallback((deploymentId: string) => {
 		const current = getPinnedDeploymentIds();
-		writePinnedDeploymentIds(
+		return writePinnedDeploymentIds(
 			current.includes(deploymentId)
 				? current.filter((id) => id !== deploymentId)
 				: [...current, deploymentId],

@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockInMemoryLocalStorage } from "@tests/utils/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
 import { PinDeploymentButton } from "./pin-deployment-button";
 import { PINNED_DEPLOYMENTS_STORAGE_KEY } from "./use-pinned-deployments";
 
@@ -85,19 +86,25 @@ describe("PinDeploymentButton", () => {
 		).not.toHaveClass("opacity-0");
 	});
 
-	it("does not trigger click handlers on its container", async () => {
-		const onContainerClick = vi.fn();
+	it("tells the user when the browser refuses to store the pin", async () => {
+		vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+			throw new DOMException("quota exceeded", "QuotaExceededError");
+		});
 		const user = userEvent.setup();
 		render(
-			// biome-ignore lint/a11y/noStaticElementInteractions: stands in for a clickable table row
-			// biome-ignore lint/a11y/useKeyWithClickEvents: stands in for a clickable table row
-			<div onClick={onContainerClick}>
+			<>
+				<Toaster />
 				<PinDeploymentButton deploymentId="deployment-1" />
-			</div>,
+			</>,
 		);
 
 		await user.click(screen.getByRole("button", { name: "Pin deployment" }));
 
-		expect(onContainerClick).not.toHaveBeenCalled();
+		expect(
+			await screen.findByText("Could not save the pin in this browser"),
+		).toBeVisible();
+		expect(
+			screen.getByRole("button", { name: "Pin deployment" }),
+		).toHaveAttribute("aria-pressed", "false");
 	});
 });
