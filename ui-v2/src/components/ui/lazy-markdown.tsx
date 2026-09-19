@@ -16,7 +16,7 @@ type MarkdownModules = {
 	rehypePlugins: Pluggable[];
 };
 
-const IMAGE_DATA_URL = /^data:image\//i;
+const IMAGE_DATA_URL = /^data:image\//;
 
 function buildUrlTransform(defaultUrlTransform: UrlTransform): UrlTransform {
 	return (url, key, node) =>
