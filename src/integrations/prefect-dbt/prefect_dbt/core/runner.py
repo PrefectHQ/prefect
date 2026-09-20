@@ -98,6 +98,7 @@ SETTINGS_CONFIG = [
     ("log_level", "--log-level", EventLevel),
 ]
 FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
+NODE_TASK_SHUTDOWN_TIMEOUT = 10.0
 
 
 def execute_dbt_node(
@@ -1298,8 +1299,13 @@ class PrefectDbtRunner(DbtHookMixin):
             # Prefect timeout/cancellation (or KeyboardInterrupt) while dbt was
             # running: dbt has already been shut down by `invoke_dbt`; drop the
             # callback queue without draining so a retry starts from a clean
-            # state.
+            # state. Node tasks already started keep waiting for a
+            # `NodeFinished` event that will never come, so fail them.
             self._stop_callback_processor()
+            task_state.fail_incomplete_nodes(
+                f"dbt command '{' '.join(args_copy)}' was cancelled"
+            )
+            task_state.join_task_threads(timeout=NODE_TASK_SHUTDOWN_TIMEOUT)
             self._reset_active_hook_state()
             raise
 

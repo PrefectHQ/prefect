@@ -2058,3 +2058,68 @@ class TestPrefectDbtRunnerCancellation:
         assert runner._active_hook_args == ()
         assert runner._active_hook_selection_cache == {}
         assert not any(t.name == "prefect-dbt-invoke" for t in threading.enumerate())
+
+    def test_task_timeout_fails_started_node_tasks(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """A node task created from `NodeStart` must not wait forever for a
+        `NodeFinished` that dbt never emits after being cancelled."""
+        import threading
+
+        from prefect_dbt.core import _invoke
+        from prefect_dbt.core._tracker import NodeTaskTracker
+
+        trackers: list[NodeTaskTracker] = []
+        original_init = NodeTaskTracker.__init__
+
+        def _capturing_init(self):
+            original_init(self)
+            trackers.append(self)
+
+        def _blocking_invoke(args):
+            try:
+                while True:
+                    time.sleep(0.01)
+            except KeyboardInterrupt as exc:
+                return Mock(success=False, exception=exc)
+
+        mock_dbt_runner_class.return_value.invoke.side_effect = _blocking_invoke
+        runner = PrefectDbtRunner()
+        node_waiter_done = threading.Event()
+
+        @task(timeout_seconds=0.5)
+        def run_dbt():
+            runner.invoke(["run"])
+
+        with (
+            patch.object(NodeTaskTracker, "__init__", _capturing_init),
+            patch.dict(_invoke.FACTORY.adapters, {}, clear=True),
+        ):
+            # Simulate a NodeStart having been processed: a task thread is
+            # blocked in execute_dbt_node waiting for the node to finish.
+            def _start_node_when_tracker_exists():
+                while not trackers:
+                    time.sleep(0.01)
+                tracker = trackers[0]
+                tracker.start_task("model.a", Mock())
+
+                def _wait():
+                    try:
+                        execute_dbt_node(tracker, "model.a", None)
+                    except Exception:
+                        pass
+                    node_waiter_done.set()
+
+                waiter = threading.Thread(target=_wait, daemon=True)
+                tracker._task_threads.append(waiter)
+                waiter.start()
+
+            threading.Thread(
+                target=_start_node_when_tracker_exists, daemon=True
+            ).start()
+            state = run_dbt(return_state=True)
+
+        assert state.name == "TimedOut"
+        assert node_waiter_done.is_set()
+        status = trackers[0].get_node_status("model.a")
+        assert status["event_data"]["node_info"]["node_status"] == "error"

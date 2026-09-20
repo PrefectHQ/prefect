@@ -131,26 +131,21 @@ class TestInvokeDbt:
     def test_cancellation_waits_for_dbt_thread_to_exit(self, registered_adapter):
         """The cancellation is not re-raised while dbt is still running."""
         runner = FakeDbtRunner()
-        exit_order: list[str] = []
+        dbt_finished_when_caller_exited: list[bool] = []
 
         def _guarded():
             try:
                 invoke_dbt(runner, ["build"])
             except KeyboardInterrupt:
-                exit_order.append("caller")
+                dbt_finished_when_caller_exited.append(runner.finished.is_set())
 
-        def _on_finish():
-            runner.finished.wait(5)
-            exit_order.append("dbt")
-
-        threading.Thread(target=_on_finish, daemon=True).start()
         caller = threading.Thread(target=_guarded)
         caller.start()
         assert runner.started.wait(5)
         _cancel_thread_after(caller, 0)
         caller.join(5)
 
-        assert exit_order == ["dbt", "caller"]
+        assert dbt_finished_when_caller_exited == [True]
 
     def test_connections_are_re_cancelled_while_dbt_is_shutting_down(
         self, registered_adapter, monkeypatch
