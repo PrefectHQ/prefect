@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
 import click
-from dbt.cli.main import cli, dbtRunner
+from dbt.cli.main import cli, dbtRunner, dbtRunnerResult
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
@@ -61,6 +61,7 @@ from prefect.context import AssetContext, hydrated_context, serialize_context
 from prefect.exceptions import MissingContextError
 from prefect.tasks import MaterializingTask, Task, TaskOptions
 from prefect_dbt.core._hooks import DbtHookContext, DbtHookMixin
+from prefect_dbt.core._invoke import invoke_dbt
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import format_asset_name, format_resource_id, kwargs_to_args
@@ -1289,35 +1290,18 @@ class PrefectDbtRunner(DbtHookMixin):
 
         # Add any additional kwargs passed by the user
         invoke_kwargs.update(kwargs)
-        res = None
-        artifacts: dict[str, dict[str, Any]] = {}
-        with self.settings.resolve_profiles_yml() as profiles_dir:
-            invoke_kwargs["profiles_dir"] = profiles_dir
-            if self._has_dbt_hooks():
-                self._active_hook_command = command_label
-                self._active_hook_args = tuple(args_copy)
-                self._active_hook_selection_cache = (
-                    self._build_dbt_hook_selection_cache(
-                        project_dir=self.project_dir,
-                        profiles_dir=Path(profiles_dir),
-                        target_path=self.target_path,
-                        target=invoke_kwargs.get("target"),
-                    )
-                )
-                self._run_dbt_hooks(
-                    "run_start",
-                    DbtHookContext(
-                        event="run_start",
-                        command=command_label,
-                        owner=self,
-                        args=tuple(args_copy),
-                    ),
-                    selection_cache=self._active_hook_selection_cache,
-                )
-            res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
-                kwargs_to_args(invoke_kwargs, args_copy)
+        try:
+            res, artifacts = self._invoke_with_hooks(
+                invoke_kwargs, args_copy, command_label, callbacks
             )
-            artifacts = self._extract_run_artifacts(res)
+        except BaseException:
+            # Prefect timeout/cancellation (or KeyboardInterrupt) while dbt was
+            # running: dbt has already been shut down by `invoke_dbt`; drop the
+            # callback queue without draining so a retry starts from a clean
+            # state.
+            self._stop_callback_processor()
+            self._reset_active_hook_state()
+            raise
 
         # Wait for callback queue to drain after dbt execution completes
         # Since dbt execution is complete, no new events will be added.
@@ -1343,11 +1327,15 @@ class PrefectDbtRunner(DbtHookMixin):
                 ),
                 selection_cache=self._active_hook_selection_cache,
             )
-            self._active_hook_command = ""
-            self._active_hook_args = ()
-            self._active_hook_selection_cache = {}
+            self._reset_active_hook_state()
 
         if not res.success and res.exception:
+            if isinstance(res.exception, BaseException) and not isinstance(
+                res.exception, Exception
+            ):
+                # dbtRunner.invoke() swallows every BaseException into the
+                # result; cancellation-type exceptions must propagate as-is.
+                raise res.exception
             raise ValueError(
                 f"Failed to invoke dbt command '{' '.join(args_copy)}': {res.exception}"
             )
@@ -1369,3 +1357,44 @@ class PrefectDbtRunner(DbtHookMixin):
                 f"Failures detected during invocation of dbt command '{' '.join(args_copy)}':\n{os.linesep.join(failure_results)}"
             )
         return res
+
+    def _reset_active_hook_state(self) -> None:
+        self._active_hook_command = ""
+        self._active_hook_args = ()
+        self._active_hook_selection_cache = {}
+
+    def _invoke_with_hooks(
+        self,
+        invoke_kwargs: dict[str, Any],
+        args_copy: list[str],
+        command_label: str,
+        callbacks: list[Callable[[EventMsg], None]],
+    ) -> tuple[dbtRunnerResult, dict[str, dict[str, Any]]]:
+        with self.settings.resolve_profiles_yml() as profiles_dir:
+            invoke_kwargs["profiles_dir"] = profiles_dir
+            if self._has_dbt_hooks():
+                self._active_hook_command = command_label
+                self._active_hook_args = tuple(args_copy)
+                self._active_hook_selection_cache = (
+                    self._build_dbt_hook_selection_cache(
+                        project_dir=self.project_dir,
+                        profiles_dir=Path(profiles_dir),
+                        target_path=self.target_path,
+                        target=invoke_kwargs.get("target"),
+                    )
+                )
+                self._run_dbt_hooks(
+                    "run_start",
+                    DbtHookContext(
+                        event="run_start",
+                        command=command_label,
+                        owner=self,
+                        args=tuple(args_copy),
+                    ),
+                    selection_cache=self._active_hook_selection_cache,
+                )
+            res = invoke_dbt(
+                dbtRunner(callbacks=callbacks),  # type: ignore[reportUnknownMemberType]
+                kwargs_to_args(invoke_kwargs, args_copy),
+            )
+            return res, self._extract_run_artifacts(res)

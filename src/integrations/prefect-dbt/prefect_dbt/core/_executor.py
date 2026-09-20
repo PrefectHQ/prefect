@@ -22,6 +22,7 @@ except ImportError:
     from dbt.events.base_types import EventLevel, EventMsg  # type: ignore[no-redef]
 
 from prefect.logging import get_logger
+from prefect_dbt.core._invoke import invoke_dbt
 from prefect_dbt.core._manifest import DbtNode
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import kwargs_to_args
@@ -489,7 +490,7 @@ class DbtCoreExecutor:
                     )
                 else:
                     runner = dbtRunner(callbacks=[_capture_event])
-                res = runner.invoke(args)
+                res = invoke_dbt(runner, args)
 
                 if self._pool_adapters:
                     if res.success:
@@ -514,9 +515,11 @@ class DbtCoreExecutor:
                 artifacts=artifacts,
                 log_messages=captured_logs or None,
             )
-        except Exception as exc:
+        except BaseException as exc:
             if self._pool_adapters:
                 _adapter_pool.revert()
+            if not isinstance(exc, Exception):
+                raise
             return ExecutionResult(
                 success=False,
                 node_ids=list(node_ids),

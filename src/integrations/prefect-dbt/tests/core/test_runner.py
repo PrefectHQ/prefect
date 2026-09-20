@@ -26,7 +26,7 @@ from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.runner import PrefectDbtRunner, execute_dbt_node
 from prefect_dbt.core.settings import PrefectDbtSettings
 
-from prefect import flow
+from prefect import flow, task
 from prefect.assets import Asset
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.client.orchestration import PrefectClient
@@ -1994,3 +1994,67 @@ class TestPrefectDbtRunnerCallbackWorkerResilience:
         assert results == ["processed"]
         # All items should have been marked done (queue should be fully drained)
         assert runner._event_queue.unfinished_tasks == 0
+
+
+class TestPrefectDbtRunnerCancellation:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/23161"""
+
+    def test_cancelled_error_in_result_is_reraised_not_wrapped(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        from prefect._internal.concurrency.cancellation import CancelledError
+
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=False, exception=CancelledError()
+        )
+
+        with pytest.raises(CancelledError):
+            runner.invoke(["run"])
+
+    def test_task_timeout_shuts_down_dbt_and_resets_runner_state(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        import threading
+
+        from prefect_dbt.core import _invoke
+
+        from prefect.states import StateType
+
+        invoke_finished = threading.Event()
+
+        def _blocking_invoke(args):
+            try:
+                while True:
+                    time.sleep(0.01)
+            except KeyboardInterrupt as exc:
+                return Mock(success=False, exception=exc)
+            finally:
+                invoke_finished.set()
+
+        mock_dbt_runner_class.return_value.invoke.side_effect = _blocking_invoke
+        runner = PrefectDbtRunner()
+
+        @runner.on_run_start
+        def _hook(ctx):
+            pass
+
+        @task(timeout_seconds=0.5)
+        def run_dbt():
+            runner.invoke(["run"])
+
+        with (
+            patch.object(runner, "_build_dbt_hook_selection_cache", return_value={}),
+            patch.dict(_invoke.FACTORY.adapters, {}, clear=True),
+        ):
+            state = run_dbt(return_state=True)
+
+        assert state.name == "TimedOut"
+        assert state.type == StateType.FAILED
+        assert invoke_finished.is_set()
+        assert runner._event_queue is None
+        assert runner._callback_thread is None
+        assert runner._active_hook_command == ""
+        assert runner._active_hook_args == ()
+        assert runner._active_hook_selection_cache == {}
+        assert not any(t.name == "prefect-dbt-invoke" for t in threading.enumerate())
