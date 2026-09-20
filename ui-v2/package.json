@@ -85,7 +85,7 @@
     "next-themes": "^0.4.6",
     "openapi-fetch": "^0.17.0",
     "pixi-viewport": "6.0.3",
-    "pixi.js": "8.19.0",
+    "pixi.js": "8.20.1",
     "react": "19.2.8",
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.8",
@@ -130,9 +130,9 @@
     "@types/lodash.throttle": "^4.1.9",
     "@types/node": "^26.1.2",
     "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
+    "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "^6.0.5",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^10.8.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.0",
@@ -151,7 +151,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vite": "^8.2.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "eslint": "$eslint"

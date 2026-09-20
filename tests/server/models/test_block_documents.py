@@ -1056,7 +1056,7 @@ class TestCountBlockDocuments:
                 block_capabilities=dict(all_=["fly"])
             ),
         )
-        fly_block_documents_count == 3
+        assert fly_block_documents_count == 3
 
 
 class TestDeleteBlockDocument:

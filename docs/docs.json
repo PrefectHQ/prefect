@@ -1834,6 +1834,7 @@
               "v3/release-notes/integrations/prefect-databricks",
               "v3/release-notes/integrations/prefect-dbt",
               "v3/release-notes/integrations/prefect-docker",
+              "v3/release-notes/integrations/prefect-email",
               "v3/release-notes/integrations/prefect-gcp",
               "v3/release-notes/integrations/prefect-github",
               "v3/release-notes/integrations/prefect-gitlab",

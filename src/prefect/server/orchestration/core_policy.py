@@ -1431,7 +1431,7 @@ class HandlePausingFlows(FlowRunOrchestrationRule):
 
 class HandleResumingPausedFlows(FlowRunOrchestrationRule):
     """
-    Governs runs attempting to leave a Paused state
+    Governs runs attempting to leave a Paused state.
     """
 
     FROM_STATES = {StateType.PAUSED}
@@ -1451,6 +1451,7 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
             and (
                 proposed_state.is_running()
                 or proposed_state.is_scheduled()
+                or proposed_state.is_cancelling()
                 or proposed_state.is_final()
             )
         ):
@@ -1481,6 +1482,12 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
                     ),
                 )
                 return
+
+        if proposed_state.is_cancelling():
+            # A blocking pause keeps the process alive; cancellation must still
+            # reach the worker even after the pause deadline has elapsed.
+            return
+
         pause_timeout = initial_state.state_details.pause_timeout
         if pause_timeout and pause_timeout < now("UTC"):
             pause_timeout_failure = states.Failed(

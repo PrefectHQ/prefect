@@ -207,7 +207,7 @@ async def test_shell_run_command_override_shell(shell, monkeypatch):
         )
 
     await test_flow()
-    assert open_process_mock.call_args_list[0][0][0][0] == shell or "powershell"
+    assert open_process_mock.call_args_list[0][0][0][0] == (shell or "powershell")
 
 
 class TestShellOperation:

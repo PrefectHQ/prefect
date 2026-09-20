@@ -67,4 +67,10 @@ def get_attribution_headers() -> dict[str, str]:
         if deployment_name := os.environ.get("PREFECT__DEPLOYMENT_NAME"):
             headers["X-Prefect-Deployment-Name"] = deployment_name
 
-    return headers
+    # HTTP header values cannot start or end with spaces or tabs. Normalize only
+    # the attribution values, leaving the actual flow/deployment/worker names intact.
+    return {
+        name: stripped
+        for name, value in headers.items()
+        if (stripped := value.strip(" \t"))
+    }

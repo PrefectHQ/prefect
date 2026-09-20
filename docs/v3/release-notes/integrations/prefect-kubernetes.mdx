@@ -2,6 +2,32 @@
 title: prefect-kubernetes
 ---
 
+## 0.7.13
+
+_Released on September 08, 2026_
+
+**Features**
+
+- Add configurable base directory for included files [#22855](https://github.com/PrefectHQ/prefect/pull/22855) by [@desertaxle](https://github.com/desertaxle)
+
+**Bug Fixes**
+
+- Deduplicate Kubernetes observer state checks and diagnosis logs for unchanged Pending pods [#22965](https://github.com/PrefectHQ/prefect/pull/22965) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Documentation**
+
+- Drop Args entries for parameters that do not exist [#22843](https://github.com/PrefectHQ/prefect/pull/22843) by [@muhzuhaib](https://github.com/muhzuhaib)
+
+**Enhancements**
+
+- Capture Kubernetes job pod logs once the job is terminal [#22883](https://github.com/PrefectHQ/prefect/pull/22883) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.8.4`
+
+---
+
 ## 0.7.12
 
 _Released on August 04, 2026_
@@ -125,7 +151,7 @@ _Released on February 12, 2026_
 **Maintenance**
 
 - Bump `prefect` lower bound to `>=3.6.17` [#20659](https://github.com/PrefectHQ/prefect/pull/20659) by [@desertaxle](https://github.com/desertaxle)
-- chore(deps-dev): bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@dependabot](https://github.com/apps/dependabot)
+- Bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@dependabot](https://github.com/apps/dependabot)
 
 ---
 
@@ -133,9 +159,9 @@ _Released on February 12, 2026_
 
 _Released on February 03, 2026_
 
-**Other**
+**Maintenance**
 
-- migrate prefect-kubernetes from [@sync](https://github.com/sync)_compatible to [@async](https://github.com/async)_dispatch [#20414](https://github.com/PrefectHQ/prefect/pull/20414) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Migrate `prefect-kubernetes` from `sync_compatible` to `async_dispatch` [#20414](https://github.com/PrefectHQ/prefect/pull/20414) by [@zzstoatzz](https://github.com/zzstoatzz)
 
 ---
 

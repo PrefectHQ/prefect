@@ -381,6 +381,49 @@ async def test_uses_volumes_setting(
     assert "c:d" in call_volumes
 
 
+async def test_relative_volume_sources_resolve_against_worker_cwd(
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.chdir(tmp_path)
+    default_docker_worker_job_configuration.volumes = [
+        ".:/output",
+        "./data:/data:ro",
+        "../sibling:/sibling:rw",
+    ]
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    mock_docker_client.containers.create.assert_called_once()
+    call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+    assert f"{tmp_path}:/output" in call_volumes
+    assert f"{tmp_path / 'data'}:/data:ro" in call_volumes
+    assert f"{tmp_path.parent / 'sibling'}:/sibling:rw" in call_volumes
+
+
+async def test_absolute_and_named_volumes_pass_through_unchanged(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.volumes = [
+        "/host/path:/container/path",
+        "named_volume:/app/data",
+        "/data",
+    ]
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    mock_docker_client.containers.create.assert_called_once()
+    call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+    assert "/host/path:/container/path" in call_volumes
+    assert "named_volume:/app/data" in call_volumes
+    assert "/data" in call_volumes
+
+
 @pytest.mark.parametrize(
     "volume_str",
     [
@@ -392,6 +435,13 @@ async def test_uses_volumes_setting(
         "C:\\path\\on\\windows:/path/in/container",
         "\\\\host\\share:/path/in/container",
         "/data",  # anonymous volume
+        ".:/container/path",
+        "..:/container/path",
+        "./relative/path:/container/path",
+        "../relative/path:/container/path",
+        ".\\relative\\path:/container/path",
+        "./relative/path:/container/path:ro",
+        "./relative/path:/container/path:rw",
     ],
 )
 def test_valid_volume_strings(volume_str: str):
@@ -410,11 +460,24 @@ def test_valid_volume_strings(volume_str: str):
         " : : ",
         "/host:/container:rw:extra",
         "",  # empty string
+        "$(pwd):/container/path",  # shell expressions are not evaluated
+        "${PWD}:/container/path",
+        "relative/path:/container/path",  # not an explicit relative source
     ],
 )
 def test_invalid_volume_strings(volume_str: str):
     with pytest.raises(ValidationError, match="Invalid volume"):
         TypeAdapter(VolumeStr).validate_python(volume_str)
+
+
+def test_shell_expression_volume_error_is_actionable():
+    with pytest.raises(ValidationError, match="not evaluated"):
+        TypeAdapter(VolumeStr).validate_python("$(pwd):/container/path")
+
+
+def test_relative_bind_mount_requires_absolute_container_path():
+    with pytest.raises(ValidationError, match="container path must be absolute"):
+        TypeAdapter(VolumeStr).validate_python("./data:relative-target")
 
 
 async def test_uses_privileged_setting(

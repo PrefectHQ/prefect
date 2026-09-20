@@ -128,6 +128,98 @@ def confirmation(transaction):
 ```
 </Tip>
 
+## Configure commit timing
+
+The `commit_mode` parameter controls when a transaction commits its staged result and runs its
+`on_commit` hooks. Import `CommitMode` from `prefect.transactions` to choose a mode:
+
+| Mode | Behavior |
+| --- | --- |
+| `CommitMode.LAZY` | Defers committing to the parent transaction. Without a parent, commits on successful context exit. |
+| `CommitMode.EAGER` | Commits on successful context exit, even if a parent transaction is still active. |
+| `CommitMode.OFF` | Does not automatically commit on context exit. A parent can still commit it, or you can call `txn.commit()` explicitly. Without a parent, an uncommitted transaction rolls back on exit. |
+
+When you omit `commit_mode`, a transaction inherits its parent's mode, or uses `LAZY` if it has no parent.
+This also applies to the transactions created by task runs. An explicit mode on a nested transaction
+overrides the inherited mode.
+
+### Reuse cached results with eager commits
+
+With `LAZY`, tasks inside a transaction stage their results until the outer transaction commits.
+With `EAGER`, each task commits when its own transaction exits, making its persisted result available
+to subsequent calls before the outer block finishes.
+
+The following example uses a cache policy based on task inputs and enables result persistence:
+
+```python
+from prefect import flow, task
+from prefect.cache_policies import INPUTS
+from prefect.transactions import CommitMode, transaction
+
+
+@task(cache_policy=INPUTS, persist_result=True)
+def sub_task(x: int):
+    print(f"Computing {x}")
+    return x * 2
+
+
+@flow
+def compare_commit_modes():
+    with transaction(commit_mode=CommitMode.LAZY):
+        sub_task(2)  # Executes and stages its result
+        sub_task(2)  # Executes again: the first result is not committed yet
+    # Both results commit when the block exits
+
+    with transaction(commit_mode=CommitMode.EAGER):
+        sub_task(3)  # Executes and commits its result immediately
+        sub_task(3)  # Reuses the committed result without executing the task body
+
+
+if __name__ == "__main__":
+    compare_commit_modes()
+```
+
+Starting with an empty cache, this prints `Computing 2` twice and `Computing 3` once.
+The blocks use different inputs so the lazy block's results do not populate the eager block's cache.
+On subsequent runs, both blocks can reuse previously committed results.
+
+Eager commits do not enable caching on their own. Reuse requires a matching cache key and an
+unexpired, persisted result accessible to the next task run. See [caching](/v3/concepts/caching)
+for configuration details. Concurrent task calls can both start before either commits, so `EAGER`
+alone does not guarantee that a task body executes only once.
+
+### Understand rollback behavior
+
+Once a task's transaction commits, it cannot be rolled back. With `EAGER`, a later failure in the
+outer transaction does not run rollback hooks for tasks that have already committed, and their
+persisted results remain available. Their commit hooks have already run as well.
+
+For example, changing the earlier `pipeline` to use `transaction(commit_mode=CommitMode.EAGER)`
+would commit `write_file` before `quality_test` runs. If `quality_test` fails, `del_file` would not
+run and the file would remain. With the default `LAZY` mode, `write_file` remains staged and
+its rollback hook deletes the file when `quality_test` fails.
+
+Use `LAZY` when completed tasks should remain eligible for rollback until the group succeeds.
+Use `EAGER` when tasks should commit independently and make their results available sooner.
+In either mode, rollback hooks must implement cleanup of external side effects, such as file writes
+or API calls; Prefect does not automatically undo those operations.
+
+### Commit manually
+
+Use `OFF` to control the commit explicitly:
+
+```python
+from prefect.transactions import CommitMode, transaction
+
+with transaction(commit_mode=CommitMode.OFF) as txn:
+    txn.stage("result")
+    txn.commit()
+```
+
+If you omit `txn.commit()` in this example, the transaction rolls back when the block exits.
+Calling `commit()` also commits child transactions. As with eager commits, a later exception
+cannot roll back a transaction that you have already committed manually.
+
 ## Idempotency
 
 You can ensure sections of code are functionally idempotent by wrapping them in a transaction. By specifying a `key` for your transaction, you can ensure that

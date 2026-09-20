@@ -1213,9 +1213,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                         intent = _termination_intent()
                         if intent == "cancel":
                             self.handle_cancellation(exc)
-                        elif intent is None:
-                            self.handle_crash(exc)
-                        elif intent not in _SUPERVISOR_OWNED_INTENTS:
+                            raise
+                        if intent in _SUPERVISOR_OWNED_INTENTS:
+                            raise
+                        if intent is not None:
                             # Defensive: an unknown intent means the control
                             # listener was extended (e.g. "suspend" in a
                             # follow-up PR) without extending this dispatch.
@@ -1227,6 +1228,15 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                                 " dispatch branch.",
                                 intent,
                             )
+                        if self.flow_run.state and self.flow_run.state.is_final():
+                            # A termination signal that lands during teardown
+                            # must not overwrite an already-reported final state
+                            self.logger.debug(
+                                "Termination signal was received after the flow"
+                                " run reached a final state",
+                                exc_info=exc,
+                            )
+                        else:
                             self.handle_crash(exc)
                         raise
                     except Exception:
@@ -1913,9 +1923,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         intent = _termination_intent()
                         if intent == "cancel":
                             await self.handle_cancellation(exc)
-                        elif intent is None:
-                            await self.handle_crash(exc)
-                        elif intent not in _SUPERVISOR_OWNED_INTENTS:
+                            raise
+                        if intent in _SUPERVISOR_OWNED_INTENTS:
+                            raise
+                        if intent is not None:
                             # Defensive: see sync engine's dispatch for why.
                             self.logger.error(
                                 "Unhandled termination intent %r; treating as"
@@ -1923,6 +1934,15 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                                 " dispatch branch.",
                                 intent,
                             )
+                        if self.flow_run.state and self.flow_run.state.is_final():
+                            # A termination signal that lands during teardown
+                            # must not overwrite an already-reported final state
+                            self.logger.debug(
+                                "Termination signal was received after the flow"
+                                " run reached a final state",
+                                exc_info=exc,
+                            )
+                        else:
                             await self.handle_crash(exc)
                         raise
                     except Exception:

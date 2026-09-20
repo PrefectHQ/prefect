@@ -37,9 +37,9 @@ export const FlowRunsFilters = ({
 	workPoolFilter,
 }: FlowRunsFiltersProps) => {
 	return (
-		<div className="flex items-center gap-2">
-			<div className="flex items-center gap-2 pr-2 border-r-2">
-				<div className="min-w-56">
+		<div className="flex flex-wrap items-center gap-2 min-w-0">
+			<div className="flex flex-wrap items-center gap-2 pr-2 border-r-2 min-w-0">
+				<div className="w-56 max-w-full">
 					<SearchInput
 						aria-label="search by run name"
 						placeholder="Search by run name"
@@ -47,14 +47,14 @@ export const FlowRunsFilters = ({
 						onChange={(e) => search.onChange(e.target.value)}
 					/>
 				</div>
-				<div className="min-w-56">
+				<div className="w-56 max-w-full">
 					<StateFilter
 						selectedFilters={stateFilter.value}
 						onSelectFilter={stateFilter.onSelect}
 					/>
 				</div>
 				{deploymentFilter && (
-					<div className="min-w-56">
+					<div className="w-56 max-w-full">
 						<DeploymentFilter
 							selectedDeployments={deploymentFilter.value}
 							onSelectDeployments={deploymentFilter.onSelect}
@@ -62,7 +62,7 @@ export const FlowRunsFilters = ({
 					</div>
 				)}
 				{workPoolFilter && (
-					<div className="min-w-56">
+					<div className="w-56 max-w-full">
 						<WorkPoolFilter
 							selectedWorkPools={workPoolFilter.value}
 							onSelectWorkPools={workPoolFilter.onSelect}
