@@ -313,11 +313,8 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         with cls._instance_lock:
             key = hash((cls, *args))
             instance = cls._instances.get(key)
-            # The instance may have stopped before it was cached, e.g. if its
-            # lifespan failed as soon as the service started, so never hand out a
-            # stopped instance
             if instance is None or instance._stopped:
-                instance = cls._instances[key] = cls._new_instance(*args)
+                instance = cls._new_instance(*args)
 
             return instance
 
@@ -330,17 +327,26 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
     @classmethod
     def _new_instance(cls, *args: Hashable) -> Self:
         """
-        Create and start a new instance of the service.
+        Create, cache, and start a new instance of the service.
         """
         instance = cls(*args)
 
-        # If already on the global loop, just start it here to avoid deadlock
-        if threading.get_ident() == get_global_loop().thread.ident:
-            instance.start()
+        # Cache before starting so that a service which stops while starting, e.g.
+        # because its lifespan failed, evicts itself instead of being cached after
+        # it has already stopped
+        cls._instances[instance._key] = instance
 
-        # Otherwise, bind the service to the global loop
-        else:
-            from_sync.call_soon_in_loop_thread(create_call(instance.start)).result()
+        try:
+            # If already on the global loop, just start it here to avoid deadlock
+            if threading.get_ident() == get_global_loop().thread.ident:
+                instance.start()
+
+            # Otherwise, bind the service to the global loop
+            else:
+                from_sync.call_soon_in_loop_thread(create_call(instance.start)).result()
+        except BaseException:
+            instance._remove_instance()
+            raise
 
         return instance
 

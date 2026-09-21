@@ -166,13 +166,15 @@ def test_instance_returns_new_instance_when_cached_instance_is_stopped():
                 raise ValueError("Oh no")
             yield
 
-    # A lifespan that fails as soon as the service starts can stop it before
-    # `instance()` has cached it, leaving the stopped instance cached
+    # A lifespan that fails as soon as the service starts stops it while
+    # `instance()` is still creating it; it must not remain cached
     instance = FailingLifespanService.instance()
     instance.drain()
     assert instance._stopped
-    QueueService._instances[instance._key] = instance
+    assert QueueService._instances.get(instance._key) is not instance
 
+    # Even if a stopped instance is cached, it must not be returned
+    QueueService._instances[instance._key] = instance
     new_instance = FailingLifespanService.instance()
     assert new_instance is not instance
     assert not new_instance._stopped
