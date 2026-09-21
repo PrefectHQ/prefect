@@ -431,16 +431,22 @@ class WatcherThreadCancelScope(CancelScope):
         # joined, any injected exception has already been raised and the remainder
         # of this method runs without interruption.
         #
-        # An injection (from the enforcer or an external `cancel()`) can also land
-        # inside the stop itself, so it is retried from a `finally` to guarantee the
-        # enforcer is never leaked past the scope.
-        try:
-            self._stop_enforcer()
-        finally:
+        # An injection (from the enforcer or any number of external `cancel()` calls)
+        # can also land inside the stop itself, so it is retried until it completes to
+        # guarantee the enforcer is never leaked past the scope. The first injected
+        # exception is preserved and re-raised once teardown is done.
+        pending: Optional[BaseException] = None
+        while True:
             try:
                 self._stop_enforcer()
-            finally:
-                retval = super().__exit__(*_)
+                break
+            except BaseException as exc:
+                if pending is None:
+                    pending = exc
+
+        retval = super().__exit__(*_)
+        if pending is not None:
+            raise pending
         return retval
 
     def _stop_enforcer(self) -> None:

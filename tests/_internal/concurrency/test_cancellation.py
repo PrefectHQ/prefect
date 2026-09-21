@@ -202,29 +202,30 @@ def test_watcher_thread_cancel_scope_enforcer_exits_when_stop_interrupted(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """
-    A cancellation injected while the enforcer is being released (before the event is
+    Cancellations injected while the enforcer is being released (before the event is
     set) must not leak the enforcer; it would otherwise fire its timeout into whatever
-    the supervised thread is doing next.
+    the supervised thread is doing next. The first injected exception is the one that
+    propagates.
     """
     scope = WatcherThreadCancelScope(timeout=30)
     original_set = threading.Event.set
-    interrupted = False
+    injected: list[CancelledError] = []
 
     def interrupting_set(event: threading.Event) -> None:
-        nonlocal interrupted
-        if event is scope._event and not interrupted:
-            interrupted = True
-            raise CancelledError()
+        if event is scope._event and len(injected) < 3:
+            injected.append(CancelledError())
+            raise injected[-1]
         original_set(event)
 
     monkeypatch.setattr(threading.Event, "set", interrupting_set)
 
-    with pytest.raises(CancelledError):
+    with pytest.raises(CancelledError) as exc_info:
         with scope:
             pass
 
     try:
-        assert interrupted
+        assert len(injected) == 3
+        assert exc_info.value is injected[0]
         assert not scope._enforcer_thread.is_alive()
     finally:
         original_set(scope._event)
