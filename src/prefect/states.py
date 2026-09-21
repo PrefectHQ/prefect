@@ -677,7 +677,7 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
 
 
 def _collect_nested_states(
-    obj: Any, *, _seen: set[int] | None = None
+    obj: Any, *, _ancestors: set[int] | None = None
 ) -> list[State] | None:
     """
     Flatten a possibly nested `set`, `list`, or `tuple` of states.
@@ -688,19 +688,20 @@ def _collect_nested_states(
     """
     if isinstance(obj, BaseAnnotation) or not isinstance(obj, (list, set, tuple)):
         return None
-    seen = _seen if _seen is not None else set()
-    if id(obj) in seen:
+    ancestors = _ancestors if _ancestors is not None else set()
+    if id(obj) in ancestors:
         return None
-    seen.add(id(obj))
+    ancestors.add(id(obj))
     states: list[State] = []
     for item in obj:
         if isinstance(item, State):
             states.append(item)
         else:
-            nested = _collect_nested_states(item, _seen=seen)
+            nested = _collect_nested_states(item, _ancestors=ancestors)
             if nested is None:
                 return None
             states.extend(nested)
+    ancestors.discard(id(obj))
     return states
 
 
