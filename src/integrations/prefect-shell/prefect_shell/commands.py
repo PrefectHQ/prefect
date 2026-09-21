@@ -26,6 +26,7 @@ from prefect.logging import get_run_logger
 from prefect.utilities.processutils import open_process
 
 _SHELL_TERMINATE_GRACE_SECONDS = 5.0
+_DEFAULT_LOG_PREFIX = f"PID {{pid}} {{label}}:{os.linesep}"
 
 
 def _process_isolation_kwargs() -> dict[str, Any]:
@@ -238,6 +239,12 @@ class ShellProcess(JobRun[list[str]]):
         """
         return self._process.returncode
 
+    def _format_output_log(self, label: str, text: str) -> str:
+        prefix = self._shell_operation.log_prefix
+        if prefix is None:
+            return text
+        return prefix.format(pid=self.pid, label=label) + text
+
     async def _capture_output(self, source: Any):
         """
         Capture output from source (async version for anyio Process).
@@ -245,7 +252,7 @@ class ShellProcess(JobRun[list[str]]):
         async for output in TextReceiveStream(source):
             text = output.rstrip()
             if self._shell_operation.stream_output:
-                self.logger.info(f"PID {self.pid} stream output:{os.linesep}{text}")
+                self.logger.info(self._format_output_log("stream output", text))
             self._output.extend(text.split(os.linesep))
 
     def _capture_output_sync(
@@ -262,7 +269,7 @@ class ShellProcess(JobRun[list[str]]):
             if not text:
                 continue
             if self._shell_operation.stream_output:
-                self.logger.info(f"PID {self.pid} {output_label}:{os.linesep}{text}")
+                self.logger.info(self._format_output_log(output_label, text))
             if include_in_output:
                 self._output.extend(text.split(os.linesep))
 
@@ -393,6 +400,9 @@ class ShellOperation(JobBlock[list[str]]):
     Attributes:
         commands: A list of commands to execute sequentially.
         stream_output: Whether to stream output.
+        log_prefix: Template prepended to each streamed output log record.
+            Supports `{pid}` and `{label}` placeholders; set to `None` to log
+            the raw output only.
         env: A dictionary of environment variables to set for the shell operation.
         working_dir: The working directory context the commands
             will be executed within.
@@ -417,6 +427,15 @@ class ShellOperation(JobBlock[list[str]]):
         default=..., description="A list of commands to execute sequentially."
     )
     stream_output: bool = Field(default=True, description="Whether to stream output.")
+    log_prefix: Optional[str] = Field(
+        default=_DEFAULT_LOG_PREFIX,
+        title="Log Prefix",
+        description=(
+            "Template prepended to each streamed output log record. Supports the "
+            "`{pid}` and `{label}` placeholders (label is `stream output` for stdout "
+            "and `stderr` for stderr); set to `None` to log the raw output only."
+        ),
+    )
     env: dict[str, str] = Field(
         default_factory=dict,
         title="Environment Variables",
