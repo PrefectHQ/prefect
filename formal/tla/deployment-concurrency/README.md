@@ -144,9 +144,16 @@ transaction and `bad*` fields expose in-flight or counterexample state.
 | acquisition abort | `tests/server/orchestration/test_core_policy.py::TestFlowConcurrencyLimits::test_acquisition_abort_reaper_preserves_replacement_slot` |
 | PENDING reacquisition nullification | `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_full_policy_wait_after_reacquisition_releases_capacity` |
 
-These regressions are strict `xfail` tests while claim authority is absent.
-Implementing the target requires removing those marks and passing the same
-boundary assertions; lower-level replacements are insufficient.
+The stale expiry-scan regression passes: the repossessor rechecks the lease
+expiration before releasing capacity, and memory storage updates that expiration
+on renewal. This covers renewal completed before the reaper reads the lease;
+renewal during its subsequent database work still races with revocation.
+
+The remaining regressions are strict `xfail` tests while claim authority is
+absent. Implementing the target requires removing those marks and passing the
+same boundary assertions; lower-level replacements are insufficient. The model
+still applies: index synchronization does not combine external lease storage
+with SQL accounting, and the target claim protocol remains unimplemented.
 
 Review the model when deployment or global concurrency changes admission,
 renewal, expiry scanning, terminal release, flow-run deletion, lease

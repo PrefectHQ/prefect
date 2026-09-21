@@ -3,11 +3,13 @@ Tests for the PrefectDbtRunner class and related functionality.
 """
 
 import json
+import logging
 import threading
 import time
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
 import pytest
 from dbt.contracts.graph.manifest import Manifest
@@ -31,6 +33,7 @@ from prefect import flow, task
 from prefect.assets import Asset
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.client.orchestration import PrefectClient
+from prefect.context import get_run_context, serialize_context
 from prefect.tasks import MaterializingTask, Task
 
 
@@ -969,6 +972,85 @@ class TestPrefectDbtRunnerCallbackCreation:
             True,
         )
 
+    @pytest.mark.parametrize(
+        "callback_factory", ["_create_unified_callback", "_create_logging_callback"]
+    )
+    @pytest.mark.parametrize("log_target", ["enclosing_task", "flow", "node_task"])
+    def test_node_logs_preserve_run_attribution(
+        self,
+        mock_manifest: Mock,
+        caplog: pytest.LogCaptureFixture,
+        callback_factory: str,
+        log_target: str,
+    ):
+        """Route source logs to the caller and registered model logs to their task."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        tracker = NodeTaskTracker()
+        node_id = (
+            "model.test_project.test_model"
+            if log_target == "node_task"
+            else "source.test_project.test_source"
+        )
+        node_task_run_id = uuid4()
+        if log_target == "node_task":
+            tracker.set_task_run_id(node_id, node_task_run_id)
+            tracker.set_task_run_name(node_id, "dbt-model-task")
+
+        message = "dbt node attribution regression"
+        event = Mock(spec=EventMsg)
+        event.info = Mock(name="event_info")
+        event.info.name = "FreshnessCheckDone"
+        event.info.level = EventLevel.INFO
+        event.info.msg = message
+        event.data = Mock()
+        event.data.node_info.unique_id = node_id
+
+        def emit_node_log() -> None:
+            # Use real serialization, background processing, hydration, and loggers.
+            callback = getattr(runner, callback_factory)(
+                tracker, EventLevel.INFO, serialize_context()
+            )
+            try:
+                # Mock only dbt's protobuf event conversion.
+                with patch(
+                    "prefect_dbt.core.runner.MessageToDict",
+                    return_value={"node_info": {"unique_id": node_id}},
+                ):
+                    callback(event)
+                    runner._event_queue.join()
+            finally:
+                runner._stop_callback_processor()
+
+        @task
+        def enclosing_task():
+            emit_node_log()
+            return get_run_context().task_run.id
+
+        @flow
+        def enclosing_flow():
+            flow_run_id = get_run_context().flow_run.id
+            if log_target == "flow":
+                emit_node_log()
+                return flow_run_id, None
+            return flow_run_id, enclosing_task()
+
+        with caplog.at_level(logging.INFO):
+            flow_run_id, enclosing_task_run_id = enclosing_flow()
+
+        records = [
+            record for record in caplog.records if record.getMessage() == message
+        ]
+        assert len(records) == 1
+        record = records[0]
+        assert str(record.flow_run_id) == str(flow_run_id)
+        expected_task_run_id = (
+            node_task_run_id if log_target == "node_task" else enclosing_task_run_id
+        )
+        assert str(getattr(record, "task_run_id", None)) == str(expected_task_run_id)
+        assert record.name == (
+            "prefect.flow_runs" if log_target == "flow" else "prefect.task_runs"
+        )
+
 
 class TestPrefectDbtRunnerManifestNodeOperations:
     """Test manifest node operations."""
@@ -1446,6 +1528,28 @@ class TestExecuteDbtNode:
 
         # Should complete without error when no status is available
         mock_task_state.wait_for_node_completion.assert_called_once_with(node_id)
+
+    @pytest.mark.parametrize("skipped_status", ["skipped"])
+    def test_execute_dbt_node_raises_on_skipped_status(
+        self, mock_task_state, skipped_status
+    ):
+        """Test that execute_dbt_node raises when a node is skipped.
+
+        Nodes can be skipped when an upstream node fails (e.g. a pre-hook
+        error in strict static analysis mode where dbt emits NodeStart before
+        the upstream Run phase completes).  Without this check, the task
+        function would return normally and Prefect would record the task as
+        successful even though nothing ran.
+        """
+        node_id = "model.test_project.test_model"
+        asset_id = "test_asset"
+
+        mock_task_state.get_node_status.return_value = {
+            "event_data": {"node_info": {"node_status": skipped_status}}
+        }
+
+        with pytest.raises(Exception, match="Node .* was skipped"):
+            execute_dbt_node(mock_task_state, node_id, asset_id)
 
     def test_execute_dbt_node_with_asset_context(self, mock_task_state):
         """Test that execute_dbt_node works with asset context."""
