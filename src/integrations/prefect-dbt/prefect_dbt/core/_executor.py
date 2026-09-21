@@ -8,6 +8,8 @@ This module provides:
 """
 
 import atexit
+import os
+import threading
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from enum import Enum
@@ -235,9 +237,14 @@ class _AdapterPool:
                     conn = conn_mgr.thread_connections.get(key)
                     if conn is not None:
                         return conn
-                    # Transplant: move an open connection from a departed thread.
+                    # Only reuse connections whose owner has exited. In
+                    # particular, cancellation on the supervisor must acquire
+                    # its own connection without stealing an active query's.
+                    live_keys = {
+                        (os.getpid(), thread.ident) for thread in threading.enumerate()
+                    }
                     for old_key in list(conn_mgr.thread_connections):
-                        if old_key != key:
+                        if old_key != key and old_key not in live_keys:
                             old_conn = conn_mgr.thread_connections[old_key]
                             if old_conn.state == "open":
                                 del conn_mgr.thread_connections[old_key]

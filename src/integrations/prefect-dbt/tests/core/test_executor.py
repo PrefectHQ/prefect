@@ -2,18 +2,26 @@
 Tests for ExecutionResult, DbtExecutor protocol, and DbtCoreExecutor.
 """
 
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from dbt.adapters.base.connections import BaseConnectionManager
+from dbt.adapters.sql.connections import SQLConnectionManager
 from dbt.node_types import NodeType
 
 try:
     from dbt_common.events.base_types import EventLevel
 except ImportError:
     from dbt.events.base_types import EventLevel  # type: ignore[no-redef]
-from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
+from prefect_dbt.core._executor import (
+    DbtCoreExecutor,
+    DbtExecutor,
+    ExecutionResult,
+    _AdapterPool,
+)
 from prefect_dbt.core._manifest import DbtNode
 
 # =============================================================================
@@ -1406,6 +1414,47 @@ class TestAdapterPool:
         # Old key removed, new key set
         assert (1, 100) not in conn_mgr.thread_connections
         assert conn_mgr.thread_connections[(1, 999)] is old_conn
+
+    def test_cancellation_does_not_transplant_live_worker_connection(self):
+        pool = _AdapterPool()
+        pool.activate()
+        manager = MagicMock(spec=SQLConnectionManager)
+        manager.lock = threading.RLock()
+        manager.get_thread_identifier = BaseConnectionManager.get_thread_identifier
+        manager.get_if_exists = lambda: BaseConnectionManager.get_if_exists(manager)
+        manager.thread_connections = {}
+        connection = MagicMock()
+        connection.state = "open"
+        connection.name = "slow_model"
+        ready = threading.Event()
+        release = threading.Event()
+        owner_keys = []
+
+        def worker():
+            key = manager.get_thread_identifier()
+            owner_keys.append(key)
+            manager.thread_connections[key] = connection
+            ready.set()
+            release.wait()
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        try:
+            assert ready.wait(5)
+            # SQL cancellation excludes the calling thread's connection. It
+            # must not mistake a live worker's connection for its own.
+            SQLConnectionManager.cancel_open(manager)
+            manager.cancel.assert_called_once_with(connection)
+            assert manager.thread_connections == {owner_keys[0]: connection}
+        finally:
+            release.set()
+            thread.join(5)
+
+        # Once its owner exits, the same connection is eligible for reuse.
+        assert manager.get_if_exists() is connection
+        assert manager.thread_connections == {
+            manager.get_thread_identifier(): connection
+        }
 
     def test_get_if_exists_skips_non_open_connections(self):
         """Patched get_if_exists only transplants connections with state='open'."""

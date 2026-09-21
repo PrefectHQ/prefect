@@ -52,6 +52,7 @@ except ImportError:
 from google.protobuf.json_format import MessageToDict
 
 from prefect import get_client, get_run_logger
+from prefect._internal.concurrency.cancellation import shield
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset, AssetProperties
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
@@ -610,7 +611,7 @@ class PrefectDbtRunner(DbtHookMixin):
             self._callback_thread.start()
 
     def _stop_callback_processor(self) -> None:
-        """Stop the background thread and wait for queue to drain."""
+        """Discard pending callbacks and wait for the active callback to finish."""
         if self._shutdown_event:
             self._shutdown_event.set()
         if self._event_queue:
@@ -625,7 +626,12 @@ class PrefectDbtRunner(DbtHookMixin):
             except queue.Full:
                 pass
         if self._callback_thread and self._callback_thread.is_alive():
-            self._callback_thread.join(timeout=5.0)
+            # A callback can still own runner state (including node tasks and
+            # hooks). Do not reset it or let a retry start until it exits.
+            # Shield join from Prefect cancellation, which can otherwise mark
+            # a live thread as stopped on CPython.
+            with shield():
+                self._callback_thread.join()
 
         # Reset state so next invoke() can create a fresh callback processor
         self._event_queue = None

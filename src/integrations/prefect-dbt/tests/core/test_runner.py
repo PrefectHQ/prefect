@@ -3,6 +3,7 @@ Tests for the PrefectDbtRunner class and related functionality.
 """
 
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -1896,6 +1897,51 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
 
     Regression tests for https://github.com/PrefectHQ/prefect/pull/19601
     """
+
+    def test_shutdown_waits_for_active_callback_before_reset(self):
+        runner = PrefectDbtRunner()
+        entered = threading.Event()
+        release = threading.Event()
+        stopped = threading.Event()
+
+        def callback(event):
+            entered.set()
+            release.wait()
+
+        def stop():
+            runner._stop_callback_processor()
+            stopped.set()
+
+        runner._start_callback_processor()
+        worker = runner._callback_thread
+        shutdown = runner._shutdown_event
+        runner._queue_callback(callback, Mock(), priority=0)
+        stopper = threading.Thread(target=stop)
+        try:
+            assert entered.wait(5)
+            stopper.start()
+            assert shutdown.wait(5)
+            # The old five-second join returned while the callback still owned
+            # the queue, allowing a retry to replace it beneath the worker.
+            assert not stopped.wait(5.2)
+            assert runner._callback_thread is worker
+        finally:
+            release.set()
+            if stopper.ident is not None:
+                stopper.join(5)
+            worker.join(5)
+        assert stopped.is_set()
+        assert not worker.is_alive()
+        assert runner._event_queue is None
+
+        processed = threading.Event()
+        runner._start_callback_processor()
+        try:
+            runner._queue_callback(lambda event: processed.set(), Mock(), priority=0)
+            assert processed.wait(5)
+            runner._event_queue.join()
+        finally:
+            runner._stop_callback_processor()
 
     def test_stop_callback_processor_resets_state(self):
         """Test that _stop_callback_processor resets all instance variables."""
