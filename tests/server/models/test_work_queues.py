@@ -3,10 +3,14 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database import PrefectDBInterface, orm_models
+from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
 from prefect.types._datetime import now
 
 pytestmark = pytest.mark.clear_db
@@ -23,6 +27,76 @@ async def work_queue(session):
     )
     await session.commit()
     return work_queue
+
+
+class TestMarkWorkQueuesReady:
+    @pytest.mark.parametrize("mark_ready", [False, True])
+    async def test_direct_call_without_docket(
+        self,
+        db: PrefectDBInterface,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+        monkeypatch: pytest.MonkeyPatch,
+        mark_ready: bool,
+    ):
+        work_queue = await session.get(db.WorkQueue, deployment.work_queue_id)
+        assert work_queue is not None
+        monkeypatch.setattr(
+            models.work_queues, "PrefectServerEventsClient", AssertingEventsClient
+        )
+        AssertingEventsClient.reset()
+        await models.work_queues.mark_work_queues_ready(
+            db=db,
+            polled_work_queue_ids=[] if mark_ready else [work_queue.id],
+            ready_work_queue_ids=[work_queue.id] if mark_ready else [],
+        )
+        await session.refresh(work_queue)
+        await session.refresh(deployment)
+        assert work_queue.last_polled is not None
+        assert work_queue.status == (
+            WorkQueueStatus.READY if mark_ready else WorkQueueStatus.NOT_READY
+        )
+        assert deployment.status == DeploymentStatus.NOT_READY
+        assert [
+            event.event
+            for client in AssertingEventsClient.all
+            for event in client.events
+        ] == (["prefect.work-queue.ready"] if mark_ready else [])
+
+    @pytest.mark.parametrize("mark_ready", [False, True])
+    async def test_late_poll_preserves_newer_queue_timestamp(
+        self,
+        db: PrefectDBInterface,
+        session: AsyncSession,
+        work_queue: orm_models.WorkQueue,
+        monkeypatch: pytest.MonkeyPatch,
+        mark_ready: bool,
+    ):
+        newer = now("UTC")
+        monkeypatch.setattr(models.work_queues, "now", lambda _: newer)
+        await models.work_queues.mark_work_queues_ready(
+            db=db,
+            polled_work_queue_ids=[],
+            ready_work_queue_ids=[work_queue.id],
+        )
+        await session.refresh(work_queue)
+
+        if mark_ready:
+            work_queue.status = WorkQueueStatus.NOT_READY
+            await session.commit()
+
+        # A poll can capture its timestamp before a newer poll, then write last.
+        older = newer - datetime.timedelta(seconds=25)
+        monkeypatch.setattr(models.work_queues, "now", lambda _: older)
+        await models.work_queues.mark_work_queues_ready(
+            db=db,
+            polled_work_queue_ids=[] if mark_ready else [work_queue.id],
+            ready_work_queue_ids=[work_queue.id] if mark_ready else [],
+        )
+
+        await session.refresh(work_queue)
+        assert work_queue.last_polled == newer
+        assert work_queue.status == WorkQueueStatus.READY
 
 
 class TestCreateWorkQueue:

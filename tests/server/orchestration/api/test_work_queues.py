@@ -1144,6 +1144,8 @@ class TestGetRunsInWorkQueue:
                 )
                 assert updated_work_queue.last_polled is not None
                 assert updated_work_queue.last_polled > now
+                # The background READY transition also refreshes the timestamp.
+                assert updated_work_queue.status == WorkQueueStatus.READY
 
         # The Prefect UI often calls this route to see which runs are enqueued.
         # We do not want to record this as an actual poll event.

@@ -1,8 +1,9 @@
 import asyncio
+import contextlib
 import datetime
 import sqlite3
-from typing import List
-from uuid import uuid4
+from typing import Any, List
+from uuid import UUID, uuid4
 
 import anyio
 import pytest
@@ -10,12 +11,18 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.database import orm_models
+from prefect.server.database import PrefectDBInterface, orm_models
 from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas import filters, states
 from prefect.server.schemas.states import StateType
 from prefect.server.schemas.statuses import DeploymentStatus
-from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
+from prefect.server.utilities.database import get_max_query_parameters
+from prefect.settings import (
+    PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
+    temporary_settings,
+)
 from prefect.types._datetime import now, start_of_day
 
 pytestmark = pytest.mark.clear_db
@@ -2023,6 +2030,32 @@ class TestDeploymentLabels:
         assert merged_labels == expected
 
 
+@contextlib.contextmanager
+def capture_deployment_updates(engine: sa.Engine):
+    statements: list[str] = []
+
+    def record(conn, cursor, statement, *args, **kwargs):
+        if "UPDATE deployment SET" in statement:
+            statements.append(statement)
+
+    sa.event.listen(engine, "before_cursor_execute", record)
+    try:
+        yield statements
+    finally:
+        sa.event.remove(engine, "before_cursor_execute", record)
+
+
+async def set_deployment_columns(
+    db: PrefectDBInterface, deployment_id: UUID, **values: Any
+) -> None:
+    async with db.session_context(begin_transaction=True) as session:
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(db.Deployment.id == deployment_id)
+            .values(**values)
+        )
+
+
 class TestMarkDeploymentsReady:
     async def test_marks_not_ready_deployments_as_ready(
         self,
@@ -2065,6 +2098,271 @@ class TestMarkDeploymentsReady:
             )
         await session.refresh(deployment)
         assert deployment.status == DeploymentStatus.READY
+
+    async def test_queue_poll_refreshes_by_default(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        db = provide_database_interface()
+        polled = now("UTC")
+        monkeypatch.setattr(models.deployments, "now", lambda _: polled)
+        await set_deployment_columns(
+            db,
+            deployment.id,
+            status=DeploymentStatus.READY,
+            last_polled=polled - datetime.timedelta(seconds=1),
+        )
+        await models.deployments.mark_deployments_ready(
+            db=db, work_queue_ids=[deployment.work_queue_id]
+        )
+        await session.refresh(deployment)
+        assert deployment.last_polled == polled
+
+    async def test_recently_polled_deployment_is_not_rewritten(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        # Every poll would otherwise rewrite every deployment on the queue.
+        db = provide_database_interface()
+        await models.deployments.mark_deployments_ready(
+            db=db, work_queue_ids=[deployment.work_queue_id], skip_recently_polled=True
+        )
+        await session.refresh(deployment)
+        first_polled = deployment.last_polled
+
+        engine = await db.engine()
+        AssertingEventsClient.reset()
+        with capture_deployment_updates(engine.sync_engine) as updates:
+            await models.deployments.mark_deployments_ready(
+                db=db,
+                work_queue_ids=[deployment.work_queue_id],
+                skip_recently_polled=True,
+            )
+
+        assert updates == []
+        assert AssertingEventsClient.all == []
+        await session.refresh(deployment)
+        assert deployment.last_polled == first_polled
+
+    @pytest.mark.parametrize(
+        "timeout,refreshed",
+        [(100, True), (120, False)],
+        ids=["past the refresh point", "just inside it"],
+    )
+    async def test_refresh_point_is_half_the_foreman_timeout(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+        monkeypatch: pytest.MonkeyPatch,
+        timeout: int,
+        refreshed: bool,
+    ):
+        # 59s is past half of 100 but not past half of 120.
+        db = provide_database_interface()
+        polled = now("UTC")
+        monkeypatch.setattr(models.deployments, "now", lambda _: polled)
+        aged = polled - datetime.timedelta(seconds=59)
+        await set_deployment_columns(
+            db, deployment.id, status=DeploymentStatus.READY, last_polled=aged
+        )
+
+        with temporary_settings(
+            {
+                PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS: timeout
+            }
+        ):
+            await models.deployments.mark_deployments_ready(
+                db=db,
+                work_queue_ids=[deployment.work_queue_id],
+                skip_recently_polled=True,
+            )
+
+        await session.refresh(deployment)
+        assert (deployment.last_polled > aged) == refreshed
+
+    async def test_lock_wait_does_not_suppress_a_refresh(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        # Fresh when the poll starts, stale by the time it gets the lock: a
+        # clock read before the wait would wrongly skip it.
+        db = provide_database_interface()
+        if db.dialect.name != "sqlite":
+            pytest.skip("Covers SQLite BEGIN IMMEDIATE lock acquisition")
+
+        clock = now("UTC")
+        monkeypatch.setattr(models.deployments, "now", lambda _: clock)
+        aged = clock - datetime.timedelta(seconds=1)
+        await set_deployment_columns(
+            db, deployment.id, status=DeploymentStatus.READY, last_polled=aged
+        )
+
+        lock_acquired = asyncio.Event()
+        lock_attempted = asyncio.Event()
+        release = asyncio.Event()
+
+        def observe_lock_attempt(
+            conn: sa.Connection, cursor: Any, statement: str, *args: Any
+        ) -> None:
+            if statement == "BEGIN IMMEDIATE":
+                lock_attempted.set()
+
+        async def hold_write_lock() -> None:
+            async with db.session_context(
+                begin_transaction=True, with_for_update=True
+            ) as locker:
+                await locker.execute(sa.select(1))
+                lock_acquired.set()
+                await release.wait()
+
+        holder = asyncio.create_task(hold_write_lock())
+        await lock_acquired.wait()
+        engine = await db.engine()
+        sa.event.listen(
+            engine.sync_engine, "before_cursor_execute", observe_lock_attempt
+        )
+        with temporary_settings(
+            {PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS: 4}
+        ):
+            marker = asyncio.create_task(
+                models.deployments.mark_deployments_ready(
+                    db=db,
+                    work_queue_ids=[deployment.work_queue_id],
+                    skip_recently_polled=True,
+                )
+            )
+            try:
+                await asyncio.wait_for(lock_attempted.wait(), timeout=5)
+                clock += datetime.timedelta(seconds=3)
+            finally:
+                sa.event.remove(
+                    engine.sync_engine, "before_cursor_execute", observe_lock_attempt
+                )
+                release.set()
+                await holder
+                await marker
+
+        await session.refresh(deployment)
+        assert deployment.last_polled == clock
+
+    async def test_poll_batches_the_update_under_the_bind_limit(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        db = provide_database_interface()
+        if db.dialect.name != "sqlite":
+            pytest.skip("PostgreSQL's limit is too high to populate cheaply")
+
+        stale = now("UTC") - datetime.timedelta(days=1)
+        await set_deployment_columns(
+            db, deployment.id, status=DeploymentStatus.READY, last_polled=stale
+        )
+        async with db.session_context(begin_transaction=True) as setup:
+            await setup.execute(
+                sa.insert(db.Deployment),
+                [
+                    {
+                        "id": uuid4(),
+                        "name": f"bulk-{i}",
+                        "flow_id": deployment.flow_id,
+                        "work_queue_id": deployment.work_queue_id,
+                        "status": DeploymentStatus.READY,
+                        "last_polled": stale,
+                    }
+                    for i in range(get_max_query_parameters())
+                ],
+            )
+
+        engine = await db.engine()
+        with capture_deployment_updates(engine.sync_engine) as updates:
+            await models.deployments.mark_deployments_ready(
+                db=db,
+                work_queue_ids=[deployment.work_queue_id],
+                skip_recently_polled=True,
+            )
+
+        assert len(updates) > 1
+        remaining = await session.execute(
+            sa.select(sa.func.count())
+            .select_from(db.Deployment)
+            .where(
+                db.Deployment.work_queue_id == deployment.work_queue_id,
+                db.Deployment.last_polled == stale,
+            )
+        )
+        assert remaining.scalar() == 0
+
+    async def test_poll_waits_out_an_uncommitted_not_ready_transition(
+        self,
+        deployment: orm_models.Deployment,
+    ):
+        # The Foreman decides staleness in one transaction and writes it in
+        # another, so its NOT_READY can rest on a poll time since refreshed.
+        # A fresh poll must take the lock and overwrite it, not read around it.
+        db = provide_database_interface()
+        if db.dialect.name != "postgresql":
+            pytest.skip("Row-level locking is PostgreSQL-only")
+
+        await set_deployment_columns(
+            db, deployment.id, status=DeploymentStatus.READY, last_polled=now("UTC")
+        )
+
+        async with db.session_context(begin_transaction=True) as foreman:
+            await foreman.execute(
+                sa.update(db.Deployment)
+                .where(db.Deployment.id == deployment.id)
+                .values(status=DeploymentStatus.NOT_READY)
+            )
+            marker = asyncio.create_task(
+                models.deployments.mark_deployments_ready(
+                    db=db,
+                    work_queue_ids=[deployment.work_queue_id],
+                    skip_recently_polled=True,
+                )
+            )
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(asyncio.shield(marker), timeout=0.5)
+
+        await marker
+
+        async with db.session_context() as reader:
+            refreshed = await models.deployments.read_deployment(
+                session=reader, deployment_id=deployment.id
+            )
+            assert refreshed is not None
+            assert refreshed.status == DeploymentStatus.READY
+
+    async def test_not_ready_deployment_is_marked_ready_when_recently_polled(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        db = provide_database_interface()
+        await set_deployment_columns(
+            db,
+            deployment.id,
+            status=DeploymentStatus.NOT_READY,
+            last_polled=now("UTC"),
+        )
+
+        AssertingEventsClient.reset()
+        await models.deployments.mark_deployments_ready(
+            db=db, work_queue_ids=[deployment.work_queue_id], skip_recently_polled=True
+        )
+
+        await session.refresh(deployment)
+        assert deployment.status == DeploymentStatus.READY
+        assert [
+            event.event
+            for client in AssertingEventsClient.all
+            for event in client.events
+        ] == ["prefect.deployment.ready"]
 
     async def test_waits_for_concurrent_write_transaction_on_sqlite(
         self,
