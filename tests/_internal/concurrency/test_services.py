@@ -195,6 +195,91 @@ def test_stopped_instance_does_not_evict_newer_instance_with_same_key():
     assert MockService.instance() is new_instance
 
 
+def test_concurrent_cleanup_does_not_evict_replacement(monkeypatch: pytest.MonkeyPatch):
+    instance = MockService.instance()
+    checked = threading.Event()
+    advanced = threading.Event()
+    cleanup_thread_id: int | None = None
+    lock = threading.Lock()
+
+    class CacheLock:
+        def __enter__(self) -> None:
+            # Let the paused cleanup continue once its competitor either blocks
+            # on this lock (fixed) or publishes a replacement (broken).
+            if not lock.acquire(blocking=False):
+                advanced.set()
+                lock.acquire()
+
+        def __exit__(self, *args: object) -> None:
+            lock.release()
+
+    class PausingInstances(dict[int, MockService]):
+        def get(
+            self, key: int, default: MockService | None = None
+        ) -> MockService | None:
+            cached = super().get(key, default)
+            if threading.get_ident() == cleanup_thread_id and cached is instance:
+                checked.set()
+                assert advanced.wait(5)
+            return cached
+
+    # Pause cleanup after it reads the old instance, while another thread drains
+    # that instance and requests its replacement.
+    monkeypatch.setattr(
+        MockService, "_instances", PausingInstances(MockService._instances)
+    )
+    monkeypatch.setattr(MockService, "_instance_cache_lock", CacheLock(), raising=False)
+
+    def cleanup() -> None:
+        nonlocal cleanup_thread_id
+        cleanup_thread_id = threading.get_ident()
+        instance._remove_instance()
+
+    def replace() -> MockService:
+        try:
+            instance.drain()
+            return MockService.instance()
+        finally:
+            advanced.set()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        cleanup_future = executor.submit(cleanup)
+        try:
+            assert checked.wait(5)
+            replacement_future = executor.submit(replace)
+            replacement = replacement_future.result(timeout=10)
+            cleanup_future.result(timeout=10)
+        finally:
+            advanced.set()
+
+    current = MockService.instance()
+    try:
+        assert current is replacement
+        replacement.send(1)
+        replacement.drain()
+        replacement.mock.assert_called_once_with(replacement, 1)
+    finally:
+        replacement.drain()
+        current.drain()
+
+
+def test_instance_cache_lock_is_reset_after_fork(monkeypatch: pytest.MonkeyPatch):
+    class ForkedService(MockService):
+        _instance_cache_lock = threading.Lock()
+
+    monkeypatch.setattr(ForkedService, "_instances", {})
+    # A child process can inherit the cache lock while another thread holds it.
+    with ForkedService._instance_cache_lock:
+        ForkedService.reset_instances_for_fork()
+        assert ForkedService._instance_cache_lock.acquire(blocking=False)
+        ForkedService._instance_cache_lock.release()
+        instance = ForkedService.instance()
+
+    instance.send(1)
+    instance.drain()
+    instance.mock.assert_called_once_with(instance, 1)
+
+
 def test_send_one():
     instance = MockService.instance()
     instance.send(1)
