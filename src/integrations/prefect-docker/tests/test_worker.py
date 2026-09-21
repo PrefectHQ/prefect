@@ -2450,15 +2450,21 @@ class TestDockerWorkerKillInfrastructure:
                 )
 
 
+@pytest.mark.parametrize("platform", ["linux", "darwin"])
 @pytest.mark.parametrize("options", [{"ports": 123}, {"unsupported_option": True}])
 def test_local_docker_validation_cleans_bundle_staging(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, options: dict[str, Any]
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    options: dict[str, Any],
+    platform: str,
 ):
     """Exercise the real SDK's preparation without allowing a Docker request."""
     staging = prefect_docker.worker._BundleStaging(tmp_path / "submission")
     staging.path.mkdir()
     (staging.path / "bundle").write_text("bundle")
     client = DockerClient(base_url="http://127.0.0.1:1", version="1.45")
+    monkeypatch.setattr(prefect_docker.worker.sys, "platform", platform)
+    monkeypatch.setattr(client, "version", lambda: {"Version": "20.10"})
     worker = DockerWorker(work_pool_name="test")
     monkeypatch.setattr(worker, "_get_client", lambda: client)
     monkeypatch.setattr(worker, "_emit_container_creation_failed_event", MagicMock())
@@ -2467,6 +2473,7 @@ def test_local_docker_validation_cleans_bundle_staging(
     configuration = DockerWorkerJobConfiguration(
         image="example:latest",
         image_pull_policy="Never",
+        network_mode="bridge",
         container_create_kwargs=options,
     )
     with pytest.raises((TypeError, AttributeError)):
