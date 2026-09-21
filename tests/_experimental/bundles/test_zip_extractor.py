@@ -13,6 +13,9 @@ from pathlib import Path
 
 import pytest
 
+from prefect.bundles._zip_builder import ZipBuilder
+from prefect.bundles._zip_extractor import ZipExtractor
+
 
 class TestZipExtractorImports:
     """Tests for module imports."""
@@ -230,9 +233,6 @@ class TestZipExtractorPermissions:
     )
     def test_extract_restores_executable_mode(self, tmp_path: Path) -> None:
         """An executable file stays executable after extraction."""
-        from prefect.bundles._zip_builder import ZipBuilder
-        from prefect.bundles._zip_extractor import ZipExtractor
-
         source_dir = tmp_path / "source"
         source_dir.mkdir()
         script = source_dir / "run.sh"
