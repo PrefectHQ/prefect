@@ -5622,8 +5622,8 @@ class TestDeploymentTrigger:
             automations = await prefect_client.read_automations_by_name("unique-id")
             assert len(automations) == 1
             automation = automations[0]
-            automation.name == "unique-id"
-            automation.description == "This is a test trigger"
+            assert automation.name == "unique-id"
+            assert automation.description == "This is a test trigger"
 
         async def test_initialize_deployment_triggers_composite(self):
             trigger_spec = {

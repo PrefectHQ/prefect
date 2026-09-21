@@ -5,7 +5,7 @@ import signal
 import socket
 import sys
 import tempfile
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Callable
 from unittest.mock import MagicMock
@@ -354,9 +354,20 @@ class TestBackgroundServer:
                 expected_code=1,
             )
 
-    def test_start_port_in_use_by_background_server(self, unused_tcp_port: int):
+    @pytest.fixture
+    def stale_pid_file(self) -> Iterator[Path]:
+        # PREFECT_HOME is shared by every test in this session, so the file must
+        # not outlive this test or later tests will see a phantom server
         pid_file = PREFECT_HOME.value() / SERVER_PID_FILE_NAME
         pid_file.write_text("99999")
+        try:
+            yield pid_file
+        finally:
+            pid_file.unlink(missing_ok=True)
+
+    def test_start_port_in_use_by_background_server(
+        self, unused_tcp_port: int, stale_pid_file: Path
+    ):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(("127.0.0.1", unused_tcp_port))
 
@@ -372,10 +383,7 @@ class TestBackgroundServer:
                 expected_code=1,
             )
 
-    def test_stop_stale_pid_file(self, unused_tcp_port: int):
-        pid_file = PREFECT_HOME.value() / SERVER_PID_FILE_NAME
-        pid_file.write_text("99999")
-
+    def test_stop_stale_pid_file(self, unused_tcp_port: int, stale_pid_file: Path):
         invoke_and_assert(
             command=[
                 "server",

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import signal
 import threading
 import time
@@ -2427,6 +2428,88 @@ class TestFlowCrashDetection:
             "BaseException was raised after user code finished executing" in caplog.text
         )
 
+    async def test_termination_signal_after_user_code_finishes_does_not_crash_sync(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        """
+        A SIGTERM that lands during post-completion teardown must not overwrite
+        the already-reported Completed state with Crashed (sync flow). The signal
+        still propagates so the process can terminate.
+        """
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
+        def my_flow():
+            return 42
+
+        original_handle_success = FlowRunEngine.handle_success
+
+        def handle_success_with_sigterm(self, result):
+            original_handle_success(self, result)
+            raise TerminationSignal(signal=signal.SIGTERM)
+
+        monkeypatch.setattr(
+            FlowRunEngine, "handle_success", handle_success_with_sigterm
+        )
+        monkeypatch.setattr("prefect.utilities.engine.os.kill", MagicMock())
+
+        with pytest.raises(TerminationSignal):
+            my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_completed()
+        assert not flow_run.state.is_crashed()
+        assert "Crash detected!" not in caplog.text
+        assert (
+            "Termination signal was received after the flow run reached a final state"
+            in caplog.text
+        )
+
+    async def test_termination_signal_after_user_code_finishes_does_not_crash_async(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        """
+        A SIGTERM that lands during post-completion teardown must not overwrite
+        the already-reported Completed state with Crashed (async flow). The signal
+        still propagates so the process can terminate.
+        """
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
+        async def my_flow():
+            return 42
+
+        original_handle_success = AsyncFlowRunEngine.handle_success
+
+        async def handle_success_with_sigterm(self, result):
+            await original_handle_success(self, result)
+            raise TerminationSignal(signal=signal.SIGTERM)
+
+        monkeypatch.setattr(
+            AsyncFlowRunEngine, "handle_success", handle_success_with_sigterm
+        )
+        monkeypatch.setattr("prefect.utilities.engine.os.kill", MagicMock())
+
+        with pytest.raises(TerminationSignal):
+            await my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_completed()
+        assert not flow_run.state.is_crashed()
+        assert "Crash detected!" not in caplog.text
+        assert (
+            "Termination signal was received after the flow run reached a final state"
+            in caplog.text
+        )
+
     async def test_base_exception_before_user_code_finishes_crashes_sync(
         self, prefect_client, monkeypatch
     ):
@@ -2771,6 +2854,83 @@ class TestCaptureSigterm:
                 raise TerminationSignal(signal.SIGTERM)
 
         engine.handle_crash.assert_not_called()
+
+    def test_raw_sigterm_after_final_state_is_redelivered_in_sync_initialize_run(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A raw SIGTERM after a final state must skip `handle_crash` but still
+        escape to `capture_sigterm`, which redelivers it to the prior handler."""
+
+        @contextmanager
+        def _fake_sync_client_context():
+            yield MagicMock(client=MagicMock())
+
+        @contextmanager
+        def _fake_hydrated_context(_context: object | None = None):
+            yield
+
+        engine = FlowRunEngine(flow=foo, flow_run=MagicMock(state=states.Completed()))
+        engine.cancel_all_tasks = MagicMock()
+        engine.handle_crash = MagicMock()
+        mock_kill = MagicMock()
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.get_intent", lambda: None
+        )
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: None)
+        monkeypatch.setattr("prefect.utilities.engine.os.kill", mock_kill)
+        monkeypatch.setattr(
+            "prefect.flow_engine.SyncClientContext.get_or_create",
+            _fake_sync_client_context,
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.hydrated_context", _fake_hydrated_context
+        )
+        monkeypatch.setattr(engine._telemetry, "start_span", MagicMock())
+
+        with pytest.raises(TerminationSignal):
+            with engine.initialize_run():
+                raise TerminationSignal(signal.SIGTERM)
+
+        engine.handle_crash.assert_not_called()
+        mock_kill.assert_called_once_with(os.getpid(), signal.SIGTERM)
+
+    async def test_raw_sigterm_after_final_state_is_redelivered_in_async_initialize_run(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        @asynccontextmanager
+        async def _fake_async_client_context():
+            yield MagicMock(client=AsyncMock())
+
+        @contextmanager
+        def _fake_hydrated_context(_context: object | None = None):
+            yield
+
+        engine = AsyncFlowRunEngine(
+            flow=foo, flow_run=MagicMock(state=states.Completed())
+        )
+        engine.cancel_all_tasks = MagicMock()
+        engine.handle_crash = AsyncMock()
+        mock_kill = MagicMock()
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.get_intent", lambda: None
+        )
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: None)
+        monkeypatch.setattr("prefect.utilities.engine.os.kill", mock_kill)
+        monkeypatch.setattr(
+            "prefect.flow_engine.AsyncClientContext.get_or_create",
+            _fake_async_client_context,
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.hydrated_context", _fake_hydrated_context
+        )
+        monkeypatch.setattr(engine._telemetry, "async_start_span", AsyncMock())
+
+        with pytest.raises(TerminationSignal):
+            async with engine.initialize_run():
+                raise TerminationSignal(signal.SIGTERM)
+
+        engine.handle_crash.assert_not_awaited()
+        mock_kill.assert_called_once_with(os.getpid(), signal.SIGTERM)
 
     @pytest.fixture
     def async_cancellation_engine(

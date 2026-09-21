@@ -101,8 +101,8 @@ jobs:
         if: matrix.dependency-override != ''
         working-directory: src/integrations/${{ matrix.package }}
         run: |
-          uv sync
-          uv pip install "${{ matrix.dependency-override }}"
+          uv lock --upgrade-package "${{ matrix.dependency-override }}"
+          uv sync --locked
 
       - name: Run tests
         if: matrix.package != 'prefect-ray'
