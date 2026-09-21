@@ -82,14 +82,9 @@ jobs:
         working-directory: ./ui-v2
         run: npm ci
 
-      - name: Setup Biome CLI
-        uses: biomejs/setup-biome@v2
-        with:
-          working-dir: ./ui-v2
-
       - name: Run Biome checks
         working-directory: ./ui-v2
-        run: biome ci
+        run: npx biome ci
 
       - name: Lint
         working-directory: ./ui-v2

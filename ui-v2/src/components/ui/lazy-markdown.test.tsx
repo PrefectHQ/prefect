@@ -46,6 +46,38 @@ describe("LazyMarkdown", () => {
 		expect(container.querySelector(href)).toHaveTextContent("the footnote");
 	});
 
+	it("renders inline data: images", async () => {
+		const png =
+			"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+		render(
+			<LazyMarkdown>
+				{`![My figure](${png})\n\n<img src="${png}" alt="Raw figure" />`}
+			</LazyMarkdown>,
+		);
+
+		expect(
+			await screen.findByRole("img", { name: "My figure" }),
+		).toHaveAttribute("src", png);
+		expect(screen.getByRole("img", { name: "Raw figure" })).toHaveAttribute(
+			"src",
+			png,
+		);
+	});
+
+	it("strips non-image data: urls", async () => {
+		const html = "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==";
+		render(
+			<LazyMarkdown>
+				{`[link](${html})\n\n<img src="${html}" alt="not an image" />`}
+			</LazyMarkdown>,
+		);
+
+		expect(await screen.findByText("link")).not.toHaveAttribute("href");
+		expect(
+			screen.getByRole("img", { name: "not an image" }),
+		).not.toHaveAttribute("src");
+	});
+
 	it("strips unsafe html", async () => {
 		const { container } = render(
 			<LazyMarkdown>

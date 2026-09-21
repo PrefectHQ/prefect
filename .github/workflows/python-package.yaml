@@ -50,12 +50,17 @@ jobs:
         run: |
           git diff --exit-code
 
-      - name: Build a binary wheel and a source tarball
+      - name: Build distributions
         env:
           AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
           PREFECT_REQUIRE_PACKAGED_UI_BUNDLES: "1"
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          uv build --sdist --wheel --out-dir dist
+          if [[ "$RELEASE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.dev[0-9]+$ ]]; then
+            uv build --wheel --out-dir dist
+          else
+            uv build --sdist --wheel --out-dir dist
+          fi
 
       - name: Publish build artifacts
         uses: actions/upload-artifact@v7
