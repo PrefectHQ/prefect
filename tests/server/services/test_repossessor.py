@@ -27,10 +27,6 @@ from prefect.server.utilities.leasing import ResourceLease
 pytestmark = pytest.mark.clear_db
 
 
-class ExpectedStaleLeaseReaperRace(AssertionError):
-    """The known stale expiry-scan race reached its unsafe outcome."""
-
-
 class ExpectedDuplicateLeaseReaperRace(AssertionError):
     """Duplicate reapers consumed replacement capacity."""
 
@@ -94,11 +90,6 @@ class TestRevokeExpiredLease:
         assert len(limits) == 1
         assert limits[0].active_slots == 0
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=ExpectedStaleLeaseReaperRace,
-        reason="Queued reaper work does not revalidate expiry atomically",
-    )
     async def test_does_not_revoke_lease_renewed_after_expiry_scan(
         self, lease_storage, concurrency_limit, session: AsyncSession
     ):
@@ -123,8 +114,8 @@ class TestRevokeExpiredLease:
 
         lease_after_reap = await lease_storage.read_lease(lease.id)
         await session.refresh(concurrency_limit)
-        if lease_after_reap is None or concurrency_limit.active_slots != 1:
-            raise ExpectedStaleLeaseReaperRace
+        assert lease_after_reap is not None
+        assert concurrency_limit.active_slots == 1
 
     @pytest.mark.xfail(
         strict=True,
@@ -266,47 +257,6 @@ class TestRevokeExpiredLease:
             ttl=timedelta(minutes=5),  # Not expired
             metadata=ConcurrencyLimitLeaseMetadata(slots=2),
         )
-
-        db = provide_database_interface()
-        await revoke_expired_lease(
-            lease.id,
-            db=db,
-            lease_storage=lease_storage,
-        )
-
-        assert await lease_storage.read_lease(lease.id) is not None
-
-        session.expire_all()
-        limits = await bulk_read_concurrency_limits(session, [limit_name])
-        assert limits[0].active_slots == 2
-
-    async def test_revoke_expired_lease_skips_lease_renewed_after_scan(
-        self, lease_storage, session: AsyncSession
-    ):
-        """A renewal between the expired-lease scan and revocation is honored"""
-        limit = await create_concurrency_limit(
-            session=session,
-            concurrency_limit=ConcurrencyLimitV2(
-                name="test_limit_renewed_after_scan",
-                limit=10,
-                slot_decay_per_second=0.0,
-                avg_slot_occupancy_seconds=2.0,
-            ),
-        )
-        await session.commit()
-        limit_id, limit_name = limit.id, limit.name
-
-        await bulk_increment_active_slots(session, [limit_id], 2)
-        await session.commit()
-
-        lease = await lease_storage.create_lease(
-            resource_ids=[limit_id],
-            ttl=timedelta(seconds=-1),  # Already expired
-            metadata=ConcurrencyLimitLeaseMetadata(slots=2),
-        )
-        assert await lease_storage.read_expired_lease_ids() == [lease.id]
-
-        assert await lease_storage.renew_lease(lease.id, timedelta(minutes=5))
 
         db = provide_database_interface()
         await revoke_expired_lease(
