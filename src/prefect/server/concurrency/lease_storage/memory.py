@@ -85,6 +85,8 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     async def begin_lease_revocation(
         self, lease_id: UUID
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
+        if lease_id in self.revoking:
+            return None
         lease = self.leases.get(lease_id)
         if lease is None:
             return None
