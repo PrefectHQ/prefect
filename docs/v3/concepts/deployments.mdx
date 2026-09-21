@@ -352,8 +352,8 @@ can take time to start, so a slot can be held for the prefetch window (or the in
 is longer) plus the run's duration. With `CANCEL_NEW` and a `concurrency_limit` of 1, a run whose deployment slot is
 held when it is submitted is cancelled before it starts, so the schedule interval should be longer than this whole
 period. A run must reach `Running` within `grace_period_seconds` of acquiring its slot; otherwise the slot can be
-taken by another run. Deployments served with `flow.serve()` use the runner's `prefetch_seconds` argument (default 10
-seconds) instead of the worker setting.
+taken by another run. Deployments served with `flow.serve()` do not use the worker setting; the runner submits runs 10
+seconds before their scheduled start.
 
 <CodeGroup>
 
