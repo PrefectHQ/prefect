@@ -261,10 +261,10 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         default=None,
         title="Container Wait Timeout",
         description=(
-            "Maximum number of seconds to wait for a created container to exit. "
-            "If the container has not exited within this time, the worker stops "
-            "watching it and raises an error. If not set, the worker waits "
-            "indefinitely."
+            "Maximum number of seconds the worker waits for a created container "
+            "to exit. If the container has not exited within this time, the "
+            "worker stops watching it; the container itself is not stopped. If "
+            "not set, the worker waits indefinitely."
         ),
         gt=0,
     )
