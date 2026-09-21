@@ -29,8 +29,7 @@ class TestMemoryConcurrencyLeaseStorage:
     @pytest.fixture
     def storage(self) -> ConcurrencyLeaseStorage:
         storage = ConcurrencyLeaseStorage()
-        storage.leases.clear()
-        storage.expirations.clear()
+        storage.reset()
         return storage
 
     @pytest.fixture
@@ -151,6 +150,9 @@ class TestMemoryConcurrencyLeaseStorage:
         assert renewed is True
         new_expiration = storage.expirations[lease_id]
         assert new_expiration > original_expiration
+        read_lease = await storage.read_lease(lease_id)
+        assert read_lease is not None
+        assert read_lease.expiration == new_expiration
 
     async def test_renew_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
@@ -350,3 +352,169 @@ class TestMemoryConcurrencyLeaseStorage:
 
         # Ensure no overlap with first page
         assert set(default_page).isdisjoint(set(offset_page))
+
+    async def test_begin_lease_revocation_expired_lease(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        expired_ttl = timedelta(seconds=-1)
+        lease = await storage.create_lease(sample_resource_ids, expired_ttl)
+
+        revoking_lease = await storage.begin_lease_revocation(lease.id)
+        assert revoking_lease is not None
+        assert revoking_lease.id == lease.id
+        assert revoking_lease.revocation_token is not None
+        assert lease.id in storage.revoking
+
+    async def test_begin_lease_revocation_active_lease_returns_none(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        active_ttl = timedelta(minutes=5)
+        lease = await storage.create_lease(sample_resource_ids, active_ttl)
+
+        revoking_lease = await storage.begin_lease_revocation(lease.id)
+        assert revoking_lease is None
+        assert lease.id not in storage.revoking
+        assert lease.id not in storage.revoking_until
+
+    async def test_begin_lease_revocation_duplicate_claim_prevented(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        expired_ttl = timedelta(seconds=-1)
+        lease = await storage.create_lease(sample_resource_ids, expired_ttl)
+
+        # First revoker acquires ownership
+        first_claim = await storage.begin_lease_revocation(lease.id)
+        assert first_claim is not None
+        token = first_claim.revocation_token
+        assert token is not None
+
+        # Second concurrent revoker must NOT be able to claim ownership while active
+        second_claim = await storage.begin_lease_revocation(lease.id)
+        assert second_claim is None
+
+        # Token and revoking state remain owned by first revoker
+        assert storage.revocation_tokens.get(lease.id) == token
+        assert lease.id in storage.revoking_until
+        assert storage.revoking_until[lease.id] > datetime.now(timezone.utc)
+
+    async def test_begin_lease_revocation_abandoned_claim_expired_and_reclaimed(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        expired_ttl = timedelta(seconds=-1)
+        lease = await storage.create_lease(sample_resource_ids, expired_ttl)
+
+        first_claim = await storage.begin_lease_revocation(lease.id)
+        assert first_claim is not None
+        first_token = first_claim.revocation_token
+
+        # Simulate abandonment where claim TTL expired without cancellation or finalization
+        storage.revoking_until[lease.id] = datetime.now(timezone.utc) - timedelta(seconds=1)
+
+        # Another worker is able to reclaim the abandoned lease
+        second_claim = await storage.begin_lease_revocation(lease.id)
+        assert second_claim is not None
+        second_token = second_claim.revocation_token
+        assert second_token is not None
+        assert second_token != first_token
+        assert storage.revocation_tokens.get(lease.id) == second_token
+        assert storage.revoking_until[lease.id] > datetime.now(timezone.utc)
+
+    async def test_renew_lease_revocation_extends_claim_deadline(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        expired_ttl = timedelta(seconds=-1)
+        lease = await storage.create_lease(sample_resource_ids, expired_ttl)
+
+        claim = await storage.begin_lease_revocation(lease.id)
+        assert claim is not None
+        token = claim.revocation_token
+        assert token is not None
+
+        initial_until = storage.revoking_until[lease.id]
+
+        # Valid token renews claim deadline
+        renewed = await storage.renew_lease_revocation(lease.id, token)
+        assert renewed is True
+        assert storage.revoking_until[lease.id] >= initial_until
+
+        # Invalid token fails
+        invalid_renew = await storage.renew_lease_revocation(lease.id, "invalid-token")
+        assert invalid_renew is False
+
+        # Expired claim cannot be renewed by old token
+        storage.revoking_until[lease.id] = datetime.now(timezone.utc) - timedelta(seconds=1)
+        expired_renew = await storage.renew_lease_revocation(lease.id, token)
+        assert expired_renew is False
+
+    async def test_cancel_lease_revocation_clears_claim_state(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        expired_ttl = timedelta(seconds=-1)
+        lease = await storage.create_lease(sample_resource_ids, expired_ttl)
+
+        claim = await storage.begin_lease_revocation(lease.id)
+        assert claim is not None
+        token = claim.revocation_token
+
+        # Cancel with wrong token does nothing
+        await storage.cancel_lease_revocation(lease.id, "wrong-token")
+        assert lease.id in storage.revoking_until
+        assert storage.revocation_tokens.get(lease.id) == token
+
+        # Cancel with correct token clears claim state
+        await storage.cancel_lease_revocation(lease.id, token)
+        assert lease.id not in storage.revoking
+        assert lease.id not in storage.revoking_until
+        assert lease.id not in storage.revocation_tokens
+        read_lease = await storage.read_lease(lease.id)
+        assert read_lease is not None
+        assert read_lease.revocation_token is None
+
+    async def test_renew_lease_during_revocation_and_after_expiry(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        expired_ttl = timedelta(seconds=-1)
+        lease = await storage.create_lease(sample_resource_ids, expired_ttl)
+
+        claim = await storage.begin_lease_revocation(lease.id)
+        assert claim is not None
+
+        # Renewal must be rejected while lease revocation claim is active
+        renewed = await storage.renew_lease(lease.id, timedelta(minutes=5))
+        assert renewed is False
+
+        # After claim expires, holder can renew and reclaim ownership
+        storage.revoking_until[lease.id] = datetime.now(timezone.utc) - timedelta(seconds=1)
+        renewed_after_expiry = await storage.renew_lease(lease.id, timedelta(minutes=5))
+        assert renewed_after_expiry is True
+        assert lease.id not in storage.revoking_until
+        assert lease.id not in storage.revocation_tokens
+        read_lease = await storage.read_lease(lease.id)
+        assert read_lease is not None
+        assert read_lease.revocation_token is None
+        assert read_lease.expiration > datetime.now(timezone.utc)
+
+    async def test_revoke_lease_ownership_validation(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        expired_ttl = timedelta(seconds=-1)
+        lease = await storage.create_lease(sample_resource_ids, expired_ttl)
+
+        claim = await storage.begin_lease_revocation(lease.id)
+        assert claim is not None
+        valid_token = claim.revocation_token
+
+        # Attempt to revoke with wrong token raises RuntimeError
+        with pytest.raises(RuntimeError, match="revocation claim is no longer owned"):
+            await storage.revoke_lease(lease.id, revocation_token="wrong-token")
+
+        # Lease is still present
+        assert lease.id in storage.leases
+
+        # Revoking with correct token succeeds
+        await storage.revoke_lease(lease.id, revocation_token=valid_token)
+        assert lease.id not in storage.leases
+        assert lease.id not in storage.revoking
+        assert lease.id not in storage.revoking_until
+        assert lease.id not in storage.revocation_tokens
+        assert lease.id not in storage.expirations

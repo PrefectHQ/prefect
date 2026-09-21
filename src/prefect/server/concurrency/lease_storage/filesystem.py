@@ -6,11 +6,12 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, TypedDict
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 
 from prefect.server.concurrency.lease_storage import (
+    REVOCATION_CLAIM_TTL_SECONDS,
     ConcurrencyLeaseHolder,
     ConcurrencyLimitLeaseMetadata,
 )
@@ -39,6 +40,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self.storage_path: Path = Path(
             storage_path or prefect_home / "concurrency_leases"
         )
+        self.revoking: set[UUID] = set()
+        self.revoking_until: dict[UUID, datetime] = {}
+        self.revocation_tokens: dict[UUID, str] = {}
 
     def _ensure_storage_path(self) -> None:
         """Ensure the storage path exists, creating it if necessary."""
@@ -212,12 +216,21 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             await self._remove_from_expiration_index(lease_id)
             return False
 
+        now = datetime.now(timezone.utc)
+        revoking_until = self.revoking_until.get(lease_id)
+        if revoking_until is not None and revoking_until > now:
+            return False
+
+        self.revoking.discard(lease_id)
+        self.revoking_until.pop(lease_id, None)
+        self.revocation_tokens.pop(lease_id, None)
+
         try:
             with open(lease_file, "r") as f:
                 lease_data = json.load(f)
 
             # Update expiration time
-            new_expiration = datetime.now(timezone.utc) + ttl
+            new_expiration = now + ttl
             lease_data["expiration"] = new_expiration.isoformat()
 
             # Use atomic write to prevent race conditions with concurrent readers
@@ -238,7 +251,56 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             await self._remove_from_expiration_index(lease_id)
             return False
 
-    async def revoke_lease(self, lease_id: UUID) -> None:
+    async def begin_lease_revocation(
+        self, lease_id: UUID
+    ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
+        now = datetime.now(timezone.utc)
+        revoking_until = self.revoking_until.get(lease_id)
+        if revoking_until is not None and revoking_until > now:
+            return None
+        lease = await self.read_lease(lease_id)
+        if lease is None:
+            return None
+        if lease.expiration > now:
+            return None
+        self.revoking.add(lease_id)
+        self.revoking_until[lease_id] = now + timedelta(
+            seconds=REVOCATION_CLAIM_TTL_SECONDS
+        )
+        token = str(uuid4())
+        self.revocation_tokens[lease_id] = token
+        lease.revocation_token = token
+        return lease
+
+    async def renew_lease_revocation(self, lease_id: UUID, revocation_token: str) -> bool:
+        now = datetime.now(timezone.utc)
+        if self.revocation_tokens.get(lease_id) != revocation_token:
+            return False
+        revoking_until = self.revoking_until.get(lease_id)
+        if revoking_until is None or revoking_until <= now:
+            return False
+        self.revoking_until[lease_id] = now + timedelta(
+            seconds=REVOCATION_CLAIM_TTL_SECONDS
+        )
+        return True
+
+    async def cancel_lease_revocation(
+        self, lease_id: UUID, revocation_token: str | None = None
+    ) -> None:
+        if revocation_token and self.revocation_tokens.get(lease_id) != revocation_token:
+            return
+        self.revoking.discard(lease_id)
+        self.revoking_until.pop(lease_id, None)
+        self.revocation_tokens.pop(lease_id, None)
+
+    async def revoke_lease(
+        self, lease_id: UUID, revocation_token: str | None = None
+    ) -> None:
+        if revocation_token and self.revocation_tokens.get(lease_id) != revocation_token:
+            raise RuntimeError("revocation claim is no longer owned")
+        self.revoking.discard(lease_id)
+        self.revoking_until.pop(lease_id, None)
+        self.revocation_tokens.pop(lease_id, None)
         lease_file = self._lease_file_path(lease_id)
         lease_file.unlink(missing_ok=True)
 
