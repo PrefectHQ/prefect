@@ -44,12 +44,8 @@ def test_is_state_iterable(iterable_type):
     assert is_state_iterable(iterable_type([Completed(), Completed()]))
 
 
-def test_is_state_iterable_with_nested_iterables():
-    assert is_state_iterable([[Completed()], (Completed(),)])
-
-
-def test_is_not_state_iterable_if_nested_iterable_contains_non_state():
-    assert not is_state_iterable([[Completed()], [1]])
+def test_is_not_state_iterable_if_nested():
+    assert not is_state_iterable([[Completed()]])
 
 
 def test_is_not_state_iterable_if_unsupported_iterable_type():
@@ -289,6 +285,19 @@ class TestReturnValueToState:
         assert await result_state.result(raise_on_failure=False) == states
         assert result_state.message == "2/3 states failed."
         assert result_state.is_failed()
+
+    async def test_nested_failed_state_with_empty_sibling(self, store):
+        states = [[Failed(message="bye")], []]
+        result_state = await return_value_to_state(states, store)
+        assert await result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "1/1 states failed."
+        assert result_state.is_failed()
+
+    async def test_only_empty_nested_containers_are_data(self, store):
+        states = [[], ()]
+        result_state = await return_value_to_state(states, store)
+        assert await result_state.result() == states
+        assert result_state.is_completed()
 
     async def test_some_unfinal_states(self, store):
         states = [
@@ -707,6 +716,19 @@ class TestReturnValueToStateSync:
         assert result_state.result(raise_on_failure=False) == states
         assert result_state.message == "2/3 states failed."
         assert result_state.is_failed()
+
+    def test_nested_failed_state_with_empty_sibling(self, store):
+        states = [[Failed(message="bye")], []]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "1/1 states failed."
+        assert result_state.is_failed()
+
+    def test_only_empty_nested_containers_are_data(self, store):
+        states = [[], ()]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result() == states
+        assert result_state.is_completed()
 
     def test_some_unfinal_states(self, store):
         states = [

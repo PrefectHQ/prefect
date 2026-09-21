@@ -29,7 +29,6 @@ from prefect.exceptions import (
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.types._datetime import now
 from prefect.utilities.annotations import BaseAnnotation
-from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
     import logging
@@ -369,8 +368,9 @@ async def return_value_to_state(
         return state
 
     # Determine a new state from the aggregate of contained states
-    if isinstance(retval, State) or is_state_iterable(retval):
-        states = StateGroup(_flatten_state_iterable(ensure_iterable(retval)))
+    nested_states = _collect_nested_states(retval)
+    if isinstance(retval, State) or nested_states:
+        states = StateGroup([retval] if isinstance(retval, State) else nested_states)
 
         # Determine the new state type
         if states.all_completed():
@@ -514,9 +514,9 @@ async def aget_state_exception(state: State) -> BaseException:
         # Return the exception from the inner state
         return await aget_state_exception(result)
 
-    elif is_state_iterable(result):
+    elif nested_states := _collect_nested_states(result):
         # Return the first failure
-        for state in _flatten_state_iterable(result):
+        for state in nested_states:
             if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return await aget_state_exception(state)
 
@@ -615,9 +615,9 @@ def get_state_exception(state: State) -> BaseException:
         # Return the exception from the inner state
         return get_state_exception(result)
 
-    elif is_state_iterable(result):
+    elif nested_states := _collect_nested_states(result):
         # Return the first failure
-        for state in _flatten_state_iterable(result):
+        for state in nested_states:
             if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return get_state_exception(state)
 
@@ -662,9 +662,6 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
     - list
     - tuple
 
-    Nested `set`, `list`, and `tuple` of states are supported. Each element must
-    be a state or a nested supported iterable of states.
-
     Other iterables will return `False` even if they contain states.
     """
     # We do not check for arbitrary iterables because this is not intended to be used
@@ -674,18 +671,29 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
         and isinstance(obj, (list, set, tuple))
         and obj
     ):
-        return all(isinstance(o, State) or is_state_iterable(o) for o in obj)
+        return all([isinstance(o, State) for o in obj])
     else:
         return False
 
 
-def _flatten_state_iterable(obj: Iterable[Any]) -> list[State]:
+def _collect_nested_states(obj: Any) -> list[State] | None:
+    """
+    Flatten a possibly nested `set`, `list`, or `tuple` of states.
+
+    Returns `None` if `obj` is not a supported container or if any leaf is not
+    a state. Empty nested containers contribute no states.
+    """
+    if isinstance(obj, BaseAnnotation) or not isinstance(obj, (list, set, tuple)):
+        return None
     states: list[State] = []
     for item in obj:
         if isinstance(item, State):
             states.append(item)
         else:
-            states.extend(_flatten_state_iterable(item))
+            nested = _collect_nested_states(item)
+            if nested is None:
+                return None
+            states.extend(nested)
     return states
 
 

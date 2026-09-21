@@ -921,6 +921,25 @@ class TestFlowCall:
         assert state.is_failed()
         assert "1/2 states failed." in state.message
 
+    async def test_flow_state_reflects_returned_nested_task_run_states_with_empty_map(
+        self,
+    ):
+        @task
+        def boom(x):
+            raise ValueError(f"boom {x}")
+
+        @task
+        def fine(x):
+            return x
+
+        @flow(version="test")
+        def nested():
+            return [boom.map([1]), fine.map([])]
+
+        state = nested(return_state=True)
+        assert state.is_failed()
+        assert "1/1 states failed." in state.message
+
     def test_flow_can_end_in_paused_state(self):
         @flow
         def my_flow():
