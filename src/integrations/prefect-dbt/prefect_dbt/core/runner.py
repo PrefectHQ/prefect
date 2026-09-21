@@ -7,7 +7,7 @@ import os
 import queue
 import threading
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable
 
 import click
 from dbt.cli.main import cli, dbtRunner, dbtRunnerResult
@@ -104,9 +104,7 @@ NODE_TASK_SHUTDOWN_TIMEOUT = 10.0
 _CALLBACK_SHUTDOWN_WARNING_INTERVAL = 30.0
 
 
-def execute_dbt_node(
-    task_state: NodeTaskTracker, node_id: str, asset_id: Union[str, None]
-):
+def execute_dbt_node(task_state: NodeTaskTracker, node_id: str, asset_id: str | None):
     """Execute a dbt node and wait for its completion.
 
     This function will:
@@ -156,17 +154,17 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def __init__(
         self,
-        manifest: Optional[Manifest] = None,
-        settings: Optional[PrefectDbtSettings] = None,
+        manifest: Manifest | None = None,
+        settings: PrefectDbtSettings | None = None,
         raise_on_failure: bool = True,
-        client: Optional[PrefectClient] = None,
+        client: PrefectClient | None = None,
         include_compiled_code: bool = False,
         disable_assets: bool = False,
         _force_nodes_as_tasks: bool = False,
         _disable_callbacks: bool = False,
     ):
         self._initialize_dbt_hooks()
-        self._manifest: Optional[Manifest] = manifest
+        self._manifest: Manifest | None = manifest
         self.settings = settings or PrefectDbtSettings()
         self.raise_on_failure = raise_on_failure
         self.client = client or get_client()
@@ -174,19 +172,19 @@ class PrefectDbtRunner(DbtHookMixin):
         self.disable_assets = disable_assets
         self._force_nodes_as_tasks = _force_nodes_as_tasks
         self._disable_callbacks = _disable_callbacks
-        self._project_name: Optional[str] = None
-        self._target_path: Optional[Path | str] = None
-        self._profiles_dir: Optional[Path | str] = None
-        self._project_dir: Optional[Path | str] = None
-        self._log_level: Optional[EventLevel] = None
-        self._config: Optional[RuntimeConfig] = None
-        self._graph: Optional[Graph] = None
+        self._project_name: str | None = None
+        self._target_path: Path | str | None = None
+        self._profiles_dir: Path | str | None = None
+        self._project_dir: Path | str | None = None
+        self._log_level: EventLevel | None = None
+        self._config: RuntimeConfig | None = None
+        self._graph: Graph | None = None
         self._skipped_nodes: set[str] = set()
         self._started_nodes: set[str] = set()
 
-        self._event_queue: Optional[queue.PriorityQueue] = None
-        self._callback_thread: Optional[threading.Thread] = None
-        self._shutdown_event: Optional[threading.Event] = None
+        self._event_queue: queue.PriorityQueue | None = None
+        self._callback_thread: threading.Thread | None = None
+        self._shutdown_event: threading.Event | None = None
         self._queue_counter = 0  # Counter for tiebreaking in PriorityQueue
         self._queue_counter_lock = threading.Lock()  # Thread-safe counter increment
         self._raw_setting_values: dict[str, str] = {}
@@ -234,7 +232,7 @@ class PrefectDbtRunner(DbtHookMixin):
             assert self._project_name is not None
         return self._project_name
 
-    def _set_project_name_from_manifest(self) -> Optional[str]:
+    def _set_project_name_from_manifest(self) -> str | None:
         self._project_name = self.manifest.metadata.project_name
 
     def _set_graph_from_manifest(self, add_test_edges: bool = False):
@@ -257,7 +255,7 @@ class PrefectDbtRunner(DbtHookMixin):
             )
 
     def _get_node_prefect_config(
-        self, manifest_node: Union[ManifestNode, SourceDefinition]
+        self, manifest_node: ManifestNode | SourceDefinition
     ) -> dict[str, dict[str, Any]]:
         if isinstance(manifest_node, SourceDefinition):
             return manifest_node.meta.get("prefect", {})
@@ -327,9 +325,7 @@ class PrefectDbtRunner(DbtHookMixin):
             / manifest_node.original_file_path
         )
 
-    def _get_compiled_code(
-        self, manifest_node: Union[ManifestNode, SourceDefinition]
-    ) -> str:
+    def _get_compiled_code(self, manifest_node: ManifestNode | SourceDefinition) -> str:
         """Get compiled code for a manifest node if it exists and is enabled."""
         if not self.include_compiled_code or isinstance(
             manifest_node, SourceDefinition
@@ -361,7 +357,7 @@ class PrefectDbtRunner(DbtHookMixin):
         return ""
 
     def _create_asset_from_node(
-        self, manifest_node: Union[ManifestNode, SourceDefinition], adapter_type: str
+        self, manifest_node: ManifestNode | SourceDefinition, adapter_type: str
     ) -> Asset:
         """Create an Asset from a manifest node."""
         if not manifest_node.relation_name:
@@ -703,7 +699,7 @@ class PrefectDbtRunner(DbtHookMixin):
         self,
         callback_func: Callable[[EventMsg], None],
         event: EventMsg,
-        priority: Optional[int] = None,
+        priority: int | None = None,
     ) -> None:
         """Helper method to queue a callback for background processing.
 
@@ -777,7 +773,7 @@ class PrefectDbtRunner(DbtHookMixin):
                     task_run_id = task_state.get_task_run_id(node_id)
                     if task_run_id is not None:
                         # Node has an associated Prefect task — log into that task.
-                        flow_run_context: Optional[dict[str, Any]] = context.get(
+                        flow_run_context: dict[str, Any] | None = context.get(
                             "flow_run_context"
                         )
                         logger = task_state.get_task_logger(
@@ -866,8 +862,8 @@ class PrefectDbtRunner(DbtHookMixin):
                 task_state.set_node_status(node_id, event_data, event_message)
                 self._run_post_model_hooks(node_id, event_data, event_message)
 
-                node_info: Optional[dict[str, Any]] = event_data.get("node_info")
-                node_status: Optional[str] = (
+                node_info: dict[str, Any] | None = event_data.get("node_info")
+                node_status: str | None = (
                     node_info.get("node_status") if node_info else None
                 )
 
@@ -994,7 +990,7 @@ class PrefectDbtRunner(DbtHookMixin):
                     task_run_id = task_state.get_task_run_id(node_id)
                     if task_run_id is not None:
                         # Node has an associated Prefect task — log into that task.
-                        flow_run_context: Optional[dict[str, Any]] = context.get(
+                        flow_run_context: dict[str, Any] | None = context.get(
                             "flow_run_context"
                         )
                         logger = task_state.get_task_logger(
@@ -1127,8 +1123,8 @@ class PrefectDbtRunner(DbtHookMixin):
                     task_state.set_node_status(node_id, event_data, event_message)
                     self._run_post_model_hooks(node_id, event_data, event_message)
 
-                    node_info: Optional[dict[str, Any]] = event_data.get("node_info")
-                    node_status: Optional[str] = (
+                    node_info: dict[str, Any] | None = event_data.get("node_info")
+                    node_status: str | None = (
                         node_info.get("node_status") if node_info else None
                     )
 
@@ -1159,7 +1155,7 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def _extract_flag_value(
         self, args: list[str], flag: str
-    ) -> tuple[list[str], Union[str, None]]:
+    ) -> tuple[list[str], str | None]:
         """
         Extract a flag value from args and return the modified args and the value.
 
@@ -1183,7 +1179,7 @@ class PrefectDbtRunner(DbtHookMixin):
         self,
         setting_name: str,
         kwargs: dict[str, Any],
-        path_converter: Optional[Callable[[Any], Any]] = None,
+        path_converter: Callable[[Any], Any] | None = None,
     ):
         """Update a setting from kwargs if present."""
         if setting_name in kwargs:
@@ -1200,7 +1196,7 @@ class PrefectDbtRunner(DbtHookMixin):
         args: list[str],
         flag: str,
         setting_name: str,
-        path_converter: Optional[Callable[[str], Any]] = None,
+        path_converter: Callable[[str], Any] | None = None,
     ) -> list[str]:
         """Update a setting from CLI flag if present."""
         args_copy, value = self._extract_flag_value(args, flag)
