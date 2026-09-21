@@ -600,6 +600,11 @@ class FlowRun(Run):
                 coalesce(cls.start_time, cls.expected_start_time).asc(),
             ),
             sa.Index(
+                "ix_flow_run__state_type_coalesce_start_time",
+                cls.state_type,
+                coalesce(cls.start_time, cls.expected_start_time),
+            ),
+            sa.Index(
                 "ix_flow_run__expected_start_time_desc",
                 cls.expected_start_time.desc(),
             ),
