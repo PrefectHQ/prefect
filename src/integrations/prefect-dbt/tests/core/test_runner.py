@@ -30,6 +30,7 @@ from prefect_dbt.core.runner import PrefectDbtRunner, execute_dbt_node
 from prefect_dbt.core.settings import PrefectDbtSettings
 
 from prefect import flow, task
+from prefect._internal.concurrency.cancellation import CancelledError
 from prefect.assets import Asset
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.client.orchestration import PrefectClient
@@ -2002,7 +2003,10 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
     Regression tests for https://github.com/PrefectHQ/prefect/pull/19601
     """
 
-    def test_shutdown_waits_for_active_callback_before_reset(self):
+    def test_shutdown_waits_for_active_callback_before_reset(self, monkeypatch, caplog):
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner._CALLBACK_SHUTDOWN_WARNING_INTERVAL", 0.5
+        )
         runner = PrefectDbtRunner()
         entered = threading.Event()
         release = threading.Event()
@@ -2034,6 +2038,7 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
             if stopper.ident is not None:
                 stopper.join(5)
             worker.join(5)
+        assert "Still waiting for the active dbt callback to finish" in caplog.text
         assert stopped.is_set()
         assert not worker.is_alive()
         assert runner._event_queue is None
@@ -2273,3 +2278,38 @@ class TestPrefectDbtRunnerCancellation:
         assert node_waiter_done.is_set()
         status = trackers[0].get_node_status("model.a")
         assert status["event_data"]["node_info"]["node_status"] == "error"
+
+
+def test_returned_cancellation_finishes_incomplete_nodes(
+    mock_dbt_runner_class,
+    mock_settings_context_manager,
+):
+    tracker = NodeTaskTracker()
+    tracker.start_task("model.a", Mock())
+    finished = threading.Event()
+
+    def wait_for_node():
+        tracker.wait_for_node_completion("model.a")
+        finished.set()
+
+    waiter = threading.Thread(target=wait_for_node, daemon=True)
+    tracker._task_threads.append(waiter)
+    waiter.start()
+    error = CancelledError()
+    mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+        success=False,
+        exception=error,
+    )
+    try:
+        with patch("prefect_dbt.core.runner.NodeTaskTracker", return_value=tracker):
+            with pytest.raises(CancelledError) as raised:
+                PrefectDbtRunner().invoke(["run"])
+        assert raised.value is error
+        assert finished.wait(1)
+        assert (
+            tracker.get_node_status("model.a")["event_data"]["node_info"]["node_status"]
+            == "error"
+        )
+    finally:
+        tracker.fail_incomplete_nodes("test cleanup")
+        waiter.join(5)

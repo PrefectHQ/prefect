@@ -139,7 +139,16 @@ def invoke_dbt(runner: dbtRunner, args: list[str]) -> dbtRunnerResult:
             _wait_for_shutdown(invocation)
         raise
 
-    return invocation.result()
+    result = invocation.result()
+    # dbt encodes cancellation in its result; preserve it as control flow so
+    # every caller performs exception cleanup rather than normal completion.
+    if (
+        not result.success
+        and isinstance(result.exception, BaseException)
+        and not isinstance(result.exception, Exception)
+    ):
+        raise result.exception
+    return result
 
 
 def _wait_for_shutdown(invocation: _Invocation) -> None:

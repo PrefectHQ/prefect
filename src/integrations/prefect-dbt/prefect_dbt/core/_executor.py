@@ -642,7 +642,7 @@ class DbtCoreExecutor:
                 "--log-level-file",
                 str(self._settings.log_level.value),
             ]
-            result = dbtRunner().invoke(args)
+            result = invoke_dbt(dbtRunner(), args)
 
         if not result.success:
             raise RuntimeError(
@@ -683,7 +683,7 @@ class DbtCoreExecutor:
                 "--log-level-file",
                 str(self._settings.log_level.value),
             ]
-            result = dbtRunner().invoke(args)
+            result = invoke_dbt(dbtRunner(), args)
 
         if not result.success:
             raise RuntimeError(

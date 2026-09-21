@@ -60,6 +60,7 @@ from prefect.cache_policies import NO_CACHE
 from prefect.client.orchestration import PrefectClient
 from prefect.context import AssetContext, hydrated_context, serialize_context
 from prefect.exceptions import MissingContextError
+from prefect.logging import get_logger
 from prefect.tasks import MaterializingTask, Task, TaskOptions
 from prefect_dbt.core._hooks import DbtHookContext, DbtHookMixin
 from prefect_dbt.core._invoke import invoke_dbt
@@ -100,6 +101,7 @@ SETTINGS_CONFIG = [
 ]
 FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
 NODE_TASK_SHUTDOWN_TIMEOUT = 10.0
+_CALLBACK_SHUTDOWN_WARNING_INTERVAL = 30.0
 
 
 def execute_dbt_node(
@@ -635,7 +637,13 @@ class PrefectDbtRunner(DbtHookMixin):
             # Shield join from Prefect cancellation, which can otherwise mark
             # a live thread as stopped on CPython.
             with shield():
-                self._callback_thread.join()
+                while self._callback_thread.is_alive():
+                    self._callback_thread.join(_CALLBACK_SHUTDOWN_WARNING_INTERVAL)
+                    if self._callback_thread.is_alive():
+                        get_logger(__name__).warning(
+                            "Still waiting for the active dbt callback to finish; "
+                            "cancellation cannot complete until the callback returns"
+                        )
 
         # Reset state so next invoke() can create a fresh callback processor
         self._event_queue = None
@@ -1155,6 +1163,10 @@ class PrefectDbtRunner(DbtHookMixin):
         """
         Extract a flag value from args and return the modified args and the value.
 
+        Cancellation waits for dbt and any active callback (including user hooks)
+        to finish before returning. A callback that blocks indefinitely also
+        delays cancellation indefinitely; warnings are logged every 30 seconds.
+
         Args:
             args: List of command line arguments
             flag: The flag to look for (e.g., "--target-path")
@@ -1378,12 +1390,6 @@ class PrefectDbtRunner(DbtHookMixin):
             self._reset_active_hook_state()
 
         if not res.success and res.exception:
-            if isinstance(res.exception, BaseException) and not isinstance(
-                res.exception, Exception
-            ):
-                # dbtRunner.invoke() swallows every BaseException into the
-                # result; cancellation-type exceptions must propagate as-is.
-                raise res.exception
             raise ValueError(
                 f"Failed to invoke dbt command '{' '.join(args_copy)}': {res.exception}"
             )
