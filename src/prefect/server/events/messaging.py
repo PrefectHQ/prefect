@@ -49,7 +49,8 @@ class EventPublisher(Publisher):
             event: the event to publish
         """
         encoded = event.model_dump_json().encode()
-        if len(encoded) > PREFECT_EVENTS_MAXIMUM_SIZE_BYTES.value():
+        size_checked = event.model_dump_json(exclude={"url"}).encode()
+        if len(size_checked) > PREFECT_EVENTS_MAXIMUM_SIZE_BYTES.value():
             logger.warning(
                 "Refusing to publish event of size %s",
                 extra={

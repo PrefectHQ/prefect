@@ -8,7 +8,11 @@ from prefect.server.events import messaging
 from prefect.server.events.messaging import create_event_publisher
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.server.utilities.messaging import CapturingPublisher
-from prefect.settings import PREFECT_EVENTS_MAXIMUM_SIZE_BYTES, temporary_settings
+from prefect.settings import (
+    PREFECT_EVENTS_MAXIMUM_SIZE_BYTES,
+    PREFECT_UI_URL,
+    temporary_settings,
+)
 from prefect.types._datetime import now
 
 from .conftest import assert_message_represents_event
@@ -105,6 +109,34 @@ async def test_maximum_event_message_size(
 
     assert_message_represents_event(one, event1)
     assert_message_represents_event(two, event3)
+
+
+async def test_computed_event_fields_do_not_count_toward_message_size_limit(
+    capturing_publisher: type[CapturingPublisher],
+    event2: ReceivedEvent,
+):
+    with temporary_settings(updates={PREFECT_UI_URL: "http://localhost:3000"}):
+        event = event2.model_copy(update={"payload": {"message": "x" * 300}})
+        expected_url = event.url
+        size_without_computed_fields = len(
+            event.model_dump_json(exclude={"url"}).encode()
+        )
+        size_with_computed_fields = len(event.model_dump_json().encode())
+
+        assert size_with_computed_fields > size_without_computed_fields
+
+        with temporary_settings(
+            updates={
+                PREFECT_EVENTS_MAXIMUM_SIZE_BYTES: size_without_computed_fields,
+            }
+        ):
+            async with create_event_publisher() as publisher:
+                await publisher.publish_event(event)
+
+    assert len(capturing_publisher.messages) == 1
+    message = capturing_publisher.messages[0]
+    assert expected_url.encode() in message.data
+    assert_message_represents_event(message, event)
 
 
 async def test_will_not_publish_duplicate_messages(
