@@ -2,19 +2,32 @@
 Tests for ExecutionResult, DbtExecutor protocol, and DbtCoreExecutor.
 """
 
+import threading
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from dbt.adapters.base.connections import BaseConnectionManager
+from dbt.adapters.sql.connections import SQLConnectionManager
+from dbt.cli.main import dbtRunnerResult
 from dbt.node_types import NodeType
 
 try:
     from dbt_common.events.base_types import EventLevel
 except ImportError:
     from dbt.events.base_types import EventLevel  # type: ignore[no-redef]
-from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
+from prefect_dbt.core._executor import (
+    DbtCoreExecutor,
+    DbtExecutor,
+    ExecutionResult,
+    _AdapterPool,
+)
 from prefect_dbt.core._manifest import DbtNode
+
+from prefect import task
+from prefect._internal.concurrency.cancellation import CancelledError
 
 # =============================================================================
 # Helpers & Fixtures
@@ -1407,6 +1420,47 @@ class TestAdapterPool:
         assert (1, 100) not in conn_mgr.thread_connections
         assert conn_mgr.thread_connections[(1, 999)] is old_conn
 
+    def test_cancellation_does_not_transplant_live_worker_connection(self):
+        pool = _AdapterPool()
+        pool.activate()
+        manager = MagicMock(spec=SQLConnectionManager)
+        manager.lock = threading.RLock()
+        manager.get_thread_identifier = BaseConnectionManager.get_thread_identifier
+        manager.get_if_exists = lambda: BaseConnectionManager.get_if_exists(manager)
+        manager.thread_connections = {}
+        connection = MagicMock()
+        connection.state = "open"
+        connection.name = "slow_model"
+        ready = threading.Event()
+        release = threading.Event()
+        owner_keys = []
+
+        def worker():
+            key = manager.get_thread_identifier()
+            owner_keys.append(key)
+            manager.thread_connections[key] = connection
+            ready.set()
+            release.wait()
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        try:
+            assert ready.wait(5)
+            # SQL cancellation excludes the calling thread's connection. It
+            # must not mistake a live worker's connection for its own.
+            SQLConnectionManager.cancel_open(manager)
+            manager.cancel.assert_called_once_with(connection)
+            assert manager.thread_connections == {owner_keys[0]: connection}
+        finally:
+            release.set()
+            thread.join(5)
+
+        # Once its owner exits, the same connection is eligible for reuse.
+        assert manager.get_if_exists() is connection
+        assert manager.thread_connections == {
+            manager.get_thread_identifier(): connection
+        }
+
     def test_get_if_exists_skips_non_open_connections(self):
         """Patched get_if_exists only transplants connections with state='open'."""
         from dbt.adapters.base.connections import BaseConnectionManager
@@ -1556,3 +1610,63 @@ class TestAdapterPoolEdgeCases:
         _adapter_pool.activate()
         _adapter_pool.revert()
         _adapter_pool._cleanup()  # should not raise
+
+
+@pytest.mark.parametrize("command", ["deps", "parse"])
+def test_manifest_setup_timeout_stops_before_retry(command, tmp_path, monkeypatch):
+    finished = threading.Event()
+    attempts = 0
+    manifest = tmp_path / "manifest.json"
+
+    def invoke(args):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            try:
+                while True:
+                    time.sleep(0.01)
+            except BaseException as exc:
+                return dbtRunnerResult(success=False, exception=exc)
+            finally:
+                finished.set()
+        assert finished.is_set()
+        manifest.write_text("{}")
+        return dbtRunnerResult(success=True)
+
+    runner = MagicMock()
+    runner.invoke.side_effect = invoke
+    monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", lambda: runner)
+    executor = DbtCoreExecutor(_make_settings(project_dir=tmp_path))
+
+    @task(timeout_seconds=0.5, retries=1, retry_delay_seconds=0)
+    def setup():
+        if command == "deps":
+            executor.run_deps()
+        else:
+            executor._run_parse(manifest)
+
+    # Check the single-attempt state as well as retry ordering: dbt used to
+    # turn cancellation into RuntimeError, losing TimedOut semantics.
+    state = setup.with_options(retries=0)(return_state=True)
+    assert state.name == "TimedOut"
+    attempts = 0
+    finished.clear()
+    assert setup(return_state=True).is_completed()
+    assert attempts == 2
+
+
+@pytest.mark.parametrize("command", ["deps", "parse", "run"])
+def test_executor_propagates_returned_cancellation(command, monkeypatch, tmp_path):
+    error = CancelledError()
+    runner = MagicMock()
+    runner.invoke.return_value = dbtRunnerResult(success=False, exception=error)
+    monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", lambda **kwargs: runner)
+    executor = DbtCoreExecutor(_make_settings(project_dir=tmp_path))
+    with pytest.raises(CancelledError) as raised:
+        if command == "deps":
+            executor.run_deps()
+        elif command == "parse":
+            executor._run_parse(tmp_path / "manifest.json")
+        else:
+            executor._invoke("run", [], [])
+    assert raised.value is error
