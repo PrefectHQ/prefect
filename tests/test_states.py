@@ -286,6 +286,12 @@ class TestReturnValueToState:
         assert result_state.message == "2/3 states failed."
         assert result_state.is_failed()
 
+    async def test_return_value_to_state_with_cyclic_container(self, store):
+        items: list = []
+        items.append(items)
+        result_state = await return_value_to_state(items, store)
+        assert result_state.is_completed()
+
     async def test_nested_failed_state_with_empty_sibling(self, store):
         states = [[Failed(message="bye")], []]
         result_state = await return_value_to_state(states, store)
@@ -716,6 +722,12 @@ class TestReturnValueToStateSync:
         assert result_state.result(raise_on_failure=False) == states
         assert result_state.message == "2/3 states failed."
         assert result_state.is_failed()
+
+    def test_return_value_to_state_with_cyclic_container(self, store):
+        items: list = []
+        items.append(items)
+        result_state = return_value_to_state_sync(items, store)
+        assert result_state.is_completed()
 
     def test_nested_failed_state_with_empty_sibling(self, store):
         states = [[Failed(message="bye")], []]

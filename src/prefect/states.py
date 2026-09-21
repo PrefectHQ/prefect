@@ -676,21 +676,28 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
         return False
 
 
-def _collect_nested_states(obj: Any) -> list[State] | None:
+def _collect_nested_states(
+    obj: Any, *, _seen: set[int] | None = None
+) -> list[State] | None:
     """
     Flatten a possibly nested `set`, `list`, or `tuple` of states.
 
     Returns `None` if `obj` is not a supported container or if any leaf is not
     a state. Empty nested containers contribute no states.
+    Returns `None` for containers that contain a reference cycle.
     """
     if isinstance(obj, BaseAnnotation) or not isinstance(obj, (list, set, tuple)):
         return None
+    seen = _seen if _seen is not None else set()
+    if id(obj) in seen:
+        return None
+    seen.add(id(obj))
     states: list[State] = []
     for item in obj:
         if isinstance(item, State):
             states.append(item)
         else:
-            nested = _collect_nested_states(item)
+            nested = _collect_nested_states(item, _seen=seen)
             if nested is None:
                 return None
             states.extend(nested)
