@@ -533,6 +533,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         )
 
         bundle_key = str(uuid.uuid4())
+        submission_dir = Path(self._tmp_dir) / bundle_key
         upload_command = None
         upload_step = None
         flow_launcher = getattr(flow, "launcher", None)
@@ -564,7 +565,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     *existing_volumes,
                     *job_variable_volumes,
                     # This is a temporary volume for the bundle
-                    f"{self._tmp_dir}:/tmp/",
+                    f"{submission_dir}:/tmp/",
                 ],
             }
         else:
@@ -647,20 +648,16 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         bundle = creation_result["bundle"]
         zip_path = creation_result["zip_path"]
         files_key = bundle.get("files_key")
-        sidecar_dest: Path | None = None
-
         try:
-            await (
-                anyio.Path(self._tmp_dir)
-                .joinpath(bundle_key)
-                .write_bytes(json.dumps(bundle).encode("utf-8"))
+            # Each submission owns its staging directory even when included files
+            # have the same content-addressed storage key.
+            submission_dir.mkdir()
+            await anyio.Path(submission_dir / bundle_key).write_bytes(
+                json.dumps(bundle).encode("utf-8")
             )
 
-            # Place the sidecar zip next to the bundle under its storage key so that
-            # it is either mounted into the container alongside the bundle or
-            # uploaded to the configured bundle storage.
             if zip_path and files_key:
-                sidecar_dest = Path(self._tmp_dir) / files_key
+                sidecar_dest = submission_dir / files_key
                 sidecar_dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(zip_path, sidecar_dest)
 
@@ -670,10 +667,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     logger.debug(
                         "Uploading execution bundle with command: %s", full_command
                     )
-                    await anyio.run_process(
-                        full_command,
-                        cwd=self._tmp_dir,
-                    )
+                    await anyio.run_process(full_command, cwd=submission_dir)
 
                     if zip_path and files_key and upload_step is not None:
                         sidecar_command = convert_step_to_command(
@@ -682,24 +676,10 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         logger.debug(
                             "Uploading sidecar zip with command: %s", sidecar_command
                         )
-                        await anyio.run_process(
-                            sidecar_command,
-                            cwd=self._tmp_dir,
-                        )
+                        await anyio.run_process(sidecar_command, cwd=submission_dir)
                 except subprocess.CalledProcessError as e:
                     raise RuntimeError(e.stderr.decode("utf-8")) from e
-        finally:
-            if zip_path:
-                try:
-                    zip_path.unlink(missing_ok=True)
-                    if zip_path.parent.name.startswith("prefect-zip-"):
-                        shutil.rmtree(zip_path.parent, ignore_errors=True)
-                except OSError as cleanup_error:
-                    logger.debug("Failed to clean up sidecar zip: %s", cleanup_error)
 
-        logger.debug("Successfully uploaded execution bundle")
-
-        try:
             result = await self.run(flow_run=flow_run, configuration=configuration)
 
             if result.status_code != 0:
@@ -711,17 +691,22 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     ),
                 )
         except Exception as exc:
-            # This flow run was being submitted and did not start successfully
             logger.exception(
                 f"Failed to submit flow run '{flow_run.id}' to infrastructure."
             )
             message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
             await self._propose_crashed_state(flow_run, message)
         finally:
-            # The container no longer needs the mounted sidecar zip, and the worker
-            # temporary directory outlives this run.
-            if sidecar_dest:
-                sidecar_dest.unlink(missing_ok=True)
+            # Uploads and container execution have finished; no other submission
+            # uses this directory.
+            shutil.rmtree(submission_dir, ignore_errors=True)
+            if zip_path:
+                try:
+                    zip_path.unlink(missing_ok=True)
+                    if zip_path.parent.name.startswith("prefect-zip-"):
+                        shutil.rmtree(zip_path.parent, ignore_errors=True)
+                except OSError as cleanup_error:
+                    logger.debug("Failed to clean up sidecar zip: %s", cleanup_error)
 
     def _get_client(self):
         """Returns a docker client."""
