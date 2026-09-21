@@ -20,6 +20,7 @@ prefect/
 ├── Dockerfile                       # Production container image
 ├── docs/                            # Mintlify documentation (see docs/AGENTS.md)
 ├── examples/                        # Example flows (auto-published to docs)
+├── formal/                          # Executable formal models (see formal/tla/AGENTS.md)
 ├── integration-tests/               # End-to-end integration tests (require running server)
 ├── justfile                         # Task runner (just <command>)
 ├── load_testing/                    # Load/performance testing
@@ -133,6 +134,13 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 - Run affected tests after changes: `uv run pytest tests/module/`
 - Tests require deterministic behavior
 - Mock external dependencies
+
+## Formal Protocol Models
+
+- Use TLA+ selectively for bounded concurrent or distributed protocols whose correctness depends on interleavings, retries, duplication, time, or ownership. Prefer ordinary tests for local or sequential behavior.
+- Treat each `formal/tla/<protocol>/README.md` as the authority for its scope, configurations, action-to-code mapping, owner, and review triggers.
+- Before changing mapped behavior, review the model and its deterministic regressions. Update them when the abstraction changes; otherwise state in the PR why it remains valid.
+- A green model validates only its documented abstraction, not Prefect's implementation. Implementation evidence comes from mapped behavior and contract tests.
 
 ## Working on Issues
 

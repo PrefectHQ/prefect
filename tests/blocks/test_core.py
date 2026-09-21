@@ -1,9 +1,10 @@
 import abc
+import collections.abc
 import json
 import sys
 import warnings
 from textwrap import dedent
-from typing import Any, Dict, List, Tuple, Type, Union
+from typing import Any, Dict, List, Literal, Tuple, Type, Union
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
@@ -17,12 +18,12 @@ from pydantic_extra_types.semantic_version import SemanticVersion
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.blocks.system import Secret
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION, BlockDocument
-from prefect.testing.utilities import assert_blocks_equal
+from prefect.testing.utilities import assert_blocks_equal, prefect_test_harness
 from prefect.types import SecretDict
 from prefect.utilities.dispatch import lookup_type, register_type
 
@@ -928,6 +929,45 @@ class TestAPICompatibility:
         assert schema_no_alias["properties"]["beta"]["position"] == 1
         assert schema_no_alias["properties"]["gamma"]["position"] == 2
 
+    def test_block_schema_references_for_abstract_container_fields(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14282
+
+        Fields annotated with abstract container types (e.g.
+        `collections.abc.Sequence[Child]`) must produce `block_schema_references`
+        like `list[Child]` does, while non-container generics like `Literal`
+        and `type` must not.
+        """
+
+        class Child(Block):
+            x: str
+
+        class ListParent(Block):
+            children: list[Child]
+
+        class SequenceParent(Block):
+            children: collections.abc.Sequence[Child]
+            generated: collections.abc.Generator[Child, None, int]
+            return_position: collections.abc.Generator[int, None, Child]
+            send_secret: collections.abc.Generator[int, SecretStr, None]
+            kind: Literal["a", "b"] = "a"
+            child_type: type[Child]
+
+        expected_reference = {
+            "block_type_slug": "child",
+            "block_schema_checksum": Child._calculate_schema_checksum(),
+        }
+
+        list_refs = ListParent.model_json_schema()["block_schema_references"]
+        assert list_refs["children"] == expected_reference
+
+        sequence_schema = SequenceParent.model_json_schema()
+        assert sequence_schema["block_schema_references"] == {
+            "children": expected_reference,
+            "generated": expected_reference,
+        }
+        assert sequence_schema["secret_fields"] == []
+
     async def test_block_load(
         self, test_block, block_document, in_memory_prefect_client
     ):
@@ -1579,6 +1619,65 @@ class TestRegisterBlockTypeAndSchema:
             checksum=DictCollection._calculate_schema_checksum()
         )
         assert dict_collection_block_type is not None
+
+    async def test_register_nested_block_sequence(self, prefect_client: PrefectClient):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14282
+        """
+
+        class A(Block):
+            a: str
+
+        class SequenceCollection(Block):
+            a_sequence: collections.abc.Sequence[A]
+
+        await SequenceCollection.register_type_and_schema()
+
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
+        assert a_block_type is not None
+        sequence_collection_block_type = await prefect_client.read_block_type_by_slug(
+            slug="sequencecollection"
+        )
+        assert sequence_collection_block_type is not None
+
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        sequence_collection_block_schema = (
+            await prefect_client.read_block_schema_by_checksum(
+                checksum=SequenceCollection._calculate_schema_checksum()
+            )
+        )
+        assert sequence_collection_block_schema is not None
+
+    def test_register_nested_block_sequence_sync(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14282
+        exercising the synchronous registration path.
+        """
+        with prefect_test_harness():
+
+            class A(Block):
+                a: str
+
+            class SequenceCollection(Block):
+                a_sequence: collections.abc.Sequence[A]
+
+            SequenceCollection.register_type_and_schema(_sync=True)
+
+            with get_client(sync_client=True) as client:
+                assert client.read_block_type_by_slug(slug="a") is not None
+                assert (
+                    client.read_block_schema_by_checksum(
+                        checksum=A._calculate_schema_checksum()
+                    )
+                    is not None
+                )
+                assert (
+                    client.read_block_type_by_slug(slug="sequencecollection")
+                    is not None
+                )
 
     async def test_register_nested_block_type_nested(
         self, prefect_client: PrefectClient

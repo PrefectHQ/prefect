@@ -3211,6 +3211,26 @@ def test_prefect_custom_sources_satisfy_pydantic_warning_check() -> None:
     assert not caught
 
 
+class TestServerDocketUrl:
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "memory://",
+            "redis://redis-host:6379/0",
+            "rediss://redis-host:6379/0",
+            "redis+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster/0",
+            "rediss+sentinel://sentinel-a:26379/mymaster",
+        ],
+    )
+    def test_docket_url_accepts_supported_schemes(self, url: str):
+        # The URL is parsed by Docket, not prefect, so the setting must accept
+        # every documented scheme unchanged — in particular the redis+sentinel://
+        # schemes that pydocket>=0.22.0 resolves through Sentinel (see
+        # docs/v3/advanced/self-hosted.mdx).
+        settings = Settings(server={"docket": {"url": url}})
+        assert settings.server.docket.url == url
+
+
 class TestWorkerDebugMode:
     def test_worker_debug_mode_defaults_to_false(self):
         settings = Settings()
@@ -3242,3 +3262,41 @@ class TestWorkerDebugMode:
         with temporary_settings({PREFECT_DEBUG_MODE: True}):
             env = get_current_settings().to_environment_variables(exclude_unset=True)
             assert "PREFECT_DEBUG_MODE" in env
+
+
+class TestHomeDependentDefaults:
+    def test_copy_with_update_recomputes_home_dependent_defaults(
+        self, tmp_path: Path
+    ) -> None:
+        settings = Settings(home=tmp_path / "old")
+        new_home = tmp_path / "new"
+
+        updated = settings.copy_with_update(updates={PREFECT_HOME: new_home})
+
+        assert updated.profiles_path == new_home / "profiles.toml"
+        assert updated.results.local_storage_path == new_home / "storage"
+        assert updated.logging.config_path == new_home / "logging.yml"
+        assert updated.server.memo_store_path == new_home / "memo_store.toml"
+
+    def test_local_storage_path_defaults_to_prefect_home_storage(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        custom_home = tmp_path / "custom_prefect_home"
+        monkeypatch.setenv("PREFECT_HOME", str(custom_home))
+        settings = Settings()
+        assert settings.home == custom_home
+        assert settings.results.local_storage_path == custom_home / "storage"
+        assert settings.profiles_path == custom_home / "profiles.toml"
+        assert settings.server.memo_store_path == custom_home / "memo_store.toml"
+        assert settings.logging.config_path == custom_home / "logging.yml"
+
+    def test_local_storage_path_explicit_override(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        custom_home = tmp_path / "custom_prefect_home"
+        override_path = tmp_path / "override_storage"
+        monkeypatch.setenv("PREFECT_HOME", str(custom_home))
+        monkeypatch.setenv("PREFECT_RESULTS_LOCAL_STORAGE_PATH", str(override_path))
+        settings = Settings()
+        assert settings.home == custom_home
+        assert settings.results.local_storage_path == override_path

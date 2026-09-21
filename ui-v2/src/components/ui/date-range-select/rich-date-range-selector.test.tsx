@@ -152,6 +152,27 @@ describe("RichDateRangeSelector", () => {
 		expect(screen.queryByText("Select a time span")).not.toBeInTheDocument();
 	});
 
+	it.each(["Date range", "Around a time"])(
+		"keeps the current value when cancelling %s",
+		async (mode) => {
+			const onChange = vi.fn();
+			render(
+				<Controlled
+					initialValue={{ type: "span", seconds: -604800 }}
+					onExternalChange={onChange}
+				/>,
+			);
+			await user.click(screen.getByRole("button", { name: /Past 7 days/i }));
+			await user.click(await screen.findByRole("button", { name: mode }));
+			await user.click(screen.getByRole("button", { name: /^Cancel$/ }));
+
+			expect(onChange).not.toHaveBeenCalled();
+			expect(
+				screen.getByRole("button", { name: /Past 7 days/i }),
+			).toBeVisible();
+		},
+	);
+
 	it("Now buttons set the respective endpoint to the current minute", async () => {
 		let value: DateRangeSelectValue = null;
 		const onChange = vi.fn((v: DateRangeSelectValue) => {

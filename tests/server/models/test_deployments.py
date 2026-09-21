@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import sqlite3
 from typing import List
 from uuid import uuid4
 
@@ -2137,6 +2138,54 @@ class TestMarkDeploymentsReady:
                     ),
                     timeout=0.5,
                 )
+
+    async def test_sqlite_write_lock_is_held_before_reading(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        # A concurrent connection committing a write between our read and
+        # our update must not fail the update with "database is locked".
+        # SQLite cannot upgrade a deferred (read) transaction to a write
+        # transaction once another writer has committed, so the transaction
+        # must start with the write lock (`BEGIN IMMEDIATE`) held.
+        db = provide_database_interface()
+        if db.dialect.name != "sqlite":
+            pytest.skip("Transaction begin mode is SQLite-only")
+
+        engine = await db.engine()
+        db_path = sa.make_url(db.database_config.connection_url).database
+        assert db_path
+        concurrent_writer_outcomes: list[str] = []
+
+        def commit_concurrent_write(conn, cursor, statement, *args, **kwargs):
+            if "UPDATE deployment SET" not in statement:
+                return
+            with sqlite3.connect(db_path, timeout=0.1) as writer:
+                try:
+                    writer.execute(
+                        "UPDATE deployment SET description = 'concurrent' WHERE id = ?",
+                        (str(deployment.id),),
+                    )
+                    concurrent_writer_outcomes.append("committed")
+                except sqlite3.OperationalError:
+                    concurrent_writer_outcomes.append("blocked")
+
+        sa.event.listen(
+            engine.sync_engine, "before_cursor_execute", commit_concurrent_write
+        )
+        try:
+            await models.deployments.mark_deployments_ready(
+                db=db, deployment_ids=[deployment.id]
+            )
+        finally:
+            sa.event.remove(
+                engine.sync_engine, "before_cursor_execute", commit_concurrent_write
+            )
+
+        assert concurrent_writer_outcomes == ["blocked"]
+        await session.refresh(deployment)
+        assert deployment.status == DeploymentStatus.READY
 
 
 class TestMarkDeploymentsNotReady:
