@@ -430,13 +430,23 @@ class WatcherThreadCancelScope(CancelScope):
         # handler or the scope's own lock) can leave that lock held forever. Once
         # joined, any injected exception has already been raised and the remainder
         # of this method runs without interruption.
+        #
+        # An injection (from the enforcer or an external `cancel()`) can also land
+        # inside the stop itself, so it is retried from a `finally` to guarantee the
+        # enforcer is never leaked past the scope.
         try:
-            self._event.set()
-            if self._enforcer_thread:
-                self._enforcer_thread.join()
+            self._stop_enforcer()
         finally:
-            retval = super().__exit__(*_)
+            try:
+                self._stop_enforcer()
+            finally:
+                retval = super().__exit__(*_)
         return retval
+
+    def _stop_enforcer(self) -> None:
+        self._event.set()
+        if self._enforcer_thread:
+            self._enforcer_thread.join()
 
     def _send_cancelled_error(self):
         """

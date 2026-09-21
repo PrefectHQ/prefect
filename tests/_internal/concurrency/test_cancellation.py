@@ -198,6 +198,39 @@ def test_watcher_thread_cancel_scope_joins_enforcer_before_teardown(
     assert scope.completed()
 
 
+def test_watcher_thread_cancel_scope_enforcer_exits_when_stop_interrupted(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    A cancellation injected while the enforcer is being released (before the event is
+    set) must not leak the enforcer; it would otherwise fire its timeout into whatever
+    the supervised thread is doing next.
+    """
+    scope = WatcherThreadCancelScope(timeout=30)
+    original_set = threading.Event.set
+    interrupted = False
+
+    def interrupting_set(event: threading.Event) -> None:
+        nonlocal interrupted
+        if event is scope._event and not interrupted:
+            interrupted = True
+            raise CancelledError()
+        original_set(event)
+
+    monkeypatch.setattr(threading.Event, "set", interrupting_set)
+
+    with pytest.raises(CancelledError):
+        with scope:
+            pass
+
+    try:
+        assert interrupted
+        assert not scope._enforcer_thread.is_alive()
+    finally:
+        original_set(scope._event)
+        scope._enforcer_thread.join()
+
+
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_manual_in_main_thread():
     completed = False
