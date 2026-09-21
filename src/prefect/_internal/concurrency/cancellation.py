@@ -424,18 +424,18 @@ class WatcherThreadCancelScope(CancelScope):
         return self
 
     def __exit__(self, *_: Any) -> Optional[bool]:
-        # The enforcer thread can inject a cancellation exception at any instruction in
-        # this frame, so the event must be set from a `finally` to guarantee the
-        # enforcer is always released.
+        # Release and join the enforcer before anything else. Until it has exited it
+        # may inject a cancellation exception at any instruction in this thread, and
+        # an exception landing while a lock is being acquired (e.g. inside a logging
+        # handler or the scope's own lock) can leave that lock held forever. Once
+        # joined, any injected exception has already been raised and the remainder
+        # of this method runs without interruption.
         try:
-            retval = super().__exit__(*_)
-        finally:
             self._event.set()
             if self._enforcer_thread:
-                logger.debug(
-                    "%r joining enforcer thread %r", self, self._enforcer_thread
-                )
                 self._enforcer_thread.join()
+        finally:
+            retval = super().__exit__(*_)
         return retval
 
     def _send_cancelled_error(self):

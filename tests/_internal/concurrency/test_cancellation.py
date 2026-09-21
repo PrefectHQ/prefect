@@ -172,6 +172,32 @@ def test_watcher_thread_cancel_scope_enforcer_exits_when_teardown_interrupted(
         scope._enforcer_thread.join()
 
 
+def test_watcher_thread_cancel_scope_joins_enforcer_before_teardown(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    The enforcer must be stopped before the scope takes any locks or logs during
+    teardown. An exception injected while a lock is being acquired leaves that lock
+    held forever, deadlocking every thread that later logs or inspects the scope.
+    """
+    enforcer_alive_at_teardown: list[bool] = []
+    original_exit = CancelScope.__exit__
+
+    def recording_exit(self: WatcherThreadCancelScope, *exc_info: object) -> None:
+        assert self._enforcer_thread is not None
+        enforcer_alive_at_teardown.append(self._enforcer_thread.is_alive())
+        return original_exit(self, *exc_info)
+
+    monkeypatch.setattr(CancelScope, "__exit__", recording_exit)
+
+    scope = WatcherThreadCancelScope(timeout=30)
+    with scope:
+        pass
+
+    assert enforcer_alive_at_teardown == [False]
+    assert scope.completed()
+
+
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_manual_in_main_thread():
     completed = False
