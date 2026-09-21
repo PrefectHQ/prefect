@@ -89,7 +89,8 @@ jobs:
           uv run pyright --ignoreexternal --verifytypes prefect
 
       - name: Run pyright check
-        run: >-
-          uv run pyright -p .github/pyrightconfig-ci.json --level error
+        run: |
+          uv run pyright -p pyrightconfig-ci.json --level error --outputjson > pyright-report.json && status=0 || status=$?
+          uv run python scripts/check_pyright_report.py pyright-report.json --pyright-status "$status"
 
 

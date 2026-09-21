@@ -138,7 +138,10 @@ describe("IntervalScheduleForm", () => {
 			wrapper: createWrapper(),
 		});
 
-		const fifteenth = set(new Date(), { date: 15 });
+		// react-day-picker prefixes today's button label with "Today, ", so
+		// pick a day in the current month that can never be today.
+		const today = new Date();
+		const otherDay = set(today, { date: today.getDate() === 15 ? 14 : 15 });
 
 		await user.click(screen.getByLabelText(/anchor date/i));
 		fireEvent.change(screen.getByLabelText("Time"), {
@@ -146,12 +149,12 @@ describe("IntervalScheduleForm", () => {
 		});
 		await user.click(
 			screen.getByRole("button", {
-				name: format(fifteenth, "EEEE, MMMM do, yyyy"),
+				name: format(otherDay, "EEEE, MMMM do, yyyy"),
 			}),
 		);
 
 		expect(screen.getByLabelText(/anchor date/i)).toHaveTextContent(
-			`${format(fifteenth, "MMM do, yyyy")} at 02:35 PM`,
+			`${format(otherDay, "MMM do, yyyy")} at 02:35 PM`,
 		);
 	});
 

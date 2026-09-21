@@ -165,7 +165,7 @@ async def test_shell_run_command_override_shell(
         )
 
     await test_flow()
-    assert open_process_mock.call_args_list[0][0][0][0] == shell or "bash"
+    assert open_process_mock.call_args_list[0][0][0][0] == (shell or "bash")
 
 
 class TestShellOperation:
@@ -185,7 +185,6 @@ class TestShellOperation:
         with pytest.raises(RuntimeError, match="return code"):
             await self.execute(op, method)
 
-    @pytest.mark.skipif(sys.version >= "3.12", reason="Fails on Python 3.12")
     @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_output(
         self, prefect_task_runs_caplog: pytest.LogCaptureFixture, method: str

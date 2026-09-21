@@ -11,6 +11,7 @@ import {
 	type PrefectSchemaObject,
 	useSchemaForm,
 } from "@/components/schemas";
+import { removePrefectKindValues } from "@/components/schemas/utilities/removePrefectKindValues";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,11 +39,14 @@ export const BlockDocumentEditPage = ({
 	const handleSubmit = async (event: FormEvent) => {
 		event.preventDefault();
 		try {
-			await validateForm({ schema: values });
+			const validation = await validateForm({ schema: values });
+			if (validation && !validation.valid) {
+				return;
+			}
 			updateBlockDocument(
 				{
 					id: blockDocument.id,
-					data: values,
+					data: removePrefectKindValues(values),
 					merge_existing_data: false,
 				},
 				{

@@ -19,7 +19,11 @@ from prefect.server.database import (
     provide_database_interface,
 )
 from prefect.server.database.configurations import ENGINES, TRACKER
-from prefect.server.models.block_registration import run_block_auto_registration
+from prefect.server.models.block_registration import (
+    register_block_schema,
+    register_block_type,
+    run_block_auto_registration,
+)
 from prefect.server.models.concurrency_limits_v2 import create_concurrency_limit
 from prefect.server.orchestration.rules import (
     FlowOrchestrationContext,
@@ -414,10 +418,30 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
-async def storage_document_id(prefect_client, tmpdir):
-    return await LocalFileSystem(basepath=str(tmpdir)).save(
-        name=f"local-test-{uuid.uuid4()}", client=prefect_client
+async def storage_document_id(session: AsyncSession, tmpdir):
+    # Created directly against the session so that the block document and the
+    # deployments that reference it are written by the same connection; saving
+    # through the API instead makes the write race with the database clearing
+    # and locking that happens in other test processes.
+    block = LocalFileSystem(basepath=str(tmpdir))
+    block_type_id = await register_block_type(
+        session=session, block_type=block._to_block_type()
     )
+    block_schema_id = await register_block_schema(
+        session=session,
+        block_schema=block._to_block_schema(block_type_id=block_type_id),
+    )
+    block_document = await models.block_documents.create_block_document(
+        session=session,
+        block_document=schemas.actions.BlockDocumentCreate(
+            name=f"local-test-{uuid.uuid4()}",
+            data=block.model_dump(mode="json"),
+            block_type_id=block_type_id,
+            block_schema_id=block_schema_id,
+        ),
+    )
+    await session.commit()
+    return block_document.id
 
 
 @pytest.fixture

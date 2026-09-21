@@ -8,6 +8,7 @@ import type {
 import { useCallback } from "react";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import type { components } from "@/api/prefect";
+import { DeploymentTagsSelect } from "@/components/deployments/deployment-tags-select";
 import { useDeleteDeploymentConfirmationDialog } from "@/components/deployments/use-delete-deployment-confirmation-dialog";
 import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,6 @@ import {
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
-import { TagsInput } from "@/components/ui/tags-input";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { pluralize } from "@/utils";
@@ -189,10 +189,8 @@ export const DeploymentsDataTable = ({
 		[onColumnFiltersChange, columnFilters],
 	);
 
-	const handleTagsSearchChange: React.ChangeEventHandler<HTMLInputElement> &
-		((tags: string[]) => void) = useCallback(
-		(e: string[] | React.ChangeEvent<HTMLInputElement>) => {
-			const tags = Array.isArray(e) ? e : e.target.value;
+	const handleTagsSearchChange = useCallback(
+		(tags: string[]) => {
 			const filters = columnFilters.filter((filter) => filter.id !== "tags");
 			onColumnFiltersChange(
 				tags.length ? [...filters, { id: "tags", value: tags }] : filters,
@@ -262,8 +260,7 @@ export const DeploymentsDataTable = ({
 					/>
 				</div>
 				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
-					<TagsInput
-						placeholder="Filter by tags"
+					<DeploymentTagsSelect
 						onChange={handleTagsSearchChange}
 						value={tagsSearchValue}
 					/>

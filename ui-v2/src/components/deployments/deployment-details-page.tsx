@@ -96,7 +96,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 				</div>
 			</div>
 			<DeploymentScheduleDialog
-				deploymentId={id}
+				deployment={deployment}
 				open={showScheduleDialog.open}
 				onOpenChange={handleOpenChange}
 				scheduleToEdit={scheduleToEdit}

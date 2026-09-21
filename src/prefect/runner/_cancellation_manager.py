@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
     from prefect.runner._control_channel import ControlChannel
     from prefect.runner._event_emitter import EventEmitter
-    from prefect.runner._hook_runner import HookRunner
+    from prefect.runner._hook_runner import FlowRunHookRunner
     from prefect.runner._process_manager import ProcessManager
     from prefect.runner._state_proposer import StateProposer
 
@@ -42,7 +42,7 @@ class CancellationManager:
         self,
         *,
         process_manager: ProcessManager,
-        hook_runner: HookRunner,
+        hook_runner: FlowRunHookRunner,
         state_proposer: StateProposer,
         event_emitter: EventEmitter,
         client: PrefectClient,

@@ -129,6 +129,23 @@ def flow_run_deployment_id_index_migration() -> ModuleType:
     return module
 
 
+@pytest.fixture
+def event_resources_occurred_index_repair_migration() -> ModuleType:
+    path = (
+        Path(__file__).parents[3]
+        / "src/prefect/server/database/_migrations/versions/postgresql"
+        / "2026_09_04_000000_c8d5f2a71b3e_rebuild_invalid_event_resources_occurred_index.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "test_event_resources_occurred_index_repair_migration", path
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 @pytest.mark.parametrize("migration_timeout", [None, 60.0])
 async def test_postgres_migration_engine_uses_migration_timeout(
     migration_environment: ModuleType,
@@ -484,6 +501,183 @@ def test_flow_run_deployment_id_index_migration_supports_postgres_dry_run(
         "ix_flow_run__deployment_id ON flow_run (deployment_id)"
         in " ".join(output.split())
     )
+
+
+@pytest.mark.parametrize("index_is_valid", [True, False, None])
+@pytest.mark.parametrize("rebuilt_index_is_valid", [True, False])
+def test_event_resources_occurred_index_repair_migration_handles_index_state(
+    event_resources_occurred_index_repair_migration: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    index_is_valid: bool | None,
+    rebuilt_index_is_valid: bool,
+):
+    catalog_queries: list[str] = []
+    statements: list[str] = []
+    qualified_index = '"public"."ix_event_resources__occurred"'
+    query_results = iter(
+        [
+            None if index_is_valid is None else (qualified_index, index_is_valid),
+            (qualified_index, rebuilt_index_is_valid),
+        ]
+    )
+
+    class Result:
+        def first(self) -> tuple[str, bool] | None:
+            return next(query_results)
+
+    class Bind:
+        def exec_driver_sql(self, statement: str) -> Result:
+            catalog_queries.append(" ".join(statement.split()))
+            return Result()
+
+    @contextlib.contextmanager
+    def autocommit_block():
+        yield
+
+    operation = SimpleNamespace(
+        get_context=lambda: SimpleNamespace(
+            as_sql=False,
+            autocommit_block=autocommit_block,
+        ),
+        get_bind=lambda: Bind(),
+        execute=lambda statement: statements.append(" ".join(statement.split())),
+    )
+    monkeypatch.setattr(
+        event_resources_occurred_index_repair_migration, "op", operation
+    )
+
+    if rebuilt_index_is_valid:
+        event_resources_occurred_index_repair_migration.upgrade()
+    else:
+        with pytest.raises(
+            RuntimeError,
+            match="ix_event_resources__occurred is missing or invalid after creation",
+        ):
+            event_resources_occurred_index_repair_migration.upgrade()
+
+    catalog_query = (
+        "SELECT format('%I.%I', n.nspname, c.relname), i.indisvalid "
+        "FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid "
+        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE i.indrelid = to_regclass('event_resources') "
+        "AND c.relname = 'ix_event_resources__occurred'"
+    )
+    assert catalog_queries == [catalog_query, catalog_query]
+    create_statement = (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_event_resources__occurred ON event_resources (occurred)"
+    )
+    expected_statements: list[str] = []
+    if index_is_valid is None:
+        expected_statements.append(create_statement)
+    elif not index_is_valid:
+        expected_statements.append(f"REINDEX INDEX CONCURRENTLY {qualified_index}")
+    assert statements == expected_statements
+
+
+def test_event_resources_occurred_index_repair_migration_rejects_postgres_dry_run(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        dependencies,
+        "MODELS_DEPENDENCIES",
+        {
+            "database_config": None,
+            "query_components": None,
+            "orm": None,
+            "interface_class": None,
+        },
+    )
+    monkeypatch.setattr(DBSingleton, "_instances", {})
+
+    with pytest.raises(
+        RuntimeError,
+        match="c8d5f2a71b3e requires an online PostgreSQL migration",
+    ):
+        with temporary_settings(
+            {
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: (
+                    "postgresql+asyncpg://localhost/prefect"
+                )
+            }
+        ):
+            alembic_upgrade("9e9dadc36797:c8d5f2a71b3e", dry_run=True)
+
+
+@pytest.mark.timeout(30)
+async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
+    db: PrefectDBInterface,
+    database_engine: AsyncEngine,
+):
+    if db.dialect.name != "postgresql":
+        pytest.skip(reason="invalid concurrent indexes are PostgreSQL-specific")
+
+    builder_engine = create_async_engine(database_engine.url, pool_pre_ping=True)
+    blocker = await database_engine.connect()
+    blocker_transaction = await blocker.begin()
+    try:
+        await run_sync_in_worker_thread(alembic_downgrade, revision="9e9dadc36797")
+        async with builder_engine.connect() as builder:
+            builder = await builder.execution_options(isolation_level="AUTOCOMMIT")
+            await builder.execute(
+                sa.text(
+                    "DROP INDEX CONCURRENTLY IF EXISTS "
+                    "public.ix_event_resources__occurred"
+                )
+            )
+            await blocker.execute(
+                sa.text(
+                    """
+                    INSERT INTO event_resources
+                        (occurred, resource_id, resource_role, resource, event_id)
+                    VALUES
+                        (now(), 'test', 'test', '{}', :event_id)
+                    """
+                ),
+                {"event_id": uuid4()},
+            )
+            await builder.execute(sa.text("SET statement_timeout = '1s'"))
+            with pytest.raises(sa.exc.DBAPIError, match="statement timeout"):
+                await builder.execute(
+                    sa.text(
+                        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+                        "ix_event_resources__occurred "
+                        "ON public.event_resources (occurred)"
+                    )
+                )
+
+        async with database_engine.connect() as connection:
+            assert await connection.scalar(
+                sa.text(
+                    """
+                    SELECT NOT i.indisvalid
+                    FROM pg_index i
+                    WHERE i.indexrelid =
+                        to_regclass('public.ix_event_resources__occurred')
+                    """
+                )
+            )
+
+        await blocker_transaction.rollback()
+        await run_sync_in_worker_thread(alembic_upgrade)
+
+        async with database_engine.connect() as connection:
+            assert await connection.scalar(
+                sa.text(
+                    """
+                    SELECT i.indisvalid
+                    FROM pg_index i
+                    WHERE i.indexrelid =
+                        to_regclass('public.ix_event_resources__occurred')
+                    """
+                )
+            )
+    finally:
+        if blocker_transaction.is_active:
+            await blocker_transaction.rollback()
+        await blocker.close()
+        await builder_engine.dispose()
+        await run_sync_in_worker_thread(alembic_upgrade)
 
 
 @pytest.fixture

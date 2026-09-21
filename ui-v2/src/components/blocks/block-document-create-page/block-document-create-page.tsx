@@ -16,6 +16,7 @@ import {
 	type PrefectSchemaObject,
 	useSchemaForm,
 } from "@/components/schemas";
+import { removePrefectKindValues } from "@/components/schemas/utilities/removePrefectKindValues";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -102,7 +103,7 @@ export const BlockDocumentCreatePage = ({
 					block_schema_id: blockSchema.id,
 					block_type_id: blockType.id,
 					is_anonymous: false,
-					data: values,
+					data: removePrefectKindValues(values),
 					name: zodFormValues.blockName,
 				},
 				{

@@ -48,7 +48,7 @@ class EngineOutcomeReceipt:
     state_name: str | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.disposition, EngineDisposition):
+        if not isinstance(self.disposition, EngineDisposition):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Receipt disposition must be an EngineDisposition")
         state_fields = (self.state_id, self.state_type, self.state_name)
         if self.disposition is EngineDisposition.STATE_REPORTED:

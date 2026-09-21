@@ -308,6 +308,81 @@ describe("SchemaFormInputAnyOf", () => {
 		);
 	});
 
+	test("emits the const value when the user selects a literal branch", async () => {
+		const user = userEvent.setup();
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [
+				{ type: "array", items: { type: "string" } },
+				{ type: "string", const: "bar" },
+				{ type: "null" },
+			],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+		const onValueChange = vi.fn();
+
+		render(
+			<SchemaFormProvider schema={schema} kinds={[]}>
+				<SchemaFormInputAnyOf
+					value={null}
+					property={property}
+					onValueChange={onValueChange}
+					errors={[]}
+				/>
+			</SchemaFormProvider>,
+		);
+
+		await user.click(screen.getByRole("tab", { name: "str" }));
+
+		await waitFor(() => {
+			expect(onValueChange).toHaveBeenLastCalledWith("bar");
+		});
+	});
+
+	test("emits the const value when the user returns to an edited literal branch", async () => {
+		const user = userEvent.setup();
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [{ type: "string", const: "bar" }, { type: "null" }],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+		const onValueChange = vi.fn();
+
+		function ControlledAnyOf() {
+			const [value, setValue] = useState<unknown>("bar");
+
+			return (
+				<SchemaFormInputAnyOf
+					value={value}
+					property={property}
+					onValueChange={(newValue) => {
+						onValueChange(newValue);
+						setValue(newValue);
+					}}
+					errors={[]}
+				/>
+			);
+		}
+
+		render(
+			<SchemaFormProvider schema={schema} kinds={[]}>
+				<ControlledAnyOf />
+			</SchemaFormProvider>,
+		);
+
+		await user.type(screen.getByRole("textbox"), "baz");
+		await user.click(screen.getByRole("tab", { name: "None" }));
+		await user.click(screen.getByRole("tab", { name: "str" }));
+
+		await waitFor(() => {
+			expect(onValueChange).toHaveBeenLastCalledWith("bar");
+		});
+	});
+
 	test("selects the matching branch when a controlled value arrives after mount", async () => {
 		const schema: PrefectSchemaObject = {
 			type: "object",

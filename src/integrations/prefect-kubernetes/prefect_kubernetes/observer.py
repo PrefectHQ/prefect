@@ -7,8 +7,11 @@ import logging
 import sys
 import threading
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from functools import wraps
+from typing import Any, cast
 
 import anyio
 import kopf
@@ -27,14 +30,14 @@ from prefect.events.filters import (
     EventResourceFilter,
 )
 from prefect.events.schemas.events import Resource
-from prefect.exceptions import Abort, ObjectNotFound
+from prefect.exceptions import Abort, ObjectNotFound, Pause
 from prefect.logging.loggers import flow_run_logger
 from prefect.settings import get_current_settings
-from prefect.states import Crashed, InfrastructurePending
+from prefect.states import Crashed, InfrastructurePending, State
 from prefect.types import DateTime
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
-from prefect_kubernetes.diagnostics import InfrastructureDiagnosis, diagnose_k8s_pod
+from prefect_kubernetes.diagnostics import diagnose_k8s_pod
 from prefect_kubernetes.settings import KubernetesSettings
 
 # Cache used to keep track of the last event for a pod. This is used populate the `follows` field
@@ -44,12 +47,221 @@ _last_event_cache: TTLCache[str, Event] = TTLCache(
     maxsize=1000, ttl=60 * 5
 )  # 5 minutes
 
-# Tracks the last diagnosis per pod UID so we don't emit duplicate
-# flow run logs on repeated MODIFIED events.  Stores the full
-# InfrastructureDiagnosis (a frozen dataclass) for equality comparison.
-_last_diagnosis_cache: TTLCache[str, InfrastructureDiagnosis] = TTLCache(
-    maxsize=1000, ttl=60 * 5
-)
+
+@dataclasses.dataclass(slots=True)
+class _PodLifecycleState:
+    """Deduplication state owned by one observed Kubernetes pod."""
+
+    state_check_completed: bool = False
+    diagnosis_key: tuple[str, ...] | None = None
+
+
+@dataclasses.dataclass(slots=True)
+class _PodLifecycleReconciliation:
+    """Snapshot and concurrent observations owned by one reconciliation pass."""
+
+    candidates: frozenset[str]
+    touched_uids: set[str]
+
+
+class _PodLifecycleStates:
+    """Own pod-scoped deduplication state and its lifecycle cleanup."""
+
+    def __init__(self) -> None:
+        self._states: dict[str, _PodLifecycleState] = {}
+        self._reconciliation_touches: dict[object, set[str]] = {}
+
+    def observe(self, uid: str, *, phase: str) -> None:
+        """Apply lifecycle transitions before processing an observed pod event."""
+        for touched_uids in self._reconciliation_touches.values():
+            touched_uids.add(uid)
+
+        state = self._states.get(uid)
+        if state is None:
+            return
+        if phase != "Pending":
+            state.state_check_completed = False
+        self._discard_if_empty(uid, state)
+
+    def clear_diagnosis(self, uid: str) -> None:
+        """Release diagnosis deduplication state after a pod recovers."""
+        state = self._states.get(uid)
+        if state is None:
+            return
+        state.diagnosis_key = None
+        self._discard_if_empty(uid, state)
+
+    def has_completed_state_check(self, uid: str) -> bool:
+        state = self._states.get(uid)
+        return state is not None and state.state_check_completed
+
+    def mark_state_check_completed(self, uid: str) -> None:
+        self._state_for(uid).state_check_completed = True
+
+    def diagnosis_changed(self, uid: str, key: tuple[str, ...]) -> bool:
+        state = self._states.get(uid)
+        return state is None or state.diagnosis_key != key
+
+    def mark_diagnosis_logged(self, uid: str, key: tuple[str, ...]) -> None:
+        self._state_for(uid).diagnosis_key = key
+
+    def release(self, uid: str) -> None:
+        """Release all state owned by a pod that left the observed lifecycle."""
+        self._states.pop(uid, None)
+
+    def clear(self) -> None:
+        """Release all pod state and in-flight reconciliation bookkeeping."""
+        self._reconciliation_touches.clear()
+        self._states.clear()
+
+    @contextmanager
+    def reconciliation(self) -> Iterator[_PodLifecycleReconciliation]:
+        """Protect pods observed while a Kubernetes LIST snapshot is collected."""
+        reconciliation = _PodLifecycleReconciliation(
+            candidates=frozenset(self._states),
+            touched_uids=set(),
+        )
+        if not reconciliation.candidates:
+            yield reconciliation
+            return
+
+        token = object()
+        self._reconciliation_touches[token] = reconciliation.touched_uids
+        try:
+            yield reconciliation
+        finally:
+            self._reconciliation_touches.pop(token, None)
+
+    def release_absent(
+        self,
+        reconciliation: _PodLifecycleReconciliation,
+        live_uids: set[str],
+    ) -> int:
+        """Release candidates absent from a complete, uncontested LIST result."""
+        stale_uids = reconciliation.candidates - live_uids - reconciliation.touched_uids
+        for uid in stale_uids:
+            self.release(uid)
+        return len(stale_uids)
+
+    def _state_for(self, uid: str) -> _PodLifecycleState:
+        return self._states.setdefault(uid, _PodLifecycleState())
+
+    def _discard_if_empty(self, uid: str, state: _PodLifecycleState) -> None:
+        if not state.state_check_completed and state.diagnosis_key is None:
+            self._states.pop(uid, None)
+
+
+_pod_lifecycle_states = _PodLifecycleStates()
+_POD_LIST_PAGE_SIZE = 500
+_POD_LIFECYCLE_RECONCILIATION_INTERVAL_SECONDS = 5 * 60
+
+
+def _pod_label_filters() -> dict[str, Any]:
+    """Return the label filters shared by pod watching and reconciliation."""
+    additional_label_filters = cast(
+        dict[str, str], settings.observer.additional_label_filters
+    )
+    return {
+        "prefect.io/flow-run-id": kopf.PRESENT,
+        **additional_label_filters,
+    }
+
+
+def _pod_label_selector() -> str:
+    """Render the pod observer's label filters for Kubernetes list calls."""
+    return ",".join(
+        key if value is kopf.PRESENT else f"{key}={value}"
+        for key, value in sorted(_pod_label_filters().items())
+    )
+
+
+async def _reconcile_pod_lifecycle_states(logger: kopf.Logger) -> None:
+    """Release lifecycle state for pods absent from a complete Kubernetes list."""
+    # Only entries present before the list started are eligible for removal.
+    # Concurrent pod events protect their UID from this reconciliation pass.
+    with _pod_lifecycle_states.reconciliation() as reconciliation:
+        if not reconciliation.candidates:
+            return
+
+        live_uids: set[str] = set()
+        client = await _get_kubernetes_client()
+        try:
+            core_client = CoreV1Api(client)
+            configured_namespaces = cast(set[str], settings.observer.namespaces)
+            namespaces: tuple[str | None, ...] = tuple(
+                sorted(configured_namespaces)
+            ) or (None,)
+            for namespace in namespaces:
+                continue_token: str | None = None
+                while True:
+                    list_kwargs: dict[str, Any] = {
+                        "label_selector": _pod_label_selector(),
+                        "limit": _POD_LIST_PAGE_SIZE,
+                    }
+                    if continue_token:
+                        list_kwargs["_continue"] = continue_token
+                    if namespace is None:
+                        pods = await core_client.list_pod_for_all_namespaces(
+                            **list_kwargs
+                        )
+                    else:
+                        pods = await core_client.list_namespaced_pod(
+                            namespace=namespace, **list_kwargs
+                        )
+                    for pod in pods.items:
+                        uid = pod.metadata.uid
+                        if not uid:
+                            raise RuntimeError(
+                                "Kubernetes pod listing returned an object missing a UID"
+                            )
+                        if uid in reconciliation.candidates:
+                            live_uids.add(uid)
+                    continue_token = pods.metadata._continue
+                    if not continue_token:
+                        break
+        finally:
+            # A close failure must not replace an active LIST failure or
+            # cancellation; preserving cancellation lets observer shutdown finish.
+            pending_failure = sys.exc_info()[0] is not None
+            try:
+                await client.close()
+            except Exception:
+                if not pending_failure:
+                    raise
+                logger.debug(
+                    "Failed to close the Kubernetes client after pod reconciliation",
+                    exc_info=True,
+                )
+
+        # Mutate only after every page in every configured namespace succeeds.
+        released = _pod_lifecycle_states.release_absent(reconciliation, live_uids)
+    logger.debug("Released lifecycle state for %d deleted pods", released)
+
+
+async def _periodically_reconcile_pod_lifecycle_states(
+    logger: kopf.Logger,
+) -> None:
+    """Reconcile lifecycle state without expiring entries for live pods."""
+    while True:
+        await asyncio.sleep(_POD_LIFECYCLE_RECONCILIATION_INTERVAL_SECONDS)
+        try:
+            await _reconcile_pod_lifecycle_states(logger)
+        except Exception:
+            logger.debug(
+                "Failed to reconcile Kubernetes pod lifecycle state",
+                exc_info=True,
+            )
+
+
+def _is_completed_flow_run_state(state: State | None) -> bool:
+    """Return whether a flow run state means no `InfrastructurePending` proposal is needed."""
+    return state is not None and (
+        state.is_running()
+        or state.is_final()
+        or state.is_paused()
+        or state.is_cancelling()
+        or state.name == "InfrastructurePending"
+    )
 
 
 def _parse_k8s_datetime(value: Any) -> DateTime | None:
@@ -109,6 +321,7 @@ settings = KubernetesSettings()
 events_client: EventsClient | None = None
 orchestration_client: PrefectClient | None = None
 _startup_event_semaphore: asyncio.Semaphore | None = None
+_pod_lifecycle_reconciliation_task: asyncio.Task[None] | None = None
 
 
 @kopf.on.startup()
@@ -122,22 +335,60 @@ async def initialize_clients(logger: kopf.Logger, **kwargs: Any):
     global events_client
     global orchestration_client
     global _startup_event_semaphore
+    global _pod_lifecycle_reconciliation_task
     _startup_event_semaphore = asyncio.Semaphore(
         settings.observer.startup_event_concurrency
     )
     orchestration_client = await get_client().__aenter__()
     events_client = await get_events_client().__aenter__()
+    if settings.observer.replicate_pod_events:
+        _pod_lifecycle_reconciliation_task = asyncio.create_task(
+            _periodically_reconcile_pod_lifecycle_states(logger),
+            name="reconcile Kubernetes observer pod lifecycle state",
+        )
     logger.info("Clients successfully initialized")
 
 
 @kopf.on.cleanup()
 async def cleanup_fn(logger: kopf.Logger, **kwargs: Any):
+    global _pod_lifecycle_reconciliation_task
     logger.info("Cleaning up clients")
-    await events_client.__aexit__(None, None, None)
-    await orchestration_client.__aexit__(None, None, None)
+    try:
+        try:
+            if _pod_lifecycle_reconciliation_task is not None:
+                _pod_lifecycle_reconciliation_task.cancel()
+                try:
+                    await _pod_lifecycle_reconciliation_task
+                except asyncio.CancelledError:
+                    pass
+        finally:
+            # Reconciliation teardown is newly owned here and must not prevent
+            # the observer's existing client cleanup path from running.
+            await events_client.__aexit__(None, None, None)
+            await orchestration_client.__aexit__(None, None, None)
+    finally:
+        _pod_lifecycle_reconciliation_task = None
+        _pod_lifecycle_states.clear()
     logger.info("Clients successfully cleaned up")
 
 
+def _cleanup_deleted_pod(handler: Any) -> Any:
+    """Ensure a deleted pod releases all lifecycle-owned deduplication state."""
+
+    @wraps(handler)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return await handler(*args, **kwargs)
+        finally:
+            event = kwargs.get("event") or {}
+            uid = kwargs.get("uid")
+            if event.get("type") == "DELETED" and uid:
+                _pod_lifecycle_states.release(uid)
+
+    return wrapper
+
+
+@_cleanup_deleted_pod
 async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     event: kopf.RawEvent,
     uid: str,
@@ -159,6 +410,10 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     event_type = event["type"]
     phase = status["phase"]
 
+    # Observe lifecycle transitions before diagnosis or any await so a
+    # concurrent reconciliation cannot prune state for an event in progress.
+    _pod_lifecycle_states.observe(uid, phase=phase)
+
     logger.debug(f"Pod event received - type: {event_type}, phase: {phase}, uid: {uid}")
 
     # Extract the creation timestamp from the Kubernetes event
@@ -175,6 +430,12 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # Diagnose pod failures up front so the category can participate in both
     # the event identity and the emitted labels below.
     diagnosis = diagnose_k8s_pod(status)
+
+    # Reconcile lifecycle-owned state before any event-deduplication return.
+    # Startup events can observe a phase change or diagnosis recovery that
+    # occurred while the observer was offline.
+    if not diagnosis:
+        _pod_lifecycle_states.clear_diagnosis(uid)
 
     # Create a deterministic event ID based on the pod's ID, phase, restart
     # count, and diagnosis category.  This ensures that the event ID is the
@@ -243,58 +504,98 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     except ValueError:
         flow_run_id = None
 
-    # Propose InfrastructurePending for pods still in Pending phase
+    # Propose InfrastructurePending for pods still in Pending phase.
+    # A completed check is retained per pod so repeated Pending events don't
+    # repeat the state lookup and proposal; failures and timeouts are not
+    # retained so they are retried on the next event.
     if phase == "Pending" and flow_run_id and orchestration_client:
-        try:
-            flow_run = await orchestration_client.read_flow_run(flow_run_id=flow_run_id)
-            if flow_run.state is not None and (
-                flow_run.state.is_running()
-                or flow_run.state.is_final()
-                or flow_run.state.is_paused()
-                or flow_run.state.is_cancelling()
-                or flow_run.state.name == "InfrastructurePending"
-            ):
-                logger.debug(
-                    f"Flow run {flow_run_id} is in state {flow_run.state.name!r}, "
-                    f"skipping InfrastructurePending proposal"
-                )
-            else:
-                # Use a timeout to prevent propose_state's internal WAIT
-                # loop from blocking the observer's event processing.
-                with anyio.move_on_after(5):
-                    await propose_state(
-                        client=orchestration_client,
-                        state=InfrastructurePending(
-                            message="Kubernetes pod is pending."
-                        ),
-                        flow_run_id=flow_run_id,
-                    )
-        except ObjectNotFound:
-            logger.debug(f"Flow run {flow_run_id} not found, skipping")
-        except (Abort, Exception):
+        if _pod_lifecycle_states.has_completed_state_check(uid):
             logger.debug(
-                f"Failed to propose InfrastructurePending for flow run {flow_run_id}",
-                exc_info=True,
+                f"State check already completed for pending pod {uid}, skipping"
             )
-
+        else:
+            try:
+                flow_run = await orchestration_client.read_flow_run(
+                    flow_run_id=flow_run_id
+                )
+                if _is_completed_flow_run_state(flow_run.state):
+                    logger.debug(
+                        f"Flow run {flow_run_id} is in state {flow_run.state.name!r}, "
+                        f"skipping InfrastructurePending proposal"
+                    )
+                    _pod_lifecycle_states.mark_state_check_completed(uid)
+                else:
+                    proposed_state: State | None = None
+                    # Use a timeout to prevent propose_state's internal WAIT
+                    # loop from blocking the observer's event processing.
+                    with anyio.move_on_after(5) as timeout_scope:
+                        proposed_state = await propose_state(
+                            client=orchestration_client,
+                            state=InfrastructurePending(
+                                message="Kubernetes pod is pending."
+                            ),
+                            flow_run_id=flow_run_id,
+                        )
+                    if timeout_scope.cancelled_caught or proposed_state is None:
+                        logger.debug(
+                            f"Timed out proposing InfrastructurePending for flow "
+                            f"run {flow_run_id}; will retry on the next event"
+                        )
+                    elif _is_completed_flow_run_state(proposed_state):
+                        _pod_lifecycle_states.mark_state_check_completed(uid)
+                    else:
+                        logger.debug(
+                            f"InfrastructurePending proposal for flow run "
+                            f"{flow_run_id} was rejected and returned state "
+                            f"{proposed_state.name!r}; will retry on the next event"
+                        )
+            except ObjectNotFound:
+                _pod_lifecycle_states.mark_state_check_completed(uid)
+                logger.debug(
+                    f"Flow run {flow_run_id} does not exist, skipping; "
+                    "the check will not be repeated while the pod stays Pending"
+                )
+            except Pause:
+                # `propose_state` raises `Pause` instead of returning the paused
+                # replacement state, so the check is complete for this pod.
+                logger.debug(
+                    f"Flow run {flow_run_id} is paused; skipping "
+                    f"InfrastructurePending proposal"
+                )
+                _pod_lifecycle_states.mark_state_check_completed(uid)
+            except (Abort, Exception):
+                logger.debug(
+                    f"Failed to propose InfrastructurePending for flow run {flow_run_id}",
+                    exc_info=True,
+                )
     # Emit actionable flow run logs for the diagnosis computed above.
     # Only log when the diagnosis changes to avoid spamming on repeated
-    # MODIFIED events for the same failure condition.  Clear the cache
-    # entry when the pod recovers so a recurrence is logged again.
+    # MODIFIED events for the same failure condition. Recovery clears the
+    # diagnosis state so a recurrence is logged again.
     if diagnosis and flow_run_id:
-        last_diagnosis = _last_diagnosis_cache.get(uid)
-        if diagnosis != last_diagnosis:
-            _last_diagnosis_cache[uid] = diagnosis
-            fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild("observer")
-            fr_logger.log(
-                logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
-                "%s: %s Resolution: %s",
-                diagnosis.summary,
-                diagnosis.detail,
-                diagnosis.resolution,
-            )
-    elif not diagnosis:
-        _last_diagnosis_cache.pop(uid, None)
+        key = diagnosis._dedupe_key()
+        if _pod_lifecycle_states.diagnosis_changed(uid, key):
+            try:
+                fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild(
+                    "observer"
+                )
+                fr_logger.log(
+                    logging.ERROR
+                    if diagnosis.level.value == "error"
+                    else logging.WARNING,
+                    "%s: %s Resolution: %s",
+                    diagnosis.summary,
+                    diagnosis.detail,
+                    diagnosis.resolution,
+                )
+            except Exception:  # noqa: BLE001
+                logger.debug(
+                    f"Failed to log diagnosis for flow run {flow_run_id}; "
+                    "will retry on the next pod event",
+                    exc_info=True,
+                )
+            else:
+                _pod_lifecycle_states.mark_diagnosis_logged(uid, key)
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",
@@ -344,10 +645,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
 if settings.observer.replicate_pod_events:
     kopf.on.event(
         "pods",
-        labels={
-            "prefect.io/flow-run-id": kopf.PRESENT,
-            **settings.observer.additional_label_filters,
-        },
+        labels=_pod_label_filters(),
     )(_replicate_pod_event)  # type: ignore
 
 
