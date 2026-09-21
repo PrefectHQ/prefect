@@ -3,10 +3,12 @@ Tests for the PrefectDbtRunner class and related functionality.
 """
 
 import json
+import logging
 import time
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
 import pytest
 from dbt.contracts.graph.manifest import Manifest
@@ -26,10 +28,11 @@ from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.runner import PrefectDbtRunner, execute_dbt_node
 from prefect_dbt.core.settings import PrefectDbtSettings
 
-from prefect import flow
+from prefect import flow, task
 from prefect.assets import Asset
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.client.orchestration import PrefectClient
+from prefect.context import get_run_context, serialize_context
 from prefect.tasks import MaterializingTask, Task
 
 
@@ -968,62 +971,84 @@ class TestPrefectDbtRunnerCallbackCreation:
             True,
         )
 
-    def test_unified_callback_falls_back_to_context_logger_when_no_task(
-        self, mock_manifest
+    @pytest.mark.parametrize(
+        "callback_factory", ["_create_unified_callback", "_create_logging_callback"]
+    )
+    @pytest.mark.parametrize("log_target", ["enclosing_task", "flow", "node_task"])
+    def test_node_logs_preserve_run_attribution(
+        self,
+        mock_manifest: Mock,
+        caplog: pytest.LogCaptureFixture,
+        callback_factory: str,
+        log_target: str,
     ):
-        """Nodes without an associated Prefect task (e.g. source nodes during
-        `dbt source freshness`) should log into the caller's run context rather
-        than creating a logger with task_run_id=None that routes to the flow."""
-        mock_manifest.nodes = {}
+        """Route source logs to the caller and registered model logs to their task."""
         runner = PrefectDbtRunner(manifest=mock_manifest)
-        context = {"flow_run_context": {"flow_run": {"id": "fr-1", "name": "my-flow"}}}
+        tracker = NodeTaskTracker()
+        node_id = (
+            "model.test_project.test_model"
+            if log_target == "node_task"
+            else "source.test_project.test_source"
+        )
+        node_task_run_id = uuid4()
+        if log_target == "node_task":
+            tracker.set_task_run_id(node_id, node_task_run_id)
+            tracker.set_task_run_name(node_id, "dbt-model-task")
 
-        task_state = Mock(spec=NodeTaskTracker)
-        # Simulate no task registered for this node
-        task_state.get_task_run_id.return_value = None
-        task_state.get_task_run_name.return_value = None
+        message = "dbt node attribution regression"
+        event = Mock(spec=EventMsg)
+        event.info = Mock(name="event_info")
+        event.info.name = "FreshnessCheckDone"
+        event.info.level = EventLevel.INFO
+        event.info.msg = message
+        event.data = Mock()
+        event.data.node_info.unique_id = node_id
 
-        source_node_id = "source.my_project.my_schema.my_table"
-
-        mock_context_logger = Mock()
-
-        with (
-            patch("prefect_dbt.core.runner.hydrated_context") as mock_hydrated_context,
-            patch(
-                "prefect_dbt.core.runner.get_run_logger",
-                return_value=mock_context_logger,
-            ),
-        ):
-            mock_hydrated_context.return_value.__enter__ = Mock(return_value=Mock())
-            mock_hydrated_context.return_value.__exit__ = Mock(return_value=False)
-
-            callback = runner._create_unified_callback(
-                task_state, EventLevel.INFO, context
+        def emit_node_log() -> None:
+            # Use real serialization, background processing, hydration, and loggers.
+            callback = getattr(runner, callback_factory)(
+                tracker, EventLevel.INFO, serialize_context()
             )
-
-            log_event = Mock(spec=EventMsg)
-            log_event.info = Mock()
-            log_event.info.name = "FreshnessCheckDone"
-            log_event.info.level = EventLevel.INFO
-            log_event.info.msg = "source freshness result"
-            log_event.data = Mock()
-            log_event.data.node_info = Mock()
-            log_event.data.node_info.unique_id = source_node_id
-
-            with patch(
-                "prefect_dbt.core.runner.MessageToDict",
-                return_value={"node_info": {"unique_id": source_node_id}},
-            ):
-                callback(log_event)
-
-                if runner._event_queue:
+            try:
+                # Mock only dbt's protobuf event conversion.
+                with patch(
+                    "prefect_dbt.core.runner.MessageToDict",
+                    return_value={"node_info": {"unique_id": node_id}},
+                ):
+                    callback(event)
                     runner._event_queue.join()
-                    runner._stop_callback_processor()
+            finally:
+                runner._stop_callback_processor()
 
-        # Should NOT use task_state.get_task_logger — no task was registered
-        task_state.get_task_logger.assert_not_called()
-        # Should use the context-based logger instead
-        mock_hydrated_context.assert_called_with(context)
+        @task
+        def enclosing_task():
+            emit_node_log()
+            return get_run_context().task_run.id
+
+        @flow
+        def enclosing_flow():
+            flow_run_id = get_run_context().flow_run.id
+            if log_target == "flow":
+                emit_node_log()
+                return flow_run_id, None
+            return flow_run_id, enclosing_task()
+
+        with caplog.at_level(logging.INFO):
+            flow_run_id, enclosing_task_run_id = enclosing_flow()
+
+        records = [
+            record for record in caplog.records if record.getMessage() == message
+        ]
+        assert len(records) == 1
+        record = records[0]
+        assert str(record.flow_run_id) == str(flow_run_id)
+        expected_task_run_id = (
+            node_task_run_id if log_target == "node_task" else enclosing_task_run_id
+        )
+        assert str(getattr(record, "task_run_id", None)) == str(expected_task_run_id)
+        assert record.name == (
+            "prefect.flow_runs" if log_target == "flow" else "prefect.task_runs"
+        )
 
 
 class TestPrefectDbtRunnerManifestNodeOperations:
