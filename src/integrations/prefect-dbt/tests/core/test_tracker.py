@@ -606,3 +606,46 @@ class TestNodeTaskTrackerIntegration:
         logger = tracker.get_task_logger(sample_node_id)
         assert logger.extra["task_run_id"] == sample_task_run_id
         assert logger.extra["task_run_name"] == "test_task_run"
+
+
+class TestNodeTaskTrackerCancellation:
+    def test_fail_incomplete_nodes_wakes_waiters_with_error_status(self, mock_task):
+        tracker = NodeTaskTracker()
+        tracker.start_task("model.a", mock_task)
+        tracker.start_task("model.b", mock_task)
+        tracker.set_node_status(
+            "model.b", {"node_info": {"node_status": "success"}}, "done"
+        )
+
+        woke = threading.Event()
+
+        def _wait():
+            tracker.wait_for_node_completion("model.a")
+            woke.set()
+
+        threading.Thread(target=_wait, daemon=True).start()
+        tracker.fail_incomplete_nodes("cancelled")
+
+        assert woke.wait(2)
+        assert tracker.get_node_status("model.a") == {
+            "event_data": {"node_info": {"node_status": "error"}},
+            "event_message": "cancelled",
+        }
+        # already-finished nodes are left untouched
+        assert tracker.get_node_status("model.b")["event_message"] == "done"
+
+    def test_join_task_threads_waits_for_started_threads(self):
+        tracker = NodeTaskTracker()
+        release = threading.Event()
+        thread = threading.Thread(target=release.wait, daemon=True)
+        tracker._task_threads.append(thread)
+        thread.start()
+
+        start = time.monotonic()
+        tracker.join_task_threads(timeout=0.2)
+        assert time.monotonic() - start >= 0.2
+        assert thread.is_alive()
+
+        release.set()
+        tracker.join_task_threads(timeout=2)
+        assert not thread.is_alive()
