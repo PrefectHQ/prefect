@@ -1,6 +1,7 @@
 import copy
 import json
 import subprocess
+import threading
 import uuid
 import zipfile
 from pathlib import Path
@@ -2037,48 +2038,194 @@ class TestSubmitAdhocRunWithIncludeFiles:
             run.assert_not_awaited()
             assert not list(Path(worker._tmp_dir).rglob("*.zip"))
 
-    async def test_cancelled_submission_preserves_live_container_mount(
+    @pytest.mark.parametrize("storage", [False, True])
+    @pytest.mark.parametrize("failure_stage", ["connect", "pull", "reject_create"])
+    async def test_pre_creation_failure_removes_staging(
+        self,
+        mock_docker_client,
+        work_pool,
+        work_pool_with_storage,
+        flow_with_include_files,
+        monkeypatch,
+        storage,
+        failure_stage,
+    ):
+        pool = work_pool_with_storage if storage else work_pool
+        async with DockerWorker(work_pool_name=pool.name) as worker:
+            flow_run = await worker.client.create_flow_run(flow_with_include_files)
+            monkeypatch.setattr(anyio, "run_process", AsyncMock())
+            if failure_stage == "connect":
+                monkeypatch.setattr(
+                    worker,
+                    "_get_client",
+                    MagicMock(side_effect=RuntimeError("Docker unavailable")),
+                )
+            elif failure_stage == "pull":
+                mock_docker_client.api.pull.side_effect = RuntimeError(
+                    "Registry unavailable"
+                )
+            else:
+                mock_docker_client.containers.create.side_effect = (
+                    docker.errors.APIError(
+                        "Invalid container",
+                        response=MagicMock(
+                            status_code=400,
+                            request=MagicMock(
+                                method="POST",
+                                url="http://docker/v1.45/containers/create",
+                            ),
+                        ),
+                        explanation="Invalid container configuration",
+                    )
+                )
+            await worker._submit_adhoc_run(
+                flow=flow_with_include_files,
+                parameters={},
+                flow_run=flow_run,
+                job_variables={"image_pull_policy": "Always"},
+            )
+            updated = await worker.client.read_flow_run(flow_run.id)
+            assert updated.state.is_crashed()
+            assert not list(Path(worker._tmp_dir).iterdir())
+
+    @pytest.mark.parametrize("phase", ["before_start", "pull", "create", "watch"])
+    async def test_cancelled_submission_thread_owns_mount_until_completion(
         self,
         mock_docker_client: MagicMock,
         work_pool: WorkPool,
         flow_with_include_files: prefect.Flow,
         monkeypatch: pytest.MonkeyPatch,
+        phase: str,
     ):
         started = anyio.Event()
-        mount_dirs: list[Path] = []
-
-        async def run(
-            flow_run: FlowRun, configuration: DockerWorkerJobConfiguration
-        ) -> DockerWorkerResult:
-            mount_dirs.append(Path(configuration.volumes[-1].split(":")[0]))
-            started.set()
-            # Cancellation of Docker's thread does not stop the container.
-            await anyio.sleep_forever()
+        release = threading.Event()
+        finished = threading.Event()
+        consumed: list[bytes] = []
 
         async with DockerWorker(work_pool_name=work_pool.name) as worker:
-            monkeypatch.setattr(worker, "run", run)
+            original_lifecycle = worker._run_container_with_bundle
+
+            def block() -> None:
+                anyio.from_thread.run_sync(started.set)
+                assert release.wait(20)
+
+            def lifecycle(*args: Any, **kwargs: Any) -> DockerWorkerResult:
+                try:
+                    if phase == "before_start":
+                        block()
+                    return original_lifecycle(*args, **kwargs)
+                finally:
+                    finished.set()
+
+            monkeypatch.setattr(worker, "_run_container_with_bundle", lifecycle)
+            if phase == "pull":
+
+                def pull(*args: Any, **kwargs: Any) -> None:
+                    block()
+                    raise RuntimeError("Registry unavailable")
+
+                mock_docker_client.api.pull.side_effect = pull
+            elif phase == "create":
+                container = mock_docker_client.containers.create.return_value
+
+                def create(*args: Any, **kwargs: Any) -> Container:
+                    block()
+                    archive = next(Path(worker._tmp_dir).rglob("*.zip"))
+                    with zipfile.ZipFile(archive) as zf:
+                        consumed.append(zf.read("config.yaml"))
+                    return container
+
+                mock_docker_client.containers.create.side_effect = create
+            elif phase == "watch":
+
+                def wait(*args: Any, **kwargs: Any) -> dict[str, int]:
+                    block()
+                    archive = next(Path(worker._tmp_dir).rglob("*.zip"))
+                    with zipfile.ZipFile(archive) as zf:
+                        consumed.append(zf.read("config.yaml"))
+                    return {"StatusCode": 0}
+
+                mock_docker_client.containers.get.return_value.wait = MagicMock(
+                    side_effect=wait
+                )
 
             async def submit() -> None:
                 await worker._submit_adhoc_run(
-                    flow=flow_with_include_files, parameters={}
+                    flow=flow_with_include_files,
+                    parameters={},
+                    job_variables={"image_pull_policy": "Always"},
                 )
 
-            with anyio.fail_after(20):
-                async with anyio.create_task_group() as group:
-                    group.start_soon(submit)
-                    await started.wait()
-                    group.cancel_scope.cancel()
+            try:
+                with anyio.fail_after(20):
+                    async with anyio.create_task_group() as group:
+                        group.start_soon(submit)
+                        await started.wait()
+                        group.cancel_scope.cancel()
+                # The cancellation has returned while the Docker thread is blocked.
+                assert bool(list(Path(worker._tmp_dir).iterdir())) == (
+                    phase != "before_start"
+                )
+            finally:
+                release.set()
+                assert await anyio.to_thread.run_sync(finished.wait, 20)
 
-            assert len(mount_dirs) == 1
-            bundle_path = next(
-                path for path in mount_dirs[0].iterdir() if path.is_file()
+            assert not list(Path(worker._tmp_dir).iterdir())
+            if phase in ("create", "watch"):
+                assert consumed == [b"key: value"]
+            else:
+                mock_docker_client.containers.create.assert_not_called()
+
+    @pytest.mark.parametrize("storage", [False, True])
+    @pytest.mark.parametrize("failure_stage", ["create", "inspect", "watch"])
+    async def test_uncertain_docker_failure_retains_only_mounted_staging(
+        self,
+        mock_docker_client: MagicMock,
+        work_pool: WorkPool,
+        work_pool_with_storage: WorkPool,
+        flow_with_include_files: prefect.Flow,
+        monkeypatch: pytest.MonkeyPatch,
+        storage: bool,
+        failure_stage: str,
+    ):
+        pool = work_pool_with_storage if storage else work_pool
+        monkeypatch.setattr(anyio, "run_process", AsyncMock())
+        if failure_stage == "create":
+            mock_docker_client.containers.create.side_effect = RuntimeError(
+                "Docker response lost"
             )
-            bundle = json.loads(bundle_path.read_text())
-            with zipfile.ZipFile(mount_dirs[0] / bundle["files_key"]) as archive:
-                assert archive.read("config.yaml") == b"key: value"
+        elif failure_stage == "inspect":
+            # ContainerCollection.create performs an inspect GET after creation.
+            mock_docker_client.containers.create.side_effect = docker.errors.APIError(
+                "Inspection forbidden",
+                response=MagicMock(
+                    status_code=403,
+                    request=MagicMock(
+                        method="GET", url="http://docker/v1.45/containers/created/json"
+                    ),
+                ),
+            )
+        else:
+            mock_docker_client.containers.get.return_value.wait = MagicMock(
+                side_effect=RuntimeError("Docker response lost")
+            )
+        async with DockerWorker(work_pool_name=pool.name) as worker:
+            flow_run = await worker.client.create_flow_run(flow_with_include_files)
+            await worker._submit_adhoc_run(
+                flow=flow_with_include_files, parameters={}, flow_run=flow_run
+            )
+            updated = await worker.client.read_flow_run(flow_run.id)
+            assert updated.state is not None and updated.state.is_crashed()
+            archives = list(Path(worker._tmp_dir).rglob("*.zip"))
+            if storage:
+                assert not list(Path(worker._tmp_dir).iterdir())
+            else:
+                assert len(archives) == 1
+                with zipfile.ZipFile(archives[0]) as archive:
+                    assert archive.read("config.yaml") == b"key: value"
 
     @pytest.mark.parametrize("failure_stage", ["copy", "run"])
-    async def test_submission_failure_cleans_original_and_preserves_uncertain_mount(
+    async def test_failure_before_thread_start_cleans_original_and_staged_files(
         self,
         mock_docker_client: MagicMock,
         work_pool: WorkPool,
@@ -2111,10 +2258,7 @@ class TestSubmitAdhocRunWithIncludeFiles:
                 assert not list(Path(worker._tmp_dir).iterdir())
             else:
                 run.assert_awaited_once()
-                archives = list(Path(worker._tmp_dir).rglob("*.zip"))
-                assert len(archives) == 1
-                with zipfile.ZipFile(archives[0]) as archive:
-                    assert archive.read("config.yaml") == b"key: value"
+                assert not list(Path(worker._tmp_dir).iterdir())
 
         assert len(original_archives) == 1
         assert not original_archives[0].exists()
