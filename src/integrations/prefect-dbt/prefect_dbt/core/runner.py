@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
 import click
-from dbt.cli.main import cli, dbtRunner
+from dbt.cli.main import cli, dbtRunner, dbtRunnerResult
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
@@ -52,6 +52,7 @@ except ImportError:
 from google.protobuf.json_format import MessageToDict
 
 from prefect import get_client, get_run_logger
+from prefect._internal.concurrency.cancellation import shield
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset, AssetProperties
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
@@ -59,8 +60,10 @@ from prefect.cache_policies import NO_CACHE
 from prefect.client.orchestration import PrefectClient
 from prefect.context import AssetContext, hydrated_context, serialize_context
 from prefect.exceptions import MissingContextError
+from prefect.logging import get_logger
 from prefect.tasks import MaterializingTask, Task, TaskOptions
 from prefect_dbt.core._hooks import DbtHookContext, DbtHookMixin
+from prefect_dbt.core._invoke import invoke_dbt
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import format_asset_name, format_resource_id, kwargs_to_args
@@ -97,6 +100,8 @@ SETTINGS_CONFIG = [
     ("log_level", "--log-level", EventLevel),
 ]
 FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
+NODE_TASK_SHUTDOWN_TIMEOUT = 10.0
+_CALLBACK_SHUTDOWN_WARNING_INTERVAL = 30.0
 
 
 def execute_dbt_node(
@@ -612,7 +617,7 @@ class PrefectDbtRunner(DbtHookMixin):
             self._callback_thread.start()
 
     def _stop_callback_processor(self) -> None:
-        """Stop the background thread and wait for queue to drain."""
+        """Discard pending callbacks and wait for the active callback to finish."""
         if self._shutdown_event:
             self._shutdown_event.set()
         if self._event_queue:
@@ -627,7 +632,18 @@ class PrefectDbtRunner(DbtHookMixin):
             except queue.Full:
                 pass
         if self._callback_thread and self._callback_thread.is_alive():
-            self._callback_thread.join(timeout=5.0)
+            # A callback can still own runner state (including node tasks and
+            # hooks). Do not reset it or let a retry start until it exits.
+            # Shield join from Prefect cancellation, which can otherwise mark
+            # a live thread as stopped on CPython.
+            with shield():
+                while self._callback_thread.is_alive():
+                    self._callback_thread.join(_CALLBACK_SHUTDOWN_WARNING_INTERVAL)
+                    if self._callback_thread.is_alive():
+                        get_logger(__name__).warning(
+                            "Still waiting for the active dbt callback to finish; "
+                            "cancellation cannot complete until the callback returns"
+                        )
 
         # Reset state so next invoke() can create a fresh callback processor
         self._event_queue = None
@@ -1212,6 +1228,10 @@ class PrefectDbtRunner(DbtHookMixin):
 
         Supports the same arguments as `dbtRunner.invoke()`. https://docs.getdbt.com/reference/programmatic-invocations
 
+        Cancellation waits for dbt and any active callback (including user hooks)
+        to finish before returning. A callback that blocks indefinitely also
+        delays cancellation indefinitely; warnings are logged every 30 seconds.
+
         Args:
             args: List of command line arguments
             **kwargs: Additional keyword arguments
@@ -1325,35 +1345,23 @@ class PrefectDbtRunner(DbtHookMixin):
 
         # Add any additional kwargs passed by the user
         invoke_kwargs.update(kwargs)
-        res = None
-        artifacts: dict[str, dict[str, Any]] = {}
-        with self.settings.resolve_profiles_yml() as profiles_dir:
-            invoke_kwargs["profiles_dir"] = profiles_dir
-            if self._has_dbt_hooks():
-                self._active_hook_command = command_label
-                self._active_hook_args = tuple(args_copy)
-                self._active_hook_selection_cache = (
-                    self._build_dbt_hook_selection_cache(
-                        project_dir=self.project_dir,
-                        profiles_dir=Path(profiles_dir),
-                        target_path=self.target_path,
-                        target=invoke_kwargs.get("target"),
-                    )
-                )
-                self._run_dbt_hooks(
-                    "run_start",
-                    DbtHookContext(
-                        event="run_start",
-                        command=command_label,
-                        owner=self,
-                        args=tuple(args_copy),
-                    ),
-                    selection_cache=self._active_hook_selection_cache,
-                )
-            res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
-                kwargs_to_args(invoke_kwargs, args_copy)
+        try:
+            res, artifacts = self._invoke_with_hooks(
+                invoke_kwargs, args_copy, command_label, callbacks
             )
-            artifacts = self._extract_run_artifacts(res)
+        except BaseException:
+            # Prefect timeout/cancellation (or KeyboardInterrupt) while dbt was
+            # running: dbt has already been shut down by `invoke_dbt`; drop the
+            # callback queue without draining so a retry starts from a clean
+            # state. Node tasks already started keep waiting for a
+            # `NodeFinished` event that will never come, so fail them.
+            self._stop_callback_processor()
+            task_state.fail_incomplete_nodes(
+                f"dbt command '{' '.join(args_copy)}' was cancelled"
+            )
+            task_state.join_task_threads(timeout=NODE_TASK_SHUTDOWN_TIMEOUT)
+            self._reset_active_hook_state()
+            raise
 
         # Wait for callback queue to drain after dbt execution completes
         # Since dbt execution is complete, no new events will be added.
@@ -1379,9 +1387,7 @@ class PrefectDbtRunner(DbtHookMixin):
                 ),
                 selection_cache=self._active_hook_selection_cache,
             )
-            self._active_hook_command = ""
-            self._active_hook_args = ()
-            self._active_hook_selection_cache = {}
+            self._reset_active_hook_state()
 
         if not res.success and res.exception:
             raise ValueError(
@@ -1405,3 +1411,44 @@ class PrefectDbtRunner(DbtHookMixin):
                 f"Failures detected during invocation of dbt command '{' '.join(args_copy)}':\n{os.linesep.join(failure_results)}"
             )
         return res
+
+    def _reset_active_hook_state(self) -> None:
+        self._active_hook_command = ""
+        self._active_hook_args = ()
+        self._active_hook_selection_cache = {}
+
+    def _invoke_with_hooks(
+        self,
+        invoke_kwargs: dict[str, Any],
+        args_copy: list[str],
+        command_label: str,
+        callbacks: list[Callable[[EventMsg], None]],
+    ) -> tuple[dbtRunnerResult, dict[str, dict[str, Any]]]:
+        with self.settings.resolve_profiles_yml() as profiles_dir:
+            invoke_kwargs["profiles_dir"] = profiles_dir
+            if self._has_dbt_hooks():
+                self._active_hook_command = command_label
+                self._active_hook_args = tuple(args_copy)
+                self._active_hook_selection_cache = (
+                    self._build_dbt_hook_selection_cache(
+                        project_dir=self.project_dir,
+                        profiles_dir=Path(profiles_dir),
+                        target_path=self.target_path,
+                        target=invoke_kwargs.get("target"),
+                    )
+                )
+                self._run_dbt_hooks(
+                    "run_start",
+                    DbtHookContext(
+                        event="run_start",
+                        command=command_label,
+                        owner=self,
+                        args=tuple(args_copy),
+                    ),
+                    selection_cache=self._active_hook_selection_cache,
+                )
+            res = invoke_dbt(
+                dbtRunner(callbacks=callbacks),  # type: ignore[reportUnknownMemberType]
+                kwargs_to_args(invoke_kwargs, args_copy),
+            )
+            return res, self._extract_run_artifacts(res)

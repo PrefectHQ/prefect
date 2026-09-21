@@ -3,8 +3,11 @@ State for managing tasks across callbacks.
 """
 
 import threading
+import time
 from typing import Any, Optional, Union
 from uuid import UUID
+
+from dbt.contracts.results import NodeStatus
 
 from prefect.client.schemas.objects import Flow, State
 from prefect.context import hydrated_context
@@ -28,6 +31,7 @@ class NodeTaskTracker:
         self._node_events: dict[str, threading.Event] = {}
         self._task_run_ids: dict[str, UUID] = {}
         self._task_run_names: dict[str, str] = {}
+        self._task_threads: list[threading.Thread] = []
 
     def start_task(self, node_id: str, task: Task[Any, Any]) -> None:
         """Start a task for a node."""
@@ -73,6 +77,27 @@ class NodeTaskTracker:
         # Signal the event to wake up any waiting threads
         if node_id in self._node_events:
             self._node_events[node_id].set()
+
+    def fail_incomplete_nodes(self, message: str) -> None:
+        """Mark every started-but-unfinished node as errored.
+
+        Wakes the task threads blocked in `wait_for_node_completion` so they
+        fail instead of waiting for a `NodeFinished` event that will never
+        arrive once dbt has been cancelled.
+        """
+        for node_id, event in list(self._node_events.items()):
+            if not event.is_set():
+                self.set_node_status(
+                    node_id,
+                    {"node_info": {"node_status": NodeStatus.Error}},
+                    message,
+                )
+
+    def join_task_threads(self, timeout: float) -> None:
+        """Wait up to `timeout` seconds total for all node task threads to exit."""
+        deadline = time.monotonic() + timeout
+        for thread in self._task_threads:
+            thread.join(max(0.0, deadline - time.monotonic()))
 
     def get_node_status(self, node_id: str) -> Union[dict[str, Any], None]:
         """Get the status for a node."""
@@ -168,4 +193,5 @@ class NodeTaskTracker:
 
         thread = threading.Thread(target=run_task)
         thread.daemon = True
+        self._task_threads.append(thread)
         thread.start()
