@@ -346,11 +346,14 @@ A flow run takes a concurrency slot when it transitions to `Pending`, which is w
 the slot when it leaves `Pending`, `Running`, or `Cancelling` for any other state, for example when it completes,
 fails, or is cancelled. A run that retries in-process keeps its slot during the retry delay.
 
-Because workers submit runs ahead of their scheduled start (see [prefetch](/v3/concepts/workers#configure-prefetch)),
-a slot can be held for the prefetch window plus the run's duration. With `CANCEL_NEW`, a run whose deployment slot is
-held when the worker submits it is cancelled before it starts, so the schedule interval should be longer than the
-prefetch window plus the expected run time. The slot is only guaranteed to be held until the run starts if the prefetch
-window is shorter than `grace_period_seconds`.
+A slot is therefore held from submission until the run finishes, not only while the run is `Running`. Workers submit
+runs ahead of their scheduled start (see [prefetch](/v3/concepts/workers#configure-prefetch)), and infrastructure
+can take time to start, so a slot can be held for the prefetch window (or the infrastructure startup time, whichever
+is longer) plus the run's duration. With `CANCEL_NEW` and a `concurrency_limit` of 1, a run whose deployment slot is
+held when it is submitted is cancelled before it starts, so the schedule interval should be longer than this whole
+period. A run must reach `Running` within `grace_period_seconds` of acquiring its slot; otherwise the slot can be
+taken by another run. Deployments served with `flow.serve()` use the runner's `prefetch_seconds` argument (default 10
+seconds) instead of the worker setting.
 
 <CodeGroup>
 
