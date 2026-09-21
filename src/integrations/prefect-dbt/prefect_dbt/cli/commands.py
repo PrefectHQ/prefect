@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path, PosixPath
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import yaml
 from dbt.cli.main import dbtRunner, dbtRunnerResult
@@ -33,11 +33,11 @@ from prefect_dbt.cli.credentials import DbtCliProfile
 
 def _run_dbt_command(
     command: str,
-    profiles_dir: Optional[Union[Path, str]],
-    project_dir: Optional[Union[Path, str]],
+    profiles_dir: Path | str | None,
+    project_dir: Path | str | None,
     overwrite_profiles: bool,
-    dbt_cli_profile: Optional[DbtCliProfile],
-    extra_command_args: Optional[List[str]],
+    dbt_cli_profile: DbtCliProfile | None,
+    extra_command_args: list[str] | None,
     stream_output: bool,
 ) -> dbtRunnerResult:
     """Shared implementation for running dbt commands."""
@@ -102,15 +102,15 @@ def _run_dbt_command(
 @task
 async def atrigger_dbt_cli_command(
     command: str,
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
-    summary_artifact_key: Optional[str] = "dbt-cli-command-summary",
-    extra_command_args: Optional[List[str]] = None,
+    summary_artifact_key: str | None = "dbt-cli-command-summary",
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
-) -> Optional[dbtRunnerResult]:
+) -> dbtRunnerResult | None:
     """Async task for running dbt commands. See trigger_dbt_cli_command for full docs."""
     logger = get_run_logger()
     result = _run_dbt_command(
@@ -155,15 +155,15 @@ async def atrigger_dbt_cli_command(
 @async_dispatch(atrigger_dbt_cli_command)
 def trigger_dbt_cli_command(
     command: str,
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
-    summary_artifact_key: Optional[str] = "dbt-cli-command-summary",
-    extra_command_args: Optional[List[str]] = None,
+    summary_artifact_key: str | None = "dbt-cli-command-summary",
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
-) -> Optional[dbtRunnerResult]:
+) -> dbtRunnerResult | None:
     """
     Task for running dbt commands.
 
@@ -327,7 +327,7 @@ class DbtCoreOperation(ShellOperation):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
     _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
 
-    profiles_dir: Optional[Path] = Field(
+    profiles_dir: Path | None = Field(
         default=None,
         description=(
             "The directory to search for the profiles.yml file. "
@@ -337,7 +337,7 @@ class DbtCoreOperation(ShellOperation):
             "set, will use the default directory `$HOME/.dbt/`."
         ),
     )
-    project_dir: Optional[Path] = Field(
+    project_dir: Path | None = Field(
         default=None,
         description=(
             "The directory to search for the dbt_project.yml file. "
@@ -351,7 +351,7 @@ class DbtCoreOperation(ShellOperation):
             "should be overwritten with a new profile."
         ),
     )
-    dbt_cli_profile: Optional[DbtCliProfile] = Field(
+    dbt_cli_profile: DbtCliProfile | None = Field(
         default=None,
         description=(
             "Profiles class containing the profile written to profiles.yml. "
@@ -400,7 +400,7 @@ class DbtCoreOperation(ShellOperation):
             )
         return profiles_dir
 
-    def _append_dirs_to_commands(self, profiles_dir) -> List[str]:
+    def _append_dirs_to_commands(self, profiles_dir) -> list[str]:
         """
         Append profiles_dir and project_dir options to dbt commands.
         """
@@ -415,7 +415,7 @@ class DbtCoreOperation(ShellOperation):
             commands.append(command)
         return commands
 
-    def _compile_kwargs(self, **open_kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    def _compile_kwargs(self, **open_kwargs: dict[str, Any]) -> dict[str, Any]:
         """
         Helper method to compile the kwargs for `open_process` so it's not repeated
         across the run and trigger methods (async version).
@@ -431,7 +431,7 @@ class DbtCoreOperation(ShellOperation):
         modified_self.commands = commands
         return super(type(self), modified_self)._compile_kwargs(**open_kwargs)
 
-    def _compile_kwargs_sync(self, **open_kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    def _compile_kwargs_sync(self, **open_kwargs: dict[str, Any]) -> dict[str, Any]:
         """
         Helper method to compile the kwargs for `subprocess.Popen` so it's not repeated
         across the run and trigger methods (sync version).
@@ -449,13 +449,13 @@ class DbtCoreOperation(ShellOperation):
 
 @task
 async def arun_dbt_build(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-build-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """Async version of run_dbt_build. See run_dbt_build for full documentation."""
@@ -475,13 +475,13 @@ async def arun_dbt_build(
 @task
 @async_dispatch(arun_dbt_build)
 def run_dbt_build(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-build-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """
@@ -533,13 +533,13 @@ def run_dbt_build(
 
 @task
 async def arun_dbt_model(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-run-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """Async version of run_dbt_model. See run_dbt_model for full documentation."""
@@ -559,13 +559,13 @@ async def arun_dbt_model(
 @task
 @async_dispatch(arun_dbt_model)
 def run_dbt_model(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-run-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """
@@ -617,13 +617,13 @@ def run_dbt_model(
 
 @task
 async def arun_dbt_test(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-test-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """Async version of run_dbt_test. See run_dbt_test for full documentation."""
@@ -643,13 +643,13 @@ async def arun_dbt_test(
 @task
 @async_dispatch(arun_dbt_test)
 def run_dbt_test(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-test-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """
@@ -701,13 +701,13 @@ def run_dbt_test(
 
 @task
 async def arun_dbt_snapshot(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-snapshot-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """Async version of run_dbt_snapshot. See run_dbt_snapshot for full documentation."""
@@ -727,13 +727,13 @@ async def arun_dbt_snapshot(
 @task
 @async_dispatch(arun_dbt_snapshot)
 def run_dbt_snapshot(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-snapshot-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """
@@ -785,13 +785,13 @@ def run_dbt_snapshot(
 
 @task
 async def arun_dbt_seed(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-seed-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """Async version of run_dbt_seed. See run_dbt_seed for full documentation."""
@@ -811,13 +811,13 @@ async def arun_dbt_seed(
 @task
 @async_dispatch(arun_dbt_seed)
 def run_dbt_seed(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-seed-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """
@@ -869,13 +869,13 @@ def run_dbt_seed(
 
 @task
 async def arun_dbt_source_freshness(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-source-freshness-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """Async version of run_dbt_source_freshness. See run_dbt_source_freshness for full documentation."""
@@ -895,13 +895,13 @@ async def arun_dbt_source_freshness(
 @task
 @async_dispatch(arun_dbt_source_freshness)
 def run_dbt_source_freshness(
-    profiles_dir: Optional[Union[Path, str]] = None,
-    project_dir: Optional[Union[Path, str]] = None,
+    profiles_dir: Path | str | None = None,
+    project_dir: Path | str | None = None,
     overwrite_profiles: bool = False,
-    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    dbt_cli_profile: DbtCliProfile | None = None,
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-source-freshness-task-summary",
-    extra_command_args: Optional[List[str]] = None,
+    extra_command_args: list[str] | None = None,
     stream_output: bool = True,
 ):
     """
@@ -1092,7 +1092,7 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
 
 
 def consolidate_run_results(results: dbtRunnerResult) -> dict:
-    run_results: Dict[str, List[str]] = {
+    run_results: dict[str, list[str]] = {
         "Success": [],
         "Fail": [],
         "Skipped": [],

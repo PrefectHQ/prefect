@@ -1,7 +1,5 @@
 """Module containing models used for passing data to dbt Cloud"""
 
-from typing import List, Optional
-
 from pydantic import BaseModel, Field
 
 from prefect.context import FlowRunContext, TaskRunContext, get_run_context
@@ -35,36 +33,36 @@ class TriggerJobRunOptions(BaseModel):
         default_factory=default_cause_factory,
         description="A text description of the reason for running this job.",
     )
-    git_sha: Optional[str] = Field(
+    git_sha: str | None = Field(
         default=None, description="The git sha to check out before running this job."
     )
-    git_branch: Optional[str] = Field(
+    git_branch: str | None = Field(
         default=None, description="The git branch to check out before running this job."
     )
-    schema_override: Optional[str] = Field(
+    schema_override: str | None = Field(
         default=None,
         description="Override the destination schema in the configured "
         "target for this job.",
     )
-    dbt_version_override: Optional[str] = Field(
+    dbt_version_override: str | None = Field(
         default=None, description="Override the version of dbt used to run this job."
     )
-    threads_override: Optional[int] = Field(
+    threads_override: int | None = Field(
         default=None, description="Override the number of threads used to run this job."
     )
-    target_name_override: Optional[str] = Field(
+    target_name_override: str | None = Field(
         default=None,
         description="Override the target.name context variable used when "
         "running this job",
     )
-    generate_docs_override: Optional[bool] = Field(
+    generate_docs_override: bool | None = Field(
         default=None,
         description="Override whether or not this job generates docs "
         "(true=yes, false=no).",
     )
-    timeout_seconds_override: Optional[int] = Field(
+    timeout_seconds_override: int | None = Field(
         default=None, description="Override the timeout in seconds for this job."
     )
-    steps_override: Optional[List[str]] = Field(
+    steps_override: list[str] | None = Field(
         default=None, description="Override the list of steps for this job."
     )

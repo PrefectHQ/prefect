@@ -1,6 +1,6 @@
 """Module containing models for BigQuery configs"""
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 try:
     from typing import Literal
@@ -61,13 +61,13 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
     type: Literal["bigquery"] = Field(
         default="bigquery", description="The type of target."
     )
-    project: Optional[str] = Field(default=None, description="The project to use.")
+    project: str | None = Field(default=None, description="The project to use.")
     credentials: GcpCredentials = Field(
         default_factory=GcpCredentials,
         description="The credentials to use to authenticate.",
     )
 
-    def get_configs(self) -> Dict[str, Any]:
+    def get_configs(self) -> dict[str, Any]:
         """
         Returns the dbt configs specific to BigQuery profile.
 

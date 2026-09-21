@@ -4,7 +4,7 @@ Tests for NodeTaskTracker class and related functionality.
 
 import threading
 import time
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -118,7 +118,7 @@ class TestNodeTaskTrackerStatusManagement:
     """Test node status management functionality."""
 
     def test_set_node_status_stores_status_and_marks_complete(
-        self, sample_node_id: str, sample_event_data: Dict[str, Any]
+        self, sample_node_id: str, sample_event_data: dict[str, Any]
     ):
         """Test that set_node_status stores status and marks node as complete."""
         tracker = NodeTaskTracker()

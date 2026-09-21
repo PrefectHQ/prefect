@@ -4,7 +4,7 @@ State for managing tasks across callbacks.
 
 import threading
 import time
-from typing import Any, Optional, Union
+from typing import Any
 from uuid import UUID
 
 from dbt.contracts.results import NodeStatus
@@ -42,8 +42,8 @@ class NodeTaskTracker:
     def get_task_logger(
         self,
         node_id: str,
-        flow_run: Optional[dict[str, Any]] = None,
-        flow: Optional[Flow] = None,
+        flow_run: dict[str, Any] | None = None,
+        flow: Flow | None = None,
         **kwargs: Any,
     ) -> PrefectLogAdapter:
         """Get the logger for a task."""
@@ -99,7 +99,7 @@ class NodeTaskTracker:
         for thread in self._task_threads:
             thread.join(max(0.0, deadline - time.monotonic()))
 
-    def get_node_status(self, node_id: str) -> Union[dict[str, Any], None]:
+    def get_node_status(self, node_id: str) -> dict[str, Any] | None:
         """Get the status for a node."""
         return self._node_status.get(node_id)
 
@@ -108,7 +108,7 @@ class NodeTaskTracker:
         return self._node_complete.get(node_id, False)
 
     def wait_for_node_completion(
-        self, node_id: str, timeout: Union[float, None] = None
+        self, node_id: str, timeout: float | None = None
     ) -> bool:
         """Wait for a node to complete using threading.Event.
 
@@ -129,7 +129,7 @@ class NodeTaskTracker:
         """Set the result for a task."""
         self._task_results[node_id] = result
 
-    def get_task_result(self, node_id: str) -> Union[Any, None]:
+    def get_task_result(self, node_id: str) -> Any | None:
         """Get the result for a task."""
         return self._task_results.get(node_id)
 
@@ -145,7 +145,7 @@ class NodeTaskTracker:
         """Set the task run ID for a node."""
         self._task_run_ids[node_id] = task_run_id
 
-    def get_task_run_id(self, node_id: str) -> Union[UUID, None]:
+    def get_task_run_id(self, node_id: str) -> UUID | None:
         """Get the task run ID for a node."""
         return self._task_run_ids.get(node_id)
 
@@ -153,7 +153,7 @@ class NodeTaskTracker:
         """Set the task run name for a node."""
         self._task_run_names[node_id] = task_run_name
 
-    def get_task_run_name(self, node_id: str) -> Union[str, None]:
+    def get_task_run_name(self, node_id: str) -> str | None:
         """Get the task run name for a node."""
         return self._task_run_names.get(node_id)
 
