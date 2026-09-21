@@ -2088,7 +2088,9 @@ class TestSubmitAdhocRunWithIncludeFiles:
             assert updated.state.is_crashed()
             assert not list(Path(worker._tmp_dir).iterdir())
 
-    @pytest.mark.parametrize("phase", ["before_start", "pull", "create", "watch"])
+    @pytest.mark.parametrize(
+        "phase", ["before_start", "pull", "create", "start", "watch"]
+    )
     async def test_cancelled_submission_thread_owns_mount_until_completion(
         self,
         mock_docker_client: MagicMock,
@@ -2136,6 +2138,17 @@ class TestSubmitAdhocRunWithIncludeFiles:
                     return container
 
                 mock_docker_client.containers.create.side_effect = create
+            elif phase == "start":
+
+                def start_container() -> None:
+                    block()
+                    archive = next(Path(worker._tmp_dir).rglob("*.zip"))
+                    with zipfile.ZipFile(archive) as zf:
+                        consumed.append(zf.read("config.yaml"))
+
+                mock_docker_client.containers.create.return_value.start = MagicMock(
+                    side_effect=start_container
+                )
             elif phase == "watch":
 
                 def wait(*args: Any, **kwargs: Any) -> dict[str, int]:
@@ -2171,14 +2184,16 @@ class TestSubmitAdhocRunWithIncludeFiles:
                 assert await anyio.to_thread.run_sync(finished.wait, 20)
 
             assert not list(Path(worker._tmp_dir).iterdir())
-            if phase in ("create", "watch"):
+            if phase in ("create", "start", "watch"):
                 assert consumed == [b"key: value"]
             else:
                 mock_docker_client.containers.create.assert_not_called()
 
     @pytest.mark.parametrize("storage", [False, True])
-    @pytest.mark.parametrize("failure_stage", ["create", "inspect", "watch"])
-    async def test_uncertain_docker_failure_retains_only_mounted_staging(
+    @pytest.mark.parametrize(
+        "failure_stage", ["create", "inspect", "network", "start", "watch"]
+    )
+    async def test_docker_failure_retains_mount_only_after_start_attempt(
         self,
         mock_docker_client: MagicMock,
         work_pool: WorkPool,
@@ -2205,6 +2220,14 @@ class TestSubmitAdhocRunWithIncludeFiles:
                     ),
                 ),
             )
+        elif failure_stage == "network":
+            mock_docker_client.networks.get.side_effect = RuntimeError(
+                "Network unavailable"
+            )
+        elif failure_stage == "start":
+            mock_docker_client.containers.create.return_value.start = MagicMock(
+                side_effect=RuntimeError("Docker response lost")
+            )
         else:
             mock_docker_client.containers.get.return_value.wait = MagicMock(
                 side_effect=RuntimeError("Docker response lost")
@@ -2212,12 +2235,17 @@ class TestSubmitAdhocRunWithIncludeFiles:
         async with DockerWorker(work_pool_name=pool.name) as worker:
             flow_run = await worker.client.create_flow_run(flow_with_include_files)
             await worker._submit_adhoc_run(
-                flow=flow_with_include_files, parameters={}, flow_run=flow_run
+                flow=flow_with_include_files,
+                parameters={},
+                flow_run=flow_run,
+                job_variables={"networks": ["first", "second"]}
+                if failure_stage == "network"
+                else {},
             )
             updated = await worker.client.read_flow_run(flow_run.id)
             assert updated.state is not None and updated.state.is_crashed()
             archives = list(Path(worker._tmp_dir).rglob("*.zip"))
-            if storage:
+            if storage or failure_stage in {"create", "inspect", "network"}:
                 assert not list(Path(worker._tmp_dir).iterdir())
             else:
                 assert len(archives) == 1
@@ -2420,3 +2448,28 @@ class TestDockerWorkerKillInfrastructure:
                     configuration=default_docker_worker_job_configuration,
                     grace_seconds=30,
                 )
+
+
+@pytest.mark.parametrize("options", [{"ports": 123}, {"unsupported_option": True}])
+def test_local_docker_validation_cleans_bundle_staging(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, options: dict[str, Any]
+):
+    """Exercise the real SDK's preparation without allowing a Docker request."""
+    staging = prefect_docker.worker._BundleStaging(tmp_path / "submission")
+    staging.path.mkdir()
+    (staging.path / "bundle").write_text("bundle")
+    client = DockerClient(base_url="http://127.0.0.1:1", version="1.45")
+    worker = DockerWorker(work_pool_name="test")
+    monkeypatch.setattr(worker, "_get_client", lambda: client)
+    monkeypatch.setattr(worker, "_emit_container_creation_failed_event", MagicMock())
+    send = MagicMock(side_effect=AssertionError("Unexpected Docker request"))
+    monkeypatch.setattr(client.api, "send", send)
+    configuration = DockerWorkerJobConfiguration(
+        image="example:latest",
+        image_pull_policy="Never",
+        container_create_kwargs=options,
+    )
+    with pytest.raises((TypeError, AttributeError)):
+        worker._run_container_with_bundle(configuration, staging)
+    send.assert_not_called()
+    assert not staging.path.exists()

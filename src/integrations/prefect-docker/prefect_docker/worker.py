@@ -106,7 +106,7 @@ class _BundleStaging:
     """Transfer a mounted bundle's cleanup from submission to the Docker thread."""
 
     path: Path
-    creation_attempted: bool = False
+    start_attempted: bool = False
     container_id: str | None = None
     _claimed: bool = False
     _closed: bool = False
@@ -597,14 +597,14 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 identifier=container_pid,
             )
         finally:
-            if completed or not staging.creation_attempted:
+            if completed or not staging.start_attempted:
                 shutil.rmtree(staging.path, ignore_errors=True)
             else:
                 self._logger.warning(
                     "Retaining bundle directory %s because Docker container %s "
-                    "may still exist. Remove it after confirming the container has stopped.",
+                    "may still be running. Remove it after confirming the container has stopped.",
                     staging.path,
-                    staging.container_id or "(creation outcome unknown)",
+                    staging.container_id,
                 )
 
     async def _submit_adhoc_run(
@@ -988,29 +988,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 self._logger.info(
                     f"Creating Docker container {container_settings['name']!r}..."
                 )
-                if staging is not None:
-                    staging.creation_attempted = True
-                try:
-                    container = self._create_container(
-                        docker_client, **container_settings
-                    )
-                except docker.errors.APIError as exc:
-                    # Only a rejection of the create POST rules out creation. The SDK
-                    # also inspects the new container, which can fail independently.
-                    if (
-                        staging is not None
-                        and exc.status_code is not None
-                        and 400 <= exc.status_code < 500
-                        and exc.status_code != 408
-                        and exc.response is not None
-                        and exc.response.request is not None
-                        and exc.response.request.method == "POST"
-                        and urllib.parse.urlparse(
-                            exc.response.request.url
-                        ).path.endswith("/containers/create")
-                    ):
-                        staging.creation_attempted = False
-                    raise
+                container = self._create_container(docker_client, **container_settings)
                 if staging is not None:
                     staging.container_id = container.id
                 self._logger.info(
@@ -1031,7 +1009,13 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     network = docker_client.networks.get(network_name)
                     network.connect(container)
 
-            # Start the container
+            # A created container cannot consume the mount until we start it.
+            # Keep all local validation, creation, inspection, and network setup
+            # in the preparation phase. Once start is attempted, a lost response
+            # can hide a running container, so only confirmed completion permits
+            # cleanup. This boundary does not depend on exception types.
+            if staging is not None:
+                staging.start_attempted = True
             container.start()
 
             return container, created_event
