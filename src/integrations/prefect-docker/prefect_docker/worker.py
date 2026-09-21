@@ -648,6 +648,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         bundle = creation_result["bundle"]
         zip_path = creation_result["zip_path"]
         files_key = bundle.get("files_key")
+        container_may_be_running = False
         try:
             # Each submission owns its staging directory even when included files
             # have the same content-addressed storage key.
@@ -680,7 +681,11 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 except subprocess.CalledProcessError as e:
                     raise RuntimeError(e.stderr.decode("utf-8")) from e
 
+            # Docker threads are abandoned on cancellation, not stopped. Keep
+            # the mount until run() confirms the container has finished.
+            container_may_be_running = True
             result = await self.run(flow_run=flow_run, configuration=configuration)
+            container_may_be_running = False
 
             if result.status_code != 0:
                 await self._propose_crashed_state(
@@ -697,9 +702,14 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
             await self._propose_crashed_state(flow_run, message)
         finally:
-            # Uploads and container execution have finished; no other submission
-            # uses this directory.
-            shutil.rmtree(submission_dir, ignore_errors=True)
+            if container_may_be_running:
+                logger.warning(
+                    "Retaining bundle directory %s because the Docker container "
+                    "may still be running. Remove it after the container stops.",
+                    submission_dir,
+                )
+            else:
+                shutil.rmtree(submission_dir, ignore_errors=True)
             if zip_path:
                 try:
                     zip_path.unlink(missing_ok=True)

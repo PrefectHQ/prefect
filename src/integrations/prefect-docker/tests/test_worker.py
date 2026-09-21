@@ -1847,8 +1847,48 @@ class TestSubmitAdhocRunWithIncludeFiles:
             run.assert_not_awaited()
             assert not list(Path(worker._tmp_dir).rglob("*.zip"))
 
+    async def test_cancelled_submission_preserves_live_container_mount(
+        self,
+        mock_docker_client: MagicMock,
+        work_pool: WorkPool,
+        flow_with_include_files: prefect.Flow,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        started = anyio.Event()
+        mount_dirs: list[Path] = []
+
+        async def run(
+            flow_run: FlowRun, configuration: DockerWorkerJobConfiguration
+        ) -> DockerWorkerResult:
+            mount_dirs.append(Path(configuration.volumes[-1].split(":")[0]))
+            started.set()
+            # Cancellation of Docker's thread does not stop the container.
+            await anyio.sleep_forever()
+
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            monkeypatch.setattr(worker, "run", run)
+
+            async def submit() -> None:
+                await worker._submit_adhoc_run(
+                    flow=flow_with_include_files, parameters={}
+                )
+
+            with anyio.fail_after(20):
+                async with anyio.create_task_group() as group:
+                    group.start_soon(submit)
+                    await started.wait()
+                    group.cancel_scope.cancel()
+
+            assert len(mount_dirs) == 1
+            bundle_path = next(
+                path for path in mount_dirs[0].iterdir() if path.is_file()
+            )
+            bundle = json.loads(bundle_path.read_text())
+            with zipfile.ZipFile(mount_dirs[0] / bundle["files_key"]) as archive:
+                assert archive.read("config.yaml") == b"key: value"
+
     @pytest.mark.parametrize("failure_stage", ["copy", "run"])
-    async def test_submission_failure_cleans_original_and_staged_sidecars(
+    async def test_submission_failure_cleans_original_and_preserves_uncertain_mount(
         self,
         mock_docker_client: MagicMock,
         work_pool: WorkPool,
@@ -1876,11 +1916,15 @@ class TestSubmitAdhocRunWithIncludeFiles:
             updated_run = await worker.client.read_flow_run(flow_run.id)
             assert updated_run.state is not None
             assert updated_run.state.is_crashed()
-            assert not list(Path(worker._tmp_dir).iterdir())
             if failure_stage == "copy":
                 run.assert_not_awaited()
+                assert not list(Path(worker._tmp_dir).iterdir())
             else:
                 run.assert_awaited_once()
+                archives = list(Path(worker._tmp_dir).rglob("*.zip"))
+                assert len(archives) == 1
+                with zipfile.ZipFile(archives[0]) as archive:
+                    assert archive.read("config.yaml") == b"key: value"
 
         assert len(original_archives) == 1
         assert not original_archives[0].exists()
