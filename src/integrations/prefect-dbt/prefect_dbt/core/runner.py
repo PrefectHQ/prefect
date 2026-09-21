@@ -1163,10 +1163,6 @@ class PrefectDbtRunner(DbtHookMixin):
         """
         Extract a flag value from args and return the modified args and the value.
 
-        Cancellation waits for dbt and any active callback (including user hooks)
-        to finish before returning. A callback that blocks indefinitely also
-        delays cancellation indefinitely; warnings are logged every 30 seconds.
-
         Args:
             args: List of command line arguments
             flag: The flag to look for (e.g., "--target-path")
@@ -1231,6 +1227,10 @@ class PrefectDbtRunner(DbtHookMixin):
         Invokes a dbt command.
 
         Supports the same arguments as `dbtRunner.invoke()`. https://docs.getdbt.com/reference/programmatic-invocations
+
+        Cancellation waits for dbt and any active callback (including user hooks)
+        to finish before returning. A callback that blocks indefinitely also
+        delays cancellation indefinitely; warnings are logged every 30 seconds.
 
         Args:
             args: List of command line arguments
