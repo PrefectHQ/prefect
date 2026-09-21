@@ -125,28 +125,25 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             index.pop(str(lease_id), None)
             self._save_expiration_index(index)
 
-    async def _repair_expiration_index(self, repairs: dict[UUID, datetime]) -> None:
+    async def _repair_expiration_index(
+        self, repairs: dict[UUID, tuple[str, datetime]]
+    ) -> None:
         """
-        Fix index entries that are older than their lease files, in one write.
+        Fix index entries that disagree with their lease files, in one write.
 
-        An entry is only advanced, never moved back, so a renewal that landed
-        while the expired-lease scan was running is not undone. Entries that
-        have since been removed are left removed.
+        Each repair carries the index value the scan read. An entry is only
+        rewritten while it still holds that value, so a renewal that landed
+        during the scan is never undone, whether it lengthened or shortened
+        the lease. Entries that have since been removed are left removed.
         """
         async with self._lock_expiration_index():
             index = await self._load_expiration_index()
             changed = False
 
-            for lease_id, expiration in repairs.items():
+            for lease_id, (observed, expiration) in repairs.items():
                 key = str(lease_id)
-                current = index.get(key)
-                if current is None:
+                if index.get(key) != observed:
                     continue
-                try:
-                    if datetime.fromisoformat(current) >= expiration:
-                        continue
-                except (ValueError, TypeError):
-                    pass
                 index[key] = expiration.isoformat()
                 changed = True
 
@@ -326,7 +323,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         subsequent revocation atomic with renewal.
         """
         expired_leases: list[UUID] = []
-        repairs: dict[UUID, datetime] = {}
+        repairs: dict[UUID, tuple[str, datetime]] = {}
         now = datetime.now(timezone.utc)
 
         expiration_index = await self._load_expiration_index()
@@ -355,7 +352,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                     expired_leases.append(lease_id)
                 else:
                     # The lease was renewed but the index entry was not updated.
-                    repairs[lease_id] = lease.expiration
+                    repairs[lease_id] = (expiration_str, lease.expiration)
             except TypeError:
                 # A lease file with a timezone-naive expiration must not stop
                 # the scan.

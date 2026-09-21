@@ -827,13 +827,13 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert await other.read_active_lease_ids() == [lease.id]
         assert await other.read_expired_lease_ids() == []
 
-    @pytest.mark.parametrize("operation", ["renew", "revoke"])
+    @pytest.mark.parametrize("operation", ["renew", "shorten", "revoke"])
     async def test_index_repair_preserves_intervening_update(
         self,
         storage: ConcurrencyLeaseStorage,
         sample_resource_ids: list[UUID],
         monkeypatch: pytest.MonkeyPatch,
-        operation: Literal["renew", "revoke"],
+        operation: Literal["renew", "shorten", "revoke"],
     ):
         """Repair must not undo a renewal or recreate an entry removed after scan."""
         lease = await storage.create_lease(sample_resource_ids, timedelta(minutes=5))
@@ -847,9 +847,13 @@ class TestFilesystemConcurrencyLeaseStorage:
         other = ConcurrencyLeaseStorage(storage.storage_path)
         original_repair = storage._repair_expiration_index
 
-        async def update_before_repair(repairs: dict[UUID, datetime]) -> None:
+        async def update_before_repair(
+            repairs: dict[UUID, tuple[str, datetime]],
+        ) -> None:
             if operation == "renew":
                 assert await other.renew_lease(lease.id, timedelta(minutes=10))
+            elif operation == "shorten":
+                assert await other.renew_lease(lease.id, timedelta(minutes=1))
             else:
                 await other.revoke_lease(lease.id)
             await original_repair(repairs)
@@ -858,9 +862,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert await storage.read_expired_lease_ids() == []
         current = await other.read_lease(lease.id)
         index = await other._load_expiration_index()
-        if operation == "renew":
+        if operation in ("renew", "shorten"):
             assert current is not None
-            assert current.expiration > lease.expiration
+            if operation == "renew":
+                assert current.expiration > lease.expiration
+            else:
+                assert current.expiration < lease.expiration
             assert index[str(lease.id)] == current.expiration.isoformat()
             assert await other.read_active_lease_ids() == [lease.id]
         else:
