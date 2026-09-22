@@ -194,6 +194,14 @@ class ReceivedEvent(Event):
         description="When the event was received by Prefect Cloud",
     )
 
+    @property
+    def url(self) -> Optional[str]:
+        """Returns the UI URL for this event, allowing users to link to events
+        in automation templates without parsing date strings."""
+        from prefect.utilities.urls import url_for
+
+        return url_for(self, url_type="ui")
+
 
 def matches(expected: str, value: Optional[str]) -> bool:
     """Returns true if the given value matches the expected string, which may
