@@ -245,14 +245,14 @@ class ShellProcess(JobRun[list[str]]):
             return text
         return prefix.format(pid=self.pid, label=label) + text
 
-    async def _capture_output(self, source: Any):
+    async def _capture_output(self, source: Any, output_label: str):
         """
         Capture output from source (async version for anyio Process).
         """
         async for output in TextReceiveStream(source):
             text = output.rstrip()
             if self._shell_operation.stream_output:
-                self.logger.info(self._format_output_log("stream output", text))
+                self.logger.info(self._format_output_log(output_label, text))
             self._output.extend(text.split(os.linesep))
 
     def _capture_output_sync(
@@ -286,8 +286,8 @@ class ShellProcess(JobRun[list[str]]):
         self.logger.debug(f"Waiting for PID {self.pid} to complete.")
 
         await asyncio.gather(
-            self._capture_output(self._process.stdout),
-            self._capture_output(self._process.stderr),
+            self._capture_output(self._process.stdout, "stream output"),
+            self._capture_output(self._process.stderr, "stderr"),
         )
         await self._process.wait()
 

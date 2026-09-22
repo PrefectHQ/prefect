@@ -405,11 +405,14 @@ class TestShellOperation:
     ):
         prefect_task_runs_caplog.set_level(logging.INFO)
 
-        op = ShellOperation(commands=["echo hello"], log_prefix="[{pid}] {label} | ")
+        op = ShellOperation(
+            commands=["echo hello", "echo oops >&2"], log_prefix="[{pid}] {label} | "
+        )
         await self.execute(op, method)
 
         messages = self._shell_process_messages(prefect_task_runs_caplog)
         assert any(re.fullmatch(r"\[\d+\] stream output \| hello", m) for m in messages)
+        assert any(re.fullmatch(r"\[\d+\] stderr \| oops", m) for m in messages)
 
     async def test_sync_streaming_output_is_sent_to_api(self):
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_ENABLED: True}):
