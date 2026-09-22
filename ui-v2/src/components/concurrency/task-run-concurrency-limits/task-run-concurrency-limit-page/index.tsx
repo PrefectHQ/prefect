@@ -7,6 +7,7 @@ import { TaskRunConcurrencyLimitDetails } from "@/components/concurrency/task-ru
 import { TaskRunConcurrencyLimitHeader } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limit-header";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePageTitle } from "@/hooks/use-page-title";
 import {
 	type Dialogs,
 	TaskRunConcurrencyLimitDialog,
@@ -24,6 +25,7 @@ export const TaskRunConcurrencyLimitPage = ({
 	const { data } = useSuspenseQuery(
 		buildConcurrenyLimitDetailsActiveRunsQuery(id),
 	);
+	usePageTitle(`Concurrency Limit: ${data.taskRunConcurrencyLimit.tag}`);
 
 	const handleOpenDeleteDialog = () => setOpenDialog("delete");
 	const handleOpenResetDialog = () => setOpenDialog("reset");

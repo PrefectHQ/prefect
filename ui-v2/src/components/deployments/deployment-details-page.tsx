@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { LayoutWellSidebar } from "@/components/ui/layout-well";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 import { DeploymentActionMenu } from "./deployment-action-menu";
 import { DeploymentDetailsHeader } from "./deployment-details-header";
@@ -28,6 +29,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 	const { data: deployment } = useSuspenseQuery(
 		buildDeploymentDetailsQuery(id),
 	);
+	usePageTitle(`Deployment: ${deployment.name}`);
 
 	const [deleteConfirmationDialogState, confirmDelete] =
 		useDeleteDeploymentConfirmationDialog();
