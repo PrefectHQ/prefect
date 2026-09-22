@@ -178,9 +178,9 @@ def test_watcher_thread_cancel_scope_does_not_inject_into_exiting_thread(
 ):
     """
     If the timeout elapses while the supervised thread is already exiting the scope,
-    the enforcer must not inject an exception: it would land at an arbitrary
-    instruction outside the scope (e.g. inside a logging handler) and can leave
-    locks held forever.
+    the scope is still marked as cancelled but the enforcer must not inject an
+    exception: it would land at an arbitrary instruction outside the scope (e.g.
+    inside a logging handler) and can leave locks held forever.
     """
     exiting = threading.Event()
     enforcer_ready = threading.Event()
@@ -199,12 +199,12 @@ def test_watcher_thread_cancel_scope_does_not_inject_into_exiting_thread(
 
     def notify_enforcer_ready(thread: threading.Thread) -> cancellation.ThreadShield:
         thread_shield = original_get_shield(thread)
-        # The fixed watcher obtains the shield before checking cancellation under
-        # the exit lock; the old watcher has already marked the scope cancelled.
+        # The enforcer obtains the shield before it checks, under the exit lock,
+        # whether the supervised thread has already left the scope.
         enforcer_ready.set()
         return thread_shield
 
-    send_cancelled_error = MagicMock()
+    send_exception_to_thread = MagicMock()
     monkeypatch.setattr(CancelScope, "__exit__", synchronized_exit)
     monkeypatch.setattr(
         WatcherThreadCancelScope, "_timeout_enforcer", synchronized_enforcer
@@ -212,7 +212,7 @@ def test_watcher_thread_cancel_scope_does_not_inject_into_exiting_thread(
     monkeypatch.setattr(cancellation, "_get_thread_shield", notify_enforcer_ready)
     # Observe injection without risking an asynchronous exception in test cleanup.
     monkeypatch.setattr(
-        WatcherThreadCancelScope, "_send_cancelled_error", send_cancelled_error
+        cancellation, "_send_exception_to_thread", send_exception_to_thread
     )
 
     def on_worker_thread() -> WatcherThreadCancelScope:
@@ -223,9 +223,9 @@ def test_watcher_thread_cancel_scope_does_not_inject_into_exiting_thread(
     with concurrent.futures.ThreadPoolExecutor() as executor:
         scope = executor.submit(on_worker_thread).result(timeout=10)
 
-    assert scope.completed()
-    assert not scope.cancelled()
-    send_cancelled_error.assert_not_called()
+    assert scope.cancelled()
+    assert not scope.completed()
+    send_exception_to_thread.assert_not_called()
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
