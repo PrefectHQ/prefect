@@ -17,6 +17,7 @@ import {
 } from "@/components/automations/automations-wizard";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 type AutomationCreate = components["schemas"]["AutomationCreate"];
 
@@ -48,6 +49,7 @@ function parseRouteDate(dateStr: string): Date {
 
 export const Route = createFileRoute("/automations/create")({
 	component: function RouteComponent() {
+		usePageTitle("Create Automation");
 		const { createAutomation, isPending } = useCreateAutomation();
 		const navigate = useNavigate();
 		const defaultValues = useCreateDefaultValues();

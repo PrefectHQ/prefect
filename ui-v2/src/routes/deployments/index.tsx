@@ -21,6 +21,7 @@ import { DeploymentsPageHeader } from "@/components/deployments/header";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { usePageSizePreference } from "@/hooks/use-page-size-preference";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -67,6 +68,7 @@ const buildPaginationBody = (
 export const Route = createFileRoute("/deployments/")({
 	validateSearch: searchParams,
 	component: function RouteComponent() {
+		usePageTitle("Deployments");
 		const search = Route.useSearch();
 		const navigate = Route.useNavigate();
 		const [pagination, onPaginationChange] = usePagination();

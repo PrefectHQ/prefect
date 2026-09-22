@@ -7,6 +7,7 @@ import { buildListTaskRunConcurrencyLimitsQuery } from "@/api/task-run-concurren
 import { ConcurrencyLimitsPage } from "@/components/concurrency/concurrency-limits-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Schema for validating URL search parameters for the Concurrency Limits page.
@@ -22,7 +23,10 @@ export type TabOptions = z.infer<typeof searchParams>["tab"];
 
 export const Route = createFileRoute("/concurrency-limits/")({
 	validateSearch: searchParams,
-	component: ConcurrencyLimitsPage,
+	component: function RouteComponent() {
+		usePageTitle("Concurrency Limits");
+		return <ConcurrencyLimitsPage />;
+	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
 	loader: ({ context }) =>

@@ -8,11 +8,13 @@ import {
 	WorkPoolQueueCreatePageHeader,
 	WorkPoolQueueForm,
 } from "@/components/work-pools/work-pool-queue-form";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export const Route = createFileRoute(
 	"/work-pools/work-pool_/$workPoolName/queue/create",
 )({
 	component: function RouteComponent() {
+		usePageTitle("Create Work Queue");
 		const { workPoolName } = Route.useParams();
 		const router = useRouter();
 

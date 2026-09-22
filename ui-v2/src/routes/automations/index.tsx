@@ -6,10 +6,14 @@ import { AutomationsHeader } from "@/components/automations/automations-header";
 import { AutomationsPage } from "@/components/automations/automations-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 // nb: Currently there is no filtering or search params used on this page
 export const Route = createFileRoute("/automations/")({
-	component: AutomationsPage,
+	component: function RouteComponent() {
+		usePageTitle("Automations");
+		return <AutomationsPage />;
+	},
 	errorComponent: function AutomationsErrorComponent({
 		error,
 		reset,
