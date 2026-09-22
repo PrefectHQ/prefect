@@ -424,19 +424,35 @@ class WatcherThreadCancelScope(CancelScope):
         return self
 
     def __exit__(self, *_: Any) -> Optional[bool]:
-        # The enforcer thread can inject a cancellation exception at any instruction in
-        # this frame, so the event must be set from a `finally` to guarantee the
-        # enforcer is always released.
-        try:
-            retval = super().__exit__(*_)
-        finally:
-            self._event.set()
-            if self._enforcer_thread:
-                logger.debug(
-                    "%r joining enforcer thread %r", self, self._enforcer_thread
-                )
-                self._enforcer_thread.join()
+        # Release and join the enforcer before anything else. Until it has exited it
+        # may inject a cancellation exception at any instruction in this thread, and
+        # an exception landing while a lock is being acquired (e.g. inside a logging
+        # handler or the scope's own lock) can leave that lock held forever. Once
+        # joined, any injected exception has already been raised and the remainder
+        # of this method runs without interruption.
+        #
+        # An injection (from the enforcer or any number of external `cancel()` calls)
+        # can also land inside the stop itself, so it is retried until it completes to
+        # guarantee the enforcer is never leaked past the scope. The first injected
+        # exception is preserved and re-raised once teardown is done.
+        pending: Optional[BaseException] = None
+        while True:
+            try:
+                self._stop_enforcer()
+                break
+            except BaseException as exc:
+                if pending is None:
+                    pending = exc
+
+        retval = super().__exit__(*_)
+        if pending is not None:
+            raise pending
         return retval
+
+    def _stop_enforcer(self) -> None:
+        self._event.set()
+        if self._enforcer_thread:
+            self._enforcer_thread.join()
 
     def _send_cancelled_error(self):
         """

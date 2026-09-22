@@ -172,6 +172,66 @@ def test_watcher_thread_cancel_scope_enforcer_exits_when_teardown_interrupted(
         scope._enforcer_thread.join()
 
 
+def test_watcher_thread_cancel_scope_joins_enforcer_before_teardown(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    The enforcer must be stopped before the scope takes any locks or logs during
+    teardown. An exception injected while a lock is being acquired leaves that lock
+    held forever, deadlocking every thread that later logs or inspects the scope.
+    """
+    enforcer_alive_at_teardown: list[bool] = []
+    original_exit = CancelScope.__exit__
+
+    def recording_exit(self: WatcherThreadCancelScope, *exc_info: object) -> None:
+        assert self._enforcer_thread is not None
+        enforcer_alive_at_teardown.append(self._enforcer_thread.is_alive())
+        return original_exit(self, *exc_info)
+
+    monkeypatch.setattr(CancelScope, "__exit__", recording_exit)
+
+    scope = WatcherThreadCancelScope(timeout=30)
+    with scope:
+        pass
+
+    assert enforcer_alive_at_teardown == [False]
+    assert scope.completed()
+
+
+def test_watcher_thread_cancel_scope_enforcer_exits_when_stop_interrupted(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    Cancellations injected while the enforcer is being released (before the event is
+    set) must not leak the enforcer; it would otherwise fire its timeout into whatever
+    the supervised thread is doing next. The first injected exception is the one that
+    propagates.
+    """
+    scope = WatcherThreadCancelScope(timeout=30)
+    original_set = threading.Event.set
+    injected: list[CancelledError] = []
+
+    def interrupting_set(event: threading.Event) -> None:
+        if event is scope._event and len(injected) < 3:
+            injected.append(CancelledError())
+            raise injected[-1]
+        original_set(event)
+
+    monkeypatch.setattr(threading.Event, "set", interrupting_set)
+
+    with pytest.raises(CancelledError) as exc_info:
+        with scope:
+            pass
+
+    try:
+        assert len(injected) == 3
+        assert exc_info.value is injected[0]
+        assert not scope._enforcer_thread.is_alive()
+    finally:
+        original_set(scope._event)
+        scope._enforcer_thread.join()
+
+
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_manual_in_main_thread():
     completed = False
