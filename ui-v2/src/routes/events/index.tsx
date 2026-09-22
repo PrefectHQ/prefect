@@ -12,6 +12,7 @@ import {
 import { EventsPage } from "@/components/events/events-page";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Schema for validating URL search parameters for the events page.
@@ -84,6 +85,7 @@ export const Route = createFileRoute("/events/")({
 		);
 	},
 	component: function RouteComponent() {
+		usePageTitle("Event Feed");
 		const EventsPageSkeleton = eventsPageSkeleton;
 
 		const search = Route.useSearch();

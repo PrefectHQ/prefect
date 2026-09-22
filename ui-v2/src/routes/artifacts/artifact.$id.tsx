@@ -7,6 +7,7 @@ import { useGetArtifactFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-fl
 import { categorizeError } from "@/api/error-utils";
 import { ArtifactDetailPage } from "@/components/artifacts/artifact/artifact-detail-page";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Schema for validating URL search parameters for the Artifact Detail page
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/artifacts/artifact/$id")({
 		const { id } = Route.useParams();
 
 		const { data: artifact } = useSuspenseQuery(buildGetArtifactQuery(id));
+		usePageTitle(artifact.key ? `Artifact: ${artifact.key}` : "Artifact");
 
 		const artifactWithMetadata = useGetArtifactFlowTaskRuns(id);
 

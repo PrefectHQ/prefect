@@ -38,6 +38,7 @@ import { WorkPoolFlowRunsTab } from "@/components/work-pools/work-pool-flow-runs
 import { WorkPoolPageHeader } from "@/components/work-pools/work-pool-page-header";
 import { WorkPoolQueuesTable } from "@/components/work-pools/work-pool-queues-table";
 import { WorkersTable } from "@/components/work-pools/workers-table";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { cn } from "@/utils";
 import { useRedirectDetailsTabOnDesktop } from "./-use-redirect-details-tab-on-desktop";
 
@@ -125,6 +126,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 		const { data: workPool } = useSuspenseQuery(
 			buildGetWorkPoolQuery(workPoolName),
 		);
+		usePageTitle(`Work Pool: ${workPool.name}`);
 
 		const showCodeBanner = workPool.status !== "READY";
 		const codeBannerCommand = `prefect worker start --pool "${workPool.name}"`;
