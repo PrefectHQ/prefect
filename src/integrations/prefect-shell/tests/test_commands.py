@@ -414,6 +414,20 @@ class TestShellOperation:
         assert any(re.fullmatch(r"\[\d+\] stream output \| hello", m) for m in messages)
         assert any(re.fullmatch(r"\[\d+\] stderr \| oops", m) for m in messages)
 
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"])
+    async def test_log_prefix_newlines_use_platform_linesep(
+        self, prefect_task_runs_caplog: pytest.LogCaptureFixture, newline: str
+    ):
+        prefect_task_runs_caplog.set_level(logging.INFO)
+
+        op = ShellOperation(commands=["echo hello"], log_prefix=f"[{{pid}}]{newline}")
+        await op.run()
+
+        messages = self._shell_process_messages(prefect_task_runs_caplog)
+        assert any(
+            re.fullmatch(rf"\[\d+\]{re.escape(os.linesep)}hello", m) for m in messages
+        )
+
     async def test_sync_streaming_output_is_sent_to_api(self):
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_ENABLED: True}):
 
