@@ -26,7 +26,7 @@ from prefect.logging import get_run_logger
 from prefect.utilities.processutils import open_process
 
 _SHELL_TERMINATE_GRACE_SECONDS = 5.0
-_DEFAULT_LOG_PREFIX = f"PID {{pid}} {{label}}:{os.linesep}"
+_DEFAULT_LOG_PREFIX = "PID {pid} {label}:\n"
 
 
 def _process_isolation_kwargs() -> dict[str, Any]:
@@ -243,7 +243,8 @@ class ShellProcess(JobRun[list[str]]):
         prefix = self._shell_operation.log_prefix
         if prefix is None:
             return text
-        return prefix.format(pid=self.pid, label=label) + text
+        prefix = prefix.format(pid=self.pid, label=label).replace("\n", os.linesep)
+        return prefix + text
 
     async def _capture_output(self, source: Any, output_label: str):
         """
@@ -401,8 +402,9 @@ class ShellOperation(JobBlock[list[str]]):
         commands: A list of commands to execute sequentially.
         stream_output: Whether to stream output.
         log_prefix: Template prepended to each streamed output log record.
-            Supports `{pid}` and `{label}` placeholders; set to `None` to log
-            the raw output only.
+            Supports `{pid}` and `{label}` placeholders; newlines are written
+            as the platform line separator. Set to `None` to log the raw
+            output only.
         env: A dictionary of environment variables to set for the shell operation.
         working_dir: The working directory context the commands
             will be executed within.
@@ -433,7 +435,8 @@ class ShellOperation(JobBlock[list[str]]):
         description=(
             "Template prepended to each streamed output log record. Supports the "
             "`{pid}` and `{label}` placeholders (label is `stream output` for stdout "
-            "and `stderr` for stderr); set to `None` to log the raw output only."
+            "and `stderr` for stderr); newlines are written as the platform line "
+            "separator. Set to `None` to log the raw output only."
         ),
     )
     env: dict[str, str] = Field(
