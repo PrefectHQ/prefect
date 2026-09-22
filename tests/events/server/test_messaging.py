@@ -100,6 +100,7 @@ async def test_maximum_event_message_size(
             await publisher.publish_event(event3)
 
     assert "Refusing to publish event" in caplog.text
+    assert "of size %s" not in caplog.text  # the size must be interpolated
 
     (one, two) = capturing_publisher.messages
 
