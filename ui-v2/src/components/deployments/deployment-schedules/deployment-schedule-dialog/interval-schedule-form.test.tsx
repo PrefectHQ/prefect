@@ -37,6 +37,20 @@ const captureSaveRequest = () => {
 	return request;
 };
 
+/**
+ * The anchor date defaults to now, so the time input is pre-filled with the
+ * current HH:mm. React swallows a change event whose value equals the
+ * input's current value, so pick an hour that can never be the current one.
+ */
+const pickTimeOfDay = () => {
+	const hours = new Date().getHours() === 14 ? 15 : 14;
+	return {
+		input: `${hours}:35`,
+		display: `${String(hours - 12).padStart(2, "0")}:35 PM`,
+		isoTime: `T${hours}:35:00.000Z`,
+	};
+};
+
 const baseSchedule = {
 	active: true,
 	created: "0",
@@ -111,17 +125,20 @@ describe("IntervalScheduleForm", () => {
 	it("is able to select a time of day for the anchor date", async () => {
 		const user = userEvent.setup();
 		const request = captureSaveRequest();
+		const time = pickTimeOfDay();
 		render(<IntervalScheduleFormTest deployment_id="0" onSubmit={vi.fn()} />, {
 			wrapper: createWrapper(),
 		});
 
 		await user.click(screen.getByLabelText(/anchor date/i));
 		fireEvent.change(screen.getByLabelText("Time"), {
-			target: { value: "14:35" },
+			target: { value: time.input },
 		});
 
-		expect(screen.getByLabelText("Time")).toHaveValue("14:35");
-		expect(screen.getByLabelText(/anchor date/i)).toHaveTextContent(/02:35 PM/);
+		expect(screen.getByLabelText("Time")).toHaveValue(time.input);
+		expect(screen.getByLabelText(/anchor date/i)).toHaveTextContent(
+			time.display,
+		);
 
 		fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
@@ -129,11 +146,12 @@ describe("IntervalScheduleForm", () => {
 		const [{ schedule }] = request.body as [
 			{ schedule: { anchor_date: string } },
 		];
-		expect(schedule.anchor_date).toMatch(/T14:35:00\.000Z$/);
+		expect(schedule.anchor_date).toContain(time.isoTime);
 	});
 
 	it("keeps the selected time when picking another day", async () => {
 		const user = userEvent.setup();
+		const time = pickTimeOfDay();
 		render(<IntervalScheduleFormTest deployment_id="0" onSubmit={vi.fn()} />, {
 			wrapper: createWrapper(),
 		});
@@ -145,7 +163,7 @@ describe("IntervalScheduleForm", () => {
 
 		await user.click(screen.getByLabelText(/anchor date/i));
 		fireEvent.change(screen.getByLabelText("Time"), {
-			target: { value: "14:35" },
+			target: { value: time.input },
 		});
 		await user.click(
 			screen.getByRole("button", {
@@ -154,7 +172,7 @@ describe("IntervalScheduleForm", () => {
 		);
 
 		expect(screen.getByLabelText(/anchor date/i)).toHaveTextContent(
-			`${format(otherDay, "MMM do, yyyy")} at 02:35 PM`,
+			`${format(otherDay, "MMM do, yyyy")} at ${time.display}`,
 		);
 	});
 
