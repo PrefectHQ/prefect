@@ -243,7 +243,11 @@ class ShellProcess(JobRun[list[str]]):
         prefix = self._shell_operation.log_prefix
         if prefix is None:
             return text
-        prefix = prefix.format(pid=self.pid, label=label).replace("\n", os.linesep)
+        prefix = (
+            prefix.format(pid=self.pid, label=label)
+            .replace("\r\n", "\n")
+            .replace("\n", os.linesep)
+        )
         return prefix + text
 
     async def _capture_output(self, source: Any, output_label: str):
