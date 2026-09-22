@@ -14,6 +14,7 @@ import docker.errors
 import docker.models.containers
 import prefect_docker.worker
 import pytest
+import requests.exceptions
 from docker import DockerClient
 from docker.models.containers import Container
 from prefect_docker.credentials import DockerRegistryCredentials
@@ -527,6 +528,58 @@ async def test_uses_mem_limit_setting(
         )
     mock_docker_client.containers.create.assert_called_once()
     assert mock_docker_client.containers.create.call_args[1].get("mem_limit") == "1g"
+
+
+async def test_uses_container_wait_timeout_setting(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.container_wait_timeout = 120
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    fake_container = mock_docker_client.containers.get.return_value
+    fake_container.client.api.wait.assert_called_once_with(
+        FAKE_CONTAINER_ID, timeout=120
+    )
+
+
+async def test_waits_indefinitely_by_default(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    assert default_docker_worker_job_configuration.container_wait_timeout is None
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    fake_container = mock_docker_client.containers.get.return_value
+    fake_container.client.api.wait.assert_called_once_with(
+        FAKE_CONTAINER_ID, timeout=None
+    )
+
+
+async def test_container_wait_timeout_raises_when_exceeded(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.container_wait_timeout = 1
+    fake_container = mock_docker_client.containers.get.return_value
+    fake_container.client.api.wait.side_effect = requests.exceptions.ReadTimeout(
+        "Read timed out."
+    )
+    async with DockerWorker(work_pool_name="test") as worker:
+        with pytest.raises(requests.exceptions.ReadTimeout):
+            await worker.run(
+                flow_run=flow_run,
+                configuration=default_docker_worker_job_configuration,
+            )
+
+
+@pytest.mark.parametrize("timeout", [0, -1])
+def test_container_wait_timeout_must_be_positive(timeout: int):
+    with pytest.raises(ValidationError):
+        DockerWorkerJobConfiguration(container_wait_timeout=timeout)
 
 
 @pytest.mark.parametrize("networks", [[], ["a"], ["a", "b"]])

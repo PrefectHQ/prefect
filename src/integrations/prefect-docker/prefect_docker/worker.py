@@ -195,6 +195,8 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             against the worker's current working directory.
         stream_output: If set, the output from created containers will be streamed
             to local standard output.
+        container_wait_timeout: Maximum number of seconds to wait for a created
+            container to exit. If not set, the worker waits indefinitely.
         mem_limit: Memory limit of created containers. Accepts a value
             with a unit identifier (e.g. 100000b, 1000k, 128m, 1g.) If a value is
             given without a unit, bytes are assumed.
@@ -254,6 +256,17 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             "If set, the output from created containers will be streamed to local "
             "standard output."
         ),
+    )
+    container_wait_timeout: Optional[int] = Field(
+        default=None,
+        title="Container Wait Timeout",
+        description=(
+            "Maximum number of seconds the worker waits for a created container "
+            "to exit. If the container has not exited within this time, the "
+            "worker stops watching it; the container itself is not stopped. If "
+            "not set, the worker waits indefinitely."
+        ),
+        gt=0,
     )
     mem_limit: Optional[str] = Field(
         default=None,
@@ -1112,7 +1125,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 )
             yield container
 
-        container.wait()
+        container.wait(timeout=configuration.container_wait_timeout)
         self._logger.info(
             f"Docker container {container.name!r} has status {container.status!r}"
         )
