@@ -1,4 +1,5 @@
 import asyncio
+import threading
 from typing import Any
 from unittest import mock
 from uuid import UUID
@@ -224,6 +225,10 @@ async def test_local_release_wakes_waiter_before_retry_after(
     """A slot released in this process is picked up by a waiter right away rather
     than after its server-issued Retry-After."""
     increment = PrefectClient.increment_concurrency_slots_with_lease
+    holder_acquired = asyncio.Event()
+    # Set from the acquisition service's loop, so it must be thread-safe.
+    waiter_locked_out = threading.Event()
+    release_holder = asyncio.Event()
 
     async def slow_retry_increment(self: PrefectClient, *args: Any, **kwargs: Any):
         try:
@@ -231,10 +236,8 @@ async def test_local_release_wakes_waiter_before_retry_after(
         except HTTPStatusError as exc:
             if exc.response.status_code == status.HTTP_423_LOCKED:
                 exc.response.headers["Retry-After"] = "60"
+                waiter_locked_out.set()
             raise
-
-    holder_acquired = asyncio.Event()
-    release_holder = asyncio.Event()
 
     async def holder():
         async with concurrency(concurrency_limit.name, occupy=1):
@@ -252,7 +255,9 @@ async def test_local_release_wakes_waiter_before_retry_after(
         await holder_acquired.wait()
 
         waiter_task = asyncio.create_task(waiter())
-        await asyncio.sleep(0.5)
+        assert await asyncio.get_running_loop().run_in_executor(
+            None, waiter_locked_out.wait, 10
+        )
         assert not waiter_task.done()
 
         release_holder.set()

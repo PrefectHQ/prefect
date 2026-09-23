@@ -266,6 +266,10 @@ def test_local_release_wakes_waiter_before_retry_after(
     """A slot released in this process is picked up by a waiter right away rather
     than after its server-issued Retry-After."""
     increment = PrefectClient.increment_concurrency_slots_with_lease
+    holder_acquired = threading.Event()
+    waiter_locked_out = threading.Event()
+    release_holder = threading.Event()
+    waiter_done = threading.Event()
 
     async def slow_retry_increment(self: PrefectClient, *args: Any, **kwargs: Any):
         try:
@@ -273,11 +277,8 @@ def test_local_release_wakes_waiter_before_retry_after(
         except HTTPStatusError as exc:
             if exc.response.status_code == status.HTTP_423_LOCKED:
                 exc.response.headers["Retry-After"] = "60"
+                waiter_locked_out.set()
             raise
-
-    holder_acquired = threading.Event()
-    release_holder = threading.Event()
-    waiter_done = threading.Event()
 
     def holder():
         with concurrency(concurrency_limit.name, occupy=1):
@@ -301,7 +302,8 @@ def test_local_release_wakes_waiter_before_retry_after(
         assert holder_acquired.wait(10)
 
         waiter_thread.start()
-        assert not waiter_done.wait(0.5)
+        assert waiter_locked_out.wait(10)
+        assert not waiter_done.is_set()
 
         release_holder.set()
         holder_thread.join(10)
