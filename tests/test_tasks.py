@@ -4075,8 +4075,17 @@ class TestTaskWithOptions:
             timeout_seconds=42,
             refresh_cache=True,
             result_storage_key="test",
+            version="1.2.3",
         )
         def initial_task():
+            pass
+
+        @initial_task.on_rollback
+        def rollback_hook(txn):
+            pass
+
+        @initial_task.on_commit
+        def commit_hook(txn):
             pass
 
         task_with_options = initial_task.with_options()
@@ -4099,6 +4108,9 @@ class TestTaskWithOptions:
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "test"
+        assert task_with_options.version == "1.2.3"
+        assert task_with_options.on_rollback_hooks == [rollback_hook]
+        assert task_with_options.on_commit_hooks == [commit_hook]
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         result_storage = LocalFileSystem(basepath=tmp_path)
