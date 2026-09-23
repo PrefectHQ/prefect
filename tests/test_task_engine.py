@@ -6,7 +6,7 @@ import random
 import time
 from datetime import timedelta
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
@@ -2866,6 +2866,49 @@ class TestTaskConcurrencyLimits:
             await bar(x)
             await bar(x)
             assert mock_aconcurrency.call_count == 2
+
+    async def test_cached_task_run_returns_while_tag_limit_is_fully_occupied(
+        self, prefect_client
+    ):
+        tag = f"limit-{uuid4().hex}"
+        await prefect_client.create_concurrency_limit(tag=tag, concurrency_limit=1)
+
+        @task(tags=[tag], cache_policy=INPUTS, persist_result=True)
+        async def bar(x: int) -> int:
+            return x * 2
+
+        x = random.randint(0, 10000)
+        assert (await bar(x, return_state=True)).name == "Completed"
+
+        async with aconcurrency(f"tag:{tag}", occupy=1):
+            state = await asyncio.wait_for(bar(x, return_state=True), timeout=10)
+
+        assert state.name == "Cached"
+        assert await state.result() == x * 2
+
+    async def test_cache_check_computes_cache_key_once_per_run(self):
+        calls = 0
+
+        def cache_key_fn(ctx: TaskRunContext, inputs: dict[str, Any]) -> str:
+            nonlocal calls
+            calls += 1
+            return f"{cache_key_fn.__name__}-{inputs['x']}"
+
+        @task(tags=["limit-tag"], cache_key_fn=cache_key_fn, persist_result=True)
+        async def bar(x: int) -> int:
+            return x * 2
+
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
+            mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
+                return_value=None
+            )
+            mock_aconcurrency.return_value.__aexit__ = mock.AsyncMock(return_value=None)
+
+            x = random.randint(0, 10000)
+            await bar(x)
+            assert calls == 1
+            assert (await bar(x, return_state=True)).name == "Cached"
+            assert calls == 2
 
     async def test_tag_concurrency_is_taken_prior_to_running_state(
         self, events_pipeline, prefect_client

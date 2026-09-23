@@ -248,6 +248,8 @@ class BaseTaskRunEngine(Generic[P, R]):
     _task_name_set: bool = False
     _last_event: Optional[PrefectEvent] = None
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
+    _precomputed_transaction_key: Optional[str] = None
+    _has_precomputed_transaction_key: bool = False
 
     def __post_init__(self) -> None:
         if self.parameters is None:
@@ -300,6 +302,25 @@ class BaseTaskRunEngine(Generic[P, R]):
         if self.task.refresh_cache is not None:
             return self.task.refresh_cache
         return PREFECT_TASKS_REFRESH_CACHE.value()
+
+    def _precompute_transaction_key(self) -> Optional[str]:
+        key = self.compute_transaction_key()
+        self._precomputed_transaction_key = key
+        self._has_precomputed_transaction_key = True
+        return key
+
+    def _take_transaction_key(self) -> Optional[str]:
+        """
+        Return the transaction key for the current attempt, consuming a key
+        precomputed by `has_cached_result` so user cache key functions run once
+        per attempt.
+        """
+        if self._has_precomputed_transaction_key:
+            key = self._precomputed_transaction_key
+            self._precomputed_transaction_key = None
+            self._has_precomputed_transaction_key = False
+            return key
+        return self.compute_transaction_key()
 
     def _resolve_parameters(self):
         if not self.parameters:
@@ -826,7 +847,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
         if self.task.isgenerator or self._should_refresh_cache():
             return False
-        key = self.compute_transaction_key()
+        key = self._precompute_transaction_key()
         if not key:
             return False
         return get_result_store().exists(key)
@@ -999,7 +1020,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
 
         with transaction(
-            key=self.compute_transaction_key(),
+            key=self._take_transaction_key(),
             store=get_result_store(),
             overwrite=overwrite,
             logger=self.logger,
@@ -1473,7 +1494,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
         if self.task.isgenerator or self._should_refresh_cache():
             return False
-        key = self.compute_transaction_key()
+        key = self._precompute_transaction_key()
         if not key:
             return False
         return await get_result_store().aexists(key)
@@ -1646,7 +1667,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
 
         async with atransaction(
-            key=self.compute_transaction_key(),
+            key=self._take_transaction_key(),
             store=get_result_store(),
             overwrite=overwrite,
             logger=self.logger,
