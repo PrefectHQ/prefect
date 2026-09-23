@@ -17,6 +17,8 @@ from prefect.concurrency.services import (
     _create_empty_limits_response,
     _no_limits_cache,
     _should_use_cache,
+    _SlotReleaseWaiter,
+    notify_concurrency_slots_released,
 )
 
 pytestmark = pytest.mark.clear_db
@@ -253,7 +255,7 @@ async def test_retries_failed_call_respects_retry_after_header(
         frozenset(limit_names)
     )
 
-    with mock.patch("asyncio.sleep") as sleep:
+    with mock.patch.object(_SlotReleaseWaiter, "wait", autospec=True) as wait:
         future: Future[Response] = service.send(
             (
                 1,  # slots
@@ -270,13 +272,97 @@ async def test_retries_failed_call_respects_retry_after_header(
 
         assert returned_response == responses[1]
 
-        # Verify sleep was called with the Retry-After value
-        sleep.assert_called_once_with(
-            float(responses[0].response.headers["Retry-After"])
+        # Verify the retry wait used the Retry-After value
+        wait.assert_called_once_with(
+            mock.ANY, float(responses[0].response.headers["Retry-After"])
         )
         assert (
             mocked_client.client.increment_concurrency_slots_with_lease.call_count == 2
         )
+
+
+async def test_local_release_wakes_waiter_before_retry_after(
+    mocked_client: Any,
+) -> None:
+    """A release in this process retries immediately instead of sleeping out Retry-After."""
+    responses = [
+        HTTPStatusError(
+            "Limit is locked",
+            request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
+            response=Response(423, headers={"Retry-After": "60"}),
+        ),
+        Response(
+            200,
+            json={
+                "lease_id": str(uuid4()),
+                "limits": [{"id": str(uuid4()), "name": "test-limit", "limit": 10}],
+            },
+        ),
+    ]
+    increment = mocked_client.client.increment_concurrency_slots_with_lease
+    increment.side_effect = responses
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["test-limit"])
+    )
+    future: Future[Response] = service.send(
+        (1, "concurrency", None, None, 60.0, False, None)
+    )
+
+    while increment.call_count < 1:
+        await asyncio.sleep(0.01)
+
+    notify_concurrency_slots_released(["test-limit"])
+
+    returned_response = await asyncio.wait_for(asyncio.wrap_future(future), 5)
+    assert returned_response == responses[1]
+    assert increment.call_count == 2
+    await service.drain()
+
+
+async def test_release_of_unrelated_limit_does_not_wake_waiter(
+    mocked_client: Any,
+) -> None:
+    increment = mocked_client.client.increment_concurrency_slots_with_lease
+    increment.side_effect = [
+        HTTPStatusError(
+            "Limit is locked",
+            request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
+            response=Response(423, headers={"Retry-After": "60"}),
+        ),
+        Response(
+            200,
+            json={
+                "lease_id": str(uuid4()),
+                "limits": [{"id": str(uuid4()), "name": "test-limit", "limit": 10}],
+            },
+        ),
+    ]
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["test-limit"])
+    )
+    with mock.patch.object(
+        service, "notify_slots_released", wraps=service.notify_slots_released
+    ) as notify:
+        future: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, None)
+        )
+
+        while increment.call_count < 1:
+            await asyncio.sleep(0.01)
+
+        notify_concurrency_slots_released(["other-limit"])
+        await asyncio.sleep(0.1)
+
+        notify.assert_not_called()
+        assert not future.done()
+        assert increment.call_count == 1
+
+        notify_concurrency_slots_released(["test-limit"])
+        await asyncio.wait_for(asyncio.wrap_future(future), 5)
+        notify.assert_called_once()
+    await service.drain()
 
 
 async def test_failed_call_status_code_not_retryable_returns_exception(

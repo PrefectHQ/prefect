@@ -1,7 +1,8 @@
 import asyncio
 import concurrent.futures
+import contextlib
 import json
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Iterable
 from contextlib import asynccontextmanager
 from threading import Lock
 from typing import TYPE_CHECKING, Literal, Optional
@@ -13,7 +14,10 @@ from starlette import status
 from typing_extensions import TypeAlias, Unpack
 
 from prefect._internal.concurrency import logger
-from prefect._internal.concurrency.services import FutureQueueService
+from prefect._internal.concurrency.services import (
+    FutureQueueService,
+    _QueueServiceBase,
+)
 from prefect.client.orchestration import get_client
 from prefect.utilities.timeout import timeout_async
 
@@ -28,6 +32,75 @@ _no_limits_cache: cachetools.TTLCache[frozenset[str], bool] = cachetools.TTLCach
     maxsize=1000, ttl=5.0
 )
 _cache_lock = Lock()
+
+
+class _SlotReleaseWaiter:
+    """Wakes an acquisition service early when slots on its limits are released.
+
+    A service that received a 423 sleeps for the server's `Retry-After`. When this
+    process itself releases slots on one of the service's limits in the meantime,
+    the slot would sit idle until that sleep ends, so the release wakes the service
+    and it retries straight away. Releases from other processes are still only
+    discovered when `Retry-After` expires.
+    """
+
+    def __init__(self) -> None:
+        self._event: Optional[asyncio.Event] = None
+
+    def bind(self) -> None:
+        """Create the event on the loop the service runs on."""
+        self._event = asyncio.Event()
+
+    def unbind(self) -> None:
+        self._event = None
+
+    def reset(self) -> None:
+        """Forget releases seen so far; call before each acquisition attempt so a
+        release that lands while the request is in flight is not lost."""
+        if self._event is not None:
+            self._event.clear()
+
+    async def wait(self, timeout: float) -> None:
+        """Sleep for `timeout` seconds or until slots are released, whichever is first."""
+        if self._event is None:
+            await asyncio.sleep(timeout)
+            return
+
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(self._event.wait(), timeout=timeout)
+
+    def notify(self, loop: Optional[asyncio.AbstractEventLoop]) -> None:
+        """Wake the waiter from any thread."""
+        event = self._event
+        if event is None or loop is None or loop.is_closed():
+            return
+        loop.call_soon_threadsafe(event.set)
+
+
+def notify_concurrency_slots_released(names: Iterable[str]) -> None:
+    """Wake acquisition services in this process waiting on any of `names`.
+
+    Called after slots are released so callers waiting on the same limits retry
+    immediately instead of sleeping out their `Retry-After`. Safe to call from any
+    thread.
+    """
+    released = frozenset(names)
+    if not released:
+        return
+
+    with _QueueServiceBase._instance_lock:
+        services = tuple(_QueueServiceBase._instances.values())
+
+    for service in services:
+        if isinstance(
+            service,
+            (
+                ConcurrencySlotAcquisitionService,
+                ConcurrencySlotAcquisitionWithLeaseService,
+            ),
+        ) and not released.isdisjoint(service.concurrency_limit_names):
+            service.notify_slots_released()
+
 
 _Item: TypeAlias = tuple[
     int, Literal["concurrency", "rate_limit"], Optional[float], Optional[int]
@@ -51,12 +124,23 @@ class ConcurrencySlotAcquisitionService(
         super().__init__(concurrency_limit_names)
         self._client: PrefectClient
         self.concurrency_limit_names: list[str] = sorted(list(concurrency_limit_names))
+        self._release_waiter = _SlotReleaseWaiter()
 
     @asynccontextmanager
     async def _lifespan(self) -> AsyncGenerator[None, None]:
         async with get_client() as client:
             self._client = client
-            yield
+            self._release_waiter.bind()
+            try:
+                yield
+            finally:
+                self._release_waiter.unbind()
+
+    def notify_slots_released(self) -> None:
+        """Wake a pending `Retry-After` sleep because slots were released locally."""
+        with self._lock:
+            loop = self._loop
+        self._release_waiter.notify(loop)
 
     async def acquire(
         self,
@@ -68,6 +152,7 @@ class ConcurrencySlotAcquisitionService(
         with timeout_async(seconds=timeout_seconds):
             while True:
                 try:
+                    self._release_waiter.reset()
                     return await self._client.increment_concurrency_slots(
                         names=self.concurrency_limit_names,
                         slots=slots,
@@ -83,7 +168,7 @@ class ConcurrencySlotAcquisitionService(
                     logger.debug(
                         f"Unable to acquire concurrency slot. Retrying in {retry_after} second(s)."
                     )
-                    await asyncio.sleep(retry_after)
+                    await self._release_waiter.wait(retry_after)
                     if max_retries is not None:
                         max_retries -= 1
 
@@ -106,14 +191,17 @@ class ConcurrencySlotAcquisitionWithLeaseService(
         self._client: PrefectClient
         self.concurrency_limit_names: list[str] = sorted(list(concurrency_limit_names))
         self._pending_releases: set[concurrent.futures.Future[None]] = set()
+        self._release_waiter = _SlotReleaseWaiter()
 
     @asynccontextmanager
     async def _lifespan(self) -> AsyncGenerator[None, None]:
         async with get_client() as client:
             self._client = client
+            self._release_waiter.bind()
             try:
                 yield
             finally:
+                self._release_waiter.unbind()
                 # The client closes when this exits, so releases scheduled by
                 # cancelled callers have to finish first or their slots leak.
                 if self._pending_releases:
@@ -124,6 +212,12 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                         ),
                         return_exceptions=True,
                     )
+
+    def notify_slots_released(self) -> None:
+        """Wake a pending `Retry-After` sleep because slots were released locally."""
+        with self._lock:
+            loop = self._loop
+        self._release_waiter.notify(loop)
 
     async def acquire(
         self,
@@ -164,6 +258,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                             if _no_limits_cache.get(cache_key, False):
                                 return _create_empty_limits_response()
 
+                    self._release_waiter.reset()
                     response = (
                         await self._client.increment_concurrency_slots_with_lease(
                             names=self.concurrency_limit_names,
@@ -195,7 +290,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                     logger.debug(
                         f"Unable to acquire concurrency slot with lease for {self.concurrency_limit_names}. Retrying in {retry_after} second(s)."
                     )
-                    await asyncio.sleep(retry_after)
+                    await self._release_waiter.wait(retry_after)
                     if max_retries is not None:
                         max_retries -= 1
 
@@ -217,6 +312,8 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                 f"{self.concurrency_limit_names} after the acquiring caller was cancelled",
                 exc_info=True,
             )
+        else:
+            notify_concurrency_slots_released(self.concurrency_limit_names)
 
     def release_orphaned_lease(
         self, response: httpx.Response

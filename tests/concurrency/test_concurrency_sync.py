@@ -1,3 +1,5 @@
+import contextvars
+import threading
 from typing import Any
 from unittest import mock
 from uuid import UUID
@@ -7,6 +9,7 @@ from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
+from prefect.client.orchestration import PrefectClient
 from prefect.concurrency._sync import (
     acquire_concurrency_slots,
     acquire_concurrency_slots_with_lease,
@@ -255,6 +258,55 @@ def test_concurrency_respects_timeout():
     with pytest.raises(TimeoutError, match=".*timed out after 0.01 second(s)*."):
         with concurrency("test", occupy=1, timeout_seconds=0.01):
             print("should not be executed")
+
+
+def test_local_release_wakes_waiter_before_retry_after(
+    concurrency_limit: ConcurrencyLimitV2,
+):
+    """A slot released in this process is picked up by a waiter right away rather
+    than after its server-issued Retry-After."""
+    increment = PrefectClient.increment_concurrency_slots_with_lease
+
+    async def slow_retry_increment(self: PrefectClient, *args: Any, **kwargs: Any):
+        try:
+            return await increment(self, *args, **kwargs)
+        except HTTPStatusError as exc:
+            if exc.response.status_code == status.HTTP_423_LOCKED:
+                exc.response.headers["Retry-After"] = "60"
+            raise
+
+    holder_acquired = threading.Event()
+    release_holder = threading.Event()
+    waiter_done = threading.Event()
+
+    def holder():
+        with concurrency(concurrency_limit.name, occupy=1):
+            holder_acquired.set()
+            release_holder.wait()
+
+    def waiter():
+        with concurrency(concurrency_limit.name, occupy=1):
+            waiter_done.set()
+
+    with mock.patch.object(
+        PrefectClient, "increment_concurrency_slots_with_lease", slow_retry_increment
+    ):
+        holder_thread = threading.Thread(
+            target=contextvars.copy_context().run, args=(holder,)
+        )
+        waiter_thread = threading.Thread(
+            target=contextvars.copy_context().run, args=(waiter,)
+        )
+        holder_thread.start()
+        assert holder_acquired.wait(10)
+
+        waiter_thread.start()
+        assert not waiter_done.wait(0.5)
+
+        release_holder.set()
+        holder_thread.join(10)
+        assert waiter_done.wait(10)
+        waiter_thread.join(10)
 
 
 def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLimitV2):
