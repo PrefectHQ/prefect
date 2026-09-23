@@ -2802,6 +2802,71 @@ class TestTaskConcurrencyLimits:
             assert kwargs["holder"].type == "task_run"
             assert kwargs["holder"].id == task_run_id
 
+    async def test_cached_task_run_does_not_acquire_tag_concurrency(self):
+        @task(tags=["limit-tag"], cache_policy=INPUTS, persist_result=True)
+        async def bar(x: int) -> int:
+            return x * 2
+
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
+            mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
+                return_value=None
+            )
+            mock_aconcurrency.return_value.__aexit__ = mock.AsyncMock(return_value=None)
+
+            x = random.randint(0, 10000)
+            first = await bar(x, return_state=True)
+            assert first.name == "Completed"
+            mock_aconcurrency.assert_called_once()
+
+            mock_aconcurrency.reset_mock()
+
+            second = await bar(x, return_state=True)
+            assert second.name == "Cached"
+            assert await second.result() == x * 2
+            mock_aconcurrency.assert_not_called()
+
+    def test_cached_task_run_does_not_acquire_tag_concurrency_sync(self):
+        @task(tags=["limit-tag"], cache_policy=INPUTS, persist_result=True)
+        def bar(x: int) -> int:
+            return x * 2
+
+        with mock.patch("prefect.task_engine._concurrency") as mock_concurrency:
+            mock_concurrency.return_value.__enter__ = mock.Mock(return_value=None)
+            mock_concurrency.return_value.__exit__ = mock.Mock(return_value=None)
+
+            x = random.randint(0, 10000)
+            first = bar(x, return_state=True)
+            assert first.name == "Completed"
+            mock_concurrency.assert_called_once()
+
+            mock_concurrency.reset_mock()
+
+            second = bar(x, return_state=True)
+            assert second.name == "Cached"
+            assert second.result() == x * 2
+            mock_concurrency.assert_not_called()
+
+    async def test_refresh_cache_task_run_acquires_tag_concurrency(self):
+        @task(
+            tags=["limit-tag"],
+            cache_policy=INPUTS,
+            persist_result=True,
+            refresh_cache=True,
+        )
+        async def bar(x: int) -> int:
+            return x * 2
+
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
+            mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
+                return_value=None
+            )
+            mock_aconcurrency.return_value.__aexit__ = mock.AsyncMock(return_value=None)
+
+            x = random.randint(0, 10000)
+            await bar(x)
+            await bar(x)
+            assert mock_aconcurrency.call_count == 2
+
     async def test_tag_concurrency_is_taken_prior_to_running_state(
         self, events_pipeline, prefect_client
     ):

@@ -296,6 +296,11 @@ class BaseTaskRunEngine(Generic[P, R]):
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
         return key
 
+    def _should_refresh_cache(self) -> bool:
+        if self.task.refresh_cache is not None:
+            return self.task.refresh_cache
+        return PREFECT_TASKS_REFRESH_CACHE.value()
+
     def _resolve_parameters(self):
         if not self.parameters:
             return None
@@ -812,6 +817,20 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             finally:
                 ctx.emit_events(self.state)
 
+    def has_cached_result(self) -> bool:
+        """
+        Check whether a persisted result already exists for this run's cache key.
+
+        A cached run does not execute the task function, so it does not need to
+        hold a tag concurrency slot.
+        """
+        if self.task.isgenerator or self._should_refresh_cache():
+            return False
+        key = self.compute_transaction_key()
+        if not key:
+            return False
+        return get_result_store().exists(key)
+
     @contextmanager
     def initialize_run(
         self,
@@ -946,12 +965,18 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.call_hooks()
                     return
 
-                with _concurrency(
-                    names=[f"tag:{tag}" for tag in self.task_run.tags],
-                    occupy=1,
-                    holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
-                    lease_duration=60,
-                    suppress_warnings=True,
+                with (
+                    nullcontext()
+                    if self.has_cached_result()
+                    else _concurrency(
+                        names=[f"tag:{tag}" for tag in self.task_run.tags],
+                        occupy=1,
+                        holder=ConcurrencyLeaseHolder(
+                            type="task_run", id=self.task_run.id
+                        ),
+                        lease_duration=60,
+                        suppress_warnings=True,
+                    )
                 ):
                     raise_if_flow_run_suspension_requested()
                     self.begin_run()
@@ -963,11 +988,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
         # refresh cache setting is now repurposes as overwrite transaction record
-        overwrite = (
-            self.task.refresh_cache
-            if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
+        overwrite = self._should_refresh_cache()
 
         isolation_level = (
             IsolationLevel(self.task.cache_policy.isolation_level)
@@ -1443,6 +1464,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             finally:
                 ctx.emit_events(self.state)
 
+    async def has_cached_result(self) -> bool:
+        """
+        Check whether a persisted result already exists for this run's cache key.
+
+        A cached run does not execute the task function, so it does not need to
+        hold a tag concurrency slot.
+        """
+        if self.task.isgenerator or self._should_refresh_cache():
+            return False
+        key = self.compute_transaction_key()
+        if not key:
+            return False
+        return await get_result_store().aexists(key)
+
     @asynccontextmanager
     async def initialize_run(
         self,
@@ -1578,12 +1613,18 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     await self.call_hooks()
                     return
 
-                async with _aconcurrency(
-                    names=[f"tag:{tag}" for tag in self.task_run.tags],
-                    occupy=1,
-                    holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
-                    lease_duration=60,
-                    suppress_warnings=True,
+                async with (
+                    nullcontext()
+                    if await self.has_cached_result()
+                    else _aconcurrency(
+                        names=[f"tag:{tag}" for tag in self.task_run.tags],
+                        occupy=1,
+                        holder=ConcurrencyLeaseHolder(
+                            type="task_run", id=self.task_run.id
+                        ),
+                        lease_duration=60,
+                        suppress_warnings=True,
+                    )
                 ):
                     raise_if_flow_run_suspension_requested()
                     await self.begin_run()
@@ -1595,11 +1636,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     @asynccontextmanager
     async def transaction_context(self) -> AsyncGenerator[AsyncTransaction, None]:
         # refresh cache setting is now repurposes as overwrite transaction record
-        overwrite = (
-            self.task.refresh_cache
-            if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
+        overwrite = self._should_refresh_cache()
         isolation_level = (
             IsolationLevel(self.task.cache_policy.isolation_level)
             if self.task.cache_policy
