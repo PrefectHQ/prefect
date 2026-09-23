@@ -2877,14 +2877,17 @@ class TestTaskConcurrencyLimits:
         async def bar(x: int) -> int:
             return x * 2
 
-        x = random.randint(0, 10000)
-        assert (await bar(x, return_state=True)).name == "Completed"
+        try:
+            x = random.randint(0, 10000)
+            assert (await bar(x, return_state=True)).name == "Completed"
 
-        async with aconcurrency(f"tag:{tag}", occupy=1):
-            state = await asyncio.wait_for(bar(x, return_state=True), timeout=10)
+            async with aconcurrency(f"tag:{tag}", occupy=1):
+                state = await asyncio.wait_for(bar(x, return_state=True), timeout=10)
 
-        assert state.name == "Cached"
-        assert await state.result() == x * 2
+            assert state.name == "Cached"
+            assert await state.result() == x * 2
+        finally:
+            await prefect_client.delete_concurrency_limit_by_tag(tag)
 
     async def test_cache_check_computes_cache_key_once_per_run(self):
         calls = 0
