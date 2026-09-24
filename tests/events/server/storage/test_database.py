@@ -209,6 +209,104 @@ class TestWriteEvents:
                 assert len(list(results)) == len(event.related) + 1
 
 
+class TestWriteEventsWithNullBytes:
+    """Null bytes cause PostgreSQL to reject the INSERT (in `text` columns with
+    CharacterNotInRepertoireError, in `jsonb` columns with
+    UntranslatableCharacterError).  Events are inserted in batches, so one such
+    event must not fail the other events written alongside it."""
+
+    @pytest.fixture
+    def event_with_null_bytes(self) -> ReceivedEvent:
+        return ReceivedEvent(
+            occurred=now("UTC"),
+            event="hello\x00",
+            resource={
+                "prefect.resource.id": "my.resource.id",
+                "my.label\x00": "value\x00",
+            },
+            related=[
+                {
+                    "prefect.resource.id": "related-1",
+                    "prefect.resource.role": "role-1\x00",
+                },
+            ],
+            payload={"stdout": "binary\x00output", "nested": [{"key": "a\x00b"}]},
+            id=uuid4(),
+        )
+
+    async def test_write_events_strips_null_bytes(
+        self,
+        session: AsyncSession,
+        db: PrefectDBInterface,
+        event_with_null_bytes: ReceivedEvent,
+    ):
+        async with session as session:
+            await write_events(session=session, events=[event_with_null_bytes])
+            await session.commit()
+
+        async with session as session:
+            saved = (
+                await session.execute(
+                    sa.select(db.Event).where(db.Event.id == event_with_null_bytes.id)
+                )
+            ).scalar_one()
+            assert saved.event == "hello"
+            assert saved.resource == {
+                "prefect.resource.id": "my.resource.id",
+                "my.label": "value",
+            }
+            assert saved.related[0]["prefect.resource.role"] == "role-1"
+            assert saved.payload == {
+                "stdout": "binaryoutput",
+                "nested": [{"key": "ab"}],
+            }
+
+            resources = (
+                await session.execute(
+                    sa.select(db.EventResource).where(
+                        db.EventResource.event_id == event_with_null_bytes.id
+                    )
+                )
+            ).scalars()
+            assert {r.resource_role for r in resources} == {"", "role-1"}
+
+    async def test_null_byte_event_does_not_fail_its_batch(
+        self,
+        session: AsyncSession,
+        db: PrefectDBInterface,
+        event: ReceivedEvent,
+        event_with_null_bytes: ReceivedEvent,
+    ):
+        async with session as session:
+            await write_events(session=session, events=[event, event_with_null_bytes])
+            await session.commit()
+
+        async with session as session:
+            results = await session.execute(
+                sa.select(db.Event.id).where(
+                    db.Event.id.in_([event.id, event_with_null_bytes.id])
+                )
+            )
+            assert set(results.scalars()) == {event.id, event_with_null_bytes.id}
+
+    async def test_write_events_without_null_bytes_unchanged(
+        self, session: AsyncSession, db: PrefectDBInterface, event: ReceivedEvent
+    ):
+        async with session as session:
+            await write_events(session=session, events=[event])
+            await session.commit()
+
+        async with session as session:
+            saved = (
+                await session.execute(
+                    sa.select(db.Event).where(db.Event.id == event.id)
+                )
+            ).scalar_one()
+            assert saved.event == event.event
+            assert saved.resource == event.resource.root
+            assert saved.payload == event.payload
+
+
 class TestReadEvents:
     @pytest.fixture
     async def event_1(self, session: AsyncSession) -> ReceivedEvent:
