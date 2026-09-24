@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from prefect._internal.retries import retry_async_fn
+from prefect._internal.retries import exponential_backoff_with_jitter, retry_async_fn
 
 
 @pytest.fixture(autouse=True)
@@ -97,6 +97,28 @@ class TestRetryAsyncFn:
         assert 1.4 <= delays[1] <= 2.6  # 2 * 1.3
         assert 2.8 <= delays[2] <= 5.2  # 4 * 1.3
 
+    async def test_zero_base_delay_retries_without_waiting(self, mock_sleep):
+        @retry_async_fn(max_attempts=3, base_delay=0)
+        async def fail_func():
+            raise ValueError("Test error")
+
+        with pytest.raises(ValueError, match="Test error"):
+            await fail_func()
+
+        assert mock_sleep.call_count == 2
+        assert [call.args[0] for call in mock_sleep.call_args_list] == [0, 0]
+
+    async def test_zero_max_delay_retries_without_waiting(self, mock_sleep):
+        @retry_async_fn(max_attempts=3, base_delay=1, max_delay=0)
+        async def fail_func():
+            raise ValueError("Test error")
+
+        with pytest.raises(ValueError, match="Test error"):
+            await fail_func()
+
+        assert mock_sleep.call_count == 2
+        assert [call.args[0] for call in mock_sleep.call_args_list] == [0, 0]
+
     async def test_retry_successful_after_failures(self, mock_sleep):
         mock_func = AsyncMock(
             side_effect=[ValueError("Error 1"), ValueError("Error 2"), "Success"]
@@ -110,3 +132,19 @@ class TestRetryAsyncFn:
         assert result == "Success"
         assert mock_func.call_count == 3
         assert mock_sleep.call_count == 2
+
+
+class TestExponentialBackoffWithJitter:
+    @pytest.mark.parametrize(
+        "attempt, base_delay, max_delay",
+        [
+            (0, 0, 10),  # caller asked for no backoff at all
+            (3, 0.5, 0),  # exponential growth capped by a zero maximum
+        ],
+    )
+    def test_zero_average_interval_skips_jitter(
+        self, attempt: int, base_delay: float, max_delay: float
+    ):
+        # clamped_poisson_interval() divides by the average interval, so a zero
+        # interval must fall back to no delay instead of raising ZeroDivisionError.
+        assert exponential_backoff_with_jitter(attempt, base_delay, max_delay) == 0.0

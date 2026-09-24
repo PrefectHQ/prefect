@@ -16,6 +16,10 @@ def exponential_backoff_with_jitter(
     attempt: int, base_delay: float, max_delay: float
 ) -> float:
     average_interval = min(base_delay * (2**attempt), max_delay)
+    if average_interval <= 0:
+        # clamped_poisson_interval divides by the average interval, so a caller that
+        # asks for no delay falls back to an immediate retry instead of crashing.
+        return 0.0
     return clamped_poisson_interval(average_interval, clamping_factor=0.3)
 
 
