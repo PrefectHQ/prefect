@@ -472,6 +472,82 @@ class TestObjectOptionalParameters:
         assert [e.message for e in errors] == expected_errors
 
 
+class TestNestedRequiredFieldsDoNotLeakToSiblings:
+    """
+    A nested object's `required` list belongs to that object only: `process_properties`
+    must keep using the parent's list for the siblings that follow it.
+    """
+
+    @staticmethod
+    def schema(
+        nested_first: bool, parent_required: list[str], nested_required: list[str]
+    ) -> dict:
+        nested = {
+            "title": "Nested",
+            "type": "object",
+            "properties": {
+                "inner": {"title": "Inner", "type": "string"},
+                "plain": {"title": "Plain", "type": "string"},
+            },
+            "required": nested_required,
+        }
+        plain = {"title": "Plain", "type": "string"}
+        properties = (
+            {"nested": nested, "plain": plain}
+            if nested_first
+            else {"plain": plain, "nested": nested}
+        )
+        return {
+            "title": "Parameters",
+            "type": "object",
+            "properties": properties,
+            "required": parent_required,
+        }
+
+    @pytest.mark.parametrize("nested_first", [True, False])
+    def test_optional_sibling_still_accepts_none(self, nested_first):
+        # 'plain' is optional at the top level even though the nested object requires
+        # a property with the same name.
+        schema = self.schema(
+            nested_first, parent_required=["nested"], nested_required=["plain"]
+        )
+        obj = {"nested": {"plain": "Example"}, "plain": None}
+        assert [e.message for e in validate(obj, schema)] == []
+
+    @pytest.mark.parametrize("nested_first", [True, False])
+    def test_required_sibling_still_rejects_none(self, nested_first):
+        schema = self.schema(
+            nested_first,
+            parent_required=["nested", "plain"],
+            nested_required=["inner"],
+        )
+        obj = {"nested": {"inner": "Example"}, "plain": None}
+        assert [e.message for e in validate(obj, schema)] == [
+            "None is not of type 'string'"
+        ]
+
+
+class TestAllowNoneWithDefaultAppliesToNestedProperties:
+    def test_nested_property_with_default_accepts_none(self):
+        schema = {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "top": {"title": "Top", "type": "string", "default": "abc"},
+                "nested": {
+                    "title": "Nested",
+                    "type": "object",
+                    "properties": {
+                        "inner": {"title": "Inner", "type": "string", "default": "abc"}
+                    },
+                },
+            },
+        }
+        obj = {"top": None, "nested": {"inner": None}}
+        errors = validate(obj, schema, allow_none_with_default=True)
+        assert [e.message for e in errors] == []
+
+
 class TestArray:
     @pytest.fixture
     def schema(self) -> dict:
