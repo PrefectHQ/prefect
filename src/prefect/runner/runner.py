@@ -241,7 +241,14 @@ class Runner:
 
         if name and ("/" in name or "%" in name):
             raise ValueError("Runner name cannot contain '/' or '%'")
-        self.name: str = Path(name).stem if name is not None else f"runner-{uuid4()}"
+        if name is None:
+            self.name: str = f"runner-{uuid4()}"
+        else:
+            # Only strip the suffix when a filename was actually passed; a `.` is
+            # legal in a runner name and `Path().stem` would otherwise treat
+            # everything after the last one as a file extension. Mirrors
+            # `RunnerDeployment.validate_name`.
+            self.name = Path(name).stem if name.endswith(".py") else name
         self._logger: "logging.Logger" = get_logger("runner")
 
         self.started: bool = False
