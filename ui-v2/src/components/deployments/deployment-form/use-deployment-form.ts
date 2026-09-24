@@ -138,7 +138,7 @@ export const useDeploymentForm = (
 
 		const jobVariablesPayload = job_variables
 			? (JSON.parse(job_variables) as Record<string, unknown>)
-			: undefined;
+			: {};
 
 		if (parameter_openapi_schema && enforce_parameter_schema) {
 			try {
