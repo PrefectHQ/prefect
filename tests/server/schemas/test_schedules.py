@@ -583,6 +583,48 @@ class TestIntervalScheduleDaylightSavingsTime:
             14,
         ]
 
+    async def test_interval_schedule_daily_start_after_daylight_savings_time_forward(
+        self,
+    ):
+        """
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
+
+        When the start is after the switch, the anchor-to-start jump must not
+        count every day as 24 exact hours or the schedule lands at 8am (#23204).
+        """
+        dt = datetime(2018, 3, 8, 9, tzinfo=ZoneInfo("America/New_York"))
+        start = datetime(2018, 3, 20, 12, tzinfo=ZoneInfo("America/New_York"))
+        s = IntervalSchedule(interval=timedelta(days=1), anchor_date=dt)
+        dates = await s.get_dates(n=5, start=start)
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            9,
+            9,
+            9,
+            9,
+            9,
+        ]
+
+    async def test_interval_schedule_daily_start_after_daylight_savings_time_backward(
+        self,
+    ):
+        """
+        On 11/4/2018, at 2am, America/New_York switched clocks back an hour.
+
+        When the start is after the switch, the anchor-to-start jump must not
+        count every day as 24 exact hours or the schedule lands at 10am (#23204).
+        """
+        dt = datetime(2018, 11, 1, 9, tzinfo=ZoneInfo("America/New_York"))
+        start = datetime(2018, 11, 20, 12, tzinfo=ZoneInfo("America/New_York"))
+        s = IntervalSchedule(interval=timedelta(days=1), anchor_date=dt)
+        dates = await s.get_dates(n=5, start=start)
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            9,
+            9,
+            9,
+            9,
+            9,
+        ]
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 13),
