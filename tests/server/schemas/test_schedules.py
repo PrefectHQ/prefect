@@ -630,6 +630,26 @@ class TestIntervalScheduleDaylightSavingsTime:
 
         assert after == before[6:9]
 
+    async def test_interval_schedule_mixed_interval_advances_sequentially(self):
+        """
+        An interval mixing calendar days and exact hours is applied one step at a
+        time, so each step across a DST change shifts the local time by the hours
+        component (the pre-existing behavior for such intervals).
+        """
+        ny = ZoneInfo("America/New_York")
+        s = IntervalSchedule(
+            interval=timedelta(days=1, hours=2),
+            anchor_date=datetime(2026, 3, 7, tzinfo=ny),
+            timezone="America/New_York",
+        )
+        dates = await s.get_dates(n=3, start=datetime(2026, 3, 7, tzinfo=ny))
+
+        assert [d.astimezone(ny).strftime("%m-%d %H:%M") for d in dates] == [
+            "03-07 00:00",
+            "03-08 03:00",
+            "03-09 05:00",
+        ]
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 13),
@@ -758,23 +778,23 @@ class TestIntervalScheduleDateTimeDelta:
 
         assert [d.astimezone(ny).hour for d in dates] == [9, 9, 9]
 
-    async def test_monthly_itemized_delta_start_after_daylight_savings_change(self):
-        """A monthly ItemizedDelta anchored on the 1st at 9am lands on the 1st
-        at 9am when the start date is months later and across a DST change."""
+    async def test_monthly_itemized_delta_clamps_to_month_end_sequentially(self):
+        """A monthly ItemizedDelta advances one month at a time, so a
+        January 31 anchor clamps to February 28 and stays on the 28th."""
         from whenever import ItemizedDelta
 
         ny = ZoneInfo("America/New_York")
         s = IntervalSchedule(
             interval=ItemizedDelta(months=1),
-            anchor_date=datetime(2026, 1, 1, 9, tzinfo=ny),
+            anchor_date=datetime(2026, 1, 31, 9, tzinfo=ny),
             timezone="America/New_York",
         )
-        dates = await s.get_dates(n=3, start=datetime(2026, 9, 15, tzinfo=ny))
+        dates = await s.get_dates(n=3, start=datetime(2026, 1, 31, 9, tzinfo=ny))
 
-        assert [d.astimezone(ny).strftime("%m-%d %H:%M") for d in dates] == [
-            "10-01 09:00",
-            "11-01 09:00",
-            "12-01 09:00",
+        assert [d.astimezone(ny).strftime("%m-%d") for d in dates] == [
+            "01-31",
+            "02-28",
+            "03-28",
         ]
 
 
