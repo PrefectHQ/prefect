@@ -114,7 +114,7 @@ describe("IntervalScheduleForm", () => {
 		fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
 		await waitFor(() => expect(request.body).toBeDefined());
-		const [{ schedule }] = request.body as [{ schedule: { interval: number } }];
+		const { schedule } = request.body as { schedule: { interval: number } };
 		expect(schedule.interval).toBe(MOCK_SCHEDULE.schedule.interval);
 	});
 
