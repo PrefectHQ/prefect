@@ -197,31 +197,34 @@ async def read_events(
     return select_events_query_result.scalars().unique().all()
 
 
-def _strip_null_bytes(value: Any) -> Any:
+def _replace_null_bytes(value: Any) -> Any:
     if isinstance(value, str):
-        return value.replace("\x00", "")
+        return value.replace("\x00", "\ufffd")
     if isinstance(value, dict):
         return {
-            _strip_null_bytes(key): _strip_null_bytes(item)
+            _replace_null_bytes(key): _replace_null_bytes(item)
             for key, item in value.items()
         }
     if isinstance(value, list):
-        return [_strip_null_bytes(item) for item in value]
+        return [_replace_null_bytes(item) for item in value]
     return value
 
 
 def _sanitize_event_strings(event: ReceivedEvent) -> ReceivedEvent:
-    """Strip null bytes from every string in an event.
+    """Replace null bytes in every string in an event with U+FFFD.
 
     PostgreSQL rejects null bytes (0x00) in `text` columns with
     `CharacterNotInRepertoireError` and in `jsonb` columns with
     `UntranslatableCharacterError`.  Because events are inserted in batches, one
-    such event would fail the whole batch, so we strip them here as we do for
-    logs.
+    such event would fail the whole batch.  Replacing (rather than removing) the
+    null bytes keeps required labels non-empty and keeps keys that differ only by
+    a null byte distinct.
     """
     if "\\u0000" not in event.model_dump_json():
         return event
-    return ReceivedEvent.model_validate(_strip_null_bytes(event.model_dump()))
+    return ReceivedEvent.model_validate(
+        _replace_null_bytes(event.model_dump(mode="json"))
+    )
 
 
 async def write_events(session: AsyncSession, events: list[ReceivedEvent]) -> None:

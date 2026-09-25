@@ -1,7 +1,7 @@
 import datetime
 from datetime import timezone
 from types import SimpleNamespace
-from typing import List
+from typing import Any, List
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
@@ -234,33 +234,45 @@ class TestWriteEventsWithNullBytes:
             id=uuid4(),
         )
 
-    async def test_write_events_strips_null_bytes(
+    async def _write_and_read(
         self,
         session: AsyncSession,
         db: PrefectDBInterface,
-        event_with_null_bytes: ReceivedEvent,
-    ):
+        events: list[ReceivedEvent],
+    ) -> dict[UUID, Any]:
         async with session as session:
-            await write_events(session=session, events=[event_with_null_bytes])
+            await write_events(session=session, events=events)
             await session.commit()
 
         async with session as session:
             saved = (
                 await session.execute(
-                    sa.select(db.Event).where(db.Event.id == event_with_null_bytes.id)
+                    sa.select(db.Event).where(db.Event.id.in_([e.id for e in events]))
                 )
-            ).scalar_one()
-            assert saved.event == "hello"
-            assert saved.resource == {
-                "prefect.resource.id": "my.resource.id",
-                "my.label": "value",
-            }
-            assert saved.related[0]["prefect.resource.role"] == "role-1"
-            assert saved.payload == {
-                "stdout": "binaryoutput",
-                "nested": [{"key": "ab"}],
-            }
+            ).scalars()
+            return {row.id: row for row in saved}
 
+    async def test_write_events_replaces_null_bytes(
+        self,
+        session: AsyncSession,
+        db: PrefectDBInterface,
+        event_with_null_bytes: ReceivedEvent,
+    ):
+        saved = (await self._write_and_read(session, db, [event_with_null_bytes]))[
+            event_with_null_bytes.id
+        ]
+        assert saved.event == "hello\ufffd"
+        assert saved.resource == {
+            "prefect.resource.id": "my.resource.id",
+            "my.label\ufffd": "value\ufffd",
+        }
+        assert saved.related[0]["prefect.resource.role"] == "role-1\ufffd"
+        assert saved.payload == {
+            "stdout": "binary\ufffdoutput",
+            "nested": [{"key": "a\ufffdb"}],
+        }
+
+        async with session as session:
             resources = (
                 await session.execute(
                     sa.select(db.EventResource).where(
@@ -268,7 +280,7 @@ class TestWriteEventsWithNullBytes:
                     )
                 )
             ).scalars()
-            assert {r.resource_role for r in resources} == {"", "role-1"}
+            assert {r.resource_role for r in resources} == {"", "role-1\ufffd"}
 
     async def test_null_byte_event_does_not_fail_its_batch(
         self,
@@ -277,34 +289,68 @@ class TestWriteEventsWithNullBytes:
         event: ReceivedEvent,
         event_with_null_bytes: ReceivedEvent,
     ):
-        async with session as session:
-            await write_events(session=session, events=[event, event_with_null_bytes])
-            await session.commit()
+        saved = await self._write_and_read(session, db, [event, event_with_null_bytes])
+        assert set(saved) == {event.id, event_with_null_bytes.id}
 
-        async with session as session:
-            results = await session.execute(
-                sa.select(db.Event.id).where(
-                    db.Event.id.in_([event.id, event_with_null_bytes.id])
-                )
-            )
-            assert set(results.scalars()) == {event.id, event_with_null_bytes.id}
+    async def test_null_bytes_inside_tuples_are_replaced(
+        self, session: AsyncSession, db: PrefectDBInterface
+    ):
+        event = ReceivedEvent(
+            occurred=now("UTC"),
+            event="hello",
+            resource={"prefect.resource.id": "my.resource.id"},
+            payload={"messages": ("ok\x00bad",)},
+            id=uuid4(),
+        )
+        saved = await self._write_and_read(session, db, [event])
+        assert saved[event.id].payload == {"messages": ["ok\ufffdbad"]}
+
+    async def test_null_byte_only_identifiers_do_not_fail_the_batch(
+        self, session: AsyncSession, db: PrefectDBInterface, event: ReceivedEvent
+    ):
+        null_only = ReceivedEvent(
+            occurred=now("UTC"),
+            event="hello",
+            resource={"prefect.resource.id": "\x00"},
+            related=[
+                {"prefect.resource.id": "related-1", "prefect.resource.role": "\x00"}
+            ],
+            id=uuid4(),
+        )
+        saved = await self._write_and_read(session, db, [event, null_only])
+        assert set(saved) == {event.id, null_only.id}
+        assert saved[null_only.id].resource_id == "\ufffd"
+        assert saved[null_only.id].related[0]["prefect.resource.role"] == "\ufffd"
+
+    async def test_keys_that_differ_only_by_null_bytes_are_kept(
+        self, session: AsyncSession, db: PrefectDBInterface
+    ):
+        event = ReceivedEvent(
+            occurred=now("UTC"),
+            event="hello",
+            resource={
+                "prefect.resource.id": "my.resource.id",
+                "label": "first",
+                "label\x00": "second",
+            },
+            payload={"a": "first", "a\x00": "second"},
+            id=uuid4(),
+        )
+        saved = (await self._write_and_read(session, db, [event]))[event.id]
+        assert saved.payload == {"a": "first", "a\ufffd": "second"}
+        assert saved.resource == {
+            "prefect.resource.id": "my.resource.id",
+            "label": "first",
+            "label\ufffd": "second",
+        }
 
     async def test_write_events_without_null_bytes_unchanged(
         self, session: AsyncSession, db: PrefectDBInterface, event: ReceivedEvent
     ):
-        async with session as session:
-            await write_events(session=session, events=[event])
-            await session.commit()
-
-        async with session as session:
-            saved = (
-                await session.execute(
-                    sa.select(db.Event).where(db.Event.id == event.id)
-                )
-            ).scalar_one()
-            assert saved.event == event.event
-            assert saved.resource == event.resource.root
-            assert saved.payload == event.payload
+        saved = (await self._write_and_read(session, db, [event]))[event.id]
+        assert saved.event == event.event
+        assert saved.resource == event.resource.root
+        assert saved.payload == event.payload
 
 
 class TestReadEvents:
