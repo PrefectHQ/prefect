@@ -2,6 +2,7 @@ import asyncio
 import concurrent.futures
 import contextlib
 import json
+import os
 from collections.abc import AsyncGenerator, Iterable, Iterator
 from contextlib import asynccontextmanager
 from threading import Lock
@@ -86,6 +87,19 @@ class _AcquisitionService(Protocol):
 # the global loop and would deadlock a notifier running on that loop).
 _running_services: set[_AcquisitionService] = set()
 _running_services_lock = Lock()
+
+
+def _reset_running_services_after_fork() -> None:
+    """Drop the parent's services and lock in a forked child; the services' loops
+    and threads do not survive the fork and the lock may have been held."""
+    global _running_services, _running_services_lock
+    _running_services = set()
+    _running_services_lock = Lock()
+
+
+if hasattr(os, "register_at_fork"):
+    with contextlib.suppress(RuntimeError):
+        os.register_at_fork(after_in_child=_reset_running_services_after_fork)
 
 
 @contextlib.contextmanager

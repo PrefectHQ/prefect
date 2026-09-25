@@ -1,10 +1,13 @@
 import asyncio
+import os
+import sys
 from unittest import mock
 
 import pytest
 from httpx import HTTPStatusError, Request, Response
 
 from prefect.client.orchestration import get_client
+from prefect.concurrency import services
 from prefect.concurrency.services import (
     ConcurrencySlotAcquisitionService,
     _notify_concurrency_slots_released,
@@ -162,6 +165,22 @@ async def test_failed_call_status_code_not_retryable_returns_exception(mocked_cl
 
     assert isinstance(exception, HTTPStatusError)
     assert exception == response
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fork is POSIX-only")
+@pytest.mark.timeout(30)
+def test_notify_after_fork_does_not_block_on_inherited_lock():
+    with services._running_services_lock:
+        pid = os.fork()
+        if pid == 0:  # child
+            try:
+                _notify_concurrency_slots_released(["api"])
+                os._exit(0)
+            except BaseException:
+                os._exit(1)
+
+    _, status = os.waitpid(pid, 0)
+    assert os.waitstatus_to_exitcode(status) == 0
 
 
 async def test_basic_exception_returns_exception(mocked_client):
