@@ -633,7 +633,7 @@ def get_from_dict(
     """
     Fetch a value from a nested dictionary or list using a sequence of keys.
 
-    This function allows to fetch a value from a deeply nested structure
+    This function allows fetching a value from a deeply nested structure
     of dictionaries and lists using either a dot-separated string or a list
     of keys. If a requested key does not exist, the function returns the
     provided default value.
@@ -682,7 +682,7 @@ def set_in_dict(
     """
     Sets a value in a nested dictionary using a sequence of keys.
 
-    This function allows to set a value in a deeply nested structure
+    This function allows setting a value in a deeply nested structure
     of dictionaries and lists using either a dot-separated string or a list
     of keys. If a requested key does not exist, the function will create it as
     a new dictionary.
