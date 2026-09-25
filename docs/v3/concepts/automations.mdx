@@ -137,19 +137,84 @@ Templated variables enable you to dynamically include details from an automation
 
 Jinja templated variable syntax wraps the variable name in double curly brackets, like this: `{{ variable }}`.
 
-You can access properties of the underlying flow run objects including:
+### Always-available variables
 
-- [flow_run](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.FlowRun)
-- [flow](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.Flow)
-- [deployment](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.Deployment)
-- [work_queue](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
-- [work_pool](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkPool)
+These variables describe the automation and the event that triggered it. They are present in
+every action template:
 
-In addition to its native properties, each object includes an `id` along with `created` and `updated` timestamps.
+| Variable | What it is |
+| --- | --- |
+| `automation` | The automation that fired, including `name`, `description`, `trigger`, and `actions`. |
+| `event` | The event that triggered the action. For reactive triggers this is the matching event; for proactive triggers it is the last event that matched the automation, and it may be empty. |
+| `labels` | The subset of event labels named by the trigger's `for_each`, accessible by attribute — for example `{{ labels.prefect.resource.id }}`. Empty when the trigger has no `for_each`. |
+| `firing` | The firing of the trigger that prompted this action, including `trigger`, `triggered`, and `triggering_labels`. |
+| `firings` | All firings that contributed to this action — more than one for compound and sequence triggers. |
+| `events` | All events that contributed to this action, in the same situations as `firings`. |
 
-The `flow_run|ui_url` token returns the URL to view the flow run in the UI.
+### Objects loaded from the API
 
-Use `{{ value | tojson }}` to serialize any template variable to a JSON string. The filter handles Pydantic model objects such as `flow_run`, `deployment`, and `event` directly — for example, `{{ flow_run | tojson(indent=2) }}` renders the full flow run as formatted JSON. The optional `indent` argument controls pretty-printing.
+The following variables are convenience shortcuts. When the name appears in a template, Prefect
+looks for a matching resource on the triggering event and fetches a fresh copy of that object from
+the API when it renders the action:
+
+| Variable | Object | Loaded when the event references |
+| --- | --- | --- |
+| `flow_run` | Flow run, including its `state` | `prefect.flow-run.<id>` |
+| `flow` | Flow | `prefect.flow.<id>` |
+| `deployment` | Deployment | `prefect.deployment.<id>` |
+| `task_run` | Task run, including its `state` | `prefect.task-run.<id>` |
+| `work_queue` | Work queue, including its `status` | `prefect.work-queue.<id>` |
+| `work_pool` | Work pool | `prefect.work-pool.<id>` |
+| `concurrency_limit` | Global concurrency limit | `prefect.concurrency-limit.<id>` |
+| `variables` | A dictionary of all [variables](/v3/concepts/variables) in the workspace, for example `{{ variables.my_variable }}` | n/a — always loaded when referenced |
+
+In addition to its native properties, each object includes an `id` along with `created` and
+`updated` timestamps.
+
+Because the objects are read at render time, they reflect the current state of the object rather
+than its state when the event occurred. The one exception is `state` on `flow_run` and `task_run`,
+which Prefect rebuilds from the triggering event so a notification reports the state that actually
+fired the automation.
+
+<Note>
+Undefined values render as an empty string instead of raising an error, and attribute access on
+them chains safely. If the triggering event has no deployment, `{{ deployment.name }}` renders
+nothing rather than failing the action — so an unexpectedly empty notification usually means the
+object was not available on the event, not that the property is wrong.
+</Note>
+
+### Filters
+
+Standard Jinja [filters](https://jinja.palletsprojects.com/en/stable/templates/#builtin-filters)
+are available, along with the human-friendly date and time filters from the
+[`jinja2-humanize-extension` package](https://pypi.org/project/jinja2-humanize-extension/) (for
+example `{{ event.occurred | humanize_naturaltime }}`) and these Prefect-specific filters:
+
+| Filter | Result |
+| --- | --- |
+| `tojson` | Serializes any template value to a JSON string, including Pydantic objects such as `flow_run`, `deployment`, and `event`. The optional `indent` argument pretty-prints: `{{ flow_run \| tojson(indent=2) }}`. |
+| `ui_url` | The URL to view the given object in the UI, for example `{{ flow_run \| ui_url }}`. |
+| `ui_resource_events_url` | The URL of the UI event feed filtered to the given object or event resource. |
+| `flow_run_id` | Extracts a flow run ID from a string that contains a flow run URL, such as a pull request body. |
+
+<Note>
+The `ui_url` and `ui_resource_events_url` filters render the literal string `None` when the object
+type has no UI page. On a self-hosted Prefect server they also need
+[`PREFECT_UI_URL`](/v3/api-ref/settings-ref#ui-url) to be set on the server; otherwise `ui_url`
+renders `None` and `ui_resource_events_url` renders a path with no host.
+</Note>
+
+### Sandbox limits
+
+User templates are rendered in a sandbox, so a template that fails these limits fails the action
+rather than the server:
+
+- `range()` may produce at most 100 items. Exceeding it fails the action at render time with a
+  template rendering error.
+- A template may contain at most 10 `for` loops, nested no more than 2 levels deep. Both limits are
+  checked when the automation is saved, so the API rejects the automation instead of failing later.
+
+### Examples
 
 Here's an example relevant to a flow run state-based notification:
 
@@ -192,19 +257,22 @@ In addition to those shortcuts for flows, deployments, and work pools, you have 
 event that triggered the automation. See the [Automations API](https://app.prefect.cloud/api/docs#tag/Automations)
 for additional details.
 
+Iterate a resource's labels through its `labels` attribute — iterating the resource itself yields the
+resource's whole label dictionary as a single item, not one `label`/`value` pair per label:
+
 ```
 Automation: {{ automation.name }}
 Description: {{ automation.description }}
 
 Event: {{ event.id }}
 Resource:
-{% for label, value in event.resource %}
+{% for label, value in event.resource.labels %}
 {{ label }}: {{ value }}
 {% endfor %}
 Related Resources:
 {% for related in event.related %}
     Role: {{ related.role }}
-    {% for label, value in related %}
+    {% for label, value in related.labels %}
     {{ label }}: {{ value }}
     {% endfor %}
 {% endfor %}
