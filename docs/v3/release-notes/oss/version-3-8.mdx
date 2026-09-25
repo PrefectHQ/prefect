@@ -2,6 +2,74 @@
 title: 3.8
 ---
 
+## 3.8.7 - Cards, calendars, and concurrency
+
+*Released on September 25, 2026*
+
+**New Features 🎉**
+
+* Add browser-local pinned deployments to the React UI by [@zzstoatzz](https://github.com/zzstoatzz) in [#23143](https://github.com/PrefectHQ/prefect/pull/23143)
+
+**Enhancements ➕➕**
+
+* Format deployment Created/Updated timestamps in ui-v2 metadata by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23112](https://github.com/PrefectHQ/prefect/pull/23112)
+* Show tag names inline and make tag overflow focusable in ui-v2 by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23116](https://github.com/PrefectHQ/prefect/pull/23116)
+* Set browser tab titles on entity and index pages in ui-v2 by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23179](https://github.com/PrefectHQ/prefect/pull/23179)
+* Add `container_wait_timeout` to `DockerWorkerJobConfiguration` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23151](https://github.com/PrefectHQ/prefect/pull/23151)
+* Add `flow_run(state_type, coalesce(start_time, expected_start_time))` index by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23128](https://github.com/PrefectHQ/prefect/pull/23128)
+* Log the real size when refusing to publish an oversized event by [@David-Wu1119](https://github.com/David-Wu1119) in [#23180](https://github.com/PrefectHQ/prefect/pull/23180)
+
+**Bug Fixes 🐞**
+
+* Improve dark-mode readability of flow run cards in ui-v2 by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23114](https://github.com/PrefectHQ/prefect/pull/23114)
+* Fix V2 run-list wrapping and toolbar overflow at constrained widths by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23115](https://github.com/PrefectHQ/prefect/pull/23115)
+* Restore deployment, work pool, and work queue links on V2 flow-run cards by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23113](https://github.com/PrefectHQ/prefect/pull/23113)
+* Render `data:image/*` URIs in ui-v2 markdown by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23156](https://github.com/PrefectHQ/prefect/pull/23156)
+* Prevent revocation of live filesystem concurrency leases by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22936](https://github.com/PrefectHQ/prefect/pull/22936)
+* Accept `None` values in `find_placeholders` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23158](https://github.com/PrefectHQ/prefect/pull/23158)
+* Deliver `include_files` sidecar for direct Docker submissions by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22858](https://github.com/PrefectHQ/prefect/pull/22858)
+* Persist failed task exceptions according to `persist_result` in both task engines by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23160](https://github.com/PrefectHQ/prefect/pull/23160)
+* Make Azure bundle uploads idempotent for reused sidecar keys by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23170](https://github.com/PrefectHQ/prefect/pull/23170)
+* Fix retry budget for completed subflows on parent retry by [@zzstoatzz](https://github.com/zzstoatzz) in [#23153](https://github.com/PrefectHQ/prefect/pull/23153)
+* Fix reading results persisted to an unsaved local filesystem outside the default storage path by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23188](https://github.com/PrefectHQ/prefect/pull/23188)
+* Allow clearing deployment `job_variables` with an empty dict by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23203](https://github.com/PrefectHQ/prefect/pull/23203)
+* Omit inferred `securityGroups` so ECS tasks use the VPC default security group by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23132](https://github.com/PrefectHQ/prefect/pull/23132)
+* Fix race between `WatcherThreadCancelScope` timeout injection and scope exit by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23089](https://github.com/PrefectHQ/prefect/pull/23089)
+* Return `0.0` from `clamped_poisson_interval` for non-positive intervals by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23208](https://github.com/PrefectHQ/prefect/pull/23208)
+* Fix date clearing on cancel by [@uinstinct](https://github.com/uinstinct) in [#23148](https://github.com/PrefectHQ/prefect/pull/23148)
+* Fix falsy variables rendered as blank by [@uinstinct](https://github.com/uinstinct) in [#23096](https://github.com/PrefectHQ/prefect/pull/23096)
+* Fix next date selection selecting previous date by [@uinstinct](https://github.com/uinstinct) in [#23081](https://github.com/PrefectHQ/prefect/pull/23081)
+* Fix typo in search deployment placeholder by [@uinstinct](https://github.com/uinstinct) in [#23176](https://github.com/PrefectHQ/prefect/pull/23176)
+* Fix interval form showing incorrect value and time unit by [@uinstinct](https://github.com/uinstinct) in [#23209](https://github.com/PrefectHQ/prefect/pull/23209)
+
+**Integrations & Dependencies 🤝**
+
+* Bump `soupsieve` from 2.8.4 to 2.9 by [@dependabot](https://github.com/dependabot)[bot] in [#23147](https://github.com/PrefectHQ/prefect/pull/23147)
+
+**Development & Tidiness 🧹**
+
+* Omit UI source maps and nightly source distributions by [@desertaxle](https://github.com/desertaxle) in [#23120](https://github.com/PrefectHQ/prefect/pull/23120)
+* Fix flaky interval schedule anchor time test when the clock reads 14:35 by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23178](https://github.com/PrefectHQ/prefect/pull/23178)
+* Fix date-dependent failure in interval schedule form test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23125](https://github.com/PrefectHQ/prefect/pull/23125)
+* Fix flaky `test_multiple_workers_receive_distinct_messages` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23149](https://github.com/PrefectHQ/prefect/pull/23149)
+* Fix two tests that do not check what their names say by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23142](https://github.com/PrefectHQ/prefect/pull/23142)
+* Make no-op comparisons in tests actually assert by [@David-Wu1119](https://github.com/David-Wu1119) in [#23141](https://github.com/PrefectHQ/prefect/pull/23141)
+* Run Biome from `node_modules` in UI v2 lint job by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23168](https://github.com/PrefectHQ/prefect/pull/23168)
+
+**Documentation 📓**
+
+* Add Osano consent manager to Prefect docs by [@desertaxle](https://github.com/desertaxle) in [#23133](https://github.com/PrefectHQ/prefect/pull/23133)
+* State when a deployment concurrency slot is acquired and released by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23085](https://github.com/PrefectHQ/prefect/pull/23085)
+* Update docs footer to use the X logo and add Bluesky by [@zzstoatzz](https://github.com/zzstoatzz) in [#23210](https://github.com/PrefectHQ/prefect/pull/23210)
+* Remove duplicate 'the' in Modal deployment guide by [@mrchatam](https://github.com/mrchatam) in [#23091](https://github.com/PrefectHQ/prefect/pull/23091)
+* Link agent setup guides from README by [@zzstoatzz](https://github.com/zzstoatzz) in [#23145](https://github.com/PrefectHQ/prefect/pull/23145)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.8.6...3.8.7
+
+
+
+---
+
 ## 3.8.6 - Pause for cancellation
 
 *Released on September 14, 2026*
