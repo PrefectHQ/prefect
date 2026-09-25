@@ -648,6 +648,30 @@ class TestIntervalScheduleDaylightSavingsTime:
         assert [date.astimezone(ny).hour for date in from_anchor] == [2, 3, 3, 3, 3]
         assert from_after_gap == from_anchor[3:5]
 
+    async def test_future_daily_anchor_remains_in_series_across_dst_gap(self):
+        ny = ZoneInfo("America/New_York")
+        anchor = datetime(2026, 3, 10, 2, 30, tzinfo=ny)
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=anchor,
+            timezone="America/New_York",
+        )
+
+        from_before_gap = await schedule.get_dates(
+            n=4, start=datetime(2026, 3, 7, 12, tzinfo=ny)
+        )
+        from_after_gap = await schedule.get_dates(
+            n=2, start=datetime(2026, 3, 9, 12, tzinfo=ny)
+        )
+
+        assert [d.astimezone(ny).strftime("%m-%d %H:%M") for d in from_before_gap] == [
+            "03-08 03:30",
+            "03-09 02:30",
+            "03-10 02:30",
+            "03-11 02:30",
+        ]
+        assert from_after_gap == from_before_gap[2:]
+
     async def test_interval_schedule_mixed_interval_advances_sequentially(self):
         """
         An interval mixing calendar days and exact hours is applied one step at a
@@ -811,6 +835,24 @@ class TestIntervalScheduleDateTimeDelta:
         assert [date.astimezone(ny).strftime("%m-%d %H:%M") for date in dates] == [
             "03-10 03:30",
             "03-11 03:30",
+        ]
+
+    async def test_future_daily_itemized_delta_anchor_across_dst_gap(self):
+        from whenever import ItemizedDelta
+
+        ny = ZoneInfo("America/New_York")
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(2026, 3, 10, 2, 30, tzinfo=ny),
+            timezone="America/New_York",
+        )
+
+        dates = await schedule.get_dates(n=3, start=datetime(2026, 3, 7, 12, tzinfo=ny))
+
+        assert [d.astimezone(ny).strftime("%m-%d %H:%M") for d in dates] == [
+            "03-08 03:30",
+            "03-09 02:30",
+            "03-10 02:30",
         ]
 
     async def test_monthly_itemized_delta_clamps_to_month_end_sequentially(self):

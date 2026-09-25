@@ -281,6 +281,23 @@ class IntervalSchedule(PrefectBaseModel):
                 if hasattr(_diff, "total")
                 else _diff.in_seconds()
             )
+            before_anchor_days = (
+                local_start < anchor_zdt
+                and _months == 0
+                and _days != 0
+                and _interval_seconds == 0
+            )
+            offset = 0
+
+            def _next_date(zdt: ZonedDateTime) -> ZonedDateTime:
+                nonlocal offset
+                if before_anchor_days and offset < 0:
+                    # Forward addition from a normalized gap cannot recover
+                    # the future anchor, so keep earlier dates relative to it.
+                    offset += 1
+                    return _jump(offset)
+                return _advance(zdt)
+
             if local_start >= anchor_zdt and (
                 _months != 0
                 or (_days != 0 and _interval_seconds == 0 and target_timezone != "UTC")
@@ -302,7 +319,7 @@ class IntervalSchedule(PrefectBaseModel):
             # daylight saving time boundaries can create a situation where the next
             # date is before the start date, so we advance it if necessary
             while next_date < local_start:
-                next_date = _advance(next_date)
+                next_date = _next_date(next_date)
 
             counter = 0
             dates: set[ZonedDateTime] = set()
@@ -327,7 +344,7 @@ class IntervalSchedule(PrefectBaseModel):
 
                 counter += 1
 
-                next_date = _advance(next_date)
+                next_date = _next_date(next_date)
 
         else:
             if start is None:
@@ -362,6 +379,7 @@ class IntervalSchedule(PrefectBaseModel):
                         seconds=self.interval.total_seconds() * intervals
                     )
 
+            offset = 0
             if (
                 start >= anchor_tz
                 and interval_days != 0
@@ -383,10 +401,21 @@ class IntervalSchedule(PrefectBaseModel):
                     offset -= 1
                     next_date = _jump(offset)
 
+            before_anchor_days = (
+                start < anchor_tz and interval_days != 0 and interval_seconds == 0
+            )
+
+            def _next_date(zdt: DateTime) -> DateTime:
+                nonlocal offset
+                if before_anchor_days and offset < 0:
+                    offset += 1
+                    return _jump(offset)
+                return zdt.add(days=interval_days, seconds=interval_seconds)
+
             # daylight saving time boundaries can create a situation where the next
             # date is before the start date, so we advance it if necessary
             while next_date < start:
-                next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+                next_date = _next_date(next_date)
 
             counter = 0
             dates = set()
@@ -407,7 +436,7 @@ class IntervalSchedule(PrefectBaseModel):
 
                 counter += 1
 
-                next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+                next_date = _next_date(next_date)
 
 
 class CronSchedule(PrefectBaseModel):
