@@ -97,7 +97,7 @@ class TestRetryAsyncFn:
         assert 1.4 <= delays[1] <= 2.6  # 2 * 1.3
         assert 2.8 <= delays[2] <= 5.2  # 4 * 1.3
 
-    async def test_zero_base_delay_retries_without_waiting(self, mock_sleep):
+    async def test_zero_base_delay_retries_without_waiting(self, mock_sleep: AsyncMock):
         @retry_async_fn(max_attempts=3, base_delay=0)
         async def fail_func():
             raise ValueError("Test error")
@@ -108,7 +108,7 @@ class TestRetryAsyncFn:
         assert mock_sleep.call_count == 2
         assert [call.args[0] for call in mock_sleep.call_args_list] == [0, 0]
 
-    async def test_zero_max_delay_retries_without_waiting(self, mock_sleep):
+    async def test_zero_max_delay_retries_without_waiting(self, mock_sleep: AsyncMock):
         @retry_async_fn(max_attempts=3, base_delay=1, max_delay=0)
         async def fail_func():
             raise ValueError("Test error")
