@@ -630,6 +630,24 @@ class TestIntervalScheduleDaylightSavingsTime:
 
         assert after == before[6:9]
 
+    async def test_daily_schedule_keeps_its_series_after_nonexistent_local_time(self):
+        ny = ZoneInfo("America/New_York")
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=datetime(2026, 3, 7, 2, 30, tzinfo=ny),
+            timezone="America/New_York",
+        )
+
+        from_anchor = await schedule.get_dates(
+            n=5, start=datetime(2026, 3, 7, 2, 30, tzinfo=ny)
+        )
+        from_after_gap = await schedule.get_dates(
+            n=2, start=datetime(2026, 3, 9, 12, tzinfo=ny)
+        )
+
+        assert [date.astimezone(ny).hour for date in from_anchor] == [2, 3, 3, 3, 3]
+        assert from_after_gap == from_anchor[3:5]
+
     async def test_interval_schedule_mixed_interval_advances_sequentially(self):
         """
         An interval mixing calendar days and exact hours is applied one step at a
@@ -778,6 +796,23 @@ class TestIntervalScheduleDateTimeDelta:
 
         assert [d.astimezone(ny).hour for d in dates] == [9, 9, 9]
 
+    async def test_daily_itemized_delta_keeps_its_series_after_nonexistent_time(self):
+        from whenever import ItemizedDelta
+
+        ny = ZoneInfo("America/New_York")
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(2026, 3, 7, 2, 30, tzinfo=ny),
+            timezone="America/New_York",
+        )
+
+        dates = await schedule.get_dates(n=2, start=datetime(2026, 3, 9, 12, tzinfo=ny))
+
+        assert [date.astimezone(ny).strftime("%m-%d %H:%M") for date in dates] == [
+            "03-10 03:30",
+            "03-11 03:30",
+        ]
+
     async def test_monthly_itemized_delta_clamps_to_month_end_sequentially(self):
         """A monthly ItemizedDelta advances one month at a time, so a
         January 31 anchor clamps to February 28 and stays on the 28th."""
@@ -795,6 +830,29 @@ class TestIntervalScheduleDateTimeDelta:
             "01-31",
             "02-28",
             "03-28",
+        ]
+
+        later_dates = await s.get_dates(n=2, start=datetime(2026, 3, 15, 9, tzinfo=ny))
+        assert [d.astimezone(ny).strftime("%m-%d") for d in later_dates] == [
+            "03-28",
+            "04-28",
+        ]
+
+    async def test_monthly_itemized_delta_start_after_dst_keeps_anchor_series(self):
+        from whenever import ItemizedDelta
+
+        ny = ZoneInfo("America/New_York")
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(months=1),
+            anchor_date=datetime(2026, 1, 1, 9, tzinfo=ny),
+            timezone="America/New_York",
+        )
+
+        dates = await schedule.get_dates(n=2, start=datetime(2026, 9, 15, tzinfo=ny))
+
+        assert [date.astimezone(ny).strftime("%Y-%m-%d %H:%M") for date in dates] == [
+            "2026-10-01 09:00",
+            "2026-11-01 09:00",
         ]
 
 

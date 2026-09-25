@@ -260,12 +260,9 @@ class IntervalSchedule(PrefectBaseModel):
                 _months * 30 * 86400 + _days * 86400 + _interval_seconds
             )
 
-            # jump from the anchor to the start date in whole intervals. For an
-            # interval made purely of calendar days or purely of exact seconds,
-            # N intervals from the anchor is the same as advancing N times, so the
-            # jump lands on a date in the series and preserves the anchor's local
-            # time across DST changes. For other intervals (calendar months, or
-            # mixed days and seconds) fall back to an exact-seconds estimate.
+            # A direct jump is exact for pure seconds and UTC calendar days.
+            # Mixed intervals retain the existing elapsed-time estimate;
+            # local calendar days and months advance sequentially below.
             if _months == 0 and (_days == 0 or _interval_seconds == 0):
 
                 def _jump(intervals: int) -> ZonedDateTime:
@@ -284,14 +281,23 @@ class IntervalSchedule(PrefectBaseModel):
                 if hasattr(_diff, "total")
                 else _diff.in_seconds()
             )
-            offset = int(_diff_secs / approx_total_seconds)
-            next_date = _jump(offset)
-
-            # the exact-seconds estimate may overshoot the start date when a DST
-            # change lies between the anchor and the start, so step back if needed
-            while next_date > local_start:
-                offset -= 1
+            if local_start >= anchor_zdt and (
+                _months != 0
+                or (_days != 0 and _interval_seconds == 0 and target_timezone != "UTC")
+            ):
+                # Repeated calendar additions may clamp a month-end date or
+                # normalize a nonexistent local time. A direct jump loses that
+                # change for all subsequent dates in the series.
+                next_date = anchor_zdt
+            else:
+                offset = int(_diff_secs / approx_total_seconds)
                 next_date = _jump(offset)
+
+                # the exact-seconds estimate may overshoot the start date when a DST
+                # change lies between the anchor and the start, so step back if needed
+                while next_date > local_start:
+                    offset -= 1
+                    next_date = _jump(offset)
 
             # daylight saving time boundaries can create a situation where the next
             # date is before the start date, so we advance it if necessary
@@ -338,11 +344,9 @@ class IntervalSchedule(PrefectBaseModel):
                 interval_days * 24 * 60 * 60
             )
 
-            # jump from the anchor to the start date in whole intervals. For an
-            # interval made purely of days or purely of seconds, N intervals from
-            # the anchor is the same as advancing N times, so the jump lands on a
-            # date in the series and preserves the anchor's local time across DST
-            # changes. For mixed intervals fall back to an exact-seconds estimate.
+            # A direct jump is exact for pure seconds and UTC calendar days.
+            # Mixed intervals retain the existing elapsed-time estimate;
+            # local calendar days advance sequentially below.
             if interval_days == 0 or interval_seconds == 0:
 
                 def _jump(intervals: int) -> DateTime:
@@ -358,16 +362,26 @@ class IntervalSchedule(PrefectBaseModel):
                         seconds=self.interval.total_seconds() * intervals
                     )
 
-            offset = int(
-                (start - anchor_tz).total_seconds() / self.interval.total_seconds()
-            )
-            next_date = _jump(offset)
-
-            # the exact-seconds estimate may overshoot the start date when a DST
-            # change lies between the anchor and the start, so step back if needed
-            while next_date > start:
-                offset -= 1
+            if (
+                start >= anchor_tz
+                and interval_days != 0
+                and interval_seconds == 0
+                and self.timezone != "UTC"
+            ):
+                # A skipped local time can change the hour of every subsequent
+                # occurrence, so advance from the anchor through that date.
+                next_date = anchor_tz
+            else:
+                offset = int(
+                    (start - anchor_tz).total_seconds() / self.interval.total_seconds()
+                )
                 next_date = _jump(offset)
+
+                # the exact-seconds estimate may overshoot the start date when a DST
+                # change lies between the anchor and the start, so step back if needed
+                while next_date > start:
+                    offset -= 1
+                    next_date = _jump(offset)
 
             # daylight saving time boundaries can create a situation where the next
             # date is before the start date, so we advance it if necessary
