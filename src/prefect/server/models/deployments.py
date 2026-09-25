@@ -1005,12 +1005,14 @@ async def _insert_scheduled_flow_runs(
 
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
-    # because it uses a single bind parameter
+    # because it uses a single bind parameter. The `state` is a hybrid
+    # property backed by a separate table, so it is inserted below rather
+    # than as part of the flow run rows.
     await session.execute(
         db.queries.insert(db.FlowRun).on_conflict_do_nothing(
             index_elements=db.orm.flow_run_unique_upsert_columns
         ),
-        runs,
+        [{k: v for k, v in run.items() if k != "state"} for run in runs],
     )
 
     # query for the rows that were newly inserted (by checking for any flow runs with
