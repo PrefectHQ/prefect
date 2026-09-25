@@ -22,20 +22,31 @@ except ImportError:
 TRANSIENT_HTTP_STATUS_CODES = {402, 408, 425, 429, 500, 502, 503, 504}
 
 
+def _is_transient(exc: Exception) -> bool:
+    if isinstance(exc, HTTPError):
+        return exc.code in TRANSIENT_HTTP_STATUS_CODES
+    if isinstance(exc, URLError):
+        return isinstance(exc.reason, (TimeoutError, ConnectionError))
+    return isinstance(exc, (TimeoutError, ConnectionError))
+
+
 def _fetch_logo(url: str, attempts: int = 3) -> BytesIO:
-    last_error: Exception | None = None
+    """
+    Download a logo, retrying on availability errors from the CDN. Skips the
+    calling test if the CDN is still unavailable after all attempts; any other
+    error (e.g. 404, DNS failure) is raised so a broken URL still fails.
+    """
     for attempt in range(attempts):
         try:
             with urlopen(url, timeout=30) as response:
                 return BytesIO(response.read())
-        except HTTPError as exc:
-            if exc.code not in TRANSIENT_HTTP_STATUS_CODES:
+        except (HTTPError, URLError, TimeoutError, ConnectionError) as exc:
+            if not _is_transient(exc):
                 raise
-            last_error = exc
-        except URLError as exc:
-            last_error = exc
+            if attempt == attempts - 1:
+                pytest.skip(f"Logo CDN unavailable, unable to fetch {url}: {exc}")
         time.sleep(2**attempt)
-    pytest.skip(f"Logo CDN unavailable, unable to fetch {url}: {last_error}")
+    raise AssertionError("unreachable")
 
 
 class BlockStandardTestSuite(ABC):
