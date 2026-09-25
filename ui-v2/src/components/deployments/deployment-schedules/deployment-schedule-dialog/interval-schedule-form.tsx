@@ -310,9 +310,9 @@ export const IntervalScheduleForm = ({
 									<FormItem>
 										<FormLabel>Interval</FormLabel>
 										<Select
-												onValueChange={(value) => {
-													if (value) field.onChange(value);
-												}}
+											onValueChange={(value) => {
+												if (value) field.onChange(value);
+											}}
 											value={field.value}
 										>
 											<FormControl>
