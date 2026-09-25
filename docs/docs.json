@@ -28,12 +28,12 @@
   "favicon": "/logos/favicon.svg",
   "footer": {
     "socials": {
-      "bluesky": "https://bsky.app/profile/prefect.io",
       "github": "https://github.com/PrefectHQ/prefect",
+      "youtube": "https://www.youtube.com/c/PrefectIO",
       "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
       "slack": "https://prefect.io/slack",
       "x": "https://x.com/PrefectIO",
-      "youtube": "https://www.youtube.com/c/PrefectIO"
+      "bluesky": "https://bsky.app/profile/prefect.io"
     }
   },
   "integrations": {
