@@ -664,6 +664,54 @@ class TestIntervalScheduleDateTimeDelta:
         assert dates_hours[1].astimezone(ams).hour == 11
         assert dates_days[1].astimezone(ams).hour == 10
 
+    async def test_monthly_jump_from_far_start_returns_first_occurrence(self):
+        """
+        The anchor-to-start jump uses a 30-day-per-month approximation; over
+        multi-year spans it can overshoot by a step and skip the first valid
+        occurrence. The jump must undershoot and walk forward in exact phase
+        (review feedback on #23206).
+        """
+        from whenever import ItemizedDelta
+
+        anchor = datetime(2020, 1, 1, 9, tzinfo=ZoneInfo("UTC"))
+
+        s = IntervalSchedule(
+            interval=ItemizedDelta(months=1),
+            anchor_date=anchor,
+            timezone="UTC",
+        )
+
+        start = datetime(2025, 12, 1, 5, tzinfo=ZoneInfo("UTC"))
+        dates = await s.get_dates(n=2, start=start)
+
+        assert dates[0].astimezone(ZoneInfo("UTC")).replace(tzinfo=None) == datetime(
+            2025, 12, 1, 9
+        )
+        assert dates[1].astimezone(ZoneInfo("UTC")).replace(tzinfo=None) == datetime(
+            2026, 1, 1, 9
+        )
+
+    async def test_mixed_day_second_interval_jump_keeps_phase_across_dst(self):
+        """
+        A 36-hour interval is 1 day + 12 hours. Repeated `_advance` steps cross
+        DST in calendar phase, but a bulk `add(days=k, seconds=12h*k)` does not;
+        the jump must not drift the phase (review feedback on #23206).
+        """
+        anchor = datetime(2018, 3, 9, 21, tzinfo=ZoneInfo("America/New_York"))
+
+        s = IntervalSchedule(
+            interval=timedelta(hours=36),
+            anchor_date=anchor,
+            timezone="America/New_York",
+        )
+
+        start = datetime(2018, 3, 13, 0, tzinfo=ZoneInfo("America/New_York"))
+        dates = await s.get_dates(n=1, start=start)
+
+        ny = ZoneInfo("America/New_York")
+        first = dates[0].astimezone(ny)
+        assert (first.month, first.day, first.hour) == (3, 14, 10)
+
     async def test_hours_72_differs_from_days_3_across_fall_back(self):
         """
         On 2018-11-04 at 2am, America/New_York falls back.

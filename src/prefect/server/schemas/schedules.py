@@ -244,14 +244,25 @@ class IntervalSchedule(PrefectBaseModel):
                     return zdt + interval
 
                 if _months or _days:
-                    # Calendar intervals must jump from the anchor to the start in
-                    # calendar units too: a jump in exact seconds counts every day
-                    # as 24 hours and shifts the local time by one hour for each
-                    # DST change crossed, so the schedule drifts off its anchor
-                    # time (#23204).
+                    # Calendar intervals must advance from the anchor in calendar
+                    # units: a jump in exact seconds counts every day as 24 hours
+                    # and drifts the local time across DST changes (#23204).
+                    # `count` derives from a 30-day-per-month approximation, and
+                    # bulk calendar addition does not reproduce the exact phase
+                    # of repeated `_advance` steps across DST or month ends, so
+                    # the jump deliberately undershoots by two steps (in either
+                    # direction) and the walk below closes the gap in exact
+                    # phase. The approximation drifts by roughly one step per
+                    # 5+ year span, so a two-step margin covers realistic
+                    # schedules. A negative count means the start precedes the
+                    # anchor, so the schedule extends backwards in exact phase.
                     def _jump(zdt: ZonedDateTime, count: int) -> ZonedDateTime:
-                        for _ in range(count):
-                            zdt = zdt + interval
+                        if count >= 0:
+                            for _ in range(max(count - 2, 0)):
+                                zdt = _advance(zdt)
+                        else:
+                            for _ in range(count - 2, 0):
+                                zdt = zdt - interval
                         return zdt
 
                 else:
@@ -273,14 +284,19 @@ class IntervalSchedule(PrefectBaseModel):
                     return zdt.add(days=_interval_days, seconds=_interval_seconds)
 
                 if _interval_days:
-
+                    # same undershooting-jump rationale as the whenever branch:
+                    # bulk `add(days=..., seconds=...)` does not match repeated
+                    # `_advance` steps across DST for mixed day/second intervals
                     def _jump(zdt: ZonedDateTime, count: int) -> ZonedDateTime:
-                        # calendar interval: jump in the same units `_advance`
-                        # uses, for the same DST reason as above (#23204)
-                        return zdt.add(
-                            days=_interval_days * count,
-                            seconds=_interval_seconds * count,
-                        )
+                        if count >= 0:
+                            for _ in range(max(count - 2, 0)):
+                                zdt = _advance(zdt)
+                        else:
+                            for _ in range(count - 2, 0):
+                                zdt = zdt.add(
+                                    days=-_interval_days, seconds=-_interval_seconds
+                                )
+                        return zdt
 
                 else:
 
