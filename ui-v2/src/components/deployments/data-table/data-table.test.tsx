@@ -8,7 +8,10 @@ import {
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { mockPointerEvents } from "@tests/utils/browser";
+import {
+	mockInMemoryLocalStorage,
+	mockPointerEvents,
+} from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DeploymentWithFlow } from "@/api/deployments";
@@ -626,5 +629,31 @@ describe("DeploymentsDataTable", () => {
 		expect(onColumnFiltersChange).toHaveBeenCalledWith([
 			{ id: "tags", value: ["tag3", "tag4"] },
 		]);
+	});
+
+	describe("pinned deployments", () => {
+		let restoreLocalStorage: () => void;
+
+		beforeEach(() => {
+			restoreLocalStorage = mockInMemoryLocalStorage();
+		});
+
+		afterEach(() => {
+			restoreLocalStorage();
+		});
+
+		it("pins a deployment from its row without navigating to it", async () => {
+			const user = userEvent.setup();
+			const [, router] = renderDeploymentsDataTableRouter(defaultProps);
+
+			await user.click(
+				await screen.findByRole("button", { name: "Pin deployment" }),
+			);
+
+			expect(
+				screen.getByRole("button", { name: "Unpin deployment" }),
+			).toHaveAttribute("aria-pressed", "true");
+			expect(router.state.location.pathname).toBe("/deployments");
+		});
 	});
 });

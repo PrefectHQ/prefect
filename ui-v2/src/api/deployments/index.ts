@@ -245,7 +245,7 @@ export const useCreateDeployment = () => {
 		},
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				queryKey: queryKeyFactory.lists(),
+				queryKey: queryKeyFactory.all(),
 			});
 		},
 	});
