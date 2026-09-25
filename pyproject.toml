@@ -37,7 +37,7 @@ dependencies = [
     "jinja2-humanize-extension>=0.4.0",
     "pytz>=2021.1,<2027",
     "readchar>=4.0.0,<5.0.0",
-    "sqlalchemy[asyncio]>=2.0,<3.0.0",
+    "sqlalchemy[asyncio]>=2.0,<2.1",
     "cyclopts>=4.8.0",
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
