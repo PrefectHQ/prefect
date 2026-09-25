@@ -57,6 +57,9 @@ if hasattr(os, "register_at_fork"):
 class _QueueServiceBase(abc.ABC, Generic[T]):
     _instances: dict[int, Self] = {}
     _instance_lock = threading.Lock()
+    # Keep cache access separate from startup serialization: instance() waits for
+    # the global loop, whose service cleanup must be able to evict instances.
+    _instance_cache_lock = threading.Lock()
     _max_queue_size: int = 0  # 0 means unbounded
 
     def __init__(self, *args: Hashable) -> None:
@@ -96,6 +99,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """Reset class-level state after fork() to prevent deadlocks in child process."""
         cls._instances.clear()
         cls._instance_lock = threading.Lock()
+        cls._instance_cache_lock = threading.Lock()
 
     def start(self) -> None:
         logger.debug("Starting service %r", self)
@@ -281,7 +285,8 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """
         futures: list[concurrent.futures.Future[bool]] = []
         with cls._instance_lock:
-            instances = tuple(cls._instances.values())
+            with cls._instance_cache_lock:
+                instances = tuple(cls._instances.values())
 
             for instance in instances:
                 futures.append(instance._drain(at_exit=at_exit))
@@ -312,28 +317,44 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """
         with cls._instance_lock:
             key = hash((cls, *args))
-            if key not in cls._instances:
-                cls._instances[key] = cls._new_instance(*args)
+            with cls._instance_cache_lock:
+                instance = cls._instances.get(key)
+            if instance is None or instance._stopped:
+                instance = cls._new_instance(*args)
 
-            return cls._instances[key]
+            return instance
 
     def _remove_instance(self):
-        self._instances.pop(self._key, None)
+        # Only evict this instance; a newer instance may already be cached under
+        # the same key
+        with self._instance_cache_lock:
+            if self._instances.get(self._key) is self:
+                self._instances.pop(self._key, None)
 
     @classmethod
     def _new_instance(cls, *args: Hashable) -> Self:
         """
-        Create and start a new instance of the service.
+        Create, cache, and start a new instance of the service.
         """
         instance = cls(*args)
 
-        # If already on the global loop, just start it here to avoid deadlock
-        if threading.get_ident() == get_global_loop().thread.ident:
-            instance.start()
+        # Cache before starting so that a service which stops while starting, e.g.
+        # because its lifespan failed, evicts itself instead of being cached after
+        # it has already stopped
+        with cls._instance_cache_lock:
+            cls._instances[instance._key] = instance
 
-        # Otherwise, bind the service to the global loop
-        else:
-            from_sync.call_soon_in_loop_thread(create_call(instance.start)).result()
+        try:
+            # If already on the global loop, just start it here to avoid deadlock
+            if threading.get_ident() == get_global_loop().thread.ident:
+                instance.start()
+
+            # Otherwise, bind the service to the global loop
+            else:
+                from_sync.call_soon_in_loop_thread(create_call(instance.start)).result()
+        except BaseException:
+            instance._remove_instance()
+            raise
 
         return instance
 
