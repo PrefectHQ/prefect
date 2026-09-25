@@ -1,5 +1,6 @@
 import re
 from abc import ABC, abstractmethod
+from urllib.error import HTTPError
 from urllib.request import urlopen
 
 import pytest
@@ -67,7 +68,20 @@ class BlockStandardTestSuite(ABC):
         assert logo_url is not None, (
             f"{block.__name__} is missing a value for _logo_url"
         )
-        img = Image.open(urlopen(str(logo_url)))
+        try:
+            response = urlopen(str(logo_url))
+        except HTTPError as exc:
+            # 402 and 429 indicate the CDN is throttling or out of quota, and 5xx
+            # indicates a server-side outage. None of these say anything about the
+            # logo itself, so skip rather than fail. 4xx errors like 404 still
+            # fail because they mean the URL is wrong.
+            if exc.code in (402, 429) or exc.code >= 500:
+                pytest.skip(
+                    f"Logo host returned HTTP {exc.code} for {logo_url}; "
+                    "cannot validate image"
+                )
+            raise
+        img = Image.open(response)
         assert img.width == img.height, "Logo should be a square image"
         assert 1000 > img.width > 45, (
             f"Logo should be between 200px and 1000px wid, but is {img.width}px wide"
