@@ -481,7 +481,7 @@ class TestNestedRequiredFieldsDoNotLeakToSiblings:
     @staticmethod
     def schema(
         nested_first: bool, parent_required: list[str], nested_required: list[str]
-    ) -> dict:
+    ) -> dict[str, Any]:
         nested = {
             "title": "Nested",
             "type": "object",
@@ -505,7 +505,7 @@ class TestNestedRequiredFieldsDoNotLeakToSiblings:
         }
 
     @pytest.mark.parametrize("nested_first", [True, False])
-    def test_optional_sibling_still_accepts_none(self, nested_first):
+    def test_optional_sibling_still_accepts_none(self, nested_first: bool):
         # 'plain' is optional at the top level even though the nested object requires
         # a property with the same name.
         schema = self.schema(
@@ -515,7 +515,7 @@ class TestNestedRequiredFieldsDoNotLeakToSiblings:
         assert [e.message for e in validate(obj, schema)] == []
 
     @pytest.mark.parametrize("nested_first", [True, False])
-    def test_required_sibling_still_rejects_none(self, nested_first):
+    def test_required_sibling_still_rejects_none(self, nested_first: bool):
         schema = self.schema(
             nested_first,
             parent_required=["nested", "plain"],
