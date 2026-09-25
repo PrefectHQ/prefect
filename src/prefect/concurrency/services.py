@@ -2,10 +2,10 @@ import asyncio
 import concurrent.futures
 import contextlib
 import json
-from collections.abc import AsyncGenerator, Iterable
+from collections.abc import AsyncGenerator, Iterable, Iterator
 from contextlib import asynccontextmanager
 from threading import Lock
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Literal, Optional, Protocol
 from uuid import UUID, uuid4
 
 import cachetools
@@ -14,10 +14,7 @@ from starlette import status
 from typing_extensions import TypeAlias, Unpack
 
 from prefect._internal.concurrency import logger
-from prefect._internal.concurrency.services import (
-    FutureQueueService,
-    _QueueServiceBase,
-)
+from prefect._internal.concurrency.services import FutureQueueService
 from prefect.client.orchestration import get_client
 from prefect.utilities.timeout import timeout_async
 
@@ -77,7 +74,32 @@ class _SlotReleaseWaiter:
         loop.call_soon_threadsafe(event.set)
 
 
-def notify_concurrency_slots_released(names: Iterable[str]) -> None:
+class _AcquisitionService(Protocol):
+    concurrency_limit_names: list[str]
+
+    def _notify_slots_released(self) -> None: ...
+
+
+# Running acquisition services, registered for the duration of their lifespan.
+# Guarded by its own lock, which is only ever held to copy the set, so notifying
+# never waits on the queue service registry (whose lock is held across startup on
+# the global loop and would deadlock a notifier running on that loop).
+_running_services: set[_AcquisitionService] = set()
+_running_services_lock = Lock()
+
+
+@contextlib.contextmanager
+def _registered(service: _AcquisitionService) -> Iterator[None]:
+    with _running_services_lock:
+        _running_services.add(service)
+    try:
+        yield
+    finally:
+        with _running_services_lock:
+            _running_services.discard(service)
+
+
+def _notify_concurrency_slots_released(names: Iterable[str]) -> None:
     """Wake acquisition services in this process waiting on any of `names`.
 
     Called after slots are released so callers waiting on the same limits retry
@@ -88,18 +110,12 @@ def notify_concurrency_slots_released(names: Iterable[str]) -> None:
     if not released:
         return
 
-    with _QueueServiceBase._instance_lock:
-        services = tuple(_QueueServiceBase._instances.values())
+    with _running_services_lock:
+        services = tuple(_running_services)
 
     for service in services:
-        if isinstance(
-            service,
-            (
-                ConcurrencySlotAcquisitionService,
-                ConcurrencySlotAcquisitionWithLeaseService,
-            ),
-        ) and not released.isdisjoint(service.concurrency_limit_names):
-            service.notify_slots_released()
+        if not released.isdisjoint(service.concurrency_limit_names):
+            service._notify_slots_released()
 
 
 _Item: TypeAlias = tuple[
@@ -132,11 +148,12 @@ class ConcurrencySlotAcquisitionService(
             self._client = client
             self._release_waiter.bind()
             try:
-                yield
+                with _registered(self):
+                    yield
             finally:
                 self._release_waiter.unbind()
 
-    def notify_slots_released(self) -> None:
+    def _notify_slots_released(self) -> None:
         """Wake a pending `Retry-After` sleep because slots were released locally."""
         with self._lock:
             loop = self._loop
@@ -199,7 +216,8 @@ class ConcurrencySlotAcquisitionWithLeaseService(
             self._client = client
             self._release_waiter.bind()
             try:
-                yield
+                with _registered(self):
+                    yield
             finally:
                 self._release_waiter.unbind()
                 # The client closes when this exits, so releases scheduled by
@@ -213,7 +231,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                         return_exceptions=True,
                     )
 
-    def notify_slots_released(self) -> None:
+    def _notify_slots_released(self) -> None:
         """Wake a pending `Retry-After` sleep because slots were released locally."""
         with self._lock:
             loop = self._loop
@@ -313,7 +331,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                 exc_info=True,
             )
         else:
-            notify_concurrency_slots_released(self.concurrency_limit_names)
+            _notify_concurrency_slots_released(self.concurrency_limit_names)
 
     def release_orphaned_lease(
         self, response: httpx.Response

@@ -298,15 +298,17 @@ def test_local_release_wakes_waiter_before_retry_after(
         waiter_thread = threading.Thread(
             target=contextvars.copy_context().run, args=(waiter,)
         )
-        holder_thread.start()
-        assert holder_acquired.wait(10)
+        try:
+            holder_thread.start()
+            assert holder_acquired.wait(10)
 
-        waiter_thread.start()
-        assert waiter_locked_out.wait(10)
-        assert not waiter_done.is_set()
+            waiter_thread.start()
+            assert waiter_locked_out.wait(10)
+            assert not waiter_done.is_set()
+        finally:
+            release_holder.set()
+            holder_thread.join(10)
 
-        release_holder.set()
-        holder_thread.join(10)
         assert waiter_done.wait(10)
         waiter_thread.join(10)
 

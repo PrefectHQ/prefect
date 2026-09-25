@@ -27,7 +27,7 @@ from prefect.logging.loggers import get_run_logger
 from .services import (
     ConcurrencySlotAcquisitionService,
     ConcurrencySlotAcquisitionWithLeaseService,
-    notify_concurrency_slots_released,
+    _notify_concurrency_slots_released,  # pyright: ignore[reportPrivateUsage]
 )
 
 if TYPE_CHECKING:
@@ -208,7 +208,7 @@ async def arelease_concurrency_slots(
         response = await client.release_concurrency_slots(
             names=names, slots=slots, occupancy_seconds=occupancy_seconds
         )
-    notify_concurrency_slots_released(names)
+    _notify_concurrency_slots_released(names)
     return _response_to_minimal_concurrency_limit_response(response)
 
 
@@ -226,7 +226,7 @@ async def arelease_concurrency_slots_with_lease(
     async with get_client() as client:
         await client.release_concurrency_slots_with_lease(lease_id=lease_id)
     if names:
-        notify_concurrency_slots_released(names)
+        _notify_concurrency_slots_released(names)
 
 
 def _discard_cleanup_lease(lease_id: UUID) -> None:

@@ -16,9 +16,9 @@ from prefect.concurrency.services import (
     ConcurrencySlotAcquisitionWithLeaseService,
     _create_empty_limits_response,
     _no_limits_cache,
+    _notify_concurrency_slots_released,
     _should_use_cache,
     _SlotReleaseWaiter,
-    notify_concurrency_slots_released,
 )
 
 pytestmark = pytest.mark.clear_db
@@ -312,7 +312,7 @@ async def test_local_release_wakes_waiter_before_retry_after(
     while increment.call_count < 1:
         await asyncio.sleep(0.01)
 
-    notify_concurrency_slots_released(["test-limit"])
+    _notify_concurrency_slots_released(["test-limit"])
 
     returned_response = await asyncio.wait_for(asyncio.wrap_future(future), 5)
     assert returned_response == responses[1]
@@ -343,7 +343,7 @@ async def test_release_of_unrelated_limit_does_not_wake_waiter(
         frozenset(["test-limit"])
     )
     with mock.patch.object(
-        service, "notify_slots_released", wraps=service.notify_slots_released
+        service, "_notify_slots_released", wraps=service._notify_slots_released
     ) as notify:
         future: Future[Response] = service.send(
             (1, "concurrency", None, None, 60.0, False, None)
@@ -352,14 +352,14 @@ async def test_release_of_unrelated_limit_does_not_wake_waiter(
         while increment.call_count < 1:
             await asyncio.sleep(0.01)
 
-        notify_concurrency_slots_released(["other-limit"])
+        _notify_concurrency_slots_released(["other-limit"])
         await asyncio.sleep(0.1)
 
         notify.assert_not_called()
         assert not future.done()
         assert increment.call_count == 1
 
-        notify_concurrency_slots_released(["test-limit"])
+        _notify_concurrency_slots_released(["test-limit"])
         await asyncio.wait_for(asyncio.wrap_future(future), 5)
         notify.assert_called_once()
     await service.drain()
