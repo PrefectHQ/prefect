@@ -164,7 +164,7 @@ async def create_deployment(
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
     job_variables = insert_values.pop("job_variables", None)
-    if job_variables:
+    if job_variables is not None:
         insert_values["infra_overrides"] = job_variables
 
     conflict_update_fields = deployment.model_dump_for_orm(
@@ -179,7 +179,7 @@ async def create_deployment(
             "version_info",
         },
     )
-    if job_variables:
+    if job_variables is not None:
         conflict_update_fields["infra_overrides"] = job_variables
 
     insert_stmt = (
@@ -326,7 +326,7 @@ async def update_deployment(
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
     job_variables = update_data.pop("job_variables", None)
-    if job_variables:
+    if job_variables is not None:
         update_data["infra_overrides"] = job_variables
 
     should_update_schedules = update_data.pop("schedules", None) is not None
