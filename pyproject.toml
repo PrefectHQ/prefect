@@ -45,6 +45,7 @@ dependencies = [
     "anyio>=4.4.0,<5.0.0",
     "asgi-lifespan>=1.0,<3.0",
     "cachetools>=5.3,<8.0",
+    "certifi",
     "cloudpickle>=2.0,<4.0",
     "coolname>=1.0.4,<6.0.0",
     "exceptiongroup>=1.0.0",
@@ -137,6 +138,8 @@ prefect = "prefect.cli:app"
 render_swagger = "prefect.utilities.render_swagger:SwaggerPlugin"
 
 [dependency-groups]
+httpx2 = ["httpx2[http2]>=2.13.0,<3.0.0", "httpcore2>=2.13.0,<3.0.0"]
+
 dev = [
     "cairosvg>=2.7.1; python_version<'3.14'",
     "ipython",
@@ -161,6 +164,7 @@ dev = [
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
+    "pytest-httpx2>=1.0.0,<2.0.0",
     "pytest-split>=0.11,<1.0",
     "typsht>=0.0.1a4",
     "pytest-timeout>=2.3.1",
@@ -305,6 +309,7 @@ asyncio_default_fixture_loop_scope = "session"
 timeout = 90
 filterwarnings = [
     "error",
+    "ignore:Prefect's legacy HTTPX backend is deprecated.*:FutureWarning",
     "ignore::DeprecationWarning:tornado.platform.asyncio.*",
     "ignore::DeprecationWarning:tornado.ioloop",
     "ignore:Default value default=",
@@ -334,9 +339,7 @@ filterwarnings = [
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",
     "ignore::pluggy.PluggyTeardownRaisedWarning",
-    # starlette 1.x deprecates httpx (<2) with its TestClient and steers toward
-    # the not-yet-released httpx2; TestClient still works on httpx 0.28, so
-    # silence the warning until the ecosystem moves to httpx2.
+    # HTTPX remains supported during the deprecation window.
     "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
 ]
 

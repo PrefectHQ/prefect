@@ -3,8 +3,8 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from httpx import HTTPStatusError, Request, Response
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.orchestration import get_client
 from prefect.concurrency.v1.services import ConcurrencySlotAcquisitionService
 
@@ -34,7 +34,7 @@ async def mocked_client(test_database_connection_url):
 
 
 async def test_returns_successful_response(mocked_client):
-    response = Response(200)
+    response = httpx.Response(200)
     task_run_id = UUID("00000000-0000-0000-0000-000000000000")
 
     mocked_method = mocked_client.client.increment_v1_concurrency_slots
@@ -57,12 +57,12 @@ async def test_returns_successful_response(mocked_client):
 async def test_retries_failed_call_respects_retry_after_header(mocked_client):
     task_run_id = UUID("00000000-0000-0000-0000-000000000000")
     responses = [
-        HTTPStatusError(
+        httpx.HTTPStatusError(
             "Limit is locked",
-            request=Request("get", "/"),
-            response=Response(423, headers={"Retry-After": "2"}),
+            request=httpx.Request("get", "/"),
+            response=httpx.Response(423, headers={"Retry-After": "2"}),
         ),
-        Response(200),
+        httpx.Response(200),
     ]
 
     mocked_client.client.increment_v1_concurrency_slots.side_effect = responses
@@ -85,10 +85,10 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
 
 async def test_failed_call_status_code_not_retryable_returns_exception(mocked_client):
     task_run_id = UUID("00000000-0000-0000-0000-000000000000")
-    response = HTTPStatusError(
+    response = httpx.HTTPStatusError(
         "Too many requests",
-        request=Request("get", "/"),
-        response=Response(500, headers={"Retry-After": "2"}),
+        request=httpx.Request("get", "/"),
+        response=httpx.Response(500, headers={"Retry-After": "2"}),
     )
 
     mocked_client.client.increment_v1_concurrency_slots.return_value = response
@@ -100,7 +100,7 @@ async def test_failed_call_status_code_not_retryable_returns_exception(mocked_cl
     await service.drain()
     exception = await asyncio.wrap_future(future)
 
-    assert isinstance(exception, HTTPStatusError)
+    assert isinstance(exception, httpx.HTTPStatusError)
     assert exception == response
 
 

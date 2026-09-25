@@ -13,13 +13,12 @@ from datetime import timedelta
 from typing import Any, AsyncGenerator
 from uuid import UUID, uuid4
 
-import httpx
 import pytest
 from docket import Docket
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.compatibility.starlette import status
 from prefect.server import models, schemas
 from prefect.server.schemas.statuses import DeploymentStatus
@@ -62,7 +61,7 @@ async def docket_without_worker_lifespan(
 @pytest.fixture
 async def client_with_real_docket(
     app: FastAPI,
-) -> AsyncGenerator[AsyncClient, Any]:
+) -> AsyncGenerator[httpx.AsyncClient, Any]:
     """
     Yield a test client with a real Docket instance but NO background worker.
 
@@ -75,13 +74,15 @@ async def client_with_real_docket(
     """
     async with docket_without_worker_lifespan(app):
         async with httpx.AsyncClient(
-            transport=ASGITransport(app=app), base_url="https://test/api"
+            transport=httpx.ASGITransport(app=app), base_url="https://test/api"
         ) as async_client:
             yield async_client
 
 
 @pytest.fixture
-async def real_docket(app: FastAPI, client_with_real_docket: AsyncClient) -> Docket:
+async def real_docket(
+    app: FastAPI, client_with_real_docket: httpx.AsyncClient
+) -> Docket:
     """Get the real Docket instance from the app.
 
     Depends on client_with_real_docket to ensure lifespan context is active.
@@ -176,7 +177,7 @@ class TestDocketAtMostOnceExecution:
         self,
         flow_run,
         real_docket: Docket,
-        client_with_real_docket: AsyncClient,
+        client_with_real_docket: httpx.AsyncClient,
     ):
         running_response = await client_with_real_docket.post(
             f"/flow_runs/{flow_run.id}/set_state",
@@ -208,7 +209,7 @@ class TestDocketAtMostOnceExecution:
         self,
         flow_run,
         real_docket: Docket,
-        client_with_real_docket: AsyncClient,
+        client_with_real_docket: httpx.AsyncClient,
     ):
         running_response = await client_with_real_docket.post(
             f"/flow_runs/{flow_run.id}/set_state",
@@ -246,7 +247,7 @@ class TestDocketAtMostOnceExecution:
         self,
         work_queue,
         real_docket: Docket,
-        client_with_real_docket: AsyncClient,
+        client_with_real_docket: httpx.AsyncClient,
     ):
         """
         Verify that duplicate requests to read work queue runs only queue one task
@@ -291,7 +292,7 @@ class TestDocketAtMostOnceExecution:
         self,
         work_pool,
         real_docket: Docket,
-        client_with_real_docket: AsyncClient,
+        client_with_real_docket: httpx.AsyncClient,
     ):
         """
         Verify that duplicate requests to get scheduled flow runs only queue one task
@@ -331,7 +332,7 @@ class TestDocketAtMostOnceExecution:
         self,
         deployments,
         real_docket: Docket,
-        client_with_real_docket: AsyncClient,
+        client_with_real_docket: httpx.AsyncClient,
     ):
         """
         Verify that duplicate requests for deployment scheduled runs only queue
@@ -371,7 +372,7 @@ class TestDocketAtMostOnceExecution:
         self,
         deployments,
         real_docket: Docket,
-        client_with_real_docket: AsyncClient,
+        client_with_real_docket: httpx.AsyncClient,
     ):
         """
         Verify that requests with deployment IDs in different orders result in
@@ -410,7 +411,7 @@ class TestDocketAtMostOnceExecution:
         self,
         flow_run,
         real_docket: Docket,
-        client_with_real_docket: AsyncClient,
+        client_with_real_docket: httpx.AsyncClient,
     ):
         """
         Verify that deleting a flow run queues exactly one log deletion task.
@@ -437,7 +438,7 @@ class TestDocketAtMostOnceExecution:
         self,
         task_run,
         real_docket: Docket,
-        client_with_real_docket: AsyncClient,
+        client_with_real_docket: httpx.AsyncClient,
     ):
         """
         Verify that deleting a task run queues exactly one log deletion task.

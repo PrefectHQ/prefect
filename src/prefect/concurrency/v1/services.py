@@ -5,10 +5,10 @@ from json import JSONDecodeError
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-import httpx
 from starlette import status
 from typing_extensions import Unpack
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import FutureQueueService
 from prefect.client.orchestration import get_client

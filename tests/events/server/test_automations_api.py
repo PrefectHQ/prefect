@@ -4,14 +4,13 @@ from typing import Any, Dict, List, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
-import httpx
 import pydantic
 import pytest
 import sqlalchemy as sa
 from fastapi.applications import FastAPI
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models as server_models
 from prefect.server import schemas as server_schemas
 from prefect.server.api.validation import ValidationError
@@ -61,7 +60,7 @@ async def client(app: FastAPI):
     # serve any server-side errors as HTTP responses.  This is different than some other
     # parts of the general test suite, so we'll override the fixture here.
 
-    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
 
     async with httpx.AsyncClient(
         transport=transport, base_url="https://test/api"
@@ -234,7 +233,7 @@ def test_minimum_proactive_within_is_required_but_defaulted():
 
 
 async def test_create_automation_allows_specifying_just_owner_resource(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_session: AsyncSession,
     automations_url: str,
     automation_to_create: AutomationCreate,
@@ -262,7 +261,7 @@ async def test_create_automation_allows_specifying_just_owner_resource(
 
 
 async def test_create_automation_allows_specifying_owner_resource_and_actions(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_session: AsyncSession,
     automations_url: str,
     automation_to_create: AutomationCreate,
@@ -315,7 +314,7 @@ async def test_create_automation_allows_specifying_owner_resource_and_actions(
 
 
 async def test_create_automation_overrides_client_provided_trigger_ids(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     automation_to_create: AutomationCreate,
 ) -> None:
@@ -415,7 +414,7 @@ def automation_update(existing_automation: Automation) -> AutomationUpdate:
 
 
 async def test_update_automation(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     existing_automation: Automation,
     automation_update: AutomationUpdate,
@@ -444,7 +443,7 @@ async def test_update_automation(
 
 
 async def test_update_automation_404s_on_unknown_id(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     automation_update: AutomationUpdate,
 ) -> None:
@@ -457,7 +456,7 @@ async def test_update_automation_404s_on_unknown_id(
 
 
 async def test_update_automation_cannot_change_id(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     existing_automation: Automation,
     automation_update: AutomationUpdate,
@@ -476,7 +475,7 @@ async def test_update_automation_cannot_change_id(
 
 
 async def test_update_automation_overrides_client_provided_trigger_ids(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     existing_automation: Automation,
     automation_update: AutomationUpdate,
@@ -516,7 +515,7 @@ def automation_patch(existing_automation: Automation) -> AutomationPartialUpdate
 
 
 async def test_patch_automation(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     existing_automation: Automation,
     automation_patch: AutomationPartialUpdate,
@@ -537,7 +536,7 @@ async def test_patch_automation(
 
 
 async def test_patch_automation_404s_on_unknown_id(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     automation_patch: AutomationPartialUpdate,
 ) -> None:
@@ -550,7 +549,7 @@ async def test_patch_automation_404s_on_unknown_id(
 
 
 async def test_patch_automation_cannot_change_id(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     existing_automation: Automation,
     automation_patch: AutomationPartialUpdate,
@@ -569,7 +568,7 @@ async def test_patch_automation_cannot_change_id(
 
 
 async def test_patch_automation_cannot_enable_invalid_automation(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     existing_disabled_invalid_automation: Automation,
 ) -> None:
@@ -597,7 +596,7 @@ async def test_patch_automation_cannot_enable_invalid_automation(
 
 
 async def test_delete_automation(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     existing_automation: Automation,
 ) -> None:
@@ -613,7 +612,7 @@ async def test_delete_automation(
 
 
 async def test_delete_automation_404s_on_unknown_id(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     response = await client.delete(
@@ -624,7 +623,7 @@ async def test_delete_automation_404s_on_unknown_id(
 
 
 async def test_read_automation(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     existing_automation: Automation,
 ) -> None:
@@ -640,7 +639,7 @@ async def test_read_automation(
 
 
 async def test_read_automation_that_does_not_exist(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     response = await client.get(f"{automations_url}/{uuid4()}")
@@ -650,7 +649,7 @@ async def test_read_automation_that_does_not_exist(
 
 async def test_read_automations(
     some_workspace_automations: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     response = await client.post(f"{automations_url}/filter")
@@ -665,7 +664,7 @@ async def test_read_automations(
 
 async def test_read_automations_page(
     some_workspace_automations: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     response = await client.post(
@@ -689,7 +688,7 @@ async def test_read_automations_page(
 
 async def test_read_automations_filter_by_name_match(
     some_workspace_automations: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     automation_filter = dict(
@@ -713,7 +712,7 @@ async def test_read_automations_filter_by_name_match(
 
 async def test_read_automations_filter_by_name_mismatch(
     some_workspace_automations: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     automation_filter = dict(
@@ -731,7 +730,7 @@ async def test_read_automations_filter_by_name_mismatch(
 
 async def test_read_automations_filter_by_id_match(
     some_workspace_automations: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     expected = sorted(some_workspace_automations, key=lambda a: a.name)[:2]
@@ -753,7 +752,7 @@ async def test_read_automations_filter_by_id_match(
 
 async def test_read_automations_filter_by_id_mismatch(
     some_workspace_automations: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     automation_filter = dict(
@@ -771,7 +770,7 @@ async def test_read_automations_filter_by_id_mismatch(
 
 async def test_count_automations_with_empty_body_counts_everything(
     some_workspace_automations: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     response = await client.post(f"{automations_url}/count", json={})
@@ -783,7 +782,7 @@ async def test_count_automations_with_empty_body_counts_everything(
 
 async def test_count_automations_with_filter(
     some_workspace_automations: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     automation_filter = dict(
@@ -864,7 +863,7 @@ async def automations_with_tags(
 
 async def test_read_automations_filter_tags_any(
     automations_with_tags: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     """Test filtering automations by tags using any_ filter"""
@@ -886,7 +885,7 @@ async def test_read_automations_filter_tags_any(
 
 async def test_read_automations_filter_tags_any_multiple(
     automations_with_tags: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     """Test filtering automations by tags using any_ filter with multiple tags"""
@@ -908,7 +907,7 @@ async def test_read_automations_filter_tags_any_multiple(
 
 async def test_read_automations_filter_tags_all(
     automations_with_tags: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     """Test filtering automations by tags using all_ filter"""
@@ -930,7 +929,7 @@ async def test_read_automations_filter_tags_all(
 
 async def test_read_automations_filter_tags_all_no_match(
     automations_with_tags: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     """Test filtering automations by tags using all_ filter with no matches"""
@@ -948,7 +947,7 @@ async def test_read_automations_filter_tags_all_no_match(
 
 async def test_read_automations_filter_tags_is_null_true(
     automations_with_tags: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     """Test filtering automations to only include those without tags"""
@@ -970,7 +969,7 @@ async def test_read_automations_filter_tags_is_null_true(
 
 async def test_read_automations_filter_tags_is_null_false(
     automations_with_tags: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     """Test filtering automations to only include those with tags"""
@@ -997,7 +996,7 @@ async def test_read_automations_filter_tags_is_null_false(
 
 async def test_read_automations_filter_tags_combined_with_name(
     automations_with_tags: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     """Test filtering automations by both tags and name"""
@@ -1022,7 +1021,7 @@ async def test_read_automations_filter_tags_combined_with_name(
 
 async def test_count_automations(
     some_workspace_automations: List[Automation],
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
 ) -> None:
     response = await client.post(f"{automations_url}/count")
@@ -1041,7 +1040,7 @@ def templates_url(workspace_url: str) -> str:
 
 
 async def test_validate_good_template(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     templates_url: str,
 ):
     response = await client.post(
@@ -1056,7 +1055,7 @@ async def test_validate_good_template(
 
 
 async def test_validate_bad_template(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     templates_url: str,
 ):
     template = textwrap.dedent(
@@ -1084,7 +1083,7 @@ async def test_validate_bad_template(
 
 
 async def test_validate_bad_template_loop_constraints(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     templates_url: str,
 ):
     template = textwrap.dedent(
@@ -1117,7 +1116,7 @@ async def test_validate_bad_template_loop_constraints(
 
 
 async def test_read_automations_related_to_resource(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_session: AsyncSession,
     automations_url: str,
     some_workspace_automations: List[Automation],
@@ -1152,7 +1151,7 @@ async def test_read_automations_related_to_resource(
 
 async def test_delete_automations_owned_by_resource(
     db: PrefectDBInterface,
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_session: AsyncSession,
     automations_url: str,
     some_workspace_automations: List[Automation],
@@ -1223,7 +1222,7 @@ async def test_delete_automations_owned_by_resource(
 
 
 async def test_create_run_deployment_automation_with_job_variables_and_no_schema(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     session: AsyncSession,
 ) -> None:
@@ -1246,7 +1245,7 @@ async def test_create_run_deployment_automation_with_job_variables_and_no_schema
 
 
 async def test_create_run_deployment_automation_with_job_variables_that_match_schema(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     session: AsyncSession,
 ) -> None:
@@ -1278,7 +1277,7 @@ async def test_create_run_deployment_automation_with_job_variables_that_match_sc
 
 
 async def test_create_run_deployment_automation_with_job_variables_that_dont_match_schema(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     session: AsyncSession,
 ) -> None:
@@ -1307,7 +1306,7 @@ async def test_create_run_deployment_automation_with_job_variables_that_dont_mat
 
 
 async def test_multiple_run_deployment_actions_with_job_variables_that_dont_match_schema(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     session: AsyncSession,
 ) -> None:
@@ -1344,7 +1343,7 @@ async def test_multiple_run_deployment_actions_with_job_variables_that_dont_matc
 
 
 async def test_updating_run_deployment_automation_with_bad_job_variables(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     session: AsyncSession,
 ) -> None:
@@ -1388,7 +1387,7 @@ async def test_updating_run_deployment_automation_with_bad_job_variables(
 
 
 async def test_create_run_deployment_automation_with_none_variable_value(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     session: AsyncSession,
 ) -> None:
@@ -1432,7 +1431,7 @@ async def test_create_run_deployment_automation_with_none_variable_value(
 
 
 async def test_updating_run_deployment_automation_with_none_variable_value(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     session: AsyncSession,
 ) -> None:
@@ -1489,7 +1488,7 @@ async def test_updating_run_deployment_automation_with_none_variable_value(
 
 
 async def test_updating_run_deployment_automation_with_valid_job_variables(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     session: AsyncSession,
 ) -> None:
@@ -1534,7 +1533,7 @@ async def test_updating_run_deployment_automation_with_valid_job_variables(
 
 
 async def test_infrastructure_error_inside_create(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     session: AsyncSession,
 ) -> None:
@@ -1557,7 +1556,7 @@ async def test_infrastructure_error_inside_create(
 
 
 async def test_create_automation_with_tags(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     automation_to_create: AutomationCreate,
 ) -> None:
@@ -1575,7 +1574,7 @@ async def test_create_automation_with_tags(
 
 
 async def test_create_automation_with_empty_tags(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     automation_to_create: AutomationCreate,
 ) -> None:
@@ -1593,7 +1592,7 @@ async def test_create_automation_with_empty_tags(
 
 
 async def test_create_automation_without_tags_defaults_to_empty(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     automation_to_create: AutomationCreate,
 ) -> None:
@@ -1611,7 +1610,7 @@ async def test_create_automation_without_tags_defaults_to_empty(
 
 
 async def test_update_automation_tags(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     existing_automation: Automation,
 ) -> None:
@@ -1635,7 +1634,7 @@ async def test_update_automation_tags(
 
 
 async def test_patch_automation_does_not_affect_tags_when_not_specified(
-    client: AsyncClient,
+    client: httpx.AsyncClient,
     automations_url: str,
     existing_automation: Automation,
 ) -> None:

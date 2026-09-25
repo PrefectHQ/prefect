@@ -9,14 +9,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import asyncpg
-import httpx
 import pytest
 import sqlalchemy as sa
 import toml
 from fastapi.testclient import TestClient
-from httpx import ASGITransport, AsyncClient
 
 import prefect
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.compatibility.starlette import status
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import get_client
@@ -113,8 +112,8 @@ async def test_sqlite_database_locked_handler(errorname, ephemeral):
     app.api_app.add_api_route("/raise_busy_error", raise_busy_error)
     app.api_app.add_api_route("/raise_other_error", raise_other_error)
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app, raise_app_exceptions=False),
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
         base_url="https://test",
     ) as client:
         response = await client.get("/api/raise_busy_error")
@@ -233,8 +232,8 @@ async def test_retryable_exception_handler(exc):
     app.api_app.add_api_route("/raise_retryable_error", raise_retryable_error)
     app.api_app.add_api_route("/raise_other_error", raise_other_error)
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app, raise_app_exceptions=False),
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
         base_url="https://test",
     ) as client:
         response = await client.get("/api/raise_retryable_error")

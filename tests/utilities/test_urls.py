@@ -6,10 +6,9 @@ from datetime import timedelta
 from typing import Any, Literal, cast
 from unittest.mock import patch
 
-import httpcore
-import httpx
 import pytest
 
+from prefect._internal.compatibility.httpx import httpcore, httpx
 from prefect.blocks.webhook import Webhook
 from prefect.events.schemas.automations import Automation, EventTrigger, Posture
 from prefect.events.schemas.events import ReceivedEvent, Resource
@@ -832,3 +831,41 @@ class TestSSRFProtectedAsyncBackendNonBlockingDNS:
         assert observed_threads[0] != loop_thread, (
             "getaddrinfo must run off the event loop thread"
         )
+
+
+@pytest.mark.parametrize("sync", [False, True])
+@pytest.mark.parametrize(
+    "args, kwargs",
+    [
+        ((), {"trust_env": False}),
+        ((), {"http1": True, "http2": True, "trust_env": False}),
+        ((False, None, False), {}),
+    ],
+)
+async def test_ssrf_transport_preserves_native_constructor_contract(
+    sync: bool, args: tuple, kwargs: dict
+):
+    native_type = httpx.HTTPTransport if sync else httpx.AsyncHTTPTransport
+    protected_type = (
+        SSRFProtectedHTTPTransport if sync else SSRFProtectedAsyncHTTPTransport
+    )
+    native = native_type(*args, **kwargs)
+    protected = protected_type(*args, **kwargs)
+    try:
+        assert protected._pool._http1 == native._pool._http1
+        assert protected._pool._http2 == native._pool._http2
+        assert (
+            protected._pool._ssl_context.verify_mode
+            == native._pool._ssl_context.verify_mode
+        )
+        assert (
+            protected._pool._ssl_context.check_hostname
+            == native._pool._ssl_context.check_hostname
+        )
+    finally:
+        if sync:
+            native.close()
+            protected.close()
+        else:
+            await native.aclose()
+            await protected.aclose()

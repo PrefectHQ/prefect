@@ -44,6 +44,28 @@ with get_client(sync_client=True) as client:
 
 </CodeGroup>
 
+### HTTP backend compatibility
+
+Prefect continues to use HTTPX by default, including its authentication, transport, response, and exception types.
+The HTTPX backend is deprecated. It remains available for at least six months and three minor version increases
+after the first release announcing its deprecation, following the [versioning policy](/v3/release-notes/versioning#deprecation).
+
+To opt into HTTPX2 with either `prefect` or `prefect-client`, add `httpx2[http2]>=2.13.0,<3.0.0`
+to your environment's dependencies and set this environment variable before starting Python:
+
+{/* pmd-metadata: notest */}
+```bash
+export PREFECT_CLIENT_HTTP_BACKEND=httpx2
+```
+
+Each process selects its backend once. Local flow-run subprocesses inherit the selection.
+Docker, Kubernetes, and other remote work-pool jobs use their own environments: install HTTPX2
+in the job's runtime image and set `PREFECT_CLIENT_HTTP_BACKEND=httpx2` in the work pool or deployment's
+job variables (`env`). Configuring HTTPX2 on the worker does not configure its remote jobs.
+Installing HTTPX2 alone does not change the backend.
+When using HTTPX2, pass `httpx2` authentication, timeout, and transport objects through `httpx_settings`,
+and catch `httpx2` exceptions instead of `httpx` exceptions.
+
 ## Pagination and default query limits
 
 Client methods that accept `limit` and `offset` parameters - such as `read_flow_runs`, `read_deployments`,
@@ -549,4 +571,3 @@ for artifact in response.json():
 If you don't specify a key or that a key must exist, you will also return results, which are a type of key-less artifact.
 
 See the [Prefect REST API documentation](/v3/api-ref/rest-api/) on artifacts for more information.
-
