@@ -792,6 +792,7 @@ class Task(Generic[P, R]):
             name=name or self.name,
             description=description or self.description,
             tags=tags or copy(self.tags),
+            version=self.version,
             cache_policy=cache_policy
             if cache_policy is not NotSet
             else self._user_cache_policy,
@@ -844,6 +845,8 @@ class Task(Generic[P, R]):
             on_completion=on_completion or self.on_completion_hooks,
             on_failure=on_failure or self.on_failure_hooks,
             on_running=on_running or self.on_running_hooks,
+            on_rollback=copy(self.on_rollback_hooks),
+            on_commit=copy(self.on_commit_hooks),
             retry_condition_fn=retry_condition_fn or self.retry_condition_fn,
             viz_return_value=viz_return_value or self.viz_return_value,
             asset_deps=asset_deps or self.asset_deps,
