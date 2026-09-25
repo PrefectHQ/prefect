@@ -1,5 +1,8 @@
 import re
+import time
 from abc import ABC, abstractmethod
+from io import BytesIO
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 import pytest
@@ -12,6 +15,38 @@ try:
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
+
+
+# Responses from the logo CDN that reflect its availability rather than the
+# validity of the URL itself (e.g. Sanity returns 402 when over quota).
+TRANSIENT_HTTP_STATUS_CODES = {402, 408, 425, 429, 500, 502, 503, 504}
+
+
+def _is_transient(exc: Exception) -> bool:
+    if isinstance(exc, HTTPError):
+        return exc.code in TRANSIENT_HTTP_STATUS_CODES
+    if isinstance(exc, URLError):
+        return isinstance(exc.reason, (TimeoutError, ConnectionError))
+    return isinstance(exc, (TimeoutError, ConnectionError))
+
+
+def _fetch_logo(url: str, attempts: int = 3) -> BytesIO:
+    """
+    Download a logo, retrying on availability errors from the CDN. Skips the
+    calling test if the CDN is still unavailable after all attempts; any other
+    error (e.g. 404, DNS failure) is raised so a broken URL still fails.
+    """
+    for attempt in range(attempts):
+        try:
+            with urlopen(url, timeout=30) as response:
+                return BytesIO(response.read())
+        except (HTTPError, URLError, TimeoutError, ConnectionError) as exc:
+            if not _is_transient(exc):
+                raise
+            if attempt == attempts - 1:
+                pytest.skip(f"Logo CDN unavailable, unable to fetch {url}: {exc}")
+        time.sleep(2**attempt)
+    raise AssertionError("unreachable")
 
 
 class BlockStandardTestSuite(ABC):
@@ -67,7 +102,7 @@ class BlockStandardTestSuite(ABC):
         assert logo_url is not None, (
             f"{block.__name__} is missing a value for _logo_url"
         )
-        img = Image.open(urlopen(str(logo_url)))
+        img = Image.open(_fetch_logo(str(logo_url)))
         assert img.width == img.height, "Logo should be a square image"
         assert 1000 > img.width > 45, (
             f"Logo should be between 200px and 1000px wid, but is {img.width}px wide"
