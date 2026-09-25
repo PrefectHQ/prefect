@@ -583,6 +583,53 @@ class TestIntervalScheduleDaylightSavingsTime:
             14,
         ]
 
+    @pytest.mark.parametrize(
+        "anchor, start, utc_hour",
+        [
+            # anchored in EDT, start after clocks fall back to EST
+            (datetime(2026, 10, 1, 9), datetime(2026, 11, 5, 12), 14),
+            # anchored in EST, start after clocks spring forward to EDT
+            (datetime(2026, 1, 1, 9), datetime(2026, 3, 20, 12), 13),
+            # anchored in EDT, start over a year later in EST
+            (datetime(2025, 7, 1, 9), datetime(2026, 12, 1, 12), 14),
+        ],
+    )
+    async def test_interval_schedule_daily_start_after_daylight_savings_change(
+        self, anchor: datetime, start: datetime, utc_hour: int
+    ):
+        """
+        A daily schedule anchored at 9am America/New_York must return 9am dates
+        even when the start date is on the other side of a DST change from the
+        anchor, so the jump from the anchor to the start must not be done in
+        exact seconds.
+        """
+        ny = ZoneInfo("America/New_York")
+        s = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=anchor.replace(tzinfo=ny),
+            timezone="America/New_York",
+        )
+        dates = await s.get_dates(n=3, start=start.replace(tzinfo=ny))
+
+        assert [d.astimezone(ny).hour for d in dates] == [9, 9, 9]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [utc_hour] * 3
+
+    async def test_interval_schedule_dates_are_consistent_across_start_dates(self):
+        """
+        The dates returned for a start date after a DST change must be the same
+        dates returned when stepping through the change from an earlier start.
+        """
+        ny = ZoneInfo("America/New_York")
+        s = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=datetime(2026, 10, 1, 9, tzinfo=ny),
+            timezone="America/New_York",
+        )
+        before = await s.get_dates(n=10, start=datetime(2026, 10, 30, 12, tzinfo=ny))
+        after = await s.get_dates(n=3, start=datetime(2026, 11, 5, 12, tzinfo=ny))
+
+        assert after == before[6:9]
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 13),
@@ -695,6 +742,40 @@ class TestIntervalScheduleDateTimeDelta:
 
         with pytest.raises(ValidationError, match="interval must be positive"):
             IntervalSchedule(interval=ItemizedDelta(hours=-1))
+
+    async def test_daily_itemized_delta_start_after_daylight_savings_change(self):
+        """A daily ItemizedDelta anchored at 9am stays at 9am when the start
+        date is after the clocks fall back."""
+        from whenever import ItemizedDelta
+
+        ny = ZoneInfo("America/New_York")
+        s = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(2026, 10, 1, 9, tzinfo=ny),
+            timezone="America/New_York",
+        )
+        dates = await s.get_dates(n=3, start=datetime(2026, 11, 5, 12, tzinfo=ny))
+
+        assert [d.astimezone(ny).hour for d in dates] == [9, 9, 9]
+
+    async def test_monthly_itemized_delta_start_after_daylight_savings_change(self):
+        """A monthly ItemizedDelta anchored on the 1st at 9am lands on the 1st
+        at 9am when the start date is months later and across a DST change."""
+        from whenever import ItemizedDelta
+
+        ny = ZoneInfo("America/New_York")
+        s = IntervalSchedule(
+            interval=ItemizedDelta(months=1),
+            anchor_date=datetime(2026, 1, 1, 9, tzinfo=ny),
+            timezone="America/New_York",
+        )
+        dates = await s.get_dates(n=3, start=datetime(2026, 9, 15, tzinfo=ny))
+
+        assert [d.astimezone(ny).strftime("%m-%d %H:%M") for d in dates] == [
+            "10-01 09:00",
+            "11-01 09:00",
+            "12-01 09:00",
+        ]
 
 
 class TestCronScheduleDaylightSavingsTime:

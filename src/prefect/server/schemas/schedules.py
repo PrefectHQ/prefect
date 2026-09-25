@@ -221,51 +221,64 @@ class IntervalSchedule(PrefectBaseModel):
             local_end = to_local_zdt(end)
 
             interval = self.interval
+            # Split the interval into calendar months/days and exact seconds.
+            # ZonedDateTime.add handles DST boundaries properly for calendar
+            # units, but not if we add `total seconds`. Every date is computed
+            # as a whole number of intervals from the anchor so that the series
+            # is the same regardless of the start date.
             if isinstance(interval, _WHENEVER_DELTA_TYPES):
-                # whenever delta types distinguish calendar days from exact hours,
-                # so we can use them directly. We still need an approximate
-                # total-seconds value for the initial offset jump.
                 if isinstance(interval, DateTimeDelta):
                     _months, _days, _secs, _nanos = interval.in_months_days_secs_nanos()
-                    approx_total_seconds = (
-                        _months * 30 * 86400 + _days * 86400 + _secs + _nanos / 1e9
-                    )
+                    _interval_seconds = _secs + _nanos / 1e9
                 else:  # ItemizedDelta (whenever >= 0.10.0)
                     _date, _time = interval.date_and_time_parts()
-                    _months = _date.get("months") or 0 if _date else 0
-                    _days = _date.get("days") or 0 if _date else 0
-                    approx_total_seconds = (
-                        _months * 30 * 86400
-                        + _days * 86400
-                        + (int(_time.total("seconds")) if _time else 0)
+                    _months = (
+                        (_date.get("years") or 0) * 12 + (_date.get("months") or 0)
+                        if _date
+                        else 0
                     )
-
-                def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
-                    return zdt + interval
+                    _days = (
+                        (_date.get("weeks") or 0) * 7 + (_date.get("days") or 0)
+                        if _date
+                        else 0
+                    )
+                    _interval_seconds = _time.total("seconds") if _time else 0
             else:
-                approx_total_seconds = interval.total_seconds()
-                # break the interval into `days` and `seconds` because
-                # ZonedDateTime.add will handle DST boundaries properly if
-                # days are provided, but not if we add `total seconds`.
-                _interval_days = interval.days
-                _interval_seconds = interval.total_seconds() - (
-                    _interval_days * 24 * 60 * 60
+                _months = 0
+                _days = interval.days
+                _interval_seconds = interval.total_seconds() - (_days * 24 * 60 * 60)
+
+            approx_total_seconds = (
+                _months * 30 * 86400 + _days * 86400 + _interval_seconds
+            )
+
+            def _nth_date(intervals: int) -> ZonedDateTime:
+                return anchor_zdt.add(
+                    months=_months * intervals,
+                    days=_days * intervals,
+                    seconds=_interval_seconds * intervals,
                 )
 
-                def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
-                    return zdt.add(days=_interval_days, seconds=_interval_seconds)
-
+            # estimate the number of intervals between the anchor date and the
+            # start date, then step back if the estimate overshot (calendar
+            # units are not fixed length) and forward until the start date is
+            # reached
             _diff = local_start - anchor_zdt
             _diff_secs = (
                 _diff.total("seconds")
                 if hasattr(_diff, "total")
                 else _diff.in_seconds()
             )
-            offset = _diff_secs / approx_total_seconds
-            next_date = anchor_zdt.add(seconds=approx_total_seconds * int(offset))
+            offset = int(_diff_secs / approx_total_seconds)
+            next_date = _nth_date(offset)
+
+            while next_date > local_start:
+                offset -= 1
+                next_date = _nth_date(offset)
 
             while next_date < local_start:
-                next_date = _advance(next_date)
+                offset += 1
+                next_date = _nth_date(offset)
 
             counter = 0
             dates: set[ZonedDateTime] = set()
@@ -289,8 +302,8 @@ class IntervalSchedule(PrefectBaseModel):
                     break
 
                 counter += 1
-
-                next_date = _advance(next_date)
+                offset += 1
+                next_date = _nth_date(offset)
 
         else:
             if start is None:
@@ -298,26 +311,37 @@ class IntervalSchedule(PrefectBaseModel):
             anchor_tz = self.anchor_date.in_tz(self.timezone)
             start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
 
-            # compute the offset between the anchor date and the start date to jump to the
-            # next date
-            offset = (start - anchor_tz).total_seconds() / self.interval.total_seconds()
-            next_date = anchor_tz.add(
-                seconds=self.interval.total_seconds() * int(offset)
-            )
-
             # break the interval into `days` and `seconds` because the datetime
             # library will handle DST boundaries properly if days are provided, but not
-            # if we add `total seconds`. Therefore, `next_date + self.interval`
-            # fails while `next_date.add(days=days, seconds=seconds)` works.
+            # if we add `total seconds`. Every date is computed as a whole number of
+            # intervals from the anchor so that the series is the same regardless of
+            # the start date.
             interval_days = self.interval.days
             interval_seconds = self.interval.total_seconds() - (
                 interval_days * 24 * 60 * 60
             )
 
-            # daylight saving time boundaries can create a situation where the next date is
-            # before the start date, so we advance it if necessary
+            def _nth_date(intervals: int) -> DateTime:
+                return anchor_tz.add(
+                    days=interval_days * intervals,
+                    seconds=interval_seconds * intervals,
+                )
+
+            # estimate the number of intervals between the anchor date and the start
+            # date, then step back if the estimate overshot (days are not fixed length
+            # across DST) and forward until the start date is reached
+            offset = int(
+                (start - anchor_tz).total_seconds() / self.interval.total_seconds()
+            )
+            next_date = _nth_date(offset)
+
+            while next_date > start:
+                offset -= 1
+                next_date = _nth_date(offset)
+
             while next_date < start:
-                next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+                offset += 1
+                next_date = _nth_date(offset)
 
             counter = 0
             dates = set()
@@ -337,8 +361,8 @@ class IntervalSchedule(PrefectBaseModel):
                     break
 
                 counter += 1
-
-                next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+                offset += 1
+                next_date = _nth_date(offset)
 
 
 class CronSchedule(PrefectBaseModel):
