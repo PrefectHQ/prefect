@@ -87,6 +87,37 @@ describe("IntervalScheduleForm", () => {
 		expect(screen.getByLabelText(/value/i)).toHaveValue("100");
 	});
 
+	it("roundtrips an edited interval schedule without changing its interval", async () => {
+		const request = captureSaveRequest();
+		const MOCK_SCHEDULE = {
+			...baseSchedule,
+			schedule: {
+				interval: 7_200,
+				anchor_date: "2024-01-01T12:00:00.000Z",
+				timezone: "UTC",
+			},
+		};
+		render(
+			<IntervalScheduleFormTest
+				deployment_id="0"
+				onSubmit={vi.fn()}
+				scheduleToEdit={MOCK_SCHEDULE}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() =>
+			expect(screen.getByLabelText(/value/i)).toHaveValue("2"),
+		);
+		expect(screen.getByLabelText(/interval/i)).toHaveTextContent("Hours");
+
+		fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+		await waitFor(() => expect(request.body).toBeDefined());
+		const { schedule } = request.body as { schedule: { interval: number } };
+		expect(schedule.interval).toBe(MOCK_SCHEDULE.schedule.interval);
+	});
+
 	it("is able to edit an interval schedule", () => {
 		// Setup
 		const MOCK_SCHEDULE = {
