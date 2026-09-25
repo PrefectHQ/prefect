@@ -1,5 +1,8 @@
 import re
+import time
 from abc import ABC, abstractmethod
+from io import BytesIO
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 import pytest
@@ -12,6 +15,27 @@ try:
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
+
+
+# Responses from the logo CDN that reflect its availability rather than the
+# validity of the URL itself (e.g. Sanity returns 402 when over quota).
+TRANSIENT_HTTP_STATUS_CODES = {402, 408, 425, 429, 500, 502, 503, 504}
+
+
+def _fetch_logo(url: str, attempts: int = 3) -> BytesIO:
+    last_error: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            with urlopen(url, timeout=30) as response:
+                return BytesIO(response.read())
+        except HTTPError as exc:
+            if exc.code not in TRANSIENT_HTTP_STATUS_CODES:
+                raise
+            last_error = exc
+        except URLError as exc:
+            last_error = exc
+        time.sleep(2**attempt)
+    pytest.skip(f"Logo CDN unavailable, unable to fetch {url}: {last_error}")
 
 
 class BlockStandardTestSuite(ABC):
@@ -67,7 +91,7 @@ class BlockStandardTestSuite(ABC):
         assert logo_url is not None, (
             f"{block.__name__} is missing a value for _logo_url"
         )
-        img = Image.open(urlopen(str(logo_url)))
+        img = Image.open(_fetch_logo(str(logo_url)))
         assert img.width == img.height, "Logo should be a square image"
         assert 1000 > img.width > 45, (
             f"Logo should be between 200px and 1000px wid, but is {img.width}px wide"
