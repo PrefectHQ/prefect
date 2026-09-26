@@ -374,7 +374,7 @@ class BaseTaskRunEngine(Generic[P, R]):
         Warn if the run outlives its timeout.
 
         A timeout cannot interrupt a run blocked in a syscall, so the run overruns its
-        deadline and is only marked `TimedOut` once that call returns on its own.
+        deadline until that call returns on its own.
         """
         handle: Optional[int] = None
         if self.task.timeout_seconds is not None:
