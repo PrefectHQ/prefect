@@ -1,5 +1,6 @@
 import os
 import signal
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -16,6 +17,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_HOME,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
     temporary_settings,
@@ -1103,3 +1105,201 @@ class TestWorkerSignalForwarding:
             "When sending two SIGTERM shortly after each other, the main process should"
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_background_passes_profile_to_subprocess(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import prefect.cli.worker as worker_cli
+    from prefect.context import use_profile
+    from prefect.settings import Profile
+
+    mock_popen = MagicMock()
+
+    def report_ready() -> None:
+        Path(mock_popen.call_args.kwargs["env"][worker_cli.WORKER_READY_ENV]).touch()
+
+    def poll() -> None:
+        report_ready()
+
+    mock_popen.return_value.poll.side_effect = poll
+    mock_popen.return_value.pid = 12345
+    monkeypatch.setattr(worker_cli.subprocess, "Popen", mock_popen)
+    log_file = tmp_path / "worker.log"
+    log_file.write_text("previous output")
+    if os.name != "nt":
+        log_file.chmod(0o644)
+    monkeypatch.setattr("prefect.cli._worker_utils._install_package", AsyncMock())
+    api_url = PREFECT_API_URL.value()
+    monkeypatch.setenv("PREFECT_API_URL", "https://wrong.example/api")
+
+    with use_profile(
+        Profile(
+            name="test-background",
+            settings={PREFECT_API_URL: api_url, PREFECT_HOME: tmp_path},
+        ),
+        override_environment_variables=True,
+    ):
+        result = invoke_and_assert(
+            command=[
+                "worker",
+                "start",
+                "--background",
+                "-p",
+                "test-work-pool",
+                "-t",
+                "process",
+                "--install-policy",
+                "always",
+            ],
+            expected_code=0,
+            expected_output_contains="running in the background",
+        )
+
+    env = mock_popen.call_args.kwargs["env"]
+    assert env["PREFECT_PROFILE"] == "test-background"
+    assert env["PREFECT_API_URL"] == api_url
+    assert env["PREFECT_HOME"] == str(tmp_path)
+    assert Path(env[worker_cli.WORKER_READY_ENV]).parent == tmp_path
+    assert str(log_file) in result.stdout
+    assert mock_popen.call_args.args[0][-2:] == ["--install-policy", "never"]
+    if os.name != "nt":
+        assert log_file.stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+@pytest.mark.parametrize("ready_before_exit", [False, True])
+def test_start_worker_background_run_once_can_finish_before_check(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, ready_before_exit: bool
+):
+    import prefect.cli.worker as worker_cli
+
+    mock_popen = MagicMock()
+    if ready_before_exit:
+        polls = 0
+
+        def poll() -> int | None:
+            nonlocal polls
+            polls += 1
+            Path(
+                mock_popen.call_args.kwargs["env"][worker_cli.WORKER_READY_ENV]
+            ).touch()
+            return 0 if polls == 2 else None
+
+        mock_popen.return_value.poll.side_effect = poll
+    else:
+        mock_popen.return_value.poll.return_value = 0
+    mock_popen.return_value.returncode = 0
+    monkeypatch.setattr(worker_cli.subprocess, "Popen", mock_popen)
+
+    with temporary_settings({PREFECT_HOME: tmp_path}):
+        invoke_and_assert(
+            command=[
+                "worker",
+                "start",
+                "--background",
+                "--run-once",
+                "-p",
+                "test-work-pool",
+                "-t",
+                "process",
+            ],
+            expected_code=0,
+            expected_output_contains="completed successfully",
+        )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_background_reports_late_startup_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import prefect.cli.worker as worker_cli
+
+    mock_popen = MagicMock()
+    mock_popen.return_value.poll.side_effect = [None, 1]
+    mock_popen.return_value.returncode = 1
+    monkeypatch.setattr(worker_cli.subprocess, "Popen", mock_popen)
+    monkeypatch.setattr(worker_cli.asyncio, "sleep", AsyncMock())
+
+    with temporary_settings({PREFECT_HOME: tmp_path}):
+        invoke_and_assert(
+            command=[
+                "worker",
+                "start",
+                "--background",
+                "-p",
+                "test-work-pool",
+                "-t",
+                "process",
+            ],
+            expected_code=1,
+            expected_output_contains="Failed to start worker",
+        )
+
+
+@pytest.mark.skipif(not hasattr(os, "O_NOFOLLOW"), reason="O_NOFOLLOW unavailable")
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_background_rejects_log_symlink(tmp_path: Path):
+    target = tmp_path / "target"
+    target.write_text("do not change")
+    (tmp_path / "worker.log").symlink_to(target)
+
+    with temporary_settings({PREFECT_HOME: tmp_path}):
+        with pytest.raises(OSError):
+            invoke_and_assert(
+                command=[
+                    "worker",
+                    "start",
+                    "--background",
+                    "-p",
+                    "test-work-pool",
+                    "-t",
+                    "process",
+                ],
+            )
+
+    assert target.read_text() == "do not change"
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_background_waits_for_ready_worker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import prefect.cli.worker as worker_cli
+
+    real_popen = subprocess.Popen
+    processes = []
+
+    def track_process(*args, **kwargs):
+        process = real_popen(*args, **kwargs)
+        processes.append(process)
+        return process
+
+    monkeypatch.setattr(worker_cli.subprocess, "Popen", track_process)
+    try:
+        with temporary_settings({PREFECT_HOME: tmp_path}):
+            invoke_and_assert(
+                command=[
+                    "worker",
+                    "start",
+                    "--background",
+                    "-p",
+                    "test-work-pool",
+                    "-t",
+                    "process",
+                ],
+                expected_code=0,
+                expected_output_contains="running in the background",
+            )
+        assert len(processes) == 1
+        assert "started!" in (tmp_path / "worker.log").read_text()
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()

@@ -168,6 +168,16 @@ For example, to limit a worker to five concurrent flow runs:
 prefect worker start --pool "my-pool" --limit 5
 ```
 
+To run a worker without occupying your terminal, connect to Prefect Cloud or set `PREFECT_API_URL`, then start it in the background:
+
+```bash
+prefect worker start --pool "my-pool" --background
+```
+
+Output is written to `worker.log` in your Prefect home.
+
+For long-running workers, use a [process manager](/v3/advanced/daemonize-processes/).
+
 import { HELM } from "/snippets/resource-management/helm.mdx"
 import { workers } from "/snippets/resource-management/vars.mdx"
 

@@ -1,5 +1,6 @@
 import re
 from abc import ABC, abstractmethod
+from urllib.error import HTTPError
 from urllib.request import urlopen
 
 import pytest
@@ -67,7 +68,12 @@ class BlockStandardTestSuite(ABC):
         assert logo_url is not None, (
             f"{block.__name__} is missing a value for _logo_url"
         )
-        img = Image.open(urlopen(str(logo_url)))
+        try:
+            img = Image.open(urlopen(str(logo_url)))
+        except HTTPError as exc:
+            if exc.code == 402 and b"Project Disabled" in exc.read():
+                pytest.xfail(f"Logo host disabled: {logo_url}")
+            raise
         assert img.width == img.height, "Logo should be a square image"
         assert 1000 > img.width > 45, (
             f"Logo should be between 200px and 1000px wid, but is {img.width}px wide"
