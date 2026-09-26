@@ -5,8 +5,7 @@ import signal
 import threading
 import time
 import weakref
-from collections.abc import Awaitable, Callable, Generator
-from functools import partial
+from collections.abc import Callable, Generator
 from logging import Logger
 from typing import (
     TYPE_CHECKING,
@@ -17,7 +16,7 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 from opentelemetry import propagate, trace
@@ -511,6 +510,44 @@ def _is_result_record(data: Any) -> TypeIs[ResultRecord[Any]]:
     return isinstance(data, ResultRecord)
 
 
+async def propose_state_with_result(
+    client: "PrefectClient",
+    state: State[Any],
+    flow_run_id: UUID,
+    force: bool = False,
+    *,
+    transition_id: UUID | None = None,
+) -> OrchestrationResult[Any]:
+    """
+    Make one flow-run state proposal and preserve its raw orchestration result.
+
+    Accepted proposals are hydrated with server-authored state identity, timestamp,
+    and details. Other orchestration dispositions are returned unchanged.
+
+    Reuse `transition_id` when retrying the same proposal after `WAIT` or an
+    ambiguous response. Omit it for an independent one-attempt proposal.
+    """
+    if not flow_run_id:
+        raise ValueError("You must provide a `flow_run_id`")
+
+    response = await client.set_flow_run_state(
+        flow_run_id,
+        state,
+        force=force,
+        transition_id=transition_id,
+    )
+
+    if response.status == SetStateStatus.ACCEPT:
+        if response.state is None:
+            raise ValueError("Received an ACCEPT response without a state")
+        state.id = response.state.id
+        state.timestamp = response.state.timestamp
+        state.state_details = response.state.state_details
+        response.state = state
+
+    return response
+
+
 async def propose_state(
     client: "PrefectClient",
     state: State[Any],
@@ -559,34 +596,34 @@ async def propose_state(
 
     # Handle repeated WAITs in a loop instead of recursively, to avoid
     # reaching max recursion depth in extreme cases.
-    async def set_state_and_handle_waits(
-        set_state_func: Callable[[], Awaitable[OrchestrationResult[Any]]],
-    ) -> OrchestrationResult[Any]:
-        response = await set_state_func()
-        while response.status == SetStateStatus.WAIT:
-            if TYPE_CHECKING:
-                assert isinstance(response.details, StateWaitDetails)
-            engine_logger.debug(
-                f"Received wait instruction for {response.details.delay_seconds}s: "
-                f"{response.details.reason}"
-            )
-            await anyio.sleep(response.details.delay_seconds)
-            response = await set_state_func()
-        return response
-
-    set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
-    response = await set_state_and_handle_waits(set_state)
+    transition_id = uuid4()
+    response = await propose_state_with_result(
+        client,
+        state,
+        flow_run_id,
+        force=force,
+        transition_id=transition_id,
+    )
+    while response.status == SetStateStatus.WAIT:
+        if TYPE_CHECKING:
+            assert isinstance(response.details, StateWaitDetails)
+        engine_logger.debug(
+            f"Received wait instruction for {response.details.delay_seconds}s: "
+            f"{response.details.reason}"
+        )
+        await anyio.sleep(response.details.delay_seconds)
+        response = await propose_state_with_result(
+            client,
+            state,
+            flow_run_id,
+            force=force,
+            transition_id=transition_id,
+        )
 
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
-        # Update the state with the details if provided
-        if TYPE_CHECKING:
-            assert response.state is not None
-        state.id = response.state.id
-        state.timestamp = response.state.timestamp
-        if response.state.state_details:
-            state.state_details = response.state.state_details
-        return state
+        assert response.state is not None
+        return response.state
 
     elif response.status == SetStateStatus.ABORT:
         if TYPE_CHECKING:
@@ -607,6 +644,44 @@ async def propose_state(
         raise ValueError(
             f"Received unexpected `SetStateStatus` from server: {response.status!r}"
         )
+
+
+def propose_state_with_result_sync(
+    client: "SyncPrefectClient",
+    state: State[Any],
+    flow_run_id: UUID,
+    force: bool = False,
+    *,
+    transition_id: UUID | None = None,
+) -> OrchestrationResult[Any]:
+    """
+    Make one synchronous flow-run state proposal and preserve its raw result.
+
+    Accepted proposals are hydrated with server-authored state identity, timestamp,
+    and details. Other orchestration dispositions are returned unchanged.
+
+    Reuse `transition_id` when retrying the same proposal after `WAIT` or an
+    ambiguous response. Omit it for an independent one-attempt proposal.
+    """
+    if not flow_run_id:
+        raise ValueError("You must provide a `flow_run_id`")
+
+    response = client.set_flow_run_state(
+        flow_run_id,
+        state,
+        force=force,
+        transition_id=transition_id,
+    )
+
+    if response.status == SetStateStatus.ACCEPT:
+        if response.state is None:
+            raise ValueError("Received an ACCEPT response without a state")
+        state.id = response.state.id
+        state.timestamp = response.state.timestamp
+        state.state_details = response.state.state_details
+        response.state = state
+
+    return response
 
 
 def propose_state_sync(
@@ -642,6 +717,8 @@ def propose_state_sync(
         prefect.exceptions.Abort: if an ABORT instruction is received from
             the Prefect API
     """
+    if not flow_run_id:
+        raise ValueError("You must provide a `flow_run_id`")
 
     # Handle sub-flow tracing
     if state.is_final():
@@ -654,35 +731,34 @@ def propose_state_sync(
 
     # Handle repeated WAITs in a loop instead of recursively, to avoid
     # reaching max recursion depth in extreme cases.
-    def set_state_and_handle_waits(
-        set_state_func: Callable[[], OrchestrationResult[Any]],
-    ) -> OrchestrationResult[Any]:
-        response = set_state_func()
-        while response.status == SetStateStatus.WAIT:
-            if TYPE_CHECKING:
-                assert isinstance(response.details, StateWaitDetails)
-            engine_logger.debug(
-                f"Received wait instruction for {response.details.delay_seconds}s: "
-                f"{response.details.reason}"
-            )
-            time.sleep(response.details.delay_seconds)
-            response = set_state_func()
-        return response
-
-    # Attempt to set the state
-    set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
-    response = set_state_and_handle_waits(set_state)
+    transition_id = uuid4()
+    response = propose_state_with_result_sync(
+        client,
+        state,
+        flow_run_id,
+        force=force,
+        transition_id=transition_id,
+    )
+    while response.status == SetStateStatus.WAIT:
+        if TYPE_CHECKING:
+            assert isinstance(response.details, StateWaitDetails)
+        engine_logger.debug(
+            f"Received wait instruction for {response.details.delay_seconds}s: "
+            f"{response.details.reason}"
+        )
+        time.sleep(response.details.delay_seconds)
+        response = propose_state_with_result_sync(
+            client,
+            state,
+            flow_run_id,
+            force=force,
+            transition_id=transition_id,
+        )
 
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
-        if TYPE_CHECKING:
-            assert response.state is not None
-        # Update the state with the details if provided
-        state.id = response.state.id
-        state.timestamp = response.state.timestamp
-        if response.state.state_details:
-            state.state_details = response.state.state_details
-        return state
+        assert response.state is not None
+        return response.state
 
     elif response.status == SetStateStatus.ABORT:
         if TYPE_CHECKING:

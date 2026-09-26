@@ -25,6 +25,9 @@ from prefect.server.services.cancellation_cleanup import (
     maybe_schedule_cancelling_timeout_check_for_state,
     schedule_cancelling_timeout_check,
 )
+from prefect.server.worker_communication.cleanup_queue import (
+    cleanup_queue_message_id,
+)
 from prefect.server.worker_communication.cleanup_queue.memory import WorkerCleanupQueue
 from prefect.settings import (
     PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS,
@@ -606,6 +609,7 @@ async def test_handle_cancelling_timeout_is_idempotent_for_repeated_runs(
     assert second is not None
     message_ids = {first.message_id, second.message_id}
     assert len(message_ids) == 1
+    assert first.message_id == cleanup_queue_message_id(first.idempotency_key)
 
     await session.refresh(flow_run)
     assert flow_run.state is not None
