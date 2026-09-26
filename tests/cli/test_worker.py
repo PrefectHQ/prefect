@@ -1,5 +1,7 @@
+import json
 import os
 import signal
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -7,6 +9,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock
 
 import anyio
 import httpx
+import psutil
 import pytest
 import readchar
 import respx
@@ -1110,27 +1113,116 @@ def test_start_worker_background_passes_profile_to_subprocess(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
     import prefect.cli.worker as worker_cli
-    from prefect.context import get_settings_context
+    from prefect.context import use_profile
+    from prefect.settings import Profile
 
     mock_popen = MagicMock()
     mock_popen.return_value.poll.return_value = None
     mock_popen.return_value.pid = 12345
+    mock_process = MagicMock()
+    mock_process.create_time.return_value = 1.0
     monkeypatch.setattr(worker_cli.subprocess, "Popen", mock_popen)
+    monkeypatch.setattr(worker_cli.psutil, "Process", lambda pid: mock_process)
     monkeypatch.setattr(worker_cli, "WORKER_PID_FILE", tmp_path / "worker.pid")
+    monkeypatch.setattr(worker_cli, "WORKER_LOG_FILE", tmp_path / "worker.log")
+    monkeypatch.setattr("prefect.cli._worker_utils._install_package", AsyncMock())
+    api_url = PREFECT_API_URL.value()
+    monkeypatch.setenv("PREFECT_API_URL", "https://wrong.example/api")
 
-    invoke_and_assert(
-        command=[
-            "worker",
-            "start",
-            "--background",
-            "-p",
-            "test-work-pool",
-            "-t",
-            "process",
-        ],
-        expected_code=0,
-        expected_output_contains="running in the background",
-    )
+    with use_profile(
+        Profile(name="test-background", settings={PREFECT_API_URL: api_url}),
+        override_environment_variables=True,
+    ):
+        invoke_and_assert(
+            command=[
+                "worker",
+                "start",
+                "--background",
+                "-p",
+                "test-work-pool",
+                "-t",
+                "process",
+                "--install-policy",
+                "always",
+            ],
+            expected_code=0,
+            expected_output_contains="running in the background",
+        )
 
     env = mock_popen.call_args.kwargs["env"]
-    assert env["PREFECT_PROFILE"] == get_settings_context().profile.name
+    assert env["PREFECT_PROFILE"] == "test-background"
+    assert env["PREFECT_API_URL"] == api_url
+    assert mock_popen.call_args.args[0][-2:] == ["--install-policy", "never"]
+
+
+def test_stop_background_worker_keeps_pid_during_slow_shutdown(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import prefect.cli.worker as worker_cli
+
+    pid_file = tmp_path / "worker.pid"
+    pid_file.write_text('{"pid": 12345, "created": 1.0}')
+    process = MagicMock()
+    process.create_time.return_value = 1.0
+    process.is_running.return_value = True
+    process.status.return_value = "running"
+    monkeypatch.setattr(worker_cli, "WORKER_PID_FILE", pid_file)
+    monkeypatch.setattr(worker_cli.psutil, "Process", lambda pid: process)
+    monkeypatch.setattr(worker_cli.asyncio, "sleep", AsyncMock())
+
+    invoke_and_assert(
+        command=["worker", "stop"],
+        expected_code=0,
+        expected_output_contains="still shutting down",
+    )
+    assert pid_file.exists()
+    process.send_signal.assert_called_once()
+
+
+def test_stop_background_worker_ignores_reused_pid(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import prefect.cli.worker as worker_cli
+
+    pid_file = tmp_path / "worker.pid"
+    pid_file.write_text('{"pid": 12345, "created": 1.0}')
+    process = MagicMock()
+    process.create_time.return_value = 2.0
+    monkeypatch.setattr(worker_cli, "WORKER_PID_FILE", pid_file)
+    monkeypatch.setattr(worker_cli.psutil, "Process", lambda pid: process)
+
+    invoke_and_assert(
+        command=["worker", "stop"],
+        expected_code=0,
+        expected_output_contains="No worker is running",
+    )
+    assert not pid_file.exists()
+    process.send_signal.assert_not_called()
+
+
+def test_stop_background_worker_terminates_process(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import prefect.cli.worker as worker_cli
+
+    pid_file = tmp_path / "worker.pid"
+    monkeypatch.setattr(worker_cli, "WORKER_PID_FILE", pid_file)
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
+    )
+    try:
+        pid_file.write_text(
+            json.dumps({"pid": process.pid, "created": psutil.Process(process.pid).create_time()})
+        )
+        invoke_and_assert(
+            command=["worker", "stop"],
+            expected_code=0,
+            expected_output_contains="Worker stopped.",
+        )
+        assert not pid_file.exists()
+        assert process.wait(timeout=5) is not None
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait()
