@@ -1133,6 +1133,9 @@ def test_start_worker_background_passes_profile_to_subprocess(
     monkeypatch.setattr(worker_cli.psutil, "Process", lambda pid: mock_process)
     monkeypatch.setattr(worker_cli, "WORKER_PID_FILE", tmp_path / "worker.pid")
     monkeypatch.setattr(worker_cli, "WORKER_LOG_FILE", tmp_path / "worker.log")
+    worker_cli.WORKER_LOG_FILE.write_text("previous output")
+    if os.name != "nt":
+        worker_cli.WORKER_LOG_FILE.chmod(0o644)
     monkeypatch.setattr("prefect.cli._worker_utils._install_package", AsyncMock())
     api_url = PREFECT_API_URL.value()
     monkeypatch.setenv("PREFECT_API_URL", "https://wrong.example/api")
@@ -1163,6 +1166,7 @@ def test_start_worker_background_passes_profile_to_subprocess(
     assert mock_popen.call_args.args[0][-2:] == ["--install-policy", "never"]
     if os.name != "nt":
         assert stat.S_IMODE((tmp_path / "worker.pid").stat().st_mode) == 0o600
+        assert stat.S_IMODE(worker_cli.WORKER_LOG_FILE.stat().st_mode) == 0o600
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")

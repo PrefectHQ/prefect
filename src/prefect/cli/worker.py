@@ -336,6 +336,8 @@ async def start(
                     WORKER_LOG_FILE, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600
                 )
                 with os.fdopen(log_fd, "a") as log_file:
+                    if os.name != "nt":
+                        os.fchmod(log_file.fileno(), 0o600)
                     process = subprocess.Popen(  # noqa: ASYNC220
                         command,
                         env=env,
