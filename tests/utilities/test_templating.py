@@ -556,7 +556,7 @@ class TestResolveBlockDocumentReferences:
         assert result == {"key": "my-private-repo.com/my-image-name"}
 
     async def test_resolve_block_document_references_system_block_key_starting_with_value(
-        self, prefect_client
+        self, prefect_client: PrefectClient
     ):
         secret_name = f"secret-block-{uuid.uuid4().hex[:8]}"
         await Secret(
