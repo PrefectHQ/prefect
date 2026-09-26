@@ -11,7 +11,7 @@ import subprocess
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 from uuid import uuid4
 
 import cyclopts
@@ -45,19 +45,19 @@ class InstallPolicy(str, Enum):
 async def start(
     *,
     worker_name: Annotated[
-        str | None,
+        Optional[str],
         cyclopts.Parameter(
             "--name", alias="-n", help="The name to give to the started worker."
         ),
     ] = None,
     work_pool_name: Annotated[
-        str | None,
+        Optional[str],
         cyclopts.Parameter(
             "--pool", alias="-p", help="The work pool the started worker should poll."
         ),
     ] = None,
     work_queues: Annotated[
-        list[str] | None,
+        Optional[list[str]],
         cyclopts.Parameter(
             "--work-queue",
             alias="-q",
@@ -65,7 +65,7 @@ async def start(
         ),
     ] = None,
     worker_type: Annotated[
-        str | None,
+        Optional[str],
         cyclopts.Parameter(
             "--type",
             alias="-t",
@@ -73,7 +73,7 @@ async def start(
         ),
     ] = None,
     prefetch_seconds: Annotated[
-        int | None,
+        Optional[int],
         cyclopts.Parameter(
             "--prefetch-seconds",
             help="Seconds to look ahead for scheduled flow runs. [from PREFECT_WORKER_PREFETCH_SECONDS]",
@@ -84,7 +84,7 @@ async def start(
         cyclopts.Parameter("--run-once", help="Only run worker polling once."),
     ] = False,
     limit: Annotated[
-        int | None,
+        Optional[int],
         cyclopts.Parameter(
             "--limit",
             alias="-l",
@@ -103,7 +103,7 @@ async def start(
         ),
     ] = InstallPolicy.PROMPT,
     base_job_template: Annotated[
-        Path | None,
+        Optional[Path],
         cyclopts.Parameter(
             "--base-job-template",
             help="Path to JSON file containing base job template.",
