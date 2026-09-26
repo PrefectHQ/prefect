@@ -24,7 +24,6 @@ from prefect.cli._utilities import (
 from prefect.context import get_settings_context
 from prefect.settings import PREFECT_HOME
 
-WORKER_LOG_FILE = Path(PREFECT_HOME.value()) / "worker.log"
 WORKER_READY_ENV = "PREFECT__WORKER_READY_FILE"
 
 
@@ -231,6 +230,7 @@ async def start(
         )
 
     if background:
+        worker_log_file = Path(PREFECT_HOME.value()) / "worker.log"
         command = [
             sys.executable,
             "-m",
@@ -267,11 +267,15 @@ async def start(
             get_settings_context().settings.to_environment_variables(exclude_unset=True)
         )
         env["PREFECT_PROFILE"] = get_settings_context().profile.name
-        ready_file = WORKER_LOG_FILE.with_name(f"worker-{uuid4().hex}.ready")
+        ready_file = worker_log_file.with_name(f"worker-{uuid4().hex}.ready")
         env[WORKER_READY_ENV] = str(ready_file)
 
-        WORKER_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        log_fd = os.open(WORKER_LOG_FILE, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        worker_log_file.parent.mkdir(parents=True, exist_ok=True)
+        log_fd = os.open(
+            worker_log_file,
+            os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
         with os.fdopen(log_fd, "a") as log_file:
             if os.name != "nt":
                 os.fchmod(log_file.fileno(), 0o600)
@@ -287,24 +291,27 @@ async def start(
             )
         try:
             deadline = asyncio.get_running_loop().time() + 30
-            while not ready_file.exists():
+            while True:
+                ready = ready_file.exists()
                 returncode = process.poll()
                 if returncode is not None:
                     if returncode == 0:
                         _cli.console.print("Background worker completed successfully.")
                         return
-                    exit_with_error(f"Failed to start worker. See {WORKER_LOG_FILE}.")
+                    exit_with_error(f"Failed to start worker. See {worker_log_file}.")
+                if ready:
+                    break
                 if asyncio.get_running_loop().time() >= deadline:
                     process.terminate()
                     exit_with_error(
-                        f"Worker did not become ready. See {WORKER_LOG_FILE}."
+                        f"Worker did not become ready. See {worker_log_file}."
                     )
                 await asyncio.sleep(0.1)
         finally:
             ready_file.unlink(missing_ok=True)
         _cli.console.print(
             f"Worker is running in the background with process ID {process.pid}. "
-            f"Logs: {WORKER_LOG_FILE}."
+            f"Logs: {worker_log_file}."
         )
         return
 
