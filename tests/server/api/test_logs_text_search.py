@@ -511,6 +511,32 @@ async def test_no_matches_returns_empty(
     assert len(logs) == 0
 
 
+async def test_underscore_and_percent_are_matched_literally(
+    logs_query_session: Union[list[Log], AsyncSession],
+    query_logs: QueryLogsFn,
+):
+    """`_` and `%` in a search term are literal characters, not SQL wildcards"""
+
+    # "Flow run failed with connection timeout" contains "run failed" but no
+    # "run_failed"; an unescaped LIKE would let `_` match the space
+    logs = await query_logs(
+        session=logs_query_session,
+        log_filter=LogFilter(text=LogFilterTextSearch(query="run_failed")),
+        limit=100,
+        offset=0,
+    )
+    assert logs == []
+
+    # No test log contains a literal "%"
+    logs = await query_logs(
+        session=logs_query_session,
+        log_filter=LogFilter(text=LogFilterTextSearch(query="%")),
+        limit=100,
+        offset=0,
+    )
+    assert logs == []
+
+
 async def test_text_filter_composable_with_other_filters(
     logs_query_session: list[Log],
     query_logs: QueryLogsFn,
