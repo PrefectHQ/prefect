@@ -543,6 +543,7 @@ async def test_underscore_and_percent_are_matched_literally(
     events_query_session: list[Event],
     query_events: QueryEventsFn,
     full_occurred_range: EventOccurredFilter,
+    test_events: list[Event],
 ):
     """`_` and `%` in a search term are literal characters, not SQL wildcards"""
 
@@ -566,6 +567,16 @@ async def test_underscore_and_percent_are_matched_literally(
         ),
     )
     assert events == []
+
+    # Excluding "flow_run" must not hide the "flow-run" events
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            text=EventTextFilter(query="-flow_run"),
+        ),
+    )
+    assert len(events) == len(test_events)
 
 
 async def test_does_not_search_resource_label_keys(
