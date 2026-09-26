@@ -168,8 +168,8 @@ export function isExpectResource(
 	return false;
 }
 
-export const FLOW_RUN_EVENT_PREFIX = "prefect.flow-run.";
-export const FLOW_RUN_WILDCARD_EVENT = `${FLOW_RUN_EVENT_PREFIX}*`;
+const FLOW_RUN_EVENT_PREFIX = "prefect.flow-run.";
+const FLOW_RUN_WILDCARD_EVENT = `${FLOW_RUN_EVENT_PREFIX}*`;
 
 // Event type checkers
 
@@ -178,7 +178,7 @@ export const FLOW_RUN_WILDCARD_EVENT = `${FLOW_RUN_EVENT_PREFIX}*`;
  * wildcard or a known state name. Other flow run events (e.g.
  * `prefect.flow-run.heartbeat`) are only editable as a custom trigger.
  */
-export function isFlowRunStateEvent(event: string): boolean {
+function isFlowRunStateEvent(event: string): boolean {
 	if (event === FLOW_RUN_WILDCARD_EVENT) {
 		return true;
 	}
