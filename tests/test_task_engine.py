@@ -1,9 +1,11 @@
 import asyncio
 import concurrent.futures
+import contextvars
 import logging
 import os
 import random
 import sys
+import threading
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -48,9 +50,10 @@ from prefect.states import (
     Suspended,
 )
 from prefect.task_engine import (
-    TIMEOUT_WATCHDOG_GRACE_SECONDS,
+    _TIMEOUT_WATCHDOG_GRACE_SECONDS,
     AsyncTaskRunEngine,
     SyncTaskRunEngine,
+    _TimeoutWatchdog,
     run_task_async,
     run_task_sync,
 )
@@ -2093,66 +2096,101 @@ class TestSyncTaskTimeoutWarning:
 
 
 class TestTaskTimeoutWatchdog:
-    """Tests for the watchdog itself, without racing a real deadline."""
+    """Tests for the shared watchdog that reports runs outliving their timeout."""
 
-    def test_arms_a_timer_for_the_deadline_plus_grace(self):
-        """Test that the watchdog arms for the deadline and disarms on exit."""
+    def test_fires_once_the_deadline_passes(self):
+        watchdog = _TimeoutWatchdog()
+        fired = threading.Event()
 
-        @task(timeout_seconds=30)
-        def timed_task():
-            return "result"
+        watchdog.arm(0.05, fired.set)
 
-        engine = SyncTaskRunEngine(task=timed_task)
+        assert fired.wait(timeout=5)
 
-        with mock.patch("threading.Timer") as timer_cls:
-            with engine.timeout_watchdog():
-                timer_cls.assert_called_once_with(
-                    30 + TIMEOUT_WATCHDOG_GRACE_SECONDS,
-                    engine._warn_timeout_exceeded,
-                )
-                timer_cls.return_value.start.assert_called_once()
-                timer_cls.return_value.cancel.assert_not_called()
+    def test_disarmed_deadline_does_not_fire(self):
+        watchdog = _TimeoutWatchdog()
+        disarmed_fired = threading.Event()
+        later_fired = threading.Event()
 
-            timer_cls.return_value.cancel.assert_called_once()
+        handle = watchdog.arm(0.05, disarmed_fired.set)
+        watchdog.disarm(handle)
+        # Deadlines fire in order, so once the later one has fired the disarmed one
+        # has had its chance
+        watchdog.arm(0.1, later_fired.set)
 
-    def test_does_not_arm_when_the_task_has_no_timeout(self):
-        """Test that a task without a timeout gets no watchdog thread."""
+        assert later_fired.wait(timeout=5)
+        assert not disarmed_fired.is_set()
 
-        @task
-        def untimed_task():
-            return "result"
+    def test_one_thread_serves_every_deadline(self):
+        """Test that a wide fan-out of timed runs costs one thread, not one each."""
 
-        engine = SyncTaskRunEngine(task=untimed_task)
+        def watchdog_threads() -> int:
+            return sum(
+                1
+                for thread in threading.enumerate()
+                if thread.name == "TaskRunTimeoutWatchdog"
+            )
 
-        with mock.patch("threading.Timer") as timer_cls:
-            with engine.timeout_watchdog():
-                pass
+        watchdog = _TimeoutWatchdog()
+        before = watchdog_threads()
 
-            timer_cls.assert_not_called()
+        handles = [watchdog.arm(60, lambda: None) for _ in range(100)]
+        try:
+            assert watchdog_threads() - before == 1
+        finally:
+            for handle in handles:
+                watchdog.disarm(handle)
 
-    def test_run_survives_a_watchdog_thread_that_cannot_start(self):
-        """Test that a run continues when no thread is available for the warning.
+    def test_callback_runs_in_the_arming_context(self):
+        """Test that the callback sees the context it was armed from.
 
-        A wide enough mapped run can exhaust the process's threads. The warning is
-        advisory, so failing to arm it must not take the run down with it.
+        The run logger finds its run through context variables, which a plain
+        thread would not inherit.
+        """
+        watchdog = _TimeoutWatchdog()
+        var: contextvars.ContextVar[str] = contextvars.ContextVar("var")
+        seen: list[str] = []
+        fired = threading.Event()
+
+        def callback() -> None:
+            seen.append(var.get("<unset>"))
+            fired.set()
+
+        token = var.set("arming context")
+        try:
+            watchdog.arm(0.05, callback)
+        finally:
+            var.reset(token)
+
+        assert fired.wait(timeout=5)
+        assert seen == ["arming context"]
+
+    def test_failing_callback_does_not_stop_later_deadlines(self):
+        watchdog = _TimeoutWatchdog()
+        later_fired = threading.Event()
+
+        def fail() -> None:
+            raise RuntimeError("boom")
+
+        watchdog.arm(0.05, fail)
+        watchdog.arm(0.1, later_fired.set)
+
+        assert later_fired.wait(timeout=5)
+
+    def test_run_survives_a_watchdog_that_cannot_start(self):
+        """Test that a run completes when the watchdog thread cannot be started.
+
+        The warning is advisory, so failing to arm it must not take the run down.
         """
 
         @task(timeout_seconds=30)
         def timed_task():
             return "result"
 
-        engine = SyncTaskRunEngine(task=timed_task)
-
-        with mock.patch("threading.Timer") as timer_cls:
-            timer_cls.return_value.start.side_effect = RuntimeError(
-                "can't start new thread"
-            )
-
-            with engine.timeout_watchdog():
-                pass
-
-            # Nothing to cancel, since the timer never started
-            timer_cls.return_value.cancel.assert_not_called()
+        with mock.patch(
+            "prefect.task_engine._task_run_timeout_watchdog.arm",
+            side_effect=RuntimeError("can't start new thread"),
+        ):
+            assert run_task_sync(timed_task) == "result"
 
     def test_warning_names_the_configured_timeout(self, caplog):
         """Test that the warning reports the timeout the task was given."""
@@ -2179,7 +2217,7 @@ class TestTaskTimeoutExceededWarning:
 
         @task(timeout_seconds=0.1)
         def blocking_task():
-            time.sleep(TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
+            time.sleep(_TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
             return "result"
 
         @flow
@@ -2205,7 +2243,7 @@ class TestTaskTimeoutExceededWarning:
         @task(timeout_seconds=0.1)
         async def blocking_async_task():
             # Blocks the event loop, so there is no await point to cancel at
-            time.sleep(TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
+            time.sleep(_TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
             return "result"
 
         @flow
@@ -2267,7 +2305,7 @@ class TestTaskTimeoutExceededWarning:
 
         @task(timeout_seconds=0.1)
         def blocking_task():
-            time.sleep(TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
+            time.sleep(_TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
             return "result"
 
         @flow
