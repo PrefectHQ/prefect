@@ -7,8 +7,6 @@ Start and interact with workers.
 import asyncio
 import json
 import os
-import signal
-import stat
 import subprocess
 import sys
 from enum import Enum
@@ -17,8 +15,6 @@ from typing import Annotated
 from uuid import uuid4
 
 import cyclopts
-import psutil
-from filelock import FileLock, Timeout
 
 import prefect.cli._app as _cli
 from prefect.cli._utilities import (
@@ -28,53 +24,8 @@ from prefect.cli._utilities import (
 from prefect.context import get_settings_context
 from prefect.settings import PREFECT_HOME
 
-WORKER_PID_FILE = Path(PREFECT_HOME.value()) / "worker.pid"
 WORKER_LOG_FILE = Path(PREFECT_HOME.value()) / "worker.log"
 WORKER_READY_ENV = "PREFECT__WORKER_READY_FILE"
-
-
-def _worker_is_running(process: psutil.Process) -> bool:
-    try:
-        return process.is_running() and process.status() != psutil.STATUS_ZOMBIE
-    except psutil.NoSuchProcess:
-        return False
-
-
-def _get_background_worker() -> tuple[psutil.Process, float, bool] | None:
-    try:
-        if os.name != "nt":
-            info = WORKER_PID_FILE.lstat()
-            if (
-                not stat.S_ISREG(info.st_mode)
-                or info.st_uid != os.getuid()
-                or stat.S_IMODE(info.st_mode) & 0o077
-            ):
-                return None
-        identity = json.loads(WORKER_PID_FILE.read_text())
-        process = psutil.Process(identity["pid"])
-        if process.create_time() == identity["created"] and _worker_is_running(process):
-            return process, identity["created"], identity.get("stopping", False)
-    except (OSError, ValueError, KeyError, TypeError, psutil.Error):
-        pass
-    return None
-
-
-def _write_background_worker(pid: int, created: float, stopping: bool = False) -> None:
-    fd = os.open(WORKER_PID_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as pid_file:
-        json.dump(
-            {
-                "pid": pid,
-                "created": created,
-                "stopping": stopping,
-            },
-            pid_file,
-        )
-
-
-def _worker_lock() -> FileLock:
-    WORKER_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
-    return FileLock(str(WORKER_PID_FILE) + ".lock", timeout=0)
 
 
 worker_app: cyclopts.App = cyclopts.App(
@@ -280,8 +231,6 @@ async def start(
         )
 
     if background:
-        from prefect.cli._server_utils import _cleanup_pid_file
-
         command = [
             sys.executable,
             "-m",
@@ -318,77 +267,44 @@ async def start(
             get_settings_context().settings.to_environment_variables(exclude_unset=True)
         )
         env["PREFECT_PROFILE"] = get_settings_context().profile.name
-        ready_file = WORKER_PID_FILE.with_name(f"worker-{uuid4().hex}.ready")
+        ready_file = WORKER_LOG_FILE.with_name(f"worker-{uuid4().hex}.ready")
         env[WORKER_READY_ENV] = str(ready_file)
 
         WORKER_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        log_fd = os.open(WORKER_LOG_FILE, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        with os.fdopen(log_fd, "a") as log_file:
+            if os.name != "nt":
+                os.fchmod(log_file.fileno(), 0o600)
+            process = subprocess.Popen(  # noqa: ASYNC220
+                command,
+                env=env,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=(os.name != "nt"),
+                creationflags=(
+                    subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+                ),
+            )
         try:
-            with _worker_lock():
-                if WORKER_PID_FILE.exists():
-                    if _get_background_worker() is not None:
-                        exit_with_error(
-                            "A worker is already running in the background. To stop it,"
-                            " run `prefect worker stop`."
-                        )
-                    _cleanup_pid_file(WORKER_PID_FILE)
-
-                log_fd = os.open(
-                    WORKER_LOG_FILE, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600
-                )
-                with os.fdopen(log_fd, "a") as log_file:
-                    if os.name != "nt":
-                        os.fchmod(log_file.fileno(), 0o600)
-                    process = subprocess.Popen(  # noqa: ASYNC220
-                        command,
-                        env=env,
-                        stdout=log_file,
-                        stderr=subprocess.STDOUT,
-                        start_new_session=(os.name != "nt"),
-                        creationflags=(
-                            subprocess.CREATE_NEW_PROCESS_GROUP
-                            if os.name == "nt"
-                            else 0
-                        ),
+            deadline = asyncio.get_running_loop().time() + 30
+            while not ready_file.exists():
+                returncode = process.poll()
+                if returncode is not None:
+                    if returncode == 0:
+                        _cli.console.print("Background worker completed successfully.")
+                        return
+                    exit_with_error(f"Failed to start worker. See {WORKER_LOG_FILE}.")
+                if asyncio.get_running_loop().time() >= deadline:
+                    process.terminate()
+                    exit_with_error(
+                        f"Worker did not become ready. See {WORKER_LOG_FILE}."
                     )
-                try:
-                    deadline = asyncio.get_running_loop().time() + 30
-                    while not ready_file.exists():
-                        returncode = process.poll()
-                        if returncode is not None:
-                            if returncode == 0:
-                                _cli.console.print(
-                                    "Background worker completed successfully."
-                                )
-                                return
-                            exit_with_error(
-                                f"Failed to start worker. See {WORKER_LOG_FILE}."
-                            )
-                        if asyncio.get_running_loop().time() >= deadline:
-                            process.terminate()
-                            exit_with_error(
-                                f"Worker did not become ready. See {WORKER_LOG_FILE}."
-                            )
-                        await asyncio.sleep(0.1)
-                    try:
-                        _write_background_worker(
-                            process.pid, psutil.Process(process.pid).create_time()
-                        )
-                    except psutil.NoSuchProcess:
-                        if process.poll() == 0:
-                            _cli.console.print(
-                                "Background worker completed successfully."
-                            )
-                            return
-                        exit_with_error(
-                            f"Worker exited during startup. See {WORKER_LOG_FILE}."
-                        )
-                finally:
-                    ready_file.unlink(missing_ok=True)
-        except Timeout:
-            exit_with_error("Another background worker command is in progress.")
+                await asyncio.sleep(0.1)
+        finally:
+            ready_file.unlink(missing_ok=True)
         _cli.console.print(
             f"Worker is running in the background with process ID {process.pid}. "
-            f"Logs: {WORKER_LOG_FILE}. Run `prefect worker stop` to stop it."
+            f"Logs: {WORKER_LOG_FILE}."
         )
         return
 
@@ -396,9 +312,6 @@ async def start(
     setup_signal_handlers_worker(
         worker_process_id, f"the {worker_type} worker", _cli.console.print
     )
-    if os.name == "nt":
-        signal.signal(signal.SIGBREAK, signal.default_int_handler)
-
     template_contents = None
     if base_job_template is not None:
         template_contents = json.loads(base_job_template.read_text())
@@ -428,54 +341,3 @@ async def start(
         )
     except asyncio.CancelledError:
         _cli.console.print(f"Worker {worker.name!r} stopped!", style="yellow")
-
-
-@worker_app.command()
-async def stop() -> None:
-    """Stop the worker started in the background."""
-    from prefect.cli._server_utils import _cleanup_pid_file
-
-    try:
-        with _worker_lock():
-            if not WORKER_PID_FILE.exists():
-                _cli.console.print("No worker is running in the background.")
-                return
-
-            worker = _get_background_worker()
-            if worker is None:
-                _cleanup_pid_file(WORKER_PID_FILE)
-                _cli.console.print("No worker is running in the background.")
-                return
-
-            process, created, stopping = worker
-            if not stopping:
-                try:
-                    process.send_signal(
-                        signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM
-                    )
-                except psutil.NoSuchProcess:
-                    _cleanup_pid_file(WORKER_PID_FILE)
-                    _cli.console.print("Worker stopped.")
-                    return
-                _write_background_worker(process.pid, created, stopping=True)
-    except Timeout:
-        exit_with_error("Another background worker command is in progress.")
-
-    for _ in range(5):
-        if not _worker_is_running(process):
-            break
-        await asyncio.sleep(1)
-
-    if _worker_is_running(process):
-        _cli.console.print(
-            "Worker is still shutting down. Run `prefect worker stop` again to check."
-        )
-        return
-
-    try:
-        with _worker_lock():
-            if _get_background_worker() is None:
-                _cleanup_pid_file(WORKER_PID_FILE)
-    except Timeout:
-        pass
-    _cli.console.print("Worker stopped.")
