@@ -12,9 +12,10 @@ import subprocess
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import cyclopts
+import psutil
 
 import prefect.cli._app as _cli
 from prefect.cli._utilities import (
@@ -25,6 +26,26 @@ from prefect.context import get_settings_context
 from prefect.settings import PREFECT_HOME
 
 WORKER_PID_FILE = Path(PREFECT_HOME.value()) / "worker.pid"
+WORKER_LOG_FILE = Path(PREFECT_HOME.value()) / "worker.log"
+
+
+def _worker_is_running(process: psutil.Process) -> bool:
+    try:
+        return process.is_running() and process.status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
+
+
+def _get_background_worker() -> psutil.Process | None:
+    try:
+        identity = json.loads(WORKER_PID_FILE.read_text())
+        process = psutil.Process(identity["pid"])
+        if process.create_time() == identity["created"] and _worker_is_running(process):
+            return process
+    except (OSError, ValueError, KeyError, TypeError, psutil.Error):
+        pass
+    return None
+
 
 worker_app: cyclopts.App = cyclopts.App(
     name="worker", help="Start and interact with workers."
@@ -43,19 +64,19 @@ class InstallPolicy(str, Enum):
 async def start(
     *,
     worker_name: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--name", alias="-n", help="The name to give to the started worker."
         ),
     ] = None,
     work_pool_name: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--pool", alias="-p", help="The work pool the started worker should poll."
         ),
     ] = None,
     work_queues: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         cyclopts.Parameter(
             "--work-queue",
             alias="-q",
@@ -63,7 +84,7 @@ async def start(
         ),
     ] = None,
     worker_type: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--type",
             alias="-t",
@@ -71,7 +92,7 @@ async def start(
         ),
     ] = None,
     prefetch_seconds: Annotated[
-        Optional[int],
+        int | None,
         cyclopts.Parameter(
             "--prefetch-seconds",
             help="Seconds to look ahead for scheduled flow runs. [from PREFECT_WORKER_PREFETCH_SECONDS]",
@@ -82,7 +103,7 @@ async def start(
         cyclopts.Parameter("--run-once", help="Only run worker polling once."),
     ] = False,
     limit: Annotated[
-        Optional[int],
+        int | None,
         cyclopts.Parameter(
             "--limit",
             alias="-l",
@@ -101,7 +122,7 @@ async def start(
         ),
     ] = InstallPolicy.PROMPT,
     base_job_template: Annotated[
-        Optional[Path],
+        Path | None,
         cyclopts.Parameter(
             "--base-job-template",
             help="Path to JSON file containing base job template.",
@@ -229,16 +250,10 @@ async def start(
         )
 
     if background:
-        from prefect.cli._server_utils import (
-            _cleanup_pid_file,
-            _is_process_running,
-            _read_pid_file,
-            _write_pid_file,
-        )
+        from prefect.cli._server_utils import _cleanup_pid_file
 
         if WORKER_PID_FILE.exists():
-            pid = _read_pid_file(WORKER_PID_FILE)
-            if pid is not None and _is_process_running(pid):
+            if _get_background_worker() is not None:
                 exit_with_error(
                     "A worker is already running in the background. To stop it,"
                     " run `prefect worker stop`."
@@ -268,34 +283,47 @@ async def start(
             command.extend(["--limit", str(limit)])
         if with_healthcheck:
             command.append("--with-healthcheck")
-        command.extend(["--install-policy", install_policy.value])
+        command.extend(["--install-policy", InstallPolicy.NEVER.value])
         if base_job_template is not None:
             command.extend(["--base-job-template", str(base_job_template)])
         if not create_pool_if_not_found:
             command.append("--no-create-pool-if-not-found")
 
-        # `--profile` is applied via a process-local settings context and is
-        # not reflected in the environment, so pass it explicitly to the child.
+        # The CLI's --profile context can override environment settings. Pass
+        # the effective values so the child uses the same API and credentials.
         env = os.environ.copy()
+        env.update(
+            get_settings_context().settings.to_environment_variables(exclude_unset=True)
+        )
         env["PREFECT_PROFILE"] = get_settings_context().profile.name
 
-        process = subprocess.Popen(  # noqa: ASYNC220
-            command,
-            env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=(os.name != "nt"),
-            creationflags=(
-                subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-            ),
-        )
+        WORKER_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        log_fd = os.open(WORKER_LOG_FILE, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        with os.fdopen(log_fd, "a") as log_file:
+            process = subprocess.Popen(  # noqa: ASYNC220
+                command,
+                env=env,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=(os.name != "nt"),
+                creationflags=(
+                    subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+                ),
+            )
         await asyncio.sleep(1)
         if process.poll() is not None:
-            exit_with_error("Failed to start worker in the background.")
-        _write_pid_file(WORKER_PID_FILE, process.pid)
+            exit_with_error(f"Failed to start worker. See {WORKER_LOG_FILE}.")
+        WORKER_PID_FILE.write_text(
+            json.dumps(
+                {
+                    "pid": process.pid,
+                    "created": psutil.Process(process.pid).create_time(),
+                }
+            )
+        )
         _cli.console.print(
             f"Worker is running in the background with process ID {process.pid}. "
-            "Run `prefect worker stop` to stop it."
+            f"Logs: {WORKER_LOG_FILE}. Run `prefect worker stop` to stop it."
         )
         return
 
@@ -303,6 +331,8 @@ async def start(
     setup_signal_handlers_worker(
         worker_process_id, f"the {worker_type} worker", _cli.console.print
     )
+    if os.name == "nt":
+        signal.signal(signal.SIGBREAK, signal.getsignal(signal.SIGINT))
 
     template_contents = None
     if base_job_template is not None:
@@ -331,31 +361,37 @@ async def start(
 @worker_app.command()
 async def stop() -> None:
     """Stop the worker started in the background."""
-    from prefect.cli._server_utils import (
-        _cleanup_pid_file,
-        _is_process_running,
-        _read_pid_file,
-    )
+    from prefect.cli._server_utils import _cleanup_pid_file
 
     if not WORKER_PID_FILE.exists():
         _cli.console.print("No worker is running in the background.")
         return
 
-    pid = _read_pid_file(WORKER_PID_FILE)
-    if pid is None or not _is_process_running(pid):
+    process = _get_background_worker()
+    if process is None:
         _cleanup_pid_file(WORKER_PID_FILE)
         _cli.console.print("No worker is running in the background.")
         return
 
     try:
-        os.kill(pid, signal.CTRL_C_EVENT if os.name == "nt" else signal.SIGTERM)
-    except (ProcessLookupError, OSError):
-        pass
+        process.send_signal(
+            signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM
+        )
+    except psutil.NoSuchProcess:
+        _cleanup_pid_file(WORKER_PID_FILE)
+        _cli.console.print("Worker stopped.")
+        return
 
     for _ in range(5):
-        if not _is_process_running(pid):
+        if not _worker_is_running(process):
             break
         await asyncio.sleep(1)
+
+    if _worker_is_running(process):
+        _cli.console.print(
+            "Worker is still shutting down. Run `prefect worker stop` again to check."
+        )
+        return
 
     _cleanup_pid_file(WORKER_PID_FILE)
     _cli.console.print("Worker stopped.")
