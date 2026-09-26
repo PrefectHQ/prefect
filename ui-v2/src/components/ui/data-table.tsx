@@ -1,8 +1,5 @@
-import {
-	flexRender,
-	type Header,
-	type Table as TanstackTable,
-} from "@tanstack/react-table";
+import { flexRender, type RowData } from "@tanstack/react-table";
+import { useRef } from "react";
 import {
 	Pagination,
 	PaginationContent,
@@ -27,6 +24,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { useAnimatedReorder } from "@/hooks/use-animated-reorder";
+import type { Header, Table as TanstackTable } from "@/lib/tanstack-table";
 import { cn } from "@/utils";
 
 const shouldIgnoreRowClick = (target: EventTarget | null) =>
@@ -35,7 +34,7 @@ const shouldIgnoreRowClick = (target: EventTarget | null) =>
 		'a, button, input, select, textarea, [role="button"], [role="checkbox"], [role="menuitem"], [role="switch"], [data-row-click-ignore="true"]',
 	);
 
-function ColumnResizeHandle<TData, TValue>({
+function ColumnResizeHandle<TData extends RowData, TValue>({
 	header,
 }: {
 	header: Header<TData, TValue>;
@@ -59,15 +58,28 @@ function ColumnResizeHandle<TData, TValue>({
 	);
 }
 
-export function DataTable<TData>({
+export function DataTable<TData extends RowData>({
 	table,
 	onPrefetchPage,
 	onRowClick,
+	animateRowReorder = false,
 }: {
 	table: TanstackTable<TData>;
 	onPrefetchPage?: (page: number) => void;
 	onRowClick?: (row: TData) => void;
+	/**
+	 * Slide rows to their new positions when they change order. Rows need a
+	 * stable identity for this, so pass `getRowId` to the table as well.
+	 */
+	animateRowReorder?: boolean;
 }) {
+	const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+	useAnimatedReorder(
+		tableBodyRef,
+		table.getRowModel().rows.map((row) => row.id),
+		animateRowReorder,
+	);
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="rounded-md border overflow-x-auto">
@@ -83,8 +95,7 @@ export function DataTable<TData>({
 									const maxSize = header.column.columnDef.maxSize;
 									const hasExplicitSize =
 										header.column.columnDef.size !== undefined ||
-										table.getState().columnSizing[header.column.id] !==
-											undefined;
+										table.state.columnSizing[header.column.id] !== undefined;
 									return (
 										<TableHead
 											key={header.id}
@@ -114,11 +125,12 @@ export function DataTable<TData>({
 							</TableRow>
 						))}
 					</TableHeader>
-					<TableBody>
+					<TableBody ref={tableBodyRef}>
 						{table.getRowModel().rows?.length ? (
 							table.getRowModel().rows.map((row) => (
 								<TableRow
 									key={row.id}
+									data-reorder-id={animateRowReorder ? row.id : undefined}
 									data-state={row.getIsSelected() && "selected"}
 									className={
 										onRowClick ? "cursor-pointer hover:bg-muted" : undefined
@@ -140,8 +152,7 @@ export function DataTable<TData>({
 										const maxSize = cell.column.columnDef.maxSize;
 										const hasExplicitSize =
 											cell.column.columnDef.size !== undefined ||
-											table.getState().columnSizing[cell.column.id] !==
-												undefined;
+											table.state.columnSizing[cell.column.id] !== undefined;
 										return (
 											<TableCell
 												key={cell.id}
@@ -190,16 +201,18 @@ export function DataTable<TData>({
 	);
 }
 
-interface DataTablePageSizeProps<TData> {
+interface DataTablePageSizeProps<TData extends RowData> {
 	table: TanstackTable<TData>;
 }
 
-function DataTablePageSize<TData>({ table }: DataTablePageSizeProps<TData>) {
+function DataTablePageSize<TData extends RowData>({
+	table,
+}: DataTablePageSizeProps<TData>) {
 	return (
 		<div className="flex flex-row items-center gap-2 text-xs text-muted-foreground">
 			<span className="whitespace-nowrap">Items per page</span>
 			<Select
-				value={table.getState().pagination.pageSize.toString()}
+				value={table.state.pagination.pageSize.toString()}
 				onValueChange={(value) => {
 					table.setPageSize(Number(value));
 				}}
@@ -218,20 +231,20 @@ function DataTablePageSize<TData>({ table }: DataTablePageSizeProps<TData>) {
 	);
 }
 
-interface DataTablePaginationProps<TData> {
+interface DataTablePaginationProps<TData extends RowData> {
 	table: TanstackTable<TData>;
 	className?: string;
 	onPrefetchPage?: (page: number) => void;
 }
 
-export function DataTablePagination<TData>({
+export function DataTablePagination<TData extends RowData>({
 	table,
 	className,
 	onPrefetchPage,
 }: DataTablePaginationProps<TData>) {
 	const totalPages = table.getPageCount();
 	const currentPage = Math.min(
-		Math.ceil(table.getState().pagination.pageIndex + 1),
+		Math.ceil(table.state.pagination.pageIndex + 1),
 		totalPages,
 	);
 

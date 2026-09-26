@@ -8,6 +8,34 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add `flow_run(state_type, coalesce(start_time, expected_start_time))` index
+SQLite: `a3b9c7d2e5f1`
+Postgres: `d4a7e1c93f52`
+
+Serves state-filtered flow run queries sorted by `START_TIME_ASC`/`DESC` (the
+existing coalesce indexes do not include `state_type`, so the planner walked
+them and filtered afterwards). Postgres creates the index concurrently, rebuilds
+an invalid index left by an interrupted prior attempt, and rejects offline SQL
+generation. Downgrading removes the index.
+
+# Rebuild invalid `event_resources.occurred` index
+SQLite: None
+Postgres: `c8d5f2a71b3e`
+
+`bad1e352c597` used a plain `IF NOT EXISTS`, so an `INVALID` index left by an
+interrupted build was skipped and never repaired. This rebuilds an invalid
+`ix_event_resources__occurred` with `REINDEX INDEX CONCURRENTLY`, preserving the
+old index until its replacement is valid. Offline SQL generation is rejected
+because it cannot safely inspect the catalog. Downgrading is a no-op; the index
+is removed by downgrading `bad1e352c597`.
+
+# Add `flow_run.deployment_id` index for deployment-filtered queries
+SQLite: `f416ea180ae1`
+Postgres: `9e9dadc36797`
+
+Postgres creates the index concurrently and rebuilds an invalid index left by an
+interrupted prior attempt. Downgrading removes the index.
+
 # Add `event_resources.event_id` index for retention vacuum
 SQLite: `14806cb26270`
 Postgres: `50737cdaee36`

@@ -164,7 +164,7 @@ async def create_deployment(
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
     job_variables = insert_values.pop("job_variables", None)
-    if job_variables:
+    if job_variables is not None:
         insert_values["infra_overrides"] = job_variables
 
     conflict_update_fields = deployment.model_dump_for_orm(
@@ -179,7 +179,7 @@ async def create_deployment(
             "version_info",
         },
     )
-    if job_variables:
+    if job_variables is not None:
         conflict_update_fields["infra_overrides"] = job_variables
 
     insert_stmt = (
@@ -326,7 +326,7 @@ async def update_deployment(
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
     job_variables = update_data.pop("job_variables", None)
-    if job_variables:
+    if job_variables is not None:
         update_data["infra_overrides"] = job_variables
 
     should_update_schedules = update_data.pop("schedules", None) is not None
@@ -1294,8 +1294,13 @@ async def mark_deployments_ready(
     if not deployment_ids and not work_queue_ids:
         return
 
+    # `with_for_update=True` makes SQLite start with `BEGIN IMMEDIATE` so the
+    # write lock is held before the read below; a deferred transaction that
+    # reads first cannot be upgraded to a write if another connection commits
+    # in between and fails immediately with "database is locked".
     async with db.session_context(
         begin_transaction=True,
+        with_for_update=True,
     ) as session:
         # ORDER BY id locks rows in deterministic order so concurrent
         # calls cannot deadlock. SKIP LOCKED is intentionally avoided —
@@ -1367,8 +1372,9 @@ async def mark_deployments_not_ready(
 
         async with db.session_context(
             begin_transaction=True,
+            with_for_update=True,
         ) as session:
-            # See comment in mark_deployments_ready.
+            # See comments in mark_deployments_ready.
             locked = (
                 select(db.Deployment.id, db.Deployment.status)
                 .where(

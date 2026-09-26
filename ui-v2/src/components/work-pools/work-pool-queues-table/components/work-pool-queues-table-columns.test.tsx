@@ -5,16 +5,11 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import {
-	getCoreRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
+import { useTable } from "@/lib/tanstack-table";
 import { createFakeWorkPoolQueues } from "@/mocks";
 import { createWorkPoolQueuesTableColumns } from "./work-pool-queues-table-columns";
 
@@ -48,12 +43,9 @@ function TestTable({
 
 	const columns = createWorkPoolQueuesTableColumns({ enableLateIndicator });
 
-	const table = useReactTable({
+	const table = useTable({
 		data: queues,
 		columns,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
 		initialState: {
 			sorting: [{ id: "name", desc: false }],
 			pagination: { pageIndex: 0, pageSize: 10 },

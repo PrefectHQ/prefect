@@ -1,6 +1,5 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -13,6 +12,7 @@ import {
 import { EventsPage } from "@/components/events/events-page";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Schema for validating URL search parameters for the events page.
@@ -52,7 +52,7 @@ const eventsPageSkeleton = () => {
 };
 
 export const Route = createFileRoute("/events/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	loaderDeps: ({ search }) => search,
 	wrapInSuspense: true,
 	pendingComponent: eventsPageSkeleton,
@@ -85,6 +85,7 @@ export const Route = createFileRoute("/events/")({
 		);
 	},
 	component: function RouteComponent() {
+		usePageTitle("Event Feed");
 		const EventsPageSkeleton = eventsPageSkeleton;
 
 		const search = Route.useSearch();

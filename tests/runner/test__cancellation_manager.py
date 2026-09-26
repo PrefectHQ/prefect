@@ -7,6 +7,7 @@ import pytest
 
 from prefect.client.schemas.objects import StateType
 from prefect.runner._cancellation_manager import CancellationManager
+from prefect.runner._control_channel import ControlSignalStatus
 
 pytestmark = pytest.mark.clear_db
 
@@ -245,7 +246,9 @@ class TestCancellationManagerCancel:
         event_emitter.emit_flow_run_cancelled = AsyncMock()
 
         control_channel = MagicMock()
-        control_channel.signal = AsyncMock(return_value=True)
+        control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.ACKNOWLEDGED
+        )
 
         mgr = _make_manager(
             process_manager=process_manager,
@@ -530,7 +533,7 @@ class TestCancellationManagerCancel:
 
         async def _signal(_id, _intent):
             call_order.append("signal")
-            return True
+            return ControlSignalStatus.ACKNOWLEDGED
 
         control_channel.signal = AsyncMock(side_effect=_signal)
 
@@ -569,7 +572,9 @@ class TestCancellationManagerCancel:
         process_manager.kill = AsyncMock()
 
         control_channel = MagicMock()
-        control_channel.signal = AsyncMock(return_value=True)
+        control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.ACKNOWLEDGED
+        )
 
         mgr = _make_manager(
             process_manager=process_manager,
@@ -617,7 +622,9 @@ class TestCancellationManagerCancel:
             process_manager=process_manager,
             hook_runner=hook_runner,
             event_emitter=event_emitter,
-            control_channel=MagicMock(signal=AsyncMock(return_value=True)),
+            control_channel=MagicMock(
+                signal=AsyncMock(return_value=ControlSignalStatus.ACKNOWLEDGED)
+            ),
         )
         mgr._finalize_cancelled_state = AsyncMock(return_value=True)
 
@@ -662,7 +669,9 @@ class TestCancellationManagerCancel:
             process_manager=process_manager,
             hook_runner=hook_runner,
             event_emitter=event_emitter,
-            control_channel=MagicMock(signal=AsyncMock(return_value=True)),
+            control_channel=MagicMock(
+                signal=AsyncMock(return_value=ControlSignalStatus.ACKNOWLEDGED)
+            ),
         )
         mgr._finalize_cancelled_state = AsyncMock(return_value=True)
 
@@ -688,7 +697,9 @@ class TestCancellationManagerCancel:
         process_manager.kill = AsyncMock()
 
         control_channel = MagicMock()
-        control_channel.signal = AsyncMock(return_value=True)
+        control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.ACKNOWLEDGED
+        )
 
         mgr = _make_manager(
             process_manager=process_manager,
@@ -710,7 +721,9 @@ class TestCancellationManagerCancel:
         process_manager.kill = AsyncMock()
 
         control_channel = MagicMock()
-        control_channel.signal = AsyncMock(return_value=False)
+        control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.NOT_ACKNOWLEDGED
+        )
 
         mgr = _make_manager(
             process_manager=process_manager,
@@ -722,6 +735,36 @@ class TestCancellationManagerCancel:
         control_channel.signal.assert_awaited_once_with(flow_run.id, "cancel")
         process_manager.wait_for_exit.assert_not_awaited()
         process_manager.kill.assert_awaited_once_with(flow_run.id, grace_seconds=30.0)
+
+    async def test_cancel_stops_when_engine_receipt_already_concluded_attempt(self):
+        flow_run = _make_flow_run()
+
+        process_manager = MagicMock()
+        process_manager.get.return_value = _make_process_handle()
+        process_manager.wait_for_exit = AsyncMock()
+        process_manager.kill = AsyncMock()
+
+        hook_runner = MagicMock()
+        hook_runner.run_cancellation_hooks = AsyncMock()
+
+        control_channel = MagicMock()
+        control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.ALREADY_CONCLUDED
+        )
+
+        mgr = _make_manager(
+            process_manager=process_manager,
+            hook_runner=hook_runner,
+            control_channel=control_channel,
+        )
+        mgr._finalize_cancelled_state = AsyncMock(return_value=True)
+
+        await mgr.cancel(flow_run)
+
+        process_manager.wait_for_exit.assert_not_awaited()
+        process_manager.kill.assert_not_awaited()
+        hook_runner.run_cancellation_hooks.assert_not_awaited()
+        mgr._finalize_cancelled_state.assert_not_awaited()
 
     async def test_cancel_falls_through_when_channel_raises(self):
         """If the channel raises, kill still proceeds — channel is best-effort."""

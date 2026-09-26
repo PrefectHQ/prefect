@@ -41,11 +41,18 @@ export async function startCulling(): Promise<void> {
 			labelCuller?.toggle(labelsVisible);
 			iconCuller?.toggle(iconsVisible);
 			toggleCuller?.toggle(togglesVisible);
-			// Use PixiJS v8 native culling via Culler.shared
+			// Use PixiJS v8 native culling via Culler.shared.
+			// skipUpdateTransform must be false so bounds are computed from current
+			// position values rather than the cached worldTransform. The cache is
+			// only refreshed by the renderer (LOW priority), which runs after this
+			// culling callback (NORMAL priority) in the same ticker frame. Without
+			// this, nodes culled during the frame after centerViewport() moves the
+			// viewport remain invisible until the next user interaction.
 			const { screen } = application;
 			Culler.shared.cull(
 				application.stage,
 				new Rectangle(screen.x, screen.y, screen.width, screen.height),
+				false,
 			);
 
 			viewport.dirty = false;

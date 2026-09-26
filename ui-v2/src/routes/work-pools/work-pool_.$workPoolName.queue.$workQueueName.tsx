@@ -1,7 +1,6 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -24,6 +23,7 @@ import { WorkPoolQueuePageHeader } from "@/components/work-pools/work-pool-queue
 import { WorkPoolQueueRunsTab } from "@/components/work-pools/work-pool-queue-runs-tab";
 import { useRedirectDetailsTabOnDesktop } from "@/components/work-pools/work-pool-queue-tabs-sync";
 import { WorkPoolQueueUpcomingRunsTab } from "@/components/work-pools/work-pool-queue-upcoming-runs-tab";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { cn } from "@/utils";
 
 const searchParams = z.object({
@@ -35,7 +35,7 @@ type SearchParams = z.infer<typeof searchParams>;
 export const Route = createFileRoute(
 	"/work-pools/work-pool_/$workPoolName/queue/$workQueueName",
 )({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		function RunsTabSkeleton() {
 			return (
@@ -109,6 +109,7 @@ export const Route = createFileRoute(
 		const { data: queue } = useSuspenseQuery(
 			buildWorkPoolQueueDetailsQuery(workPoolName, workQueueName),
 		);
+		usePageTitle(`Work Pool Queue: ${queue.name}`);
 
 		const codeBannerCommand = `prefect worker start --pool "${workPoolName}" --work-queue "${workQueueName}"`;
 		const codeBannerTitle = `Your work queue ${workQueueName} is ready to go!`;

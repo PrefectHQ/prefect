@@ -2,7 +2,7 @@
 title: How to use the Prefect MCP server
 sidebarTitle: Use the Prefect MCP server
 description: Connect AI assistants to Prefect using the Model Context Protocol.
-keywords: ["MCP server", "Model Context Protocol", "AI assistant", "Claude", "integration"]
+keywords: ["ChatGPT", "Claude", "Codex", "plugin", "connector"]
 ---
 
 The Prefect MCP server enables AI assistants to interact with your Prefect workflows and infrastructure through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). This integration allows AI tools like Claude Code, Cursor, and Codex CLI to help you monitor deployments, debug flow runs, query infrastructure, and more.
@@ -34,6 +34,33 @@ When using AI agents autonomously, consider the Prefect Role associated with you
 For detailed answers to common security questions—including authentication patterns, RBAC, file access requirements, and recommendations for internal pilots—see the [Security FAQ](https://github.com/PrefectHQ/prefect-mcp-server/blob/main/SECURITY.md).
 
 ## Installation
+
+### Connect ChatGPT or Claude to Prefect Cloud
+
+<span class="badge cloud"></span>
+
+Use the [Prefect plugin in ChatGPT](https://chatgpt.com/plugins/plugin_asdk_app_6a5fe5e3471881919daf83971db15505) or the [Prefect connector in Claude](https://claude.ai/directory/prefect) to connect to Prefect's hosted MCP server.
+You need an account in your chosen assistant and access to a Prefect Cloud workspace. No local installation, API key, or server deployment is required.
+
+<Tabs>
+  <Tab title="ChatGPT plugin">
+    1. Open the [Prefect plugin listing](https://chatgpt.com/plugins/plugin_asdk_app_6a5fe5e3471881919daf83971db15505) and install it.
+    2. Start a chat with Prefect selected and follow the **Connect** prompt to sign in to Prefect Cloud.
+    3. Select the workspaces ChatGPT may read and authorize the connection.
+
+    Installing the plugin and connecting your account are separate steps. If an existing chat does not discover the newly connected tools, start a fresh chat with Prefect selected.
+  </Tab>
+  <Tab title="Claude connector">
+    1. Open the [Prefect connector listing](https://claude.ai/directory/prefect) in the Claude Connectors Directory and connect it.
+    2. Sign in to Prefect Cloud, select the workspaces Claude may read, and authorize the connection.
+    3. Start a chat, ask Claude to use Prefect, and approve tool calls when prompted.
+  </Tab>
+</Tabs>
+
+Ask "Which Prefect workspaces can you access?" Then name a workspace and ask "Why did my most recent failed flow run fail?"
+The hosted tools inspect runs, logs, and workspace health and search Prefect documentation. They are read-only, and workspace access is limited to the workspaces selected during authorization.
+
+For self-hosted Prefect, use a local installation or deploy your own MCP server as described below.
 
 ### Local installation
 
@@ -77,7 +104,7 @@ Configure your AI assistant to connect to the Prefect MCP server.
 
 ### General setup
 
-All MCP clients need three pieces of information to connect to the Prefect MCP server:
+For local stdio connections, MCP clients need three pieces of information:
 
 1. **Command**: `uvx`
 2. **Arguments**: `--from prefect-mcp prefect-mcp-server`
@@ -101,10 +128,10 @@ The easiest way to get started with Claude Code is through the plugin marketplac
 /plugin install prefect
 ```
 
-This installs both the MCP server (for read-only diagnostics) and a CLI skill (for mutations like triggering deployments or cancelling runs).
+The plugin connects to Prefect's hosted, read-only MCP server and includes workflow guidance for diagnostics, documentation, and release notes. Sign in to Prefect Cloud through OAuth and select the workspaces Claude Code may access.
 
 <Note>
-The plugin uses your local Prefect configuration from `~/.prefect/profiles.toml`. For explicit credentials, use the manual setup below.
+The hosted plugin does not use your local Prefect profile or require a local Prefect installation. For self-hosted Prefect or explicit credentials, use the manual setup below.
 </Note>
 
 **Manual setup**

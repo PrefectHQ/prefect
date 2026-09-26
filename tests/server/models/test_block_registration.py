@@ -20,21 +20,24 @@ pytestmark = pytest.mark.clear_db
 
 
 @pytest.fixture(scope="module")
-async def expected_number_of_registered_block_types():
+async def expected_registered_block_type_slugs() -> set[str]:
     collections_blocks_data = await _load_collection_blocks_data()
 
-    block_types_from_collections = [
-        block_type
+    collection_block_type_slugs = {
+        block_type["slug"]
         for collection in collections_blocks_data["collections"].values()
         for block_type in collection["block_types"].values()
-    ]
+    }
     block_registry = get_registry_for_type(Block) or {}
-    return len(block_types_from_collections) + len(block_registry.values())
+    registry_block_type_slugs = {
+        block_class._to_block_type().slug for block_class in block_registry.values()
+    }
+    return collection_block_type_slugs | registry_block_type_slugs
 
 
 class TestRunAutoRegistration:
     async def test_full_registration_with_empty_database(
-        self, session, expected_number_of_registered_block_types
+        self, session, expected_registered_block_type_slugs
     ):
         PROTECTED_BLOCKS = {
             "secret",
@@ -50,9 +53,8 @@ class TestRunAutoRegistration:
         await session.commit()
 
         registered_blocks = await read_block_types(session)
-        assert len(registered_blocks) == expected_number_of_registered_block_types
-
         registered_block_slugs = {b.slug for b in registered_blocks}
+        assert registered_block_slugs == expected_registered_block_type_slugs
         assert PROTECTED_BLOCKS.issubset(registered_block_slugs), (
             "When changing protected blocks, edit PROTECTED_BLOCKS defined above"
         )
@@ -61,7 +63,7 @@ class TestRunAutoRegistration:
         ), "When changing protected blocks, edit PROTECTED_BLOCKS defined above"
 
     async def test_registration_works_with_populated_database(
-        self, session, expected_number_of_registered_block_types
+        self, session, expected_registered_block_type_slugs
     ):
         with temporary_settings({PREFECT_API_BLOCKS_REGISTER_ON_START: True}):
             await run_block_auto_registration(session=session)
@@ -70,7 +72,8 @@ class TestRunAutoRegistration:
             registered_blocks = await read_block_types(session)
 
             # this assertion assumes that users cannot protect blocks manually
-            assert len(registered_blocks) == expected_number_of_registered_block_types
+            registered_block_slugs = {b.slug for b in registered_blocks}
+            assert registered_block_slugs == expected_registered_block_type_slugs
 
 
 class TestRegisterBlockType:

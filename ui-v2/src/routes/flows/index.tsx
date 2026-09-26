@@ -9,7 +9,6 @@ import type {
 	ColumnFiltersState,
 	PaginationState,
 } from "@tanstack/react-table";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -25,6 +24,7 @@ import FlowsPage from "@/components/flows/flows-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { usePageSizePreference } from "@/hooks/use-page-size-preference";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 // Route for /flows/
 
@@ -40,7 +40,7 @@ const searchParams = z
 			.default("NAME_ASC"),
 	})
 	.optional()
-	.default({});
+	.prefault({});
 
 type SearchParams = z.infer<typeof searchParams>;
 
@@ -73,8 +73,9 @@ const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
 const NUMBER_OF_ACTIVITY_BARS = 16;
 
 export const Route = createFileRoute("/flows/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function FlowsRoute() {
+		usePageTitle("Flows");
 		const search = Route.useSearch();
 		const navigate = Route.useNavigate();
 		const queryClient = useQueryClient();

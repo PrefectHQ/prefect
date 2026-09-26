@@ -42,19 +42,21 @@ export const useSchemaForm = (initialValues?: SchemaFormValues) => {
 	const runValidation = useCallback(
 		async (options?: { throwOnError?: boolean }) => {
 			if (!schemaRef.current) {
-				return;
+				return { errors: [], valid: true };
 			}
 
 			try {
-				const { errors: validationErrors, valid } = await validateSchemaValues(
+				const validationResult = await validateSchemaValues(
 					schemaRef.current,
 					values,
 				);
+				const { errors: validationErrors, valid } = validationResult;
 				if (valid) {
 					setErrors([]);
 				} else {
 					setErrors(validationErrors);
 				}
+				return validationResult;
 			} catch {
 				if (options?.throwOnError) {
 					throw new Error("Server error occurred validating schema");
@@ -78,8 +80,9 @@ export const useSchemaForm = (initialValues?: SchemaFormValues) => {
 		schema: Record<string, unknown>;
 	}) => {
 		schemaRef.current = schema;
-		await runValidation({ throwOnError: true });
+		const validationResult = await runValidation({ throwOnError: true });
 		setHasValidatedOnce(true);
+		return validationResult;
 	};
 
 	return {

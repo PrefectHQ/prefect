@@ -1,7 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
@@ -9,14 +8,16 @@ import { categorizeError } from "@/api/error-utils";
 import { BlocksCatalogPage } from "@/components/blocks/blocks-catalog-page/blocks-catalog-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 const searchParams = z.object({
 	blockName: z.string().optional(),
 });
 
 export const Route = createFileRoute("/blocks/catalog")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
+		usePageTitle("Blocks Catalog");
 		const [search, onSearch] = useSearch();
 		const { data: blockTypes } = useSuspenseQuery(
 			buildListFilterBlockTypesQuery({

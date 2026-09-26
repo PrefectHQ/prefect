@@ -6,7 +6,6 @@ import type {
 	PaginationState,
 	SortingState,
 } from "@tanstack/react-table";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { z } from "zod";
 import { buildPaginateDeploymentsQuery } from "@/api/deployments";
@@ -39,6 +38,7 @@ import { WorkPoolFlowRunsTab } from "@/components/work-pools/work-pool-flow-runs
 import { WorkPoolPageHeader } from "@/components/work-pools/work-pool-page-header";
 import { WorkPoolQueuesTable } from "@/components/work-pools/work-pool-queues-table";
 import { WorkersTable } from "@/components/work-pools/workers-table";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { cn } from "@/utils";
 import { useRedirectDetailsTabOnDesktop } from "./-use-redirect-details-tab-on-desktop";
 
@@ -57,7 +57,7 @@ const workPoolSearchParams = z.object({
 type WorkPoolSearchParams = z.infer<typeof workPoolSearchParams>;
 
 export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
-	validateSearch: zodValidator(workPoolSearchParams),
+	validateSearch: workPoolSearchParams,
 	component: function RouteComponent() {
 		// Wrapper component for Work Pool Queues tab
 		const WorkPoolQueuesTabWrapper = ({
@@ -126,6 +126,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 		const { data: workPool } = useSuspenseQuery(
 			buildGetWorkPoolQuery(workPoolName),
 		);
+		usePageTitle(`Work Pool: ${workPool.name}`);
 
 		const showCodeBanner = workPool.status !== "READY";
 		const codeBannerCommand = `prefect worker start --pool "${workPool.name}"`;

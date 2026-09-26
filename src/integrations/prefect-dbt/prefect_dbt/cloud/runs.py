@@ -2,7 +2,7 @@
 
 import asyncio
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from httpx import HTTPStatusError
 from typing_extensions import Literal
@@ -51,10 +51,9 @@ class DbtCloudJobRunStatus(Enum):
 async def get_dbt_cloud_run_info(
     dbt_cloud_credentials: DbtCloudCredentials,
     run_id: int,
-    include_related: Optional[
-        List[Literal["trigger", "job", "debug_logs", "run_steps"]]
-    ] = None,
-) -> Dict:
+    include_related: list[Literal["trigger", "job", "debug_logs", "run_steps"]]
+    | None = None,
+) -> dict:
     """
     A task to retrieve information about a dbt Cloud job run.
 
@@ -106,8 +105,8 @@ async def get_dbt_cloud_run_info(
     retry_delay_seconds=10,
 )
 async def list_dbt_cloud_run_artifacts(
-    dbt_cloud_credentials: DbtCloudCredentials, run_id: int, step: Optional[int] = None
-) -> List[str]:
+    dbt_cloud_credentials: DbtCloudCredentials, run_id: int, step: int | None = None
+) -> list[str]:
     """
     A task to list the artifact files generated for a completed run.
 
@@ -160,8 +159,8 @@ async def get_dbt_cloud_run_artifact(
     dbt_cloud_credentials: DbtCloudCredentials,
     run_id: int,
     path: str,
-    step: Optional[int] = None,
-) -> Union[Dict, str]:
+    step: int | None = None,
+) -> dict | str:
     """
     A task to get an artifact generated for a completed run. The requested artifact
     is saved to a file in the current working directory.
@@ -252,7 +251,7 @@ async def wait_for_dbt_cloud_job_run(
     dbt_cloud_credentials: DbtCloudCredentials,
     max_wait_seconds: int = 900,
     poll_frequency_seconds: int = 10,
-) -> Tuple[DbtCloudJobRunStatus, Dict]:
+) -> tuple[DbtCloudJobRunStatus, dict]:
     """
     Waits for the given dbt Cloud job run to finish running.
 

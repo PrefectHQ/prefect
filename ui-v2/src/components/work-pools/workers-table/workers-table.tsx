@@ -3,15 +3,10 @@ import type {
 	OnChangeFn,
 	PaginationState,
 } from "@tanstack/react-table";
-import {
-	getCoreRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 import type { WorkPoolWorker } from "@/api/work-pools";
 import { DataTable } from "@/components/ui/data-table";
+import { useTable } from "@/lib/tanstack-table";
 import { cn } from "@/utils";
 import { createWorkersTableColumnsWithActions } from "./components/workers-table-columns";
 import { WorkersTableEmptyState } from "./components/workers-table-empty-state";
@@ -91,12 +86,9 @@ export const WorkersTable = ({
 		[workPoolName],
 	);
 
-	const table = useReactTable({
+	const table = useTable({
 		data: filteredWorkers,
 		columns,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
 		manualPagination: false,
 		state: {
 			pagination,

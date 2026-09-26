@@ -1,6 +1,5 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
 import { buildGetEventQuery } from "@/api/events";
@@ -18,7 +17,7 @@ function parseRouteDate(dateStr: string): Date {
 }
 
 export const Route = createFileRoute("/events/event/$eventDate/$eventId")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const { eventDate, eventId } = Route.useParams();
 		const search = Route.useSearch();

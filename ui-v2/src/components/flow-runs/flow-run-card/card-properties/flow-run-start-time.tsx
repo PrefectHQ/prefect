@@ -1,4 +1,3 @@
-import humanizeDuration from "humanize-duration";
 import { useMemo } from "react";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import { Icon } from "@/components/ui/icons";
@@ -9,6 +8,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDate } from "@/utils/date";
+import { secondsToApproximateString } from "@/utils/seconds";
 
 type FlowRunStartTimeProps = { flowRun: FlowRunCardData };
 export const FlowRunStartTime = ({ flowRun }: FlowRunStartTimeProps) => {
@@ -32,7 +32,7 @@ export const FlowRunStartTime = ({ flowRun }: FlowRunStartTimeProps) => {
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger asChild disabled={!text}>
-					<div className="text-xs font-mono flex gap-2 items-center">
+					<div className="text-xs font-mono flex gap-2 items-center shrink-0 whitespace-nowrap">
 						<Icon id="Calendar" className="size-4" />
 						{text ?? "No start time"}
 					</div>
@@ -47,5 +47,5 @@ const getDelta = (estimated_start_time_delta: null | number) => {
 	if (!estimated_start_time_delta || estimated_start_time_delta <= 60) {
 		return "";
 	}
-	return `(${humanizeDuration(estimated_start_time_delta, { maxDecimalPoints: 0 })} late)`;
+	return `(${secondsToApproximateString(Math.round(estimated_start_time_delta))} late)`;
 };

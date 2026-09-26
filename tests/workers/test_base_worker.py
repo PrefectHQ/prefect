@@ -454,6 +454,15 @@ async def test_worker_respects_prefetch_seconds():
     )
 
 
+async def test_worker_respects_a_prefetch_seconds_of_zero():
+    """0 means no lookahead, and the CLI resolves it with an is-None check, so the
+    worker must not fall back to the setting default."""
+    worker = WorkerTestImpl(
+        name="test", work_pool_name="test-work-pool", prefetch_seconds=0
+    )
+    assert worker.get_status()["settings"]["prefetch_seconds"] == 0
+
+
 async def test_worker_sends_heartbeat_messages(
     prefect_client: PrefectClient,
     worker_channel_endpoint_unavailable: None,
@@ -2424,6 +2433,13 @@ async def test_worker_last_polled_health_check(work_pool: WorkPool):
 
                 with travel_to(now + timedelta(minutes=30, seconds=1)):
                     resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                    assert resp is False
+
+                # a day-scale gap must not report healthy: timedelta.seconds
+                # discards the days component, so a worker dead for a day and
+                # 30 seconds used to pass the 300 second threshold again
+                with travel_to(now + timedelta(days=1, seconds=30)):
+                    resp = worker.is_worker_still_polling(query_interval_seconds=10)
                     assert resp is False
     except ExceptionGroup as e:
         raise e.exceptions[0]
@@ -4679,6 +4695,45 @@ class TestSubmit:
 
         # Upload step should have been run
         mock_run_process.assert_called_once()
+
+    async def test_bundle_creation_failure_crashes_flow_run(
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+        tmp_path: Path,
+    ):
+        class BundleWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
+            type = "bundle-worker"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ) -> BaseWorkerResult:
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def test_flow() -> None:
+            pass
+
+        bound_flow = bind_flow_to_infrastructure(
+            flow=test_flow,
+            work_pool=work_pool.name,
+            worker_cls=BundleWorker,
+            include_files=["config.yaml"],
+            include_files_base_dir=tmp_path / "missing",
+        )
+        async with BundleWorker(work_pool_name=work_pool.name) as worker:
+            with pytest.warns(FutureWarning):
+                future = await worker.submit(bound_flow)
+
+        flow_run = await prefect_client.read_flow_run(future.flow_run_id)
+        assert flow_run.state is not None
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.message is not None
+        assert "include_files_base_dir" in flow_run.state.message
 
     async def test_work_pool_is_missing_storage_configuration(
         self,

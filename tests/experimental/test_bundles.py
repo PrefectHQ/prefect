@@ -131,7 +131,7 @@ class TestExecuteBundleInSubprocess:
         process = execute_bundle_in_subprocess(bundle)
 
         process.join()
-        assert process.exitcode == 1
+        assert process.exitcode == 0
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None
@@ -253,6 +253,8 @@ class TestExecuteBundleInSubprocess:
     ):
         calls: list[str] = []
 
+        # This subprocess entrypoint mutates its environment; isolate the test process.
+        monkeypatch.setattr(bundles_module.os, "environ", os.environ.copy())
         monkeypatch.setattr(
             bundles_module, "configure_from_env", lambda: calls.append("configure")
         )
@@ -412,7 +414,7 @@ class TestExecuteBundleInSubprocess:
         bundle = result["bundle"]
         process = execute_bundle_in_subprocess(bundle)
         process.join()
-        assert process.exitcode == 1
+        assert process.exitcode == 0
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None

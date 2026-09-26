@@ -46,19 +46,22 @@ type IntervalTypesShort = "y" | "d" | "h" | "m" | "s";
 type IntervalTypesPlural = `${keyof typeof intervals}s`;
 
 function aggregateSeconds(input: number): Record<IntervalTypesPlural, number> {
-	const years = Math.floor(input / intervals.year);
-	const days = Math.floor((input % intervals.year) / intervals.day);
+	// Round up front rather than per-unit. Rounding the seconds on their own
+	// let them reach 60 without carrying, rendering durations like "4m 60s".
+	const total = Math.ceil(input);
+
+	const years = Math.floor(total / intervals.year);
+	const days = Math.floor((total % intervals.year) / intervals.day);
 	const hours = Math.floor(
-		((input % intervals.year) % intervals.day) / intervals.hour,
+		((total % intervals.year) % intervals.day) / intervals.hour,
 	);
 	const minutes = Math.floor(
-		(((input % intervals.year) % intervals.day) % intervals.hour) /
+		(((total % intervals.year) % intervals.day) % intervals.hour) /
 			intervals.minute,
 	);
-	const seconds = Math.ceil(
-		(((input % intervals.year) % intervals.day) % intervals.hour) %
-			intervals.minute,
-	);
+	const seconds =
+		(((total % intervals.year) % intervals.day) % intervals.hour) %
+		intervals.minute;
 
 	return { years, days, hours, minutes, seconds };
 }

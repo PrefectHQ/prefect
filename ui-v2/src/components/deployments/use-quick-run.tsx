@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
+import type { Deployment } from "@/api/deployments";
 import { useDeploymentCreateFlowRun } from "@/api/flow-runs";
 import { Button } from "@/components/ui/button";
 
@@ -19,12 +21,22 @@ const DEPLOYMENT_QUICK_RUN_PAYLOAD = {
  *
  * @returns a function that handles the mutation and UX when a deployment creates a quick run
  */
-export const useQuickRun = () => {
+export const useQuickRun = (deployment: Deployment) => {
 	const { createDeploymentFlowRun, isPending } = useDeploymentCreateFlowRun();
-	const onQuickRun = (id: string) => {
+	const [isParametersDialogOpen, setIsParametersDialogOpen] = useState(false);
+	const requiredParameters = deployment.parameter_openapi_schema?.required;
+	const hasRequiredParameters =
+		Array.isArray(requiredParameters) && requiredParameters.length > 0;
+
+	const onQuickRun = () => {
+		if (hasRequiredParameters) {
+			setIsParametersDialogOpen(true);
+			return;
+		}
+
 		createDeploymentFlowRun(
 			{
-				id,
+				id: deployment.id,
 				...DEPLOYMENT_QUICK_RUN_PAYLOAD,
 			},
 			{
@@ -46,11 +58,18 @@ export const useQuickRun = () => {
 				onError: (error) => {
 					const message =
 						error.message || "Unknown error while creating flow run.";
-					console.error(message);
+					toast.error(message);
 				},
 			},
 		);
 	};
 
-	return { onQuickRun, isPending };
+	return {
+		onQuickRun,
+		isPending,
+		parametersDialogState: {
+			open: isParametersDialogOpen,
+			onOpenChange: setIsParametersDialogOpen,
+		},
+	};
 };

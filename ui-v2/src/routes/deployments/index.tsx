@@ -5,23 +5,27 @@ import type {
 	ColumnFiltersState,
 	PaginationState,
 } from "@tanstack/react-table";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
+import { buildCountDeploymentsQuery } from "@/api/deployments";
 import {
-	buildCountDeploymentsQuery,
-	buildPaginateDeploymentsQuery,
-	type DeploymentsPaginationFilter,
-} from "@/api/deployments";
+	prefetchPinnedFirstDeployments,
+	usePinnedFirstDeployments,
+} from "@/api/deployments/use-pinned-first-deployments";
 import { categorizeError } from "@/api/error-utils";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { DeploymentsDataTable } from "@/components/deployments/data-table";
 import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
 import { DeploymentsPageHeader } from "@/components/deployments/header";
+import {
+	getPinnedDeploymentIds,
+	usePinnedDeployments,
+} from "@/components/deployments/pinned-deployments";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { usePageSizePreference } from "@/hooks/use-page-size-preference";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -41,33 +45,31 @@ const searchParams = z.object({
 });
 
 /**
- * Builds pagination parameters for deployments query from search params
+ * Builds the page, sort, and filter options for the deployments list from search params
  *
  * @param search - Optional validated search parameters containing page and limit
- * @returns DeploymentsPaginationFilter with page, limit and sort order
  *
  * @example
  * ```ts
- * const filter = buildPaginationBody({ page: 2, limit: 25 })
- * // Returns { page: 2, limit: 25, sort: "NAME_ASC" }
+ * const options = buildListOptions({ page: 2, limit: 25 })
+ * // Returns { page: 2, limit: 25, sort: "NAME_ASC", deployments: { ... } }
  * ```
  */
-const buildPaginationBody = (
-	search?: z.infer<typeof searchParams>,
-): DeploymentsPaginationFilter => ({
+const buildListOptions = (search?: z.infer<typeof searchParams>) => ({
 	page: search?.page ?? 1,
 	limit: search?.limit ?? 10,
 	sort: search?.sort ?? "NAME_ASC",
 	deployments: {
-		operator: "and_",
+		operator: "and_" as const,
 		flow_or_deployment_name: { like_: search?.flowOrDeploymentName ?? "" },
-		tags: { operator: "and_", all_: search?.tags ?? [] },
+		tags: { operator: "and_" as const, all_: search?.tags ?? [] },
 	},
 });
 
 export const Route = createFileRoute("/deployments/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
+		usePageTitle("Deployments");
 		const search = Route.useSearch();
 		const navigate = Route.useNavigate();
 		const [pagination, onPaginationChange] = usePagination();
@@ -79,17 +81,20 @@ export const Route = createFileRoute("/deployments/")({
 			buildCountDeploymentsQuery(),
 		);
 
+		const { pinnedDeploymentIds } = usePinnedDeployments();
 		const {
-			data: deploymentsPage,
+			deployments,
+			count: filteredCount,
+			pages: pageCount,
 			isPending,
 			isPlaceholderData,
 			isError,
 			error: deploymentsPageError,
 			refetch: refetchDeploymentsPage,
-		} = useQuery(buildPaginateDeploymentsQuery(buildPaginationBody(search)));
-
-		const deployments = deploymentsPage?.results ?? [];
-		const filteredCount = deploymentsPage?.count ?? 0;
+		} = usePinnedFirstDeployments({
+			...buildListOptions(search),
+			pinnedDeploymentIds,
+		});
 
 		const onClearFilters = useCallback(() => {
 			void navigate({
@@ -160,7 +165,7 @@ export const Route = createFileRoute("/deployments/")({
 						filteredCount={filteredCount}
 						isPending={isPending}
 						isPlaceholderData={isPlaceholderData}
-						pageCount={deploymentsPage?.pages ?? 0}
+						pageCount={pageCount}
 						pagination={pagination}
 						sort={sort}
 						columnFilters={columnFilters}
@@ -195,22 +200,21 @@ export const Route = createFileRoute("/deployments/")({
 			</div>
 		);
 	},
-	loaderDeps: ({ search }) => buildPaginationBody(search),
+	loaderDeps: ({ search }) => buildListOptions(search),
 	loader: ({ deps, context }) => {
-		// Prefetch stable count and paginated deployments without blocking the loader.
-		// The paginated query uses keepPreviousData so the search/filter UI stays
-		// interactive and focused while results update.
+		// Prefetch without blocking the loader. The list queries use
+		// keepPreviousData so the search/filter UI stays interactive and focused
+		// while results update.
 		void context.queryClient.prefetchQuery(buildCountDeploymentsQuery());
-		void context.queryClient.prefetchQuery(buildPaginateDeploymentsQuery(deps));
 
 		// In the background, prefetch the flows for the deployments on this page
-		// once the paginated query is available.
+		// once the list is available.
 		void (async () => {
 			try {
-				const page = await context.queryClient.ensureQueryData(
-					buildPaginateDeploymentsQuery(deps),
+				const deployments = await prefetchPinnedFirstDeployments(
+					context.queryClient,
+					{ ...deps, pinnedDeploymentIds: getPinnedDeploymentIds() },
 				);
-				const deployments = page?.results ?? [];
 				const flowIds = [
 					...new Set(deployments.map((deployment) => deployment.flow_id)),
 				];

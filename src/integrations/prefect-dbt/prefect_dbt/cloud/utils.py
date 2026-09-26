@@ -1,7 +1,7 @@
 """Utilities for common interactions with the dbt Cloud API"""
 
 from json import JSONDecodeError
-from typing import Any, Dict, Optional
+from typing import Any
 
 from httpx import HTTPStatusError
 
@@ -9,7 +9,7 @@ from prefect import task
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 
 
-def extract_user_message(ex: HTTPStatusError) -> Optional[str]:
+def extract_user_message(ex: HTTPStatusError) -> str | None:
     """
     Extracts user message from a error response from the dbt Cloud administrative API.
 
@@ -25,7 +25,7 @@ def extract_user_message(ex: HTTPStatusError) -> Optional[str]:
     return status.get("user_message")
 
 
-def extract_developer_message(ex: HTTPStatusError) -> Optional[str]:
+def extract_developer_message(ex: HTTPStatusError) -> str | None:
     """
     Extracts developer message from a error response from the dbt Cloud
     administrative API.
@@ -56,8 +56,8 @@ async def call_dbt_cloud_administrative_api_endpoint(
     dbt_cloud_credentials: DbtCloudCredentials,
     path: str,
     http_method: str,
-    params: Optional[Dict[str, Any]] = None,
-    json: Optional[Dict[str, Any]] = None,
+    params: dict[str, Any] | None = None,
+    json: dict[str, Any] | None = None,
 ) -> Any:
     """
     Task that calls a specified endpoint in the dbt Cloud administrative API. Use this

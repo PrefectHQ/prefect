@@ -122,6 +122,12 @@ def _capture_sys_path() -> list[str]:
     return [str(path_entry) for path_entry in sys.path]
 
 
+def _capture_added_sys_path(baseline: list[str]) -> list[str]:
+    return [
+        path_entry for path_entry in _capture_sys_path() if path_entry not in baseline
+    ]
+
+
 def _get_configured_storage_base_path() -> Path | None:
     storage_base_path = os.environ.get("PREFECT__STORAGE_BASE_PATH")
     if not storage_base_path:
@@ -301,6 +307,7 @@ async def prepare_workspace(
     run_logger = flow_run_logger(flow_run)
 
     source_cwd = Path.cwd().resolve()
+    baseline_sys_path = _capture_sys_path()
     storage_base_path = _get_configured_storage_base_path()
     resolved_workspace_root = Path(workspace_root).expanduser().resolve()
     resolved_workspace_root.mkdir(parents=True, exist_ok=True)
@@ -389,7 +396,7 @@ async def prepare_workspace(
         project_root=project_root,
         runtime_entrypoint=_resolve_runtime_entrypoint(deployment.entrypoint),
         environment=_capture_environment(),
-        sys_path=_capture_sys_path(),
+        sys_path=_capture_added_sys_path(baseline_sys_path),
     )
 
 

@@ -486,15 +486,21 @@ class ResultStore(BaseModel):
         Returns:
             ResultRecord: The result record.
         """
-        if metadata.storage_block_id is None:
-            storage_block = None
-        else:
-            storage_block = await aresolve_result_storage(metadata.storage_block_id)
-        store = cls(result_storage=storage_block, serializer=metadata.serializer)
         if metadata.storage_key is None:
             raise ValueError(
                 "storage_key is required to hydrate a result record from metadata"
             )
+        if metadata.storage_block_id is not None:
+            storage_block = await aresolve_result_storage(metadata.storage_block_id)
+        elif Path(metadata.storage_key).is_absolute():
+            # Results written to an unsaved local filesystem record an absolute path
+            # as the storage key, which may live outside the default local storage.
+            storage_block = LocalFileSystem(
+                basepath=str(Path(metadata.storage_key).parent)
+            )
+        else:
+            storage_block = None
+        store = cls(result_storage=storage_block, serializer=metadata.serializer)
         result = await store.aread(metadata.storage_key)
         return result
 

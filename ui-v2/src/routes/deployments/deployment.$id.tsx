@@ -1,6 +1,5 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildListAutomationsRelatedQuery } from "@/api/automations/automations";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
@@ -83,7 +82,7 @@ const searchParams = z.object({
 export type DeploymentDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 
 export const Route = createFileRoute("/deployments/deployment/$id")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const { id } = Route.useParams();
 		return <DeploymentDetailsPage id={id} />;

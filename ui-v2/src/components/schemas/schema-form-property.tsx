@@ -1,5 +1,12 @@
 import type { ReferenceObject, SchemaObject } from "openapi-typescript";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { SchemaFormInput } from "./schema-form-input";
 import { SchemaFormPropertyDescription } from "./schema-form-property-description";
@@ -57,6 +64,7 @@ export function SchemaFormProperty({
 	const [initialized, setInitialized] = useState(false);
 	const [internalValue, setInternalValue] = useState(getInitialValue);
 	const [omitted, setOmitted] = useState(false);
+	const emittedValue = useRef<{ value: unknown } | null>(null);
 	const id = useId();
 
 	const shouldOmitRequiredArray = useCallback(
@@ -89,10 +97,12 @@ export function SchemaFormProperty({
 			setInternalValue(value);
 
 			if (shouldOmitRequiredArray(value)) {
+				emittedValue.current = { value: undefined };
 				onValueChange(undefined);
 				return;
 			}
 
+			emittedValue.current = { value };
 			onValueChange(value);
 		},
 		[onValueChange, shouldOmitRequiredArray],
@@ -129,7 +139,19 @@ export function SchemaFormProperty({
 		value,
 	]);
 
+	// The parent propagates values asynchronously, so it can echo back a value that
+	// is older than what the user has already typed. Only accept a value from the
+	// parent once it has caught up with the last value emitted from this property,
+	// otherwise in-flight edits get overwritten.
 	useEffect(() => {
+		if (emittedValue.current) {
+			if (Object.is(emittedValue.current.value, value)) {
+				emittedValue.current = null;
+			}
+
+			return;
+		}
+
 		if (isDefined(value)) {
 			setInternalValue(value);
 

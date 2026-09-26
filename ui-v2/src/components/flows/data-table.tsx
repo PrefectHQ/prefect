@@ -2,11 +2,7 @@ import type {
 	ColumnFiltersState,
 	OnChangeFn,
 	PaginationState,
-} from "@tanstack/react-table";
-import {
-	getCoreRowModel,
-	type RowSelectionState,
-	useReactTable,
+	RowSelectionState,
 } from "@tanstack/react-table";
 import type React from "react";
 import { useCallback, useState } from "react";
@@ -23,6 +19,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { TagsInput } from "@/components/ui/tags-input";
+import { useTable } from "@/lib/tanstack-table";
 import { pluralize } from "@/utils";
 import { columns } from "./columns";
 
@@ -96,10 +93,9 @@ export default function FlowsTable({
 		[pagination, onPaginationChange],
 	);
 
-	const table = useReactTable({
+	const table = useTable({
 		columns: columns,
 		data: flows,
-		getCoreRowModel: getCoreRowModel(),
 		manualPagination: true,
 		pageCount,
 		state: {

@@ -29,10 +29,11 @@
   "footer": {
     "socials": {
       "github": "https://github.com/PrefectHQ/prefect",
+      "youtube": "https://www.youtube.com/c/PrefectIO",
       "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
       "slack": "https://prefect.io/slack",
-      "twitter": "https://x.com/prefectio",
-      "youtube": "https://www.youtube.com/c/PrefectIO"
+      "x": "https://x.com/PrefectIO",
+      "bluesky": "https://bsky.app/profile/prefect.io"
     }
   },
   "integrations": {
@@ -40,7 +41,7 @@
       "measurementId": "G-8GR5P04T5Y"
     },
     "gtm": {
-      "tagId": "GTM-WKTHW8MK"
+      "tagId": "GTM-N633BZ8"
     }
   },
   "logo": {
@@ -225,7 +226,8 @@
               },
               "v3/how-to-guides/cloud/workspaces",
               "v3/how-to-guides/cloud/create-a-webhook",
-              "v3/how-to-guides/cloud/troubleshoot-cloud"
+              "v3/how-to-guides/cloud/troubleshoot-cloud",
+              "v3/how-to-guides/cloud/scope-of-support"
             ]
           },
           {
@@ -1833,6 +1835,7 @@
               "v3/release-notes/integrations/prefect-databricks",
               "v3/release-notes/integrations/prefect-dbt",
               "v3/release-notes/integrations/prefect-docker",
+              "v3/release-notes/integrations/prefect-email",
               "v3/release-notes/integrations/prefect-gcp",
               "v3/release-notes/integrations/prefect-github",
               "v3/release-notes/integrations/prefect-gitlab",

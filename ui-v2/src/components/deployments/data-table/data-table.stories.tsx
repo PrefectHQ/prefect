@@ -26,6 +26,40 @@ type StoryArgs = Omit<
 	"deployments" | "pageCount" | "pagination"
 > & { numberOfDeployments: number };
 
+function DefaultStory(args: StoryArgs) {
+	const { numberOfDeployments, ...rest } = args;
+	const [pageIndex, setPageIndex] = useState(0);
+	const [pageSize, setPageSize] = useState(10);
+
+	const deployments = useMemo(() => {
+		return Array.from(
+			{ length: numberOfDeployments },
+			createFakeDeploymentWithFlow,
+		);
+	}, [numberOfDeployments]);
+
+	return (
+		<DeploymentsDataTable
+			{...rest}
+			deployments={deployments.slice(
+				pageIndex * pageSize,
+				(pageIndex + 1) * pageSize,
+			)}
+			pagination={{
+				pageIndex,
+				pageSize,
+			}}
+			columnFilters={[]}
+			pageCount={Math.ceil(numberOfDeployments / pageSize)}
+			onPaginationChange={(pagination) => {
+				setPageIndex(pagination.pageIndex);
+				setPageSize(pagination.pageSize);
+				rest.onPaginationChange(pagination);
+			}}
+		/>
+	);
+}
+
 export const Default: StoryObj<StoryArgs> = {
 	name: "Randomized Data",
 	parameters: {
@@ -57,44 +91,7 @@ export const Default: StoryObj<StoryArgs> = {
 		numberOfDeployments: 10,
 		onPaginationChange: fn(),
 	},
-	render: (
-		args: Omit<
-			ComponentProps<typeof DeploymentsDataTable>,
-			"deployments" | "pageCount" | "pagination"
-		> & { numberOfDeployments: number },
-	) => {
-		const { numberOfDeployments, ...rest } = args;
-		const [pageIndex, setPageIndex] = useState(0);
-		const [pageSize, setPageSize] = useState(10);
-
-		const deployments = useMemo(() => {
-			return Array.from(
-				{ length: numberOfDeployments },
-				createFakeDeploymentWithFlow,
-			);
-		}, [numberOfDeployments]);
-
-		return (
-			<DeploymentsDataTable
-				{...rest}
-				deployments={deployments.slice(
-					pageIndex * pageSize,
-					(pageIndex + 1) * pageSize,
-				)}
-				pagination={{
-					pageIndex,
-					pageSize,
-				}}
-				columnFilters={[]}
-				pageCount={Math.ceil(numberOfDeployments / pageSize)}
-				onPaginationChange={(pagination) => {
-					setPageIndex(pagination.pageIndex);
-					setPageSize(pagination.pageSize);
-					rest.onPaginationChange(pagination);
-				}}
-			/>
-		);
-	},
+	render: DefaultStory,
 };
 
 export const Empty: StoryObj = {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useFormContext, useWatch } from "react-hook-form";
+import { useFormContext } from "react-hook-form";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import { useListDeploymentsWithFlows } from "@/api/deployments/use-list-deployments-with-flows";
 import {
@@ -56,10 +56,6 @@ export const SelectDeploymentsFields = ({
 }: SelectDeploymentsFieldsProps) => {
 	const [search, setSearch] = useState("");
 	const form = useFormContext<AutomationWizardSchema>();
-	const actionType = form.watch(`actions.${index}.type`);
-	const deploymentId = useWatch<AutomationWizardSchema>({
-		name: `actions.${index}.deployment_id`,
-	});
 
 	const debouncedSearch = useDebounce(search, 500);
 	const { data } = useListDeploymentsWithFlows({
@@ -100,7 +96,7 @@ export const SelectDeploymentsFields = ({
 									<ComboboxCommandInput
 										value={search}
 										onValueChange={setSearch}
-										placeholder="Search for an deployment..."
+										placeholder="Search for a deployment..."
 									/>
 									<ComboboxCommandEmtpy>
 										No deployment found
@@ -140,8 +136,6 @@ export const SelectDeploymentsFields = ({
 					);
 				}}
 			/>
-			{deploymentId !== INFER_OPTION.value &&
-				actionType === "run-deployment" && <div>TODO: Additional fields</div>}
 		</>
 	);
 };

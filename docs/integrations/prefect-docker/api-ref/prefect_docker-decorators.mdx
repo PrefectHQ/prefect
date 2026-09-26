@@ -7,7 +7,7 @@ sidebarTitle: decorators
 
 ## Functions
 
-### `docker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/decorators.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `docker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/decorators.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 docker(work_pool: str, include_files: Sequence[str] | None = None, launcher: BundleLauncher | None = None, **job_variables: Any) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]
@@ -23,5 +23,8 @@ Patterns are relative to the flow file location. Supports glob patterns
 (e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
 be bundled and available in the remote execution environment.
 - `launcher`: Optional upload and execution launcher override.
+- `include_files_base_dir`: Optional base directory used to resolve
+`include_files`. Relative paths are resolved from the working directory
+when the bundle is created. Defaults to the flow file's directory.
 - `**job_variables`: Additional job variables to use for infrastructure configuration
 

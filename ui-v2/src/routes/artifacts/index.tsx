@@ -1,7 +1,6 @@
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import {
@@ -15,6 +14,7 @@ import type { filterType } from "@/components/artifacts/types";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Schema for validating URL search parameters for the artifacts page.
@@ -63,8 +63,9 @@ const buildFilterBody = (
 });
 
 export const Route = createFileRoute("/artifacts/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
+		usePageTitle("Artifacts");
 		const search = Route.useSearch();
 		const { filters, onFilterChange } = useFilter();
 

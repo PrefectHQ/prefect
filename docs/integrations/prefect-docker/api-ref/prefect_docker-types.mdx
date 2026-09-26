@@ -7,7 +7,18 @@ sidebarTitle: types
 
 ## Functions
 
-### `assert_volume_str` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/types.py#L7" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `is_relative_bind_source` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/types.py#L9" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_relative_bind_source(source: str) -> bool
+```
+
+
+Return whether a volume host source is an explicit relative path
+(`.`, `..`, or a path starting with `./`, `../`, `.\`, or `..\`).
+
+
+### `assert_volume_str` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/types.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 assert_volume_str(volume: str) -> str

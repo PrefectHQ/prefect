@@ -1,3 +1,5 @@
+import type { Locator } from "@playwright/test";
+
 import {
 	cleanupDeployments,
 	cleanupFlowRuns,
@@ -69,7 +71,13 @@ test.describe("Deployment Detail Page", () => {
 		await expect(page.getByRole("tab", { name: "Upcoming" })).toBeVisible();
 		await expect(page.getByRole("tab", { name: "Parameters" })).toBeVisible();
 
-		await expect(page.getByText("e2e-detail-tag")).toBeVisible();
+		// The details content renders twice: in the sidebar (`complementary`) and in
+		// the Details tab panel, which is mounted until the tab redirects to "Runs"
+		// on desktop viewports. Scope to the sidebar to avoid a strict mode
+		// violation while both copies are in the DOM.
+		await expect(
+			page.getByRole("complementary").getByText("e2e-detail-tag"),
+		).toBeVisible();
 	});
 
 	test("View flow runs in runs tab", async ({ page, apiClient }) => {
@@ -91,9 +99,79 @@ test.describe("Deployment Detail Page", () => {
 
 		await page.goto(`/deployments/deployment/${deployment.id}`);
 
-		await expect(page.getByText(depName)).toBeVisible({ timeout: 10000 });
+		// Scope to the breadcrumb: the deployment name also appears in the
+		// flow run card's deployment link once the runs tab loads
+		await expect(
+			page.getByLabel("breadcrumb").getByText(depName, { exact: true }),
+		).toBeVisible({ timeout: 10000 });
 
 		await expect(page.getByText(runName)).toBeVisible({ timeout: 10000 });
+	});
+
+	test("Runs tab toolbar and run cards fit within the run-list column at 1280x720", async ({
+		page,
+		apiClient,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 720 });
+
+		const timestamp = Date.now();
+		const flowName = `${TEST_PREFIX}layout-flow-${timestamp}`;
+		const depName = `${TEST_PREFIX}layout-dep-${timestamp}`;
+		const runName = `${TEST_PREFIX}layout-run-${timestamp}`;
+		const flow = await createFlow(apiClient, flowName);
+		const deployment = await createDeployment(apiClient, {
+			name: depName,
+			flowId: flow.id,
+		});
+		await createFlowRun(apiClient, {
+			flowId: flow.id,
+			name: runName,
+			deploymentId: deployment.id,
+			state: { type: "COMPLETED", name: "Completed" },
+		});
+
+		await page.goto(`/deployments/deployment/${deployment.id}`);
+		await expect(page.getByText(runName)).toBeVisible({ timeout: 10000 });
+
+		await expect
+			.poll(
+				() =>
+					page.evaluate(
+						() => document.documentElement.scrollWidth <= window.innerWidth,
+					),
+				{ timeout: 5000 },
+			)
+			.toBe(true);
+
+		const rightEdgeIsLeftOfSidebar = async (locator: Locator) => {
+			const [box, sidebarBox] = await Promise.all([
+				locator.boundingBox(),
+				page.getByRole("complementary").boundingBox(),
+			]);
+			if (!box || !sidebarBox) return false;
+			return box.x + box.width <= sidebarBox.x;
+		};
+		const searchInput = page.getByRole("textbox", {
+			name: /search by run name/i,
+		});
+		const sortSelect = page.getByRole("combobox", {
+			name: /flow run sort order/i,
+		});
+		await expect
+			.poll(() => rightEdgeIsLeftOfSidebar(searchInput), { timeout: 5000 })
+			.toBe(true);
+		await expect
+			.poll(() => rightEdgeIsLeftOfSidebar(sortSelect), { timeout: 5000 })
+			.toBe(true);
+
+		await expect
+			.poll(
+				async () =>
+					(await page.getByText(/\d+ Parameters?/).boundingBox())?.height ??
+					Number.POSITIVE_INFINITY,
+				{ timeout: 5000 },
+			)
+			.toBeLessThan(32);
 	});
 
 	test("Quick run from deployment detail", async ({ page, apiClient }) => {
@@ -253,10 +331,17 @@ test.describe("Deployment Detail Page", () => {
 
 		await page.goto(`/deployments/deployment/${deployment.id}`);
 
-		await expect(page.getByText(depName)).toBeVisible({ timeout: 10000 });
+		await expect(
+			page.getByLabel("breadcrumb").getByText(depName, { exact: true }),
+		).toBeVisible({ timeout: 10000 });
 
-		await expect(page.getByText("Schedules")).toBeVisible();
-		await expect(page.getByText("Every 5 minutes")).toBeVisible({
+		// The schedule content renders twice: in the sidebar (`complementary`) and
+		// in the Details tab panel, which is mounted until the tab redirects to
+		// "Runs" on desktop viewports. Scope to the sidebar to avoid a strict mode
+		// violation while both copies are in the DOM.
+		const sidebar = page.getByRole("complementary");
+		await expect(sidebar.getByText("Schedules")).toBeVisible();
+		await expect(sidebar.getByText("Every 5 minutes")).toBeVisible({
 			timeout: 10000,
 		});
 	});

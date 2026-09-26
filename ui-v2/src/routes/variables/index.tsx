@@ -5,7 +5,6 @@ import type {
 	ColumnFiltersState,
 	PaginationState,
 } from "@tanstack/react-table";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -35,6 +34,7 @@ import {
 	VariableDialog,
 } from "@/components/variables/variable-dialog";
 import { usePageSizePreference } from "@/hooks/use-page-size-preference";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -96,8 +96,9 @@ const VariablesFilteredEmptyState = ({
 );
 
 export const Route = createFileRoute("/variables/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
+		usePageTitle("Variables");
 		const search = Route.useSearch();
 		const navigate = Route.useNavigate();
 		const [pagination, onPaginationChange] = usePagination();

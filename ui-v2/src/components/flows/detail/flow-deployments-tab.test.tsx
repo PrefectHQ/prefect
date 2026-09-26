@@ -65,4 +65,59 @@ describe("FlowDeploymentsTab", () => {
 			).toHaveAttribute("href", `/deployments/deployment/${deployment.id}`);
 		});
 	});
+
+	it("shows NOT_READY status even when paused is true", async () => {
+		const pausedDeployment = createFakeDeployment({
+			paused: true,
+			status: "NOT_READY",
+			schedules: [],
+		});
+
+		const rootRoute = createRootRoute({
+			component: () => (
+				<FlowDeploymentsTab
+					{...defaultProps}
+					deployments={[pausedDeployment]}
+				/>
+			),
+		});
+
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({ initialEntries: ["/"] }),
+			context: { queryClient: new QueryClient() },
+		});
+
+		render(<RouterProvider router={router} />, { wrapper: createWrapper() });
+
+		await waitFor(() => {
+			expect(screen.getByText("Not Ready")).toBeInTheDocument();
+			expect(screen.queryByText("Paused")).not.toBeInTheDocument();
+		});
+	});
+
+	it("shows None when status is missing", async () => {
+		const noStatusDeployment = createFakeDeployment({ status: undefined });
+
+		const rootRoute = createRootRoute({
+			component: () => (
+				<FlowDeploymentsTab
+					{...defaultProps}
+					deployments={[noStatusDeployment]}
+				/>
+			),
+		});
+
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({ initialEntries: ["/"] }),
+			context: { queryClient: new QueryClient() },
+		});
+
+		render(<RouterProvider router={router} />, { wrapper: createWrapper() });
+
+		await waitFor(() => {
+			expect(screen.getByText("None")).toBeInTheDocument();
+		});
+	});
 });

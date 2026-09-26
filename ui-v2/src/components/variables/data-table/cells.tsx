@@ -1,4 +1,3 @@
-import type { CellContext } from "@tanstack/react-table";
 import { useRef } from "react";
 import { toast } from "sonner";
 import type { components } from "@/api/prefect";
@@ -18,6 +17,7 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
+import type { CellContext } from "@/lib/tanstack-table";
 
 type ActionsCellProps = CellContext<
 	components["schemas"]["Variable"],
@@ -92,13 +92,16 @@ export const ActionsCell = ({
 };
 
 export const ValueCell = (
-	props: CellContext<components["schemas"]["Variable"], unknown>,
+	props: CellContext<
+		components["schemas"]["Variable"],
+		NonNullable<components["schemas"]["Variable"]["value"]>
+	>,
 ) => {
 	const value = props.getValue();
 	const codeRef = useRef<HTMLDivElement>(null);
 	const isOverflowing = useIsOverflowing(codeRef);
 
-	if (!value) return null;
+	if (value === undefined) return null;
 	return (
 		// Disable the hover card if the value is not overflowing
 		<HoverCard open={isOverflowing ? undefined : false}>

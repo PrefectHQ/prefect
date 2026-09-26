@@ -37,7 +37,7 @@ jobs:
           filter: blob:none
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.12"
           enable-cache: true
@@ -55,10 +55,11 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v3
+        uses: CodSpeedHQ/action@v5
         env:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
+          mode: simulation
           # Import benchmarks run in separate pytest invocations so each one
           # starts in a fresh Python interpreter.  Each benchmark uses
           # benchmark.pedantic(setup=_reset_to_cold_state) so that the

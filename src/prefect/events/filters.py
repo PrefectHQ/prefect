@@ -14,6 +14,14 @@ from prefect.utilities.collections import AutoEnum
 from .schemas.events import Event, Resource, ResourceSpecification
 
 
+class AutomationFilterId(PrefectBaseModel):
+    """Filter by `Automation.id`."""
+
+    any_: Optional[list[UUID]] = Field(
+        default=None, description="A list of automation ids to include"
+    )
+
+
 class AutomationFilterCreated(PrefectBaseModel):
     """Filter by `Automation.created`."""
 
@@ -52,6 +60,9 @@ class AutomationFilterTags(PrefectBaseModel):
 
 
 class AutomationFilter(PrefectBaseModel):
+    id: Optional[AutomationFilterId] = Field(
+        default=None, description="Filter criteria for `Automation.id`"
+    )
     name: Optional[AutomationFilterName] = Field(
         default=None, description="Filter criteria for `Automation.name`"
     )

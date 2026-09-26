@@ -7,10 +7,10 @@ import os
 import queue
 import threading
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable
 
 import click
-from dbt.cli.main import cli, dbtRunner
+from dbt.cli.main import cli, dbtRunner, dbtRunnerResult
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
@@ -52,6 +52,7 @@ except ImportError:
 from google.protobuf.json_format import MessageToDict
 
 from prefect import get_client, get_run_logger
+from prefect._internal.concurrency.cancellation import shield
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset, AssetProperties
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
@@ -59,8 +60,10 @@ from prefect.cache_policies import NO_CACHE
 from prefect.client.orchestration import PrefectClient
 from prefect.context import AssetContext, hydrated_context, serialize_context
 from prefect.exceptions import MissingContextError
+from prefect.logging import get_logger
 from prefect.tasks import MaterializingTask, Task, TaskOptions
 from prefect_dbt.core._hooks import DbtHookContext, DbtHookMixin
+from prefect_dbt.core._invoke import invoke_dbt
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import format_asset_name, format_resource_id, kwargs_to_args
@@ -97,11 +100,11 @@ SETTINGS_CONFIG = [
     ("log_level", "--log-level", EventLevel),
 ]
 FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
+NODE_TASK_SHUTDOWN_TIMEOUT = 10.0
+_CALLBACK_SHUTDOWN_WARNING_INTERVAL = 30.0
 
 
-def execute_dbt_node(
-    task_state: NodeTaskTracker, node_id: str, asset_id: Union[str, None]
-):
+def execute_dbt_node(task_state: NodeTaskTracker, node_id: str, asset_id: str | None):
     """Execute a dbt node and wait for its completion.
 
     This function will:
@@ -123,6 +126,10 @@ def execute_dbt_node(
 
         if node_status in FAILURE_STATUSES:
             raise Exception(f"Node {node_id} finished with status {node_status}")
+        if node_status in SKIPPED_STATUSES:
+            raise Exception(
+                f"Node {node_id} was skipped, likely due to an upstream failure"
+            )
 
 
 class PrefectDbtRunner(DbtHookMixin):
@@ -147,17 +154,17 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def __init__(
         self,
-        manifest: Optional[Manifest] = None,
-        settings: Optional[PrefectDbtSettings] = None,
+        manifest: Manifest | None = None,
+        settings: PrefectDbtSettings | None = None,
         raise_on_failure: bool = True,
-        client: Optional[PrefectClient] = None,
+        client: PrefectClient | None = None,
         include_compiled_code: bool = False,
         disable_assets: bool = False,
         _force_nodes_as_tasks: bool = False,
         _disable_callbacks: bool = False,
     ):
         self._initialize_dbt_hooks()
-        self._manifest: Optional[Manifest] = manifest
+        self._manifest: Manifest | None = manifest
         self.settings = settings or PrefectDbtSettings()
         self.raise_on_failure = raise_on_failure
         self.client = client or get_client()
@@ -165,19 +172,19 @@ class PrefectDbtRunner(DbtHookMixin):
         self.disable_assets = disable_assets
         self._force_nodes_as_tasks = _force_nodes_as_tasks
         self._disable_callbacks = _disable_callbacks
-        self._project_name: Optional[str] = None
-        self._target_path: Optional[Path | str] = None
-        self._profiles_dir: Optional[Path | str] = None
-        self._project_dir: Optional[Path | str] = None
-        self._log_level: Optional[EventLevel] = None
-        self._config: Optional[RuntimeConfig] = None
-        self._graph: Optional[Graph] = None
+        self._project_name: str | None = None
+        self._target_path: Path | str | None = None
+        self._profiles_dir: Path | str | None = None
+        self._project_dir: Path | str | None = None
+        self._log_level: EventLevel | None = None
+        self._config: RuntimeConfig | None = None
+        self._graph: Graph | None = None
         self._skipped_nodes: set[str] = set()
         self._started_nodes: set[str] = set()
 
-        self._event_queue: Optional[queue.PriorityQueue] = None
-        self._callback_thread: Optional[threading.Thread] = None
-        self._shutdown_event: Optional[threading.Event] = None
+        self._event_queue: queue.PriorityQueue | None = None
+        self._callback_thread: threading.Thread | None = None
+        self._shutdown_event: threading.Event | None = None
         self._queue_counter = 0  # Counter for tiebreaking in PriorityQueue
         self._queue_counter_lock = threading.Lock()  # Thread-safe counter increment
         self._raw_setting_values: dict[str, str] = {}
@@ -225,7 +232,7 @@ class PrefectDbtRunner(DbtHookMixin):
             assert self._project_name is not None
         return self._project_name
 
-    def _set_project_name_from_manifest(self) -> Optional[str]:
+    def _set_project_name_from_manifest(self) -> str | None:
         self._project_name = self.manifest.metadata.project_name
 
     def _set_graph_from_manifest(self, add_test_edges: bool = False):
@@ -248,7 +255,7 @@ class PrefectDbtRunner(DbtHookMixin):
             )
 
     def _get_node_prefect_config(
-        self, manifest_node: Union[ManifestNode, SourceDefinition]
+        self, manifest_node: ManifestNode | SourceDefinition
     ) -> dict[str, dict[str, Any]]:
         if isinstance(manifest_node, SourceDefinition):
             return manifest_node.meta.get("prefect", {})
@@ -318,9 +325,7 @@ class PrefectDbtRunner(DbtHookMixin):
             / manifest_node.original_file_path
         )
 
-    def _get_compiled_code(
-        self, manifest_node: Union[ManifestNode, SourceDefinition]
-    ) -> str:
+    def _get_compiled_code(self, manifest_node: ManifestNode | SourceDefinition) -> str:
         """Get compiled code for a manifest node if it exists and is enabled."""
         if not self.include_compiled_code or isinstance(
             manifest_node, SourceDefinition
@@ -352,7 +357,7 @@ class PrefectDbtRunner(DbtHookMixin):
         return ""
 
     def _create_asset_from_node(
-        self, manifest_node: Union[ManifestNode, SourceDefinition], adapter_type: str
+        self, manifest_node: ManifestNode | SourceDefinition, adapter_type: str
     ) -> Asset:
         """Create an Asset from a manifest node."""
         if not manifest_node.relation_name:
@@ -608,7 +613,7 @@ class PrefectDbtRunner(DbtHookMixin):
             self._callback_thread.start()
 
     def _stop_callback_processor(self) -> None:
-        """Stop the background thread and wait for queue to drain."""
+        """Discard pending callbacks and wait for the active callback to finish."""
         if self._shutdown_event:
             self._shutdown_event.set()
         if self._event_queue:
@@ -623,7 +628,18 @@ class PrefectDbtRunner(DbtHookMixin):
             except queue.Full:
                 pass
         if self._callback_thread and self._callback_thread.is_alive():
-            self._callback_thread.join(timeout=5.0)
+            # A callback can still own runner state (including node tasks and
+            # hooks). Do not reset it or let a retry start until it exits.
+            # Shield join from Prefect cancellation, which can otherwise mark
+            # a live thread as stopped on CPython.
+            with shield():
+                while self._callback_thread.is_alive():
+                    self._callback_thread.join(_CALLBACK_SHUTDOWN_WARNING_INTERVAL)
+                    if self._callback_thread.is_alive():
+                        get_logger(__name__).warning(
+                            "Still waiting for the active dbt callback to finish; "
+                            "cancellation cannot complete until the callback returns"
+                        )
 
         # Reset state so next invoke() can create a fresh callback processor
         self._event_queue = None
@@ -683,7 +699,7 @@ class PrefectDbtRunner(DbtHookMixin):
         self,
         callback_func: Callable[[EventMsg], None],
         event: EventMsg,
-        priority: Optional[int] = None,
+        priority: int | None = None,
     ) -> None:
         """Helper method to queue a callback for background processing.
 
@@ -754,14 +770,30 @@ class PrefectDbtRunner(DbtHookMixin):
 
                 # Skip logging for skipped nodes
                 if node_id not in self._skipped_nodes:
-                    flow_run_context: Optional[dict[str, Any]] = context.get(
-                        "flow_run_context"
-                    )
-                    logger = task_state.get_task_logger(
-                        node_id,
-                        flow_run_context.get("flow_run") if flow_run_context else None,
-                        flow_run_context.get("flow") if flow_run_context else None,
-                    )
+                    task_run_id = task_state.get_task_run_id(node_id)
+                    if task_run_id is not None:
+                        # Node has an associated Prefect task — log into that task.
+                        flow_run_context: dict[str, Any] | None = context.get(
+                            "flow_run_context"
+                        )
+                        logger = task_state.get_task_logger(
+                            node_id,
+                            flow_run_context.get("flow_run")
+                            if flow_run_context
+                            else None,
+                            flow_run_context.get("flow") if flow_run_context else None,
+                        )
+                    else:
+                        # No Prefect task was created for this node (e.g. source
+                        # nodes during `dbt source freshness`). Fall back to the
+                        # caller's run context so logs appear in the enclosing
+                        # task or flow run rather than being lost with
+                        # task_run_id=None.
+                        try:
+                            with hydrated_context(context) as run_context:
+                                logger = get_run_logger(run_context)
+                        except MissingContextError:
+                            logger = None
                 else:
                     logger = None
             else:
@@ -830,8 +862,8 @@ class PrefectDbtRunner(DbtHookMixin):
                 task_state.set_node_status(node_id, event_data, event_message)
                 self._run_post_model_hooks(node_id, event_data, event_message)
 
-                node_info: Optional[dict[str, Any]] = event_data.get("node_info")
-                node_status: Optional[str] = (
+                node_info: dict[str, Any] | None = event_data.get("node_info")
+                node_status: str | None = (
                     node_info.get("node_status") if node_info else None
                 )
 
@@ -955,14 +987,30 @@ class PrefectDbtRunner(DbtHookMixin):
 
                 # Skip logging for skipped nodes
                 if node_id not in self._skipped_nodes:
-                    flow_run_context: Optional[dict[str, Any]] = context.get(
-                        "flow_run_context"
-                    )
-                    logger = task_state.get_task_logger(
-                        node_id,
-                        flow_run_context.get("flow_run") if flow_run_context else None,
-                        flow_run_context.get("flow") if flow_run_context else None,
-                    )
+                    task_run_id = task_state.get_task_run_id(node_id)
+                    if task_run_id is not None:
+                        # Node has an associated Prefect task — log into that task.
+                        flow_run_context: dict[str, Any] | None = context.get(
+                            "flow_run_context"
+                        )
+                        logger = task_state.get_task_logger(
+                            node_id,
+                            flow_run_context.get("flow_run")
+                            if flow_run_context
+                            else None,
+                            flow_run_context.get("flow") if flow_run_context else None,
+                        )
+                    else:
+                        # No Prefect task was created for this node (e.g. source
+                        # nodes during `dbt source freshness`). Fall back to the
+                        # caller's run context so logs appear in the enclosing
+                        # task or flow run rather than being lost with
+                        # task_run_id=None.
+                        try:
+                            with hydrated_context(context) as run_context:
+                                logger = get_run_logger(run_context)
+                        except MissingContextError:
+                            logger = None
                 else:
                     logger = None
             else:
@@ -1075,8 +1123,8 @@ class PrefectDbtRunner(DbtHookMixin):
                     task_state.set_node_status(node_id, event_data, event_message)
                     self._run_post_model_hooks(node_id, event_data, event_message)
 
-                    node_info: Optional[dict[str, Any]] = event_data.get("node_info")
-                    node_status: Optional[str] = (
+                    node_info: dict[str, Any] | None = event_data.get("node_info")
+                    node_status: str | None = (
                         node_info.get("node_status") if node_info else None
                     )
 
@@ -1107,7 +1155,7 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def _extract_flag_value(
         self, args: list[str], flag: str
-    ) -> tuple[list[str], Union[str, None]]:
+    ) -> tuple[list[str], str | None]:
         """
         Extract a flag value from args and return the modified args and the value.
 
@@ -1131,7 +1179,7 @@ class PrefectDbtRunner(DbtHookMixin):
         self,
         setting_name: str,
         kwargs: dict[str, Any],
-        path_converter: Optional[Callable[[Any], Any]] = None,
+        path_converter: Callable[[Any], Any] | None = None,
     ):
         """Update a setting from kwargs if present."""
         if setting_name in kwargs:
@@ -1148,7 +1196,7 @@ class PrefectDbtRunner(DbtHookMixin):
         args: list[str],
         flag: str,
         setting_name: str,
-        path_converter: Optional[Callable[[str], Any]] = None,
+        path_converter: Callable[[str], Any] | None = None,
     ) -> list[str]:
         """Update a setting from CLI flag if present."""
         args_copy, value = self._extract_flag_value(args, flag)
@@ -1175,6 +1223,10 @@ class PrefectDbtRunner(DbtHookMixin):
         Invokes a dbt command.
 
         Supports the same arguments as `dbtRunner.invoke()`. https://docs.getdbt.com/reference/programmatic-invocations
+
+        Cancellation waits for dbt and any active callback (including user hooks)
+        to finish before returning. A callback that blocks indefinitely also
+        delays cancellation indefinitely; warnings are logged every 30 seconds.
 
         Args:
             args: List of command line arguments
@@ -1289,35 +1341,23 @@ class PrefectDbtRunner(DbtHookMixin):
 
         # Add any additional kwargs passed by the user
         invoke_kwargs.update(kwargs)
-        res = None
-        artifacts: dict[str, dict[str, Any]] = {}
-        with self.settings.resolve_profiles_yml() as profiles_dir:
-            invoke_kwargs["profiles_dir"] = profiles_dir
-            if self._has_dbt_hooks():
-                self._active_hook_command = command_label
-                self._active_hook_args = tuple(args_copy)
-                self._active_hook_selection_cache = (
-                    self._build_dbt_hook_selection_cache(
-                        project_dir=self.project_dir,
-                        profiles_dir=Path(profiles_dir),
-                        target_path=self.target_path,
-                        target=invoke_kwargs.get("target"),
-                    )
-                )
-                self._run_dbt_hooks(
-                    "run_start",
-                    DbtHookContext(
-                        event="run_start",
-                        command=command_label,
-                        owner=self,
-                        args=tuple(args_copy),
-                    ),
-                    selection_cache=self._active_hook_selection_cache,
-                )
-            res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
-                kwargs_to_args(invoke_kwargs, args_copy)
+        try:
+            res, artifacts = self._invoke_with_hooks(
+                invoke_kwargs, args_copy, command_label, callbacks
             )
-            artifacts = self._extract_run_artifacts(res)
+        except BaseException:
+            # Prefect timeout/cancellation (or KeyboardInterrupt) while dbt was
+            # running: dbt has already been shut down by `invoke_dbt`; drop the
+            # callback queue without draining so a retry starts from a clean
+            # state. Node tasks already started keep waiting for a
+            # `NodeFinished` event that will never come, so fail them.
+            self._stop_callback_processor()
+            task_state.fail_incomplete_nodes(
+                f"dbt command '{' '.join(args_copy)}' was cancelled"
+            )
+            task_state.join_task_threads(timeout=NODE_TASK_SHUTDOWN_TIMEOUT)
+            self._reset_active_hook_state()
+            raise
 
         # Wait for callback queue to drain after dbt execution completes
         # Since dbt execution is complete, no new events will be added.
@@ -1343,9 +1383,7 @@ class PrefectDbtRunner(DbtHookMixin):
                 ),
                 selection_cache=self._active_hook_selection_cache,
             )
-            self._active_hook_command = ""
-            self._active_hook_args = ()
-            self._active_hook_selection_cache = {}
+            self._reset_active_hook_state()
 
         if not res.success and res.exception:
             raise ValueError(
@@ -1369,3 +1407,44 @@ class PrefectDbtRunner(DbtHookMixin):
                 f"Failures detected during invocation of dbt command '{' '.join(args_copy)}':\n{os.linesep.join(failure_results)}"
             )
         return res
+
+    def _reset_active_hook_state(self) -> None:
+        self._active_hook_command = ""
+        self._active_hook_args = ()
+        self._active_hook_selection_cache = {}
+
+    def _invoke_with_hooks(
+        self,
+        invoke_kwargs: dict[str, Any],
+        args_copy: list[str],
+        command_label: str,
+        callbacks: list[Callable[[EventMsg], None]],
+    ) -> tuple[dbtRunnerResult, dict[str, dict[str, Any]]]:
+        with self.settings.resolve_profiles_yml() as profiles_dir:
+            invoke_kwargs["profiles_dir"] = profiles_dir
+            if self._has_dbt_hooks():
+                self._active_hook_command = command_label
+                self._active_hook_args = tuple(args_copy)
+                self._active_hook_selection_cache = (
+                    self._build_dbt_hook_selection_cache(
+                        project_dir=self.project_dir,
+                        profiles_dir=Path(profiles_dir),
+                        target_path=self.target_path,
+                        target=invoke_kwargs.get("target"),
+                    )
+                )
+                self._run_dbt_hooks(
+                    "run_start",
+                    DbtHookContext(
+                        event="run_start",
+                        command=command_label,
+                        owner=self,
+                        args=tuple(args_copy),
+                    ),
+                    selection_cache=self._active_hook_selection_cache,
+                )
+            res = invoke_dbt(
+                dbtRunner(callbacks=callbacks),  # type: ignore[reportUnknownMemberType]
+                kwargs_to_args(invoke_kwargs, args_copy),
+            )
+            return res, self._extract_run_artifacts(res)

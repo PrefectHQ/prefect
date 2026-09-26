@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Callable, Protocol
+from dataclasses import dataclass
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 import anyio
 import anyio.abc
 
+from prefect._internal.attempt_control import AttemptConclusion
 from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect.client.orchestration import PrefectClient, get_client
@@ -14,7 +18,7 @@ from prefect.logging import get_logger
 from prefect.runner._cancellation_manager import CancellationManager
 from prefect.runner._control_channel import ControlChannel
 from prefect.runner._event_emitter import EventEmitter
-from prefect.runner._hook_runner import HookRunner
+from prefect.runner._hook_runner import FlowRunHookRunner, HookRunner
 from prefect.runner._process_manager import ProcessHandle, ProcessManager
 from prefect.runner._state_proposer import StateProposer
 from prefect.settings.context import get_current_settings
@@ -45,6 +49,14 @@ class ProcessStarter(Protocol):
     ) -> None: ...
 
 
+@dataclass(frozen=True)
+class FlowRunExecutionResult:
+    """Process handle plus the infrastructure status for a completed attempt."""
+
+    handle: ProcessHandle
+    status_code: int | None
+
+
 class FlowRunExecutor:
     """Owns full lifecycle for a single flow run execution.
 
@@ -61,9 +73,9 @@ class FlowRunExecutor:
     3. start process via starter — `task_status.started(handle)` signals caller early
     4. add handle to `process_manager`
     5. block until process exits (starter.start blocks after signaling started)
-    6. remove handle from `process_manager` (in finally)
-    7. interpret exit code -> propose terminal state (crashed) if non-zero
-    8. run crashed hooks if exit was non-zero
+    6. snapshot terminal attempt evidence, then remove the process registration
+    7. treat an engine receipt as handled; otherwise interpret a non-zero exit
+    8. run crashed hooks only when the runner proposes Crashed
 
     ASYNCEXITSTACK 6-STEP DEPENDENCY ORDER (for Phase 5 `Runner.__aenter__`):
     Entry order (LIFO teardown is exact reverse):
@@ -82,7 +94,8 @@ class FlowRunExecutor:
         starter: ProcessStarter,
         process_manager: ProcessManager,
         state_proposer: StateProposer,
-        hook_runner: HookRunner,
+        hook_runner: FlowRunHookRunner,
+        get_attempt_conclusion: Callable[[UUID], AttemptConclusion | None],
         propose_submitting: bool = True,
     ) -> None:
         self._flow_run = flow_run
@@ -91,13 +104,14 @@ class FlowRunExecutor:
         self._state_proposer = state_proposer
         self._hook_runner = hook_runner
         self._propose_submitting = propose_submitting
+        self._get_attempt_conclusion = get_attempt_conclusion
         self._logger = get_logger("runner.flow_run_executor")
 
     async def submit(
         self,
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
-    ) -> None:
-        """Execute the full run lifecycle. Returns None.
+    ) -> FlowRunExecutionResult | None:
+        """Execute the full run lifecycle and return its infrastructure result.
 
         Designed to be called via `runs_task_group.start(executor.submit)` so
         the caller receives the `ProcessHandle` before the process exits.
@@ -109,6 +123,7 @@ class FlowRunExecutor:
         exits.
         """
         handle: ProcessHandle | None = None
+        attempt_conclusion: AttemptConclusion | None = None
         try:
             # Step 1a: already-cancelling precheck (runs regardless of propose_submitting)
             if self._flow_run.state and self._flow_run.state.is_cancelling():
@@ -161,12 +176,18 @@ class FlowRunExecutor:
             )
             return
         finally:
-            # Step 6: remove handle from process_manager
+            # Step 6: snapshot terminal evidence before process cleanup unregisters
+            # the attempt control session, then remove the process handle.
             if handle is not None:
+                attempt_conclusion = self._get_attempt_conclusion(self._flow_run.id)
                 await self._process_manager.remove(self._flow_run.id)
 
-        # Step 7: interpret exit code and propose terminal state
-        exit_code = handle.returncode if handle else None
+        # Step 7: terminal evidence proves the attempt was handled regardless of
+        # process status. Without it, preserve the exit-code fallback.
+        assert handle is not None
+        exit_code = handle.returncode
+        if attempt_conclusion is not None:
+            return FlowRunExecutionResult(handle=handle, status_code=0)
         if exit_code is not None and exit_code != 0:
             info = get_infrastructure_exit_info(exit_code)
             msg = f"Process exited with status code: {exit_code}. {info.explanation}"
@@ -184,6 +205,8 @@ class FlowRunExecutor:
             # Step 8: run crashed hooks
             if crashed_state is not None:
                 await self._hook_runner.run_crashed_hooks(self._flow_run, crashed_state)
+
+        return FlowRunExecutionResult(handle=handle, status_code=exit_code)
 
     async def _start_process(
         self,
@@ -210,6 +233,10 @@ class FlowRunExecutor:
         async with anyio.create_task_group() as inner_tg:
             # inner_tg.start() returns when starter calls task_status.started(handle)
             captured_handle = await inner_tg.start(_run_starter)
+            assert captured_handle is not None, (
+                "Starter did not call task_status.started() -- violates"
+                " ProcessStarter contract"
+            )
 
             # Handle is now available; process is still running
             await self._process_manager.add(self._flow_run.id, captured_handle)
@@ -217,9 +244,7 @@ class FlowRunExecutor:
 
             # inner_tg waits for _run_starter to complete (process exits)
 
-        assert captured_handle is not None, (
-            "Starter did not call task_status.started() -- violates ProcessStarter contract"
-        )
+        assert captured_handle is not None
         return captured_handle
 
 
@@ -242,6 +267,7 @@ class FlowRunExecutorContext:
     async def __aenter__(self) -> FlowRunExecutorContext:
         self._stack = AsyncExitStack()
         await self._stack.__aenter__()
+        self._after_exit_callbacks: list[Callable[[], object]] = []
         self._logger = get_logger("runner.executor_context")
 
         # Step 1: client
@@ -255,10 +281,13 @@ class FlowRunExecutorContext:
 
         # Create observer object early so we can wire ProcessManager callbacks.
         # on_cancelling lambda captures self._cancellation_manager (assigned in step 4).
+        def _on_cancelling(flow_run_id: UUID) -> None:
+            self._cancellation_task_group.start_soon(
+                self._cancellation_manager.cancel_by_id, flow_run_id
+            )
+
         self._observer = FlowRunCancellingObserver(
-            on_cancelling=lambda frid: self._cancellation_task_group.start_soon(
-                self._cancellation_manager.cancel_by_id, frid
-            ),
+            on_cancelling=_on_cancelling,
             on_failure=lambda flow_run_ids: self._handle_cancellation_observer_failure(
                 flow_run_ids
             ),
@@ -305,8 +334,21 @@ class FlowRunExecutorContext:
 
         return self
 
-    async def __aexit__(self, *exc_info: object) -> bool | None:
-        return await self._stack.__aexit__(*exc_info)
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
+        try:
+            return await self._stack.__aexit__(exc_type, exc_value, traceback)
+        finally:
+            for callback in reversed(self._after_exit_callbacks):
+                callback()
+
+    def call_after_exit(self, callback: Callable[[], object]) -> None:
+        """Keep attempt resources alive until cancellation work has drained."""
+        self._after_exit_callbacks.append(callback)
 
     def _handle_cancellation_observer_failure(self, flow_run_ids: set) -> None:
         """Handle failure of both cancellation observer mechanisms.
@@ -336,10 +378,15 @@ class FlowRunExecutorContext:
         self,
         flow_run: FlowRun,
         starter: ProcessStarter,
-        resolve_flow: Callable[[FlowRun], Flow[..., ...]],
+        resolve_flow: Callable[[FlowRun], Awaitable[Flow[Any, Any]]] | None = None,
         propose_submitting: bool = True,
+        hook_runner: FlowRunHookRunner | None = None,
     ) -> FlowRunExecutor:
-        hook_runner = HookRunner(resolve_flow=resolve_flow)
+        if (resolve_flow is None) == (hook_runner is None):
+            raise ValueError("Provide exactly one of resolve_flow or hook_runner.")
+        if hook_runner is None:
+            assert resolve_flow is not None
+            hook_runner = HookRunner(resolve_flow=resolve_flow)
         # Wire the real resolver into CancellationManager for on_cancellation hooks
         self._cancellation_manager._hook_runner = hook_runner
         return FlowRunExecutor(
@@ -349,4 +396,5 @@ class FlowRunExecutorContext:
             state_proposer=self._state_proposer,
             hook_runner=hook_runner,
             propose_submitting=propose_submitting,
+            get_attempt_conclusion=self.control_channel.get_conclusion,
         )

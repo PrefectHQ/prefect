@@ -40,6 +40,15 @@ async def revoke_expired_lease(
         logger.warning(f"Lease {lease_id} should be revoked but was not found")
         return
 
+    if expired_lease.expiration > datetime.now(timezone.utc):
+        # The lease was renewed between the scan and this task, or the storage
+        # reported it as expired from a stale record. Its slots are still in use.
+        logger.info(
+            f"Lease {lease_id} is no longer expired and will not be revoked; "
+            f"it expires at {expired_lease.expiration.isoformat()}"
+        )
+        return
+
     if expired_lease.metadata is None:
         logger.warning(f"Lease {lease_id} should be revoked but has no metadata")
         return
@@ -83,4 +92,6 @@ async def monitor_expired_leases(
         logger.info(f"Scheduling revocation of {len(expired_lease_ids)} expired leases")
 
     for lease_id in expired_lease_ids:
-        await docket.add(revoke_expired_lease)(lease_id)
+        await docket.add(revoke_expired_lease, key=f"revoke-expired-lease:{lease_id}")(
+            lease_id
+        )

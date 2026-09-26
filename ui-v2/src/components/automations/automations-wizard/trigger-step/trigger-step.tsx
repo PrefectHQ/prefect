@@ -54,7 +54,7 @@ export const TriggerStep = () => {
 				if (e instanceof z.ZodError) {
 					return {
 						valid: false,
-						error: e.errors[0]?.message ?? "Invalid trigger configuration",
+						error: e.issues[0]?.message ?? "Invalid trigger configuration",
 					};
 				}
 				return { valid: false, error: "Unknown error" };

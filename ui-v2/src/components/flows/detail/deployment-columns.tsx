@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +11,7 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
+import type { ColumnDef } from "@/lib/tanstack-table";
 import { MiniDeploymentActivity } from "./mini-deployment-activity";
 
 type Deployment = components["schemas"]["DeploymentResponse"];
@@ -55,12 +55,12 @@ export const columns: ColumnDef<Deployment>[] = [
 	{
 		accessorKey: "status",
 		header: "Status",
-		cell: ({ row }) => {
-			const status = row.original.paused
-				? "PAUSED"
-				: (row.original.status ?? "NOT_READY");
-			return <StatusBadge status={status} />;
-		},
+		cell: ({ row }) =>
+			row.original.status ? (
+				<StatusBadge status={row.original.status} />
+			) : (
+				<span className="text-muted-foreground text-sm">None</span>
+			),
 	},
 	{
 		accessorKey: "tags",

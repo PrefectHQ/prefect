@@ -73,6 +73,13 @@ def test_clamped_poisson_interval_rejects_nonpositive_clamping_factor(clamping_f
         clamped_poisson_interval(42, clamping_factor=clamping_factor)
 
 
+@pytest.mark.parametrize("average_interval", [0, 0.0, -1])
+def test_clamped_poisson_interval_returns_zero_for_nonpositive_average(
+    average_interval: float,
+):
+    assert clamped_poisson_interval(average_interval) == 0.0
+
+
 def test_bounded_poisson_interval_stays_within_bounds():
     lower, upper = 10, 20
     intervals = [bounded_poisson_interval(lower, upper) for _ in range(10_000)]

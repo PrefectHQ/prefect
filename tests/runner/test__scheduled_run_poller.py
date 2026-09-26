@@ -54,6 +54,7 @@ def _make_poller(**overrides):
     state_proposer.propose_pending = AsyncMock(return_value=True)
     hook_runner = MagicMock()
     cancellation_manager = MagicMock()
+    get_attempt_conclusion = MagicMock(return_value=None)
 
     kwargs = dict(
         query_seconds=10.0,
@@ -68,6 +69,7 @@ def _make_poller(**overrides):
         state_proposer=state_proposer,
         hook_runner=hook_runner,
         cancellation_manager=cancellation_manager,
+        get_attempt_conclusion=get_attempt_conclusion,
     )
     kwargs.update(overrides)
 
@@ -85,6 +87,7 @@ def _make_poller(**overrides):
         state_proposer=state_proposer,
         hook_runner=hook_runner,
         cancellation_manager=cancellation_manager,
+        get_attempt_conclusion=get_attempt_conclusion,
     )
     return poller, mocks
 

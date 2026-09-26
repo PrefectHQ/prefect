@@ -1,12 +1,20 @@
 import copy
+import json
+import subprocess
+import threading
 import uuid
-from unittest.mock import MagicMock, call, patch
+import zipfile
+from pathlib import Path
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import anyio.abc
 import docker
 import docker.errors
 import docker.models.containers
+import prefect_docker.worker
 import pytest
+import requests.exceptions
 from docker import DockerClient
 from docker.models.containers import Container
 from prefect_docker.credentials import DockerRegistryCredentials
@@ -15,14 +23,18 @@ from prefect_docker.worker import (
     CONTAINER_LABELS,
     DockerWorker,
     DockerWorkerJobConfiguration,
+    DockerWorkerResult,
 )
 from pydantic import TypeAdapter, ValidationError
 
+import prefect.bundles
 import prefect.main  # noqa
-from prefect import get_client
+from prefect import flow, get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.objects import WorkPool, WorkPoolStorageConfiguration
 from prefect.events import RelatedResource
+from prefect.flows import bind_flow_to_infrastructure
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
@@ -378,6 +390,49 @@ async def test_uses_volumes_setting(
     assert "c:d" in call_volumes
 
 
+async def test_relative_volume_sources_resolve_against_worker_cwd(
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.chdir(tmp_path)
+    default_docker_worker_job_configuration.volumes = [
+        ".:/output",
+        "./data:/data:ro",
+        "../sibling:/sibling:rw",
+    ]
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    mock_docker_client.containers.create.assert_called_once()
+    call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+    assert f"{tmp_path}:/output" in call_volumes
+    assert f"{tmp_path / 'data'}:/data:ro" in call_volumes
+    assert f"{tmp_path.parent / 'sibling'}:/sibling:rw" in call_volumes
+
+
+async def test_absolute_and_named_volumes_pass_through_unchanged(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.volumes = [
+        "/host/path:/container/path",
+        "named_volume:/app/data",
+        "/data",
+    ]
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    mock_docker_client.containers.create.assert_called_once()
+    call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+    assert "/host/path:/container/path" in call_volumes
+    assert "named_volume:/app/data" in call_volumes
+    assert "/data" in call_volumes
+
+
 @pytest.mark.parametrize(
     "volume_str",
     [
@@ -389,6 +444,13 @@ async def test_uses_volumes_setting(
         "C:\\path\\on\\windows:/path/in/container",
         "\\\\host\\share:/path/in/container",
         "/data",  # anonymous volume
+        ".:/container/path",
+        "..:/container/path",
+        "./relative/path:/container/path",
+        "../relative/path:/container/path",
+        ".\\relative\\path:/container/path",
+        "./relative/path:/container/path:ro",
+        "./relative/path:/container/path:rw",
     ],
 )
 def test_valid_volume_strings(volume_str: str):
@@ -407,11 +469,24 @@ def test_valid_volume_strings(volume_str: str):
         " : : ",
         "/host:/container:rw:extra",
         "",  # empty string
+        "$(pwd):/container/path",  # shell expressions are not evaluated
+        "${PWD}:/container/path",
+        "relative/path:/container/path",  # not an explicit relative source
     ],
 )
 def test_invalid_volume_strings(volume_str: str):
     with pytest.raises(ValidationError, match="Invalid volume"):
         TypeAdapter(VolumeStr).validate_python(volume_str)
+
+
+def test_shell_expression_volume_error_is_actionable():
+    with pytest.raises(ValidationError, match="not evaluated"):
+        TypeAdapter(VolumeStr).validate_python("$(pwd):/container/path")
+
+
+def test_relative_bind_mount_requires_absolute_container_path():
+    with pytest.raises(ValidationError, match="container path must be absolute"):
+        TypeAdapter(VolumeStr).validate_python("./data:relative-target")
 
 
 async def test_uses_privileged_setting(
@@ -453,6 +528,58 @@ async def test_uses_mem_limit_setting(
         )
     mock_docker_client.containers.create.assert_called_once()
     assert mock_docker_client.containers.create.call_args[1].get("mem_limit") == "1g"
+
+
+async def test_uses_container_wait_timeout_setting(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.container_wait_timeout = 120
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    fake_container = mock_docker_client.containers.get.return_value
+    fake_container.client.api.wait.assert_called_once_with(
+        FAKE_CONTAINER_ID, timeout=120
+    )
+
+
+async def test_waits_indefinitely_by_default(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    assert default_docker_worker_job_configuration.container_wait_timeout is None
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    fake_container = mock_docker_client.containers.get.return_value
+    fake_container.client.api.wait.assert_called_once_with(
+        FAKE_CONTAINER_ID, timeout=None
+    )
+
+
+async def test_container_wait_timeout_raises_when_exceeded(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.container_wait_timeout = 1
+    fake_container = mock_docker_client.containers.get.return_value
+    fake_container.client.api.wait.side_effect = requests.exceptions.ReadTimeout(
+        "Read timed out."
+    )
+    async with DockerWorker(work_pool_name="test") as worker:
+        with pytest.raises(requests.exceptions.ReadTimeout):
+            await worker.run(
+                flow_run=flow_run,
+                configuration=default_docker_worker_job_configuration,
+            )
+
+
+@pytest.mark.parametrize("timeout", [0, -1])
+def test_container_wait_timeout_must_be_positive(timeout: int):
+    with pytest.raises(ValidationError):
+        DockerWorkerJobConfiguration(container_wait_timeout=timeout)
 
 
 @pytest.mark.parametrize("networks", [[], ["a"], ["a", "b"]])
@@ -1386,6 +1513,133 @@ async def test_logs_when_unexpected_docker_error(
     )
 
 
+def podman_missing_container_error() -> docker.errors.APIError:
+    """The HTTP 500 that Podman gives for a container that no longer exists."""
+    return docker.errors.APIError(
+        "500 Server Error for http+docker://localhost/v1.41/containers/"
+        f"{FAKE_CONTAINER_ID}/json: Internal Server Error",
+        explanation=(
+            f"container {FAKE_CONTAINER_ID} does not exist in database: "
+            "no such container"
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        podman_missing_container_error(),
+        docker.errors.NotFound("no such container"),
+    ],
+    ids=["podman_500", "docker_404"],
+)
+async def test_logs_warning_when_auto_removed_container_is_missing(
+    caplog,
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+    error,
+):
+    default_docker_worker_job_configuration.auto_remove = True
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(side_effect=error)
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    assert (
+        "Docker container fake-name was removed before logs could be retrieved"
+        in caplog.text
+    )
+
+
+@pytest.mark.parametrize("method", ["reload", "wait"])
+@pytest.mark.parametrize(
+    "error",
+    [
+        podman_missing_container_error(),
+        docker.errors.NotFound("no such container"),
+    ],
+    ids=["podman_500", "docker_404"],
+)
+async def test_warns_when_auto_removed_container_disappears_while_watching(
+    caplog,
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+    error,
+    method,
+):
+    default_docker_worker_job_configuration.auto_remove = True
+    mock_container = mock_docker_client.containers.get.return_value
+    setattr(mock_container, method, MagicMock(side_effect=error))
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    assert (
+        "Docker container fake-name was removed before we could wait for its completion"
+        in caplog.text
+    )
+
+
+@pytest.mark.parametrize("method", ["reload", "wait"])
+async def test_unrelated_docker_api_error_while_watching_is_raised(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration, method
+):
+    default_docker_worker_job_configuration.auto_remove = True
+    mock_container = mock_docker_client.containers.get.return_value
+    error = docker.errors.APIError(
+        "500 Server Error", explanation="something else went wrong"
+    )
+    setattr(mock_container, method, MagicMock(side_effect=error))
+
+    with pytest.raises(docker.errors.APIError, match="something else went wrong"):
+        async with DockerWorker(work_pool_name="test") as worker:
+            await worker.run(
+                flow_run=flow_run, configuration=default_docker_worker_job_configuration
+            )
+
+
+@pytest.mark.parametrize("method", ["reload", "wait"])
+async def test_missing_container_while_watching_is_raised_without_auto_remove(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration, method
+):
+    assert default_docker_worker_job_configuration.auto_remove is False
+    mock_container = mock_docker_client.containers.get.return_value
+    setattr(
+        mock_container, method, MagicMock(side_effect=podman_missing_container_error())
+    )
+
+    with pytest.raises(docker.errors.APIError, match="no such container"):
+        async with DockerWorker(work_pool_name="test") as worker:
+            await worker.run(
+                flow_run=flow_run, configuration=default_docker_worker_job_configuration
+            )
+
+
+async def test_missing_container_logs_are_unexpected_without_auto_remove(
+    caplog, mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    assert default_docker_worker_job_configuration.auto_remove is False
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(side_effect=podman_missing_container_error())
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    assert (
+        "An unexpected Docker API error occurred while streaming output from container"
+        " fake-name." in caplog.text
+    )
+
+
 async def test_stream_container_logs_on_real_container(
     capsys, flow_run, default_docker_worker_job_configuration
 ):
@@ -1636,6 +1890,35 @@ class TestSubmitAdhocRunWithFlowRunParameter:
             final_flow_runs = await client.read_flow_runs()
             assert len(final_flow_runs) > initial_count
 
+    async def test_submit_adhoc_run_crashes_when_bundle_creation_fails(
+        self,
+        mock_docker_client: MagicMock,
+        work_pool: WorkPool,
+        tmp_path: Path,
+    ):
+        @flow
+        def test_flow() -> None:
+            pass
+
+        bound_flow = bind_flow_to_infrastructure(
+            flow=test_flow,
+            work_pool=work_pool.name,
+            worker_cls=DockerWorker,
+            include_files=["config.yaml"],
+            include_files_base_dir=tmp_path / "missing",
+        )
+
+        async with get_client() as client:
+            async with DockerWorker(work_pool_name=work_pool.name) as worker:
+                with pytest.warns(FutureWarning):
+                    future = await worker.submit(bound_flow)
+
+            flow_run = await client.read_flow_run(future.flow_run_id)
+            assert flow_run.state is not None
+            assert flow_run.state.is_crashed()
+            assert flow_run.state.message is not None
+            assert "include_files_base_dir" in flow_run.state.message
+
     async def test_submit_adhoc_run_passes_worker_id_for_attribution(
         self, mock_docker_client, work_pool, test_flow
     ):
@@ -1663,6 +1946,517 @@ class TestSubmitAdhocRunWithFlowRunParameter:
         assert len(prepare_calls) == 1
         assert prepare_calls[0]["worker_id"] == worker.backend_id
         assert prepare_calls[0]["worker_name"] == worker.name
+
+
+class TestSubmitAdhocRunWithIncludeFiles:
+    """Tests for included files transport in _submit_adhoc_run."""
+
+    @pytest.fixture
+    def project_with_flow_file(self, tmp_path: Path):
+        (tmp_path / "config.yaml").write_text("key: value")
+        flow_file = tmp_path / "my_flow.py"
+        flow_file.write_text(
+            "from prefect import flow\n\n\n@flow\ndef my_flow():\n    return 'hello'\n"
+        )
+        return tmp_path, flow_file
+
+    @pytest.fixture
+    def flow_with_include_files(self, project_with_flow_file: tuple[Path, Path]):
+        @flow
+        def flow_with_files():
+            return "success"
+
+        flow_with_files.include_files = ["config.yaml"]
+        _, flow_file = project_with_flow_file
+        with patch("prefect.bundles.inspect.getfile", return_value=str(flow_file)):
+            yield flow_with_files
+
+    @pytest.fixture
+    async def work_pool(self):
+        async with get_client() as client:
+            work_pool = await client.create_work_pool(
+                work_pool=WorkPoolCreate(
+                    name=f"test-docker-pool-{uuid.uuid4().hex[:8]}",
+                    type="docker",
+                ),
+            )
+            yield work_pool
+            try:
+                await client.delete_work_pool(work_pool.name)
+            except Exception:
+                pass
+
+    @pytest.fixture
+    async def work_pool_with_storage(self):
+        upload_step = {"prefect_mock.experimental.bundles.upload": {}}
+        execute_step = {"prefect_mock.experimental.bundles.execute": {}}
+        async with get_client() as client:
+            work_pool = await client.create_work_pool(
+                work_pool=WorkPoolCreate(
+                    name=f"test-docker-pool-{uuid.uuid4().hex[:8]}",
+                    type="docker",
+                    storage_configuration=WorkPoolStorageConfiguration(
+                        bundle_upload_step=upload_step,
+                        bundle_execution_step=execute_step,
+                    ),
+                ),
+            )
+            yield work_pool
+            try:
+                await client.delete_work_pool(work_pool.name)
+            except Exception:
+                pass
+
+    async def test_concurrent_submissions_keep_sidecars_until_their_own_run_exits(
+        self,
+        mock_docker_client: MagicMock,
+        work_pool: WorkPool,
+        flow_with_include_files: prefect.Flow,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        first_staged = anyio.Event()
+        second_staged = anyio.Event()
+        first_finished = anyio.Event()
+        archives: list[Path] = []
+        consumed: list[bytes] = []
+
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+
+            async def run(
+                flow_run: FlowRun, configuration: DockerWorkerJobConfiguration
+            ) -> DockerWorkerResult:
+                mount_dir = Path(configuration.volumes[-1].split(":")[0])
+                archive = next(mount_dir.rglob("*.zip"))
+                archives.append(archive)
+                if len(archives) == 1:
+                    first_staged.set()
+                    await second_staged.wait()
+                else:
+                    second_staged.set()
+                    await first_finished.wait()
+                    with zipfile.ZipFile(archive) as zf:
+                        consumed.append(zf.read("config.yaml"))
+                return DockerWorkerResult(status_code=0, identifier=str(flow_run.id))
+
+            monkeypatch.setattr(worker, "run", run)
+
+            async def submit_first() -> None:
+                await worker._submit_adhoc_run(
+                    flow=flow_with_include_files, parameters={}
+                )
+                first_finished.set()
+
+            with anyio.fail_after(20):
+                async with anyio.create_task_group() as group:
+                    group.start_soon(submit_first)
+                    await first_staged.wait()
+                    await worker._submit_adhoc_run(
+                        flow=flow_with_include_files, parameters={}
+                    )
+
+            assert len(archives) == 2
+            assert consumed == [b"key: value"]
+            assert all(not archive.exists() for archive in archives)
+
+    @pytest.mark.parametrize("failed_upload", [1, 2])
+    async def test_upload_failure_crashes_run_and_cleans_sidecars(
+        self,
+        mock_docker_client: MagicMock,
+        work_pool_with_storage: WorkPool,
+        flow_with_include_files: prefect.Flow,
+        monkeypatch: pytest.MonkeyPatch,
+        failed_upload: int,
+    ):
+        uploads: list[Path] = []
+
+        async def upload(command: list[str], cwd: Path) -> None:
+            uploads.append(Path(cwd) / command[-1])
+            if len(uploads) == failed_upload:
+                raise subprocess.CalledProcessError(
+                    1, command, stderr=b"storage unavailable"
+                )
+
+        async with DockerWorker(work_pool_name=work_pool_with_storage.name) as worker:
+            flow_run = await worker.client.create_flow_run(flow_with_include_files)
+            run = AsyncMock()
+            monkeypatch.setattr(worker, "run", run)
+            monkeypatch.setattr(anyio, "run_process", upload)
+            await worker._submit_adhoc_run(
+                flow=flow_with_include_files, parameters={}, flow_run=flow_run
+            )
+            updated_run = await worker.client.read_flow_run(flow_run.id)
+            assert updated_run.state is not None
+            assert updated_run.state.is_crashed()
+            assert "storage unavailable" in (updated_run.state.message or "")
+            run.assert_not_awaited()
+            assert not list(Path(worker._tmp_dir).rglob("*.zip"))
+
+    @pytest.mark.parametrize("storage", [False, True])
+    @pytest.mark.parametrize("failure_stage", ["connect", "pull", "reject_create"])
+    async def test_pre_creation_failure_removes_staging(
+        self,
+        mock_docker_client,
+        work_pool,
+        work_pool_with_storage,
+        flow_with_include_files,
+        monkeypatch,
+        storage,
+        failure_stage,
+    ):
+        pool = work_pool_with_storage if storage else work_pool
+        async with DockerWorker(work_pool_name=pool.name) as worker:
+            flow_run = await worker.client.create_flow_run(flow_with_include_files)
+            monkeypatch.setattr(anyio, "run_process", AsyncMock())
+            if failure_stage == "connect":
+                monkeypatch.setattr(
+                    worker,
+                    "_get_client",
+                    MagicMock(side_effect=RuntimeError("Docker unavailable")),
+                )
+            elif failure_stage == "pull":
+                mock_docker_client.api.pull.side_effect = RuntimeError(
+                    "Registry unavailable"
+                )
+            else:
+                mock_docker_client.containers.create.side_effect = (
+                    docker.errors.APIError(
+                        "Invalid container",
+                        response=MagicMock(
+                            status_code=400,
+                            request=MagicMock(
+                                method="POST",
+                                url="http://docker/v1.45/containers/create",
+                            ),
+                        ),
+                        explanation="Invalid container configuration",
+                    )
+                )
+            await worker._submit_adhoc_run(
+                flow=flow_with_include_files,
+                parameters={},
+                flow_run=flow_run,
+                job_variables={"image_pull_policy": "Always"},
+            )
+            updated = await worker.client.read_flow_run(flow_run.id)
+            assert updated.state.is_crashed()
+            assert not list(Path(worker._tmp_dir).iterdir())
+
+    @pytest.mark.parametrize(
+        "phase", ["before_start", "pull", "create", "start", "watch"]
+    )
+    async def test_cancelled_submission_thread_owns_mount_until_completion(
+        self,
+        mock_docker_client: MagicMock,
+        work_pool: WorkPool,
+        flow_with_include_files: prefect.Flow,
+        monkeypatch: pytest.MonkeyPatch,
+        phase: str,
+    ):
+        started = anyio.Event()
+        release = threading.Event()
+        finished = threading.Event()
+        consumed: list[bytes] = []
+
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            original_lifecycle = worker._run_container_with_bundle
+
+            def block() -> None:
+                anyio.from_thread.run_sync(started.set)
+                assert release.wait(20)
+
+            def lifecycle(*args: Any, **kwargs: Any) -> DockerWorkerResult:
+                try:
+                    if phase == "before_start":
+                        block()
+                    return original_lifecycle(*args, **kwargs)
+                finally:
+                    finished.set()
+
+            monkeypatch.setattr(worker, "_run_container_with_bundle", lifecycle)
+            if phase == "pull":
+
+                def pull(*args: Any, **kwargs: Any) -> None:
+                    block()
+                    raise RuntimeError("Registry unavailable")
+
+                mock_docker_client.api.pull.side_effect = pull
+            elif phase == "create":
+                container = mock_docker_client.containers.create.return_value
+
+                def create(*args: Any, **kwargs: Any) -> Container:
+                    block()
+                    archive = next(Path(worker._tmp_dir).rglob("*.zip"))
+                    with zipfile.ZipFile(archive) as zf:
+                        consumed.append(zf.read("config.yaml"))
+                    return container
+
+                mock_docker_client.containers.create.side_effect = create
+            elif phase == "start":
+
+                def start_container() -> None:
+                    block()
+                    archive = next(Path(worker._tmp_dir).rglob("*.zip"))
+                    with zipfile.ZipFile(archive) as zf:
+                        consumed.append(zf.read("config.yaml"))
+
+                mock_docker_client.containers.create.return_value.start = MagicMock(
+                    side_effect=start_container
+                )
+            elif phase == "watch":
+
+                def wait(*args: Any, **kwargs: Any) -> dict[str, int]:
+                    block()
+                    archive = next(Path(worker._tmp_dir).rglob("*.zip"))
+                    with zipfile.ZipFile(archive) as zf:
+                        consumed.append(zf.read("config.yaml"))
+                    return {"StatusCode": 0}
+
+                mock_docker_client.containers.get.return_value.wait = MagicMock(
+                    side_effect=wait
+                )
+
+            async def submit() -> None:
+                await worker._submit_adhoc_run(
+                    flow=flow_with_include_files,
+                    parameters={},
+                    job_variables={"image_pull_policy": "Always"},
+                )
+
+            try:
+                with anyio.fail_after(20):
+                    async with anyio.create_task_group() as group:
+                        group.start_soon(submit)
+                        await started.wait()
+                        group.cancel_scope.cancel()
+                # The cancellation has returned while the Docker thread is blocked.
+                assert bool(list(Path(worker._tmp_dir).iterdir())) == (
+                    phase != "before_start"
+                )
+            finally:
+                release.set()
+                assert await anyio.to_thread.run_sync(finished.wait, 20)
+
+            assert not list(Path(worker._tmp_dir).iterdir())
+            if phase in ("create", "start", "watch"):
+                assert consumed == [b"key: value"]
+            else:
+                mock_docker_client.containers.create.assert_not_called()
+
+    @pytest.mark.parametrize("storage", [False, True])
+    @pytest.mark.parametrize(
+        "failure_stage", ["create", "inspect", "network", "start", "watch"]
+    )
+    async def test_docker_failure_retains_mount_only_after_start_attempt(
+        self,
+        mock_docker_client: MagicMock,
+        work_pool: WorkPool,
+        work_pool_with_storage: WorkPool,
+        flow_with_include_files: prefect.Flow,
+        monkeypatch: pytest.MonkeyPatch,
+        storage: bool,
+        failure_stage: str,
+    ):
+        pool = work_pool_with_storage if storage else work_pool
+        monkeypatch.setattr(anyio, "run_process", AsyncMock())
+        if failure_stage == "create":
+            mock_docker_client.containers.create.side_effect = RuntimeError(
+                "Docker response lost"
+            )
+        elif failure_stage == "inspect":
+            # ContainerCollection.create performs an inspect GET after creation.
+            mock_docker_client.containers.create.side_effect = docker.errors.APIError(
+                "Inspection forbidden",
+                response=MagicMock(
+                    status_code=403,
+                    request=MagicMock(
+                        method="GET", url="http://docker/v1.45/containers/created/json"
+                    ),
+                ),
+            )
+        elif failure_stage == "network":
+            mock_docker_client.networks.get.side_effect = RuntimeError(
+                "Network unavailable"
+            )
+        elif failure_stage == "start":
+            mock_docker_client.containers.create.return_value.start = MagicMock(
+                side_effect=RuntimeError("Docker response lost")
+            )
+        else:
+            mock_docker_client.containers.get.return_value.wait = MagicMock(
+                side_effect=RuntimeError("Docker response lost")
+            )
+        async with DockerWorker(work_pool_name=pool.name) as worker:
+            flow_run = await worker.client.create_flow_run(flow_with_include_files)
+            await worker._submit_adhoc_run(
+                flow=flow_with_include_files,
+                parameters={},
+                flow_run=flow_run,
+                job_variables={"networks": ["first", "second"]}
+                if failure_stage == "network"
+                else {},
+            )
+            updated = await worker.client.read_flow_run(flow_run.id)
+            assert updated.state is not None and updated.state.is_crashed()
+            archives = list(Path(worker._tmp_dir).rglob("*.zip"))
+            if storage or failure_stage in {"create", "inspect", "network"}:
+                assert not list(Path(worker._tmp_dir).iterdir())
+            else:
+                assert len(archives) == 1
+                with zipfile.ZipFile(archives[0]) as archive:
+                    assert archive.read("config.yaml") == b"key: value"
+
+    @pytest.mark.parametrize("failure_stage", ["copy", "run"])
+    async def test_failure_before_thread_start_cleans_original_and_staged_files(
+        self,
+        mock_docker_client: MagicMock,
+        work_pool: WorkPool,
+        flow_with_include_files: prefect.Flow,
+        monkeypatch: pytest.MonkeyPatch,
+        failure_stage: str,
+    ):
+        original_archives: list[Path] = []
+        original_copy = prefect_docker.worker.shutil.copy2
+
+        def copy(source: Path, destination: Path) -> str:
+            original_archives.append(source)
+            if failure_stage == "copy":
+                raise OSError("staging failed")
+            return original_copy(source, destination)
+
+        monkeypatch.setattr(prefect_docker.worker.shutil, "copy2", copy)
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            flow_run = await worker.client.create_flow_run(flow_with_include_files)
+            run = AsyncMock(side_effect=RuntimeError("container failed"))
+            monkeypatch.setattr(worker, "run", run)
+            await worker._submit_adhoc_run(
+                flow=flow_with_include_files, parameters={}, flow_run=flow_run
+            )
+            updated_run = await worker.client.read_flow_run(flow_run.id)
+            assert updated_run.state is not None
+            assert updated_run.state.is_crashed()
+            if failure_stage == "copy":
+                run.assert_not_awaited()
+                assert not list(Path(worker._tmp_dir).iterdir())
+            else:
+                run.assert_awaited_once()
+                assert not list(Path(worker._tmp_dir).iterdir())
+
+        assert len(original_archives) == 1
+        assert not original_archives[0].exists()
+        assert not original_archives[0].parent.exists()
+
+    async def test_sidecar_zip_is_placed_next_to_mounted_bundle(
+        self, mock_docker_client, work_pool, flow_with_include_files
+    ):
+        """The sidecar zip is available in the directory mounted into the container."""
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            observed: dict[str, object] = {}
+            original_run = worker.run
+
+            async def observing_run(*args, **kwargs):
+                tmp_dir = Path(kwargs["configuration"].volumes[-1].split(":")[0])
+                bundle_files = [path for path in tmp_dir.iterdir() if path.is_file()]
+                assert len(bundle_files) == 1
+                bundle = json.loads(bundle_files[0].read_text())
+                observed["files_key"] = bundle["files_key"]
+                with zipfile.ZipFile(tmp_dir / bundle["files_key"]) as zf:
+                    observed["names"] = zf.namelist()
+                return await original_run(*args, **kwargs)
+
+            worker.run = observing_run
+
+            await worker._submit_adhoc_run(flow=flow_with_include_files, parameters={})
+
+            assert "config.yaml" in observed["names"]
+
+    async def test_mounted_sidecar_zip_is_removed_after_the_container_exits(
+        self, mock_docker_client, work_pool, flow_with_include_files
+    ):
+        """The copy of the sidecar zip does not stay in the worker temporary directory."""
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            await worker._submit_adhoc_run(flow=flow_with_include_files, parameters={})
+
+            assert not list(Path(worker._tmp_dir).iterdir())
+
+    async def test_sidecar_temporary_directory_is_cleaned_up(
+        self, mock_docker_client, work_pool, flow_with_include_files, monkeypatch
+    ):
+        """The zip created for the bundle is removed after submission."""
+        created_zip_paths: list[Path] = []
+        original_create_bundle = prefect.bundles.create_bundle_for_flow_run
+
+        def tracking_create_bundle(*args, **kwargs):
+            result = original_create_bundle(*args, **kwargs)
+            if result["zip_path"]:
+                created_zip_paths.append(result["zip_path"])
+            return result
+
+        monkeypatch.setattr(
+            prefect.bundles,
+            "create_bundle_for_flow_run",
+            tracking_create_bundle,
+        )
+
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            await worker._submit_adhoc_run(flow=flow_with_include_files, parameters={})
+
+        assert len(created_zip_paths) == 1
+        assert not created_zip_paths[0].exists()
+        assert not created_zip_paths[0].parent.exists()
+
+    async def test_sidecar_zip_is_uploaded_to_configured_storage(
+        self,
+        mock_docker_client,
+        work_pool_with_storage,
+        flow_with_include_files,
+        monkeypatch,
+    ):
+        """The sidecar zip is uploaded with its own upload command."""
+        uploaded: dict[str, bytes] = {}
+
+        async def upload(command, cwd):
+            uploaded[command[-1]] = (Path(cwd) / command[-1]).read_bytes()
+
+        run_process = AsyncMock(side_effect=upload)
+        monkeypatch.setattr(prefect_docker.worker.anyio, "run_process", run_process)
+
+        async with DockerWorker(work_pool_name=work_pool_with_storage.name) as worker:
+            await worker._submit_adhoc_run(flow=flow_with_include_files, parameters={})
+
+            assert not list(Path(worker._tmp_dir).iterdir())
+
+        assert run_process.await_count == 2
+        bundle_command = run_process.await_args_list[0].args[0]
+        sidecar_command = run_process.await_args_list[1].args[0]
+        bundle = json.loads(uploaded[bundle_command[-1]])
+        assert sidecar_command[-1] == bundle["files_key"]
+        assert uploaded[sidecar_command[-1]].startswith(b"PK")
+
+    async def test_bundle_without_include_files_has_no_sidecar(
+        self, mock_docker_client, work_pool
+    ):
+        """Flows without included files still submit a lone bundle file."""
+
+        @flow
+        def flow_without_files():
+            return "success"
+
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            original_run = worker.run
+            bundles: list[dict[str, Any]] = []
+
+            async def observing_run(*args, **kwargs):
+                tmp_dir = Path(kwargs["configuration"].volumes[-1].split(":")[0])
+                bundle_files = list(tmp_dir.iterdir())
+                assert len(bundle_files) == 1
+                bundles.append(json.loads(bundle_files[0].read_text()))
+                return await original_run(*args, **kwargs)
+
+            worker.run = observing_run
+            await worker._submit_adhoc_run(flow=flow_without_files, parameters={})
+            assert len(bundles) == 1
+            assert bundles[0]["files_key"] is None
+            assert not list(Path(worker._tmp_dir).iterdir())
 
 
 class TestDockerWorkerKillInfrastructure:
@@ -1707,3 +2501,35 @@ class TestDockerWorkerKillInfrastructure:
                     configuration=default_docker_worker_job_configuration,
                     grace_seconds=30,
                 )
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin"])
+@pytest.mark.parametrize("options", [{"ports": 123}, {"unsupported_option": True}])
+def test_local_docker_validation_cleans_bundle_staging(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    options: dict[str, Any],
+    platform: str,
+):
+    """Exercise the real SDK's preparation without allowing a Docker request."""
+    staging = prefect_docker.worker._BundleStaging(tmp_path / "submission")
+    staging.path.mkdir()
+    (staging.path / "bundle").write_text("bundle")
+    client = DockerClient(base_url="http://127.0.0.1:1", version="1.45")
+    monkeypatch.setattr(prefect_docker.worker.sys, "platform", platform)
+    monkeypatch.setattr(client, "version", lambda: {"Version": "20.10"})
+    worker = DockerWorker(work_pool_name="test")
+    monkeypatch.setattr(worker, "_get_client", lambda: client)
+    monkeypatch.setattr(worker, "_emit_container_creation_failed_event", MagicMock())
+    send = MagicMock(side_effect=AssertionError("Unexpected Docker request"))
+    monkeypatch.setattr(client.api, "send", send)
+    configuration = DockerWorkerJobConfiguration(
+        image="example:latest",
+        image_pull_policy="Never",
+        network_mode="bridge",
+        container_create_kwargs=options,
+    )
+    with pytest.raises((TypeError, AttributeError)):
+        worker._run_container_with_bundle(configuration, staging)
+    send.assert_not_called()
+    assert not staging.path.exists()

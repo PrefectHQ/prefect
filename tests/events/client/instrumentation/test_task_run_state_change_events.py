@@ -12,7 +12,24 @@ from prefect.events.schemas.events import Resource
 from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.task_worker import TaskWorker
+from prefect.telemetry.run_telemetry import LABELS_TRACEPARENT_KEY, TRACEPARENT_KEY
 from prefect.types._datetime import parse_datetime
+
+
+def pop_trace_details(payload: dict[str, Any]) -> dict[str, Any]:
+    """Remove OpenTelemetry trace information from an event payload.
+
+    Runs get a traceparent when the environment configures OpenTelemetry, for
+    example when the suite runs with `pytest --logfire`.
+    """
+    for state_key in ("initial_state", "validated_state"):
+        state = payload.get(state_key)
+        if state:
+            state.get("state_details", {}).pop(TRACEPARENT_KEY, None)
+    task_run = payload.get("task_run")
+    if task_run:
+        task_run.get("labels", {}).pop(LABELS_TRACEPARENT_KEY, None)
+    return payload
 
 
 @pytest.mark.usefixtures("reset_worker_events")
@@ -47,6 +64,9 @@ async def test_task_state_change_happy_path(
         if event.event.startswith("prefect.task-run.")
     ]
     assert len(task_run_states) == len(events) == 3
+
+    for event in events:
+        pop_trace_details(event.payload)
 
     pending, running, completed = events
 
@@ -248,6 +268,9 @@ async def test_task_state_change_task_failure(
         if event.event.startswith("prefect.task-run.")
     ]
     assert len(task_run_states) == len(events) == 3
+
+    for event in events:
+        pop_trace_details(event.payload)
 
     pending, running, failed = events
 
@@ -576,6 +599,7 @@ async def test_apply_async_emits_scheduled_event(
     events = asserting_events_worker._client.events
     assert len(events) == 1
     scheduled = events[0]
+    pop_trace_details(scheduled.payload)
 
     task_run = await prefect_client.read_task_run(task_run_id)
     assert task_run

@@ -5,7 +5,6 @@ import {
 } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -45,6 +44,7 @@ import { mapValueToRange } from "@/components/ui/date-range-select";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useRunsFilters } from "@/hooks/use-runs-filters";
 
 const searchParams = z.object({
@@ -353,8 +353,9 @@ const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 };
 
 export const Route = createFileRoute("/runs/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
+		usePageTitle("Runs");
 		const queryClient = useQueryClient();
 		const search = Route.useSearch();
 		const navigate = Route.useNavigate();

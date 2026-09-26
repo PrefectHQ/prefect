@@ -479,7 +479,7 @@ class FlowRun(Run):
         sa.ForeignKey("flow.id", ondelete="cascade"), index=True
     )
 
-    deployment_id: Mapped[Optional[uuid.UUID]] = mapped_column()
+    deployment_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
     work_queue_name: Mapped[Optional[str]] = mapped_column(index=True)
     flow_version: Mapped[Optional[str]] = mapped_column(index=True)
     deployment_version: Mapped[Optional[str]] = mapped_column(index=True)
@@ -598,6 +598,11 @@ class FlowRun(Run):
             sa.Index(
                 "ix_flow_run__coalesce_start_time_expected_start_time_asc",
                 coalesce(cls.start_time, cls.expected_start_time).asc(),
+            ),
+            sa.Index(
+                "ix_flow_run__state_type_coalesce_start_time",
+                cls.state_type,
+                coalesce(cls.start_time, cls.expected_start_time),
             ),
             sa.Index(
                 "ix_flow_run__expected_start_time_desc",
