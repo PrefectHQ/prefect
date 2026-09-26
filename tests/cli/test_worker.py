@@ -1,6 +1,7 @@
 import json
 import os
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -1120,6 +1121,7 @@ def test_start_worker_background_passes_profile_to_subprocess(
     mock_popen.return_value.poll.return_value = None
     mock_popen.return_value.pid = 12345
     mock_process = MagicMock()
+    mock_process.pid = 12345
     mock_process.create_time.return_value = 1.0
     monkeypatch.setattr(worker_cli.subprocess, "Popen", mock_popen)
     monkeypatch.setattr(worker_cli.psutil, "Process", lambda pid: mock_process)
@@ -1153,6 +1155,65 @@ def test_start_worker_background_passes_profile_to_subprocess(
     assert env["PREFECT_PROFILE"] == "test-background"
     assert env["PREFECT_API_URL"] == api_url
     assert mock_popen.call_args.args[0][-2:] == ["--install-policy", "never"]
+    if os.name != "nt":
+        assert stat.S_IMODE((tmp_path / "worker.pid").stat().st_mode) == 0o600
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_background_rejects_concurrent_start(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import prefect.cli.worker as worker_cli
+
+    monkeypatch.setattr(worker_cli, "WORKER_PID_FILE", tmp_path / "worker.pid")
+    mock_popen = MagicMock()
+    monkeypatch.setattr(worker_cli.subprocess, "Popen", mock_popen)
+
+    with worker_cli._worker_lock():
+        invoke_and_assert(
+            command=[
+                "worker",
+                "start",
+                "--background",
+                "-p",
+                "test-work-pool",
+                "-t",
+                "process",
+            ],
+            expected_code=1,
+            expected_output_contains="Another background worker command is in progress",
+        )
+    mock_popen.assert_not_called()
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_background_run_once_can_finish_before_check(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import prefect.cli.worker as worker_cli
+
+    mock_popen = MagicMock()
+    mock_popen.return_value.poll.return_value = 0
+    mock_popen.return_value.returncode = 0
+    monkeypatch.setattr(worker_cli.subprocess, "Popen", mock_popen)
+    monkeypatch.setattr(worker_cli, "WORKER_PID_FILE", tmp_path / "worker.pid")
+    monkeypatch.setattr(worker_cli, "WORKER_LOG_FILE", tmp_path / "worker.log")
+
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "--background",
+            "--run-once",
+            "-p",
+            "test-work-pool",
+            "-t",
+            "process",
+        ],
+        expected_code=0,
+        expected_output_contains="completed successfully",
+    )
+    assert not worker_cli.WORKER_PID_FILE.exists()
 
 
 def test_stop_background_worker_keeps_pid_during_slow_shutdown(
@@ -1163,6 +1224,7 @@ def test_stop_background_worker_keeps_pid_during_slow_shutdown(
     pid_file = tmp_path / "worker.pid"
     pid_file.write_text('{"pid": 12345, "created": 1.0}')
     process = MagicMock()
+    process.pid = 12345
     process.create_time.return_value = 1.0
     process.is_running.return_value = True
     process.status.return_value = "running"
@@ -1176,6 +1238,13 @@ def test_stop_background_worker_keeps_pid_during_slow_shutdown(
         expected_output_contains="still shutting down",
     )
     assert pid_file.exists()
+    process.send_signal.assert_called_once()
+
+    invoke_and_assert(
+        command=["worker", "stop"],
+        expected_code=0,
+        expected_output_contains="still shutting down",
+    )
     process.send_signal.assert_called_once()
 
 
@@ -1213,7 +1282,12 @@ def test_stop_background_worker_terminates_process(
     )
     try:
         pid_file.write_text(
-            json.dumps({"pid": process.pid, "created": psutil.Process(process.pid).create_time()})
+            json.dumps(
+                {
+                    "pid": process.pid,
+                    "created": psutil.Process(process.pid).create_time(),
+                }
+            )
         )
         invoke_and_assert(
             command=["worker", "stop"],
