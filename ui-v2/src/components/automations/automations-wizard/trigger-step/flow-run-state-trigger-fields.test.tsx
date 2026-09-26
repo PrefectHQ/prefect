@@ -17,10 +17,14 @@ const FlowRunStateTriggerFieldsContainer = ({
 	defaultPosture = "Reactive" as const,
 	defaultMatchRelated,
 	defaultWithin = 0,
+	defaultAfter,
+	defaultExpect,
 }: {
 	defaultPosture?: "Reactive" | "Proactive";
 	defaultMatchRelated?: MatchRelated;
 	defaultWithin?: number;
+	defaultAfter?: string[];
+	defaultExpect?: string[];
 }) => {
 	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
@@ -32,6 +36,8 @@ const FlowRunStateTriggerFieldsContainer = ({
 				threshold: 1,
 				within: defaultWithin,
 				match_related: defaultMatchRelated,
+				after: defaultAfter,
+				expect: defaultExpect,
 			},
 		},
 	});
@@ -134,6 +140,35 @@ describe("FlowRunStateTriggerFields", () => {
 		await user.click(screen.getByRole("option", { name: /Completed/i }));
 
 		expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
+	});
+
+	it("displays selected states from expect events", () => {
+		render(
+			<FlowRunStateTriggerFieldsContainer
+				defaultExpect={[
+					"prefect.flow-run.Completed",
+					"prefect.flow-run.Failed",
+				]}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		expect(screen.getByText("Completed")).toBeVisible();
+		expect(screen.getByText("Failed")).toBeVisible();
+	});
+
+	it("ignores flow run events that are not state names", () => {
+		render(
+			<FlowRunStateTriggerFieldsContainer
+				defaultPosture="Proactive"
+				defaultAfter={["prefect.flow-run.heartbeat"]}
+				defaultExpect={["prefect.flow-run.heartbeat"]}
+				defaultWithin={90}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		expect(screen.getByText("Any state")).toBeVisible();
 	});
 
 	it("renders flow multi-select with 'All flows' placeholder", () => {
