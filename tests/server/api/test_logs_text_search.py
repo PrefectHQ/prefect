@@ -511,6 +511,53 @@ async def test_no_matches_returns_empty(
     assert len(logs) == 0
 
 
+async def test_underscore_and_percent_are_matched_literally(
+    logs_query_session: Union[list[Log], AsyncSession],
+    query_logs: QueryLogsFn,
+    test_logs: list[Log],
+):
+    """`_` and `%` in a search term are literal characters, not SQL wildcards"""
+
+    # "Flow run failed with connection timeout" contains "run failed" but no
+    # "run_failed"; an unescaped LIKE would let `_` match the space
+    logs = await query_logs(
+        session=logs_query_session,
+        log_filter=LogFilter(text=LogFilterTextSearch(query="run_failed")),
+        limit=100,
+        offset=0,
+    )
+    assert logs == []
+
+    # No test log contains a literal "%"
+    logs = await query_logs(
+        session=logs_query_session,
+        log_filter=LogFilter(text=LogFilterTextSearch(query="%")),
+        limit=100,
+        offset=0,
+    )
+    assert logs == []
+
+    # A literal "_" still matches: only the "prefect.flow_runs" logs
+    logs = await query_logs(
+        session=logs_query_session,
+        log_filter=LogFilter(text=LogFilterTextSearch(query="flow_runs")),
+        limit=100,
+        offset=0,
+    )
+    assert sorted(log.message for log in logs) == sorted(
+        log.message for log in test_logs if log.name == "prefect.flow_runs"
+    )
+
+    # Excluding "run_failed" must not hide the "Flow run failed ..." log
+    logs = await query_logs(
+        session=logs_query_session,
+        log_filter=LogFilter(text=LogFilterTextSearch(query="-run_failed")),
+        limit=100,
+        offset=0,
+    )
+    assert len(logs) == len(test_logs)
+
+
 async def test_text_filter_composable_with_other_filters(
     logs_query_session: list[Log],
     query_logs: QueryLogsFn,
