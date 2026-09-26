@@ -85,6 +85,7 @@ dependencies = [
     "pluggy>=1.6.0",
     "pydocket>=0.23.1",
     "psutil>=5.9,<8",
+    "filelock>=3.12,<4",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
