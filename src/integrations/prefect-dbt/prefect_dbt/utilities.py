@@ -4,7 +4,7 @@ Utility functions for prefect-dbt
 
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import slugify
 
@@ -92,7 +92,7 @@ def format_resource_id(adapter_type: str, relation_name: str) -> str:
     return asset_key
 
 
-def kwargs_to_args(kwargs: dict, args: Optional[list[str]] = None) -> list[str]:
+def kwargs_to_args(kwargs: dict, args: list[str] | None = None) -> list[str]:
     """
     Convert a dictionary of kwargs to a list of args in the dbt CLI format.
     If args are provided, they take priority over kwargs when conflicts exist.

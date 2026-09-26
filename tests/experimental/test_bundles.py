@@ -253,6 +253,8 @@ class TestExecuteBundleInSubprocess:
     ):
         calls: list[str] = []
 
+        # This subprocess entrypoint mutates its environment; isolate the test process.
+        monkeypatch.setattr(bundles_module.os, "environ", os.environ.copy())
         monkeypatch.setattr(
             bundles_module, "configure_from_env", lambda: calls.append("configure")
         )

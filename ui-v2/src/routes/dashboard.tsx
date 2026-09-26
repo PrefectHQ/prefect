@@ -53,6 +53,7 @@ import {
 import { PrefectLoading } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 function FlowRunsCardSkeleton() {
 	return (
@@ -771,6 +772,7 @@ function omitKeys<T extends object, K extends readonly (keyof T)[]>(
 }
 
 export function RouteComponent() {
+	usePageTitle("Dashboard");
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 

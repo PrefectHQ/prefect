@@ -7,6 +7,7 @@ import { categorizeError } from "@/api/error-utils";
 import { ArtifactsKeyPage } from "@/components/artifacts/key/artifacts-key-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 const buildFilterBody = (key: string): ArtifactsFilter => ({
 	artifacts: {
@@ -22,6 +23,7 @@ const buildFilterBody = (key: string): ArtifactsFilter => ({
 export const Route = createFileRoute("/artifacts/key/$key")({
 	component: function RouteComponent() {
 		const { key } = Route.useParams();
+		usePageTitle(`Artifact: ${key}`);
 
 		const { data: artifacts } = useSuspenseQuery(
 			buildListArtifactsQuery(buildFilterBody(key)),

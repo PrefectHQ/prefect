@@ -42,7 +42,7 @@ class TestAutoEnum:
         assert repr(Color.RED) == str(Color.RED) == "Color.RED"
 
     def test_autoenum_can_be_json_serialized_with_default_encoder(self):
-        json.dumps(Color.RED) == "RED"
+        assert json.dumps(Color.RED) == '"RED"'
 
 
 @pytest.mark.parametrize(

@@ -6,11 +6,13 @@ import { categorizeError } from "@/api/error-utils";
 import { BlockTypePage } from "@/components/blocks/block-type-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export const Route = createFileRoute("/blocks/catalog_/$slug")({
 	component: function RouteComponent() {
 		const { slug } = Route.useParams();
 		const { data: blockType } = useSuspenseQuery(buildGetBlockTypeQuery(slug));
+		usePageTitle(`Block Type: ${blockType.name}`);
 		return <BlockTypePage blockType={blockType} />;
 	},
 	loader: ({ params, context: { queryClient } }) =>

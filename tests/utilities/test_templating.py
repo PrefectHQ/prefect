@@ -57,6 +57,19 @@ class TestFindPlaceholders:
         with pytest.raises(ValueError):
             find_placeholders(template)
 
+    def test_none_template(self):
+        assert find_placeholders(None) == set()
+
+    def test_nested_none_values(self):
+        template = {
+            "text": "{{body}}",
+            "metadata": {"optional": None},
+            "items": [None, "{{name}}"],
+        }
+        placeholders = find_placeholders(template)
+        names = set(p.name for p in placeholders)
+        assert names == {"body", "name"}
+
     def test_nested_templates(self):
         template = {"greeting": "Hello {{name}}!", "message": {"text": "{{greeting}}"}}
         placeholders = find_placeholders(template)

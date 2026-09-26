@@ -9,6 +9,7 @@ import {
 	WorkPoolQueueEditPageHeader,
 	WorkPoolQueueForm,
 } from "@/components/work-pools/work-pool-queue-form";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export const Route = createFileRoute(
 	"/work-pools/work-pool_/$workPoolName/queue_/$workQueueName/edit",
@@ -20,6 +21,7 @@ export const Route = createFileRoute(
 		const { data: queue } = useSuspenseQuery(
 			buildWorkPoolQueueDetailsQuery(workPoolName, workQueueName),
 		);
+		usePageTitle(`Edit Work Pool Queue: ${queue.name}`);
 
 		const handleSubmit = (values: { name: string }) => {
 			void router.navigate({

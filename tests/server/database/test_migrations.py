@@ -146,6 +146,23 @@ def event_resources_occurred_index_repair_migration() -> ModuleType:
     return module
 
 
+@pytest.fixture
+def flow_run_state_type_coalesce_start_time_index_migration() -> ModuleType:
+    path = (
+        Path(__file__).parents[3]
+        / "src/prefect/server/database/_migrations/versions/postgresql"
+        / "2026_09_15_000000_d4a7e1c93f52_add_flow_run_state_type_coalesce_start_time_index.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "test_flow_run_state_type_coalesce_start_time_index_migration", path
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 @pytest.mark.parametrize("migration_timeout", [None, 60.0])
 async def test_postgres_migration_engine_uses_migration_timeout(
     migration_environment: ModuleType,
@@ -678,6 +695,138 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
         await blocker.close()
         await builder_engine.dispose()
         await run_sync_in_worker_thread(alembic_upgrade)
+
+
+@pytest.mark.parametrize("index_is_valid", [True, False, None])
+@pytest.mark.parametrize("rebuilt_index_is_valid", [True, False])
+def test_flow_run_state_type_coalesce_start_time_index_migration_handles_index_state(
+    flow_run_state_type_coalesce_start_time_index_migration: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    index_is_valid: bool | None,
+    rebuilt_index_is_valid: bool,
+):
+    catalog_queries: list[str] = []
+    statements: list[str] = []
+    qualified_index = '"public"."ix_flow_run__state_type_coalesce_start_time"'
+    query_results = iter(
+        [
+            None if index_is_valid is None else (qualified_index, index_is_valid),
+            (qualified_index, rebuilt_index_is_valid),
+        ]
+    )
+
+    class Result:
+        def first(self) -> tuple[str, bool] | None:
+            return next(query_results)
+
+    class Bind:
+        def exec_driver_sql(self, statement: str) -> Result:
+            catalog_queries.append(" ".join(statement.split()))
+            return Result()
+
+    @contextlib.contextmanager
+    def autocommit_block():
+        yield
+
+    operation = SimpleNamespace(
+        get_context=lambda: SimpleNamespace(
+            as_sql=False,
+            autocommit_block=autocommit_block,
+        ),
+        get_bind=lambda: Bind(),
+        execute=lambda statement: statements.append(" ".join(statement.split())),
+    )
+    monkeypatch.setattr(
+        flow_run_state_type_coalesce_start_time_index_migration, "op", operation
+    )
+
+    if rebuilt_index_is_valid:
+        flow_run_state_type_coalesce_start_time_index_migration.upgrade()
+    else:
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "ix_flow_run__state_type_coalesce_start_time is missing or invalid "
+                "after creation"
+            ),
+        ):
+            flow_run_state_type_coalesce_start_time_index_migration.upgrade()
+
+    catalog_query = (
+        "SELECT format('%I.%I', n.nspname, c.relname), i.indisvalid "
+        "FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid "
+        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE i.indrelid = to_regclass('flow_run') "
+        "AND c.relname = 'ix_flow_run__state_type_coalesce_start_time'"
+    )
+    assert catalog_queries == [catalog_query, catalog_query]
+    create_statement = (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_flow_run__state_type_coalesce_start_time "
+        "ON flow_run (state_type, (coalesce(start_time, expected_start_time)))"
+    )
+    expected_statements: list[str] = []
+    if index_is_valid is None:
+        expected_statements.append(create_statement)
+    elif not index_is_valid:
+        expected_statements.append(f"REINDEX INDEX CONCURRENTLY {qualified_index}")
+    assert statements == expected_statements
+
+
+def test_flow_run_state_type_coalesce_start_time_index_migration_rejects_postgres_dry_run(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        dependencies,
+        "MODELS_DEPENDENCIES",
+        {
+            "database_config": None,
+            "query_components": None,
+            "orm": None,
+            "interface_class": None,
+        },
+    )
+    monkeypatch.setattr(DBSingleton, "_instances", {})
+
+    with pytest.raises(
+        RuntimeError,
+        match="d4a7e1c93f52 requires an online PostgreSQL migration",
+    ):
+        with temporary_settings(
+            {
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: (
+                    "postgresql+asyncpg://localhost/prefect"
+                )
+            }
+        ):
+            alembic_upgrade("c8d5f2a71b3e:d4a7e1c93f52", dry_run=True)
+
+
+async def test_flow_run_state_type_coalesce_start_time_index_exists(
+    db: PrefectDBInterface,
+    database_engine: AsyncEngine,
+):
+    # SQLAlchemy's inspector omits expression indexes, so read the catalog directly.
+    if db.dialect.name == "postgresql":
+        query = sa.text(
+            "SELECT indexdef FROM pg_indexes "
+            "WHERE tablename = 'flow_run' "
+            "AND indexname = 'ix_flow_run__state_type_coalesce_start_time'"
+        )
+    else:
+        query = sa.text(
+            "SELECT sql FROM sqlite_master "
+            "WHERE type = 'index' AND tbl_name = 'flow_run' "
+            "AND name = 'ix_flow_run__state_type_coalesce_start_time'"
+        )
+
+    async with database_engine.connect() as connection:
+        definition = await connection.scalar(query)
+
+    assert definition is not None
+    normalized = " ".join(definition.lower().split())
+    assert "state_type" in normalized
+    assert "coalesce(start_time, expected_start_time)" in normalized
 
 
 @pytest.fixture

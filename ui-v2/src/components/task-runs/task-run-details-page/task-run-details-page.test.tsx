@@ -148,7 +148,7 @@ describe("TaskRunDetailsPage", () => {
 		});
 
 		// Open the dropdown menu
-		const moreButton = screen.getByRole("button", { expanded: false });
+		const moreButton = screen.getByRole("button", { name: "Open menu" });
 		await user.click(moreButton);
 
 		// Wait for the dropdown menu to be visible and click the Copy ID option
@@ -185,7 +185,7 @@ describe("TaskRunDetailsPage", () => {
 		});
 
 		// Open the dropdown menu
-		const moreButton = screen.getByRole("button", { expanded: false });
+		const moreButton = screen.getByRole("button", { name: "Open menu" });
 		await user.click(moreButton);
 
 		// Wait for the dropdown menu to be visible and click the Delete option

@@ -3861,10 +3861,8 @@ class TestRunnerDeployment:
 
         assert deployment2.work_pool_name == process_work_pool.name
 
-        # this may look weird with a process pool but update's job isn't to enforce that schema
-        assert deployment2.job_variables == {
-            "image": "my-repo/my-image:latest",
-        }
+        # re-applying without job variables clears the previously stored overrides
+        assert deployment2.job_variables == {}
         assert deployment2.work_queue_name == "default"
 
     async def test_apply_with_image(self, prefect_client: PrefectClient, work_pool):

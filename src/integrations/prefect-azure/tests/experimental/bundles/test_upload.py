@@ -1,8 +1,10 @@
+import asyncio
 from pathlib import Path
+from typing import IO, Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from azure.core.exceptions import ResourceExistsError
+from azure.core.exceptions import ClientAuthenticationError, ResourceExistsError
 from prefect_azure.bundles.upload import (
     upload_bundle_to_azure_blob_storage,
 )
@@ -30,6 +32,34 @@ def mock_blob_storage_credentials(monkeypatch: MonkeyPatch) -> MagicMock:
     mock_credentials.load = AsyncMock(return_value=mock_credentials.return_value)
 
     return mock_credentials
+
+
+class FakeContainerClient:
+    """In-memory stand-in for `ContainerClient` that enforces Azure's
+    default no-overwrite semantics."""
+
+    def __init__(self) -> None:
+        self.blobs: dict[str, bytes] = {}
+
+    async def upload_blob(
+        self, name: str, data: IO[bytes], overwrite: bool = False, **kwargs: Any
+    ) -> None:
+        content = data.read()
+        await asyncio.sleep(0)
+        if not overwrite and name in self.blobs:
+            raise ResourceExistsError("The specified blob already exists.")
+        self.blobs[name] = content
+
+
+@pytest.fixture
+def fake_container_client(
+    mock_blob_storage_credentials: MagicMock,
+) -> FakeContainerClient:
+    client = FakeContainerClient()
+    mock_blob_storage_credentials.return_value.get_container_client.return_value = (
+        client
+    )
+    return client
 
 
 class TestUploadBundleToAzureBlobStorage:
@@ -74,6 +104,48 @@ class TestUploadBundleToAzureBlobStorage:
         # Verify the blob was uploaded
         mock_container_client.upload_blob.assert_called_once()
 
+    async def test_upload_bundle_twice_to_same_key(
+        self, tmp_bundle_file: Path, fake_container_client: FakeContainerClient
+    ) -> None:
+        """Content-addressed sidecar keys are reused across submissions, so
+        repeated uploads of the same key must succeed."""
+        container = "test-container"
+        key = "files/abc123.zip"
+
+        for _ in range(2):
+            result = await upload_bundle_to_azure_blob_storage(
+                local_filepath=tmp_bundle_file,
+                container=container,
+                key=key,
+                azure_blob_storage_credentials_block_name="test-credentials",
+            )
+            assert result == {"container": container, "key": key}
+
+        assert fake_container_client.blobs == {key: tmp_bundle_file.read_bytes()}
+
+    async def test_concurrent_uploads_to_same_key(
+        self, tmp_bundle_file: Path, fake_container_client: FakeContainerClient
+    ) -> None:
+        """Concurrent submissions with identical included files collide on the
+        same sidecar key and must all succeed."""
+        container = "test-container"
+        key = "files/abc123.zip"
+
+        results = await asyncio.gather(
+            *(
+                upload_bundle_to_azure_blob_storage(
+                    local_filepath=tmp_bundle_file,
+                    container=container,
+                    key=key,
+                    azure_blob_storage_credentials_block_name="test-credentials",
+                )
+                for _ in range(5)
+            )
+        )
+
+        assert results == [{"container": container, "key": key}] * 5
+        assert fake_container_client.blobs == {key: tmp_bundle_file.read_bytes()}
+
     async def test_upload_bundle_with_nonexistent_file(self, tmp_path: Path) -> None:
         """Test uploading a bundle with a nonexistent file."""
         nonexistent_file = tmp_path / "nonexistent.zip"
@@ -104,13 +176,14 @@ class TestUploadBundleToAzureBlobStorage:
         mock_container_client = (
             mock_blob_storage_credentials.return_value.get_container_client.return_value
         )
-        mock_container_client.upload_blob.side_effect = ResourceExistsError(
-            "Blob already exists"
+        mock_container_client.upload_blob.side_effect = ClientAuthenticationError(
+            "Authentication failed"
         )
 
         # Call the function and expect a RuntimeError
         with pytest.raises(
-            RuntimeError, match="Failed to upload bundle to Azure Blob Storage"
+            RuntimeError,
+            match="Failed to upload bundle to Azure Blob Storage: Authentication failed",
         ):
             await upload_bundle_to_azure_blob_storage(
                 local_filepath=tmp_bundle_file,

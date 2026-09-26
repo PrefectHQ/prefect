@@ -34,6 +34,7 @@ import {
 	VariableDialog,
 } from "@/components/variables/variable-dialog";
 import { usePageSizePreference } from "@/hooks/use-page-size-preference";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -97,6 +98,7 @@ const VariablesFilteredEmptyState = ({
 export const Route = createFileRoute("/variables/")({
 	validateSearch: searchParams,
 	component: function RouteComponent() {
+		usePageTitle("Variables");
 		const search = Route.useSearch();
 		const navigate = Route.useNavigate();
 		const [pagination, onPaginationChange] = usePagination();

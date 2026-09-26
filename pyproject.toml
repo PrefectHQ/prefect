@@ -68,7 +68,7 @@ dependencies = [
     "pydantic_extra_types>=2.8.2,<3.0.0",
     "pydantic_settings>=2.9.1,<3.0.0",
     "python-dateutil>=2.8.2,<3.0.0",
-    "python-slugify>=5.0,<9.0",
+    "python-slugify>=9,<9.1",
     "pyyaml>=5.4.1,<7.0.0",
     "rfc3339-validator>=0.1.4,<0.2.0",
     "rich>=11.0,<16.0",
@@ -83,7 +83,7 @@ dependencies = [
     "whenever>=0.7.3,<0.11.0; python_version>='3.13'",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
-    "pydocket>=0.19.0",
+    "pydocket>=0.23.1",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"

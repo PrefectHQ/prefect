@@ -6,11 +6,13 @@ import { categorizeError } from "@/api/error-utils";
 import { BlockDocumentEditPage } from "@/components/blocks/block-document-edit-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export const Route = createFileRoute("/blocks/block_/$id/edit")({
 	component: function RouteComponent() {
 		const { id } = Route.useParams();
 		const { data } = useSuspenseQuery(buildGetBlockDocumentQuery(id));
+		usePageTitle(`Edit Block: ${data.name}`);
 		return <BlockDocumentEditPage blockDocument={data} />;
 	},
 	loader: ({ params, context: { queryClient } }) =>

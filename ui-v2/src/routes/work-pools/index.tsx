@@ -21,6 +21,7 @@ import { RouteErrorState } from "@/components/ui/route-error-state";
 import { WorkPoolsEmptyState } from "@/components/work-pools/empty-state";
 import { WorkPoolsPageHeader } from "@/components/work-pools/header";
 import { WorkPoolCard } from "@/components/work-pools/work-pool-card/work-pool-card";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { pluralize } from "@/utils";
 
 const WorkPoolsFilteredEmptyState = ({
@@ -44,6 +45,7 @@ const WorkPoolsFilteredEmptyState = ({
 
 export const Route = createFileRoute("/work-pools/")({
 	component: function RouteComponent() {
+		usePageTitle("Work Pools");
 		const [searchTerm, setSearchTerm] = useState("");
 
 		const { data: workPoolCount = 0 } = useSuspenseQuery(

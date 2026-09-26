@@ -14,6 +14,8 @@ Prefect's versioning scheme does not strictly follow [semantic versioning](https
 
 Occasionally a version carries a suffix such as `rc`, `a`, or `b`. These indicate pre-release versions that you can opt into for testing and experimentation prior to a generally available release.
 
+New nightly development releases of the `prefect` package use a `.devN` suffix and are published as wheels only. Install them with wheel support enabled; options that require a source distribution, such as `--no-binary=prefect`, are not supported for these releases. Stable releases and release candidates include both wheels and source distributions.
+
 ## Versioning scheme
 
 Prefect increases the **major** version when significant and widespread changes are made to the core product.

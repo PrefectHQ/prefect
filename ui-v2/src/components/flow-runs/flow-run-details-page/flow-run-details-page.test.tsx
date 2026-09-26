@@ -135,6 +135,14 @@ describe("FlowRunDetailsPage", () => {
 		expect(nav).toHaveTextContent("test-flow-run");
 	});
 
+	it("sets the document title to the flow run name", async () => {
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(document.title).toBe("Flow Run: test-flow-run • Prefect Server");
+		});
+	});
+
 	it("displays the flow run state badge", async () => {
 		renderFlowRunDetailsPage();
 
@@ -175,7 +183,7 @@ describe("FlowRunDetailsPage", () => {
 			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
 		});
 
-		const moreButton = screen.getByRole("button", { expanded: false });
+		const moreButton = screen.getByRole("button", { name: "Open menu" });
 		await user.click(moreButton);
 
 		await waitFor(() => {
@@ -206,7 +214,7 @@ describe("FlowRunDetailsPage", () => {
 			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
 		});
 
-		const moreButton = screen.getByRole("button", { expanded: false });
+		const moreButton = screen.getByRole("button", { name: "Open menu" });
 		await user.click(moreButton);
 
 		await waitFor(() => {

@@ -53,8 +53,10 @@ async def upload_bundle_to_azure_blob_storage(
             container,
             key,
         )
+        # Included-file sidecars use content-addressed keys that are reused
+        # across submissions, so uploads to an existing key must succeed.
         with open(local_filepath, "rb") as f:
-            await container_client.upload_blob(key, f)  # pyright: ignore[reportUnknownMemberType] Incomplete type hints
+            await container_client.upload_blob(key, f, overwrite=True)  # pyright: ignore[reportUnknownMemberType] Incomplete type hints
     except Exception as e:
         raise RuntimeError(f"Failed to upload bundle to Azure Blob Storage: {e}")
 

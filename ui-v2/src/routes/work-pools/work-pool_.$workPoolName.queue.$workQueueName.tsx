@@ -23,6 +23,7 @@ import { WorkPoolQueuePageHeader } from "@/components/work-pools/work-pool-queue
 import { WorkPoolQueueRunsTab } from "@/components/work-pools/work-pool-queue-runs-tab";
 import { useRedirectDetailsTabOnDesktop } from "@/components/work-pools/work-pool-queue-tabs-sync";
 import { WorkPoolQueueUpcomingRunsTab } from "@/components/work-pools/work-pool-queue-upcoming-runs-tab";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { cn } from "@/utils";
 
 const searchParams = z.object({
@@ -108,6 +109,7 @@ export const Route = createFileRoute(
 		const { data: queue } = useSuspenseQuery(
 			buildWorkPoolQueueDetailsQuery(workPoolName, workQueueName),
 		);
+		usePageTitle(`Work Pool Queue: ${queue.name}`);
 
 		const codeBannerCommand = `prefect worker start --pool "${workPoolName}" --work-queue "${workQueueName}"`;
 		const codeBannerTitle = `Your work queue ${workQueueName} is ready to go!`;

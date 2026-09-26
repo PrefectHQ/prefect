@@ -8,6 +8,16 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add `flow_run(state_type, coalesce(start_time, expected_start_time))` index
+SQLite: `a3b9c7d2e5f1`
+Postgres: `d4a7e1c93f52`
+
+Serves state-filtered flow run queries sorted by `START_TIME_ASC`/`DESC` (the
+existing coalesce indexes do not include `state_type`, so the planner walked
+them and filtered afterwards). Postgres creates the index concurrently, rebuilds
+an invalid index left by an interrupted prior attempt, and rejects offline SQL
+generation. Downgrading removes the index.
+
 # Rebuild invalid `event_resources.occurred` index
 SQLite: None
 Postgres: `c8d5f2a71b3e`

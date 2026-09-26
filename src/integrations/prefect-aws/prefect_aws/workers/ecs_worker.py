@@ -1334,7 +1334,6 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             "awsvpcConfiguration": {
                 "subnets": [s["SubnetId"] for s in subnets],
                 "assignPublicIp": "ENABLED",
-                "securityGroups": [],
             }
         }
 

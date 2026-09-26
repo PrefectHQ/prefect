@@ -9,6 +9,7 @@ import {
 	WorkPoolEditForm,
 	WorkPoolEditPageHeader,
 } from "@/components/work-pools/edit";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export const Route = createFileRoute(
 	"/work-pools/work-pool_/$workPoolName/edit",
@@ -18,6 +19,7 @@ export const Route = createFileRoute(
 		const { data: workPool } = useSuspenseQuery(
 			buildGetWorkPoolQuery(workPoolName),
 		);
+		usePageTitle(`Edit Work Pool: ${workPool.name}`);
 
 		return (
 			<div className="container max-w-4xl py-6">

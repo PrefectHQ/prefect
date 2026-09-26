@@ -24,6 +24,7 @@ import FlowsPage from "@/components/flows/flows-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { usePageSizePreference } from "@/hooks/use-page-size-preference";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 // Route for /flows/
 
@@ -74,6 +75,7 @@ const NUMBER_OF_ACTIVITY_BARS = 16;
 export const Route = createFileRoute("/flows/")({
 	validateSearch: searchParams,
 	component: function FlowsRoute() {
+		usePageTitle("Flows");
 		const search = Route.useSearch();
 		const navigate = Route.useNavigate();
 		const queryClient = useQueryClient();

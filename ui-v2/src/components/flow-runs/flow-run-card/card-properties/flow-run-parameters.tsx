@@ -19,7 +19,7 @@ type FlowRunParametersProps = { flowRun: FlowRunCardData };
 
 export const FlowRunParameters = ({ flowRun }: FlowRunParametersProps) => {
 	return (
-		<div className="flex items-center gap-2">
+		<div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
 			<Icon id="SlidersVertical" className="size-4" />
 			<ParametersDialog flowRun={flowRun} />
 		</div>

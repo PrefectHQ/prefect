@@ -1,16 +1,76 @@
+import asyncio
 import json
+import multiprocessing
 import tempfile
 from datetime import datetime, timedelta, timezone
+from multiprocessing.connection import Connection
 from pathlib import Path
+from typing import Literal
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
 
+from prefect.locking import _filelock
 from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
 from prefect.server.concurrency.lease_storage.filesystem import (
     ConcurrencyLeaseStorage,
 )
 from prefect.types._concurrency import ConcurrencyLeaseHolder
+
+
+def _update_index_in_process(
+    storage_path: Path,
+    operation: str,
+    lease_id: UUID | None,
+    pause_after_read: bool,
+    connection: Connection,
+) -> None:
+    """Expose a read or lock contention so the parent can order two writers."""
+    storage = ConcurrencyLeaseStorage(storage_path)
+    original_load = storage._load_expiration_index
+    original_write_lock = _filelock._write_lock
+    reported_contention = False
+
+    async def load_index() -> dict[str, str]:
+        index = await original_load()
+        connection.send("read")
+        if pause_after_read:
+            assert await asyncio.to_thread(connection.recv) == "continue"
+        return index
+
+    def write_lock(path: Path) -> None:
+        nonlocal reported_contention
+        try:
+            original_write_lock(path)
+        except FileExistsError:
+            if not reported_contention:
+                connection.send("blocked")
+                reported_contention = True
+            raise
+
+    async def update() -> None:
+        if operation == "create":
+            await storage.create_lease([uuid4()], timedelta(minutes=5))
+        elif operation == "renew":
+            assert lease_id is not None
+            assert await storage.renew_lease(lease_id, timedelta(minutes=5))
+        else:
+            assert lease_id is not None
+            await storage.revoke_lease(lease_id)
+
+    with (
+        patch.object(storage, "_load_expiration_index", load_index),
+        patch.object(_filelock, "_write_lock", write_lock),
+    ):
+        asyncio.run(update())
+    connection.close()
+
+
+def _receive_process_message(connection: Connection) -> str:
+    # This timeout only bounds a broken worker; it does not order the race.
+    assert connection.poll(30), "Lease writer did not reach its checkpoint"
+    return connection.recv()
 
 
 class TestFilesystemConcurrencyLeaseStorage:
@@ -667,3 +727,227 @@ class TestFilesystemConcurrencyLeaseStorage:
         # Verify no temp files left behind
         temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
         assert len(temp_files) == 0
+
+    @pytest.mark.parametrize(
+        "operations", [("create", "create"), ("renew", "renew"), ("renew", "revoke")]
+    )
+    async def test_processes_preserve_expiration_index(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        operations: tuple[str, str],
+    ):
+        """Writers in separate processes must not overwrite each other's entries."""
+        lease_ids: list[UUID | None] = [None, None]
+        if operations[0] != "create":
+            lease_ids = [
+                (
+                    await storage.create_lease(
+                        sample_resource_ids, timedelta(seconds=-1)
+                    )
+                ).id
+                for _ in range(2)
+            ]
+
+        context = multiprocessing.get_context("spawn")
+        connections = [context.Pipe() for _ in range(2)]
+        processes = [
+            context.Process(
+                target=_update_index_in_process,
+                args=(storage.storage_path, operation, lease_id, i == 0, child),
+            )
+            for i, (operation, lease_id, (_, child)) in enumerate(
+                zip(operations, lease_ids, connections)
+            )
+        ]
+        try:
+            processes[0].start()
+            assert (
+                await asyncio.to_thread(_receive_process_message, connections[0][0])
+                == "read"
+            )
+            processes[1].start()
+            # With locking the second writer is blocked. Without locking it has
+            # read the same old snapshot. Either checkpoint deterministically
+            # puts the second writer inside the first writer's update window.
+            assert await asyncio.to_thread(
+                _receive_process_message, connections[1][0]
+            ) in {"blocked", "read"}
+            connections[0][0].send("continue")
+            for process in processes:
+                await asyncio.to_thread(process.join, 30)
+                assert process.exitcode == 0
+        finally:
+            for process in processes:
+                if process.is_alive():
+                    process.terminate()
+                    await asyncio.to_thread(process.join, 10)
+                process.close()
+            for parent, child in connections:
+                parent.close()
+                child.close()
+
+        index = await storage._load_expiration_index()
+        expected_count = 1 if operations[1] == "revoke" else 2
+        assert len(index) == expected_count
+        lease_files = list(storage.storage_path.glob("*.json"))
+        assert len(lease_files) == expected_count + 1  # includes the index
+        for lease_file in lease_files:
+            if lease_file.name == "expirations.json":
+                continue
+            lease = await storage.read_lease(UUID(lease_file.stem))
+            assert lease is not None
+            assert index[str(lease.id)] == lease.expiration.isoformat()
+        assert len(await storage.read_active_lease_ids()) == expected_count
+        assert await storage.read_expired_lease_ids() == []
+
+    @pytest.mark.parametrize("error", [OSError, asyncio.CancelledError])
+    async def test_failed_index_update_releases_lock(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        monkeypatch: pytest.MonkeyPatch,
+        error: type[BaseException],
+    ):
+        """A failed or cancelled writer must not block another storage instance."""
+        lease = await storage.create_lease(sample_resource_ids, timedelta(seconds=-1))
+
+        async def fail_load() -> dict[str, str]:
+            raise error()
+
+        with monkeypatch.context() as patcher:
+            patcher.setattr(storage, "_load_expiration_index", fail_load)
+            with pytest.raises(error):
+                await storage.renew_lease(lease.id, timedelta(minutes=5))
+
+        other = ConcurrencyLeaseStorage(storage.storage_path)
+        assert await asyncio.wait_for(
+            other.renew_lease(lease.id, timedelta(minutes=10)), timeout=5
+        )
+        assert await other.read_active_lease_ids() == [lease.id]
+        assert await other.read_expired_lease_ids() == []
+
+    @pytest.mark.parametrize("operation", ["renew", "shorten", "revoke"])
+    async def test_index_repair_preserves_intervening_update(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        monkeypatch: pytest.MonkeyPatch,
+        operation: Literal["renew", "shorten", "revoke"],
+    ):
+        """Repair must not undo a renewal or recreate an entry removed after scan."""
+        lease = await storage.create_lease(sample_resource_ids, timedelta(minutes=5))
+        storage._save_expiration_index(
+            {
+                str(lease.id): (
+                    datetime.now(timezone.utc) - timedelta(minutes=1)
+                ).isoformat()
+            }
+        )
+        other = ConcurrencyLeaseStorage(storage.storage_path)
+        original_repair = storage._repair_expiration_index
+
+        async def update_before_repair(
+            repairs: dict[UUID, tuple[str, datetime]],
+        ) -> None:
+            if operation == "renew":
+                assert await other.renew_lease(lease.id, timedelta(minutes=10))
+            elif operation == "shorten":
+                assert await other.renew_lease(lease.id, timedelta(minutes=1))
+            else:
+                await other.revoke_lease(lease.id)
+            await original_repair(repairs)
+
+        monkeypatch.setattr(storage, "_repair_expiration_index", update_before_repair)
+        assert await storage.read_expired_lease_ids() == []
+        current = await other.read_lease(lease.id)
+        index = await other._load_expiration_index()
+        if operation in ("renew", "shorten"):
+            assert current is not None
+            if operation == "renew":
+                assert current.expiration > lease.expiration
+            else:
+                assert current.expiration < lease.expiration
+            assert index[str(lease.id)] == current.expiration.isoformat()
+            assert await other.read_active_lease_ids() == [lease.id]
+        else:
+            assert current is None
+            assert index == {}
+            assert await other.read_active_lease_ids() == []
+
+    async def test_read_expired_lease_ids_ignores_stale_index_entry(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """A live lease with a stale index entry is not reported as expired."""
+        lease = await storage.create_lease(sample_resource_ids, timedelta(minutes=5))
+
+        stale_expiration = datetime.now(timezone.utc) - timedelta(minutes=1)
+        storage._save_expiration_index(
+            {str(lease.id): stale_expiration.isoformat()},
+        )
+
+        assert await storage.read_expired_lease_ids() == []
+
+        # The index entry is repaired from the lease file
+        index = await storage._load_expiration_index()
+        assert index[str(lease.id)] == lease.expiration.isoformat()
+
+    async def test_read_expired_lease_ids_repairs_stale_entries_in_one_write(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """Stale entries are repaired together instead of one write per lease."""
+        leases = [
+            await storage.create_lease(sample_resource_ids, timedelta(minutes=5))
+            for _ in range(3)
+        ]
+
+        stale_expiration = datetime.now(timezone.utc) - timedelta(minutes=1)
+        storage._save_expiration_index(
+            {str(lease.id): stale_expiration.isoformat() for lease in leases}
+        )
+
+        writes = 0
+        original_save = storage._save_expiration_index
+
+        def counting_save(index: dict[str, str]) -> None:
+            nonlocal writes
+            writes += 1
+            original_save(index)
+
+        storage._save_expiration_index = counting_save
+
+        assert await storage.read_expired_lease_ids() == []
+
+        storage._save_expiration_index = original_save
+
+        assert writes == 1
+
+        index = await storage._load_expiration_index()
+        for lease in leases:
+            assert index[str(lease.id)] == lease.expiration.isoformat()
+
+    async def test_read_expired_lease_ids_skips_naive_index_entry(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """A timezone-naive index entry must not stop the scan."""
+        expired = await storage.create_lease(sample_resource_ids, timedelta(seconds=-1))
+
+        index = await storage._load_expiration_index()
+        index[str(uuid4())] = (
+            (datetime.now(timezone.utc) - timedelta(minutes=1))
+            .replace(tzinfo=None)
+            .isoformat()
+        )
+        storage._save_expiration_index(index)
+
+        assert await storage.read_expired_lease_ids() == [expired.id]
+
+    async def test_read_expired_lease_ids_reports_orphaned_index_entry(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """An index entry without a lease file is reported so it gets cleaned up."""
+        orphan_id = uuid4()
+        expired = datetime.now(timezone.utc) - timedelta(minutes=1)
+        storage._save_expiration_index({str(orphan_id): expired.isoformat()})
+
+        assert await storage.read_expired_lease_ids() == [orphan_id]

@@ -2,7 +2,7 @@
 
 import abc
 from pathlib import Path
-from typing import Any, Dict, Optional, Type
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
@@ -22,7 +22,7 @@ class DbtConfigs(Block, abc.ABC):
             an error will be raised.
     """
 
-    extras: Optional[Dict[str, Any]] = Field(
+    extras: dict[str, Any] | None = Field(
         default=None,
         description=(
             "Extra target configs' keywords, not yet exposed in prefect-dbt, "
@@ -42,7 +42,7 @@ class DbtConfigs(Block, abc.ABC):
         self,
         configs_json: dict[str, Any],
         fields: dict[str, Any],
-        model: Optional[BaseModel] = None,
+        model: BaseModel | None = None,
     ) -> dict[str, Any]:
         """
         Recursively populate configs_json.
@@ -167,10 +167,10 @@ class TargetConfigs(BaseTargetConfigs):
 
     @classmethod
     def from_profiles_yml(
-        cls: Type[Self],
-        profile_name: Optional[str] = None,
-        target_name: Optional[str] = None,
-        profiles_dir: Optional[str] = None,
+        cls: type[Self],
+        profile_name: str | None = None,
+        target_name: str | None = None,
+        profiles_dir: str | None = None,
         allow_field_overrides: bool = False,
     ) -> "TargetConfigs":
         """
@@ -287,15 +287,15 @@ class GlobalConfigs(DbtConfigs):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
     _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
 
-    send_anonymous_usage_stats: Optional[bool] = Field(
+    send_anonymous_usage_stats: bool | None = Field(
         default=None,
         description="Whether usage stats are sent to dbt.",
     )
-    use_colors: Optional[bool] = Field(
+    use_colors: bool | None = Field(
         default=None,
         description="Colorize the output it prints in your terminal.",
     )
-    partial_parse: Optional[bool] = Field(
+    partial_parse: bool | None = Field(
         default=None,
         description=(
             "When partial parsing is enabled, dbt will use an "
@@ -303,21 +303,21 @@ class GlobalConfigs(DbtConfigs):
             "(if any) since it last parsed the project."
         ),
     )
-    printer_width: Optional[int] = Field(
+    printer_width: int | None = Field(
         default=None,
         description="Length of characters before starting a new line.",
     )
-    write_json: Optional[bool] = Field(
+    write_json: bool | None = Field(
         default=None,
         description=(
             "Determines whether dbt writes JSON artifacts to the target/ directory."
         ),
     )
-    warn_error: Optional[bool] = Field(
+    warn_error: bool | None = Field(
         default=None,
         description="Whether to convert dbt warnings into errors.",
     )
-    log_format: Optional[str] = Field(
+    log_format: str | None = Field(
         default=None,
         description=(
             "The LOG_FORMAT config specifies how dbt's logs should "
@@ -325,26 +325,26 @@ class GlobalConfigs(DbtConfigs):
             "output fully structured logs in JSON format."
         ),
     )
-    debug: Optional[bool] = Field(
+    debug: bool | None = Field(
         default=None,
         description="Whether to redirect dbt's debug logs to standard out.",
     )
-    version_check: Optional[bool] = Field(
+    version_check: bool | None = Field(
         default=None,
         description=(
             "Whether to raise an error if a project's version "
             "is used with an incompatible dbt version."
         ),
     )
-    fail_fast: Optional[bool] = Field(
+    fail_fast: bool | None = Field(
         default=None,
         description=("Make dbt exit immediately if a single resource fails to build."),
     )
-    use_experimental_parser: Optional[bool] = Field(
+    use_experimental_parser: bool | None = Field(
         default=None,
         description=("Opt into the latest experimental version of the static parser."),
     )
-    static_parser: Optional[bool] = Field(
+    static_parser: bool | None = Field(
         default=None,
         description=(
             "Whether to use the [static parser](https://docs.getdbt.com/reference/parsing#static-parser)."  # noqa

@@ -55,7 +55,7 @@ export const TaskRunsListItem = ({
 					)}
 					<TaskRunBreadcrumbs taskRun={taskRun} flow={flow} flowRun={flowRun} />
 				</div>
-				<div>
+				<div className="min-w-0 flex justify-end">
 					<TagBadgeGroup tags={taskRun.tags ?? []} />
 				</div>
 			</div>

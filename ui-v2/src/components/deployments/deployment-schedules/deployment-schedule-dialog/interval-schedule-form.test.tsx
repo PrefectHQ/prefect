@@ -37,6 +37,20 @@ const captureSaveRequest = () => {
 	return request;
 };
 
+/**
+ * The anchor date defaults to now, so the time input is pre-filled with the
+ * current HH:mm. React swallows a change event whose value equals the
+ * input's current value, so pick an hour that can never be the current one.
+ */
+const pickTimeOfDay = () => {
+	const hours = new Date().getHours() === 14 ? 15 : 14;
+	return {
+		input: `${hours}:35`,
+		display: `${String(hours - 12).padStart(2, "0")}:35 PM`,
+		isoTime: `T${hours}:35:00.000Z`,
+	};
+};
+
 const baseSchedule = {
 	active: true,
 	created: "0",
@@ -71,6 +85,37 @@ describe("IntervalScheduleForm", () => {
 
 		expect(screen.getByLabelText(/active/i)).not.toBeChecked();
 		expect(screen.getByLabelText(/value/i)).toHaveValue("100");
+	});
+
+	it("roundtrips an edited interval schedule without changing its interval", async () => {
+		const request = captureSaveRequest();
+		const MOCK_SCHEDULE = {
+			...baseSchedule,
+			schedule: {
+				interval: 7_200,
+				anchor_date: "2024-01-01T12:00:00.000Z",
+				timezone: "UTC",
+			},
+		};
+		render(
+			<IntervalScheduleFormTest
+				deployment_id="0"
+				onSubmit={vi.fn()}
+				scheduleToEdit={MOCK_SCHEDULE}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() =>
+			expect(screen.getByLabelText(/value/i)).toHaveValue("2"),
+		);
+		expect(screen.getByLabelText(/interval/i)).toHaveTextContent("Hours");
+
+		fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+		await waitFor(() => expect(request.body).toBeDefined());
+		const { schedule } = request.body as { schedule: { interval: number } };
+		expect(schedule.interval).toBe(MOCK_SCHEDULE.schedule.interval);
 	});
 
 	it("is able to edit an interval schedule", () => {
@@ -111,17 +156,20 @@ describe("IntervalScheduleForm", () => {
 	it("is able to select a time of day for the anchor date", async () => {
 		const user = userEvent.setup();
 		const request = captureSaveRequest();
+		const time = pickTimeOfDay();
 		render(<IntervalScheduleFormTest deployment_id="0" onSubmit={vi.fn()} />, {
 			wrapper: createWrapper(),
 		});
 
 		await user.click(screen.getByLabelText(/anchor date/i));
 		fireEvent.change(screen.getByLabelText("Time"), {
-			target: { value: "14:35" },
+			target: { value: time.input },
 		});
 
-		expect(screen.getByLabelText("Time")).toHaveValue("14:35");
-		expect(screen.getByLabelText(/anchor date/i)).toHaveTextContent(/02:35 PM/);
+		expect(screen.getByLabelText("Time")).toHaveValue(time.input);
+		expect(screen.getByLabelText(/anchor date/i)).toHaveTextContent(
+			time.display,
+		);
 
 		fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
@@ -129,29 +177,33 @@ describe("IntervalScheduleForm", () => {
 		const [{ schedule }] = request.body as [
 			{ schedule: { anchor_date: string } },
 		];
-		expect(schedule.anchor_date).toMatch(/T14:35:00\.000Z$/);
+		expect(schedule.anchor_date).toContain(time.isoTime);
 	});
 
 	it("keeps the selected time when picking another day", async () => {
 		const user = userEvent.setup();
+		const time = pickTimeOfDay();
 		render(<IntervalScheduleFormTest deployment_id="0" onSubmit={vi.fn()} />, {
 			wrapper: createWrapper(),
 		});
 
-		const fifteenth = set(new Date(), { date: 15 });
+		// react-day-picker prefixes today's button label with "Today, ", so
+		// pick a day in the current month that can never be today.
+		const today = new Date();
+		const otherDay = set(today, { date: today.getDate() === 15 ? 14 : 15 });
 
 		await user.click(screen.getByLabelText(/anchor date/i));
 		fireEvent.change(screen.getByLabelText("Time"), {
-			target: { value: "14:35" },
+			target: { value: time.input },
 		});
 		await user.click(
 			screen.getByRole("button", {
-				name: format(fifteenth, "EEEE, MMMM do, yyyy"),
+				name: format(otherDay, "EEEE, MMMM do, yyyy"),
 			}),
 		);
 
 		expect(screen.getByLabelText(/anchor date/i)).toHaveTextContent(
-			`${format(fifteenth, "MMM do, yyyy")} at 02:35 PM`,
+			`${format(otherDay, "MMM do, yyyy")} at ${time.display}`,
 		);
 	});
 

@@ -721,7 +721,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exc,
                 message="Task run encountered an exception",
                 result_store=get_result_store(),
-                write_result=True,
+                write_result=should_persist_result(),
             )
             self.set_state(state)
             self._raised = exc
@@ -1348,6 +1348,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exc,
                 message="Task run encountered an exception",
                 result_store=get_result_store(),
+                write_result=should_persist_result(),
             )
             await self.set_state(state)
             self._raised = exc

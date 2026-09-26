@@ -1,6 +1,6 @@
 """Module containing models for Snowflake configs"""
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 try:
     from typing import Literal
@@ -69,7 +69,7 @@ class SnowflakeTargetConfigs(BaseTargetConfigs):
     type: Literal["snowflake"] = Field(
         default="snowflake", description="The type of the target configs."
     )
-    schema_: Optional[str] = Field(
+    schema_: str | None = Field(
         default=None,
         alias="schema",
         description="The schema to use for the target configs.",
@@ -78,7 +78,7 @@ class SnowflakeTargetConfigs(BaseTargetConfigs):
         default=..., description="The connector to use."
     )
 
-    def get_configs(self) -> Dict[str, Any]:
+    def get_configs(self) -> dict[str, Any]:
         """
         Returns the dbt configs specific to Snowflake profile.
 
