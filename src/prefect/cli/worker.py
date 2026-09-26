@@ -8,11 +8,13 @@ import asyncio
 import json
 import os
 import signal
+import stat
 import subprocess
 import sys
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
 import cyclopts
 import psutil
@@ -28,6 +30,7 @@ from prefect.settings import PREFECT_HOME
 
 WORKER_PID_FILE = Path(PREFECT_HOME.value()) / "worker.pid"
 WORKER_LOG_FILE = Path(PREFECT_HOME.value()) / "worker.log"
+WORKER_READY_ENV = "PREFECT__WORKER_READY_FILE"
 
 
 def _worker_is_running(process: psutil.Process) -> bool:
@@ -39,6 +42,14 @@ def _worker_is_running(process: psutil.Process) -> bool:
 
 def _get_background_worker() -> tuple[psutil.Process, float, bool] | None:
     try:
+        if os.name != "nt":
+            info = WORKER_PID_FILE.lstat()
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) & 0o077
+            ):
+                return None
         identity = json.loads(WORKER_PID_FILE.read_text())
         process = psutil.Process(identity["pid"])
         if process.create_time() == identity["created"] and _worker_is_running(process):
@@ -307,6 +318,8 @@ async def start(
             get_settings_context().settings.to_environment_variables(exclude_unset=True)
         )
         env["PREFECT_PROFILE"] = get_settings_context().profile.name
+        ready_file = WORKER_PID_FILE.with_name(f"worker-{uuid4().hex}.ready")
+        env[WORKER_READY_ENV] = str(ready_file)
 
         WORKER_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -335,23 +348,40 @@ async def start(
                             else 0
                         ),
                     )
-                await asyncio.sleep(1)
-                if process.poll() is not None:
-                    if process.returncode == 0:
-                        _cli.console.print("Background worker completed successfully.")
-                        return
-                    exit_with_error(f"Failed to start worker. See {WORKER_LOG_FILE}.")
                 try:
-                    _write_background_worker(
-                        process.pid, psutil.Process(process.pid).create_time()
-                    )
-                except psutil.NoSuchProcess:
-                    if process.poll() == 0:
-                        _cli.console.print("Background worker completed successfully.")
-                        return
-                    exit_with_error(
-                        f"Worker exited during startup. See {WORKER_LOG_FILE}."
-                    )
+                    deadline = asyncio.get_running_loop().time() + 30
+                    while not ready_file.exists():
+                        returncode = process.poll()
+                        if returncode is not None:
+                            if returncode == 0:
+                                _cli.console.print(
+                                    "Background worker completed successfully."
+                                )
+                                return
+                            exit_with_error(
+                                f"Failed to start worker. See {WORKER_LOG_FILE}."
+                            )
+                        if asyncio.get_running_loop().time() >= deadline:
+                            process.terminate()
+                            exit_with_error(
+                                f"Worker did not become ready. See {WORKER_LOG_FILE}."
+                            )
+                        await asyncio.sleep(0.1)
+                    try:
+                        _write_background_worker(
+                            process.pid, psutil.Process(process.pid).create_time()
+                        )
+                    except psutil.NoSuchProcess:
+                        if process.poll() == 0:
+                            _cli.console.print(
+                                "Background worker completed successfully."
+                            )
+                            return
+                        exit_with_error(
+                            f"Worker exited during startup. See {WORKER_LOG_FILE}."
+                        )
+                finally:
+                    ready_file.unlink(missing_ok=True)
         except Timeout:
             exit_with_error("Another background worker command is in progress.")
         _cli.console.print(
@@ -381,11 +411,18 @@ async def start(
         base_job_template=template_contents,
         create_pool_if_not_found=create_pool_if_not_found,
     )
+    ready_file = os.environ.get(WORKER_READY_ENV)
+
+    def print_worker_message(message: str) -> None:
+        _cli.console.print(message)
+        if ready_file and message == f"Worker {worker.name!r} started!":
+            Path(ready_file).touch(mode=0o600)
+
     try:
         await worker.start(
             run_once=run_once,
             with_healthcheck=with_healthcheck,
-            printer=_cli.console.print,
+            printer=print_worker_message,
         )
     except asyncio.CancelledError:
         _cli.console.print(f"Worker {worker.name!r} stopped!", style="yellow")
