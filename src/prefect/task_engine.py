@@ -277,10 +277,10 @@ class BaseTaskRunEngine(Generic[P, R]):
         try:
             self.logger.warning(
                 "Task run has exceeded its timeout of %s second(s) but is still "
-                "running. The timeout could not interrupt the operation in progress; "
-                "the run will continue until it finishes on its own and only then be "
-                "marked `TimedOut`. Blocking operations like `time.sleep()`, network "
-                "requests, or file I/O cannot be interrupted. See "
+                "running. The timeout could not interrupt the operation in progress, "
+                "so the run will continue until that operation returns. Blocking "
+                "operations like `time.sleep()`, network requests, or file I/O cannot "
+                "be interrupted. See "
                 "https://docs.prefect.io/v3/how-to-guides/workflows/"
                 "write-and-run#task-timeout-behavior for more information.",
                 self.task.timeout_seconds,

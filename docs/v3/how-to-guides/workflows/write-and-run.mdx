@@ -128,7 +128,7 @@ Task timeouts work differently depending on how the task is executed:
 
 A task is also on a worker thread when it is called from inside another submitted or mapped task, even if the inner task is called directly.
 
-When a task run passes its timeout and is still running, Prefect logs a warning to the task run logger. The run continues until its blocking operation finishes and is only then marked `TimedOut`, so this warning is the first indication that the timeout was exceeded.
+When a task run passes its timeout and is still running, Prefect logs a warning to the task run logger. The run continues until its blocking operation returns, so this warning is the earliest sign that the timeout was exceeded.
 
 <Warning>
 If you need reliable timeout behavior for sync tasks that perform blocking operations, consider:
