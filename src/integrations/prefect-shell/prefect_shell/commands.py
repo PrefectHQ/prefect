@@ -26,6 +26,7 @@ from prefect.logging import get_run_logger
 from prefect.utilities.processutils import open_process
 
 _SHELL_TERMINATE_GRACE_SECONDS = 5.0
+_DEFAULT_LOG_PREFIX = "PID {pid} {label}:\n"
 
 
 def _process_isolation_kwargs() -> dict[str, Any]:
@@ -238,14 +239,25 @@ class ShellProcess(JobRun[list[str]]):
         """
         return self._process.returncode
 
-    async def _capture_output(self, source: Any):
+    def _format_output_log(self, label: str, text: str) -> str:
+        prefix = self._shell_operation.log_prefix
+        if prefix is None:
+            return text
+        prefix = (
+            prefix.format(pid=self.pid, label=label)
+            .replace("\r\n", "\n")
+            .replace("\n", os.linesep)
+        )
+        return prefix + text
+
+    async def _capture_output(self, source: Any, output_label: str):
         """
         Capture output from source (async version for anyio Process).
         """
         async for output in TextReceiveStream(source):
             text = output.rstrip()
             if self._shell_operation.stream_output:
-                self.logger.info(f"PID {self.pid} stream output:{os.linesep}{text}")
+                self.logger.info(self._format_output_log(output_label, text))
             self._output.extend(text.split(os.linesep))
 
     def _capture_output_sync(
@@ -262,7 +274,7 @@ class ShellProcess(JobRun[list[str]]):
             if not text:
                 continue
             if self._shell_operation.stream_output:
-                self.logger.info(f"PID {self.pid} {output_label}:{os.linesep}{text}")
+                self.logger.info(self._format_output_log(output_label, text))
             if include_in_output:
                 self._output.extend(text.split(os.linesep))
 
@@ -279,8 +291,8 @@ class ShellProcess(JobRun[list[str]]):
         self.logger.debug(f"Waiting for PID {self.pid} to complete.")
 
         await asyncio.gather(
-            self._capture_output(self._process.stdout),
-            self._capture_output(self._process.stderr),
+            self._capture_output(self._process.stdout, "stream output"),
+            self._capture_output(self._process.stderr, "stderr"),
         )
         await self._process.wait()
 
@@ -393,6 +405,10 @@ class ShellOperation(JobBlock[list[str]]):
     Attributes:
         commands: A list of commands to execute sequentially.
         stream_output: Whether to stream output.
+        log_prefix: Template prepended to each streamed output log record.
+            Supports `{pid}` and `{label}` placeholders; newlines are written
+            as the platform line separator. Set to `None` to log the raw
+            output only.
         env: A dictionary of environment variables to set for the shell operation.
         working_dir: The working directory context the commands
             will be executed within.
@@ -417,6 +433,16 @@ class ShellOperation(JobBlock[list[str]]):
         default=..., description="A list of commands to execute sequentially."
     )
     stream_output: bool = Field(default=True, description="Whether to stream output.")
+    log_prefix: Optional[str] = Field(
+        default=_DEFAULT_LOG_PREFIX,
+        title="Log Prefix",
+        description=(
+            "Template prepended to each streamed output log record. Supports the "
+            "`{pid}` and `{label}` placeholders (label is `stream output` for stdout "
+            "and `stderr` for stderr); newlines are written as the platform line "
+            "separator. Set to `None` to log the raw output only."
+        ),
+    )
     env: dict[str, str] = Field(
         default_factory=dict,
         title="Environment Variables",

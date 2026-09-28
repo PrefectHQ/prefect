@@ -29,10 +29,11 @@
   "footer": {
     "socials": {
       "github": "https://github.com/PrefectHQ/prefect",
+      "youtube": "https://www.youtube.com/c/PrefectIO",
       "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
       "slack": "https://prefect.io/slack",
-      "twitter": "https://x.com/prefectio",
-      "youtube": "https://www.youtube.com/c/PrefectIO"
+      "x": "https://x.com/PrefectIO",
+      "bluesky": "https://bsky.app/profile/prefect.io"
     }
   },
   "integrations": {
