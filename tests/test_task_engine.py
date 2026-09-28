@@ -59,6 +59,7 @@ from prefect.types._datetime import now
 from prefect.utilities.annotations import opaque
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
+from prefect.utilities.math import clamped_poisson_interval
 
 
 @task
@@ -958,9 +959,9 @@ class TestTaskRetries:
     @pytest.mark.parametrize(
         "retry_delay_seconds,jitter_factor,expected_delays",
         [
-            (10, 0.5, [15, 15, 15]),
-            ([10, 20], 3, [40, 80, 80]),
-            ([0, 10], 0.5, [0, 15, 15]),
+            (10, 0.5, [7.864312, 7.864312, 7.864312]),
+            ([10, 20], 3, [3.741129, 7.482257, 7.482257]),
+            ([0, 10], 0.5, [0, 7.864312, 7.864312]),
             (0, 0.5, [0, 0, 0]),
             (None, 0.5, [0, 0, 0]),
             (10, 0, [10, 10, 10]),
@@ -990,11 +991,11 @@ class TestTaskRetries:
         )(async_fail if is_async else fail)
         sleep = AsyncMock() if is_async else Mock()
         monkeypatch.setattr(anyio if is_async else time, "sleep", sleep)
-        jitter = Mock(
-            side_effect=lambda average_interval, clamping_factor: (
-                average_interval * (1 + clamping_factor)
-            )
+        monkeypatch.setattr(
+            "prefect.utilities.math.random.uniform",
+            lambda lower, upper: lower + (upper - lower) / 4,
         )
+        jitter = Mock(wraps=clamped_poisson_interval)
         monkeypatch.setattr("prefect.task_engine.clamped_poisson_interval", jitter)
 
         if is_async:
