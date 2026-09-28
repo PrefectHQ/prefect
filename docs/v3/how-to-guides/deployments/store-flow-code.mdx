@@ -418,6 +418,44 @@ When you make a change to your code, Prefect does not push your code to your `gi
 This is intentional to avoid confusion about the `git` history and push process.
 </Warning>
 
+### Reuse Git objects on persistent workers
+
+Set `cache_dir` on `git_clone` to reuse downloaded Git objects across flow runs on the same host.
+Without `cache_dir`, Git pulls retain their existing behavior.
+
+```yaml
+pull:
+  - prefect.deployments.steps.git_clone:
+      repository: https://github.com/org/flow-code.git
+      branch: main
+      cache_dir: /var/cache/prefect/source
+```
+
+The same option is available on `GitRepository`. Branches, commit SHAs, credentials, sparse checkout,
+and submodules keep their existing semantics. Each new checkout still contacts the remote:
+Prefect updates a local mirror, then runs the normal clone using that mirror as an object reference.
+Git dissociates the new checkout from the mirror, so the run has independent Git objects and pruning
+cannot break it. Normal checkout filters still run. Submodules use the existing clone behavior;
+their repositories are not separately cached.
+
+The first pull downloads a full mirror, which can cost more bandwidth and disk space than a normal
+shallow or partial clone. Later pulls download changed objects and exchange remote metadata.
+This cache does not provide offline execution or bypass remote authentication.
+
+Prefect coordinates mirror updates, cloning, and pruning with a local filesystem lock. The reserved
+`prefect-git-v1` subdirectory retains at most eight repository mirrors and 512 MiB after a successful
+pull, pruning least recently used mirrors first. An oversized mirror serves the current run before
+eviction. The limits apply across repositories sharing `cache_dir`.
+
+Use a persistent local disk with working filesystem locks and a directory accessible only to one
+trusted worker identity. Cache keys use repository URLs without credentials; credentials in origin
+URLs are removed from stored mirror configuration. A cache shared between different identities is
+not an authorization boundary. Ephemeral containers without a persistent volume get no cross-run hits
+and incur additional work.
+
+`cache_dir` is a filesystem path, not a storage block or an S3/GCS URL. To distribute flow code through
+object storage, use the blob-storage pull steps described below instead.
+
 ### Prefect Cloud GitHub App integration
 
 If you use Prefect Cloud, you can install the **Prefect Cloud GitHub App** to authenticate

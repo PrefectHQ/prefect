@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import warnings
 from copy import deepcopy
 from pathlib import Path
@@ -21,7 +23,7 @@ from urllib.parse import quote, unquote, urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
 import fsspec  # pyright: ignore[reportMissingTypeStubs]
-from anyio import run_process
+from anyio import run_process, to_thread
 from pydantic import SecretStr
 
 from prefect._internal.concurrency.api import create_call, from_async
@@ -172,6 +174,8 @@ class GitRepository:
             remote storage to local storage. If None, remote storage will perform
             a one-time sync.
         directories: The directories to pull from the Git repository (uses git sparse-checkout)
+        cache_dir: Optional persistent local directory for reusing Git objects.
+            Omit to preserve the normal clone behavior.
 
     Examples:
         Pull the contents of a private git repository to the local filesystem:
@@ -198,6 +202,7 @@ class GitRepository:
         include_submodules: bool = False,
         pull_interval: int | None = 60,
         directories: list[str] | None = None,
+        cache_dir: str | Path | None = None,
     ):
         if credentials is None:
             credentials = {}
@@ -240,6 +245,7 @@ class GitRepository:
                         stacklevel=2,
                     )
 
+        self._cache_dir = Path(cache_dir) if cache_dir is not None else None
         self._url = url
         self._branch = branch
         self._commit_sha = commit_sha
@@ -502,6 +508,109 @@ class GitRepository:
             await self._clone_repo()
 
     async def _clone_repo(self):
+        if self._cache_dir is None:
+            await self._clone_repo_uncached()
+            return
+        await self._clone_repo_cached()
+
+    async def _clone_repo_cached(self) -> None:
+        """Reuse Git objects while retaining normal remote clone semantics."""
+        assert self._cache_dir is not None
+        cache = self._cache_dir.expanduser().resolve() / "prefect-git-v1"
+        cache.mkdir(parents=True, exist_ok=True, mode=0o700)
+        key = hashlib.sha256(strip_auth_from_url(self._url).encode()).hexdigest()
+        entry = cache / key
+        lock = FileLock(cache / "lock")
+        await lock.aacquire()
+        try:
+            for abandoned in cache.glob("staging-*"):
+                if abandoned.is_dir():
+                    await to_thread.run_sync(_rmtree_including_read_only, abandoned)
+            try:
+                if not entry.exists():
+                    with tempfile.TemporaryDirectory(
+                        prefix="staging-", dir=cache
+                    ) as temporary:
+                        mirror = Path(temporary) / "mirror"
+                        await run_process(
+                            [
+                                "git",
+                                "clone",
+                                "--mirror",
+                                "--",
+                                self._repository_url_with_credentials,
+                                str(mirror),
+                            ]
+                        )
+                        await run_process(
+                            [
+                                "git",
+                                "remote",
+                                "set-url",
+                                "origin",
+                                strip_auth_from_url(self._url),
+                            ],
+                            cwd=mirror,
+                        )
+                        mirror.replace(entry)
+                    self._logger.debug("Git object cache miss: %s", key)
+                else:
+                    await to_thread.run_sync(_clear_read_only_attributes, entry)
+                    await run_process(
+                        [
+                            "git",
+                            "-c",
+                            "gc.auto=0",
+                            "-c",
+                            "maintenance.auto=false",
+                            "fetch",
+                            "--force",
+                            "--prune",
+                            "--",
+                            self._repository_url_with_credentials,
+                            "+refs/heads/*:refs/heads/*",
+                            "+refs/tags/*:refs/tags/*",
+                        ],
+                        cwd=entry,
+                    )
+                    self._logger.debug("Git object cache hit: %s", key)
+            except subprocess.CalledProcessError as exc:
+                raise RuntimeError(
+                    f"Failed to update Git object cache (exit code {exc.returncode})."
+                ) from None
+            finally:
+                (entry / "FETCH_HEAD").unlink(missing_ok=True)
+            await self._clone_repo_uncached(reference=entry)
+            os.utime(entry)
+            await to_thread.run_sync(self._prune_git_cache, cache)
+        finally:
+            lock.release()
+
+    @staticmethod
+    def _prune_git_cache(
+        cache: Path, max_entries: int = 8, max_bytes: int = 512 * 1024 * 1024
+    ) -> None:
+        """Retain at most eight mirrors and 512 MiB, ordered by last use."""
+        entries = sorted(
+            (
+                p
+                for p in cache.iterdir()
+                if p.is_dir() and re.fullmatch(r"[0-9a-f]{64}", p.name)
+            ),
+            key=lambda p: p.stat().st_mtime_ns,
+            reverse=True,
+        )
+        total = 0
+        retained = 0
+        for entry in entries:
+            size = sum(p.lstat().st_size for p in entry.rglob("*") if not p.is_dir())
+            if retained < max_entries and total + size <= max_bytes:
+                total += size
+                retained += 1
+            else:
+                _rmtree_including_read_only(entry)
+
+    async def _clone_repo_uncached(self, reference: Path | None = None):
         """
         Clones the repository into the local destination.
         """
@@ -513,6 +622,9 @@ class GitRepository:
         cmd += self._git_config
         # Add the clone command and its parameters
         cmd += ["clone", repository_url]
+
+        if reference is not None:
+            cmd += ["--reference", str(reference), "--dissociate"]
 
         if self._include_submodules:
             cmd += ["--recurse-submodules"]
@@ -634,6 +746,11 @@ class GitRepository:
         if self._directories:
             pull_step["prefect.deployments.steps.git_clone"]["directories"] = (
                 self._directories
+            )
+
+        if self._cache_dir is not None:
+            pull_step["prefect.deployments.steps.git_clone"]["cache_dir"] = str(
+                self._cache_dir
             )
 
         if self._include_submodules:
