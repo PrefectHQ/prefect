@@ -35,6 +35,8 @@ from prefect.locking._filelock import FileLock
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
 
+_GIT_CACHE_MAX_BYTES = 512 * 1024 * 1024
+
 
 def _clear_read_only_attributes(path: Path) -> None:
     """
@@ -508,7 +510,9 @@ class GitRepository:
             await self._clone_repo()
 
     async def _clone_repo(self):
-        if self._cache_dir is None:
+        if self._cache_dir is None or (
+            self._commit_sha and len(self._commit_sha) not in (40, 64)
+        ):
             await self._clone_repo_uncached()
             return
         await self._clone_repo_cached()
@@ -520,95 +524,108 @@ class GitRepository:
         cache.mkdir(parents=True, exist_ok=True, mode=0o700)
         key = hashlib.sha256(strip_auth_from_url(self._url).encode()).hexdigest()
         entry = cache / key
-        lock = FileLock(cache / "lock")
+        lock = FileLock(cache / f"{key}.lock")
         await lock.aacquire()
         try:
-            for abandoned in cache.glob("staging-*"):
+            for abandoned in cache.glob(f"staging-{key}-*"):
                 if abandoned.is_dir():
                     await to_thread.run_sync(_rmtree_including_read_only, abandoned)
-            try:
-                if not entry.exists():
-                    with tempfile.TemporaryDirectory(
-                        prefix="staging-", dir=cache
-                    ) as temporary:
-                        mirror = Path(temporary) / "mirror"
-                        await run_process(
-                            [
-                                "git",
-                                "clone",
-                                "--mirror",
-                                "--",
-                                self._repository_url_with_credentials,
-                                str(mirror),
-                            ]
-                        )
-                        await run_process(
-                            [
-                                "git",
-                                "remote",
-                                "set-url",
-                                "origin",
-                                strip_auth_from_url(self._url),
-                            ],
-                            cwd=mirror,
-                        )
-                        mirror.replace(entry)
-                    self._logger.debug("Git object cache miss: %s", key)
-                else:
-                    await to_thread.run_sync(_clear_read_only_attributes, entry)
-                    await run_process(
-                        [
-                            "git",
-                            "-c",
-                            "gc.auto=0",
-                            "-c",
-                            "maintenance.auto=false",
-                            "fetch",
-                            "--force",
-                            "--prune",
-                            "--",
-                            self._repository_url_with_credentials,
-                            "+refs/heads/*:refs/heads/*",
-                            "+refs/tags/*:refs/tags/*",
-                        ],
-                        cwd=entry,
+            if (entry / "bypass").exists():
+                await self._clone_repo_uncached()
+                os.utime(entry)
+            else:
+                try:
+                    if not entry.exists():
+                        with tempfile.TemporaryDirectory(
+                            prefix=f"staging-{key}-", dir=cache
+                        ) as temporary:
+                            objects = Path(temporary) / "objects.git"
+                            await run_process(["git", "init", "--bare", str(objects)])
+                            await self._fetch_git_cache(objects)
+                            objects.replace(entry)
+                        self._logger.debug("Git object cache miss: %s", key)
+                    else:
+                        await to_thread.run_sync(_clear_read_only_attributes, entry)
+                        await self._fetch_git_cache(entry)
+                        self._logger.debug("Git object cache hit: %s", key)
+                except subprocess.CalledProcessError as exc:
+                    raise RuntimeError(
+                        f"Failed to update Git object cache (exit code {exc.returncode})."
+                    ) from None
+                await self._clone_repo_uncached(reference=entry)
+                os.utime(entry)
+                size = await to_thread.run_sync(self._git_cache_size, entry)
+                if size > _GIT_CACHE_MAX_BYTES:
+                    await to_thread.run_sync(_rmtree_including_read_only, entry)
+                    entry.mkdir()
+                    (entry / "bypass").touch()
+                    self._logger.warning(
+                        "Git object cache exceeds its byte budget; subsequent pulls "
+                        "will use ordinary clones while its bypass entry is retained."
                     )
-                    self._logger.debug("Git object cache hit: %s", key)
-            except subprocess.CalledProcessError as exc:
-                raise RuntimeError(
-                    f"Failed to update Git object cache (exit code {exc.returncode})."
-                ) from None
-            finally:
-                (entry / "FETCH_HEAD").unlink(missing_ok=True)
-            await self._clone_repo_uncached(reference=entry)
-            os.utime(entry)
-            await to_thread.run_sync(self._prune_git_cache, cache)
         finally:
             lock.release()
+        await to_thread.run_sync(self._prune_git_cache, cache)
+
+    async def _fetch_git_cache(self, entry: Path) -> None:
+        """Fetch only the requested history without storing credentials or FETCH_HEAD."""
+        selection = self._commit_sha or self._branch or "HEAD"
+        ref = hashlib.sha256(selection.encode()).hexdigest()
+        await run_process(
+            [
+                "git",
+                "-c",
+                "gc.auto=0",
+                "-c",
+                "maintenance.auto=false",
+                "fetch",
+                "--force",
+                "--no-write-fetch-head",
+                "--",
+                self._repository_url_with_credentials,
+                f"+{selection}:refs/prefect/{ref}",
+            ],
+            cwd=entry,
+        )
+
+    @staticmethod
+    def _git_cache_size(entry: Path) -> int:
+        """Return the on-disk file bytes of a locked cache entry."""
+        return sum(p.lstat().st_size for p in entry.rglob("*") if not p.is_dir())
 
     @staticmethod
     def _prune_git_cache(
-        cache: Path, max_entries: int = 8, max_bytes: int = 512 * 1024 * 1024
+        cache: Path, max_entries: int = 8, max_bytes: int = _GIT_CACHE_MAX_BYTES
     ) -> None:
-        """Retain at most eight mirrors and 512 MiB, ordered by last use."""
-        entries = sorted(
-            (
-                p
-                for p in cache.iterdir()
-                if p.is_dir() and re.fullmatch(r"[0-9a-f]{64}", p.name)
-            ),
-            key=lambda p: p.stat().st_mtime_ns,
-            reverse=True,
-        )
-        total = 0
-        retained = 0
-        for entry in entries:
-            size = sum(p.lstat().st_size for p in entry.rglob("*") if not p.is_dir())
-            if retained < max_entries and total + size <= max_bytes:
-                total += size
-                retained += 1
-            else:
-                _rmtree_including_read_only(entry)
+        """Prune idle entries by last use, allowing active entries to finish first."""
+        with FileLock(cache / "prune.lock"):
+            entries = []
+            for entry in cache.iterdir():
+                if re.fullmatch(r"[0-9a-f]{64}", entry.name) and entry.is_dir():
+                    try:
+                        entries.append((entry.stat().st_mtime_ns, entry))
+                    except FileNotFoundError:
+                        continue
+            entries.sort(reverse=True)
+            total = 0
+            retained = 0
+            for _, entry in entries:
+                lock = FileLock(cache / f"{entry.name}.lock", timeout=0)
+                try:
+                    lock.acquire()
+                except TimeoutError:
+                    continue
+                try:
+                    if not entry.exists():
+                        continue
+                    size = GitRepository._git_cache_size(entry)
+                    if retained < max_entries and total + size <= max_bytes:
+                        total += size
+                        retained += 1
+                    else:
+                        _rmtree_including_read_only(entry)
+                finally:
+                    lock.release()
 
     async def _clone_repo_uncached(self, reference: Path | None = None):
         """

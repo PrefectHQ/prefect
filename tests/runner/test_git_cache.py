@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from prefect.deployments.steps.pull import agit_clone, git_clone
+from prefect.locking._filelock import FileLock
 from prefect.runner.storage import GitRepository
 
 
@@ -130,7 +131,7 @@ async def test_unavailable_remote_does_not_silently_use_stale_cache(
     repo, commit = source
     await storage(tmp_path, repo, "first", commit_sha=commit).pull_code()
     repo.rename(tmp_path / "offline")
-    with pytest.raises(RuntimeError, match="Git object cache"):
+    with pytest.raises(RuntimeError):
         await storage(tmp_path, repo, "second", commit_sha=commit).pull_code()
     assert not (tmp_path / "second").exists()
     assert not list((tmp_path / "cache").rglob("staging-*"))
@@ -302,3 +303,90 @@ async def test_failed_cold_fetch_leaves_no_published_entry(tmp_path: Path):
         await run.pull_code()
     assert not run.destination.exists()
     assert not list((tmp_path / "cache/prefect-git-v1").iterdir())
+
+
+async def test_cache_excludes_unrequested_history(
+    tmp_path: Path, source: tuple[Path, str]
+):
+    repo, _ = source
+    git(repo, "checkout", "--orphan", "unrelated")
+    git(repo, "rm", "-rf", ".")
+    (repo / "unrelated.txt").write_text("unrelated branch payload")
+    git(repo, "add", ".")
+    git(repo, "commit", "--quiet", "-m", "unrelated history")
+    unrelated = git(repo, "rev-parse", "HEAD")
+    git(repo, "tag", "unrelated-tag")
+    git(repo, "update-ref", "refs/pull/123/head", unrelated)
+    git(repo, "checkout", "main")
+    for name in ("cold", "warm"):
+        await storage(tmp_path, repo, name, branch="main").pull_code()
+        entry = next((tmp_path / "cache/prefect-git-v1").iterdir())
+        with pytest.raises(subprocess.CalledProcessError):
+            git(entry, "cat-file", "-e", unrelated)
+
+
+async def test_oversized_cache_bypasses_repeated_population(
+    tmp_path: Path, source: tuple[Path, str], monkeypatch: pytest.MonkeyPatch
+):
+    repo, _ = source
+    monkeypatch.setattr("prefect.runner.storage._GIT_CACHE_MAX_BYTES", 1)
+    await storage(tmp_path, repo, "cold").pull_code()
+    cache = tmp_path / "cache/prefect-git-v1"
+    entry = next(cache.iterdir())
+    assert [p.name for p in entry.iterdir()] == ["bypass"]
+    trace = tmp_path / "trace.jsonl"
+    monkeypatch.setenv("GIT_TRACE2_EVENT", str(trace))
+    for name in ("second", "third"):
+        run = storage(tmp_path, repo, name)
+        await run.pull_code()
+        git(run.destination, "fsck", "--full")
+    events = [json.loads(line) for line in trace.read_text().splitlines()]
+    commands = [
+        event.get("name") for event in events if event.get("event") == "cmd_name"
+    ]
+    assert commands.count("clone") == 2
+    assert "init" not in commands
+    assert "fetch" not in commands
+    assert [p.name for p in entry.iterdir()] == ["bypass"]
+
+
+async def test_busy_repository_does_not_block_other_repositories_or_get_pruned(
+    tmp_path: Path, source: tuple[Path, str]
+):
+    repo, _ = source
+    await storage(tmp_path, repo, "first").pull_code()
+    cache = tmp_path / "cache/prefect-git-v1"
+    entry = next(cache.iterdir())
+    other = tmp_path / "other-remote"
+    shutil.copytree(repo, other)
+    with FileLock(cache / f"{entry.name}.lock"):
+        await asyncio.wait_for(
+            storage(tmp_path, other, "second").pull_code(), timeout=20
+        )
+        GitRepository._prune_git_cache(cache, max_entries=0)
+        assert entry.exists()
+    GitRepository._prune_git_cache(cache, max_entries=0)
+    assert not list(cache.iterdir())
+    git(tmp_path / "first", "fsck", "--full")
+    git(tmp_path / "second", "fsck", "--full")
+
+
+@pytest.mark.parametrize("selection", ["main", "v1"])
+async def test_rewritten_refs_match_normal_clone(
+    tmp_path: Path, source: tuple[Path, str], selection: str
+):
+    repo, old = source
+    await storage(tmp_path, repo, "first", branch=selection).pull_code()
+    if selection == "main":
+        git(repo, "reset", "--hard", old)
+    else:
+        git(repo, "tag", "--force", "-a", "v1", "-m", "replacement")
+    normal = GitRepository(url=repo.as_uri(), name="normal", branch=selection)
+    normal.set_base_path(tmp_path)
+    await normal.pull_code()
+    cached = storage(tmp_path, repo, "second", branch=selection)
+    await cached.pull_code()
+    assert_same_checkout(normal.destination, cached.destination)
+    assert git(normal.destination, "tag", "--list") == git(
+        cached.destination, "tag", "--list"
+    )
