@@ -39,7 +39,7 @@ from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_
 from prefect._internal.launchers import resolve_bundle_step_with_launcher
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect._internal.schemas.validators import return_v_or_none
-from prefect.client.base import is_backing_off_for_server_maintenance
+from prefect._internal.server_maintenance import maintenance_backoff_ends_at
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import (
@@ -1298,29 +1298,25 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         the loop services - we will evaluate if the _last_polled_time
         was within that interval x 30 (so 10s -> 5m)
 
+        While the Prefect API is in maintenance, requests wait out the
+        `Retry-After` it sends, so the window counts from the later of
+        `self._last_polled_time` and the end of the latest maintenance back-off.
+
         The instance property `self._last_polled_time`
         is currently set/updated in `get_and_submit_flow_runs()`
         """
         threshold_seconds = query_interval_seconds * 30
 
-        seconds_since_last_poll = (
-            prefect.types._datetime.now("UTC") - self._last_polled_time
-        ).total_seconds()
+        now = prefect.types._datetime.now("UTC")
+        window_start = self._last_polled_time
+        backoff_ends_at = maintenance_backoff_ends_at()
+        if backoff_ends_at is not None and backoff_ends_at > window_start:
+            window_start = backoff_ends_at
 
-        is_still_polling = seconds_since_last_poll <= threshold_seconds
-
-        if not is_still_polling and is_backing_off_for_server_maintenance():
-            # The API asked us to wait out a maintenance window. Restarting the
-            # worker cannot shorten it, and a restarted worker would only wait
-            # again before it could report healthy.
-            self._logger.debug(
-                "Worker has not polled in the last %s seconds while the Prefect API "
-                "is in maintenance; reporting healthy while it waits",
-                seconds_since_last_poll,
-            )
-            return True
+        is_still_polling = (now - window_start).total_seconds() <= threshold_seconds
 
         if not is_still_polling:
+            seconds_since_last_poll = (now - self._last_polled_time).total_seconds()
             self._logger.error(
                 f"Worker has not polled in the last {seconds_since_last_poll} seconds "
                 "and should be restarted"

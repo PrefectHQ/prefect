@@ -56,9 +56,13 @@ and its health endpoint will return 503 (Service Unavailable). With default sett
 
 This generous threshold accounts for temporary network issues, API unavailability, or brief worker pauses without triggering false alarms.
 
-The one exception is server maintenance. When the Prefect API answers with a `Prefect-Maintenance: true` header, the worker waits out the `Retry-After` it was given, and it keeps reporting healthy while it waits, even past the polling window. Restarting the worker cannot end the maintenance sooner, and a restarted worker would have to wait again before it could poll.
+### During API maintenance
 
-The health endpoint starts before the worker's first sync with the API, so it can answer while that sync is still waiting on an API that is unreachable or in maintenance.
+When the API answers with a `Prefect-Maintenance: true` header, as Prefect Cloud does during a maintenance window, the worker waits out the `Retry-After` it was given and then tries again. The open-source Prefect server does not send this header.
+
+While it waits, the polling window counts from the later of the last poll and the end of the last maintenance back-off. The worker reports healthy throughout the maintenance, and after it ends the worker has the full window to poll again before it reports unhealthy. Restarting the worker cannot end the maintenance sooner, and a restarted worker would have to wait again before it could poll.
+
+The health endpoint starts before the worker's first sync with the API, so it can answer while that sync is still waiting on an API that is unreachable or in maintenance. This also means a worker whose startup hangs for some other reason answers 200 for up to the polling window before it reports unhealthy, rather than refusing connections.
 
 ## Production Deployment Patterns
 
@@ -126,6 +130,7 @@ For more information see [Docker Compose's reference guide](https://docs.docker.
 
 ### Worker appears healthy but not picking up flows
 - Health checks only verify polling activity, not successful flow execution
+- During a Prefect Cloud maintenance window the worker reports healthy while it waits for the maintenance to end; with debug logging, its API requests show as retried 503 responses
 - Check work pool and work queue configuration: ensure worker is polling the correct pool/queue
 - Verify deployment configuration matches worker capabilities
 - Review flow run states - flows may be stuck in PENDING due to concurrency limits
