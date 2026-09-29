@@ -773,16 +773,31 @@ class TestGetCallParameters:
 
         def run(
             some_string: str = Field(default="", description="a string param"),
+            name: str = Field(default="hello", description="a non-empty string param"),
             count: int = Field(default=0, description="a count param"),
+            retries: int = Field(default=3, description="a non-zero int param"),
             tags: list[str] = Field(default=[], description="a list param"),
+            labels: list[str] = Field(
+                default=["a", "b"], description="a non-empty list param"
+            ),
         ):
             pass
 
         result = callables.get_call_parameters(run, call_args=(), call_kwargs={})
-        assert result == {"some_string": "", "count": 0, "tags": []}
+        assert result == {
+            "some_string": "",
+            "name": "hello",
+            "count": 0,
+            "retries": 3,
+            "tags": [],
+            "labels": ["a", "b"],
+        }
         assert isinstance(result["some_string"], str)
+        assert isinstance(result["name"], str)
         assert isinstance(result["count"], int)
+        assert isinstance(result["retries"], int)
         assert isinstance(result["tags"], list)
+        assert isinstance(result["labels"], list)
 
 
 class TestExplodeVariadicParameter:
