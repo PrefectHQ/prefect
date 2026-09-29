@@ -155,6 +155,29 @@ class TestCreateDeployment:
         assert deployment.tags == ["foo", "bar"]
         assert deployment.updated > original_update_time
 
+    async def test_create_deployment_upsert_clears_job_variables_with_empty_dict(
+        self, session, flow
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                job_variables={"env": {"FOO": "bar"}},
+            ),
+        )
+        assert deployment.job_variables == {"env": {"FOO": "bar"}}
+
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                job_variables={},
+            ),
+        )
+        assert deployment.job_variables == {}
+
     async def test_create_deployment_with_schedule(self, session, flow, flow_function):
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
@@ -1300,6 +1323,56 @@ class TestScheduledRuns:
 
 
 class TestUpdateDeployment:
+    async def test_update_deployment_clears_job_variables_with_empty_dict(
+        self, session, flow
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                job_variables={"env": {"FOO": "bar"}},
+            ),
+        )
+        await session.commit()
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(job_variables={}),
+        )
+        await session.commit()
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment.job_variables == {}
+
+    async def test_update_deployment_retains_job_variables_if_not_provided(
+        self, session, flow
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                job_variables={"env": {"FOO": "bar"}},
+            ),
+        )
+        await session.commit()
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(description="updated"),
+        )
+        await session.commit()
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment.job_variables == {"env": {"FOO": "bar"}}
+
     async def test_updating_deployment_creates_associated_work_queue(
         self,
         session,
