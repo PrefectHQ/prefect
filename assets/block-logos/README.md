@@ -9,16 +9,20 @@ and existing installations are not migrated by this work.
 
 The current-main inventory found 54 Sanity `_logo_url` references (48 block
 references and 6 worker references) and 26 distinct Sanity images. Six
-Contentful-hosted logo references remain intentionally unchanged. The Sanity
-project returned HTTP 402 during recovery, so these are educated replacements
-rather than recovered originals.
+Contentful-hosted logo references remain intentionally unchanged. The
+requester later supplied 17 recovered Sanity originals; those files are used
+for the matching assets below. The remaining assets are educated replacements
+because the Sanity project returned HTTP 402 during direct recovery.
 
 Brand artwork marked `simple-icons` comes from the version-pinned
 [Simple Icons 11.0.0 icon sources](https://github.com/simple-icons/simple-icons/tree/11.0.0/icons)
-and is available under CC0 1.0. Generic artwork is original work for this
-repository. The SendGrid/email image is intentionally a generic email icon
-because a clearly reusable SendGrid source was not available; this is a
-subjective replacement for review.
+and is available under CC0 1.0. Recovered originals retain their original
+appearance and Sanity URL identity; their independent license and attribution
+terms were not available in the recovered files. Generic artwork is original
+work for this repository. The SendGrid/email image is intentionally a generic
+email icon because a clearly reusable SendGrid source was not available; this
+is a subjective replacement for review. `mapping.json` records every complete
+Sanity source URL and its repository asset.
 
 | Sanity URL suffix | Asset | Mapped block or worker families |
 | --- | --- | --- |
