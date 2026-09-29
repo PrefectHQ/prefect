@@ -2,6 +2,7 @@ import json
 from typing import Any, Dict
 
 import httpx
+import logging
 from anyio import Path
 from cachetools import TTLCache
 from fastapi import HTTPException, status
@@ -10,7 +11,7 @@ from prefect.logging import get_logger
 from prefect.server.utilities.server import PrefectRouter
 from prefect.workers.utilities import get_locally_installed_worker_metadata
 
-logger = get_logger(__name__)
+logger: logging.Logger = get_logger(__name__)
 
 router: PrefectRouter = PrefectRouter(prefix="/collections", tags=["Collections"])
 
