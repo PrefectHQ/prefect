@@ -17,6 +17,14 @@ multi-cluster batch scheduler for Kubernetes.
 - An Armada server you can reach over gRPC.
 - An Armada queue that your credentials are permitted to submit to.
 
+### Creating a test Armada server with armada-operator
+
+If you do not have access to a full Armada cluster, an Armada test cluster can be quickly set up
+by using the [armada-operator](https://github.com/armadaproject/armada-operator/) - a Kubernetes
+Operator for quickly setting up an Armada cluster on any Linux or macOS system that has
+Docker installed. Typically, you can just clone that repository, then run `make kind-all` to
+have it instantiate a basic K8s (`kind`) cluster and deploy Armada on top of it.
+
 ### Installation
 
 Install `prefect-armada` with `pip`:
