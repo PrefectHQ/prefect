@@ -17,8 +17,8 @@ import prefect.client.constants
 import prefect.types._datetime
 from prefect._internal.compatibility.starlette import status
 from prefect._internal.server_maintenance import (
-    _clear_maintenance_backoff,
     maintenance_backoff_ends_at,
+    reset_maintenance_backoff,
 )
 from prefect.client.base import (
     PrefectHttpxAsyncClient,
@@ -757,9 +757,9 @@ class TestPrefectHttpxAsyncClient:
 
 @pytest.fixture
 def clear_maintenance_backoff() -> Generator[None, None, None]:
-    _clear_maintenance_backoff()
+    reset_maintenance_backoff()
     yield
-    _clear_maintenance_backoff()
+    reset_maintenance_backoff()
 
 
 def maintenance_response(retry_after: str) -> Response:
