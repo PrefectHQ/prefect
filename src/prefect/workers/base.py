@@ -39,6 +39,7 @@ from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_
 from prefect._internal.launchers import resolve_bundle_step_with_launcher
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect._internal.schemas.validators import return_v_or_none
+from prefect.client.base import is_backing_off_for_server_maintenance
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import (
@@ -846,6 +847,24 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         healthcheck_server = None
         healthcheck_thread = None
         try:
+            if with_healthcheck:
+                from prefect.workers.server import build_healthcheck_server
+
+                # Started before setup, which syncs with the API: while the API is
+                # in maintenance that sync waits, and the healthcheck must still
+                # answer. We start the ASGI server in a separate thread so that
+                # uvicorn does not block the main thread.
+                healthcheck_server = build_healthcheck_server(
+                    worker=self,
+                    query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                )
+                healthcheck_thread = threading.Thread(
+                    name="healthcheck-server-thread",
+                    target=healthcheck_server.run,
+                    daemon=True,
+                )
+                healthcheck_thread.start()
+
             async with self as worker:
                 polling_service = partial(
                     critical_service_loop,
@@ -882,21 +901,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
                     start_client_metrics_server()
 
-                    if with_healthcheck:
-                        from prefect.workers.server import build_healthcheck_server
-
-                        # we'll start the ASGI server in a separate thread so that
-                        # uvicorn does not block the main thread
-                        healthcheck_server = build_healthcheck_server(
-                            worker=worker,
-                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
-                        )
-                        healthcheck_thread = threading.Thread(
-                            name="healthcheck-server-thread",
-                            target=healthcheck_server.run,
-                            daemon=True,
-                        )
-                        healthcheck_thread.start()
                     printer(f"Worker {worker.name!r} started!")
 
                 # If running once, wait for active runs to finish before teardown
@@ -1304,6 +1308,17 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         ).total_seconds()
 
         is_still_polling = seconds_since_last_poll <= threshold_seconds
+
+        if not is_still_polling and is_backing_off_for_server_maintenance():
+            # The API asked us to wait out a maintenance window. Restarting the
+            # worker cannot shorten it, and a restarted worker would only wait
+            # again before it could report healthy.
+            self._logger.debug(
+                "Worker has not polled in the last %s seconds while the Prefect API "
+                "is in maintenance; reporting healthy while it waits",
+                seconds_since_last_poll,
+            )
+            return True
 
         if not is_still_polling:
             self._logger.error(
