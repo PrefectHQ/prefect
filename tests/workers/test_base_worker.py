@@ -7,6 +7,7 @@ import logging
 import sys
 import uuid
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, Optional, Type
 from unittest import mock
@@ -74,6 +75,7 @@ from prefect.settings import (
     PREFECT_TEST_MODE,
     PREFECT_WORKER_DEBUG_MODE,
     PREFECT_WORKER_ENABLE_CANCELLATION,
+    PREFECT_WORKER_WEBSERVER_PORT,
     get_current_settings,
     temporary_settings,
 )
@@ -2445,7 +2447,74 @@ async def test_worker_last_polled_health_check(work_pool: WorkPool):
         raise e.exceptions[0]
 
 
+async def test_worker_waiting_out_server_maintenance_reports_healthy(
+    work_pool: WorkPool, monkeypatch: pytest.MonkeyPatch
+):
+    import prefect.client.base
+
+    now = now_fn("UTC")
+
+    try:
+        with travel_to(now):
+            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+                # Past the polling threshold, but the API told this process to
+                # wait out maintenance until later.
+                monkeypatch.setattr(
+                    prefect.client.base,
+                    "_server_maintenance_backoff_until",
+                    now + timedelta(seconds=400),
+                )
+                with travel_to(now + timedelta(seconds=301)):
+                    assert worker.is_worker_still_polling(query_interval_seconds=10)
+
+                # Once the back-off it was told to wait has passed, a worker that
+                # still has not polled is unhealthy again.
+                with travel_to(now + timedelta(seconds=401)):
+                    assert not worker.is_worker_still_polling(query_interval_seconds=10)
+    except ExceptionGroup as e:
+        raise e.exceptions[0]
+
+
 class TestBaseWorkerStart:
+    async def test_healthcheck_answers_while_setup_waits_on_the_api(
+        self, work_pool: WorkPool, unused_tcp_port: int
+    ):
+        # During maintenance the startup sync keeps retrying; the healthcheck
+        # must already be serving, or a liveness probe restarts the worker.
+        sync_started = anyio.Event()
+        release_sync = anyio.Event()
+
+        worker = WorkerTestImpl(work_pool_name=work_pool.name)
+
+        async def waits_on_the_api() -> None:
+            sync_started.set()
+            await release_sync.wait()
+
+        worker._sync_and_initialize = waits_on_the_api  # type: ignore[method-assign]
+
+        with temporary_settings({PREFECT_WORKER_WEBSERVER_PORT: unused_tcp_port}):
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(
+                    partial(worker.start, run_once=True, with_healthcheck=True)
+                )
+                await sync_started.wait()
+
+                response = None
+                async with httpx.AsyncClient() as http:
+                    with anyio.fail_after(10):
+                        while response is None:
+                            try:
+                                response = await http.get(
+                                    f"http://localhost:{unused_tcp_port}/health"
+                                )
+                            except httpx.ConnectError:
+                                await anyio.sleep(0.1)
+
+                # Answered while setup was still waiting on the API.
+                assert not release_sync.is_set()
+                assert response.status_code == 200
+                release_sync.set()
+
     async def test_start_syncs_with_the_server(self, work_pool: WorkPool):
         worker = WorkerTestImpl(work_pool_name=work_pool.name)
         assert worker._work_pool is None

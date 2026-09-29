@@ -7,7 +7,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import AsyncGenerator, Awaitable, MutableMapping
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, runtime_checkable
@@ -19,6 +19,7 @@ from httpx import HTTPStatusError, Request, Response
 from typing_extensions import Self
 
 import prefect
+import prefect.types._datetime
 from prefect._internal.compatibility.starlette import status
 from prefect.client import constants
 from prefect.client.attribution import get_attribution_headers
@@ -44,6 +45,33 @@ APP_LIFESPANS_REF_COUNTS: dict[tuple[int, int], int] = {}
 # Blocks concurrent access to the above dicts per thread. The index should be the thread
 # identity.
 APP_LIFESPANS_LOCKS: dict[int, anyio.Lock] = defaultdict(anyio.Lock)
+
+# Until when this process is waiting out server maintenance: each request that
+# sleeps on a `Prefect-Maintenance` response pushes it out. Health checks read it
+# so that a process deliberately backing off is not reported as stuck.
+_server_maintenance_backoff_until: datetime | None = None
+
+
+def _note_server_maintenance_backoff(retry_seconds: float) -> None:
+    global _server_maintenance_backoff_until
+    # The retry after the sleep may take up to the request timeout to answer.
+    until = prefect.types._datetime.now("UTC") + timedelta(
+        seconds=retry_seconds + get_current_settings().api.request_timeout
+    )
+    if (
+        _server_maintenance_backoff_until is None
+        or until > _server_maintenance_backoff_until
+    ):
+        _server_maintenance_backoff_until = until
+
+
+def is_backing_off_for_server_maintenance() -> bool:
+    """
+    Whether a request in this process is currently waiting out a server
+    maintenance window, as signalled by a `Prefect-Maintenance: true` response.
+    """
+    until = _server_maintenance_backoff_until
+    return until is not None and prefect.types._datetime.now("UTC") < until
 
 
 logger: Logger = get_logger("client")
@@ -356,6 +384,12 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                 f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
                 exc_info=exc_info,
             )
+            if (
+                exc_info is None
+                and response is not None
+                and response.headers.get("Prefect-Maintenance") == "true"
+            ):
+                _note_server_maintenance_backoff(retry_seconds)
             await anyio.sleep(retry_seconds)
 
         assert response is not None, (
@@ -628,6 +662,12 @@ class PrefectHttpxSyncClient(httpx.Client):
                 f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
                 exc_info=exc_info,
             )
+            if (
+                exc_info is None
+                and response is not None
+                and response.headers.get("Prefect-Maintenance") == "true"
+            ):
+                _note_server_maintenance_backoff(retry_seconds)
             time.sleep(retry_seconds)
 
         assert response is not None, (

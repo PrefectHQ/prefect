@@ -20,6 +20,7 @@ from prefect.client.base import (
     PrefectResponse,
     ServerType,
     determine_server_type,
+    is_backing_off_for_server_maintenance,
 )
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
@@ -33,6 +34,7 @@ from prefect.settings import (
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     temporary_settings,
 )
+from prefect.types._datetime import travel_to
 
 pytestmark = pytest.mark.clear_db
 
@@ -747,6 +749,82 @@ class TestPrefectHttpxAsyncClient:
 
         # Should have tried more times than the normal retry limit
         assert base_client_send.call_count == retry_count + 1
+
+    async def test_waiting_out_maintenance_is_reported_until_the_retry_is_due(
+        self, monkeypatch, mock_anyio_sleep
+    ):
+        monkeypatch.setattr(
+            prefect.client.base, "_server_maintenance_backoff_until", None
+        )
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        base_client_send.side_effect = [
+            Response(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                headers={"Prefect-Maintenance": "true", "Retry-After": "120"},
+                request=Request("a test request", "fake.url/fake/route"),
+            ),
+            RESPONSE_200,
+        ]
+
+        async with PrefectHttpxAsyncClient() as client:
+            await client.get(url="fake.url/fake/route")
+
+        assert is_backing_off_for_server_maintenance()
+        # The client sleeps at most Retry-After plus jitter, then gets the
+        # request timeout for the retry to answer.
+        jitter = 120 * PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
+        timeout = prefect.settings.get_current_settings().api.request_timeout
+        with travel_to(
+            datetime.now(timezone.utc) + timedelta(seconds=120 + jitter + timeout + 1)
+        ):
+            assert not is_backing_off_for_server_maintenance()
+
+    async def test_ordinary_retry_is_not_waiting_out_maintenance(
+        self, monkeypatch, mock_anyio_sleep
+    ):
+        monkeypatch.setattr(
+            prefect.client.base, "_server_maintenance_backoff_until", None
+        )
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        base_client_send.side_effect = [
+            Response(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                headers={"Retry-After": "120"},
+                request=Request("a test request", "fake.url/fake/route"),
+            ),
+            RESPONSE_200,
+        ]
+
+        async with PrefectHttpxAsyncClient() as client:
+            await client.get(url="fake.url/fake/route")
+
+        assert not is_backing_off_for_server_maintenance()
+
+    def test_sync_client_reports_waiting_out_maintenance(self, monkeypatch):
+        from prefect.client.base import PrefectHttpxSyncClient
+
+        monkeypatch.setattr(
+            prefect.client.base, "_server_maintenance_backoff_until", None
+        )
+        monkeypatch.setattr(prefect.client.base.time, "sleep", lambda _: None)
+        send = mock.MagicMock(
+            side_effect=[
+                Response(
+                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                    headers={"Prefect-Maintenance": "true", "Retry-After": "60"},
+                    request=Request("a test request", "fake.url/fake/route"),
+                ),
+                RESPONSE_200,
+            ]
+        )
+        monkeypatch.setattr(httpx.Client, "send", send)
+
+        with PrefectHttpxSyncClient() as client:
+            client.get(url="fake.url/fake/route")
+
+        assert is_backing_off_for_server_maintenance()
 
 
 @asynccontextmanager

@@ -56,6 +56,10 @@ and its health endpoint will return 503 (Service Unavailable). With default sett
 
 This generous threshold accounts for temporary network issues, API unavailability, or brief worker pauses without triggering false alarms.
 
+The one exception is server maintenance. When the Prefect API answers with a `Prefect-Maintenance: true` header, the worker waits out the `Retry-After` it was given, and it keeps reporting healthy while it waits, even past the polling window. Restarting the worker cannot end the maintenance sooner, and a restarted worker would have to wait again before it could poll.
+
+The health endpoint starts before the worker's first sync with the API, so it can answer while that sync is still waiting on an API that is unreachable or in maintenance.
+
 ## Production Deployment Patterns
 
 ### Docker with Health Checks
