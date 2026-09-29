@@ -31,7 +31,7 @@ import prefect.client.schemas as schemas
 import prefect.types._datetime
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
-from prefect._internal.server_maintenance import _clear_maintenance_backoff
+from prefect._internal.server_maintenance import reset_maintenance_backoff
 from prefect._internal.testing import retry_asserts
 from prefect._internal.uuid7 import uuid7
 from prefect.blocks.core import Block
@@ -2453,9 +2453,9 @@ async def test_worker_last_polled_health_check(work_pool: WorkPool):
 
 @pytest.fixture
 def clear_maintenance_backoff() -> Generator[None, None, None]:
-    _clear_maintenance_backoff()
+    reset_maintenance_backoff()
     yield
-    _clear_maintenance_backoff()
+    reset_maintenance_backoff()
 
 
 def maintenance_response(retry_after: str) -> httpx.Response:
