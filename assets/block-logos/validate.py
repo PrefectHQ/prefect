@@ -9,16 +9,25 @@ ROOT = Path(__file__).parent
 MAPPING = ROOT / "mapping.json"
 
 
+def reject_duplicate_keys(pairs: list[tuple[str, str]]) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for key, value in pairs:
+        assert key not in mapping, key
+        mapping[key] = value
+    return mapping
+
+
 def main() -> None:
-    mapping: dict[str, str] = json.loads(MAPPING.read_text())
+    mapping: dict[str, str] = json.loads(
+        MAPPING.read_text(), object_pairs_hook=reject_duplicate_keys
+    )
     assert mapping
     for filename in mapping.values():
         path = ROOT / filename
         assert path.is_file(), path
         with Image.open(path) as image:
             width, height = image.size
-            assert width == height, path
-            assert 45 < width < 1000, path
+            assert (width, height) == (256, 256), path
             image.verify()
     assert len(mapping) == len(set(mapping))
     print(
