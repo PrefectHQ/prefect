@@ -1216,6 +1216,20 @@ class TestFlowRunsSync:
         result = run_flow(flow=bar, flow_run=flow_run)
         assert result == ("hello", 42, "nate")
 
+    async def test_with_pydantic_field_default_params(
+        self, prefect_client: PrefectClient
+    ):
+        @flow
+        def bar(
+            x: str = pydantic.Field(default="", description="x"),
+            y: list[str] = pydantic.Field(default_factory=list),
+        ):
+            return x, y
+
+        flow_run = await prefect_client.create_flow_run(bar, parameters={})
+        result = run_flow(flow=bar, flow_run=flow_run)
+        assert result == ("", [])
+
     async def test_with_param_validation(self):
         @flow
         def bar(x: int):

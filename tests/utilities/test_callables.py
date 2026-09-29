@@ -7,7 +7,7 @@ from textwrap import dedent
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pytest
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 
 from prefect.exceptions import ParameterBindError
 from prefect.types._datetime import Date, DateTime, Duration
@@ -767,6 +767,74 @@ class TestGetCallParameters:
 
         with pytest.raises(ParameterBindError):
             callables.get_call_parameters(dog, call_args=(), call_kwargs={"x": "y"})
+
+    def test_pydantic_field_defaults_are_resolved(self):
+        def dog(
+            a: str = Field(default="", description="a"),
+            b: int = Field(default=1),
+            c: list[str] = Field(default_factory=list),
+        ):
+            pass
+
+        parameters = callables.get_call_parameters(dog, call_args=(), call_kwargs={})
+        assert parameters == {"a": "", "b": 1, "c": []}
+
+    def test_pydantic_field_default_factory_is_called_per_call(self):
+        def dog(x: list[str] = Field(default_factory=list)):
+            pass
+
+        first = callables.get_call_parameters(dog, call_args=(), call_kwargs={})
+        second = callables.get_call_parameters(dog, call_args=(), call_kwargs={})
+        assert first["x"] is not second["x"]
+
+    def test_explicit_values_override_pydantic_field_defaults(self):
+        def dog(x: str = Field(default="default")):
+            pass
+
+        field = Field(default="other")
+        assert callables.get_call_parameters(
+            dog, call_args=("given",), call_kwargs={}
+        ) == {"x": "given"}
+        assert callables.get_call_parameters(
+            dog, call_args=(), call_kwargs={"x": field}
+        ) == {"x": field}
+
+    def test_raises_parameter_bind_error_with_missing_required_pydantic_field(self):
+        def dog(x: str = Field(description="required")):
+            pass
+
+        with pytest.raises(ParameterBindError, match="missing a required argument"):
+            callables.get_call_parameters(dog, call_args=(), call_kwargs={})
+
+    def test_required_pydantic_field_ignored_without_apply_defaults(self):
+        def dog(x: str = Field(description="required")):
+            pass
+
+        assert (
+            callables.get_call_parameters(
+                dog, call_args=(), call_kwargs={}, apply_defaults=False
+            )
+            == {}
+        )
+
+
+class TestGetParameterDefaults:
+    def test_plain_defaults(self):
+        def dog(x, y=1, *args, z="z", **kwargs):
+            pass
+
+        assert callables.get_parameter_defaults(dog) == {"y": 1, "z": "z"}
+
+    def test_pydantic_field_defaults_are_resolved(self):
+        def dog(
+            w,
+            x: str = Field(default="", description="x"),
+            y: list[str] = Field(default_factory=list),
+            z: str = Field(description="required"),
+        ):
+            pass
+
+        assert callables.get_parameter_defaults(dog) == {"x": "", "y": []}
 
 
 class TestExplodeVariadicParameter:

@@ -17,6 +17,7 @@ import cloudpickle  # type: ignore  # no stubs available
 import pydantic
 from griffe import Docstring, DocstringSectionKind, Parser, parse
 from pydantic.errors import PydanticInvalidForJsonSchema
+from pydantic.fields import FieldInfo
 from typing_extensions import Literal, TypeVar
 
 from prefect._internal.pydantic.v1_schema import has_v1_type_as_param
@@ -73,7 +74,18 @@ def get_call_parameters(
         raise ParameterBindError.from_bind_failure(fn, exc, call_args, call_kwargs)
 
     if apply_defaults:
+        explicit_parameters = set(bound_signature.arguments)
         bound_signature.apply_defaults()
+        for name in bound_signature.arguments.keys() - explicit_parameters:
+            default = _resolve_parameter_default(bound_signature.arguments[name])
+            if default is inspect.Parameter.empty:
+                raise ParameterBindError.from_bind_failure(
+                    fn,
+                    TypeError(f"missing a required argument: {name!r}"),
+                    call_args,
+                    call_kwargs,
+                )
+            bound_signature.arguments[name] = default
 
     # We cast from `OrderedDict` to `dict` because Dask will not convert futures in an
     # ordered dictionary to values during execution; this is the default behavior in
@@ -92,10 +104,26 @@ def get_parameter_defaults(
     parameter_defaults: dict[str, Any] = {}
 
     for name, param in signature.parameters.items():
-        if param.default is not signature.empty:
-            parameter_defaults[name] = param.default
+        default = _resolve_parameter_default(param.default)
+        if default is not signature.empty:
+            parameter_defaults[name] = default
 
     return parameter_defaults
+
+
+def _resolve_parameter_default(default: Any) -> Any:
+    """
+    Resolve a signature default to its runtime value.
+
+    Parameters declared as `param: T = pydantic.Field(...)` have a `FieldInfo` as
+    their signature default; this returns the value it describes, or
+    `inspect.Parameter.empty` if the field has no default.
+    """
+    if isinstance(default, FieldInfo):
+        if default.is_required():
+            return inspect.Parameter.empty
+        return default.get_default(call_default_factory=True)
+    return default
 
 
 def explode_variadic_parameter(

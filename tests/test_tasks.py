@@ -4212,6 +4212,17 @@ class TestTaskMap:
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
+    async def test_map_with_pydantic_field_default(self):
+        @task
+        def add_together(x: int, y: int = pydantic.Field(default=5)):
+            return x + y
+
+        @flow
+        def my_flow():
+            return add_together(1), add_together.map([1, 2]).result()
+
+        assert my_flow() == (6, [6, 7])
+
     async def test_simple_map_return_state_true(self):
         @flow
         def my_flow():

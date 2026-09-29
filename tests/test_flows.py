@@ -1741,6 +1741,18 @@ class TestFlowParameterTypes:
         data = ParameterTestClass()
         assert my_flow(data) == data
 
+    def test_flow_parameters_with_pydantic_field_defaults(self):
+        @flow
+        def my_flow(
+            x: str = pydantic.Field(default="", description="x"),
+            y: int = pydantic.Field(default=1),
+            z: list[str] = pydantic.Field(default_factory=list),
+        ):
+            return x, y, z
+
+        assert my_flow() == ("", 1, [])
+        assert my_flow("foo", z=["bar"]) == ("foo", 1, ["bar"])
+
     def test_flow_parameters_can_be_pydantic_types(self):
         @flow
         def my_flow(x):
