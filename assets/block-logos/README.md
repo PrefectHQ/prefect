@@ -22,9 +22,9 @@ terms were not available in the recovered files. Generic artwork is original
 work for this repository. The email image reuses the black outline from
 Prefect's existing [integration overview artwork](https://github.com/PrefectHQ/prefect/blob/main/docs/images/integrations/email.png)
 instead of using a red provider logo. The ProcessWorker image reuses Prefect's
-existing [integration overview mark](https://github.com/PrefectHQ/prefect/blob/main/docs/images/integrations/prefect.png)
-because a plus button did not represent process execution. `mapping.json`
-records every complete Sanity source URL and its repository asset.
+existing generic gear artwork because a plus button did not represent process
+execution. `mapping.json` records every complete Sanity source URL and its
+repository asset.
 
 The contact sheet uses color artwork. Where a recovered original was
 monochrome, the corresponding Simple Icons brand color is used instead. The
