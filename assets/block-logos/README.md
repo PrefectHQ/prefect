@@ -24,6 +24,12 @@ email icon because a clearly reusable SendGrid source was not available; this
 is a subjective replacement for review. `mapping.json` records every complete
 Sanity source URL and its repository asset.
 
+The contact sheet uses color artwork. Where a recovered original was
+monochrome, the corresponding Simple Icons brand color is used instead. The
+GitHub mark uses a blue presentation color because its canonical mark is
+monochrome; filesystem, secret, and webhook artwork uses repository-authored
+blue variants.
+
 | Sanity URL suffix | Asset | Mapped block or worker families |
 | --- | --- | --- |
 | `0b47a017...` | `terminal.png` | ShellOperation |
