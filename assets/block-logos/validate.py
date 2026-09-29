@@ -28,6 +28,8 @@ def main() -> None:
         with Image.open(path) as image:
             width, height = image.size
             assert (width, height) == (256, 256), path
+            assert image.format == "PNG", path
+            assert image.mode == "RGBA", path
             image.verify()
     assert len(mapping) == len(set(mapping))
     print(
