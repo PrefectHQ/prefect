@@ -2,6 +2,8 @@ import os
 import signal
 import sys
 import tempfile
+import threading
+import time
 from pathlib import Path
 from unittest.mock import ANY, AsyncMock, MagicMock
 
@@ -12,11 +14,14 @@ import readchar
 import respx
 import uv
 
+from prefect._internal.server_maintenance import reset_maintenance_backoff
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_CLIENT_RETRY_JITTER_FACTOR,
     PREFECT_WORKER_PREFETCH_SECONDS,
+    PREFECT_WORKER_WEBSERVER_PORT,
     get_current_settings,
     temporary_settings,
 )
@@ -215,6 +220,89 @@ def test_start_worker_when_api_is_unreachable(mock_worker: MagicMock):
         ],
         expected_code=0,
     )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_healthcheck_answers_while_pool_check_waits_out_maintenance(
+    mock_worker: MagicMock,
+    process_work_pool,
+    respx_mock: respx.MockRouter,
+    monkeypatch: pytest.MonkeyPatch,
+    unused_tcp_port: int,
+):
+    waiting_out_maintenance = threading.Event()
+    maintenance_over = threading.Event()
+    original_sleep = anyio.sleep
+
+    async def sleep(delay: float) -> None:
+        if delay == 600:
+            waiting_out_maintenance.set()
+            while not maintenance_over.is_set():
+                await original_sleep(0.05)
+        else:
+            await original_sleep(delay)
+
+    monkeypatch.setattr("anyio.sleep", sleep)
+
+    def in_maintenance_once(request: httpx.Request) -> httpx.Response | httpx.Request:
+        if work_pool_route.call_count == 0:
+            return httpx.Response(
+                503, headers={"Prefect-Maintenance": "true", "Retry-After": "600"}
+            )
+        return request
+
+    work_pool_route = respx_mock.get(
+        path__regex=rf"/work_pools/{process_work_pool.name}$"
+    ).mock(side_effect=in_maintenance_once)
+    respx_mock.route().pass_through()
+
+    health_responses: list[httpx.Response] = []
+
+    def check_health_during_maintenance() -> None:
+        try:
+            assert waiting_out_maintenance.wait(timeout=10)
+            deadline = time.monotonic() + 10
+            while not health_responses and time.monotonic() < deadline:
+                try:
+                    health_responses.append(
+                        httpx.get(f"http://localhost:{unused_tcp_port}/health")
+                    )
+                except httpx.ConnectError:
+                    time.sleep(0.1)
+        finally:
+            maintenance_over.set()
+
+    health_checker = threading.Thread(target=check_health_during_maintenance)
+    health_checker.start()
+    try:
+        with temporary_settings(
+            {
+                PREFECT_CLIENT_RETRY_JITTER_FACTOR: 0,
+                PREFECT_WORKER_WEBSERVER_PORT: unused_tcp_port,
+            }
+        ):
+            invoke_and_assert(
+                command=[
+                    "worker",
+                    "start",
+                    "-p",
+                    process_work_pool.name,
+                    "-t",
+                    "process",
+                    "--run-once",
+                    "--with-healthcheck",
+                ],
+                expected_code=0,
+            )
+    finally:
+        maintenance_over.set()
+        health_checker.join()
+        reset_maintenance_backoff()
+
+    assert [response.status_code for response in health_responses] == [200]
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
     )
