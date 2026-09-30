@@ -130,6 +130,30 @@ def test_load_prefect_collections_reload_picks_up_new_entrypoints(
     ]
 
 
+@patch("prefect._internal.plugins.collections.entry_points")
+@patch("prefect._internal.plugins.collections.safe_load_entrypoints")
+def test_load_prefect_collections_reload_retries_failed_entrypoints(
+    mock_safe_load, mock_entry_points
+):
+    loaded = Mock()
+    loaded.name = "collection1"
+    broken = Mock()
+    broken.name = "collection2"
+    mock_entry_points.return_value = EntryPoints([loaded, broken])
+    mock_safe_load.side_effect = [
+        {"collection1": "module1", "collection2": ImportError("missing")},
+        {"collection2": "module2"},
+    ]
+
+    load_prefect_collections()
+    result = load_prefect_collections(reload=True)
+
+    assert result == {"collection1": "module1", "collection2": "module2"}
+    assert [ep.name for ep in mock_safe_load.call_args_list[1].args[0]] == [
+        "collection2"
+    ]
+
+
 async def test_install_package_reloads_collections_after_install():
     from prefect.cli import _worker_utils
 

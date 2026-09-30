@@ -49,8 +49,8 @@ def load_prefect_collections(
     `prefect.collections`.
 
     Results are cached. With `reload=True`, import and metadata caches are
-    invalidated and entry points not seen by a previous call are loaded, so
-    packages installed after the first call are picked up.
+    invalidated and entry points that are new or failed on a previous call are
+    loaded, so packages installed or repaired after the first call are picked up.
     """
     global _collections
 
@@ -62,7 +62,11 @@ def load_prefect_collections(
 
     collection_entrypoints: EntryPoints = entry_points(group="prefect.collections")
     if _collections is not None:
-        known = _collections
+        known = {
+            name
+            for name, result in _collections.items()
+            if not isinstance(result, Exception)
+        }
         collection_entrypoints = EntryPoints(
             ep for ep in collection_entrypoints if (ep.name or ep.value) not in known
         )
