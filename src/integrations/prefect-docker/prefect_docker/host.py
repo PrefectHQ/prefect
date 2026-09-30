@@ -58,7 +58,7 @@ class DockerHost(Block):
     """
 
     _block_type_name = "Docker Host"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/14a315b79990200db7341e42553e23650b34bb96-250x250.png"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/docker.png"  # noqa
     _description = "Store settings for interacting with a Docker host."
 
     base_url: Optional[str] = Field(
