@@ -365,6 +365,30 @@ async def test_monitor_cancelled_flow_runs_pages_past_first_batch(
     } == set(flow_run_ids)
 
 
+async def test_monitor_cancelled_flow_runs_does_not_duplicate_pending_tasks(
+    session: AsyncSession,
+    flow: Flow,
+):
+    async with session.begin():
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, state=states.Cancelled()),
+        )
+
+    async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+        for _ in range(2):
+            await monitor_cancelled_flow_runs(
+                docket=docket, db=provide_database_interface()
+            )
+        snapshot = await docket.snapshot()
+
+    assert [
+        task.args[0]
+        for task in [*snapshot.future, *snapshot.running]
+        if task.function.__name__ == "cancel_child_task_runs"
+    ] == [flow_run.id]
+
+
 async def test_monitor_subflow_runs_pages_past_first_batch(
     session: AsyncSession,
     flow: Flow,

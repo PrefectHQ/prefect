@@ -495,7 +495,9 @@ async def monitor_cancelled_flow_runs(
         db.FlowRun.end_time.is_not(None),
         db.FlowRun.end_time >= (now("UTC") - datetime.timedelta(days=1)),
     ):
-        await docket.add(cancel_child_task_runs)(flow_run_id)
+        await docket.add(
+            cancel_child_task_runs, key=f"cancel-child-task-runs:{flow_run_id}"
+        )(flow_run_id)
 
 
 # Perpetual monitor for subflow runs that need cancellation (find and flood pattern)
@@ -527,4 +529,6 @@ async def monitor_subflow_runs(
         ),
         db.FlowRun.parent_task_run_id.is_not(None),
     ):
-        await docket.add(cancel_subflow_run)(subflow_run_id)
+        await docket.add(
+            cancel_subflow_run, key=f"cancel-subflow-run:{subflow_run_id}"
+        )(subflow_run_id)
