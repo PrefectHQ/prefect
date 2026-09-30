@@ -543,6 +543,67 @@ class TestJSONExceptionArguments:
         loaded = serializer.loads(serializer.dumps(NarrowerConstructor("boom")))
         assert isinstance(loaded, NarrowerConstructor)
 
+    def test_self_referential_list_argument_is_omitted(self):
+        values: list[Any] = []
+        values.append(values)
+        serializer = JSONSerializer()
+
+        blob = serializer.dumps(Exception(values))
+
+        assert "__exc_args__" not in json.loads(blob)
+        assert serializer.loads(blob).args == ("[[...]]",)
+
+    def test_self_referential_dict_argument_is_omitted(self):
+        payload: dict[str, Any] = {}
+        payload["self"] = payload
+        serializer = JSONSerializer()
+
+        blob = serializer.dumps(Exception(payload))
+
+        assert "__exc_args__" not in json.loads(blob)
+
+    def test_repeated_sibling_container_is_still_carried(self):
+        shared = ["a"]
+        serializer = JSONSerializer()
+
+        loaded = serializer.loads(serializer.dumps(Exception([shared, shared])))
+
+        assert loaded.args == ([["a"], ["a"]],)
+
+    def test_tuple_argument_is_omitted(self):
+        serializer = JSONSerializer()
+
+        blob = serializer.dumps(KeyError((1, 2)))
+
+        assert "__exc_args__" not in json.loads(blob)
+        # A tuple comes back from JSON as a list, which is not the same key.
+        assert serializer.loads(blob).args == ("(1, 2)",)
+
+    @pytest.mark.parametrize("marker", ["__class__", "__exc_type__"])
+    def test_argument_dict_holding_a_decoder_marker_is_omitted(self, marker: str):
+        serializer = JSONSerializer()
+
+        blob = serializer.dumps(Exception({marker: "builtins.int", "data": 8}))
+
+        assert "__exc_args__" not in json.loads(blob)
+
+    def test_nested_argument_dict_holding_a_decoder_marker_is_omitted(self):
+        serializer = JSONSerializer()
+
+        blob = serializer.dumps(
+            Exception(["x", {"__class__": "builtins.int", "data": 8}])
+        )
+
+        assert "__exc_args__" not in json.loads(blob)
+
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+    def test_non_finite_float_argument_is_omitted(self, value: float):
+        serializer = JSONSerializer(dumps_kwargs={"allow_nan": False})
+
+        blob = serializer.dumps(ValueError(value))
+
+        assert "__exc_args__" not in json.loads(blob)
+
 
 class TestCompressedSerializer:
     @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
