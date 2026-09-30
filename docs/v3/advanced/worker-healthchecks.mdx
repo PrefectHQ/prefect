@@ -62,7 +62,7 @@ When the API answers with a `Prefect-Maintenance: true` header, as Prefect Cloud
 
 While it waits, the polling window counts from the later of the last poll and the end of the last maintenance back-off. The worker reports healthy throughout the maintenance, and after it ends the worker has the full window to poll again before it reports unhealthy. Restarting the worker cannot end the maintenance sooner, and a restarted worker would have to wait again before it could poll.
 
-The health endpoint starts before the worker's first sync with the API, so it can answer while that sync is still waiting on an API that is unreachable or in maintenance. This also means a worker whose startup hangs for some other reason answers 200 for up to the polling window before it reports unhealthy, rather than refusing connections.
+The health endpoint starts when `prefect worker start` begins, before the command reads the work pool and before the worker's first sync with the API, so it can answer while those requests are still waiting on an API that is unreachable or in maintenance. This also means a worker whose startup hangs for some other reason answers 200 for up to the polling window before it reports unhealthy, rather than refusing connections.
 
 ## Production Deployment Patterns
 

@@ -31,7 +31,10 @@ import prefect.client.schemas as schemas
 import prefect.types._datetime
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
-from prefect._internal.server_maintenance import reset_maintenance_backoff
+from prefect._internal.server_maintenance import (
+    record_maintenance_backoff,
+    reset_maintenance_backoff,
+)
 from prefect._internal.testing import retry_asserts
 from prefect._internal.uuid7 import uuid7
 from prefect.blocks.core import Block
@@ -116,6 +119,7 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
+from prefect.workers.server import _WorkerStartupHealthcheck
 
 pytestmark = [pytest.mark.usefixtures("asserting_events_worker"), pytest.mark.clear_db]
 
@@ -2582,6 +2586,24 @@ class TestHealthCheckDuringServerMaintenance:
 
         # Same timings as maintenance, but these retries do not extend the window.
         assert healthy_at_each_attempt == [True, True, False, False]
+
+    async def test_startup_healthcheck_uses_the_polling_window_until_the_worker_exists(
+        self, work_pool: WorkPool, mock_anyio_sleep: AsyncMock
+    ):
+        healthcheck = _WorkerStartupHealthcheck(query_interval_seconds=10)
+
+        await anyio.sleep(299)
+        assert healthcheck()
+
+        record_maintenance_backoff(600)
+        await anyio.sleep(600 + 299)
+        assert healthcheck()
+
+        await anyio.sleep(2)
+        assert not healthcheck()
+
+        healthcheck.worker = WorkerTestImpl(work_pool_name=work_pool.name)
+        assert healthcheck()
 
 
 class TestBaseWorkerStart:
