@@ -144,7 +144,7 @@ class ProcessWorker(
     )
     _display_name = "Process"
     _documentation_url = "https://docs.prefect.io/latest/get-started/quickstart"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/356e6766a91baf20e1d08bbe16e8b5aaef4d8643-48x48.png"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/process.png"
 
     async def run(
         self,

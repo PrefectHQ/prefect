@@ -745,6 +745,13 @@ jobs:
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
+      # The Dockerfile constrains the install to uv.lock; assert the built image matches it.
+      - name: Check image dependencies match uv.lock
+        run: |
+          docker run --rm -v "$PWD:/src:ro" -w /src -e UV_PROJECT_ENVIRONMENT=/usr/local \
+            prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} \
+            uv sync --check --frozen --no-dev --inexact --no-install-project
+
       - name: Install packages
         run: uv sync --locked
 
