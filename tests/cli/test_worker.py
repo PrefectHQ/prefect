@@ -250,7 +250,7 @@ def test_start_worker_healthcheck_answers_while_pool_check_waits_out_maintenance
     monkeypatch.setattr(uvicorn.Server, "__init__", init)
     monkeypatch.setattr(uvicorn.Server, "startup", startup)
 
-    health_during_maintenance: list[int | None] = []
+    health_during_maintenance: list[int | str] = []
     original_sleep = anyio.sleep
 
     async def sleep(delay: float) -> None:
@@ -259,9 +259,11 @@ def test_start_worker_healthcheck_answers_while_pool_check_waits_out_maintenance
             return
         # Waiting out maintenance: check the healthcheck instead of sleeping.
         if not healthcheck_created.is_set():
-            health_during_maintenance.append(None)
+            health_during_maintenance.append("healthcheck not created")
             return
-        await anyio.to_thread.run_sync(healthcheck_serving.wait)
+        if not await anyio.to_thread.run_sync(healthcheck_serving.wait, 30):
+            health_during_maintenance.append("healthcheck did not start")
+            return
         async with httpx.AsyncClient() as http:
             response = await http.get(f"http://localhost:{unused_tcp_port}/health")
         health_during_maintenance.append(response.status_code)
