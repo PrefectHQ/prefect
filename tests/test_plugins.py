@@ -1,3 +1,4 @@
+import sys
 from importlib.metadata import EntryPoints
 from unittest.mock import Mock, patch
 
@@ -172,3 +173,43 @@ async def test_install_package_reloads_collections_after_install():
         await _worker_utils._install_package(Mock(), "prefect-kubernetes")
 
     assert calls == ["install", ("load", {"reload": True})]
+
+
+async def test_worker_installed_after_first_load_is_found(tmp_path, monkeypatch):
+    from prefect.cli import _worker_utils
+    from prefect.utilities.dispatch import get_registry_for_type
+    from prefect.workers.base import BaseWorker
+
+    worker_type = "test-late-installed-worker"
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.delitem(sys.modules, "late_installed_worker", raising=False)
+
+    assert _worker_utils._load_worker_class(worker_type) is None
+
+    async def install(*args, **kwargs):
+        # What pip leaves on disk: a module and a dist-info with the entry point.
+        (tmp_path / "late_installed_worker.py").write_text(
+            "from prefect.workers.base import BaseWorker\n"
+            "\n"
+            "class LateInstalledWorker(BaseWorker):\n"
+            f"    type = {worker_type!r}\n"
+        )
+        dist_info = tmp_path / "late_installed_worker-0.1.dist-info"
+        dist_info.mkdir()
+        (dist_info / "METADATA").write_text(
+            "Metadata-Version: 2.1\nName: late-installed-worker\nVersion: 0.1\n"
+        )
+        (dist_info / "entry_points.txt").write_text(
+            "[prefect.collections]\nlate_installed_worker = late_installed_worker\n"
+        )
+
+    try:
+        with patch("prefect._internal.installation.ainstall_packages", install):
+            await _worker_utils._install_package(Mock(), "late-installed-worker")
+
+        worker_class = _worker_utils._load_worker_class(worker_type)
+        assert worker_class is not None
+        assert worker_class.__name__ == "LateInstalledWorker"
+    finally:
+        get_registry_for_type(BaseWorker).pop(worker_type, None)
+        sys.modules.pop("late_installed_worker", None)
