@@ -760,6 +760,7 @@ async def execute(
 
     intent = _termination_intent()
     terminated = False
+    already_final: State | None = None
 
     with tempfile.TemporaryDirectory(prefix="prefect-flow-run-") as workspace_root:
         async with FlowRunExecutorContext() as ctx:
@@ -785,7 +786,7 @@ async def execute(
             async with anyio.create_task_group() as tg:
 
                 async def _terminate_on_signal() -> None:
-                    nonlocal terminated
+                    nonlocal terminated, already_final
                     await terminating.wait()
                     logger.info("SIGTERM received, initiating graceful shutdown...")
 
@@ -809,9 +810,25 @@ async def execute(
 
                     if intent == "reschedule":
                         try:
-                            await propose_state(
-                                ctx.client, AwaitingRetry(), flow_run_id=id
-                            )
+                            # A run the server already finished (e.g. `Cancelled` by a
+                            # cancellation timeout) must stay finished. `Crashed` stays
+                            # reschedulable since eviction observers may mark it first.
+                            current = (await ctx.client.read_flow_run(id)).state
+                            if (
+                                current is not None
+                                and current.is_final()
+                                and not current.is_crashed()
+                            ):
+                                already_final = current
+                                logger.info(
+                                    "Flow run is already in final state %r; not"
+                                    " rescheduling.",
+                                    current.name,
+                                )
+                            else:
+                                await propose_state(
+                                    ctx.client, AwaitingRetry(), flow_run_id=id
+                                )
                         except (Abort, Pause):
                             pass
                         except Exception:
@@ -834,6 +851,11 @@ async def execute(
     # Exits go here, not inside the context: a `SystemExit` unwinding through an
     # anyio task group gets wrapped in an exception group, losing the exit code.
     if terminated:
+        if already_final is not None:
+            exit_with_success(
+                f"Flow run already in final state {already_final.name!r}; not"
+                " rescheduled."
+            )
         if intent == "reschedule":
             exit_with_success("Flow run successfully rescheduled.")
         # Non-zero so the terminating infrastructure retries this attempt.

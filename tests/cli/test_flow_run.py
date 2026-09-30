@@ -2075,6 +2075,69 @@ class TestSignalHandling:
         kill.assert_not_awaited()
         propose.assert_not_awaited()
 
+    @pytest.mark.parametrize(
+        "server_state, expected_state_name",
+        [
+            (Cancelled, "Cancelled"),
+            (Completed, "Completed"),
+            (Failed, "Failed"),
+            (Crashed, "AwaitingRetry"),
+        ],
+    )
+    async def test_reschedule_leaves_final_states_other_than_crashed(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+        server_state: Callable[[], State],
+        expected_state_name: str,
+    ):
+        """A SIGTERM after the server finished the run (e.g. a cancellation timeout
+        marked it `Cancelled`) must not revive it; `Crashed` is still rescheduled."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        handlers: list[Callable[[], None]] = []
+        kill = AsyncMock()
+
+        def capture_install(handler: Callable[[], None]) -> bool:
+            handlers.append(handler)
+            return True
+
+        async def fake_submit(*_: Any, **__: Any) -> None:
+            await prefect_client.set_flow_run_state(flow_run.id, Running(), force=True)
+            await prefect_client.set_flow_run_state(
+                flow_run.id, server_state(), force=True
+            )
+            handlers[0]()
+            await anyio.sleep(1)
+
+        with (
+            patch(
+                "prefect.cli.flow_run._install_termination_handler",
+                side_effect=capture_install,
+            ),
+            patch.object(
+                ControlChannel,
+                "signal",
+                AsyncMock(return_value=ControlSignalStatus.ACKNOWLEDGED),
+            ),
+            patch.object(ProcessManager, "kill", kill),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            await execute(id=flow_run.id)
+
+        assert exc_info.value.code == 0
+        kill.assert_awaited_once()
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and run.state.name == expected_state_name
+
     async def test_termination_handler_installed_even_when_submit_exits_early(
         self,
         monkeypatch: pytest.MonkeyPatch,
