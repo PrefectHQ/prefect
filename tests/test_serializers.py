@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import subprocess
 import uuid
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
@@ -74,7 +75,20 @@ SERIALIZER_TEST_CASES = [
 ]
 
 # Exceptions are a little trickier to compare, so we test them separately
-EXCEPTION_TEST_CASES = [Exception("foo"), ValueError("bar")]
+EXCEPTION_TEST_CASES = [
+    Exception("foo"),
+    ValueError("bar"),
+    subprocess.CalledProcessError(1, "ls -l"),
+    subprocess.CalledProcessError(2, ["ls", "-l"]),
+]
+
+
+class NarrowerConstructor(Exception):
+    """An exception whose `args` hold more than its constructor accepts."""
+
+    def __init__(self, message: str):
+        super().__init__(message, "context the constructor does not take")
+
 
 complex_str = """
 def dog(some_param: str) -> int:
@@ -484,6 +498,50 @@ class TestJSONObjectDecoderSecurity:
     def test_class_path_handles_dotless_name(self):
         result = prefect_json_object_decoder({"__class__": "int", "data": {}})
         assert result == {"__class__": "int", "data": {}}
+
+
+class TestJSONExceptionArguments:
+    def test_multi_argument_exception_keeps_its_arguments(self):
+        serializer = JSONSerializer()
+        loaded = serializer.loads(
+            serializer.dumps(subprocess.CalledProcessError(1, "ls -l"))
+        )
+        assert isinstance(loaded, subprocess.CalledProcessError)
+        assert loaded.returncode == 1
+        assert loaded.cmd == "ls -l"
+
+    def test_argument_types_survive_the_roundtrip(self):
+        serializer = JSONSerializer()
+        loaded = serializer.loads(serializer.dumps(ValueError(42)))
+        assert loaded.args == (42,)
+
+    def test_container_arguments_are_carried(self):
+        serializer = JSONSerializer()
+        payload = {"code": 42, "detail": ["a", "b"]}
+        loaded = serializer.loads(serializer.dumps(Exception(payload)))
+        assert loaded.args == (payload,)
+
+    def test_arguments_that_are_not_json_native_are_omitted(self):
+        exc = UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+        serializer = JSONSerializer()
+
+        blob = serializer.dumps(exc)
+
+        assert "__exc_args__" not in json.loads(blob)
+        # Without its arguments, reconstruction stays where it was before.
+        with pytest.raises(TypeError):
+            serializer.loads(blob)
+
+    def test_payload_without_arguments_still_decodes(self):
+        result = prefect_json_object_decoder(
+            {"__exc_type__": "builtins.ValueError", "message": "bar"}
+        )
+        assert exceptions_equal(result, ValueError("bar"))
+
+    def test_arguments_the_constructor_rejects_fall_back_to_the_message(self):
+        serializer = JSONSerializer()
+        loaded = serializer.loads(serializer.dumps(NarrowerConstructor("boom")))
+        assert isinstance(loaded, NarrowerConstructor)
 
 
 class TestCompressedSerializer:

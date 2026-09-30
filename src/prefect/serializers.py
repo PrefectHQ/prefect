@@ -56,6 +56,22 @@ def _get_importable_class(cls: type) -> type:
     return cls
 
 
+def _is_json_native(value: Any) -> bool:
+    """
+    Whether `value` is built only from types the JSON encoder handles on its own.
+    """
+    if isinstance(value, (str, int, float, bool, type(None))):
+        return True
+    if isinstance(value, (list, tuple)):
+        return all(_is_json_native(item) for item in value)
+    if isinstance(value, dict):
+        return all(
+            isinstance(key, str) and _is_json_native(item)
+            for key, item in value.items()
+        )
+    return False
+
+
 def prefect_json_object_encoder(obj: Any) -> Any:
     """
     `JSONEncoder.default` for encoding objects into JSON with extended type support.
@@ -63,7 +79,14 @@ def prefect_json_object_encoder(obj: Any) -> Any:
     Raises a `TypeError` to fallback on other encoders on failure.
     """
     if isinstance(obj, BaseException):
-        return {"__exc_type__": to_qualified_name(obj.__class__), "message": str(obj)}
+        encoded: dict[str, Any] = {
+            "__exc_type__": to_qualified_name(obj.__class__),
+            "message": str(obj),
+        }
+        # Arguments that are not JSON native are dropped, so encoding cannot fail.
+        if obj.args and _is_json_native(obj.args):
+            encoded["__exc_args__"] = list(obj.args)
+        return encoded
     elif isinstance(obj, io.IOBase):
         return {
             "__class__": to_qualified_name(obj.__class__),
@@ -101,6 +124,12 @@ def prefect_json_object_decoder(result: dict[str, Any]) -> Any:
             raise ValueError(f"Invalid exception type: {result['__exc_type__']!r}")
         if not (isinstance(exc_cls, type) and issubclass(exc_cls, BaseException)):
             raise ValueError(f"Invalid exception type: {result['__exc_type__']!r}")
+        args = result.get("__exc_args__")
+        if args:
+            try:
+                return exc_cls(*args)
+            except Exception:
+                pass
         return exc_cls(result["message"])
     else:
         return result
