@@ -312,7 +312,10 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """
         with cls._instance_lock:
             key = hash((cls, *args))
-            if key not in cls._instances:
+            existing = cls._instances.get(key)
+            # A service can stop before it is registered here (e.g. if its lifespan
+            # fails immediately on the loop thread), so never hand out a stopped one
+            if existing is None or existing._stopped:
                 cls._instances[key] = cls._new_instance(*args)
 
             return cls._instances[key]

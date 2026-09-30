@@ -156,6 +156,28 @@ def test_instance_returns_new_instance_after_base_exception():
     new_instance.mock.assert_called_once_with(new_instance, 2)
 
 
+def test_instance_returns_new_instance_after_lifespan_failure():
+    class FailingLifespanService(QueueService[int]):
+        async def _handle(self, item: int):
+            pass
+
+        @contextlib.asynccontextmanager
+        async def _lifespan(self):
+            raise ValueError("Oh no")
+            yield
+
+    # The lifespan failure can stop the service before `instance()` registers it,
+    # so repeat to exercise that ordering
+    for _ in range(10):
+        instance = FailingLifespanService.instance()
+        instance.drain()
+        assert instance._stopped
+
+        new_instance = FailingLifespanService.instance()
+        assert new_instance is not instance
+        new_instance.drain()
+
+
 def test_send_one():
     instance = MockService.instance()
     instance.send(1)
