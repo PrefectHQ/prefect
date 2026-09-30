@@ -117,14 +117,8 @@ async def _retrieve_worker_type_from_pool(
 
 
 def _load_worker_class(worker_type: str) -> Optional[Type[BaseWorker]]:
-    load_prefect_collections()
     try:
-        return lookup_type(BaseWorker, worker_type)
-    except KeyError:
-        pass
-    # The package may have been installed since collections were first loaded.
-    load_prefect_collections(reload=True)
-    try:
+        load_prefect_collections()
         return lookup_type(BaseWorker, worker_type)
     except KeyError:
         return None
@@ -140,6 +134,8 @@ async def _install_package(
     console.print(f"Installing {package}...")
     install_package = KNOWN_EXTRAS_FOR_PACKAGES.get(package, package)
     await ainstall_packages([install_package], stream_output=True, upgrade=upgrade)
+    # Collections are cached from the first load; pick up the new package.
+    load_prefect_collections(reload=True)
 
 
 async def _find_package_for_worker_type(

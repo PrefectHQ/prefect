@@ -130,45 +130,21 @@ def test_load_prefect_collections_reload_picks_up_new_entrypoints(
     ]
 
 
-def test_load_worker_class_reloads_collections_after_miss():
+async def test_install_package_reloads_collections_after_install():
     from prefect.cli import _worker_utils
 
-    worker_cls = Mock()
+    calls = []
     with (
-        patch.object(_worker_utils, "load_prefect_collections") as mock_load,
+        patch(
+            "prefect._internal.installation.ainstall_packages",
+            side_effect=lambda *args, **kwargs: calls.append("install"),
+        ),
         patch.object(
-            _worker_utils, "lookup_type", side_effect=[KeyError("late"), worker_cls]
-        ) as mock_lookup,
+            _worker_utils,
+            "load_prefect_collections",
+            side_effect=lambda **kwargs: calls.append(("load", kwargs)),
+        ),
     ):
-        assert _worker_utils._load_worker_class("late") is worker_cls
+        await _worker_utils._install_package(Mock(), "prefect-kubernetes")
 
-    assert [c.kwargs for c in mock_load.call_args_list] == [{}, {"reload": True}]
-    assert mock_lookup.call_count == 2
-
-
-def test_load_worker_class_retries_once_then_returns_none():
-    from prefect.cli import _worker_utils
-
-    with (
-        patch.object(_worker_utils, "load_prefect_collections") as mock_load,
-        patch.object(
-            _worker_utils, "lookup_type", side_effect=KeyError("missing")
-        ) as mock_lookup,
-    ):
-        assert _worker_utils._load_worker_class("missing") is None
-
-    assert [c.kwargs for c in mock_load.call_args_list] == [{}, {"reload": True}]
-    assert mock_lookup.call_count == 2
-
-
-def test_load_worker_class_skips_reload_on_hit():
-    from prefect.cli import _worker_utils
-
-    worker_cls = Mock()
-    with (
-        patch.object(_worker_utils, "load_prefect_collections") as mock_load,
-        patch.object(_worker_utils, "lookup_type", return_value=worker_cls),
-    ):
-        assert _worker_utils._load_worker_class("known") is worker_cls
-
-    mock_load.assert_called_once_with()
+    assert calls == ["install", ("load", {"reload": True})]
