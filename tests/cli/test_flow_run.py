@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import anyio
+import httpx
 import pytest
 
 import prefect.exceptions
@@ -2137,6 +2138,63 @@ class TestSignalHandling:
         kill.assert_awaited_once()
         run = await prefect_client.read_flow_run(flow_run.id)
         assert run.state and run.state.name == expected_state_name
+
+    async def test_reschedule_proceeds_when_state_read_fails(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        handlers: list[Callable[[], None]] = []
+        read_flow_run = PrefectClient.read_flow_run
+        reads_fail = False
+
+        def capture_install(handler: Callable[[], None]) -> bool:
+            handlers.append(handler)
+            return True
+
+        async def flaky_read_flow_run(
+            self: PrefectClient, flow_run_id: UUID
+        ) -> FlowRun:
+            if reads_fail:
+                raise httpx.ConnectError("connection refused")
+            return await read_flow_run(self, flow_run_id)
+
+        async def fake_submit(*_: Any, **__: Any) -> None:
+            nonlocal reads_fail
+            await prefect_client.set_flow_run_state(flow_run.id, Running(), force=True)
+            reads_fail = True
+            handlers[0]()
+            await anyio.sleep(1)
+
+        with (
+            patch(
+                "prefect.cli.flow_run._install_termination_handler",
+                side_effect=capture_install,
+            ),
+            patch.object(
+                ControlChannel,
+                "signal",
+                AsyncMock(return_value=ControlSignalStatus.ACKNOWLEDGED),
+            ),
+            patch.object(ProcessManager, "kill", AsyncMock()),
+            patch.object(PrefectClient, "read_flow_run", flaky_read_flow_run),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            await execute(id=flow_run.id)
+
+        assert exc_info.value.code == 0
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and run.state.name == "AwaitingRetry"
 
     async def test_termination_handler_installed_even_when_submit_exits_early(
         self,

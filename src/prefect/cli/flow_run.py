@@ -80,6 +80,27 @@ def _install_termination_handler(handler: Callable[[], None]) -> bool:
     return True
 
 
+async def _final_state_blocking_reschedule(
+    client: PrefectClient, flow_run_id: UUID
+) -> State | None:
+    """Return the run's state if the server already finished it, so a SIGTERM
+    reschedule must leave it alone.
+
+    `Crashed` does not block, since an eviction observer can mark the run `Crashed`
+    before the reschedule lands. A failed read does not block either.
+    """
+    try:
+        state = (await client.read_flow_run(flow_run_id)).state
+    except Exception:
+        logger.warning(
+            "Failed to read flow run state; rescheduling anyway.", exc_info=True
+        )
+        return None
+    if state is not None and state.is_final() and not state.is_crashed():
+        return state
+    return None
+
+
 flow_run_app: cyclopts.App = cyclopts.App(
     name="flow-run",
     alias="flow-runs",
@@ -809,30 +830,24 @@ async def execute(
                         )
 
                     if intent == "reschedule":
-                        try:
-                            # A run the server already finished (e.g. `Cancelled` by a
-                            # cancellation timeout) must stay finished. `Crashed` stays
-                            # reschedulable since eviction observers may mark it first.
-                            current = (await ctx.client.read_flow_run(id)).state
-                            if (
-                                current is not None
-                                and current.is_final()
-                                and not current.is_crashed()
-                            ):
-                                already_final = current
-                                logger.info(
-                                    "Flow run is already in final state %r; not"
-                                    " rescheduling.",
-                                    current.name,
-                                )
-                            else:
+                        already_final = await _final_state_blocking_reschedule(
+                            ctx.client, id
+                        )
+                        if already_final is not None:
+                            logger.info(
+                                "Flow run is already in final state %r; not"
+                                " rescheduling.",
+                                already_final.name,
+                            )
+                        else:
+                            try:
                                 await propose_state(
                                     ctx.client, AwaitingRetry(), flow_run_id=id
                                 )
-                        except (Abort, Pause):
-                            pass
-                        except Exception:
-                            logger.exception("Failed to reschedule flow run")
+                            except (Abort, Pause):
+                                pass
+                            except Exception:
+                                logger.exception("Failed to reschedule flow run")
 
                     await ctx.process_manager.kill(id, force=not acknowledged)
                     terminated = True
