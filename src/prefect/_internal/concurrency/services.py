@@ -314,7 +314,8 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
             key = hash((cls, *args))
             instance = cls._instances.get(key)
             # An instance can stop before it is registered here if its lifespan
-            # fails during startup, so never hand out a stopped instance.
+            # fails during startup, so replace stopped instances instead of
+            # reusing them.
             if instance is None or instance._stopped:
                 instance = cls._instances[key] = cls._new_instance(*args)
 
