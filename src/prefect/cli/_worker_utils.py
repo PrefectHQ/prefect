@@ -117,8 +117,14 @@ async def _retrieve_worker_type_from_pool(
 
 
 def _load_worker_class(worker_type: str) -> Optional[Type[BaseWorker]]:
+    load_prefect_collections()
     try:
-        load_prefect_collections()
+        return lookup_type(BaseWorker, worker_type)
+    except KeyError:
+        pass
+    # The package may have been installed since collections were first loaded.
+    load_prefect_collections(reload=True)
+    try:
         return lookup_type(BaseWorker, worker_type)
     except KeyError:
         return None

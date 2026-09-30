@@ -101,3 +101,74 @@ def test_load_prefect_collections_caches_result(mock_safe_load, mock_entry_point
     assert result1 == result2
     mock_entry_points.assert_called_once()
     mock_safe_load.assert_called_once()
+
+
+@patch("prefect._internal.plugins.collections.entry_points")
+@patch("prefect._internal.plugins.collections.safe_load_entrypoints")
+def test_load_prefect_collections_reload_picks_up_new_entrypoints(
+    mock_safe_load, mock_entry_points
+):
+    first = Mock()
+    first.name = "collection1"
+    second = Mock()
+    second.name = "collection2"
+    mock_entry_points.side_effect = [
+        EntryPoints([first]),
+        EntryPoints([first, second]),
+    ]
+    mock_safe_load.side_effect = [
+        {"collection1": "module1"},
+        {"collection2": "module2"},
+    ]
+
+    load_prefect_collections()
+    result = load_prefect_collections(reload=True)
+
+    assert result == {"collection1": "module1", "collection2": "module2"}
+    assert [ep.name for ep in mock_safe_load.call_args_list[1].args[0]] == [
+        "collection2"
+    ]
+
+
+def test_load_worker_class_reloads_collections_after_miss():
+    from prefect.cli import _worker_utils
+
+    worker_cls = Mock()
+    with (
+        patch.object(_worker_utils, "load_prefect_collections") as mock_load,
+        patch.object(
+            _worker_utils, "lookup_type", side_effect=[KeyError("late"), worker_cls]
+        ) as mock_lookup,
+    ):
+        assert _worker_utils._load_worker_class("late") is worker_cls
+
+    assert [c.kwargs for c in mock_load.call_args_list] == [{}, {"reload": True}]
+    assert mock_lookup.call_count == 2
+
+
+def test_load_worker_class_retries_once_then_returns_none():
+    from prefect.cli import _worker_utils
+
+    with (
+        patch.object(_worker_utils, "load_prefect_collections") as mock_load,
+        patch.object(
+            _worker_utils, "lookup_type", side_effect=KeyError("missing")
+        ) as mock_lookup,
+    ):
+        assert _worker_utils._load_worker_class("missing") is None
+
+    assert [c.kwargs for c in mock_load.call_args_list] == [{}, {"reload": True}]
+    assert mock_lookup.call_count == 2
+
+
+def test_load_worker_class_skips_reload_on_hit():
+    from prefect.cli import _worker_utils
+
+    worker_cls = Mock()
+    with (
+        patch.object(_worker_utils, "load_prefect_collections") as mock_load,
+        patch.object(_worker_utils, "lookup_type", return_value=worker_cls),
+    ):
+        assert _worker_utils._load_worker_class("known") is worker_cls
+
+    mock_load.assert_called_once_with()

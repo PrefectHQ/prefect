@@ -8,6 +8,7 @@ typically to register Blocks or other Prefect-aware classes.
 Public API is re-exported from `prefect.plugins`.
 """
 
+import importlib
 from importlib.metadata import EntryPoints, entry_points
 from types import ModuleType
 from typing import Any, Union
@@ -40,26 +41,41 @@ def safe_load_entrypoints(entrypoints: EntryPoints) -> dict[str, Union[Exception
     return results
 
 
-def load_prefect_collections() -> dict[str, Union[ModuleType, Exception]]:
+def load_prefect_collections(
+    reload: bool = False,
+) -> dict[str, Union[ModuleType, Exception]]:
     """
     Load all Prefect collections that define an entrypoint in the group
     `prefect.collections`.
+
+    Results are cached. With `reload=True`, import and metadata caches are
+    invalidated and entry points not seen by a previous call are loaded, so
+    packages installed after the first call are picked up.
     """
     global _collections
 
-    if _collections is not None:
+    if _collections is not None and not reload:
         return _collections
 
+    if _collections is not None:
+        importlib.invalidate_caches()
+
     collection_entrypoints: EntryPoints = entry_points(group="prefect.collections")
-    collections: dict[str, Union[Exception, Any]] = safe_load_entrypoints(
+    if _collections is not None:
+        known = _collections
+        collection_entrypoints = EntryPoints(
+            ep for ep in collection_entrypoints if (ep.name or ep.value) not in known
+        )
+    loaded: dict[str, Union[Exception, Any]] = safe_load_entrypoints(
         collection_entrypoints
     )
+    collections = {**_collections, **loaded} if _collections is not None else loaded
 
     # TODO: Consider the utility of this once we've established this pattern.
     #       We cannot use a logger here because logging is not yet initialized.
     #       It would be nice if logging was initialized so we could log failures
     #       at least.
-    for name, result in collections.items():
+    for name, result in loaded.items():
         if isinstance(result, Exception):
             print(
                 # TODO: Use exc_info if we have a logger
