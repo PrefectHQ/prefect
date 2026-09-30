@@ -4,7 +4,7 @@ import logging
 from collections.abc import Awaitable
 from datetime import datetime
 from typing import Any, Callable
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from docket import Docket
@@ -23,6 +23,8 @@ from prefect.server.services.cancellation_cleanup import (
     ensure_cancelling_timeout_checks,
     handle_cancelling_timeout,
     maybe_schedule_cancelling_timeout_check_for_state,
+    monitor_cancelled_flow_runs,
+    monitor_subflow_runs,
     schedule_cancelling_timeout_check,
 )
 from prefect.server.worker_communication.cleanup_queue.memory import WorkerCleanupQueue
@@ -325,6 +327,100 @@ async def test_ensure_cancelling_timeout_checks_pages_past_first_batch(
     task_keys = [task.key for task in snapshot.future]
     task_keys.extend(task.key for task in snapshot.running)
     assert cancelling_timeout_check_key(max(flow_run_ids)) in task_keys
+
+
+async def _scheduled_task_calls(docket: Docket) -> set[tuple[str, Any]]:
+    snapshot = await docket.snapshot()
+    return {
+        (task.function.__name__, task.args[0])
+        for task in [*snapshot.future, *snapshot.running]
+        if task.args
+    }
+
+
+async def test_monitor_cancelled_flow_runs_pages_past_first_batch(
+    session: AsyncSession,
+    flow: Flow,
+):
+    flow_run_ids = [UUID(int=i + 1) for i in range(201)]
+    async with session.begin():
+        for flow_run_id in flow_run_ids:
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    id=flow_run_id, flow_id=flow.id, state=states.Cancelled()
+                ),
+            )
+
+    async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+        await monitor_cancelled_flow_runs(
+            docket=docket, db=provide_database_interface()
+        )
+        scheduled = await _scheduled_task_calls(docket)
+
+    assert {
+        flow_run_id
+        for function_name, flow_run_id in scheduled
+        if function_name == "cancel_child_task_runs"
+    } == set(flow_run_ids)
+
+
+async def test_monitor_subflow_runs_pages_past_first_batch(
+    session: AsyncSession,
+    flow: Flow,
+):
+    async with session.begin():
+        running_parent = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, state=states.Running()),
+        )
+        running_parent_task = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=running_parent.id,
+                task_key="virtual task",
+                dynamic_key="running",
+                state=states.Running(),
+            ),
+        )
+        cancelled_parent = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, state=states.Cancelled()),
+        )
+        cancelled_parent_task = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=cancelled_parent.id,
+                task_key="virtual task",
+                dynamic_key="cancelled",
+                state=states.Running(),
+            ),
+        )
+        for i in range(200):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    id=UUID(int=i + 1),
+                    flow_id=flow.id,
+                    parent_task_run_id=running_parent_task.id,
+                    state=states.Running(),
+                ),
+            )
+        orphaned_subflow = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                id=UUID(int=2**128 - 1),
+                flow_id=flow.id,
+                parent_task_run_id=cancelled_parent_task.id,
+                state=states.Running(),
+            ),
+        )
+
+    async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+        await monitor_subflow_runs(docket=docket, db=provide_database_interface())
+        scheduled = await _scheduled_task_calls(docket)
+
+    assert ("cancel_subflow_run", orphaned_subflow.id) in scheduled
 
 
 async def test_handle_cancelling_timeout_cancels_and_enqueues_cleanup(

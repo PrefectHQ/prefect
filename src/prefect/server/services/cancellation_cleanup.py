@@ -4,6 +4,7 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 
 import datetime
 import logging
+from collections.abc import AsyncGenerator
 from typing import Annotated
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -438,6 +439,38 @@ async def ensure_cancelling_timeout_checks(
             break
 
 
+async def _iter_flow_run_ids(
+    db: PrefectDBInterface,
+    *conditions: sa.ColumnElement[bool],
+    batch_size: int = 200,
+) -> AsyncGenerator[UUID, None]:
+    """Yield ids of all flow runs matching `conditions`, paging by id in batches."""
+    last_flow_run_id: UUID | None = None
+
+    while True:
+        query_conditions = list(conditions)
+        if last_flow_run_id is not None:
+            query_conditions.append(db.FlowRun.id > last_flow_run_id)
+
+        query = (
+            sa.select(db.FlowRun.id)
+            .where(*query_conditions)
+            .order_by(db.FlowRun.id)
+            .limit(batch_size)
+        )
+
+        async with db.session_context() as session:
+            result = await session.execute(query)
+        flow_run_ids = result.scalars().all()
+
+        for flow_run_id in flow_run_ids:
+            yield flow_run_id
+
+        if len(flow_run_ids) < batch_size:
+            break
+        last_flow_run_id = flow_run_ids[-1]
+
+
 # Perpetual monitor for cancelled flow runs with child tasks (find and flood pattern)
 @perpetual_service(
     enabled_getter=lambda: (
@@ -456,23 +489,12 @@ async def monitor_cancelled_flow_runs(
 ) -> None:
     """Monitor for cancelled flow runs and schedule child task cancellation."""
 
-    batch_size = 200
-    cancelled_flow_query = (
-        sa.select(db.FlowRun.id)
-        .where(
-            db.FlowRun.state_type == states.StateType.CANCELLED,
-            db.FlowRun.end_time.is_not(None),
-            db.FlowRun.end_time >= (now("UTC") - datetime.timedelta(days=1)),
-        )
-        .order_by(db.FlowRun.id)
-        .limit(batch_size)
-    )
-
-    async with db.session_context() as session:
-        flow_run_result = await session.execute(cancelled_flow_query)
-    flow_run_ids = flow_run_result.scalars().all()
-
-    for flow_run_id in flow_run_ids:
+    async for flow_run_id in _iter_flow_run_ids(
+        db,
+        db.FlowRun.state_type == states.StateType.CANCELLED,
+        db.FlowRun.end_time.is_not(None),
+        db.FlowRun.end_time >= (now("UTC") - datetime.timedelta(days=1)),
+    ):
         await docket.add(cancel_child_task_runs)(flow_run_id)
 
 
@@ -494,26 +516,15 @@ async def monitor_subflow_runs(
 ) -> None:
     """Monitor for subflow runs that need to be cancelled."""
 
-    batch_size = 200
-    subflow_query = (
-        sa.select(db.FlowRun.id)
-        .where(
-            sa.or_(
-                db.FlowRun.state_type == states.StateType.PENDING,
-                db.FlowRun.state_type == states.StateType.SCHEDULED,
-                db.FlowRun.state_type == states.StateType.RUNNING,
-                db.FlowRun.state_type == states.StateType.PAUSED,
-                db.FlowRun.state_type == states.StateType.CANCELLING,
-            ),
-            db.FlowRun.parent_task_run_id.is_not(None),
-        )
-        .order_by(db.FlowRun.id)
-        .limit(batch_size)
-    )
-
-    async with db.session_context() as session:
-        subflow_run_result = await session.execute(subflow_query)
-    subflow_run_ids = subflow_run_result.scalars().all()
-
-    for subflow_run_id in subflow_run_ids:
+    async for subflow_run_id in _iter_flow_run_ids(
+        db,
+        sa.or_(
+            db.FlowRun.state_type == states.StateType.PENDING,
+            db.FlowRun.state_type == states.StateType.SCHEDULED,
+            db.FlowRun.state_type == states.StateType.RUNNING,
+            db.FlowRun.state_type == states.StateType.PAUSED,
+            db.FlowRun.state_type == states.StateType.CANCELLING,
+        ),
+        db.FlowRun.parent_task_run_id.is_not(None),
+    ):
         await docket.add(cancel_subflow_run)(subflow_run_id)
