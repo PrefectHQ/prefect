@@ -3,8 +3,8 @@ import signal
 import sys
 import tempfile
 import threading
-import time
 from pathlib import Path
+from typing import Any
 from unittest.mock import ANY, AsyncMock, MagicMock
 
 import anyio
@@ -13,6 +13,7 @@ import pytest
 import readchar
 import respx
 import uv
+import uvicorn
 
 from prefect._internal.server_maintenance import reset_maintenance_backoff
 from prefect.client.orchestration import PrefectClient
@@ -233,17 +234,37 @@ def test_start_worker_healthcheck_answers_while_pool_check_waits_out_maintenance
     monkeypatch: pytest.MonkeyPatch,
     unused_tcp_port: int,
 ):
-    waiting_out_maintenance = threading.Event()
-    maintenance_over = threading.Event()
+    healthcheck_created = threading.Event()
+    healthcheck_serving = threading.Event()
+    original_init = uvicorn.Server.__init__
+    original_startup = uvicorn.Server.startup
+
+    def init(self: uvicorn.Server, *args: Any, **kwargs: Any) -> None:
+        original_init(self, *args, **kwargs)
+        healthcheck_created.set()
+
+    async def startup(self: uvicorn.Server, *args: Any, **kwargs: Any) -> None:
+        await original_startup(self, *args, **kwargs)
+        healthcheck_serving.set()
+
+    monkeypatch.setattr(uvicorn.Server, "__init__", init)
+    monkeypatch.setattr(uvicorn.Server, "startup", startup)
+
+    health_during_maintenance: list[int | None] = []
     original_sleep = anyio.sleep
 
     async def sleep(delay: float) -> None:
-        if delay == 600:
-            waiting_out_maintenance.set()
-            while not maintenance_over.is_set():
-                await original_sleep(0.05)
-        else:
+        if delay != 600:
             await original_sleep(delay)
+            return
+        # Waiting out maintenance: check the healthcheck instead of sleeping.
+        if not healthcheck_created.is_set():
+            health_during_maintenance.append(None)
+            return
+        await anyio.to_thread.run_sync(healthcheck_serving.wait)
+        async with httpx.AsyncClient() as http:
+            response = await http.get(f"http://localhost:{unused_tcp_port}/health")
+        health_during_maintenance.append(response.status_code)
 
     monkeypatch.setattr("anyio.sleep", sleep)
 
@@ -259,24 +280,6 @@ def test_start_worker_healthcheck_answers_while_pool_check_waits_out_maintenance
     ).mock(side_effect=in_maintenance_once)
     respx_mock.route().pass_through()
 
-    health_responses: list[httpx.Response] = []
-
-    def check_health_during_maintenance() -> None:
-        try:
-            assert waiting_out_maintenance.wait(timeout=10)
-            deadline = time.monotonic() + 10
-            while not health_responses and time.monotonic() < deadline:
-                try:
-                    health_responses.append(
-                        httpx.get(f"http://localhost:{unused_tcp_port}/health")
-                    )
-                except httpx.ConnectError:
-                    time.sleep(0.1)
-        finally:
-            maintenance_over.set()
-
-    health_checker = threading.Thread(target=check_health_during_maintenance)
-    health_checker.start()
     try:
         with temporary_settings(
             {
@@ -298,11 +301,9 @@ def test_start_worker_healthcheck_answers_while_pool_check_waits_out_maintenance
                 expected_code=0,
             )
     finally:
-        maintenance_over.set()
-        health_checker.join()
         reset_maintenance_backoff()
 
-    assert [response.status_code for response in health_responses] == [200]
+    assert health_during_maintenance == [200]
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
     )
