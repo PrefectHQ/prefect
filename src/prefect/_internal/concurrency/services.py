@@ -312,13 +312,17 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """
         with cls._instance_lock:
             key = hash((cls, *args))
-            if key not in cls._instances:
-                cls._instances[key] = cls._new_instance(*args)
+            instance = cls._instances.get(key)
+            # An instance can stop before it is registered here if its lifespan
+            # fails during startup, so never hand out a stopped instance.
+            if instance is None or instance._stopped:
+                instance = cls._instances[key] = cls._new_instance(*args)
 
-            return cls._instances[key]
+            return instance
 
     def _remove_instance(self):
-        self._instances.pop(self._key, None)
+        if self._instances.get(self._key) is self:
+            self._instances.pop(self._key, None)
 
     @classmethod
     def _new_instance(cls, *args: Hashable) -> Self:
