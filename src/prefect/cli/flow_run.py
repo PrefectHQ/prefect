@@ -781,7 +781,7 @@ async def execute(
 
     intent = _termination_intent()
     terminated = False
-    already_final: State | None = None
+    rescheduled = False
 
     with tempfile.TemporaryDirectory(prefix="prefect-flow-run-") as workspace_root:
         async with FlowRunExecutorContext() as ctx:
@@ -807,7 +807,7 @@ async def execute(
             async with anyio.create_task_group() as tg:
 
                 async def _terminate_on_signal() -> None:
-                    nonlocal terminated, already_final
+                    nonlocal terminated, rescheduled
                     await terminating.wait()
                     logger.info("SIGTERM received, initiating graceful shutdown...")
 
@@ -841,9 +841,10 @@ async def execute(
                             )
                         else:
                             try:
-                                await propose_state(
+                                state = await propose_state(
                                     ctx.client, AwaitingRetry(), flow_run_id=id
                                 )
+                                rescheduled = state.is_scheduled()
                             except (Abort, Pause):
                                 pass
                             except Exception:
@@ -866,12 +867,11 @@ async def execute(
     # Exits go here, not inside the context: a `SystemExit` unwinding through an
     # anyio task group gets wrapped in an exception group, losing the exit code.
     if terminated:
-        if already_final is not None:
-            exit_with_success(
-                f"Flow run already in final state {already_final.name!r}; not"
-                " rescheduled."
-            )
         if intent == "reschedule":
-            exit_with_success("Flow run successfully rescheduled.")
+            exit_with_success(
+                "Flow run successfully rescheduled."
+                if rescheduled
+                else "Flow run was not rescheduled."
+            )
         # Non-zero so the terminating infrastructure retries this attempt.
         exit_with_error("Flow run relinquished to infrastructure retry.")

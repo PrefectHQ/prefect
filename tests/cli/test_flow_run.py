@@ -30,6 +30,7 @@ from prefect.settings.context import get_current_settings
 from prefect.states import (
     AwaitingRetry,
     Cancelled,
+    Cancelling,
     Completed,
     Crashed,
     Failed,
@@ -2077,23 +2078,28 @@ class TestSignalHandling:
         propose.assert_not_awaited()
 
     @pytest.mark.parametrize(
-        "server_state, expected_state_name",
+        "server_state, expected_state_name, expected_message",
         [
-            (Cancelled, "Cancelled"),
-            (Completed, "Completed"),
-            (Failed, "Failed"),
-            (Crashed, "AwaitingRetry"),
+            (Cancelled, "Cancelled", "Flow run was not rescheduled."),
+            (Completed, "Completed", "Flow run was not rescheduled."),
+            (Failed, "Failed", "Flow run was not rescheduled."),
+            (Cancelling, "Cancelling", "Flow run was not rescheduled."),
+            (Crashed, "AwaitingRetry", "Flow run successfully rescheduled."),
         ],
     )
     async def test_reschedule_leaves_final_states_other_than_crashed(
         self,
         monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
         prefect_client: PrefectClient,
         server_state: Callable[[], State],
         expected_state_name: str,
+        expected_message: str,
     ):
         """A SIGTERM after the server finished the run (e.g. a cancellation timeout
-        marked it `Cancelled`) must not revive it; `Crashed` is still rescheduled."""
+        marked it `Cancelled`) must not revive it; `Crashed` is still rescheduled.
+        A `Cancelling` run rejects the reschedule, which must not be reported as
+        a success."""
         monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
 
         deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
@@ -2136,6 +2142,7 @@ class TestSignalHandling:
 
         assert exc_info.value.code == 0
         kill.assert_awaited_once()
+        assert expected_message in capsys.readouterr().out
         run = await prefect_client.read_flow_run(flow_run.id)
         assert run.state and run.state.name == expected_state_name
 
