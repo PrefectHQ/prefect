@@ -37,6 +37,7 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import InfrastructureNotFound
 from prefect.settings import PREFECT_API_AUTH_STRING, PREFECT_API_KEY
 from prefect.settings.context import temporary_settings
+from prefect.utilities.schema_tools import validate
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import find_placeholders
 
@@ -530,6 +531,52 @@ async def test_container_command(
         task["overrides"]["containerOverrides"], ECS_DEFAULT_CONTAINER_NAME
     )
     assert container_overrides["command"] == ["prefect", "version"]
+
+
+@pytest.mark.usefixtures("ecs_mocks")
+@pytest.mark.parametrize("launch_type", ["EC2", "FARGATE", "FARGATE_SPOT"])
+async def test_container_command_as_a_list(
+    aws_credentials: AwsCredentials,
+    launch_type: str,
+    flow_run: FlowRun,
+):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/17042
+
+    A list is passed to the container unchanged, so shell constructs such as
+    `&&` work through `/bin/sh -c` instead of being split into arguments.
+    """
+    command = ["/bin/sh", "-c", "python -m some.module && prefect flow-run execute"]
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+        launch_type=launch_type,
+        command=command,
+    )
+
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        result = await worker.run(flow_run, configuration)
+
+    _, task_arn = parse_identifier(result.identifier)
+
+    task = describe_task(ecs_client, task_arn)
+
+    container_overrides = _get_container(
+        task["overrides"]["containerOverrides"], ECS_DEFAULT_CONTAINER_NAME
+    )
+    assert container_overrides["command"] == command
+
+
+def test_default_base_job_template_accepts_a_list_command():
+    variables_schema = ECSWorker.get_default_base_job_template()["variables"]
+    command = ["/bin/sh", "-c", "echo hi && prefect flow-run execute"]
+
+    validate({"command": command}, variables_schema, raise_on_error=True)
+    validate(
+        {"command": "prefect flow-run execute"}, variables_schema, raise_on_error=True
+    )
 
 
 @pytest.mark.usefixtures("ecs_mocks")
