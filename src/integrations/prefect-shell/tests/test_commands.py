@@ -187,6 +187,43 @@ class TestShellOperation:
             await self.execute(op, method)
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_error_includes_stderr(self, method: str):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/13070
+        """
+        op = ShellOperation(
+            commands=[
+                "echo not-the-reason",
+                "echo boom-from-stderr >&2",
+                "exit 3",
+            ]
+        )
+        with pytest.raises(RuntimeError, match="return code 3") as exc_info:
+            await self.execute(op, method)
+        assert "boom-from-stderr" in str(exc_info.value)
+
+    def test_error_includes_stderr_sync(self):
+        op = ShellOperation(commands=["echo boom-from-stderr >&2", "exit 3"])
+        with pytest.raises(RuntimeError, match="return code 3") as exc_info:
+            op.run()
+        assert "boom-from-stderr" in str(exc_info.value)
+
+    def test_error_includes_only_the_last_lines_of_stderr(self):
+        op = ShellOperation(
+            commands=[
+                "for i in $(seq 1 100); do echo stderr-line-$i >&2; done",
+                "exit 1",
+            ]
+        )
+        with pytest.raises(RuntimeError) as exc_info:
+            op.run()
+        lines = str(exc_info.value).splitlines()
+        assert "stderr-line-100" in lines
+        assert "stderr-line-1" not in lines
+        # The first line is the return code; the rest is the stderr tail.
+        assert len(lines) <= 21
+
+    @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_output(
         self, prefect_task_runs_caplog: pytest.LogCaptureFixture, method: str
     ):
