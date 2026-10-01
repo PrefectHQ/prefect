@@ -10,6 +10,27 @@ from pydantic import ValidationError
 
 
 class TestCloudRunV2WorkerSettings:
+    def test_execution_poll_interval(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15855
+        """
+        assert CloudRunV2WorkerSettings().execution_poll_interval_seconds == 5.0
+
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_EXECUTION_POLL_INTERVAL_SECONDS": "60"
+            },
+        ):
+            settings = CloudRunV2WorkerSettings()
+
+        assert settings.execution_poll_interval_seconds == 60.0
+
+    @pytest.mark.parametrize("invalid_value", [0, -1])
+    def test_invalid_execution_poll_interval_raises(self, invalid_value):
+        with pytest.raises(ValidationError):
+            CloudRunV2WorkerSettings(execution_poll_interval_seconds=invalid_value)
+
     def test_defaults(self):
         settings = CloudRunV2WorkerSettings()
 
