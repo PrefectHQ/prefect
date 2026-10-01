@@ -1192,11 +1192,12 @@ class TestTaskRetries:
             message="Try again",
             state_details=StateDetails(retriable=True),
         )
+        expected_state_details = failure.state_details.model_copy(deep=True)
         received_states: list[State] = []
         attempts = 0
 
         def retry_condition(task: Task, task_run: TaskRun, state: State) -> bool:
-            received_states.append(state)
+            received_states.append(state.model_copy(deep=True))
             return state.name == "RateLimited"
 
         async def async_retry_condition(
@@ -1227,7 +1228,7 @@ class TestTaskRetries:
         assert len(received_states) == 1
         assert received_states[0].name == "RateLimited"
         assert received_states[0].message == "Try again"
-        assert received_states[0].state_details == failure.state_details
+        assert received_states[0].state_details == expected_state_details
         assert attempts == 2
         assert final_state.is_completed()
         assert await final_state.result() == "success"
