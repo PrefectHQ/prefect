@@ -21,6 +21,9 @@ import sys
 import textwrap
 from pathlib import Path
 
+import pytest
+
+from prefect.flows import _entrypoint_definition_and_source
 from prefect.settings import get_current_settings
 
 SCRIPT = textwrap.dedent(
@@ -129,3 +132,23 @@ def test_deploy_file_io_does_not_depend_on_the_platform_encoding(tmp_path: Path)
         "These reads or writes rely on the platform's default text encoding:\n"
         + "\n".join(offenders)
     )
+
+
+def test_flow_source_is_read_with_its_declared_encoding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    # PEP 263 lets a Python source file declare an encoding other than UTF-8.
+    # Such a file is valid Python, so its flow must still load.
+    (tmp_path / "flow.py").write_bytes(
+        b"# -*- coding: latin-1 -*-\n"
+        b"from prefect import flow\n\n\n"
+        b"@flow\n"
+        b"def f():\n"
+        b'    """\xe9t\xe9"""\n'
+    )
+    monkeypatch.chdir(tmp_path)
+
+    definition, source, _ = _entrypoint_definition_and_source("flow.py:f")
+
+    assert definition.name == "f"
+    assert "\u00e9t\u00e9" in source

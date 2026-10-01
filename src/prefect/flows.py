@@ -15,6 +15,7 @@ import os
 import re
 import sys
 import tempfile
+import tokenize
 import uuid
 import warnings
 from copy import copy
@@ -3663,13 +3664,17 @@ def _entrypoint_definition_and_source(
     """
     if ":" in entrypoint:
         path, object_path = entrypoint.rsplit(":", maxsplit=1)
-        source_code = Path(path).read_text(encoding="utf-8")
+        # `tokenize.open` honours a PEP 263 encoding declaration and
+        # otherwise reads UTF-8, independent of the platform's locale.
+        with tokenize.open(path) as source_file:
+            source_code = source_file.read()
     else:
         path, object_path = entrypoint.rsplit(".", maxsplit=1)
         spec = importlib.util.find_spec(path)
         if not spec or not spec.origin:
             raise ValueError(f"Could not find module {path!r}")
-        source_code = Path(spec.origin).read_text(encoding="utf-8")
+        with tokenize.open(spec.origin) as source_file:
+            source_code = source_file.read()
 
     parsed_code = ast.parse(source_code)
     parts = object_path.split(".")
