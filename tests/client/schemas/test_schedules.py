@@ -1,4 +1,5 @@
 import datetime
+import sys
 from itertools import combinations
 from zoneinfo import ZoneInfo
 
@@ -6,6 +7,8 @@ import dateutil.rrule
 import dateutil.tz
 import pytest
 
+from prefect import flow
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import (
     DeploymentFlowRunCreate,
     DeploymentScheduleCreate,
@@ -15,6 +18,9 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
     construct_schedule,
+)
+from prefect.server.schemas.schedules import (
+    IntervalSchedule as ServerIntervalSchedule,
 )
 from prefect.types import DateTime
 from prefect.types._datetime import now
@@ -334,3 +340,79 @@ class TestRRuleScheduleFromRRule:
         )
         schedule = RRuleSchedule.from_rrule(rule)
         assert schedule.timezone == "America/New_York"
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 13),
+    reason="Calendar intervals need Python 3.13+, where the shared Interval type includes them",
+)
+class TestCalendarIntervals:
+    """
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/16371
+
+    `timedelta` has no months, so the client used to turn "P1M" into a flat 30
+    days before it reached the API, even though the server schedules calendar
+    intervals on calendar dates.
+    """
+
+    @pytest.mark.parametrize("value", ["P1M", "P3M", "P1Y", "P1Y2M3DT4H"])
+    def test_month_and_year_durations_stay_calendar_intervals(self, value: str):
+        schedule = IntervalSchedule(interval=value)
+
+        assert not isinstance(schedule.interval, datetime.timedelta)
+        assert schedule.model_dump(mode="json")["interval"] == value
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (600, datetime.timedelta(seconds=600)),
+            ("PT10M", datetime.timedelta(minutes=10)),
+            ("P1D", datetime.timedelta(days=1)),
+            ("P1W", datetime.timedelta(weeks=1)),
+            ("1:30:00", datetime.timedelta(hours=1, minutes=30)),
+            (datetime.timedelta(days=30), datetime.timedelta(days=30)),
+        ],
+    )
+    def test_other_durations_are_unchanged(
+        self, value: int | str | datetime.timedelta, expected: datetime.timedelta
+    ):
+        schedule = IntervalSchedule(interval=value)
+
+        assert isinstance(schedule.interval, datetime.timedelta)
+        assert schedule.interval == expected
+
+    @pytest.mark.parametrize("value", ["P0M", "-P1M", datetime.timedelta(0)])
+    def test_non_positive_intervals_are_rejected(self, value: str | datetime.timedelta):
+        with pytest.raises(ValueError):
+            IntervalSchedule(interval=value)
+
+    async def test_monthly_schedule_is_stored_and_runs_on_calendar_months(
+        self, prefect_client: PrefectClient
+    ):
+        @flow
+        def monthly_report():
+            pass
+
+        anchor = datetime.datetime(2024, 1, 1, 10, tzinfo=ZoneInfo("UTC"))
+        flow_id = await prefect_client.create_flow(monthly_report)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="monthly",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=IntervalSchedule(
+                        interval="P1M", anchor_date=anchor, timezone="UTC"
+                    )
+                )
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+        stored = deployment.schedules[0].schedule
+        assert stored.model_dump(mode="json")["interval"] == "P1M"
+
+        server_schedule = ServerIntervalSchedule.model_validate(
+            stored.model_dump(mode="json")
+        )
+        dates = await server_schedule.get_dates(n=3, start=anchor)
+        assert [(d.month, d.day) for d in dates] == [(1, 1), (2, 1), (3, 1)]

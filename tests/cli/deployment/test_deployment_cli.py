@@ -1548,3 +1548,27 @@ class TestDeploymentList:
             expected_code=1,
             expected_output_contains="Only 'json' output format is supported.",
         )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 13),
+    reason="Calendar intervals need Python 3.13+, where the shared Interval type includes them",
+)
+async def test_list_schedules_shows_a_calendar_interval_without_seconds(
+    flojo_deployment: DeploymentResponse, prefect_client: PrefectClient
+):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/16371
+    """
+    await prefect_client.create_deployment_schedules(
+        flojo_deployment.id,
+        [DeploymentScheduleCreate(schedule=IntervalSchedule(interval="P1M"))],
+    )
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        ["deployment", "schedule", "ls", "rence-griffith/test-deployment"],
+        expected_code=0,
+        expected_output_contains="interval: P1M",
+        expected_output_does_not_contain="P1Ms",
+    )

@@ -1,5 +1,7 @@
 """Tests for schedule configuration in deployment YAML."""
 
+import sys
+
 import pytest
 
 from prefect.cli.deploy._models import RawScheduleConfig
@@ -86,3 +88,18 @@ class TestIntervalScheduleFormats:
         schedule = result["schedule"]
         assert isinstance(schedule, IntervalSchedule)
         assert schedule.interval.total_seconds() == expected_seconds
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 13),
+    reason="Calendar intervals need Python 3.13+, where the shared Interval type includes them",
+)
+def test_calendar_interval_in_prefect_yaml_keeps_calendar_months():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/16371
+    """
+    result = _schedule_config_to_deployment_schedule(
+        {"interval": "P1M", "timezone": "UTC"}
+    )
+
+    assert result["schedule"].model_dump(mode="json")["interval"] == "P1M"

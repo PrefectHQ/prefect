@@ -351,3 +351,30 @@ def _validate_positive_interval(v: Interval) -> Interval:
 
 
 PositiveInterval = Annotated[Interval, AfterValidator(_validate_positive_interval)]
+
+
+def _parse_calendar_interval(value: str) -> Interval | None:
+    """
+    Parse an ISO 8601 duration with year or month parts into a calendar interval.
+
+    Returns `None` for durations without months or years, for strings that are
+    not ISO 8601 durations, and before Python 3.13, where `Interval` has no
+    calendar-aware type.
+    """
+    if sys.version_info < (3, 13):
+        return None
+    try:
+        if _WHENEVER_NEW_API:
+            from whenever import ItemizedDelta
+
+            delta = ItemizedDelta.parse_iso(value)
+            date_parts, _ = delta.date_and_time_parts()
+            is_calendar = bool(
+                date_parts and (date_parts.get("years") or date_parts.get("months"))
+            )
+            return delta if is_calendar else None
+        delta = DateTimeDelta.parse_iso(value)
+        months, _, _, _ = delta.in_months_days_secs_nanos()
+        return delta if months != 0 else None
+    except ValueError:
+        return None

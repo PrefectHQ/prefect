@@ -3,13 +3,21 @@ Schedule schemas
 """
 
 import datetime
+import sys
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional, Union
 from zoneinfo import ZoneInfo
 
 import dateutil
 import dateutil.rrule
 import dateutil.tz
-from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AfterValidator,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 from typing_extensions import TypeAlias, TypeGuard
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -19,7 +27,14 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-from prefect.types._datetime import Date, DateTime, now
+from prefect.types._datetime import (
+    Date,
+    DateTime,
+    Interval,
+    PositiveInterval,
+    _parse_calendar_interval,
+    now,
+)
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
@@ -63,6 +78,36 @@ def is_valid_timezone(v: str) -> bool:
     return v in pytz.all_timezones_set
 
 
+def _keep_calendar_interval(value: Any) -> Any:
+    """
+    Keep an ISO 8601 duration with year or month parts as a calendar interval.
+
+    `datetime.timedelta` has no months, so without this "P1M" would become a
+    flat 30 days before it reaches the API, even though the server schedules
+    calendar intervals on calendar dates. Every other input is returned
+    unchanged and validates to a `timedelta` exactly as before.
+    """
+    if isinstance(value, str):
+        calendar_interval = _parse_calendar_interval(value)
+        if calendar_interval is not None:
+            return calendar_interval
+    return value
+
+
+_ClientInterval: TypeAlias = Annotated[
+    PositiveInterval, BeforeValidator(_keep_calendar_interval)
+]
+
+if sys.version_info >= (3, 13):
+    # `Interval` includes whenever's calendar-aware delta here. Try `timedelta`
+    # first so that everything except month and year durations keeps its type.
+    _INTERVAL_FIELD_OPTIONS: dict[str, Any] = {"union_mode": "left_to_right"}
+else:
+    # `Interval` is `timedelta` only, as on the server, so month and year
+    # durations are approximated the same way on both sides.
+    _INTERVAL_FIELD_OPTIONS = {}
+
+
 class IntervalSchedule(PrefectBaseModel):
     """
     A schedule formed by adding `interval` increments to an `anchor_date`. If no
@@ -85,6 +130,10 @@ class IntervalSchedule(PrefectBaseModel):
     means that a daily schedule that always fires at 9am will observe DST and
     continue to fire at 9am in the local time zone.
 
+    On Python 3.13 and later, an ISO 8601 duration with months or years, such
+    as `"P1M"`, is kept as a calendar interval and runs on the same day of each
+    month. Other durations are `datetime.timedelta` values.
+
     Args:
         interval (datetime.timedelta): an interval to schedule on
         anchor_date (DateTime, optional): an anchor date to schedule increments against;
@@ -94,7 +143,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
-    interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
+    interval: _ClientInterval = Field(**_INTERVAL_FIELD_OPTIONS)
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(  # pyright: ignore[reportAssignmentType] DateTime is split into two types depending on Python version
         default_factory=lambda: now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
@@ -111,7 +160,7 @@ class IntervalSchedule(PrefectBaseModel):
         def __init__(
             self,
             /,
-            interval: datetime.timedelta,
+            interval: Union[Interval, str],
             anchor_date: Optional[Union[DateTime, datetime.datetime, str]] = None,
             timezone: Optional[str] = None,
         ) -> None: ...
