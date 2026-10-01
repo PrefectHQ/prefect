@@ -19,7 +19,7 @@ from prefect.cache_policies import FLOW_PARAMETERS, INPUTS, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import StateDetails
 from prefect.client.schemas.filters import TaskRunFilter, TaskRunFilterName
-from prefect.client.schemas.objects import FlowRun, StateType
+from prefect.client.schemas.objects import FlowRun, StateType, TaskRun
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
 from prefect.context import (
@@ -1181,6 +1181,56 @@ class TestTaskRetries:
             "Retrying",
             "Completed",
         ]
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("async_condition", [False, True])
+    async def test_retry_condition_receives_custom_failed_state(
+        self, async_task: bool, async_condition: bool
+    ):
+        failure = Failed(
+            name="RateLimited",
+            message="Try again",
+            state_details=StateDetails(retriable=True),
+        )
+        received_states: list[State] = []
+        attempts = 0
+
+        def retry_condition(task: Task, task_run: TaskRun, state: State) -> bool:
+            received_states.append(state)
+            return state.name == "RateLimited"
+
+        async def async_retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> bool:
+            return retry_condition(task, task_run, state)
+
+        def flaky_function() -> State | str:
+            nonlocal attempts
+            attempts += 1
+            return failure if attempts == 1 else "success"
+
+        async def async_flaky_function() -> State | str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=(
+                async_retry_condition if async_condition else retry_condition
+            ),
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert len(received_states) == 1
+        assert received_states[0].name == "RateLimited"
+        assert received_states[0].message == "Try again"
+        assert received_states[0].state_details == failure.state_details
+        assert attempts == 2
+        assert final_state.is_completed()
+        assert await final_state.result() == "success"
 
     async def test_task_retries_receive_latest_task_run_in_context(self):
         state_names: List[str] = []
