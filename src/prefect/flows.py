@@ -3663,13 +3663,13 @@ def _entrypoint_definition_and_source(
     """
     if ":" in entrypoint:
         path, object_path = entrypoint.rsplit(":", maxsplit=1)
-        source_code = Path(path).read_text()
+        source_code = Path(path).read_text(encoding="utf-8")
     else:
         path, object_path = entrypoint.rsplit(".", maxsplit=1)
         spec = importlib.util.find_spec(path)
         if not spec or not spec.origin:
             raise ValueError(f"Could not find module {path!r}")
-        source_code = Path(spec.origin).read_text()
+        source_code = Path(spec.origin).read_text(encoding="utf-8")
 
     parsed_code = ast.parse(source_code)
     parts = object_path.split(".")

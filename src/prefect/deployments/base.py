@@ -42,7 +42,7 @@ def create_default_prefect_yaml(
         return False
     default_file = Path(__file__).parent / "templates" / "prefect.yaml"
 
-    with default_file.open(mode="r") as df:
+    with default_file.open(mode="r", encoding="utf-8") as df:
         default_contents = yaml.safe_load(df)
 
     import prefect
@@ -50,7 +50,7 @@ def create_default_prefect_yaml(
     contents["prefect-version"] = prefect.__version__
     contents["name"] = name
 
-    with prefect_file.open(mode="w") as f:
+    with prefect_file.open(mode="w", encoding="utf-8") as f:
         # write header
         f.write(
             "---\n"
@@ -135,7 +135,7 @@ def configure_project_by_recipe(
     if not recipe_path.exists():
         raise ValueError(f"Unknown recipe {recipe!r} provided.")
 
-    with recipe_path.open(mode="r") as f:
+    with recipe_path.open(mode="r", encoding="utf-8") as f:
         config: dict[str, Any] = yaml.safe_load(f)
 
     templated_config = apply_values(
@@ -294,7 +294,7 @@ def _deployment_already_saved_to_prefect_file(
     if not prefect_file.exists():
         return False
 
-    with prefect_file.open(mode="r") as f:
+    with prefect_file.open(mode="r", encoding="utf-8") as f:
         contents = yaml.safe_load(f) or {}
 
     for existing in contents.get("deployments") or []:
@@ -345,7 +345,7 @@ def _save_deployment_to_prefect_file(
     else:
         # use ruamel.yaml to preserve comments
         ryaml = YAML()
-        with prefect_file.open(mode="r") as f:
+        with prefect_file.open(mode="r", encoding="utf-8") as f:
             parsed_prefect_file_contents = ryaml.load(f)
 
         if build_steps != parsed_prefect_file_contents.get("build"):
@@ -377,5 +377,5 @@ def _save_deployment_to_prefect_file(
             else:
                 deployments.append(deployment)
 
-        with prefect_file.open(mode="w") as f:
+        with prefect_file.open(mode="w", encoding="utf-8") as f:
             ryaml.dump(parsed_prefect_file_contents, f)
