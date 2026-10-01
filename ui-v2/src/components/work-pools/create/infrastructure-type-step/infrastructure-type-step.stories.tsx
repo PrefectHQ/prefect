@@ -229,11 +229,10 @@ export const WithoutOptionalMetadata: Story = {
 				},
 			});
 
-			queryClient.setQueryData(["collections", "work-pool-types"], {
-				"prefect-armada": {
-					armada: { type: "armada" },
-				},
-			});
+			queryClient.setQueryData(
+				["collections", "work-pool-types"],
+				mockWorkersResponse,
+			);
 
 			const FormWrapper = () => {
 				const form = useForm<{ type: string }>({
