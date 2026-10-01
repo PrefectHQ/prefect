@@ -45,7 +45,7 @@ class Secret(Block, Generic[T]):
     """
 
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/c6f20e556dd16effda9df16551feecfb5822092b-48x48.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/secret.png"
     )
     _documentation_url = HttpUrl("https://docs.prefect.io/latest/develop/blocks")
     _description = "A block that represents a secret value. The value stored in this block will be obfuscated when this block is viewed or edited in the UI."
