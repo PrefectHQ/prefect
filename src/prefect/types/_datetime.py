@@ -353,7 +353,7 @@ def _validate_positive_interval(v: Interval) -> Interval:
 PositiveInterval = Annotated[Interval, AfterValidator(_validate_positive_interval)]
 
 
-def _parse_calendar_interval(value: str) -> Interval | None:
+def parse_calendar_interval(value: str) -> Interval | None:
     """
     Parse an ISO 8601 duration with year or month parts into a calendar interval.
 

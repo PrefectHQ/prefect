@@ -32,8 +32,8 @@ from prefect.types._datetime import (
     DateTime,
     Interval,
     PositiveInterval,
-    _parse_calendar_interval,
     now,
+    parse_calendar_interval,
 )
 
 MAX_ITERATIONS = 1000
@@ -88,7 +88,7 @@ def _keep_calendar_interval(value: Any) -> Any:
     unchanged and validates to a `timedelta` exactly as before.
     """
     if isinstance(value, str):
-        calendar_interval = _parse_calendar_interval(value)
+        calendar_interval = parse_calendar_interval(value)
         if calendar_interval is not None:
             return calendar_interval
     return value
