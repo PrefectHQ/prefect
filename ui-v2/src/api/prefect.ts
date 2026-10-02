@@ -4555,7 +4555,7 @@ export interface components {
             scheduled_before?: string;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4580,7 +4580,7 @@ export interface components {
             scheduled_after?: string;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4620,7 +4620,7 @@ export interface components {
             sort: components["schemas"]["DeploymentSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4641,7 +4641,7 @@ export interface components {
             work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4661,7 +4661,7 @@ export interface components {
             sort: components["schemas"]["FlowSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4680,7 +4680,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4693,7 +4693,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4713,7 +4713,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4729,7 +4729,7 @@ export interface components {
             automations?: components["schemas"]["AutomationFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4753,7 +4753,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4767,7 +4767,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4782,7 +4782,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4795,7 +4795,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4825,7 +4825,7 @@ export interface components {
             sort: components["schemas"]["DeploymentSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4877,7 +4877,7 @@ export interface components {
             work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4897,7 +4897,7 @@ export interface components {
             sort: components["schemas"]["FlowSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4917,7 +4917,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4933,7 +4933,7 @@ export interface components {
             sort: components["schemas"]["LogSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4946,7 +4946,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4972,7 +4972,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4993,7 +4993,7 @@ export interface components {
             sort: components["schemas"]["VariableSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5012,7 +5012,7 @@ export interface components {
             flow_run_limit: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5026,7 +5026,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5039,7 +5039,7 @@ export interface components {
             page: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5053,7 +5053,7 @@ export interface components {
             scheduled_before?: string;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5067,7 +5067,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5081,7 +5081,7 @@ export interface components {
             work_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5095,7 +5095,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -8482,7 +8482,7 @@ export interface components {
          */
         IntervalSchedule: {
             /** Interval */
-            interval: number;
+            interval: number | string;
             /**
              * Anchor Date
              * Format: date-time

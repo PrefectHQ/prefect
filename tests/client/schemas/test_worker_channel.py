@@ -25,6 +25,7 @@ from prefect.client.schemas.worker_channel import (
     WorkerChannelProtocolError,
     WorkerHelloFrame,
     WorkerReadyFrame,
+    pending_claim_teardown_idempotency_key,
     select_worker_channel_version,
     validate_worker_channel_frame,
 )
@@ -109,6 +110,27 @@ def _ready_frame(**payload_overrides: object) -> dict[str, object]:
     return {
         **_frame_base("worker.ready.v1"),
         "payload": _ready_payload(**payload_overrides),
+    }
+
+
+def _pending_claim_cleanup_frame(
+    target: dict[str, object],
+    **payload_overrides: object,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "message_id": str(uuid4()),
+        "kind": "pending_claim_teardown.v1",
+        "reservation_token": "reservation-token",
+        "lease_expires_at": now("UTC").isoformat(),
+        "delivery_count": 1,
+        "work_queue_id": None,
+        "target": target,
+        "data": {},
+    }
+    payload.update(payload_overrides)
+    return {
+        **_frame_base("cleanup.message.v1"),
+        "payload": payload,
     }
 
 
@@ -507,6 +529,117 @@ def test_cleanup_message_validates_supported_kinds_and_kind_specific_targets():
                 },
             }
         )
+
+
+def test_pending_claim_teardown_identity_excludes_optional_targeting_fields():
+    flow_run_id = uuid4()
+    claim_id = uuid7()
+
+    assert pending_claim_teardown_idempotency_key(flow_run_id, claim_id) == (
+        f"pending_claim_teardown.v1:{flow_run_id}:{claim_id}"
+    )
+
+
+def test_pending_claim_cleanup_accepts_required_target_fields_only():
+    flow_run_id = uuid4()
+    claim_id = uuid7()
+
+    frame = CleanupMessageFrame.model_validate(
+        _pending_claim_cleanup_frame(
+            {
+                "flow_run_id": str(flow_run_id),
+                "claim_id": str(claim_id),
+            }
+        )
+    )
+
+    assert frame.payload.work_queue_id is None
+    assert frame.payload.target.flow_run_id == flow_run_id
+    assert frame.payload.target.claim_id == claim_id
+    assert frame.payload.target.execution_id is None
+    assert frame.payload.target.infrastructure_pid is None
+
+
+@pytest.mark.parametrize("field", ["flow_run_id", "claim_id"])
+def test_pending_claim_cleanup_requires_claim_identity(field: str):
+    target = {
+        "flow_run_id": str(uuid4()),
+        "claim_id": str(uuid7()),
+    }
+    del target[field]
+
+    with pytest.raises(ValidationError):
+        CleanupMessageFrame.model_validate(_pending_claim_cleanup_frame(target))
+
+
+def test_pending_claim_cleanup_preserves_forward_compatible_hints():
+    frame = CleanupMessageFrame.model_validate(
+        _pending_claim_cleanup_frame(
+            {
+                "flow_run_id": str(uuid4()),
+                "claim_id": str(uuid7()),
+                "execution_id": str(uuid7()),
+                "infrastructure_pid": "provider/resource",
+                "future_target_hint": {"label": "claim"},
+            },
+            data={"future_data_hint": {"region": "us-east"}},
+        )
+    )
+
+    assert frame.payload.target.model_dump()["future_target_hint"] == {"label": "claim"}
+    assert frame.payload.data == {"future_data_hint": {"region": "us-east"}}
+
+
+def test_pending_claim_cleanup_preserves_unknown_routing_looking_target_fields():
+    work_pool_id = uuid4()
+    work_queue_id = uuid4()
+
+    frame = CleanupMessageFrame.model_validate(
+        _pending_claim_cleanup_frame(
+            {
+                "flow_run_id": str(uuid4()),
+                "claim_id": str(uuid7()),
+                "work_pool_id": str(work_pool_id),
+                "work_queue_id": str(work_queue_id),
+            }
+        )
+    )
+
+    target = frame.payload.target.model_dump()
+    assert target["work_pool_id"] == str(work_pool_id)
+    assert target["work_queue_id"] == str(work_queue_id)
+
+
+@pytest.mark.parametrize("field", ["work_pool_id", "idempotency_key"])
+def test_cleanup_wire_payload_rejects_internal_enqueue_fields(field: str):
+    with pytest.raises(ValidationError):
+        CleanupMessageFrame.model_validate(
+            _pending_claim_cleanup_frame(
+                {
+                    "flow_run_id": str(uuid4()),
+                    "claim_id": str(uuid7()),
+                },
+                **{field: str(uuid4())},
+            )
+        )
+
+
+def test_pending_claim_cleanup_treats_delivered_identifiers_as_opaque_uuids():
+    claim_id = uuid4()
+    execution_id = uuid4()
+
+    frame = CleanupMessageFrame.model_validate(
+        _pending_claim_cleanup_frame(
+            {
+                "flow_run_id": str(uuid4()),
+                "claim_id": str(claim_id),
+                "execution_id": str(execution_id),
+            }
+        )
+    )
+
+    assert frame.payload.target.claim_id == claim_id
+    assert frame.payload.target.execution_id == execution_id
 
 
 def test_cleanup_operation_frames_and_results_validate_reservation_contract():
