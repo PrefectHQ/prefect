@@ -9,8 +9,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from prefect import task
 from prefect.cache_policies import (
     DEFAULT,
+    TASK_SOURCE,
     CachePolicy,
     CompoundCachePolicy,
     Inputs,
@@ -19,6 +21,7 @@ from prefect.cache_policies import (
     _None,
 )
 from prefect.context import TaskRunContext
+from prefect.utilities.hashing import hash_objects
 
 
 class TestBaseClass:
@@ -369,6 +372,51 @@ class TestTaskSourcePolicy:
         assert key_a is not None
         assert key_b is not None
         assert key_a != key_b
+
+    def test_distinguishes_closure_values(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23062"""
+
+        policy = TaskSource()
+
+        def make_scaler(factor: int):
+            @task(cache_policy=TASK_SOURCE)
+            def scale(x: int) -> int:
+                return x * factor
+
+            return scale
+
+        double = make_scaler(2)
+        triple = make_scaler(3)
+
+        key_double = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=double),
+            inputs=None,
+            flow_parameters=None,
+        )
+        key_triple = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=triple),
+            inputs=None,
+            flow_parameters=None,
+        )
+
+        assert key_double is not None
+        assert key_triple is not None
+        assert key_double != key_triple
+
+    def test_task_without_closure_key_is_unchanged(self):
+        policy = TaskSource()
+
+        @task
+        def plain() -> int:
+            return 1
+
+        key = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=plain),
+            inputs=None,
+            flow_parameters=None,
+        )
+
+        assert key == hash_objects(plain.source_code, raise_on_failure=True)
 
 
 class TestDefaultPolicy:

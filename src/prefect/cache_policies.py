@@ -31,6 +31,31 @@ STABLE_TRANSFORMS: dict[type, Callable[[Any], Any]] = {}
 logger: Logger = get_logger(__name__)
 
 
+def _capture_closure_cells(fn: Any) -> tuple[tuple[str, Any], ...] | None:
+    """Return free-variable names and cell values captured by ``fn``'s closure."""
+    if not callable(fn):
+        return None
+
+    code = getattr(fn, "__code__", None)
+    if code is None:
+        return None
+
+    closure = getattr(fn, "__closure__", None) or ()
+    if not closure:
+        return None
+
+    cells: list[tuple[str, Any]] = []
+    for name, cell in zip(code.co_freevars, closure):
+        try:
+            value = cell.cell_contents
+        except ValueError:
+            cells.append((name, None))
+        else:
+            cells.append((name, value))
+
+    return tuple(cells)
+
+
 def _register_stable_transforms() -> None:
     """
     Some inputs do not reliably produce deterministic byte strings when serialized via
@@ -300,10 +325,14 @@ class TaskSource(CachePolicy):
         if not task_ctx:
             return None
 
+        fn = getattr(task_ctx.task, "fn", task_ctx.task)
+        closure_cells = _capture_closure_cells(fn)
+        closure_part = [closure_cells] if closure_cells else []
+
         # Use stored source code if available (works after cloudpickle serialization)
         lines = getattr(task_ctx.task, "source_code", None)
         if lines is not None:
-            return hash_objects(lines, raise_on_failure=True)
+            return hash_objects(lines, *closure_part, raise_on_failure=True)
 
         # Fall back to inspect.getsource for local execution
         try:
@@ -316,7 +345,7 @@ class TaskSource(CachePolicy):
             else:
                 raise
 
-        return hash_objects(lines, raise_on_failure=True)
+        return hash_objects(lines, *closure_part, raise_on_failure=True)
 
 
 @dataclass
