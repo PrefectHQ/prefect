@@ -674,6 +674,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     if isinstance(self.task.retry_delay_seconds, Sequence)
                     else self.task.retry_delay_seconds
                 )
+                if self.task.retry_jitter_factor and delay > 0:
+                    delay = clamped_poisson_interval(
+                        delay, clamping_factor=self.task.retry_jitter_factor
+                    )
                 new_state = AwaitingRetry(
                     scheduled_time=prefect.types._datetime.now("UTC")
                     + timedelta(seconds=delay)
@@ -1301,6 +1305,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     if isinstance(self.task.retry_delay_seconds, Sequence)
                     else self.task.retry_delay_seconds
                 )
+                if self.task.retry_jitter_factor and delay > 0:
+                    delay = clamped_poisson_interval(
+                        delay, clamping_factor=self.task.retry_jitter_factor
+                    )
                 new_state = AwaitingRetry(
                     scheduled_time=prefect.types._datetime.now("UTC")
                     + timedelta(seconds=delay)
