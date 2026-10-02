@@ -265,6 +265,13 @@ def test_url_for_received_event_ui(received_event):
         assert url_for(obj=received_event, url_type="ui") == expected_url
 
 
+def test_received_event_url_property(received_event):
+    """Test that the client-side ReceivedEvent.url property returns the correct URL"""
+    expected_url = f"{MOCK_PREFECT_UI_URL}/events/event/{received_event.occurred.strftime('%Y-%m-%d')}/{received_event.id}"
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+        assert received_event.url == expected_url
+
+
 def test_url_for_server_side_received_event_ui():
     """Test that url_for works with server-side ReceivedEvent (different class from client-side)"""
     from prefect.server.events.schemas.events import (
