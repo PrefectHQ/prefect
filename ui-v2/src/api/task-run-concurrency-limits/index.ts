@@ -1,8 +1,13 @@
 export {
 	buildConcurrenyLimitDetailsActiveRunsQuery,
+	buildCountTaskRunConcurrencyLimitsQuery,
 	buildGetConcurrencyLimitQuery,
 	buildListTaskRunConcurrencyLimitsQuery,
+	buildPaginateTaskRunConcurrencyLimitsQuery,
+	buildTaskRunConcurrencyLimitsPaginationBody,
 	type TaskRunConcurrencyLimit,
+	type TaskRunConcurrencyLimitsCountFilter,
+	type TaskRunConcurrencyLimitsFilter,
 	useCreateTaskRunConcurrencyLimit,
 	useDeleteTaskRunConcurrencyLimit,
 	useGetTaskRunConcurrencyLimit,

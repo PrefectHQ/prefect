@@ -1371,6 +1371,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/concurrency_limits/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count Concurrency Limits
+         * @description Count concurrency limits.
+         */
+        post: operations["count_concurrency_limits_concurrency_limits_count_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/concurrency_limits/paginate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Paginate Concurrency Limits
+         * @description Read a page of tag-based limits with a count of matching limits.
+         */
+        post: operations["paginate_concurrency_limits_concurrency_limits_paginate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/concurrency_limits/tag/{tag}/reset": {
         parameters: {
             query?: never;
@@ -1486,6 +1526,46 @@ export interface paths {
         put?: never;
         /** Read All Concurrency Limits V2 */
         post: operations["read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/concurrency_limits/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count All Concurrency Limits V2
+         * @description Count global concurrency limits matching the filter.
+         */
+        post: operations["count_all_concurrency_limits_v2_v2_concurrency_limits_count_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/concurrency_limits/paginate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Paginate Concurrency Limits V2
+         * @description Read a page of global limits with a count of matching limits.
+         */
+        post: operations["paginate_concurrency_limits_v2_v2_concurrency_limits_paginate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3649,6 +3729,8 @@ export interface components {
              * @default and_
              */
             operator: components["schemas"]["Operator"];
+            /** @description Filter criteria for `Automation.id` */
+            id?: components["schemas"]["AutomationFilterId"] | null;
             /** @description Filter criteria for `Automation.name` */
             name?: components["schemas"]["AutomationFilterName"] | null;
             /** @description Filter criteria for `Automation.created` */
@@ -3666,6 +3748,17 @@ export interface components {
              * @description Only include automations created before this datetime
              */
             before_?: string | null;
+        };
+        /**
+         * AutomationFilterId
+         * @description Filter by `Automation.id`.
+         */
+        AutomationFilterId: {
+            /**
+             * Any
+             * @description A list of automation ids to include
+             */
+            any_?: string[] | null;
         };
         /**
          * AutomationFilterName
@@ -4388,6 +4481,10 @@ export interface components {
              */
             time_interval: number;
         };
+        /** Body_count_all_concurrency_limits_v2_v2_concurrency_limits_count_post */
+        Body_count_all_concurrency_limits_v2_v2_concurrency_limits_count_post: {
+            concurrency_limits?: components["schemas"]["ConcurrencyLimitV2Filter"] | null;
+        };
         /** Body_count_artifacts_artifacts_count_post */
         Body_count_artifacts_artifacts_count_post: {
             artifacts?: components["schemas"]["ArtifactFilter"];
@@ -4396,11 +4493,19 @@ export interface components {
             flows?: components["schemas"]["FlowFilter"];
             deployments?: components["schemas"]["DeploymentFilter"];
         };
+        /** Body_count_automations_automations_count_post */
+        Body_count_automations_automations_count_post: {
+            automations?: components["schemas"]["AutomationFilter"] | null;
+        };
         /** Body_count_block_documents_block_documents_count_post */
         Body_count_block_documents_block_documents_count_post: {
             block_documents?: components["schemas"]["BlockDocumentFilter"] | null;
             block_types?: components["schemas"]["BlockTypeFilter"] | null;
             block_schemas?: components["schemas"]["BlockSchemaFilter"] | null;
+        };
+        /** Body_count_concurrency_limits_concurrency_limits_count_post */
+        Body_count_concurrency_limits_concurrency_limits_count_post: {
+            concurrency_limits?: components["schemas"]["ConcurrencyLimitFilter"] | null;
         };
         /** Body_count_deployments_by_flow_ui_flows_count_deployments_post */
         Body_count_deployments_by_flow_ui_flows_count_deployments_post: {
@@ -4555,7 +4660,7 @@ export interface components {
             scheduled_before?: string;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4580,7 +4685,7 @@ export interface components {
             scheduled_after?: string;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4603,6 +4708,34 @@ export interface components {
             /** Flow Ids */
             flow_ids: string[];
         };
+        /** Body_paginate_concurrency_limits_concurrency_limits_paginate_post */
+        Body_paginate_concurrency_limits_concurrency_limits_paginate_post: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            concurrency_limits?: components["schemas"]["ConcurrencyLimitFilter"] | null;
+            /**
+             * Limit
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
+        /** Body_paginate_concurrency_limits_v2_v2_concurrency_limits_paginate_post */
+        Body_paginate_concurrency_limits_v2_v2_concurrency_limits_paginate_post: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            concurrency_limits?: components["schemas"]["ConcurrencyLimitV2Filter"] | null;
+            /**
+             * Limit
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
         /** Body_paginate_deployments_deployments_paginate_post */
         Body_paginate_deployments_deployments_paginate_post: {
             /**
@@ -4620,7 +4753,7 @@ export interface components {
             sort: components["schemas"]["DeploymentSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4641,7 +4774,7 @@ export interface components {
             work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4661,7 +4794,7 @@ export interface components {
             sort: components["schemas"]["FlowSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4680,7 +4813,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4691,9 +4824,10 @@ export interface components {
              * @default 0
              */
             offset: number;
+            concurrency_limits?: components["schemas"]["ConcurrencyLimitV2Filter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4713,7 +4847,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4729,7 +4863,7 @@ export interface components {
             automations?: components["schemas"]["AutomationFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4753,7 +4887,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4767,7 +4901,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4782,7 +4916,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4793,9 +4927,10 @@ export interface components {
              * @default 0
              */
             offset: number;
+            concurrency_limits?: components["schemas"]["ConcurrencyLimitFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4825,7 +4960,7 @@ export interface components {
             sort: components["schemas"]["DeploymentSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4877,7 +5012,7 @@ export interface components {
             work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4897,7 +5032,7 @@ export interface components {
             sort: components["schemas"]["FlowSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4917,7 +5052,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4933,7 +5068,7 @@ export interface components {
             sort: components["schemas"]["LogSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4946,7 +5081,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4972,7 +5107,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4993,7 +5128,7 @@ export interface components {
             sort: components["schemas"]["VariableSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5012,7 +5147,7 @@ export interface components {
             flow_run_limit: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5026,7 +5161,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5039,7 +5174,7 @@ export interface components {
             page: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5053,7 +5188,7 @@ export interface components {
             scheduled_before?: string;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5067,7 +5202,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5081,7 +5216,7 @@ export interface components {
             work_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5095,7 +5230,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5548,6 +5683,52 @@ export interface components {
             concurrency_limit: number;
         };
         /**
+         * ConcurrencyLimitFilter
+         * @description Filter task run concurrency limits. Only limits matching all criteria will be returned
+         */
+        ConcurrencyLimitFilter: {
+            /**
+             * @description Operator for combining filter criteria. Defaults to 'and_'.
+             * @default and_
+             */
+            operator: components["schemas"]["Operator"];
+            /** @description Filter criteria for `ConcurrencyLimit.tag` */
+            tag?: components["schemas"]["ConcurrencyLimitFilterTag"] | null;
+        };
+        /**
+         * ConcurrencyLimitFilterTag
+         * @description Filter by `ConcurrencyLimit.tag`.
+         */
+        ConcurrencyLimitFilterTag: {
+            /**
+             * Any
+             * @description A list of tags to include
+             */
+            any_?: string[] | null;
+            /**
+             * Like
+             * @description A string to match tags against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my-tag-%
+             */
+            like_?: string | null;
+        };
+        /**
+         * ConcurrencyLimitPaginationResponse
+         * @description A page of tag-based concurrency limits with pagination metadata.
+         */
+        ConcurrencyLimitPaginationResponse: {
+            /** Results */
+            results: components["schemas"]["ConcurrencyLimit"][];
+            /** Count */
+            count: number;
+            /** Limit */
+            limit: number;
+            /** Pages */
+            pages: number;
+            /** Page */
+            page: number;
+        };
+        /**
          * ConcurrencyLimitStrategy
          * @description Enumeration of concurrency collision strategies.
          * @enum {string}
@@ -5647,6 +5828,42 @@ export interface components {
              * @default 0
              */
             slot_decay_per_second: number;
+        };
+        /**
+         * ConcurrencyLimitV2Filter
+         * @description Filter concurrency limits. Only limits matching all criteria will be returned
+         */
+        ConcurrencyLimitV2Filter: {
+            /**
+             * @description Operator for combining filter criteria. Defaults to 'and_'.
+             * @default and_
+             */
+            operator: components["schemas"]["Operator"];
+            /** @description Filter criteria for `ConcurrencyLimitV2.name` */
+            name?: components["schemas"]["ConcurrencyLimitV2FilterName"] | null;
+        };
+        /**
+         * ConcurrencyLimitV2FilterName
+         * @description Filter by `ConcurrencyLimitV2.name`.
+         */
+        ConcurrencyLimitV2FilterName: {
+            /**
+             * Any
+             * @description A list of concurrency limit names to include
+             */
+            any_?: string[] | null;
+            /**
+             * Like
+             * @description A string to match concurrency limit names against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my-limit-%
+             */
+            like_?: string | null;
+            /**
+             * Starts With
+             * @description A prefix that concurrency limit names must start with
+             * @example tag:
+             */
+            starts_with_?: string | null;
         };
         /**
          * ConcurrencyLimitV2Update
@@ -8290,6 +8507,22 @@ export interface components {
             default_retry_delay_seconds: number | number[];
         };
         /**
+         * GlobalConcurrencyLimitPaginationResponse
+         * @description A page of global concurrency limits with pagination metadata.
+         */
+        GlobalConcurrencyLimitPaginationResponse: {
+            /** Results */
+            results: components["schemas"]["GlobalConcurrencyLimitResponse"][];
+            /** Count */
+            count: number;
+            /** Limit */
+            limit: number;
+            /** Pages */
+            pages: number;
+            /** Page */
+            page: number;
+        };
+        /**
          * GlobalConcurrencyLimitResponse
          * @description A response object for global concurrency limits.
          */
@@ -9875,7 +10108,7 @@ export interface components {
             name: string;
             /**
              * Url
-             * @description The URL of the Redis server to use for Docket.
+             * @description The URL of the Redis server to use for Docket. Supports the memory:// (single-server only), redis://, rediss://, redis+sentinel:// and rediss+sentinel:// schemes; the Sentinel schemes discover the current master through the listed Sentinel daemons and follow failover automatically (requires pydocket>=0.23.1).
              * @default memory://
              */
             url: string;
@@ -10085,7 +10318,7 @@ export interface components {
         ServerServicesDBVacuumSettings: {
             /**
              * Enabled
-             * @description Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).
+             * @description Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs', 'orphans'. Defaults to 'events'. Enabling 'flow_runs' also enables lower-frequency orphan cleanup; 'orphans' can enable that cleanup independently. For backward compatibility, 'true' maps to all vacuum types and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).
              * @default [
              *       "events"
              *     ]
@@ -10097,6 +10330,12 @@ export interface components {
              * @default 3600
              */
             loop_seconds: number;
+            /**
+             * Orphan Cleanup Loop Seconds
+             * @description The database vacuum service will scan for orphaned logs and artifacts this often, in seconds. Defaults to `86400` (24 hours).
+             * @default 86400
+             */
+            orphan_cleanup_loop_seconds: number;
             /**
              * Retention Period
              * Format: duration
@@ -15514,6 +15753,76 @@ export interface operations {
             };
         };
     };
+    count_concurrency_limits_concurrency_limits_count_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_count_concurrency_limits_concurrency_limits_count_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    paginate_concurrency_limits_concurrency_limits_paginate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_paginate_concurrency_limits_concurrency_limits_paginate_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConcurrencyLimitPaginationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post: {
         parameters: {
             query?: never;
@@ -15781,6 +16090,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GlobalConcurrencyLimitResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_all_concurrency_limits_v2_v2_concurrency_limits_count_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_count_all_concurrency_limits_v2_v2_concurrency_limits_count_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    paginate_concurrency_limits_v2_v2_concurrency_limits_paginate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_paginate_concurrency_limits_v2_v2_concurrency_limits_paginate_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GlobalConcurrencyLimitPaginationResponse"];
                 };
             };
             /** @description Validation Error */
@@ -18657,7 +19036,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_count_automations_automations_count_post"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

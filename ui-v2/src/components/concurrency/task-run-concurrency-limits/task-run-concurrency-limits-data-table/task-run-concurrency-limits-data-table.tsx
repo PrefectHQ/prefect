@@ -1,5 +1,5 @@
-import { getRouteApi } from "@tanstack/react-router";
-import { useDeferredValue, useMemo } from "react";
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
+import { useCallback } from "react";
 import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { TaskRunConcurrencyLimitsActionsMenu } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-actions-menu";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,6 @@ import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { ActiveTaskRunCells } from "./active-task-runs-cell";
 import { TagCell } from "./tag-cell";
 
-const routeApi = getRouteApi("/concurrency-limits/");
 const columnHelper = createColumnHelper<TaskRunConcurrencyLimit>();
 
 const createColumns = ({
@@ -56,52 +55,6 @@ const createColumns = ({
 		}),
 	]);
 
-type TaskRunConcurrencyLimitsDataTableProps = {
-	data: Array<TaskRunConcurrencyLimit>;
-	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
-	onResetRow: (row: TaskRunConcurrencyLimit) => void;
-};
-
-export const TaskRunConcurrencyLimitsDataTable = ({
-	data,
-	onDeleteRow,
-	onResetRow,
-}: TaskRunConcurrencyLimitsDataTableProps) => {
-	const navigate = routeApi.useNavigate();
-	const { search } = routeApi.useSearch();
-	const deferredSearch = useDeferredValue(search ?? "");
-
-	const filteredData = useMemo(() => {
-		return data.filter((row) =>
-			row.tag.toLowerCase().includes(deferredSearch.toLowerCase()),
-		);
-	}, [data, deferredSearch]);
-
-	const onClearSearch = () => {
-		void navigate({
-			to: ".",
-			search: (prev) => ({ ...prev, search: "" }),
-		});
-	};
-
-	return (
-		<Table
-			data={filteredData}
-			onDeleteRow={onDeleteRow}
-			onResetRow={onResetRow}
-			searchValue={search}
-			onSearchChange={(value) =>
-				void navigate({
-					to: ".",
-					search: (prev) => ({ ...prev, search: value }),
-				})
-			}
-			showFilteredEmptyState={data.length > 0 && filteredData.length === 0}
-			onClearSearch={onClearSearch}
-		/>
-	);
-};
-
 const TaskRunConcurrencyLimitsFilteredEmptyState = ({
 	onClearSearch,
 }: {
@@ -123,28 +76,47 @@ const TaskRunConcurrencyLimitsFilteredEmptyState = ({
 	</EmptyState>
 );
 
-type TableProps = {
+type TaskRunConcurrencyLimitsDataTableProps = {
 	data: Array<TaskRunConcurrencyLimit>;
 	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
 	onResetRow: (row: TaskRunConcurrencyLimit) => void;
+	pageCount: number;
+	pagination: PaginationState;
+	onPaginationChange: (pagination: PaginationState) => void;
 	onSearchChange: (value: string) => void;
 	searchValue: string | undefined;
 	showFilteredEmptyState: boolean;
 	onClearSearch: () => void;
 };
 
-export function Table({
+export function TaskRunConcurrencyLimitsDataTable({
 	data,
 	onDeleteRow,
 	onResetRow,
+	pageCount,
+	pagination,
+	onPaginationChange,
 	onSearchChange,
 	searchValue,
 	showFilteredEmptyState,
 	onClearSearch,
-}: TableProps) {
+}: TaskRunConcurrencyLimitsDataTableProps) {
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			onPaginationChange(
+				typeof updater === "function" ? updater(pagination) : updater,
+			);
+		},
+		[pagination, onPaginationChange],
+	);
+
 	const table = useTable({
 		data,
 		columns: createColumns({ onDeleteRow, onResetRow }),
+		pageCount,
+		manualPagination: true,
+		state: { pagination },
+		onPaginationChange: handlePaginationChange,
 	});
 
 	return (

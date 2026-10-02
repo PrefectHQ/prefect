@@ -5,7 +5,7 @@ import pytest
 from httpx import AsyncClient
 from starlette import status
 
-from prefect.server import schemas
+from prefect.server import models, schemas
 from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
 from prefect.server.schemas.actions import ConcurrencyLimitCreate
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
@@ -352,6 +352,95 @@ class TestAcquiringAndReleasing:
 
 
 class TestV1ToV2Adapter:
+    async def test_pagination_and_search_beyond_200_task_limits(self, session, client):
+        for index in range(250):
+            await models.concurrency_limits_v2.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                    name=f"tag:task-{index:03}", limit=1
+                ),
+            )
+        await session.commit()
+
+        response = await client.post(
+            "/concurrency_limits/paginate", json={"page": 22, "limit": 10}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert [limit["tag"] for limit in data["results"]] == [
+            f"task-{index:03}" for index in range(210, 220)
+        ]
+        assert data["count"] == 250
+        assert data["pages"] == 25
+
+        response = await client.post(
+            "/concurrency_limits/paginate",
+            json={"concurrency_limits": {"tag": {"like_": "TASK-249"}}},
+        )
+        assert response.status_code == 200
+        assert [limit["tag"] for limit in response.json()["results"]] == ["task-249"]
+        assert response.json()["count"] == 1
+
+    @pytest.mark.parametrize("endpoint", ["filter", "count", "paginate"])
+    async def test_search_does_not_match_tag_prefix(self, client, endpoint):
+        await client.post(
+            "/concurrency_limits/", json={"tag": "alpha", "concurrency_limit": 1}
+        )
+        response = await client.post(
+            f"/concurrency_limits/{endpoint}",
+            json={"concurrency_limits": {"tag": {"like_": "tag:"}}},
+        )
+        assert response.status_code == 200
+        if endpoint == "filter":
+            assert response.json() == []
+        elif endpoint == "count":
+            assert response.json() == 0
+        else:
+            assert response.json()["results"] == []
+            assert response.json()["count"] == 0
+
+    async def test_filter_finds_task_limits_after_250_global_limits(
+        self, session, client: AsyncClient
+    ):
+        for index in range(250):
+            await models.concurrency_limits_v2.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                    name=f"global-{index:03}", limit=1
+                ),
+            )
+        await session.commit()
+        await client.post(
+            "/concurrency_limits/",
+            json={"tag": "visible-task", "concurrency_limit": 1},
+        )
+
+        response = await client.post("/concurrency_limits/filter", json={})
+
+        assert response.status_code == 200
+        assert [limit["tag"] for limit in response.json()] == ["visible-task"]
+
+    @pytest.mark.parametrize("endpoint", ["filter", "count", "paginate"])
+    async def test_only_exact_tag_prefix_is_treated_as_a_task_limit(
+        self, session, client, endpoint
+    ):
+        for name in ["TAG:global", "tag:task"]:
+            await models.concurrency_limits_v2.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(name=name, limit=1),
+            )
+        await session.commit()
+
+        response = await client.post(f"/concurrency_limits/{endpoint}", json={})
+        assert response.status_code == 200
+        if endpoint == "count":
+            assert response.json() == 1
+        else:
+            limits = (
+                response.json() if endpoint == "filter" else response.json()["results"]
+            )
+            assert [limit["tag"] for limit in limits] == ["task"]
+
     """Test the V1 API adapter that routes to V2 system."""
 
     async def test_create_creates_v2_limit_only(self, session, client):
@@ -455,6 +544,138 @@ class TestV1ToV2Adapter:
         v2_limits = [lim for lim in limits if lim["tag"] == "v2-filter"]
         assert len(v2_limits) == 1
         assert v2_limits[0]["concurrency_limit"] == 10
+
+    async def test_filter_filters_by_tag(self, client):
+        for tag in ["alpha", "beta", "alpha-two"]:
+            await client.post(
+                "/concurrency_limits/",
+                json=ConcurrencyLimitCreate(tag=tag, concurrency_limit=1).model_dump(
+                    mode="json"
+                ),
+            )
+
+        response = await client.post(
+            "/concurrency_limits/filter",
+            json={"concurrency_limits": {"tag": {"like_": "alpha"}}},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert {limit["tag"] for limit in response.json()} == {"alpha", "alpha-two"}
+
+    async def test_filter_ignores_non_tag_limits_when_paginating(self, session, client):
+        """Global limits must not consume slots in a page of tag limits."""
+        async with session as s:
+            for index in range(5):
+                await models.concurrency_limits_v2.create_concurrency_limit(
+                    session=s,
+                    concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                        name=f"deployment:{index}", limit=1
+                    ),
+                )
+            await s.commit()
+
+        await client.post(
+            "/concurrency_limits/",
+            json=ConcurrencyLimitCreate(tag="only-tag", concurrency_limit=1).model_dump(
+                mode="json"
+            ),
+        )
+
+        response = await client.post("/concurrency_limits/filter", json={"limit": 1})
+        assert response.status_code == status.HTTP_200_OK
+        assert [limit["tag"] for limit in response.json()] == ["only-tag"]
+
+    async def test_filter_paginates_beyond_the_first_page(self, client):
+        for index in range(3):
+            await client.post(
+                "/concurrency_limits/",
+                json=ConcurrencyLimitCreate(
+                    tag=f"page-{index}", concurrency_limit=1
+                ).model_dump(mode="json"),
+            )
+
+        response = await client.post(
+            "/concurrency_limits/filter", json={"limit": 1, "offset": 2}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert [limit["tag"] for limit in response.json()] == ["page-2"]
+
+    async def test_filter_paginates_a_mix_of_v1_and_v2_limits(self, session, client):
+        """A page must not lose rows when a v2 limit replaces a v1 limit."""
+        async with session as s:
+            for index in range(4):
+                await models.concurrency_limits.create_concurrency_limit(
+                    session=s,
+                    concurrency_limit=schemas.core.ConcurrencyLimit(
+                        tag=f"mixed-{index}", concurrency_limit=1
+                    ),
+                )
+            await s.commit()
+
+        # The v2 limits replace the first two v1 limits
+        for index in range(2):
+            await client.post(
+                "/concurrency_limits/",
+                json=ConcurrencyLimitCreate(
+                    tag=f"mixed-{index}", concurrency_limit=2
+                ).model_dump(mode="json"),
+            )
+
+        response = await client.post(
+            "/concurrency_limits/filter", json={"limit": 2, "offset": 2}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert [limit["tag"] for limit in response.json()] == ["mixed-2", "mixed-3"]
+
+    async def test_count_counts_v1_and_v2_limits(self, session, client):
+        await client.post(
+            "/concurrency_limits/",
+            json=ConcurrencyLimitCreate(
+                tag="counted-v2", concurrency_limit=1
+            ).model_dump(mode="json"),
+        )
+
+        async with session as s:
+            # A legacy v1 limit and a v1 limit that a v2 limit replaces
+            await models.concurrency_limits.create_concurrency_limit(
+                session=s,
+                concurrency_limit=schemas.core.ConcurrencyLimit(
+                    tag="counted-v1", concurrency_limit=1
+                ),
+            )
+            await models.concurrency_limits.create_concurrency_limit(
+                session=s,
+                concurrency_limit=schemas.core.ConcurrencyLimit(
+                    tag="counted-v2", concurrency_limit=1
+                ),
+            )
+            # A global limit, which is not a tag limit
+            await models.concurrency_limits_v2.create_concurrency_limit(
+                session=s,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                    name="deployment:counted", limit=1
+                ),
+            )
+            await s.commit()
+
+        response = await client.post("/concurrency_limits/count")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == 2
+
+    async def test_count_with_tag_filter(self, client):
+        for tag in ["gamma", "delta"]:
+            await client.post(
+                "/concurrency_limits/",
+                json=ConcurrencyLimitCreate(tag=tag, concurrency_limit=1).model_dump(
+                    mode="json"
+                ),
+            )
+
+        response = await client.post(
+            "/concurrency_limits/count",
+            json={"concurrency_limits": {"tag": {"like_": "gamma"}}},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == 1
 
     async def test_reset_handles_v2_limits(self, session, client):
         """Test that reset properly handles V2 limits with leases."""

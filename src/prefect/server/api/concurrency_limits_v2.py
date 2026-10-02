@@ -92,6 +92,7 @@ async def read_concurrency_limit_v2(
 async def read_all_concurrency_limits_v2(
     limit: int = LimitBody(),
     offset: int = Body(0, ge=0),
+    concurrency_limits: Optional[schemas.filters.ConcurrencyLimitV2Filter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.GlobalConcurrencyLimitResponse]:
     async with db.session_context() as session:
@@ -102,6 +103,8 @@ async def read_all_concurrency_limits_v2(
             ),
         ).order_by(db.ConcurrencyLimitV2.name)
 
+        if concurrency_limits is not None:
+            query = query.where(concurrency_limits.as_sql_filter())
         if offset is not None:
             query = query.offset(offset)
         if limit is not None:
@@ -113,6 +116,47 @@ async def read_all_concurrency_limits_v2(
     return [
         _global_concurrency_limit_response(row[0], row.active_slots) for row in rows
     ]
+
+
+@router.post("/count")
+async def count_all_concurrency_limits_v2(
+    concurrency_limits: Optional[schemas.filters.ConcurrencyLimitV2Filter] = Body(
+        None, embed=True
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    """Count global concurrency limits matching the filter."""
+    async with db.session_context() as session:
+        return await models.concurrency_limits_v2.count_concurrency_limits(
+            session=session,
+            concurrency_limit_filter=concurrency_limits,
+        )
+
+
+@router.post("/paginate")
+async def paginate_concurrency_limits_v2(
+    limit: int = LimitBody(),
+    page: int = Body(1, ge=1),
+    concurrency_limits: Optional[schemas.filters.ConcurrencyLimitV2Filter] = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> schemas.responses.GlobalConcurrencyLimitPaginationResponse:
+    """Read a page of global limits with a count of matching limits."""
+    results = await read_all_concurrency_limits_v2(
+        limit=limit,
+        offset=(page - 1) * limit,
+        concurrency_limits=concurrency_limits,
+        db=db,
+    )
+    count = await count_all_concurrency_limits_v2(
+        concurrency_limits=concurrency_limits, db=db
+    )
+    return schemas.responses.GlobalConcurrencyLimitPaginationResponse(
+        results=results,
+        count=count,
+        limit=limit,
+        page=page,
+        pages=(count + limit - 1) // limit if limit > 0 else 0,
+    )
 
 
 @router.patch("/{id_or_name}", status_code=status.HTTP_204_NO_CONTENT)

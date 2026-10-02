@@ -1,5 +1,5 @@
-import { getRouteApi } from "@tanstack/react-router";
-import { useDeferredValue, useMemo } from "react";
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
+import { useCallback } from "react";
 import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -14,8 +14,6 @@ import { SearchInput } from "@/components/ui/input";
 import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { ActionsCell } from "./actions-cell";
 import { ActiveCell } from "./active-cell";
-
-const routeApi = getRouteApi("/concurrency-limits/");
 
 const columnHelper = createColumnHelper<GlobalConcurrencyLimit>();
 
@@ -60,55 +58,6 @@ const createColumns = ({
 		}),
 	]);
 
-type GlobalConcurrencyLimitsDataTableProps = {
-	data: Array<GlobalConcurrencyLimit>;
-	onEditRow: (row: GlobalConcurrencyLimit) => void;
-	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
-	onResetRow: (row: GlobalConcurrencyLimit) => void;
-};
-
-export const GlobalConcurrencyLimitsDataTable = ({
-	data,
-	onEditRow,
-	onDeleteRow,
-	onResetRow,
-}: GlobalConcurrencyLimitsDataTableProps) => {
-	const navigate = routeApi.useNavigate();
-	const { search } = routeApi.useSearch();
-	const deferredSearch = useDeferredValue(search ?? "");
-
-	const filteredData = useMemo(() => {
-		return data.filter((row) =>
-			row.name.toLowerCase().includes(deferredSearch.toLowerCase()),
-		);
-	}, [data, deferredSearch]);
-
-	const onClearSearch = () => {
-		void navigate({
-			to: ".",
-			search: (prev) => ({ ...prev, search: "" }),
-		});
-	};
-
-	return (
-		<Table
-			data={filteredData}
-			onDeleteRow={onDeleteRow}
-			onEditRow={onEditRow}
-			onResetRow={onResetRow}
-			searchValue={search}
-			onSearchChange={(value) =>
-				void navigate({
-					to: ".",
-					search: (prev) => ({ ...prev, search: value }),
-				})
-			}
-			showFilteredEmptyState={data.length > 0 && filteredData.length === 0}
-			onClearSearch={onClearSearch}
-		/>
-	);
-};
-
 const GlobalConcurrencyLimitsFilteredEmptyState = ({
 	onClearSearch,
 }: {
@@ -130,30 +79,49 @@ const GlobalConcurrencyLimitsFilteredEmptyState = ({
 	</EmptyState>
 );
 
-type TableProps = {
+type GlobalConcurrencyLimitsDataTableProps = {
 	data: Array<GlobalConcurrencyLimit>;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onResetRow: (row: GlobalConcurrencyLimit) => void;
+	pageCount: number;
+	pagination: PaginationState;
+	onPaginationChange: (pagination: PaginationState) => void;
 	onSearchChange: (value: string) => void;
 	searchValue: string | undefined;
 	showFilteredEmptyState: boolean;
 	onClearSearch: () => void;
 };
 
-export function Table({
+export function GlobalConcurrencyLimitsDataTable({
 	data,
 	onDeleteRow,
 	onEditRow,
 	onResetRow,
+	pageCount,
+	pagination,
+	onPaginationChange,
 	onSearchChange,
 	searchValue,
 	showFilteredEmptyState,
 	onClearSearch,
-}: TableProps) {
+}: GlobalConcurrencyLimitsDataTableProps) {
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			onPaginationChange(
+				typeof updater === "function" ? updater(pagination) : updater,
+			);
+		},
+		[pagination, onPaginationChange],
+	);
+
 	const table = useTable({
 		data,
 		columns: createColumns({ onDeleteRow, onEditRow, onResetRow }),
+		pageCount,
+		manualPagination: true,
+		state: { pagination },
+		onPaginationChange: handlePaginationChange,
 	});
 
 	return (
