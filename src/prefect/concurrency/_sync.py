@@ -24,8 +24,10 @@ from prefect.concurrency._leases import maintain_concurrency_lease
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 
-def release_concurrency_slots_with_lease(lease_id: UUID) -> None:
-    run_coro_as_sync(arelease_concurrency_slots_with_lease(lease_id))
+def release_concurrency_slots_with_lease(
+    lease_id: UUID, names: Optional[list[str]] = None
+) -> None:
+    run_coro_as_sync(arelease_concurrency_slots_with_lease(lease_id, names=names))
 
 
 def acquire_concurrency_slots(
@@ -157,7 +159,9 @@ def concurrency(
             yield
     finally:
         try:
-            release_concurrency_slots_with_lease(acquisition_response.lease_id)
+            release_concurrency_slots_with_lease(
+                acquisition_response.lease_id, names=names
+            )
         except CancelledError:
             # The task was cancelled before it could release the lease. Leave the
             # lease ID in the cleanup list (recorded at acquisition) so it is
