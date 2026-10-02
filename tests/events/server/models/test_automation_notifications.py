@@ -1,6 +1,7 @@
 """Test that automation changes trigger notifications."""
 
 import asyncio
+import logging
 from unittest.mock import patch
 
 import pytest
@@ -19,7 +20,10 @@ from prefect.server.events.schemas.automations import (
     EventTrigger,
     Posture,
 )
-from prefect.server.events.triggers import listen_for_automation_changes
+from prefect.server.events.triggers import (
+    AUTOMATION_CHANGES_CHANNEL,
+    listen_for_automation_changes,
+)
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
 
@@ -157,7 +161,9 @@ async def test_automation_commit_does_not_block_event_loop_while_lock_held(
 
 
 async def test_automation_listener_receives_notifications_and_processes_them(
-    automations_session: AsyncSession, sample_automation: Automation
+    automations_session: AsyncSession,
+    sample_automation: Automation,
+    caplog: pytest.LogCaptureFixture,
 ):
     """Test that the listener receives notifications and processes them correctly.
 
@@ -168,6 +174,8 @@ async def test_automation_listener_receives_notifications_and_processes_them(
     """
     if get_dialect(automations_session.sync_session).name != "postgresql":
         pytest.skip("This test requires PostgreSQL for NOTIFY/LISTEN")
+
+    caplog.set_level(logging.INFO, logger="prefect.server.utilities.postgres_listener")
 
     with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}):
         # Track all calls to automation_changed
@@ -183,7 +191,12 @@ async def test_automation_listener_receives_notifications_and_processes_them(
             listener_task = asyncio.create_task(listen_for_automation_changes())
 
             try:
-                await asyncio.sleep(0.1)
+                async for attempt in retry_asserts(max_attempts=100, delay=0.1):
+                    with attempt:
+                        assert (
+                            f"Listening on Postgres channel: {AUTOMATION_CHANGES_CHANNEL}"
+                            in caplog.text
+                        )
 
                 # Create automation - should trigger "created" notification
                 created = await create_automation(

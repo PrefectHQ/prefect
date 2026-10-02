@@ -688,6 +688,26 @@ class DeploymentPaginationResponse(BaseModel):
     page: int
 
 
+class GlobalConcurrencyLimitPaginationResponse(BaseModel):
+    """A page of global concurrency limits with pagination metadata."""
+
+    results: list[GlobalConcurrencyLimitResponse]
+    count: int
+    limit: int
+    pages: int
+    page: int
+
+
+class ConcurrencyLimitPaginationResponse(BaseModel):
+    """A page of tag-based concurrency limits with pagination metadata."""
+
+    results: list[schemas.core.ConcurrencyLimit]
+    count: int
+    limit: int
+    pages: int
+    page: int
+
+
 class SchemaValuePropertyError(BaseModel):
     property: str
     errors: List["SchemaValueError"]
