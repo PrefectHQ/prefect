@@ -7,6 +7,7 @@ To get started, follow along with [the deployments tutorial](https://docs.prefec
 
 from __future__ import annotations
 
+import datetime
 import os
 from copy import deepcopy
 from pathlib import Path
@@ -272,7 +273,14 @@ def _interval_schedule_to_dict(schedule: IntervalSchedule) -> dict[str, Any]:
         - dict[str, Any]: the schedule as a dictionary
     """
     schedule_config = schedule.model_dump()
-    schedule_config["interval"] = schedule_config["interval"].total_seconds()
+    interval = schedule_config["interval"]
+    # Calendar intervals ("P1M") have no fixed length in seconds, so they are
+    # written as the ISO 8601 duration they were declared with.
+    schedule_config["interval"] = (
+        interval.total_seconds()
+        if isinstance(interval, datetime.timedelta)
+        else str(interval)
+    )
     schedule_config["anchor_date"] = schedule_config["anchor_date"].isoformat()
 
     return schedule_config
