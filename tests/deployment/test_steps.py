@@ -1029,6 +1029,7 @@ class TestGitCloneStep:
             include_submodules=False,
             directories=None,
             name=None,
+            cache_dir=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -1050,6 +1051,7 @@ class TestGitCloneStep:
             include_submodules=True,
             directories=None,
             name=None,
+            cache_dir=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -1072,6 +1074,7 @@ class TestGitCloneStep:
             include_submodules=False,
             directories=None,
             name=None,
+            cache_dir=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -1103,6 +1106,7 @@ class TestGitCloneStep:
             include_submodules=False,
             directories=None,
             name=None,
+            cache_dir=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -1141,6 +1145,7 @@ class TestGitCloneStep:
             include_submodules=False,
             directories=None,
             name=None,
+            cache_dir=None,
         )
 
         assert mock_git_repo.call_args_list == [expected_call]
@@ -1159,6 +1164,7 @@ class TestGitCloneStep:
             include_submodules=False,
             directories=None,
             name=None,
+            cache_dir=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -1175,6 +1181,7 @@ class TestGitCloneStep:
             include_submodules=False,
             directories=None,
             name=None,
+            cache_dir=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -1199,6 +1206,7 @@ class TestGitCloneStep:
             include_submodules=True,
             directories=None,
             name=None,
+            cache_dir=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -1224,6 +1232,7 @@ class TestGitCloneStep:
             include_submodules=False,
             directories=None,
             name=None,
+            cache_dir=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -1281,6 +1290,7 @@ class TestGitCloneStep:
             include_submodules=False,
             directories=None,
             name=None,
+            cache_dir=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -1326,6 +1336,7 @@ class TestGitCloneStep:
             include_submodules=False,
             directories=None,
             name=None,
+            cache_dir=None,
         )
         assert mock_git_repo.call_args_list == [expected_call]
 

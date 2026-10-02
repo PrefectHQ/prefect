@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import warnings
 from copy import deepcopy
 from pathlib import Path
@@ -21,7 +23,7 @@ from urllib.parse import quote, unquote, urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
 import fsspec  # pyright: ignore[reportMissingTypeStubs]
-from anyio import run_process
+from anyio import run_process, to_thread
 from pydantic import SecretStr
 
 from prefect._internal.concurrency.api import create_call, from_async
@@ -32,6 +34,8 @@ from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentSto
 from prefect.locking._filelock import FileLock
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
+
+_GIT_CACHE_MAX_BYTES = 512 * 1024 * 1024
 
 
 def _clear_read_only_attributes(path: Path) -> None:
@@ -172,6 +176,8 @@ class GitRepository:
             remote storage to local storage. If None, remote storage will perform
             a one-time sync.
         directories: The directories to pull from the Git repository (uses git sparse-checkout)
+        cache_dir: Optional persistent local directory for reusing Git objects.
+            Omit to preserve the normal clone behavior.
 
     Examples:
         Pull the contents of a private git repository to the local filesystem:
@@ -198,6 +204,7 @@ class GitRepository:
         include_submodules: bool = False,
         pull_interval: int | None = 60,
         directories: list[str] | None = None,
+        cache_dir: str | Path | None = None,
     ):
         if credentials is None:
             credentials = {}
@@ -240,6 +247,7 @@ class GitRepository:
                         stacklevel=2,
                     )
 
+        self._cache_dir = Path(cache_dir) if cache_dir is not None else None
         self._url = url
         self._branch = branch
         self._commit_sha = commit_sha
@@ -502,6 +510,124 @@ class GitRepository:
             await self._clone_repo()
 
     async def _clone_repo(self):
+        if self._cache_dir is None or (
+            self._commit_sha and len(self._commit_sha) not in (40, 64)
+        ):
+            await self._clone_repo_uncached()
+            return
+        await self._clone_repo_cached()
+
+    async def _clone_repo_cached(self) -> None:
+        """Reuse Git objects while retaining normal remote clone semantics."""
+        assert self._cache_dir is not None
+        cache = self._cache_dir.expanduser().resolve() / "prefect-git-v1"
+        cache.mkdir(parents=True, exist_ok=True, mode=0o700)
+        key = hashlib.sha256(strip_auth_from_url(self._url).encode()).hexdigest()
+        entry = cache / key
+        lock = FileLock(cache / f"{key}.lock")
+        await lock.aacquire()
+        try:
+            for abandoned in cache.glob(f"staging-{key}-*"):
+                if abandoned.is_dir():
+                    await to_thread.run_sync(_rmtree_including_read_only, abandoned)
+            if (entry / "bypass").exists():
+                await self._clone_repo_uncached()
+                os.utime(entry)
+            else:
+                try:
+                    if not entry.exists():
+                        with tempfile.TemporaryDirectory(
+                            prefix=f"staging-{key}-", dir=cache
+                        ) as temporary:
+                            objects = Path(temporary) / "objects.git"
+                            await run_process(["git", "init", "--bare", str(objects)])
+                            await self._fetch_git_cache(objects)
+                            objects.replace(entry)
+                        self._logger.debug("Git object cache miss: %s", key)
+                    else:
+                        await to_thread.run_sync(_clear_read_only_attributes, entry)
+                        await self._fetch_git_cache(entry)
+                        self._logger.debug("Git object cache hit: %s", key)
+                except subprocess.CalledProcessError as exc:
+                    raise RuntimeError(
+                        f"Failed to update Git object cache (exit code {exc.returncode})."
+                    ) from None
+                await self._clone_repo_uncached(reference=entry)
+                os.utime(entry)
+                size = await to_thread.run_sync(self._git_cache_size, entry)
+                if size > _GIT_CACHE_MAX_BYTES:
+                    await to_thread.run_sync(_rmtree_including_read_only, entry)
+                    entry.mkdir()
+                    (entry / "bypass").touch()
+                    self._logger.warning(
+                        "Git object cache exceeds its byte budget; subsequent pulls "
+                        "will use ordinary clones while its bypass entry is retained."
+                    )
+        finally:
+            lock.release()
+        await to_thread.run_sync(self._prune_git_cache, cache)
+
+    async def _fetch_git_cache(self, entry: Path) -> None:
+        """Fetch only the requested history without storing credentials or FETCH_HEAD."""
+        selection = self._commit_sha or self._branch or "HEAD"
+        ref = hashlib.sha256(selection.encode()).hexdigest()
+        await run_process(
+            [
+                "git",
+                "-c",
+                "gc.auto=0",
+                "-c",
+                "maintenance.auto=false",
+                "fetch",
+                "--force",
+                "--no-write-fetch-head",
+                "--",
+                self._repository_url_with_credentials,
+                f"+{selection}:refs/prefect/{ref}",
+            ],
+            cwd=entry,
+        )
+
+    @staticmethod
+    def _git_cache_size(entry: Path) -> int:
+        """Return the on-disk file bytes of a locked cache entry."""
+        return sum(p.lstat().st_size for p in entry.rglob("*") if not p.is_dir())
+
+    @staticmethod
+    def _prune_git_cache(
+        cache: Path, max_entries: int = 8, max_bytes: int = _GIT_CACHE_MAX_BYTES
+    ) -> None:
+        """Prune idle entries by last use, allowing active entries to finish first."""
+        with FileLock(cache / "prune.lock"):
+            entries = []
+            for entry in cache.iterdir():
+                if re.fullmatch(r"[0-9a-f]{64}", entry.name) and entry.is_dir():
+                    try:
+                        entries.append((entry.stat().st_mtime_ns, entry))
+                    except FileNotFoundError:
+                        continue
+            entries.sort(reverse=True)
+            total = 0
+            retained = 0
+            for _, entry in entries:
+                lock = FileLock(cache / f"{entry.name}.lock", timeout=0)
+                try:
+                    lock.acquire()
+                except TimeoutError:
+                    continue
+                try:
+                    if not entry.exists():
+                        continue
+                    size = GitRepository._git_cache_size(entry)
+                    if retained < max_entries and total + size <= max_bytes:
+                        total += size
+                        retained += 1
+                    else:
+                        _rmtree_including_read_only(entry)
+                finally:
+                    lock.release()
+
+    async def _clone_repo_uncached(self, reference: Path | None = None):
         """
         Clones the repository into the local destination.
         """
@@ -513,6 +639,9 @@ class GitRepository:
         cmd += self._git_config
         # Add the clone command and its parameters
         cmd += ["clone", repository_url]
+
+        if reference is not None:
+            cmd += ["--reference", str(reference), "--dissociate"]
 
         if self._include_submodules:
             cmd += ["--recurse-submodules"]
@@ -634,6 +763,11 @@ class GitRepository:
         if self._directories:
             pull_step["prefect.deployments.steps.git_clone"]["directories"] = (
                 self._directories
+            )
+
+        if self._cache_dir is not None:
+            pull_step["prefect.deployments.steps.git_clone"]["cache_dir"] = str(
+                self._cache_dir
             )
 
         if self._include_submodules:
