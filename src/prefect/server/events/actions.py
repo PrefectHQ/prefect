@@ -10,7 +10,7 @@ import asyncio
 import contextvars
 import copy
 from base64 import b64encode
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager, nullcontext
 from datetime import datetime, timedelta, timezone
 from typing import (
     TYPE_CHECKING,
@@ -85,6 +85,7 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
+from prefect.settings import get_current_settings
 from prefect.types import DateTime, NonNegativeTimeDelta, StrictVariableValue
 from prefect.types._datetime import now, parse_datetime
 from prefect.utilities.schema_tools.hydration import (
@@ -1893,8 +1894,18 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
     from prefect.server.api.clients import OrchestrationClient
     from prefect.server.events.schemas.automations import TriggeredAction
 
+    # Concurrent actions sharing one client would race on its CSRF token refreshes,
+    # so each action builds its own orchestration client when CSRF is enabled.
+    shared_orchestration_client: AbstractAsyncContextManager[
+        Optional[OrchestrationClient]
+    ] = (
+        nullcontext()
+        if get_current_settings().server.api.csrf_protection_enabled
+        else OrchestrationClient()
+    )
+
     async with (
-        OrchestrationClient() as orchestration_client,
+        shared_orchestration_client as orchestration_client,
         PrefectServerEventsAPIClient() as events_api_client,
     ):
 
