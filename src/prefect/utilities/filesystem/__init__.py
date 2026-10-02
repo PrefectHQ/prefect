@@ -29,8 +29,8 @@ def create_default_ignore_file(path: str) -> bool:
     if ignore_file.exists():
         return False
     default_file = pathlib.Path(prefect.__module_path__) / ".prefectignore"
-    with ignore_file.open(mode="w") as f:
-        f.write(default_file.read_text())
+    with ignore_file.open(mode="w", encoding="utf-8") as f:
+        f.write(default_file.read_text(encoding="utf-8"))
     return True
 
 
