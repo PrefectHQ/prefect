@@ -8,6 +8,12 @@ export default defineConfig(({ mode }) => {
 	const base =
 		mode === "development" ? "" : "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER";
 
+	if (process.env.VITEST) {
+		// `test.env.TZ` is ignored by worker threads, which inherit the time zone
+		// the main process resolved at startup.
+		process.env.TZ = "UTC";
+	}
+
 	return {
 		base,
 		plugins: [
