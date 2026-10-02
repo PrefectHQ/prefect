@@ -245,6 +245,7 @@ class PrefectServerEventsAPIClient:
     _http_client: PrefectHttpxAsyncClient
 
     def __init__(self, additional_headers: dict[str, str] = {}):
+        from prefect.server.api.clients import _apply_scoped_headers
         from prefect.server.api.server import create_app
 
         # create_app caches application instances, and invoking it with no arguments
@@ -257,6 +258,7 @@ class PrefectServerEventsAPIClient:
             base_url="http://prefect-in-memory/api",
             enable_csrf_support=False,
             raise_on_all_errors=False,
+            event_hooks={"request": [_apply_scoped_headers]},
         )
 
     async def __aenter__(self) -> Self:
