@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import sqlite3
 from typing import List
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import anyio
 import pytest
@@ -2044,6 +2044,241 @@ class TestDeploymentSchedules:
             deployment_id=deployment.id,
         )
         assert len(schedules) == 0
+
+
+class TestReconcileDeploymentSchedules:
+    """Upserting a deployment must preserve schedule ids when slugs are stable.
+
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/18894:
+    scheduled-run idempotency keys embed the schedule id, so if a redeploy
+    changes schedule ids while the scheduler is mid-tick, the scheduler can
+    insert duplicate runs for the same scheduled occurrence.
+    """
+
+    @staticmethod
+    def _schedule(
+        slug: str | None,
+        interval: datetime.timedelta = datetime.timedelta(days=1),
+        active: bool = True,
+        replaces: str | None = None,
+    ) -> schemas.actions.DeploymentScheduleCreate:
+        return schemas.actions.DeploymentScheduleCreate(
+            schedule=schemas.schedules.IntervalSchedule(interval=interval),
+            active=active,
+            slug=slug,
+            replaces=replaces,
+        )
+
+    @staticmethod
+    def _core_schedule(
+        slug: str | None,
+        interval: datetime.timedelta = datetime.timedelta(days=1),
+        active: bool = True,
+    ) -> schemas.core.DeploymentSchedule:
+        return schemas.core.DeploymentSchedule(
+            schedule=schemas.schedules.IntervalSchedule(interval=interval),
+            active=active,
+            slug=slug,
+        )
+
+    async def _upsert(
+        self,
+        session: AsyncSession,
+        flow: orm_models.Flow,
+        name: str,
+        schedules: list[schemas.core.DeploymentSchedule],
+    ) -> orm_models.Deployment:
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name=name,
+                flow_id=flow.id,
+                schedules=schedules,
+            ),
+        )
+        await session.commit()
+        assert deployment is not None
+        return deployment
+
+    async def _schedule_ids_by_slug(
+        self, session: AsyncSession, deployment_id: UUID
+    ) -> dict[str | None, UUID]:
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session, deployment_id=deployment_id
+        )
+        return {schedule.slug: schedule.id for schedule in schedules}
+
+    async def test_upsert_preserves_ids_for_matching_slugs(
+        self, session: AsyncSession, flow: orm_models.Flow
+    ):
+        name = f"deployment-{uuid4()}"
+        deployment = await self._upsert(
+            session,
+            flow,
+            name,
+            [
+                self._core_schedule("daily"),
+                self._core_schedule("weekly", interval=datetime.timedelta(days=7)),
+            ],
+        )
+        original_ids = await self._schedule_ids_by_slug(session, deployment.id)
+
+        # redeploy with one changed schedule, one removed, one added
+        await self._upsert(
+            session,
+            flow,
+            name,
+            [
+                self._core_schedule("daily", interval=datetime.timedelta(days=2)),
+                self._core_schedule("monthly", interval=datetime.timedelta(days=30)),
+            ],
+        )
+
+        updated = await models.deployments.read_deployment_schedules(
+            session=session, deployment_id=deployment.id
+        )
+        by_slug = {schedule.slug: schedule for schedule in updated}
+
+        assert set(by_slug) == {"daily", "monthly"}
+        # the id of the surviving schedule is unchanged ...
+        assert by_slug["daily"].id == original_ids["daily"]
+        # ... but its content was updated
+        assert by_slug["daily"].schedule.interval == datetime.timedelta(days=2)
+        # the removed schedule is gone and the new one got a fresh id
+        assert by_slug["monthly"].id not in set(original_ids.values())
+
+    async def test_upsert_without_slugs_recreates_schedules(
+        self, session: AsyncSession, flow: orm_models.Flow
+    ):
+        name = f"deployment-{uuid4()}"
+        deployment = await self._upsert(
+            session, flow, name, [self._core_schedule(None)]
+        )
+        (original_id,) = (
+            await self._schedule_ids_by_slug(session, deployment.id)
+        ).values()
+
+        await self._upsert(session, flow, name, [self._core_schedule(None)])
+
+        (new_id,) = (await self._schedule_ids_by_slug(session, deployment.id)).values()
+        # without slugs there is nothing stable to match on: the old
+        # delete-and-recreate behavior is preserved
+        assert new_id != original_id
+
+    async def test_reconcile_honors_replaces_rename(
+        self, session: AsyncSession, flow: orm_models.Flow
+    ):
+        name = f"deployment-{uuid4()}"
+        deployment = await self._upsert(
+            session, flow, name, [self._core_schedule("old-slug")]
+        )
+        original_ids = await self._schedule_ids_by_slug(session, deployment.id)
+
+        reconciled = await models.deployments.reconcile_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+            schedules=[self._schedule("new-slug", replaces="old-slug")],
+        )
+        await session.commit()
+
+        assert [schedule.slug for schedule in reconciled] == ["new-slug"]
+        assert reconciled[0].id == original_ids["old-slug"]
+
+    async def test_reconcile_with_dangling_replaces_creates_new_schedule(
+        self, session: AsyncSession, flow: orm_models.Flow
+    ):
+        name = f"deployment-{uuid4()}"
+        deployment = await self._upsert(
+            session, flow, name, [self._core_schedule("existing")]
+        )
+
+        reconciled = await models.deployments.reconcile_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+            schedules=[
+                self._schedule("existing"),
+                self._schedule("brand-new", replaces="missing-slug"),
+            ],
+        )
+        await session.commit()
+
+        assert {schedule.slug for schedule in reconciled} == {
+            "existing",
+            "brand-new",
+        }
+
+    async def test_scheduler_tick_racing_deployment_update_does_not_duplicate_runs(
+        self, db, session: AsyncSession, flow: orm_models.Flow
+    ):
+        name = f"deployment-{uuid4()}"
+        deployment = await self._upsert(
+            session,
+            flow,
+            name,
+            [self._core_schedule("hourly", interval=datetime.timedelta(hours=1))],
+        )
+        deployment_id = deployment.id
+
+        right_now = now("UTC")
+        generate_kwargs = {
+            "start_time": right_now,
+            "end_time": right_now + datetime.timedelta(days=7),
+            "min_time": datetime.timedelta(days=1),
+            "min_runs": 3,
+            "max_runs": 100,
+        }
+
+        # tick 1: the scheduler generates runs against the original schedule rows
+        tick1_runs = await models.deployments._generate_scheduled_flow_runs(
+            db,
+            session=session,
+            deployment_id=deployment_id,
+            **generate_kwargs,
+        )
+        assert tick1_runs
+
+        # ... but before it inserts them, a deployment update lands
+        await self._upsert(
+            session,
+            flow,
+            name,
+            [self._core_schedule("hourly", interval=datetime.timedelta(hours=1))],
+        )
+
+        # tick 1 finishes late, inserting runs generated against the old rows
+        await models.deployments._insert_scheduled_flow_runs(
+            session=session, runs=tick1_runs
+        )
+        await session.commit()
+
+        # tick 2: generate against the current rows and insert
+        tick2_runs = await models.deployments._generate_scheduled_flow_runs(
+            db,
+            session=session,
+            deployment_id=deployment_id,
+            **generate_kwargs,
+        )
+        await models.deployments._insert_scheduled_flow_runs(
+            session=session, runs=tick2_runs
+        )
+        await session.commit()
+
+        duplicates = (
+            await session.execute(
+                sa.select(
+                    orm_models.FlowRun.expected_start_time,
+                    sa.func.count(orm_models.FlowRun.id),
+                )
+                .where(
+                    orm_models.FlowRun.deployment_id == deployment_id,
+                    orm_models.FlowRun.auto_scheduled.is_(True),
+                )
+                .group_by(orm_models.FlowRun.expected_start_time)
+                .having(sa.func.count(orm_models.FlowRun.id) > 1)
+            )
+        ).all()
+
+        assert duplicates == []
 
 
 class TestDeploymentLabels:
