@@ -236,17 +236,19 @@ async def read_concurrency_limits(
             limit=limit + offset,
             offset=0,
             concurrency_limit_filter=_v2_filter_for_tag_filter(concurrency_limits),
+            case_sensitive_ordering=True,
         )
         v1_limits = await models.concurrency_limits.read_concurrency_limits(
             session=session,
             limit=limit + offset + len(v2_limits),
             offset=0,
             concurrency_limit_filter=concurrency_limits,
+            case_sensitive_ordering=True,
         )
 
     # Merge and deduplicate by tag (prefer V2), then keep the requested page
     v2_by_tag = {v2_limit.name.removeprefix("tag:"): v2_limit for v2_limit in v2_limits}
-    combined: list[
+    combined: Sequence[
         tuple[str, Union[orm_models.ConcurrencyLimit, orm_models.ConcurrencyLimitV2]]
     ] = list(v2_by_tag.items()) + [
         (v1_limit.tag, v1_limit)

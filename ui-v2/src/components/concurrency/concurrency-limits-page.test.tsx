@@ -95,6 +95,21 @@ describe.each(["global", "task-run"] as const)(
 	(tab) => {
 		it("paginates and searches across more than 200 limits using URL state", async () => {
 			mockLimits(tab);
+			let hiddenPageRequests = 0;
+			const hiddenPrefix =
+				tab === "global" ? "/concurrency_limits" : "/v2/concurrency_limits";
+			server.use(
+				http.post(buildApiUrl(`${hiddenPrefix}/paginate`), () => {
+					hiddenPageRequests += 1;
+					return HttpResponse.json({
+						results: [],
+						count: 0,
+						pages: 0,
+						page: 1,
+						limit: 10,
+					});
+				}),
+			);
 			const user = userEvent.setup();
 			const { router } = renderPage(tab, 22);
 
@@ -122,6 +137,7 @@ describe.each(["global", "task-run"] as const)(
 			});
 			expect(screen.getByText("limit-249")).toBeVisible();
 			expect(screen.queryByText("limit-240")).not.toBeInTheDocument();
+			expect(hiddenPageRequests).toBe(0);
 		});
 
 		it("keeps previous rows and the search input mounted while loading a new page", async () => {

@@ -2576,6 +2576,7 @@ class ConcurrencyLimitV2FilterName(PrefectFilterBaseModel):
         description=(
             "A string to match concurrency limit names against. This can include "
             "SQL wildcard characters like `%` and `_`."
+            " Escape these with a backslash to match them literally."
         ),
         examples=["my-limit-%"],
     )
@@ -2592,7 +2593,9 @@ class ConcurrencyLimitV2FilterName(PrefectFilterBaseModel):
         if self.any_ is not None:
             filters.append(db.ConcurrencyLimitV2.name.in_(self.any_))
         if self.like_:
-            filters.append(db.ConcurrencyLimitV2.name.ilike(f"%{self.like_}%"))
+            filters.append(
+                db.ConcurrencyLimitV2.name.ilike(f"%{self.like_}%", escape="\\")
+            )
         if self.starts_with_:
             filters.append(
                 sa.func.substr(db.ConcurrencyLimitV2.name, 1, len(self.starts_with_))
@@ -2629,6 +2632,7 @@ class ConcurrencyLimitFilterTag(PrefectFilterBaseModel):
         description=(
             "A string to match tags against. This can include SQL wildcard "
             "characters like `%` and `_`."
+            " Escape these with a backslash to match them literally."
         ),
         examples=["my-tag-%"],
     )
@@ -2640,7 +2644,9 @@ class ConcurrencyLimitFilterTag(PrefectFilterBaseModel):
         if self.any_ is not None:
             filters.append(db.ConcurrencyLimit.tag.in_(self.any_))
         if self.like_:
-            filters.append(db.ConcurrencyLimit.tag.ilike(f"%{self.like_}%"))
+            filters.append(
+                db.ConcurrencyLimit.tag.ilike(f"%{self.like_}%", escape="\\")
+            )
         return filters
 
 

@@ -34,6 +34,43 @@ from prefect.settings.context import temporary_settings
 pytestmark = pytest.mark.clear_db
 
 
+@pytest.mark.parametrize("endpoint", ["filter", "count", "paginate"])
+@pytest.mark.parametrize(
+    "pattern, expected",
+    [
+        (r"team\_1", ["team_1"]),
+        (r"\%", []),
+        (r"team\\1", [r"team\1"]),
+        ("team_1", [r"team\1", "teamA1", "team_1"]),
+    ],
+)
+async def test_name_search_escape_and_wildcard_patterns(
+    session: AsyncSession,
+    client: AsyncClient,
+    endpoint: str,
+    pattern: str,
+    expected: list[str],
+):
+    for name in ["team_1", "teamA1", r"team\1"]:
+        await create_concurrency_limit(
+            session=session, concurrency_limit=ConcurrencyLimitV2(name=name, limit=1)
+        )
+    await session.commit()
+    response = await client.post(
+        f"/v2/concurrency_limits/{endpoint}",
+        json={"concurrency_limits": {"name": {"like_": pattern}}},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    if endpoint == "count":
+        assert data == len(expected)
+    else:
+        if endpoint == "paginate":
+            assert data["count"] == len(expected)
+            data = data["results"]
+        assert sorted(row["name"] for row in data) == sorted(expected)
+
+
 @pytest.fixture
 def use_filesystem_lease_storage():
     with temporary_settings(

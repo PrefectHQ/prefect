@@ -42,24 +42,29 @@ export const Route = createFileRoute("/concurrency-limits/")({
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
 	loaderDeps: ({ search }) => ({
+		tab: search.tab,
 		page: search.page,
 		limit: search.limit,
 		search: search.search,
 	}),
 	loader: ({ deps, context }) => {
-		const globalFilter = buildGlobalConcurrencyLimitsPaginationBody(deps);
-		const taskRunFilter = buildTaskRunConcurrencyLimitsPaginationBody(deps);
-
 		// Prefetch the page of concurrency limits and their counts without blocking
 		// the loader, so the search input stays interactive while results update.
-		void context.queryClient.prefetchQuery(
-			buildPaginateGlobalConcurrencyLimitsQuery(globalFilter),
-		);
+		if (deps.tab === "global") {
+			void context.queryClient.prefetchQuery(
+				buildPaginateGlobalConcurrencyLimitsQuery(
+					buildGlobalConcurrencyLimitsPaginationBody(deps),
+				),
+			);
+		} else {
+			void context.queryClient.prefetchQuery(
+				buildPaginateTaskRunConcurrencyLimitsQuery(
+					buildTaskRunConcurrencyLimitsPaginationBody(deps),
+				),
+			);
+		}
 		void context.queryClient.prefetchQuery(
 			buildCountGlobalConcurrencyLimitsQuery(),
-		);
-		void context.queryClient.prefetchQuery(
-			buildPaginateTaskRunConcurrencyLimitsQuery(taskRunFilter),
 		);
 		void context.queryClient.prefetchQuery(
 			buildCountTaskRunConcurrencyLimitsQuery(),

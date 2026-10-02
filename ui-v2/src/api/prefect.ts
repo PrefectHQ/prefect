@@ -5707,7 +5707,7 @@ export interface components {
             any_?: string[] | null;
             /**
              * Like
-             * @description A string to match tags against. This can include SQL wildcard characters like `%` and `_`.
+             * @description A string to match tags against. This can include SQL wildcard characters like `%` and `_`. Escape these with a backslash to match them literally.
              * @example my-tag-%
              */
             like_?: string | null;
@@ -5854,7 +5854,7 @@ export interface components {
             any_?: string[] | null;
             /**
              * Like
-             * @description A string to match concurrency limit names against. This can include SQL wildcard characters like `%` and `_`.
+             * @description A string to match concurrency limit names against. This can include SQL wildcard characters like `%` and `_`. Escape these with a backslash to match them literally.
              * @example my-limit-%
              */
             like_?: string | null;

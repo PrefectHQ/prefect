@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from prefect.server import models, schemas
@@ -14,6 +15,95 @@ pytestmark = pytest.mark.clear_db
 
 
 class TestConcurrencyLimits:
+    @pytest.mark.parametrize("endpoint", ["filter", "count", "paginate"])
+    @pytest.mark.parametrize(
+        "pattern, expected",
+        [
+            (r"team\_1", ["team_1"]),
+            (r"\%", []),
+            (r"team\\1", [r"team\1"]),
+            ("team_1", [r"team\1", "teamA1", "team_1"]),
+        ],
+    )
+    async def test_tag_search_escape_and_wildcard_patterns(
+        self,
+        session: AsyncSession,
+        client: AsyncClient,
+        endpoint: str,
+        pattern: str,
+        expected: list[str],
+    ):
+        for tag in ["team_1", "teamA1", r"team\1"]:
+            await models.concurrency_limits.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimit(
+                    tag=tag, concurrency_limit=1
+                ),
+            )
+            await models.concurrency_limits_v2.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                    name=f"tag:{tag}", limit=2
+                ),
+            )
+        await session.commit()
+        response = await client.post(
+            f"/concurrency_limits/{endpoint}",
+            json={"concurrency_limits": {"tag": {"like_": pattern}}},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        if endpoint == "count":
+            assert data == len(expected)
+        else:
+            if endpoint == "paginate":
+                assert data["count"] == len(expected)
+                data = data["results"]
+            assert [row["tag"] for row in data] == sorted(expected)
+
+    @pytest.mark.parametrize("endpoint", ["filter", "paginate"])
+    async def test_mixed_case_tags_keep_the_same_order_across_pages(
+        self, session: AsyncSession, client: AsyncClient, endpoint: str
+    ):
+        v1_tags = ["a", "Z", "é"]
+        v2_tags = ["A", "z", "ß", "a"]
+        for tag in v1_tags:
+            await models.concurrency_limits.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimit(
+                    tag=tag, concurrency_limit=1
+                ),
+            )
+        for tag in v2_tags:
+            await models.concurrency_limits_v2.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                    name=f"tag:{tag}", limit=2
+                ),
+            )
+        await session.commit()
+
+        expected = sorted(set(v1_tags + v2_tags))
+        results = []
+        for index in range(len(expected)):
+            pagination = (
+                {"offset": index} if endpoint == "filter" else {"page": index + 1}
+            )
+            response = await client.post(
+                f"/concurrency_limits/{endpoint}", json={"limit": 1, **pagination}
+            )
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            if endpoint == "paginate":
+                assert data["count"] == len(expected)
+                data = data["results"]
+            assert len(data) == 1
+            results.append(data[0])
+        assert [row["tag"] for row in results] == expected
+        assert (
+            next(row for row in results if row["tag"] == "a")["concurrency_limit"] == 2
+        )
+
     async def test_creating_concurrency_limits(self, session, client):
         data = ConcurrencyLimitCreate(
             tag="dummytag",
@@ -352,6 +442,8 @@ class TestAcquiringAndReleasing:
 
 
 class TestV1ToV2Adapter:
+    """Test the V1 API adapter that routes to V2 system."""
+
     async def test_pagination_and_search_beyond_200_task_limits(self, session, client):
         for index in range(250):
             await models.concurrency_limits_v2.create_concurrency_limit(
@@ -440,8 +532,6 @@ class TestV1ToV2Adapter:
                 response.json() if endpoint == "filter" else response.json()["results"]
             )
             assert [limit["tag"] for limit in limits] == ["task"]
-
-    """Test the V1 API adapter that routes to V2 system."""
 
     async def test_create_creates_v2_limit_only(self, session, client):
         """Creating via V1 API should only create V2 limit, no V1 record."""

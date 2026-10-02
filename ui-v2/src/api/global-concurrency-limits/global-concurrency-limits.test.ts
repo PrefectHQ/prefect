@@ -81,6 +81,13 @@ describe("global concurrency limits hooks", () => {
 		});
 	});
 
+	it("escapes SQL wildcards and the escape character in literal searches", () => {
+		expect(
+			buildGlobalConcurrencyLimitsPaginationBody({ search: "team_1%\\" })
+				.concurrency_limits?.name?.like_,
+		).toBe("team\\_1\\%\\\\");
+	});
+
 	it("requests a page of limits beyond the first page of results", async () => {
 		const mockList = seedData();
 		let requestBody: unknown;

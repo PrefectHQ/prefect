@@ -96,6 +96,13 @@ describe("task run concurrency limits hooks", () => {
 		});
 	});
 
+	it("escapes SQL wildcards and the escape character in literal searches", () => {
+		expect(
+			buildTaskRunConcurrencyLimitsPaginationBody({ search: "team_1%\\" })
+				.concurrency_limits?.tag?.like_,
+		).toBe("team\\_1\\%\\\\");
+	});
+
 	it("requests a page of limits beyond the first page of results", async () => {
 		const mockList = seedData();
 		let requestBody: unknown;

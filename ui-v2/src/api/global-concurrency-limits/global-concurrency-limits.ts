@@ -62,7 +62,7 @@ export const buildGlobalConcurrencyLimitsPaginationBody = ({
 	page,
 	concurrency_limits: {
 		operator: "and_",
-		name: { like_: search },
+		name: { like_: search.replace(/[\\%_]/g, "\\$&") },
 	},
 });
 

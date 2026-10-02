@@ -226,6 +226,7 @@ async def read_concurrency_limits(
     limit: Optional[int] = None,
     offset: Optional[int] = None,
     concurrency_limit_filter: Optional[schemas.filters.ConcurrencyLimitFilter] = None,
+    case_sensitive_ordering: bool = False,
 ) -> Sequence[orm_models.ConcurrencyLimit]:
     """
     Reads a concurrency limits. If used for orchestration, simultaneous read race
@@ -236,12 +237,20 @@ async def read_concurrency_limits(
         offset: Query offset
         limit: Query limit
         concurrency_limit_filter: Filter criteria for the concurrency limits
+        case_sensitive_ordering: Match Python string order using binary collation
 
     Returns:
         List[orm_models.ConcurrencyLimit]: concurrency limits
     """
 
-    query = sa.select(db.ConcurrencyLimit).order_by(db.ConcurrencyLimit.tag)
+    tag_order = (
+        db.ConcurrencyLimit.tag.collate(
+            "C" if db.dialect.name == "postgresql" else "BINARY"
+        )
+        if case_sensitive_ordering
+        else db.ConcurrencyLimit.tag
+    )
+    query = sa.select(db.ConcurrencyLimit).order_by(tag_order)
 
     if concurrency_limit_filter is not None:
         query = query.where(concurrency_limit_filter.as_sql_filter())
