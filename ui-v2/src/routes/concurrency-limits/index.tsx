@@ -56,19 +56,19 @@ export const Route = createFileRoute("/concurrency-limits/")({
 					buildGlobalConcurrencyLimitsPaginationBody(deps),
 				),
 			);
+			void context.queryClient.prefetchQuery(
+				buildCountGlobalConcurrencyLimitsQuery(),
+			);
 		} else {
 			void context.queryClient.prefetchQuery(
 				buildPaginateTaskRunConcurrencyLimitsQuery(
 					buildTaskRunConcurrencyLimitsPaginationBody(deps),
 				),
 			);
+			void context.queryClient.prefetchQuery(
+				buildCountTaskRunConcurrencyLimitsQuery(),
+			);
 		}
-		void context.queryClient.prefetchQuery(
-			buildCountGlobalConcurrencyLimitsQuery(),
-		);
-		void context.queryClient.prefetchQuery(
-			buildCountTaskRunConcurrencyLimitsQuery(),
-		);
 	},
 	errorComponent: function ConcurrencyLimitsErrorComponent({
 		error,

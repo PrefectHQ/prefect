@@ -96,6 +96,7 @@ describe.each(["global", "task-run"] as const)(
 		it("paginates and searches across more than 200 limits using URL state", async () => {
 			mockLimits(tab);
 			let hiddenPageRequests = 0;
+			let hiddenCountRequests = 0;
 			const hiddenPrefix =
 				tab === "global" ? "/concurrency_limits" : "/v2/concurrency_limits";
 			server.use(
@@ -108,6 +109,10 @@ describe.each(["global", "task-run"] as const)(
 						page: 1,
 						limit: 10,
 					});
+				}),
+				http.post(buildApiUrl(`${hiddenPrefix}/count`), () => {
+					hiddenCountRequests += 1;
+					return HttpResponse.json(0);
 				}),
 			);
 			const user = userEvent.setup();
@@ -138,6 +143,17 @@ describe.each(["global", "task-run"] as const)(
 			expect(screen.getByText("limit-249")).toBeVisible();
 			expect(screen.queryByText("limit-240")).not.toBeInTheDocument();
 			expect(hiddenPageRequests).toBe(0);
+			expect(hiddenCountRequests).toBe(0);
+
+			const nextTab = tab === "global" ? "task-run" : "global";
+			await user.click(
+				screen.getByRole("tab", {
+					name: nextTab === "global" ? "Global" : "Task Run",
+				}),
+			);
+			await waitFor(() => expect(hiddenPageRequests).toBeGreaterThan(0));
+			await waitFor(() => expect(hiddenCountRequests).toBeGreaterThan(0));
+			expect(router.state.location.search).toMatchObject({ tab: nextTab });
 		});
 
 		it("keeps previous rows and the search input mounted while loading a new page", async () => {
