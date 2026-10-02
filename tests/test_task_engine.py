@@ -59,6 +59,7 @@ from prefect.types._datetime import now
 from prefect.utilities.annotations import opaque
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
+from prefect.utilities.math import clamped_poisson_interval
 
 
 @task
@@ -954,6 +955,66 @@ class TestReturnState:
 
 
 class TestTaskRetries:
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize(
+        "retry_delay_seconds,jitter_factor,expected_delays",
+        [
+            (10, 0.5, [7.864312, 7.864312, 7.864312]),
+            ([10, 20], 3, [3.741129, 7.482257, 7.482257]),
+            ([0, 10], 0.5, [0, 7.864312, 7.864312]),
+            (0, 0.5, [0, 0, 0]),
+            (None, 0.5, [0, 0, 0]),
+            (10, 0, [10, 10, 10]),
+            (10, None, [10, 10, 10]),
+            ([0], 0.5, [0, 0, 0]),
+        ],
+    )
+    async def test_task_respects_retry_jitter_factor(
+        self,
+        is_async: bool,
+        retry_delay_seconds: float | list[float] | None,
+        jitter_factor: float | None,
+        expected_delays: list[float],
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        def fail() -> None:
+            raise ValueError("retry me")
+
+        async def async_fail() -> None:
+            fail()
+
+        flaky_task = task(
+            retries=3,
+            retry_delay_seconds=retry_delay_seconds,
+            retry_jitter_factor=jitter_factor,
+        )(async_fail if is_async else fail)
+        sleep = AsyncMock() if is_async else Mock()
+        monkeypatch.setattr(anyio if is_async else time, "sleep", sleep)
+        monkeypatch.setattr(
+            "prefect.utilities.math.random.uniform",
+            lambda lower, upper: lower + (upper - lower) / 4,
+        )
+        jitter = Mock(wraps=clamped_poisson_interval)
+        monkeypatch.setattr("prefect.task_engine.clamped_poisson_interval", jitter)
+
+        if is_async:
+            state = await flaky_task(return_state=True)
+        else:
+            state = flaky_task(return_state=True)
+
+        assert state.is_failed()
+        assert sleep.call_args_list == [
+            call(pytest.approx(delay, abs=1))
+            for delay in expected_delays
+            if retry_delay_seconds
+        ]
+        assert jitter.call_count == (
+            sum(delay > 0 for delay in expected_delays) if jitter_factor else 0
+        )
+        for jitter_call in jitter.call_args_list:
+            assert jitter_call.kwargs == {"clamping_factor": jitter_factor}
+
     @pytest.mark.parametrize("always_fail", [True, False])
     async def test_task_respects_retry_count(
         self, always_fail, prefect_client, events_pipeline
