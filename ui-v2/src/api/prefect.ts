@@ -6002,6 +6002,11 @@ export interface components {
             };
             /** @description A description of this version of the deployment. */
             version_info?: components["schemas"]["VersionInfo"] | null;
+            /**
+             * Replaces
+             * @description The name of an existing deployment that this deployment replaces. Used for renaming deployments.
+             */
+            replaces?: string | null;
         };
         /**
          * DeploymentFilter
