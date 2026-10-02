@@ -190,7 +190,7 @@ class UUID(TypeDecorator[uuid.UUID]):
     hyphens.
     """
 
-    impl: type[TypeEngine[Any]] | TypeEngine[Any] = TypeEngine
+    impl: type[TypeEngine[Any]] | TypeEngine[Any] = sa.Uuid()
     cache_ok: bool | None = True
 
     def load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]:

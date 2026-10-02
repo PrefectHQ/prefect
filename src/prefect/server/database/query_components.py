@@ -330,8 +330,7 @@ class BaseQueryComponents(ABC):
                 FlowRun,
             )
             .from_statement(query)
-            # indicate that the state relationship isn't being loaded
-            .options(orm.noload(FlowRun.state))
+            .options(orm.selectinload(FlowRun._state))
         )
 
         result: sa.Result[
@@ -346,7 +345,7 @@ class BaseQueryComponents(ABC):
                     flow_run, from_attributes=True
                 ),
             )
-            for (run_work_pool_id, run_work_queue_id, flow_run) in result.t
+            for (run_work_pool_id, run_work_queue_id, flow_run) in result
         ]
 
     @db_injector
@@ -420,7 +419,7 @@ class BaseQueryComponents(ABC):
             ).where(FlowRun.id == flow_run_id)
         )
         try:
-            start_time, end_time = result.t.one()
+            start_time, end_time = result.one()
         except NoResultFound:
             raise ObjectNotFoundError(f"Flow run {flow_run_id} not found")
 
@@ -438,7 +437,7 @@ class BaseQueryComponents(ABC):
         nodes: list[tuple[UUID, Node]] = []
         root_node_ids: list[UUID] = []
 
-        for row in results.t:
+        for row in results:
             if not row.parent_ids:
                 root_node_ids.append(row.id)
 
@@ -511,7 +510,7 @@ class BaseQueryComponents(ABC):
         results = await session.execute(query)
 
         artifacts_by_task: dict[Optional[UUID], list[GraphArtifact]] = defaultdict(list)
-        for artifact, latest_in_collection_id in results.t:
+        for artifact, latest_in_collection_id in results:
             artifacts_by_task[artifact.task_run_id].append(
                 GraphArtifact(
                     id=artifact.id,
@@ -950,7 +949,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         else_=sa.null(),
                     ),
                 ).label("end_time"),
-                argument.c.value["id"].astext.label("parent"),
+                sa.func.json_extract(argument.c.value, "$.id").label("parent"),
                 (input.c.key == "__parents__").label("has_encapsulating_task"),
             )
             .join_from(TaskRun, input, onclause=sa.true(), isouter=True)
