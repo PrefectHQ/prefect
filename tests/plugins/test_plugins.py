@@ -476,6 +476,31 @@ class TestStartupHooks:
                     # Should complete without crashing
                     assert isinstance(summaries, list)
 
+    async def test_apply_failure_is_reported_in_summary(self, clean_env, mock_ctx):
+        """Test that a plugin whose result can't be applied gets an error summary."""
+
+        class BadEnvPlugin:
+            @register_hook
+            def setup_environment(self, *, ctx: HookContext):
+                return SetupResult(env={"BAD_VALUE": "a\x00b"})
+
+        pm = build_manager(HookSpec)
+        pm.register(BadEnvPlugin(), name="bad-env-plugin")
+
+        with temporary_settings(updates={PREFECT_PLUGINS_ENABLED: True}):
+            with patch(
+                "prefect._internal.plugins.startup.build_manager", return_value=pm
+            ):
+                with patch(
+                    "prefect._internal.plugins.startup.load_entry_point_plugins"
+                ):
+                    summaries = await run_startup_hooks(mock_ctx)
+
+        assert len(summaries) == 1
+        assert summaries[0].plugin == "bad-env-plugin"
+        assert summaries[0].error is not None
+        assert "BAD_VALUE" not in os.environ
+
     async def test_strict_mode_required_failure(self, clean_env, mock_ctx):
         """Test that strict mode exits on required plugin failure."""
 
