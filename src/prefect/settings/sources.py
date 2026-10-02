@@ -1,13 +1,25 @@
+import inspect
 import os
 import sys
 import threading
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Type, get_origin
+from typing import (
+    Annotated,
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    get_origin,
+)
 
 import dotenv
 from cachetools import TTLCache
-from pydantic import AliasChoices
+from pydantic import AliasChoices, TypeAdapter, ValidationError
 from pydantic.fields import FieldInfo
 from pydantic_settings import (
     BaseSettings,
@@ -139,6 +151,7 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         super().__init__(settings_cls)
         self.settings_cls = settings_cls
         self.profiles_path: Path = _get_profiles_path()
+        self._profile_name: str | None = None
         self.profile_settings: dict[str, Any] = self._load_profile_settings()
 
     def _load_profile_settings(self) -> Dict[str, Any]:
@@ -170,6 +183,7 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 
         if not active_profile or active_profile not in profiles_data:
             return self._get_default_profile()
+        self._profile_name = active_profile
         return profiles_data[active_profile]
 
     def _get_default_profile(self) -> Dict[str, Any]:
@@ -225,8 +239,56 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
                 prepared_value = self.prepare_field_value(
                     field_name, field, value, is_complex
                 )
+                if not self._is_valid_value(field, field_name, prepared_value):
+                    continue
                 profile_settings[key] = prepared_value
         return profile_settings
+
+    def _is_valid_value(self, field: FieldInfo, field_name: str, value: Any) -> bool:
+        """
+        Check a single profile value against its field, in isolation.
+
+        An invalid value in a profile is reported as a warning and skipped, so
+        that the setting falls back to lower priority sources or its default
+        and unrelated commands keep working, instead of every command failing
+        with a validation error for a setting it never uses.
+
+        Nested settings models are left alone; their own fields are checked by
+        the loader of the nested model.
+        """
+        annotation = field.annotation
+        if inspect.isclass(annotation) and issubclass(annotation, BaseSettings):
+            return True
+
+        try:
+            adapter = TypeAdapter(
+                Annotated[(annotation, *field.metadata)]
+                if field.metadata
+                else annotation
+            )
+        except Exception:
+            # Leave anything we cannot describe on our own to the model's
+            # validation, which raises as before.
+            return True
+
+        try:
+            adapter.validate_python(value)
+        except ValidationError as exc:
+            name = f"{self.config.get('env_prefix', '')}{field_name.upper()}"
+            problems = "; ".join(error["msg"] for error in exc.errors())
+            where = (
+                f"profile {self._profile_name!r}"
+                if self._profile_name
+                else "the active profile"
+            )
+            warnings.warn(
+                f"Ignoring invalid value {value!r} for setting {name} in {where}: "
+                f"{problems}. Fix it with `prefect config set {name}=<value>` or "
+                f"remove it with `prefect config unset {name}`.",
+                stacklevel=2,
+            )
+            return False
+        return True
 
 
 DEFAULT_PREFECT_TOML_PATH = Path("prefect.toml")
