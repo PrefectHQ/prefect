@@ -914,6 +914,7 @@ async def _get_k8s_jobs(
 
     Uses kubernetes-asyncio to list jobs.
     """
+    client: ApiClient | None = None
     try:
         client = await _get_kubernetes_client()
         batch_client = BatchV1Api(client)
@@ -925,7 +926,8 @@ async def _get_k8s_jobs(
         logger.error(f"Failed to get jobs for flow run {flow_run_id}: {e}")
         return []
     finally:
-        await client.close()  # type: ignore
+        if client is not None:
+            await client.close()  # type: ignore
 
 
 @kopf.on.event(

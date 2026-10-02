@@ -15,6 +15,7 @@ from prefect_kubernetes.diagnostics import diagnose_k8s_pod
 from prefect_kubernetes.observer import (
     _ContainerLogEntry,
     _fetch_crashed_pod_logs,
+    _get_k8s_jobs,
     _mark_flow_run_as_crashed,
     _replicate_pod_event,
     _send_crashed_pod_logs,
@@ -2335,6 +2336,45 @@ class TestPodLifecycleDiagnosis:
         # Event should still be emitted (phase rewritten won't apply here
         # since there are no containerStatuses with terminated reason)
         assert mock_events_client.emit.call_count == 1
+
+
+class TestGetK8sJobs:
+    async def test_returns_empty_list_when_client_creation_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(side_effect=RuntimeError("could not load kubeconfig")),
+        )
+        logger = MagicMock()
+
+        result = await _get_k8s_jobs("abc", "default", logger)
+
+        assert result == []
+        logger.error.assert_called_once_with(
+            "Failed to get jobs for flow run abc: could not load kubeconfig"
+        )
+
+    async def test_closes_client_when_listing_jobs_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        api_client = MagicMock(close=AsyncMock())
+        batch_client = MagicMock(
+            list_namespaced_job=AsyncMock(side_effect=RuntimeError("boom"))
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=api_client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.BatchV1Api",
+            MagicMock(return_value=batch_client),
+        )
+
+        result = await _get_k8s_jobs("abc", "default", MagicMock())
+
+        assert result == []
+        api_client.close.assert_awaited_once()
 
 
 class TestMarkFlowRunAsCrashed:
