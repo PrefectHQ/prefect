@@ -18,6 +18,7 @@ from typing_extensions import Self
 
 import prefect
 from prefect._internal.compatibility.starlette import status
+from prefect._internal.server_maintenance import record_maintenance_backoff
 from prefect.client import constants
 from prefect.client.attribution import get_attribution_headers
 from prefect.client.schemas.objects import CsrfToken
@@ -42,6 +43,20 @@ APP_LIFESPANS_REF_COUNTS: dict[tuple[int, int], int] = {}
 # Blocks concurrent access to the above dicts per thread. The index should be the thread
 # identity.
 APP_LIFESPANS_LOCKS: dict[int, anyio.Lock] = defaultdict(anyio.Lock)
+
+
+def _record_if_maintenance_backoff(
+    response: Optional[Response],
+    exc_info: Optional[tuple[Any, ...]],
+    retry_seconds: float,
+) -> None:
+    # After a retryable exception, `response` is still the previous attempt's.
+    if (
+        exc_info is None
+        and response is not None
+        and response.headers.get("Prefect-Maintenance") == "true"
+    ):
+        record_maintenance_backoff(retry_seconds)
 
 
 logger: Logger = get_logger("client")
@@ -327,6 +342,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                 f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
                 exc_info=exc_info,
             )
+            _record_if_maintenance_backoff(response, exc_info, retry_seconds)
             await anyio.sleep(retry_seconds)
 
         assert response is not None, (
@@ -597,6 +613,7 @@ class PrefectHttpxSyncClient(httpx.Client):
                 f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
                 exc_info=exc_info,
             )
+            _record_if_maintenance_backoff(response, exc_info, retry_seconds)
             time.sleep(retry_seconds)
 
         assert response is not None, (
