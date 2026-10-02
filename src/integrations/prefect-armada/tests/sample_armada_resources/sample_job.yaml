@@ -1,0 +1,18 @@
+---
+priority: 1
+namespace: default
+podSpec:
+  restartPolicy: Never
+  containers:
+    - name: prefect-job
+      image: docker.io/library/ubuntu:latest
+      args:
+        - sleep
+        - 10s
+      resources:
+        requests:
+          cpu: 120m
+          memory: 510Mi
+        limits:
+          cpu: 120m
+          memory: 510Mi

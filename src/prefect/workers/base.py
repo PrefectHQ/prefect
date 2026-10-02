@@ -620,6 +620,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     _documentation_url = ""
     _logo_url = ""
     _description = ""
+    _display_name = ""
 
     def __init__(
         self,
@@ -731,6 +732,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     @classmethod
     def get_description(cls) -> str:
         return cls._description
+
+    @classmethod
+    def get_display_name(cls) -> str:
+        return cls._display_name or cls.type
 
     @property
     def cleanup_handler_registry(self) -> WorkerCleanupHandlerRegistry:

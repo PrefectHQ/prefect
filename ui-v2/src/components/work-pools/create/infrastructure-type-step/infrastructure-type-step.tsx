@@ -17,8 +17,8 @@ import { titleCase } from "@/utils";
 type WorkPoolTypeSelectOption = {
 	label: string;
 	value: string;
-	logoUrl: string;
-	description: string;
+	logoUrl: string | null;
+	description: string | null;
 	documentationUrl?: string;
 	isBeta: boolean;
 };
@@ -53,12 +53,15 @@ export function InfrastructureTypeStep() {
 							is_beta?: boolean;
 						};
 
-						if (type && logoUrl && description) {
+						// Only the type is required: a worker installed from a collection
+						// the registry does not publish may have no logo or description,
+						// and dropping it here would hide a usable work pool type.
+						if (type) {
 							options.push({
 								label: displayName || titleCase(type),
 								value: type,
-								logoUrl,
-								description,
+								logoUrl: logoUrl || null,
+								description: description || null,
 								documentationUrl,
 								isBeta: isBeta || false,
 							});
@@ -113,9 +116,11 @@ export function InfrastructureTypeStep() {
 														</Badge>
 													)}
 												</p>
-												<p className="text-sm text-muted-foreground">
-													{description}
-												</p>
+												{description && (
+													<p className="text-sm text-muted-foreground">
+														{description}
+													</p>
+												)}
 											</div>
 										</div>
 									</label>

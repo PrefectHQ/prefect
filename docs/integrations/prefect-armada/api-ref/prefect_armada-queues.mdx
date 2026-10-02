@@ -1,0 +1,150 @@
+---
+title: queues
+sidebarTitle: queues
+---
+
+# `prefect_armada.queues`
+
+
+Module to define tasks for interacting with Armada queues.
+
+## Functions
+
+### `create_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/queues.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_queue(armada_credentials: ArmadaCredentials, name: str, priority_factor: float | None = None, user_owners: list[str] | None = None, group_owners: list[str] | None = None, resource_limits: dict[str, float] | None = None, permissions: list[Permissions] | None = None) -> Any
+```
+
+
+Task for creating an Armada queue.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `name`: The name of the queue to create.
+- `priority_factor`: The priority factor for the queue. Defaults to `1.0`.
+- `user_owners`: The users that own the queue.
+- `group_owners`: The groups that own the queue.
+- `resource_limits`: The fraction of cluster resources the queue may use,
+keyed by resource name.
+- `permissions`: The permissions to grant on the queue.
+
+**Returns:**
+- An empty response.
+
+
+### `update_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/queues.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_queue(armada_credentials: ArmadaCredentials, name: str, priority_factor: float | None = None, user_owners: list[str] | None = None, group_owners: list[str] | None = None, resource_limits: dict[str, float] | None = None, permissions: list[Permissions] | None = None) -> Any
+```
+
+
+Task for updating an Armada queue.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `name`: The name of the queue to update.
+- `priority_factor`: The priority factor for the queue. Defaults to `1.0`.
+- `user_owners`: The users that own the queue.
+- `group_owners`: The groups that own the queue.
+- `resource_limits`: The fraction of cluster resources the queue may use,
+keyed by resource name.
+- `permissions`: The permissions to grant on the queue.
+
+**Returns:**
+- An empty response.
+
+
+### `create_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/queues.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_queues(armada_credentials: ArmadaCredentials, queues: Sequence[dict[str, Any] | submit_pb2.Queue]) -> submit_pb2.BatchQueueCreateResponse
+```
+
+
+Task for creating several Armada queues at once.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `queues`: The queues to create, each given as a dictionary or an Armada
+`Queue` message.
+
+**Returns:**
+- An Armada `BatchQueueCreateResponse` object.
+
+
+### `update_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/queues.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_queues(armada_credentials: ArmadaCredentials, queues: Sequence[dict[str, Any] | submit_pb2.Queue]) -> submit_pb2.BatchQueueUpdateResponse
+```
+
+
+Task for updating several Armada queues at once.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `queues`: The queues to update, each given as a dictionary or an Armada
+`Queue` message.
+
+**Returns:**
+- An Armada `BatchQueueUpdateResponse` object.
+
+
+### `delete_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/queues.py#L220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_queue(armada_credentials: ArmadaCredentials, name: str) -> None
+```
+
+
+Task for deleting an empty Armada queue.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `name`: The name of the empty queue to delete.
+
+**Returns:**
+- `None`.
+
+
+### `get_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/queues.py#L254" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_queue(armada_credentials: ArmadaCredentials, name: str) -> submit_pb2.Queue
+```
+
+
+Task for reading an Armada queue.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `name`: The name of the queue to read.
+
+**Returns:**
+- An Armada `Queue` object.
+
+
+### `get_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/queues.py#L288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_queues(armada_credentials: ArmadaCredentials) -> list[submit_pb2.Queue]
+```
+
+
+Task for listing every Armada queue.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+
+**Returns:**
+- A list of Armada `Queue` objects.
+

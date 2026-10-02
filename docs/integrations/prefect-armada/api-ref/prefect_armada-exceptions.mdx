@@ -1,0 +1,79 @@
+---
+title: exceptions
+sidebarTitle: exceptions
+---
+
+# `prefect_armada.exceptions`
+
+
+Module to define common exceptions within `prefect_armada`.
+
+## Functions
+
+### `rpc_status_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+rpc_status_code(exc: BaseException) -> grpc.StatusCode | None
+```
+
+
+Returns the gRPC status code for an exception, if it has one.
+
+Both `grpc.RpcError` (sync) and `grpc.aio.AioRpcError` (async) expose a
+`code()` method, but neither is guaranteed to be present on an arbitrary
+exception, so this helper degrades to `None`.
+
+**Args:**
+- `exc`: The exception to inspect.
+
+**Returns:**
+- The gRPC status code, or `None` if the exception does not have one.
+
+
+### `rpc_details` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+rpc_details(exc: BaseException) -> str
+```
+
+
+Returns the gRPC details string for an exception, or an empty string.
+
+**Args:**
+- `exc`: The exception to inspect.
+
+**Returns:**
+- The `details()` of the exception, or an empty string when unavailable.
+
+
+## Classes
+
+### `ArmadaError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L8" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Base exception for all errors raised by `prefect_armada`.
+
+
+### `ArmadaJobDefinitionError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L12" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+An exception for when an Armada job definition is invalid.
+
+
+### `ArmadaJobFailedError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+An exception for when an Armada job fails.
+
+
+### `ArmadaResourceNotFoundError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+An exception for when an Armada resource cannot be found by a client.
+
+
+### `ArmadaJobTimeoutError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+An exception for when an Armada job times out.
+
