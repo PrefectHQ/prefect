@@ -126,6 +126,7 @@ async def start(
     from prefect.settings import (
         PREFECT_WORKER_HEARTBEAT_SECONDS,
         PREFECT_WORKER_PREFETCH_SECONDS,
+        PREFECT_WORKER_QUERY_SECONDS,
     )
     from prefect.utilities.processutils import setup_signal_handlers_worker
 
@@ -145,7 +146,6 @@ async def start(
     healthcheck = None
     healthcheck_server = contextlib.nullcontext()
     if with_healthcheck:
-        from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
         from prefect.workers.server import (
             _run_healthcheck_server,  # pyright: ignore[reportPrivateUsage]
             _WorkerStartupHealthcheck,  # pyright: ignore[reportPrivateUsage]
