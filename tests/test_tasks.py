@@ -2219,6 +2219,29 @@ class TestTaskCaching:
 
         assert foo(1) == 1
 
+    def test_cache_policy_configuration_survives_input_exclusion(self, tmp_path):
+        lock_manager = MemoryLockManager()
+        cache_policy = (
+            INPUTS.configure(
+                key_storage=tmp_path,
+                lock_manager=lock_manager,
+                isolation_level=IsolationLevel.SERIALIZABLE,
+            )
+            - "y"
+        )
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1, "y": 2}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x, y):
+            assert lock_manager.is_locked(expected_cache_key)
+            return x
+
+        assert foo(1, 2) == 1
+        assert (tmp_path / expected_cache_key).exists()
+        assert not lock_manager.is_locked(expected_cache_key)
+
     async def test_cache_policy_lock_manager_async(self, tmp_path):
         """Regression test for https://github.com/PrefectHQ/prefect/issues/17785"""
         cache_policy = (INPUTS + TASK_SOURCE).configure(
