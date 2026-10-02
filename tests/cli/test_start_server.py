@@ -11,11 +11,11 @@ from typing import Callable
 from unittest.mock import MagicMock
 
 import anyio
-import httpx
 import pytest
 import readchar
 from anyio.abc import Process
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.cli._server_utils import SERVER_PID_FILE_NAME, _format_host_for_url
 from prefect.context import get_settings_context
 from prefect.settings import (

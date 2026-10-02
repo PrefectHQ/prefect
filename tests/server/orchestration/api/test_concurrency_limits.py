@@ -2,9 +2,9 @@ from typing import List
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
 from starlette import status
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import schemas
 from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
 from prefect.server.schemas.actions import ConcurrencyLimitCreate
@@ -112,7 +112,7 @@ class TestAcquiringAndReleasing:
     @pytest.fixture
     async def tags_with_limits(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ) -> List[str]:
         tags = ["tag1", "tag2"]
 
@@ -129,7 +129,7 @@ class TestAcquiringAndReleasing:
 
     async def test_acquiring_and_releasing_limits(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         tags_with_limits: List[str],
     ):
         task_run_id = uuid4()
@@ -165,7 +165,7 @@ class TestAcquiringAndReleasing:
 
     async def test_failing_to_acquire_one_slot(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         tags_with_limits: List[str],
     ):
         task_run_id = uuid4()
@@ -220,7 +220,7 @@ class TestAcquiringAndReleasing:
     @pytest.fixture
     async def tag_with_zero_concurrency(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ) -> str:
         await client.post(
             "/concurrency_limits/",
@@ -234,7 +234,7 @@ class TestAcquiringAndReleasing:
 
     async def test_setting_tag_to_zero_concurrency(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         tags_with_limits: List[str],
         tag_with_zero_concurrency: str,
     ):
@@ -276,7 +276,7 @@ class TestAcquiringAndReleasing:
 
     async def test_acquiring_returns_limits(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         tags_with_limits: List[str],
     ):
         task_run_id = uuid4()
@@ -296,7 +296,7 @@ class TestAcquiringAndReleasing:
 
     async def test_releasing_returns_limits(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         tags_with_limits: List[str],
     ):
         task_run_id = uuid4()
@@ -322,7 +322,7 @@ class TestAcquiringAndReleasing:
 
     async def test_acquiring_returns_empty_list_if_no_limits(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         tags_with_limits: List[str],
     ):
         task_run_id = uuid4()
@@ -337,7 +337,7 @@ class TestAcquiringAndReleasing:
 
     async def test_releasing_returns_empty_list_if_no_limits(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         tags_with_limits: List[str],
     ):
         task_run_id = uuid4()

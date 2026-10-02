@@ -4,8 +4,8 @@ from concurrent.futures import Future
 from unittest import mock
 
 import pytest
-from httpx import Response
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.concurrency._asyncio import (
     aacquire_concurrency_slots,
@@ -25,7 +25,7 @@ async def test_calls_increment_client_method():
     with mock.patch(
         "prefect.client.orchestration.PrefectClient.increment_concurrency_slots"
     ) as increment_concurrency_slots:
-        response = Response(
+        response = httpx.Response(
             200, json=[limit.model_dump(mode="json") for limit in limits]
         )
         increment_concurrency_slots.return_value = response
@@ -49,7 +49,7 @@ async def test_returns_minimal_concurrency_limit():
     with mock.patch(
         "prefect.client.orchestration.PrefectClient.increment_concurrency_slots"
     ) as increment_concurrency_slots:
-        response = Response(
+        response = httpx.Response(
             200, json=[limit.model_dump(mode="json") for limit in limits]
         )
         increment_concurrency_slots.return_value = response
@@ -65,7 +65,7 @@ async def test_releases_lease_granted_after_caller_is_cancelled():
     service: `asyncio.wrap_future` can no longer cancel it, so the granted lease
     reaches a caller that is already gone.
     """
-    response = Response(
+    response = httpx.Response(
         200,
         json={
             "lease_id": str(uuid.uuid4()),
@@ -77,10 +77,10 @@ async def test_releases_lease_granted_after_caller_is_cancelled():
         },
     )
 
-    future: Future[Response] = Future()
+    future: Future[httpx.Response] = Future()
     sent = asyncio.Event()
 
-    def send(item: tuple[object, ...]) -> Future[Response]:
+    def send(item: tuple[object, ...]) -> Future[httpx.Response]:
         sent.set()
         return future
 
@@ -109,10 +109,10 @@ async def test_releases_lease_granted_after_caller_is_cancelled():
 @pytest.mark.parametrize("outcome", ["cancelled", "failed"])
 async def test_does_not_release_when_no_lease_was_granted(outcome: str):
     """Only a granted lease needs releasing; a dead acquisition has nothing to clean up."""
-    future: Future[Response] = Future()
+    future: Future[httpx.Response] = Future()
     sent = asyncio.Event()
 
-    def send(item: tuple[object, ...]) -> Future[Response]:
+    def send(item: tuple[object, ...]) -> Future[httpx.Response]:
         sent.set()
         return future
 

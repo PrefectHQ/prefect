@@ -4,9 +4,8 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Union
 from uuid import UUID
 
-from httpx import HTTPStatusError, RequestError
-
 from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.compatibility.httpx import HTTPStatusError, RequestError
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectAlreadyExists, ObjectLimitReached, ObjectNotFound
 

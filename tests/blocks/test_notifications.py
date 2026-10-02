@@ -7,6 +7,7 @@ import cloudpickle
 import pytest
 import respx
 
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.blocks.abstract import NotificationError
 from prefect.blocks.notifications import (
     PREFECT_NOTIFY_TYPE_DEFAULT,
@@ -827,7 +828,7 @@ class TestTwilioSMS:
 
 class TestCustomWebhook:
     async def test_notify_async(self):
-        with respx.mock(using="httpx") as xmock:
+        with respx.mock(using=httpcore.__name__) as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -849,7 +850,7 @@ class TestCustomWebhook:
             }
 
     def test_notify_sync(self):
-        with respx.mock(using="httpx") as xmock:
+        with respx.mock(using=httpcore.__name__) as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -872,7 +873,7 @@ class TestCustomWebhook:
             }
 
     async def test_user_agent_override(self):
-        with respx.mock(using="httpx") as xmock:
+        with respx.mock(using=httpcore.__name__) as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -895,7 +896,7 @@ class TestCustomWebhook:
             }
 
     async def test_timeout_override(self):
-        with respx.mock(using="httpx") as xmock:
+        with respx.mock(using=httpcore.__name__) as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -917,7 +918,7 @@ class TestCustomWebhook:
             }
 
     async def test_request_cookie(self):
-        with respx.mock(using="httpx") as xmock:
+        with respx.mock(using=httpcore.__name__) as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -941,7 +942,7 @@ class TestCustomWebhook:
             }
 
     async def test_subst_nested_list(self):
-        with respx.mock(using="httpx")(using="httpx") as xmock:
+        with respx.mock(using=httpcore.__name__) as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -996,7 +997,7 @@ class TestCustomWebhook:
             )
 
     async def test_subst_none(self):
-        with respx.mock(using="httpx") as xmock:
+        with respx.mock(using=httpcore.__name__) as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -1053,7 +1054,7 @@ class TestCustomWebhook:
         This enables forwarding pre-constructed JSON from automation bodies.
         See: https://github.com/PrefectHQ/prefect/issues/19949
         """
-        with respx.mock(using="httpx") as xmock:
+        with respx.mock(using=httpcore.__name__) as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -1087,7 +1088,7 @@ class TestCustomWebhookRestrictedUrls:
             await block.notify(subject="test", body="test")
 
     async def test_allows_private_urls_by_default(self):
-        with respx.mock(using="httpx") as xmock:
+        with respx.mock(using=httpcore.__name__) as xmock:
             xmock.post("https://127.0.0.1/webhook")
             block = CustomWebhookNotificationBlock(
                 name="test",

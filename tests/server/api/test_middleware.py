@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta, timezone
 
-import httpx
 import pytest
 import sqlalchemy as sa
 from fastapi import FastAPI, status
-from httpx import ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models, schemas
 from prefect.server.api.middleware import CsrfMiddleware
 from prefect.server.database import PrefectDBInterface
@@ -36,7 +35,7 @@ async def client():
     Yield a test client for testing the api
     """
     global app
-    transport = ASGITransport(app=app)
+    transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(
         transport=transport, base_url="https://test"
     ) as async_client:

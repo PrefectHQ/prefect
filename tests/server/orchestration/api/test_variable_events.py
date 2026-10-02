@@ -1,8 +1,8 @@
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import VariableCreate
 
@@ -15,7 +15,7 @@ def reset_events():
 
 
 class TestVariableLifecycleEvents:
-    async def test_create_variable_emits_created_event(self, client: AsyncClient):
+    async def test_create_variable_emits_created_event(self, client: httpx.AsyncClient):
         data = VariableCreate(
             name="events_create", value="hello", tags=["a", "b"]
         ).model_dump(mode="json")
@@ -32,7 +32,7 @@ class TestVariableLifecycleEvents:
             payload={"name": "events_create", "value": "hello", "tags": ["a", "b"]},
         )
 
-    async def test_update_variable_emits_updated_event(self, client: AsyncClient):
+    async def test_update_variable_emits_updated_event(self, client: httpx.AsyncClient):
         created = await client.post(
             "/variables/",
             json=VariableCreate(name="events_update", value="before").model_dump(
@@ -58,7 +58,7 @@ class TestVariableLifecycleEvents:
         )
 
     async def test_update_variable_by_name_emits_updated_event_with_post_state(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         created = await client.post(
             "/variables/",
@@ -84,7 +84,7 @@ class TestVariableLifecycleEvents:
             payload={"name": "events_renamed", "value": "v", "tags": []},
         )
 
-    async def test_delete_variable_emits_deleted_event(self, client: AsyncClient):
+    async def test_delete_variable_emits_deleted_event(self, client: httpx.AsyncClient):
         created = await client.post(
             "/variables/",
             json=VariableCreate(
@@ -107,7 +107,7 @@ class TestVariableLifecycleEvents:
         )
 
     async def test_delete_variable_by_name_emits_deleted_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         created = await client.post(
             "/variables/",
@@ -130,7 +130,7 @@ class TestVariableLifecycleEvents:
         )
 
     async def test_update_nonexistent_variable_does_not_emit_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         response = await client.patch(
             f"/variables/{uuid4()}",
@@ -143,7 +143,7 @@ class TestVariableLifecycleEvents:
         )
 
     async def test_delete_nonexistent_variable_does_not_emit_event(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         response = await client.delete(f"/variables/{uuid4()}")
         assert response.status_code == 404

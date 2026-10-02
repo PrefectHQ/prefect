@@ -13,10 +13,10 @@ import threading
 from urllib.parse import urlparse, urlunparse
 
 import certifi
-import httpx
 from packaging import version
 
 import prefect
+from prefect._internal.compatibility.httpx import AsyncClient, warn_on_legacy_httpx
 from prefect.settings import (
     PREFECT_API_AUTH_STRING,
     PREFECT_API_KEY,
@@ -147,8 +147,9 @@ async def check_server_version(
     if headers:
         httpx_kwargs["headers"] = headers
 
+    warn_on_legacy_httpx()
     try:
-        async with httpx.AsyncClient(**httpx_kwargs) as http_client:  # type: ignore[arg-type]
+        async with AsyncClient(**httpx_kwargs) as http_client:  # type: ignore[arg-type]
             response = await http_client.get(f"{api_url}/admin/version")
             response.raise_for_status()
             api_version_str: str = response.json()

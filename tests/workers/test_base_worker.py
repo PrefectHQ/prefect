@@ -14,7 +14,6 @@ from unittest.mock import ANY, AsyncMock, MagicMock, Mock
 
 import anyio.abc
 import cloudpickle
-import httpx
 import orjson
 import pytest
 import respx
@@ -28,6 +27,7 @@ from websockets.frames import Close
 import prefect
 import prefect.client.schemas as schemas
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
 from prefect._internal.testing import retry_asserts
 from prefect._internal.uuid7 import uuid7
@@ -500,7 +500,7 @@ async def test_worker_sends_heartbeat_gets_id(
 
     respx_mock.post(
         f"api/work_pools/{work_pool_name}/workers/heartbeat",
-    ).mock(return_value=httpx.Response(status.HTTP_200_OK, text=str(test_worker_id)))
+    ).respond(status.HTTP_200_OK, text=str(test_worker_id))
     async with WorkerTestImpl(name="test", work_pool_name=work_pool_name) as worker:
         worker._client.server_type = ServerType.CLOUD
 

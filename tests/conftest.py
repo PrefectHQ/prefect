@@ -52,6 +52,8 @@ import pytest
 from pytest_asyncio import is_async_test
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 
+from prefect._internal.compatibility.httpx import httpcore
+
 # Improve diff display for assertions in utilities
 # Note: This must occur before import of the module
 pytest.register_assert_rewrite("prefect.testing.utilities")
@@ -645,9 +647,6 @@ def leaves_no_extraneous_files():
 
 @pytest.fixture
 def respx_mock():
-    """
-    Temporary override of respx to mock httpx instead of httpcore until respx supports
-    httpx>=0.28.0
-    """
-    with respx.mock(using="httpx") as xmock:
+    """Mock the HTTP backend selected for this test process."""
+    with respx.mock(using=httpcore.__name__) as xmock:
         yield xmock

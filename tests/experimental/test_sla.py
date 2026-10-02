@@ -7,7 +7,6 @@ from time import sleep
 from unittest import mock
 from uuid import UUID, uuid4
 
-import httpx
 import pytest
 import readchar
 import respx
@@ -19,6 +18,7 @@ from prefect._experimental.sla.objects import (
     ServiceLevelAgreement,
     TimeToCompletionSla,
 )
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.cli.deploy._sla import (
     _create_slas,
     _initialize_deployment_slas,
@@ -126,22 +126,20 @@ class TestClientApplySla:
                 assert_all_mocked=True,
                 assert_all_called=False,
                 base_url=prefect_api_url,
-                using="httpx",
+                using=httpcore.__name__,
             ) as router:
                 sla_name = "test-sla"
 
                 router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
                 router.post(
                     f"/slas/apply-resource-slas/prefect.deployment.{deployment_id}",
-                ).mock(
-                    return_value=httpx.Response(
-                        status_code=201,
-                        json={
-                            "created": [{"name": sla_name}],
-                            "updated": [],
-                            "deleted": [],
-                        },
-                    )
+                ).respond(
+                    status_code=201,
+                    json={
+                        "created": [{"name": sla_name}],
+                        "updated": [],
+                        "deleted": [],
+                    },
                 )
                 prefect_client = get_client()
 

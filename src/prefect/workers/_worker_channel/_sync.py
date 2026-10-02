@@ -8,8 +8,8 @@ from uuid import UUID
 
 import anyio
 import anyio.abc
-import httpx
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.uuid7 import uuid7
 from prefect._internal.websockets import websocket_connect
 from prefect.client.base import ServerType

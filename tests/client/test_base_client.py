@@ -5,13 +5,12 @@ from typing import Any, AsyncGenerator, Dict, List, Tuple
 from unittest import mock
 from unittest.mock import AsyncMock
 
-import httpx
 import pytest
-from httpx import AsyncClient, Request, Response
 
 import prefect
 import prefect.client
 import prefect.client.constants
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.compatibility.starlette import status
 from prefect.client.base import (
     PrefectHttpxAsyncClient,
@@ -36,52 +35,52 @@ pytestmark = pytest.mark.clear_db
 
 now = datetime.now(timezone.utc)
 
-RESPONSE_429_RETRY_AFTER_0 = Response(
+RESPONSE_429_RETRY_AFTER_0 = httpx.Response(
     status.HTTP_429_TOO_MANY_REQUESTS,
     headers={"Retry-After": "0"},
-    request=Request("a test request", "fake.url/fake/route"),
+    request=httpx.Request("a test request", "fake.url/fake/route"),
 )
 
-RESPONSE_429_RETRY_AFTER_MISSING = Response(
+RESPONSE_429_RETRY_AFTER_MISSING = httpx.Response(
     status.HTTP_429_TOO_MANY_REQUESTS,
-    request=Request("a test request", "fake.url/fake/route"),
+    request=httpx.Request("a test request", "fake.url/fake/route"),
 )
 
 
-RESPONSE_200 = Response(
+RESPONSE_200 = httpx.Response(
     status.HTTP_200_OK,
-    request=Request("a test request", "fake.url/fake/route"),
+    request=httpx.Request("a test request", "fake.url/fake/route"),
 )
 
-RESPONSE_CSRF = Response(
+RESPONSE_CSRF = httpx.Response(
     status.HTTP_200_OK,
     json=CsrfToken(
         client="test_client", token="test_token", expiration=now + timedelta(days=1)
     ).model_dump(mode="json", exclude_unset=True),
-    request=Request("a test request", "fake.url/fake/route"),
+    request=httpx.Request("a test request", "fake.url/fake/route"),
 )
 
-RESPONSE_400 = Response(
+RESPONSE_400 = httpx.Response(
     status.HTTP_400_BAD_REQUEST,
     json={"detail": "You done bad things"},
-    request=Request("a test request", "fake.url/fake/route"),
+    request=httpx.Request("a test request", "fake.url/fake/route"),
 )
 
-RESPONSE_404 = Response(
+RESPONSE_404 = httpx.Response(
     status.HTTP_404_NOT_FOUND,
-    request=Request("a test request", "fake.url/fake/route"),
+    request=httpx.Request("a test request", "fake.url/fake/route"),
 )
 
-RESPONSE_CSRF_DISABLED = Response(
+RESPONSE_CSRF_DISABLED = httpx.Response(
     status.HTTP_422_UNPROCESSABLE_ENTITY,
     json={"detail": "CSRF protection is disabled."},
-    request=Request("a test request", "fake.url/fake/route"),
+    request=httpx.Request("a test request", "fake.url/fake/route"),
 )
 
-RESPONSE_INVALID_TOKEN = Response(
+RESPONSE_INVALID_TOKEN = httpx.Response(
     status_code=status.HTTP_403_FORBIDDEN,
     json={"detail": "Invalid CSRF token or client identifier."},
-    request=Request("a test request", "fake.url/fake/route"),
+    request=httpx.Request("a test request", "fake.url/fake/route"),
 )
 
 
@@ -107,11 +106,11 @@ class TestPrefectHttpxAsyncClient:
     ):
         caplog.set_level(logging.DEBUG, logger="prefect.client")
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
         client = PrefectHttpxAsyncClient()
-        retry_response = Response(
+        retry_response = httpx.Response(
             error_code,
-            request=Request("a test request", "fake.url/fake/route"),
+            request=httpx.Request("a test request", "fake.url/fake/route"),
         )
         base_client_send.side_effect = [
             retry_response,
@@ -148,11 +147,11 @@ class TestPrefectHttpxAsyncClient:
     ):
         caplog.set_level(logging.DEBUG, logger="prefect.client")
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
         client = PrefectHttpxAsyncClient()
-        retry_response = Response(
+        retry_response = httpx.Response(
             error_code,
-            request=Request("a test request", "fake.url/fake/route"),
+            request=httpx.Request("a test request", "fake.url/fake/route"),
         )
         base_client_send.side_effect = [
             retry_response,
@@ -182,11 +181,11 @@ class TestPrefectHttpxAsyncClient:
         self, monkeypatch, caplog
     ):
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
         client = PrefectHttpxAsyncClient()
-        retry_response = Response(
+        retry_response = httpx.Response(
             status.HTTP_508_LOOP_DETECTED,
-            request=Request("a test request", "fake.url/fake/route"),
+            request=httpx.Request("a test request", "fake.url/fake/route"),
         )
         base_client_send.side_effect = [
             retry_response,
@@ -222,7 +221,7 @@ class TestPrefectHttpxAsyncClient:
     ):
         caplog.set_level(logging.DEBUG, logger="prefect.client")
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
         client = PrefectHttpxAsyncClient()
 
         base_client_send.side_effect = [
@@ -262,7 +261,7 @@ class TestPrefectHttpxAsyncClient:
     ):
         client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         # Return more than 6 retryable responses
         base_client_send.side_effect = [response_or_exc] * 10
@@ -289,7 +288,7 @@ class TestPrefectHttpxAsyncClient:
     ):
         client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         # Return more than 10 retryable responses
         base_client_send.side_effect = [response_or_exc] * 20
@@ -321,7 +320,7 @@ class TestPrefectHttpxAsyncClient:
     ):
         client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         # First throw a bunch of retryable errors, then the final one
         base_client_send.side_effect = [httpx.ReadError("test")] * 5 + [final_response]
@@ -345,13 +344,13 @@ class TestPrefectHttpxAsyncClient:
         self, monkeypatch, mock_anyio_sleep, error_code
     ):
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxAsyncClient()
-        retry_response = Response(
+        retry_response = httpx.Response(
             error_code,
             headers={"Retry-After": "5"},
-            request=Request("a test request", "fake.url/fake/route"),
+            request=httpx.Request("a test request", "fake.url/fake/route"),
         )
 
         base_client_send.side_effect = [
@@ -375,7 +374,7 @@ class TestPrefectHttpxAsyncClient:
         self, mock_anyio_sleep, response_or_exc, monkeypatch
     ):
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxAsyncClient()
 
@@ -399,16 +398,16 @@ class TestPrefectHttpxAsyncClient:
         self, mock_anyio_sleep, monkeypatch
     ):
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxAsyncClient()
 
         base_client_send.side_effect = [
             # Generate responses with retry after headers
-            Response(
+            httpx.Response(
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 headers={"Retry-After": str(retry_after)},
-                request=Request("a test request", "fake.url/fake/route"),
+                request=httpx.Request("a test request", "fake.url/fake/route"),
             )
             for retry_after in [5, 0, 10, 2.0]
         ] + [RESPONSE_200]  # Then succeed
@@ -427,13 +426,13 @@ class TestPrefectHttpxAsyncClient:
         self, monkeypatch, mock_anyio_sleep
     ):
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxAsyncClient()
-        retry_response = Response(
+        retry_response = httpx.Response(
             status.HTTP_429_TOO_MANY_REQUESTS,
             headers={"Retry-After": "5"},
-            request=Request("a test request", "fake.url/fake/route"),
+            request=httpx.Request("a test request", "fake.url/fake/route"),
         )
 
         base_client_send.side_effect = [
@@ -463,7 +462,7 @@ class TestPrefectHttpxAsyncClient:
         self, mock_anyio_sleep, response_or_exc, monkeypatch
     ):
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxAsyncClient()
 
@@ -491,7 +490,7 @@ class TestPrefectHttpxAsyncClient:
         self, mock_anyio_sleep, monkeypatch
     ):
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxAsyncClient()
 
@@ -510,7 +509,7 @@ class TestPrefectHttpxAsyncClient:
     ):
         """ConnectError should NOT be retried on the first request (before any successful connection)."""
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxAsyncClient()
 
@@ -534,7 +533,7 @@ class TestPrefectHttpxAsyncClient:
         """ConnectError SHOULD be retried after a successful connection has been made."""
         caplog.set_level(logging.DEBUG, logger="prefect.client")
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxAsyncClient()
 
@@ -568,7 +567,7 @@ class TestPrefectHttpxAsyncClient:
         """Test that the PrefectHttpxAsyncClient returns a PrefectResponse"""
         client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         base_client_send.return_value = RESPONSE_200
 
@@ -581,15 +580,15 @@ class TestPrefectHttpxAsyncClient:
     async def test_prefect_httpx_client_raises_prefect_http_status_error(
         self, monkeypatch
     ):
-        RESPONSE_400 = Response(
+        RESPONSE_400 = httpx.Response(
             status.HTTP_400_BAD_REQUEST,
             json={"extra_info": [{"message": "a test error message"}]},
-            request=Request("a test request", "fake.url/fake/route"),
+            request=httpx.Request("a test request", "fake.url/fake/route"),
         )
 
         client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         base_client_send.return_value = RESPONSE_400
         with pytest.raises(PrefectHTTPStatusError) as exc:
@@ -611,15 +610,15 @@ class TestPrefectHttpxAsyncClient:
 
         Regression test for https://github.com/PrefectHQ/prefect/issues/20936
         """
-        RESPONSE_400 = Response(
+        RESPONSE_400 = httpx.Response(
             status.HTTP_400_BAD_REQUEST,
             json={"extra_info": [{"message": "a test error message"}]},
-            request=Request("a test request", "fake.url/fake/route"),
+            request=httpx.Request("a test request", "fake.url/fake/route"),
         )
 
         client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         base_client_send.return_value = RESPONSE_400
         with pytest.raises(PrefectHTTPStatusError) as exc:
@@ -639,13 +638,13 @@ class TestPrefectHttpxAsyncClient:
         self, monkeypatch, mock_anyio_sleep
     ):
         base_client_send = AsyncMock()
-        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        monkeypatch.setattr(httpx.AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxAsyncClient()
-        retry_response = Response(
+        retry_response = httpx.Response(
             status.HTTP_503_SERVICE_UNAVAILABLE,
             headers={"Prefect-Maintenance": "true"},
-            request=Request("a test request", "fake.url/fake/route"),
+            request=httpx.Request("a test request", "fake.url/fake/route"),
         )
 
         # Return more than max retries worth of maintenance responses
@@ -665,10 +664,12 @@ class TestPrefectHttpxAsyncClient:
 
 @asynccontextmanager
 async def mocked_client(
-    responses: List[Response],
+    responses: List[httpx.Response],
     **client_kwargs: Dict[str, Any],
 ) -> AsyncGenerator[Tuple[PrefectHttpxAsyncClient, mock.AsyncMock], None]:
-    with mock.patch("httpx.AsyncClient.send", autospec=True) as send:
+    with mock.patch(
+        "prefect._internal.compatibility.httpx.httpx.AsyncClient.send", autospec=True
+    ) as send:
         send.side_effect = responses
         client = PrefectHttpxAsyncClient(**client_kwargs)
         async with client:
@@ -680,7 +681,7 @@ async def mocked_client(
 
 @asynccontextmanager
 async def mocked_csrf_client(
-    responses: List[Response],
+    responses: List[httpx.Response],
 ) -> AsyncGenerator[Tuple[PrefectHttpxAsyncClient, mock.AsyncMock], None]:
     async with mocked_client(responses, enable_csrf_support=True) as (client, send):
         yield client, send
@@ -879,7 +880,7 @@ class TestCustomHeaders:
         async with PrefectHttpxAsyncClient(base_url="http://localhost:4200") as client:
             # Should only have standard headers, no custom ones
             headers = dict(client.headers)
-            # httpx normalizes header names to lowercase
+            # HTTPX normalizes header names to lowercase
             assert "user-agent" in headers
             # Verify no unexpected custom headers
             custom_header_prefixes = ["x-", "authorization", "api-key"]
@@ -947,7 +948,7 @@ class TestCustomHeaders:
             async with PrefectHttpxAsyncClient(
                 base_url="http://localhost:4200"
             ) as client:
-                # User-Agent should still be the Prefect one (httpx normalizes to lowercase)
+                # User-Agent should still be the Prefect one (HTTPX normalizes to lowercase)
                 assert "prefect/" in client.headers["user-agent"]
                 assert "malicious-agent" not in client.headers["user-agent"]
 
@@ -1026,7 +1027,7 @@ class TestCustomHeaders:
                 base_url="http://localhost:4200"
             ) as client:
                 if protected_header.lower() == "user-agent":
-                    # User-Agent should still be the Prefect one (httpx normalizes to lowercase)
+                    # User-Agent should still be the Prefect one (HTTPX normalizes to lowercase)
                     assert "prefect/" in client.headers["user-agent"]
                     assert "should-be-blocked" not in client.headers["user-agent"]
                 else:

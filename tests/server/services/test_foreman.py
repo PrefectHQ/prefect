@@ -4,9 +4,9 @@ from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events.clients import AssertingEventsClient
@@ -499,7 +499,7 @@ class TestForeman:
     async def test_status_update_when_deployment_has_old_last_polled_time(
         self,
         session: AsyncSession,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         deployment = await create_deployment_with_old_last_polled_time(session=session)
         assert deployment
@@ -554,7 +554,7 @@ class TestForeman:
     async def test_status_update_when_deployment_has_new_last_polled_time(
         self,
         session: AsyncSession,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         deployment = await create_deployment_with_new_last_polled_time(session=session)
         assert deployment
@@ -731,7 +731,7 @@ class TestForemanWorkQueueService:
     async def test_foreman_updates_status_for_late_last_polled_time(
         self,
         session: AsyncSession,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         settings = get_current_settings().server.services.foreman
 
@@ -758,7 +758,7 @@ class TestForemanWorkQueueService:
     async def test_foreman_updates_status_for_many_late_last_polled_times(
         self,
         session: AsyncSession,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         work_queues = await self.create_unpolled_work_queues(session, count=3)
         assert all(
@@ -778,7 +778,7 @@ class TestForemanWorkQueueService:
     async def test_foreman_updates_do_not_mark_ready(
         self,
         session: AsyncSession,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ) -> None:
         wq = (await self.create_unpolled_work_queues(session, count=1))[0]
         assert wq.status == schemas.statuses.WorkQueueStatus.READY
@@ -809,7 +809,7 @@ class TestForemanWorkQueueService:
     async def test_foreman_does_not_update_recently_polled(
         self,
         session: AsyncSession,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         work_queues = await self.create_polled_work_queues(session, count=3)
         assert all(
@@ -830,7 +830,7 @@ class TestForemanWorkQueueService:
     async def test_status_update_work_queue(
         self,
         session: AsyncSession,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         ready_work_pool,
     ):
         """

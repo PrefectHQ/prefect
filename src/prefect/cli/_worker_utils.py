@@ -5,8 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Callable, NoReturn, Optional, Type
 
-import httpx
-
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import get_client

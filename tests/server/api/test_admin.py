@@ -1,11 +1,11 @@
 from uuid import uuid4
 
-import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 import prefect
+from prefect._internal.compatibility.httpx import httpx
 from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
 from prefect.filesystems import LocalFileSystem

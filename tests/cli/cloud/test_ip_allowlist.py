@@ -3,7 +3,6 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-import httpx
 import pytest
 from tests.cli.cloud.test_cloud import gen_test_workspace
 
@@ -74,12 +73,10 @@ def account_with_ip_allowlisting_enabled(respx_mock, workspace_with_logged_in_pr
     workspace, profile = workspace_with_logged_in_profile
     respx_mock.get(
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings"
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            # presence of the setting key means account has access to it. enable/disable toggles the value
-            json={"enforce_ip_allowlist": True},
-        )
+    ).respond(
+        status.HTTP_200_OK,
+        # presence of the setting key means account has access to it. enable/disable toggles the value
+        json={"enforce_ip_allowlist": True},
     )
 
     return workspace, profile
@@ -91,12 +88,10 @@ def test_ip_allowlist_requires_access_to_ip_allowlisting(
     workspace, profile = workspace_with_logged_in_profile
     respx_mock.get(
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings"
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            # absence of the setting key means account does not have access to it
-            json={},
-        )
+    ).respond(
+        status.HTTP_200_OK,
+        # absence of the setting key means account does not have access to it
+        json={},
     )
 
     with use_profile(profile):
@@ -111,28 +106,22 @@ def test_ip_allowlist_enable(respx_mock, workspace_with_logged_in_profile):
     workspace, profile = workspace_with_logged_in_profile
     respx_mock.get(
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings"
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json={"enforce_ip_allowlist": False},
-        )
+    ).respond(
+        status.HTTP_200_OK,
+        json={"enforce_ip_allowlist": False},
     )
     respx_mock.get(
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist/my_access"
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json={"allowed": True, "detail": "You're in."},
-        )
+    ).respond(
+        status.HTTP_200_OK,
+        json={"allowed": True, "detail": "You're in."},
     )
 
     respx_mock.patch(
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings",
         json={"enforce_ip_allowlist": True},
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_204_NO_CONTENT,
-        )
+    ).respond(
+        status.HTTP_204_NO_CONTENT,
     )
 
     with use_profile(profile):
@@ -150,11 +139,9 @@ def test_ip_allowlist_enable_already_enabled(
     workspace, profile = workspace_with_logged_in_profile
     respx_mock.get(
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings"
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json={"enforce_ip_allowlist": True},
-        )
+    ).respond(
+        status.HTTP_200_OK,
+        json={"enforce_ip_allowlist": True},
     )
 
     # should not make the PATCH request to enable it
@@ -173,19 +160,15 @@ def test_ip_allowlist_enable_aborts_if_would_block_current_user(
     workspace, profile = workspace_with_logged_in_profile
     respx_mock.get(
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings"
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json={"enforce_ip_allowlist": False},
-        )
+    ).respond(
+        status.HTTP_200_OK,
+        json={"enforce_ip_allowlist": False},
     )
     respx_mock.get(
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist/my_access"
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json={"allowed": False, "detail": "You're not in."},
-        )
+    ).respond(
+        status.HTTP_200_OK,
+        json={"allowed": False, "detail": "You're not in."},
     )
 
     with use_profile(profile):
@@ -202,10 +185,8 @@ def test_ip_allowlist_disable(respx_mock, workspace_with_logged_in_profile):
     respx_mock.patch(
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings",
         json={"enforce_ip_allowlist": False},
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_204_NO_CONTENT,
-        )
+    ).respond(
+        status.HTTP_204_NO_CONTENT,
     )
 
     with use_profile(profile):
@@ -222,11 +203,9 @@ def test_ip_allowlist_ls(respx_mock, workspace_with_logged_in_profile):
     url = (
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
     )
-    respx_mock.get(url).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
-        )
+    respx_mock.get(url).respond(
+        status.HTTP_200_OK,
+        json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
     )
 
     every_expected_entry_ip = [
@@ -247,11 +226,9 @@ def test_ip_allowlist_ls_empty_list(respx_mock, workspace_with_logged_in_profile
     url = (
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
     )
-    respx_mock.get(url).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json={"entries": []},
-        )
+    respx_mock.get(url).respond(
+        status.HTTP_200_OK,
+        json={"entries": []},
     )
 
     with use_profile(profile):
@@ -271,11 +248,9 @@ def test_ip_allowlist_add(
     url = (
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
     )
-    respx_mock.get(url).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
-        )
+    respx_mock.get(url).respond(
+        status.HTTP_200_OK,
+        json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
     )
     expected_update_request = IPAllowlist(
         entries=SAMPLE_ALLOWLIST.entries
@@ -289,7 +264,7 @@ def test_ip_allowlist_add(
     )
     mocked_put_request = respx_mock.put(
         url, json=expected_update_request.model_dump(mode="json")
-    ).mock(return_value=httpx.Response(status.HTTP_204_NO_CONTENT))
+    ).respond(status.HTTP_204_NO_CONTENT)
 
     with use_profile(profile):
         invoke_and_assert(
@@ -333,15 +308,13 @@ def test_ip_allowlist_add_existing_ip_entry(
     url = (
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
     )
-    respx_mock.get(url).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK, json=allowlist.model_dump(mode="json")
-        )
+    respx_mock.get(url).respond(
+        status.HTTP_200_OK, json=allowlist.model_dump(mode="json")
     )
     expected_update_request = allowlist.model_dump(mode="json")
     expected_update_request["entries"][0]["description"] = "updated description"
-    mocked_put_request = respx_mock.put(url, json=expected_update_request).mock(
-        return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
+    mocked_put_request = respx_mock.put(url, json=expected_update_request).respond(
+        status.HTTP_204_NO_CONTENT
     )
 
     with use_profile(profile):
@@ -367,11 +340,9 @@ def test_ip_allowlist_remove(workspace_with_logged_in_profile, respx_mock):
     url = (
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
     )
-    respx_mock.get(url).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
-        )
+    respx_mock.get(url).respond(
+        status.HTTP_200_OK,
+        json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
     )
 
     entry_to_remove = SAMPLE_ALLOWLIST.entries[0]
@@ -384,7 +355,7 @@ def test_ip_allowlist_remove(workspace_with_logged_in_profile, respx_mock):
     )
     mocked_put_request = respx_mock.put(
         url, json=expected_update_request.model_dump(mode="json")
-    ).mock(return_value=httpx.Response(status.HTTP_204_NO_CONTENT))
+    ).respond(status.HTTP_204_NO_CONTENT)
 
     with use_profile(profile):
         invoke_and_assert(
@@ -418,20 +389,16 @@ def test_ip_allowlist_handles_422_on_removal_of_own_ip_address(
             ),
         ]
     )
-    respx_mock.get(url).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=allowlist.model_dump(mode="json"),
-        )
+    respx_mock.get(url).respond(
+        status.HTTP_200_OK,
+        json=allowlist.model_dump(mode="json"),
     )
 
     allowlist.entries.remove(my_ip_entry)
     expected_server_error = "Your current IP address (127.0.0.1) must be included in the IP allowlist to prevent account lockout."
-    respx_mock.put(url, json=allowlist.model_dump(mode="json")).mock(
-        return_value=httpx.Response(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            json={"detail": expected_server_error},
-        )
+    respx_mock.put(url, json=allowlist.model_dump(mode="json")).respond(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        json={"detail": expected_server_error},
     )
 
     with use_profile(profile):
@@ -449,11 +416,9 @@ def test_ip_allowlist_toggle(workspace_with_logged_in_profile, respx_mock):
     url = (
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
     )
-    respx_mock.get(url).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
-        )
+    respx_mock.get(url).respond(
+        status.HTTP_200_OK,
+        json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
     )
 
     entry_to_toggle = SAMPLE_ALLOWLIST.entries[0]
@@ -472,7 +437,7 @@ def test_ip_allowlist_toggle(workspace_with_logged_in_profile, respx_mock):
     )
     mocked_put_request = respx_mock.put(
         url, json=expected_update_request.model_dump(mode="json")
-    ).mock(return_value=httpx.Response(status.HTTP_204_NO_CONTENT))
+    ).respond(status.HTTP_204_NO_CONTENT)
 
     with use_profile(profile):
         invoke_and_assert(
@@ -491,11 +456,9 @@ def test_ip_allowlist_toggle_nonexistent_entry(
     url = (
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
     )
-    respx_mock.get(url).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
-        )
+    respx_mock.get(url).respond(
+        status.HTTP_200_OK,
+        json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
     )
 
     nonexistent_ip = "192.168.0.1"
@@ -535,20 +498,16 @@ def test_ip_allowlist_toggle_handles_422_on_disable_of_own_ip_address(
             ),
         ]
     )
-    respx_mock.get(url).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=allowlist.model_dump(mode="json"),
-        )
+    respx_mock.get(url).respond(
+        status.HTTP_200_OK,
+        json=allowlist.model_dump(mode="json"),
     )
 
     my_ip_entry.enabled = False
     expected_server_error = "Your current IP address (127.0.0.1) must be included in the IP allowlist to prevent account lockout."
-    respx_mock.put(url, json=allowlist.model_dump(mode="json")).mock(
-        return_value=httpx.Response(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            json={"detail": expected_server_error},
-        )
+    respx_mock.put(url, json=allowlist.model_dump(mode="json")).respond(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        json={"detail": expected_server_error},
     )
 
     with use_profile(profile):

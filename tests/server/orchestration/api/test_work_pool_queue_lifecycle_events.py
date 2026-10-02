@@ -1,7 +1,7 @@
 import pytest
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.server import models
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import WorkPoolCreate, WorkQueueCreate
@@ -15,7 +15,9 @@ def reset_events():
 
 
 class TestWorkPoolLifecycleEvents:
-    async def test_create_work_pool_emits_created_event(self, client: AsyncClient):
+    async def test_create_work_pool_emits_created_event(
+        self, client: httpx.AsyncClient
+    ):
         response = await client.post(
             "/work_pools/",
             json=WorkPoolCreate(name="events-pool", type="test").model_dump(
@@ -41,7 +43,9 @@ class TestWorkPoolLifecycleEvents:
             ],
         )
 
-    async def test_delete_work_pool_emits_deleted_event(self, client: AsyncClient):
+    async def test_delete_work_pool_emits_deleted_event(
+        self, client: httpx.AsyncClient
+    ):
         created = await client.post(
             "/work_pools/",
             json=WorkPoolCreate(name="events-pool-delete", type="test").model_dump(
@@ -63,7 +67,7 @@ class TestWorkPoolLifecycleEvents:
         )
 
     async def test_delete_work_pool_emits_deleted_events_for_its_queues(
-        self, client: AsyncClient
+        self, client: httpx.AsyncClient
     ):
         created = await client.post(
             "/work_pools/",
@@ -162,7 +166,7 @@ class TestWorkQueueLifecycleEvents:
 
 class TestDeploymentRelatedResources:
     async def test_deployment_updated_event_includes_storage_related(
-        self, client: AsyncClient, deployment
+        self, client: httpx.AsyncClient, deployment
     ):
         # The `deployment` fixture is created with a storage block document.
         assert deployment.storage_document_id is not None

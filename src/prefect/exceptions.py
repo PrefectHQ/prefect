@@ -8,9 +8,10 @@ from collections.abc import Iterable
 from types import ModuleType, TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from httpx import HTTPStatusError
 from pydantic import ValidationError
 from typing_extensions import Self
+
+from prefect._internal.compatibility.httpx import HTTPStatusError
 
 if TYPE_CHECKING:
     from prefect.states import State

@@ -12,8 +12,6 @@ from uuid import UUID, uuid4
 
 import anyio
 import certifi
-import httpcore
-import httpx
 import pydantic
 import pytest
 import respx
@@ -26,6 +24,7 @@ import prefect.context
 import prefect.exceptions
 import prefect.server.api
 from prefect import flow, tags
+from prefect._internal.compatibility.httpx import httpcore, httpx
 from prefect._internal.version_checking import check_server_version
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import (
@@ -149,8 +148,8 @@ class TestGetClient:
 class TestClientProxyAwareness:
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2356, where
     a customer reported that the Cloud client supported proxies, but the client
-    did not.  This test suite is implementation-specific to httpx/httpcore, as there are
-    no other inexpensive ways to confirm both the proxy-awareness and preserving the
+    did not. This suite inspects the selected HTTPX/HTTPcore backend because there
+    are no other inexpensive ways to confirm both proxy awareness and preserving the
     retry behavior without probing into the implementation details of the libraries."""
 
     @pytest.fixture()
@@ -2612,12 +2611,12 @@ class TestAutomations:
 
     async def test_create_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using=httpcore.__name__
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
-            create_route = router.post("/automations/").mock(
-                return_value=httpx.Response(200, json=created_automation)
+            create_route = router.post("/automations/").respond(
+                200, json=created_automation
             )
 
             automation_id = await cloud_client.create_automation(automation)
@@ -2630,15 +2629,15 @@ class TestAutomations:
 
     async def test_read_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using=httpcore.__name__
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
             created_automation_id = created_automation["id"]
 
-            read_route = router.get(f"/automations/{created_automation_id}").mock(
-                return_value=httpx.Response(200, json=created_automation)
+            read_route = router.get(f"/automations/{created_automation_id}").respond(
+                200, json=created_automation
             )
 
             read_automation = await cloud_client.read_automation(created_automation_id)
@@ -2650,15 +2649,15 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using=httpcore.__name__
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
             created_automation_id = created_automation["id"]
 
-            read_route = router.get(f"/automations/{created_automation_id}").mock(
-                return_value=httpx.Response(404)
+            read_route = router.get(f"/automations/{created_automation_id}").respond(
+                404
             )
 
             with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="404"):
@@ -2670,12 +2669,12 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using=httpcore.__name__
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(200, json=[created_automation])
+            read_route = router.post("/automations/filter").respond(
+                200, json=[created_automation]
             )
 
             result = await cloud_client.read_automations()
@@ -2695,12 +2694,12 @@ class TestAutomations:
         from prefect.events.filters import AutomationFilter, AutomationFilterName
 
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using=httpcore.__name__
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(200, json=[created_automation])
+            read_route = router.post("/automations/filter").respond(
+                200, json=[created_automation]
             )
 
             automation_filter = AutomationFilter(
@@ -2727,13 +2726,13 @@ class TestAutomations:
         from prefect.events.filters import AutomationFilter, AutomationFilterId
 
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using=httpcore.__name__
         ) as router:
             created_automation = automation.model_dump(mode="json")
             automation_id = uuid4()
             created_automation["id"] = str(automation_id)
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(200, json=[created_automation])
+            read_route = router.post("/automations/filter").respond(
+                200, json=[created_automation]
             )
 
             automation_filter = AutomationFilter(
@@ -2754,12 +2753,12 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using=httpcore.__name__
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(200, json=[created_automation])
+            read_route = router.post("/automations/filter").respond(
+                200, json=[created_automation]
             )
             read_automation = await cloud_client.read_automations_by_name(
                 automation.name
@@ -2789,7 +2788,7 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore, automation2: AutomationCore
     ):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using=httpcore.__name__
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
@@ -2797,10 +2796,8 @@ class TestAutomations:
             created_automation2 = automation2.model_dump(mode="json")
             created_automation2["id"] = str(uuid4())
 
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(
-                    200, json=[created_automation, created_automation2]
-                )
+            read_route = router.post("/automations/filter").respond(
+                200, json=[created_automation, created_automation2]
             )
             read_automation = await cloud_client.read_automations_by_name(
                 automation.name
@@ -2821,14 +2818,12 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using=httpcore.__name__
         ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             created_automation["name"] = "nonexistent"
-            read_route = router.post("/automations/filter").mock(
-                return_value=httpx.Response(200, json=[])
-            )
+            read_route = router.post("/automations/filter").respond(200, json=[])
 
             nonexistent_automation = await cloud_client.read_automations_by_name(
                 name="nonexistent"
@@ -2840,12 +2835,12 @@ class TestAutomations:
 
     async def test_delete_owned_automations(self, cloud_client):
         with respx.mock(
-            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+            base_url=PREFECT_CLOUD_API_URL.value(), using=httpcore.__name__
         ) as router:
             resource_id = f"prefect.deployment.{uuid4()}"
-            delete_route = router.delete(f"/automations/owned-by/{resource_id}").mock(
-                return_value=httpx.Response(204)
-            )
+            delete_route = router.delete(
+                f"/automations/owned-by/{resource_id}"
+            ).respond(204)
             await cloud_client.delete_resource_owned_automations(resource_id)
             assert delete_route.called
 
@@ -3744,10 +3739,10 @@ class TestCheckServerVersionCustomHeaders:
                 PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers,
             }
         ):
-            with respx.mock:
-                route = respx.get("http://fake-server:4200/api/admin/version").mock(
-                    return_value=httpx.Response(200, json=prefect.__version__)
-                )
+            with respx.mock(using=httpcore.__name__) as respx_mock:
+                route = respx_mock.get(
+                    "http://fake-server:4200/api/admin/version"
+                ).respond(200, json=prefect.__version__)
 
                 await check_server_version(
                     "http://fake-server:4200/api",
@@ -3772,10 +3767,10 @@ class TestCheckServerVersionCustomHeaders:
                 PREFECT_CLIENT_CUSTOM_HEADERS: {"Authorization": "Bearer custom-token"},
             }
         ):
-            with respx.mock:
-                route = respx.get("http://fake-server:4200/api/admin/version").mock(
-                    return_value=httpx.Response(200, json=prefect.__version__)
-                )
+            with respx.mock(using=httpcore.__name__) as respx_mock:
+                route = respx_mock.get(
+                    "http://fake-server:4200/api/admin/version"
+                ).respond(200, json=prefect.__version__)
 
                 await check_server_version(
                     "http://fake-server:4200/api",
@@ -3796,10 +3791,10 @@ class TestCheckServerVersionCustomHeaders:
                 PREFECT_CLIENT_CUSTOM_HEADERS: {"X-Custom": "value"},
             }
         ):
-            with respx.mock:
-                route = respx.get("http://fake-server:4200/api/admin/version").mock(
-                    return_value=httpx.Response(200, json=prefect.__version__)
-                )
+            with respx.mock(using=httpcore.__name__) as respx_mock:
+                route = respx_mock.get(
+                    "http://fake-server:4200/api/admin/version"
+                ).respond(200, json=prefect.__version__)
 
                 await check_server_version(
                     "http://fake-server:4200/api",

@@ -74,7 +74,7 @@ async def login(
     Creates a new profile configured to use the specified PREFECT_API_KEY.
     Uses a previously configured profile if it exists.
     """
-    import httpx
+    from prefect._internal.compatibility.httpx import httpx
 
     from prefect.cli._prompts import confirm
     from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client

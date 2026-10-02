@@ -7,12 +7,12 @@ import sys
 from typing import Any, Optional
 
 import anyio
-import httpx
 import pytest
 from fastapi import Body, FastAPI, status
 from fastapi.exceptions import RequestValidationError
 
 import prefect.results
+from prefect._internal.compatibility.httpx import httpx
 from prefect.filesystems import LocalFileSystem
 from prefect.server.api.server import validation_exception_handler
 

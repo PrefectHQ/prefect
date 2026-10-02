@@ -1,7 +1,6 @@
 import json
 import uuid
 
-import httpx
 import readchar
 from starlette import status
 from tests.cli.cloud.test_cloud import gen_test_workspace
@@ -65,11 +64,9 @@ def test_get_webhook_by_id(respx_mock):
         "slug": "your-webhook-slug",
     }
 
-    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=webhook,
-        )
+    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").respond(
+        status.HTTP_200_OK,
+        json=webhook,
     )
 
     with use_profile(profile_name):
@@ -112,8 +109,8 @@ def test_get_webhook_by_id_json_output(respx_mock):
         "slug": "your-webhook-slug",
     }
 
-    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(
-        return_value=httpx.Response(status.HTTP_200_OK, json=webhook)
+    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").respond(
+        status.HTTP_200_OK, json=webhook
     )
 
     with use_profile(profile_name):
@@ -152,8 +149,8 @@ def test_get_webhook_by_id_json_output_short_flag(respx_mock):
         "slug": "your-webhook-slug",
     }
 
-    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(
-        return_value=httpx.Response(status.HTTP_200_OK, json=webhook)
+    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").respond(
+        status.HTTP_200_OK, json=webhook
     )
 
     with use_profile(profile_name):
@@ -249,11 +246,9 @@ def test_list_webhooks(respx_mock):
         "slug": "your-webhook2-slug",
     }
 
-    respx_mock.post(f"{foo_workspace.api_url()}/webhooks/filter").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[webhook1, webhook2],
-        )
+    respx_mock.post(f"{foo_workspace.api_url()}/webhooks/filter").respond(
+        status.HTTP_200_OK,
+        json=[webhook1, webhook2],
     )
 
     with use_profile(profile_name):
@@ -298,8 +293,8 @@ def test_list_webhooks_json_output(respx_mock):
         "slug": "your-webhook2-slug",
     }
 
-    respx_mock.post(f"{foo_workspace.api_url()}/webhooks/filter").mock(
-        return_value=httpx.Response(status.HTTP_200_OK, json=[webhook1, webhook2])
+    respx_mock.post(f"{foo_workspace.api_url()}/webhooks/filter").respond(
+        status.HTTP_200_OK, json=[webhook1, webhook2]
     )
 
     with use_profile(profile_name):
@@ -337,8 +332,8 @@ def test_list_webhooks_json_output_short_flag(respx_mock):
         "slug": "your-webhook-slug",
     }
 
-    respx_mock.post(f"{foo_workspace.api_url()}/webhooks/filter").mock(
-        return_value=httpx.Response(status.HTTP_200_OK, json=[webhook])
+    respx_mock.post(f"{foo_workspace.api_url()}/webhooks/filter").respond(
+        status.HTTP_200_OK, json=[webhook]
     )
 
     with use_profile(profile_name):
@@ -448,11 +443,9 @@ def test_create_webhook(respx_mock):
         }
         respx_mock.post(
             f"{foo_workspace.api_url()}/webhooks/", json=webhook_to_create
-        ).mock(
-            return_value=httpx.Response(
-                status.HTTP_201_CREATED,
-                json=webhook_to_create,
-            )
+        ).respond(
+            status.HTTP_201_CREATED,
+            json=webhook_to_create,
         )
         invoke_and_assert(
             [
@@ -507,11 +500,9 @@ def test_rotate_webhook(respx_mock):
     webhook_id = str(uuid.uuid4())
     webhook_slug = "webhook-slug-1234"
 
-    respx_mock.post(f"{foo_workspace.api_url()}/webhooks/{webhook_id}/rotate").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json={"slug": webhook_slug},
-        )
+    respx_mock.post(f"{foo_workspace.api_url()}/webhooks/{webhook_id}/rotate").respond(
+        status.HTTP_200_OK,
+        json={"slug": webhook_slug},
     )
 
     with use_profile(profile_name):
@@ -561,19 +552,15 @@ def test_toggle_webhook(respx_mock):
     )
     webhook_id = str(uuid.uuid4())
 
-    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json={"enabled": True},
-        )
+    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").respond(
+        status.HTTP_200_OK,
+        json={"enabled": True},
     )
 
     respx_mock.patch(
         f"{foo_workspace.api_url()}/webhooks/{webhook_id}", json={"enabled": False}
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_204_NO_CONTENT,
-        )
+    ).respond(
+        status.HTTP_204_NO_CONTENT,
     )
 
     with use_profile(profile_name):
@@ -626,11 +613,9 @@ def test_update_webhook(respx_mock):
         "description": "this won't change",
         "template": "neither will this",
     }
-    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=existing_webhook,
-        )
+    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").respond(
+        status.HTTP_200_OK,
+        json=existing_webhook,
     )
 
     request_body = {
@@ -639,10 +624,8 @@ def test_update_webhook(respx_mock):
     }
     respx_mock.put(
         f"{foo_workspace.api_url()}/webhooks/{webhook_id}", json=request_body
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_204_NO_CONTENT,
-        )
+    ).respond(
+        status.HTTP_204_NO_CONTENT,
     )
 
     with use_profile(profile_name):
@@ -689,10 +672,8 @@ def test_delete_webhook(respx_mock):
     )
     webhook_id = str(uuid.uuid4())
 
-    respx_mock.delete(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(
-        return_value=httpx.Response(
-            status.HTTP_204_NO_CONTENT,
-        )
+    respx_mock.delete(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").respond(
+        status.HTTP_204_NO_CONTENT,
     )
 
     with use_profile(profile_name):

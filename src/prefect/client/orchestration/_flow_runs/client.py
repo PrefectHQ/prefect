@@ -3,9 +3,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
-import httpx
 from typing_extensions import TypeVar
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectNotFound
 

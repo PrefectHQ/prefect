@@ -11,12 +11,20 @@ from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, runtime_checkable
 
 import anyio
-import httpx
 from asgi_lifespan import LifespanManager
-from httpx import HTTPStatusError, Request, Response
 from typing_extensions import Self
 
 import prefect
+from prefect._internal.compatibility.httpx import (
+    AsyncClient,
+    Client,
+    HTTPStatusError,
+    Request,
+    Response,
+    create_ssl_context,
+    httpx,
+    warn_on_legacy_httpx,
+)
 from prefect._internal.compatibility.starlette import status
 from prefect.client import constants
 from prefect.client.attribution import get_attribution_headers
@@ -177,7 +185,7 @@ class PrefectResponse(httpx.Response):
         return new_response
 
 
-class PrefectHttpxAsyncClient(httpx.AsyncClient):
+class PrefectHttpxAsyncClient(AsyncClient):
     """
     A Prefect wrapper for the async httpx client with support for retry-after headers
     for the provided status codes (typically 429, 502 and 503).
@@ -204,6 +212,13 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         # Used to determine retry behavior for ConnectError.
         self._has_connected: bool = False
 
+        warn_on_legacy_httpx()
+        if kwargs.get("transport") is None or kwargs.get("proxy") is not None:
+            kwargs["verify"] = create_ssl_context(
+                verify=kwargs.get("verify", True),
+                cert=kwargs.pop("cert", None),
+                trust_env=kwargs.get("trust_env", True),
+            )
         super().__init__(*args, **kwargs)
 
         user_agent = (
@@ -447,7 +462,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         request.headers["Prefect-Csrf-Client"] = str(self.csrf_client_id)
 
 
-class PrefectHttpxSyncClient(httpx.Client):
+class PrefectHttpxSyncClient(Client):
     """
     A Prefect wrapper for the async httpx client with support for retry-after headers
     for the provided status codes (typically 429, 502 and 503).
@@ -474,6 +489,13 @@ class PrefectHttpxSyncClient(httpx.Client):
         # Used to determine retry behavior for ConnectError.
         self._has_connected: bool = False
 
+        warn_on_legacy_httpx()
+        if kwargs.get("transport") is None or kwargs.get("proxy") is not None:
+            kwargs["verify"] = create_ssl_context(
+                verify=kwargs.get("verify", True),
+                cert=kwargs.pop("cert", None),
+                trust_env=kwargs.get("trust_env", True),
+            )
         super().__init__(*args, **kwargs)
 
         user_agent = (

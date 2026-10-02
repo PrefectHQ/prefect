@@ -11,11 +11,16 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 import anyio.to_thread
-import httpcore
-import httpx
 from pydantic import BaseModel
 
 from prefect import settings
+from prefect._internal.compatibility.httpx import (
+    HTTP_BACKEND,
+    _with_legacy_proxy_ssl_context,
+    create_ssl_context,
+    httpcore,
+    httpx,
+)
 from prefect.logging.loggers import get_logger
 
 if TYPE_CHECKING:
@@ -320,6 +325,19 @@ class SSRFProtectedAsyncHTTPTransport(httpx.AsyncHTTPTransport):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if HTTP_BACKEND == "httpx2":
+            kwargs = (
+                inspect.signature(httpx.AsyncHTTPTransport)
+                .bind(*args, **kwargs)
+                .arguments
+            )
+            kwargs["verify"] = create_ssl_context(
+                verify=kwargs.get("verify", True),
+                cert=kwargs.pop("cert", None),
+                trust_env=kwargs.get("trust_env", True),
+            )
+            kwargs["proxy"] = _with_legacy_proxy_ssl_context(kwargs.get("proxy"))
+            args = ()
         super().__init__(*args, **kwargs)
         self._pool._network_backend = _SSRFProtectedAsyncBackend(
             self._pool._network_backend
@@ -330,6 +348,17 @@ class SSRFProtectedHTTPTransport(httpx.HTTPTransport):
     """Synchronous counterpart of `SSRFProtectedAsyncHTTPTransport`."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if HTTP_BACKEND == "httpx2":
+            kwargs = (
+                inspect.signature(httpx.HTTPTransport).bind(*args, **kwargs).arguments
+            )
+            kwargs["verify"] = create_ssl_context(
+                verify=kwargs.get("verify", True),
+                cert=kwargs.pop("cert", None),
+                trust_env=kwargs.get("trust_env", True),
+            )
+            kwargs["proxy"] = _with_legacy_proxy_ssl_context(kwargs.get("proxy"))
+            args = ()
         super().__init__(*args, **kwargs)
         self._pool._network_backend = _SSRFProtectedSyncBackend(
             self._pool._network_backend

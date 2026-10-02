@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from httpx import AsyncClient, AsyncHTTPTransport, Response
 from pydantic import Field, HttpUrl, SecretStr
 from typing_extensions import Literal
 
+from prefect._internal.compatibility.httpx import (
+    AsyncClient,
+    AsyncHTTPTransport,
+    Response,
+    create_ssl_context,
+    warn_on_legacy_httpx,
+)
 from prefect.blocks.core import Block
 from prefect.types import SecretDict
 from prefect.utilities.urls import (
@@ -15,7 +21,7 @@ from prefect.utilities.urls import (
 
 # Use a global HTTP transport to maintain a process-wide connection pool for
 # interservice requests
-_http_transport = AsyncHTTPTransport()
+_http_transport = AsyncHTTPTransport(verify=create_ssl_context())
 _insecure_http_transport = AsyncHTTPTransport(verify=False)
 # Separate pools for calls that must be protected from DNS-rebinding SSRF.  The
 # protected transport validates the resolved IP at connection time and connects
@@ -77,6 +83,7 @@ class Webhook(Block):
         Args:
             payload: an optional payload to send when calling the webhook.
         """
+        warn_on_legacy_httpx()
         if not self.allow_private_urls:
             validate_restricted_url(self.url.get_secret_value())
 

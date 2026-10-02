@@ -8,14 +8,13 @@ from typing import Any, AsyncGenerator, Generator, List, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
-import httpx
 import orjson
 import pytest
 import sqlalchemy as sa
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.compatibility.starlette import status
 from prefect.client.schemas import actions as client_actions
 from prefect.input import RunInput, keyset_from_paused_state
@@ -249,7 +248,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_work_pool(
         self,
         flow: Flow,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         work_pool: WorkPool,
     ):
         response = await client.post(
@@ -267,7 +266,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_work_pool_and_work_queue(
         self,
         flow: Flow,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         work_pool: WorkPool,
         work_queue_1: WorkQueue,
     ):
@@ -287,7 +286,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_non_existent_work_pool(
         self,
         flow: Flow,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         response = await client.post(
             "/flow_runs/",
@@ -304,7 +303,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_job_variables(
         self,
         flow: Flow,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         response = await client.post(
             "/flow_runs/",
@@ -324,7 +323,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_oversized_parameters_returns_422(
         self,
         flow: Flow,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         large_params = {"data": "x" * 1_000_000}
         response = await client.post(
@@ -336,7 +335,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_small_parameters_succeeds(
         self,
         flow: Flow,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         small_params = {"data": "x" * 100}
         response = await client.post(
@@ -348,7 +347,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_parameter_size_limit_is_configurable(
         self,
         flow: Flow,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         from prefect.settings import PREFECT_SERVER_API_MAX_PARAMETER_SIZE
 
@@ -363,7 +362,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_parameter_size_limit_disabled_when_zero(
         self,
         flow: Flow,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
     ):
         from prefect.settings import PREFECT_SERVER_API_MAX_PARAMETER_SIZE
 
@@ -1893,7 +1892,7 @@ class TestSetFlowRunState:
         assert run.state.type == StateType.CANCELLING
 
     async def test_cancelling_a_paused_flow_run_with_expired_timeout_is_accepted(
-        self, flow: Flow, client: AsyncClient, session: AsyncSession
+        self, flow: Flow, client: httpx.AsyncClient, session: AsyncSession
     ):
         """An expired blocking pause still has a live process. An explicit
         cancel must reach Cancelling instead of being rewritten to Failed."""
@@ -1962,7 +1961,7 @@ class TestSetFlowRunState:
         self,
         app: FastAPI,
         flow_run,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
         caplog: pytest.LogCaptureFixture,
@@ -2279,9 +2278,9 @@ class TestSetFlowRunState:
                 yield create_app(ephemeral=True)
 
         @pytest.fixture
-        async def client(self, app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
+        async def client(self, app: FastAPI) -> AsyncGenerator[httpx.AsyncClient, Any]:
             async with httpx.AsyncClient(
-                transport=ASGITransport(app=app), base_url="https://test/api"
+                transport=httpx.ASGITransport(app=app), base_url="https://test/api"
             ) as async_client:
                 yield async_client
 
@@ -2297,7 +2296,7 @@ class TestSetFlowRunState:
             self,
             client_version: str | None,
             should_clear_lease_id: bool,
-            client: AsyncClient,
+            client: httpx.AsyncClient,
             flow_run_with_concurrency_limit: schemas.core.FlowRun,
             deployment_with_concurrency_limit: schemas.core.Deployment,
         ):
@@ -2340,7 +2339,7 @@ class TestSetFlowRunState:
 
         async def test_lease_handling_completed(
             self,
-            client: AsyncClient,
+            client: httpx.AsyncClient,
             flow_run_with_concurrency_limit: schemas.core.FlowRun,
             deployment_with_concurrency_limit: schemas.core.Deployment,
         ):
@@ -2397,7 +2396,7 @@ class TestSetFlowRunState:
 
         async def test_lease_handling_cancelled(
             self,
-            client: AsyncClient,
+            client: httpx.AsyncClient,
             flow_run_with_concurrency_limit: schemas.core.FlowRun,
             deployment_with_concurrency_limit: schemas.core.Deployment,
         ):
@@ -2800,7 +2799,7 @@ class TestFlowRunInput:
         return flow_run_input
 
     async def test_create_flow_run_input(
-        self, flow_run, client: AsyncClient, session: AsyncSession
+        self, flow_run, client: httpx.AsyncClient, session: AsyncSession
     ):
         response = await client.post(
             f"/flow_runs/{flow_run.id}/input",
@@ -2820,7 +2819,7 @@ class TestFlowRunInput:
         assert flow_run_input.value == "really important stuff"
 
     async def test_404_non_existent_flow_run(
-        self, client: AsyncClient, session: AsyncSession
+        self, client: httpx.AsyncClient, session: AsyncSession
     ):
         not_a_flow_run_id = str(uuid4())
         response = await client.post(
@@ -2839,7 +2838,7 @@ class TestFlowRunInput:
         assert flow_run_input is None
 
     async def test_409_key_conflict(
-        self, flow_run, client: AsyncClient, session: AsyncSession
+        self, flow_run, client: httpx.AsyncClient, session: AsyncSession
     ):
         response = await client.post(
             f"/flow_runs/{flow_run.id}/input",
@@ -2862,7 +2861,9 @@ class TestFlowRunInput:
 
         assert response.status_code == 409, response.text
 
-    async def test_filter_flow_run_input(self, client: AsyncClient, flow_run_input):
+    async def test_filter_flow_run_input(
+        self, client: httpx.AsyncClient, flow_run_input
+    ):
         response = await client.post(
             f"/flow_runs/{flow_run_input.flow_run_id}/input/filter",
             json={"prefix": "structured"},
@@ -2875,7 +2876,7 @@ class TestFlowRunInput:
         )
 
     async def test_filter_flow_run_input_limits_response(
-        self, client: AsyncClient, session: AsyncSession, flow_run
+        self, client: httpx.AsyncClient, session: AsyncSession, flow_run
     ):
         for i in range(100):
             await models.flow_run_input.create_flow_run_input(
@@ -2907,7 +2908,7 @@ class TestFlowRunInput:
 
     async def test_filter_flow_run_input_excludes_keys(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow_run_input,
     ):
         response = await client.post(
@@ -2919,7 +2920,7 @@ class TestFlowRunInput:
 
     async def test_filter_flow_run_input_no_matches(
         self,
-        client: AsyncClient,
+        client: httpx.AsyncClient,
         flow_run_input,
     ):
         response = await client.post(
@@ -2929,7 +2930,7 @@ class TestFlowRunInput:
         assert response.status_code == 200, response.text
         assert len(response.json()) == 0
 
-    async def test_read_flow_run_input(self, client: AsyncClient, flow_run_input):
+    async def test_read_flow_run_input(self, client: httpx.AsyncClient, flow_run_input):
         response = await client.get(
             f"/flow_runs/{flow_run_input.flow_run_id}/input/{flow_run_input.key}",
         )
@@ -2937,7 +2938,7 @@ class TestFlowRunInput:
         assert response.content.decode() == flow_run_input.value
 
     async def test_404_read_flow_run_input_no_matching_input(
-        self, client: AsyncClient, flow_run
+        self, client: httpx.AsyncClient, flow_run
     ):
         response = await client.get(
             f"/flow_runs/{flow_run.id}/input/missing-key",
@@ -2945,7 +2946,7 @@ class TestFlowRunInput:
         assert response.status_code == 404, response.text
 
     async def test_delete_flow_run_input(
-        self, client: AsyncClient, session: AsyncSession, flow_run_input
+        self, client: httpx.AsyncClient, session: AsyncSession, flow_run_input
     ):
         response = await client.delete(
             f"/flow_runs/{flow_run_input.flow_run_id}/input/{flow_run_input.key}",
@@ -2960,7 +2961,7 @@ class TestFlowRunInput:
         assert flow_run_input is None
 
     async def test_404_delete_flow_run_input_no_matching_input(
-        self, client: AsyncClient, flow_run_input
+        self, client: httpx.AsyncClient, flow_run_input
     ):
         response = await client.delete(
             f"/flow_runs/{flow_run_input.flow_run_id}/input/missing-key",

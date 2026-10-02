@@ -1,7 +1,6 @@
 import json
 from uuid import UUID
 
-import httpx
 import pytest
 from respx import MockRouter
 
@@ -46,8 +45,8 @@ class TestBasicRequests:
 
     def test_get_request_oss(self, respx_mock: MockRouter) -> None:
         """Test GET request to OSS server."""
-        respx_mock.get("http://localhost:4200/api/flows").mock(
-            return_value=httpx.Response(200, json={"result": "success"})
+        respx_mock.get("http://localhost:4200/api/flows").respond(
+            200, json={"result": "success"}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -58,8 +57,8 @@ class TestBasicRequests:
 
     def test_post_request_with_data(self, respx_mock: MockRouter) -> None:
         """Test POST request with inline JSON data."""
-        route = respx_mock.post("http://localhost:4200/api/flows/filter").mock(
-            return_value=httpx.Response(200, json={"result": "success"})
+        route = respx_mock.post("http://localhost:4200/api/flows/filter").respond(
+            200, json={"result": "success"}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -73,8 +72,8 @@ class TestBasicRequests:
 
     def test_post_request_default_empty_body(self, respx_mock: MockRouter) -> None:
         """Test POST request defaults to empty object when no data provided."""
-        route = respx_mock.post("http://localhost:4200/api/flows/filter").mock(
-            return_value=httpx.Response(200, json=[])
+        route = respx_mock.post("http://localhost:4200/api/flows/filter").respond(
+            200, json=[]
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -88,8 +87,8 @@ class TestBasicRequests:
 
     def test_delete_request(self, respx_mock: MockRouter) -> None:
         """Test DELETE request."""
-        route = respx_mock.delete("http://localhost:4200/api/flows/abc-123").mock(
-            return_value=httpx.Response(204)
+        route = respx_mock.delete("http://localhost:4200/api/flows/abc-123").respond(
+            204
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -102,9 +101,9 @@ class TestBasicRequests:
 
     def test_patch_request_with_data(self, respx_mock: MockRouter) -> None:
         """Test PATCH request with data."""
-        route = respx_mock.patch("http://localhost:4200/api/deployments/abc-123").mock(
-            return_value=httpx.Response(200, json={"updated": True})
-        )
+        route = respx_mock.patch(
+            "http://localhost:4200/api/deployments/abc-123"
+        ).respond(200, json={"updated": True})
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
             invoke_and_assert(
@@ -125,8 +124,8 @@ class TestBasicRequests:
 
     def test_put_request(self, respx_mock: MockRouter) -> None:
         """Test PUT request."""
-        route = respx_mock.put("http://localhost:4200/api/flows/abc-123").mock(
-            return_value=httpx.Response(200, json={"updated": True})
+        route = respx_mock.put("http://localhost:4200/api/flows/abc-123").respond(
+            200, json={"updated": True}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -143,8 +142,8 @@ class TestCustomHeaders:
 
     def test_custom_headers(self, respx_mock: MockRouter) -> None:
         """Test custom headers with -H flag."""
-        route = respx_mock.post("http://localhost:4200/api/flows/filter").mock(
-            return_value=httpx.Response(200, json={})
+        route = respx_mock.post("http://localhost:4200/api/flows/filter").respond(
+            200, json={}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -166,8 +165,8 @@ class TestCustomHeaders:
 
     def test_multiple_custom_headers(self, respx_mock: MockRouter) -> None:
         """Test multiple custom headers."""
-        route = respx_mock.post("http://localhost:4200/api/flows/filter").mock(
-            return_value=httpx.Response(200, json={})
+        route = respx_mock.post("http://localhost:4200/api/flows/filter").respond(
+            200, json={}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -196,9 +195,7 @@ class TestPathHandling:
 
     def test_oss_uses_api_prefix(self, respx_mock: MockRouter) -> None:
         """Test OSS automatically uses /api prefix from configured URL."""
-        route = respx_mock.get("http://localhost:4200/api/flows").mock(
-            return_value=httpx.Response(200, json=[])
-        )
+        route = respx_mock.get("http://localhost:4200/api/flows").respond(200, json=[])
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
             invoke_and_assert(
@@ -214,7 +211,7 @@ class TestPathHandling:
         """Test Cloud workspace requests use workspace URL."""
         route = respx_mock.get(
             f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/flows"
-        ).mock(return_value=httpx.Response(200, json=[]))
+        ).respond(200, json=[])
 
         with temporary_settings(
             {
@@ -233,8 +230,8 @@ class TestPathHandling:
         self, respx_mock: MockRouter, account_id: UUID, workspace_id: UUID
     ) -> None:
         """Test --root flag uses CloudClient for API root."""
-        route = respx_mock.get("https://api.prefect.cloud/api/me").mock(
-            return_value=httpx.Response(200, json={"user": "test"})
+        route = respx_mock.get("https://api.prefect.cloud/api/me").respond(
+            200, json={"user": "test"}
         )
 
         with temporary_settings(
@@ -269,7 +266,7 @@ class TestPathHandling:
         """Test --account flag uses CloudClient with account path."""
         route = respx_mock.get(
             f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces"
-        ).mock(return_value=httpx.Response(200, json=[]))
+        ).respond(200, json=[])
 
         with temporary_settings(
             {
@@ -308,7 +305,7 @@ class TestPathHandling:
         """Test query parameters in path."""
         route = respx_mock.get(
             "http://localhost:4200/api/flows?limit=10&offset=20"
-        ).mock(return_value=httpx.Response(200, json=[]))
+        ).respond(200, json=[])
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
             invoke_and_assert(
@@ -324,8 +321,8 @@ class TestInputSources:
 
     def test_data_from_file(self, respx_mock: MockRouter, tmp_path) -> None:
         """Test reading data from file with @filename syntax."""
-        route = respx_mock.post("http://localhost:4200/api/flows/filter").mock(
-            return_value=httpx.Response(200, json={})
+        route = respx_mock.post("http://localhost:4200/api/flows/filter").respond(
+            200, json={}
         )
 
         data_file = tmp_path / "data.json"
@@ -346,8 +343,8 @@ class TestErrorHandling:
 
     def test_404_error_exit_code(self, respx_mock: MockRouter) -> None:
         """Test 404 errors exit with code 4."""
-        respx_mock.get("http://localhost:4200/api/flows/invalid-id").mock(
-            return_value=httpx.Response(404, json={"detail": "Flow not found"})
+        respx_mock.get("http://localhost:4200/api/flows/invalid-id").respond(
+            404, json={"detail": "Flow not found"}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -360,8 +357,8 @@ class TestErrorHandling:
 
     def test_401_error_exit_code(self, respx_mock: MockRouter) -> None:
         """Test 401 errors exit with code 3."""
-        respx_mock.get("http://localhost:4200/api/flows").mock(
-            return_value=httpx.Response(401, json={"detail": "Unauthorized"})
+        respx_mock.get("http://localhost:4200/api/flows").respond(
+            401, json={"detail": "Unauthorized"}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -374,8 +371,8 @@ class TestErrorHandling:
 
     def test_500_error_exit_code(self, respx_mock: MockRouter) -> None:
         """Test 500 errors exit with code 5."""
-        respx_mock.get("http://localhost:4200/api/flows").mock(
-            return_value=httpx.Response(500, json={"detail": "Internal server error"})
+        respx_mock.get("http://localhost:4200/api/flows").respond(
+            500, json={"detail": "Internal server error"}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -388,19 +385,17 @@ class TestErrorHandling:
 
     def test_422_validation_error(self, respx_mock: MockRouter) -> None:
         """Test 422 validation errors show friendly message."""
-        respx_mock.post("http://localhost:4200/api/flows").mock(
-            return_value=httpx.Response(
-                422,
-                json={
-                    "detail": [
-                        {
-                            "loc": ["body", "name"],
-                            "msg": "field required",
-                            "type": "value_error.missing",
-                        }
-                    ]
-                },
-            )
+        respx_mock.post("http://localhost:4200/api/flows").respond(
+            422,
+            json={
+                "detail": [
+                    {
+                        "loc": ["body", "name"],
+                        "msg": "field required",
+                        "type": "value_error.missing",
+                    }
+                ]
+            },
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -417,8 +412,8 @@ class TestOutputFormatting:
 
     def test_json_output(self, respx_mock: MockRouter) -> None:
         """Test JSON is output correctly."""
-        respx_mock.get("http://localhost:4200/api/flows/123").mock(
-            return_value=httpx.Response(200, json={"id": "123", "name": "test"})
+        respx_mock.get("http://localhost:4200/api/flows/123").respond(
+            200, json={"id": "123", "name": "test"}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -432,10 +427,8 @@ class TestOutputFormatting:
 
     def test_verbose_shows_request_info(self, respx_mock: MockRouter) -> None:
         """Test --verbose shows request details."""
-        respx_mock.get("http://localhost:4200/api/flows").mock(
-            return_value=httpx.Response(
-                200, json={}, headers={"content-type": "application/json"}
-            )
+        respx_mock.get("http://localhost:4200/api/flows").respond(
+            200, json={}, headers={"content-type": "application/json"}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -449,8 +442,8 @@ class TestOutputFormatting:
 
     def test_verbose_on_error(self, respx_mock: MockRouter) -> None:
         """Test --verbose shows details on errors."""
-        respx_mock.get("http://localhost:4200/api/flows/bad").mock(
-            return_value=httpx.Response(404, json={"detail": "Not found"})
+        respx_mock.get("http://localhost:4200/api/flows/bad").respond(
+            404, json={"detail": "Not found"}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
@@ -477,9 +470,7 @@ class TestEdgeCases:
 
     def test_empty_response_body(self, respx_mock: MockRouter) -> None:
         """Test handling of empty response bodies."""
-        respx_mock.delete("http://localhost:4200/api/flows/123").mock(
-            return_value=httpx.Response(204)
-        )
+        respx_mock.delete("http://localhost:4200/api/flows/123").respond(204)
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):
             invoke_and_assert(
@@ -489,10 +480,8 @@ class TestEdgeCases:
 
     def test_non_json_response(self, respx_mock: MockRouter) -> None:
         """Test handling of non-JSON responses."""
-        respx_mock.get("http://localhost:4200/api/some-text-endpoint").mock(
-            return_value=httpx.Response(
-                200, text="Plain text response", headers={"content-type": "text/plain"}
-            )
+        respx_mock.get("http://localhost:4200/api/some-text-endpoint").respond(
+            200, text="Plain text response", headers={"content-type": "text/plain"}
         )
 
         with temporary_settings({PREFECT_API_URL: "http://localhost:4200/api"}):

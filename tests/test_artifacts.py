@@ -4,11 +4,11 @@ import uuid
 from typing import cast
 from uuid import UUID
 
-import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from prefect import flow, task
+from prefect._internal.compatibility.httpx import httpx
 from prefect.artifacts import (
     Artifact,
     acreate_link_artifact,
