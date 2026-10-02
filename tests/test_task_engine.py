@@ -1,8 +1,11 @@
 import asyncio
 import concurrent.futures
+import contextvars
 import logging
 import os
 import random
+import sys
+import threading
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -47,8 +50,10 @@ from prefect.states import (
     Suspended,
 )
 from prefect.task_engine import (
+    _TIMEOUT_WATCHDOG_GRACE_SECONDS,
     AsyncTaskRunEngine,
     SyncTaskRunEngine,
+    _TimeoutWatchdog,
     run_task_async,
     run_task_sync,
 )
@@ -2149,6 +2154,235 @@ class TestSyncTaskTimeoutWarning:
             "running in a worker thread" in record.message for record in caplog.records
         )
         assert result == "result"
+
+
+class TestTaskTimeoutWatchdog:
+    """Tests for the shared watchdog that reports runs outliving their timeout."""
+
+    def test_fires_once_the_deadline_passes(self):
+        watchdog = _TimeoutWatchdog()
+        fired = threading.Event()
+
+        watchdog.arm(0.05, fired.set)
+
+        assert fired.wait(timeout=5)
+
+    def test_disarmed_deadline_does_not_fire(self):
+        watchdog = _TimeoutWatchdog()
+        disarmed_fired = threading.Event()
+        later_fired = threading.Event()
+
+        handle = watchdog.arm(0.05, disarmed_fired.set)
+        watchdog.disarm(handle)
+        # Deadlines fire in order, so once the later one has fired the disarmed one
+        # has had its chance
+        watchdog.arm(0.1, later_fired.set)
+
+        assert later_fired.wait(timeout=5)
+        assert not disarmed_fired.is_set()
+
+    def test_one_thread_serves_every_deadline(self):
+        """Test that a wide fan-out of timed runs costs one thread, not one each."""
+
+        def watchdog_threads() -> int:
+            return sum(
+                1
+                for thread in threading.enumerate()
+                if thread.name == "TaskRunTimeoutWatchdog"
+            )
+
+        watchdog = _TimeoutWatchdog()
+        before = watchdog_threads()
+
+        handles = [watchdog.arm(60, lambda: None) for _ in range(100)]
+        try:
+            assert watchdog_threads() - before == 1
+        finally:
+            for handle in handles:
+                watchdog.disarm(handle)
+
+    def test_callback_runs_in_the_arming_context(self):
+        """Test that the callback sees the context it was armed from.
+
+        The run logger finds its run through context variables, which a plain
+        thread would not inherit.
+        """
+        watchdog = _TimeoutWatchdog()
+        var: contextvars.ContextVar[str] = contextvars.ContextVar("var")
+        seen: list[str] = []
+        fired = threading.Event()
+
+        def callback() -> None:
+            seen.append(var.get("<unset>"))
+            fired.set()
+
+        token = var.set("arming context")
+        try:
+            watchdog.arm(0.05, callback)
+        finally:
+            var.reset(token)
+
+        assert fired.wait(timeout=5)
+        assert seen == ["arming context"]
+
+    def test_failing_callback_does_not_stop_later_deadlines(self):
+        watchdog = _TimeoutWatchdog()
+        later_fired = threading.Event()
+
+        def fail() -> None:
+            raise RuntimeError("boom")
+
+        watchdog.arm(0.05, fail)
+        watchdog.arm(0.1, later_fired.set)
+
+        assert later_fired.wait(timeout=5)
+
+    def test_run_survives_a_watchdog_that_cannot_start(self):
+        """Test that a run completes when the watchdog thread cannot be started.
+
+        The warning is advisory, so failing to arm it must not take the run down.
+        """
+
+        @task(timeout_seconds=30)
+        def timed_task():
+            return "result"
+
+        with mock.patch(
+            "prefect.task_engine._task_run_timeout_watchdog.arm",
+            side_effect=RuntimeError("can't start new thread"),
+        ):
+            assert run_task_sync(timed_task) == "result"
+
+    def test_warning_names_the_configured_timeout(self, caplog):
+        """Test that the warning reports the timeout the task was given."""
+
+        @task(timeout_seconds=30)
+        def timed_task():
+            return "result"
+
+        engine = SyncTaskRunEngine(task=timed_task)
+
+        with caplog.at_level(logging.WARNING):
+            engine._warn_timeout_exceeded()
+
+        assert (
+            "exceeded its timeout of 30.0 second(s) but is still running" in caplog.text
+        )
+
+
+class TestTaskTimeoutExceededWarning:
+    """Tests for the warning reaching a run that actually outlives its timeout."""
+
+    def test_warning_emitted_when_run_outlives_its_timeout(self, caplog):
+        """Test that a warning is emitted while the run is still overrunning."""
+
+        @task(timeout_seconds=0.1)
+        def blocking_task():
+            time.sleep(_TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
+            return "result"
+
+        @flow
+        def my_flow():
+            # Submit runs the task in a worker thread, where the timeout cannot
+            # interrupt a blocking call
+            return blocking_task.submit().result(raise_on_failure=False)
+
+        with caplog.at_level(logging.WARNING):
+            my_flow()
+
+        assert any(
+            "exceeded its timeout of 0.1 second(s) but is still running"
+            in record.message
+            for record in caplog.records
+        )
+
+    async def test_warning_emitted_for_async_run_that_blocks_past_its_timeout(
+        self, caplog
+    ):
+        """Test that an async run blocking the event loop is warned about too."""
+
+        @task(timeout_seconds=0.1)
+        async def blocking_async_task():
+            # Blocks the event loop, so there is no await point to cancel at
+            time.sleep(_TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
+            return "result"
+
+        @flow
+        async def my_flow():
+            return await blocking_async_task(return_state=True)
+
+        with caplog.at_level(logging.WARNING):
+            await my_flow()
+
+        assert any(
+            "exceeded its timeout of 0.1 second(s) but is still running"
+            in record.message
+            for record in caplog.records
+        )
+
+    def test_no_warning_when_run_finishes_within_its_timeout(self, caplog):
+        """Test that no warning is emitted when the run stays inside its timeout."""
+
+        @task(timeout_seconds=30)
+        def quick_task():
+            return "result"
+
+        @flow
+        def my_flow():
+            return quick_task.submit().result()
+
+        with caplog.at_level(logging.WARNING):
+            result = my_flow()
+
+        assert not any(
+            "but is still running" in record.message for record in caplog.records
+        )
+        assert result == "result"
+
+    def test_watchdog_does_not_alter_an_ordinary_failure(self):
+        """Test that a run failing for its own reasons resolves with a watchdog armed."""
+
+        @task(timeout_seconds=30)
+        def failing_task():
+            raise ValueError("boom")
+
+        @flow
+        def my_flow():
+            future = failing_task.submit()
+            future.wait()
+            return future.state.name, future.state.is_failed()
+
+        state_name, is_failed = my_flow()
+
+        assert is_failed
+        assert state_name == "Failed"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Timeouts are not enforced on Windows, so the run never reaches TimedOut",
+    )
+    def test_warning_does_not_change_terminal_state(self, caplog):
+        """Test that the watchdog reports without altering how the run resolves."""
+
+        @task(timeout_seconds=0.1)
+        def blocking_task():
+            time.sleep(_TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
+            return "result"
+
+        @flow
+        def my_flow():
+            future = blocking_task.submit()
+            # `wait` resolves the future without returning the state. Returning the
+            # state itself would make the flow adopt it and fail its own run, so
+            # report it as plain data instead.
+            future.wait()
+            return future.state.name, future.state.is_failed()
+
+        with caplog.at_level(logging.WARNING):
+            state_name, is_failed = my_flow()
+
+        assert is_failed
+        assert state_name == "TimedOut"
 
 
 class TestPersistence:
