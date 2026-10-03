@@ -729,6 +729,84 @@ async def test_read_automations_filter_by_name_mismatch(
     assert response.json() == []
 
 
+async def test_read_automations_filter_by_id_match(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    expected = sorted(some_workspace_automations, key=lambda a: a.name)[:2]
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            id=filters.AutomationFilterId(any_=[a.id for a in expected])
+        ).model_dump(mode="json")
+    )
+
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+
+    assert response.status_code == 200, response.content
+
+    automations = parse_obj_as(List[Automation], response.json())
+
+    assert automations == expected
+    assert len(automations) == 2
+
+
+async def test_read_automations_filter_by_id_mismatch(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            id=filters.AutomationFilterId(any_=[uuid4()])
+        ).model_dump(mode="json")
+    )
+
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+
+    assert response.status_code == 200, response.content
+
+    assert response.json() == []
+
+
+async def test_count_automations_with_empty_body_counts_everything(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    response = await client.post(f"{automations_url}/count", json={})
+
+    assert response.status_code == 200, response.content
+
+    assert response.json() == len(some_workspace_automations)
+
+
+async def test_count_automations_with_filter(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            name=filters.AutomationFilterName(any_=["automation 1", "automation 2"])
+        ).model_dump(mode="json")
+    )
+
+    filter_response = await client.post(
+        f"{automations_url}/filter", json=automation_filter
+    )
+    assert filter_response.status_code == 200, filter_response.content
+    assert len(filter_response.json()) == 2
+
+    count_response = await client.post(
+        f"{automations_url}/count", json=automation_filter
+    )
+
+    assert count_response.status_code == 200, count_response.content
+
+    assert count_response.json() == len(filter_response.json())
+
+
 @pytest.fixture
 async def automations_with_tags(
     automations_session: AsyncSession,

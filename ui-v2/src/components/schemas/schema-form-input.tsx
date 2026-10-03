@@ -13,6 +13,7 @@ import { SchemaFormInputPrefectKindJson } from "./schema-form-input-prefect-kind
 import { SchemaFormInputPrefectKindWorkspaceVariable } from "./schema-form-input-prefect-kind-workspace-variable";
 import { SchemaFormInputString } from "./schema-form-input-string";
 import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
+import { isBlockDocumentReferenceValue } from "./types/block-document-value";
 import type { SchemaFormErrors } from "./types/errors";
 import { isPrefectKindValue } from "./types/prefect-kind-value";
 import { asArray, asObject, asType } from "./utilities/asType";
@@ -44,7 +45,7 @@ export function SchemaFormInput({
 		if (typeof blockTypeSlug === "string") {
 			return (
 				<SchemaFormInputBlockDocument
-					value={value as { $ref: string } | undefined}
+					value={isBlockDocumentReferenceValue(value) ? value : undefined}
 					onValueChange={onValueChange}
 					blockTypeSlug={blockTypeSlug}
 					id={id}

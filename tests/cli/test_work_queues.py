@@ -110,8 +110,8 @@ class TestCreateWorkQueue:
         invoke_and_assert(
             command=f"work-queue create {queue_name} -p bad-pool",
             expected_code=1,
+            expected_output_contains="Work pool with name: 'bad-pool' not found.",
         )
-        assert "Work pool with name: 'bad-pool' not found."
 
 
 class TestSetConcurrencyLimit:

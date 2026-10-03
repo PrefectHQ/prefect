@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Union
@@ -165,7 +166,7 @@ async def test_shell_run_command_override_shell(
         )
 
     await test_flow()
-    assert open_process_mock.call_args_list[0][0][0][0] == shell or "bash"
+    assert open_process_mock.call_args_list[0][0][0][0] == (shell or "bash")
 
 
 class TestShellOperation:
@@ -185,7 +186,6 @@ class TestShellOperation:
         with pytest.raises(RuntimeError, match="return code"):
             await self.execute(op, method)
 
-    @pytest.mark.skipif(sys.version >= "3.12", reason="Fails on Python 3.12")
     @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_output(
         self, prefect_task_runs_caplog: pytest.LogCaptureFixture, method: str
@@ -359,6 +359,74 @@ class TestShellOperation:
         assert any("out2" in r.message for r in stream_records)
         assert any("err1" in r.message for r in stderr_records)
         assert any("err2" in r.message for r in stderr_records)
+
+    def _shell_process_messages(self, caplog: pytest.LogCaptureFixture) -> list[str]:
+        return [
+            r.message
+            for r in caplog.records
+            if r.levelno >= logging.INFO and r.name == "prefect.ShellProcess"
+        ]
+
+    @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_log_prefix_default(
+        self, prefect_task_runs_caplog: pytest.LogCaptureFixture, method: str
+    ):
+        prefect_task_runs_caplog.set_level(logging.INFO)
+
+        op = ShellOperation(commands=["echo hello", "echo oops >&2"])
+        await self.execute(op, method)
+
+        messages = self._shell_process_messages(prefect_task_runs_caplog)
+        assert any(
+            m.startswith("PID ") and m.endswith(f"stream output:{os.linesep}hello")
+            for m in messages
+        )
+        assert any(
+            m.startswith("PID ") and m.endswith(f":{os.linesep}oops") for m in messages
+        )
+
+    @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_log_prefix_none_logs_raw_output(
+        self, prefect_task_runs_caplog: pytest.LogCaptureFixture, method: str
+    ):
+        prefect_task_runs_caplog.set_level(logging.INFO)
+
+        op = ShellOperation(commands=["echo hello", "echo oops >&2"], log_prefix=None)
+        await self.execute(op, method)
+
+        messages = self._shell_process_messages(prefect_task_runs_caplog)
+        assert "hello" in messages
+        assert "oops" in messages
+        assert not any("stream output" in m or "stderr" in m for m in messages)
+
+    @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_log_prefix_custom_template(
+        self, prefect_task_runs_caplog: pytest.LogCaptureFixture, method: str
+    ):
+        prefect_task_runs_caplog.set_level(logging.INFO)
+
+        op = ShellOperation(
+            commands=["echo hello", "echo oops >&2"], log_prefix="[{pid}] {label} | "
+        )
+        await self.execute(op, method)
+
+        messages = self._shell_process_messages(prefect_task_runs_caplog)
+        assert any(re.fullmatch(r"\[\d+\] stream output \| hello", m) for m in messages)
+        assert any(re.fullmatch(r"\[\d+\] stderr \| oops", m) for m in messages)
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"])
+    async def test_log_prefix_newlines_use_platform_linesep(
+        self, prefect_task_runs_caplog: pytest.LogCaptureFixture, newline: str
+    ):
+        prefect_task_runs_caplog.set_level(logging.INFO)
+
+        op = ShellOperation(commands=["echo hello"], log_prefix=f"[{{pid}}]{newline}")
+        await op.run()
+
+        messages = self._shell_process_messages(prefect_task_runs_caplog)
+        assert any(
+            re.fullmatch(rf"\[\d+\]{re.escape(os.linesep)}hello", m) for m in messages
+        )
 
     async def test_sync_streaming_output_is_sent_to_api(self):
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_ENABLED: True}):

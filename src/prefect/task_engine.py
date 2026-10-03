@@ -800,6 +800,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     if isinstance(self.task.retry_delay_seconds, Sequence)
                     else self.task.retry_delay_seconds
                 )
+                if self.task.retry_jitter_factor and delay > 0:
+                    delay = clamped_poisson_interval(
+                        delay, clamping_factor=self.task.retry_jitter_factor
+                    )
                 new_state = AwaitingRetry(
                     scheduled_time=prefect.types._datetime.now("UTC")
                     + timedelta(seconds=delay)
@@ -847,7 +851,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exc,
                 message="Task run encountered an exception",
                 result_store=get_result_store(),
-                write_result=True,
+                write_result=should_persist_result(),
             )
             self.set_state(state)
             self._raised = exc
@@ -1434,6 +1438,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     if isinstance(self.task.retry_delay_seconds, Sequence)
                     else self.task.retry_delay_seconds
                 )
+                if self.task.retry_jitter_factor and delay > 0:
+                    delay = clamped_poisson_interval(
+                        delay, clamping_factor=self.task.retry_jitter_factor
+                    )
                 new_state = AwaitingRetry(
                     scheduled_time=prefect.types._datetime.now("UTC")
                     + timedelta(seconds=delay)
@@ -1481,6 +1489,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exc,
                 message="Task run encountered an exception",
                 result_store=get_result_store(),
+                write_result=should_persist_result(),
             )
             await self.set_state(state)
             self._raised = exc

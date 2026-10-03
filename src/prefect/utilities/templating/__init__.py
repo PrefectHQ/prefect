@@ -83,7 +83,7 @@ def find_placeholders(template: T) -> set[Placeholder]:
         A set of all placeholders in the template
     """
     seed: set[Placeholder] = set()
-    if isinstance(template, (int, float, bool)):
+    if template is None or isinstance(template, (int, float, bool)):
         return seed
     if isinstance(template, str):
         result = PLACEHOLDER_CAPTURE_REGEX.findall(template)

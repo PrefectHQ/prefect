@@ -495,7 +495,7 @@ class TestRunCoroAsSync:
         async def bar():
             return run_coro_as_sync(foo())
 
-        await bar() == 42
+        assert await bar() == 42
 
     def test_run_coro_as_sync_in_async_error(self):
         async def foo():

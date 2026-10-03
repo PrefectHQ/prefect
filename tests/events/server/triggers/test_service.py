@@ -434,10 +434,20 @@ async def test_periodic_evaluation_continues_event_if_it_raises(
 ):
     """Regression test for discovery that periodic evaluation would sometimes
     go offline after any brief error"""
-    periodic_evaluation.side_effect = ValueError("woops!")
+    evaluated_twice = asyncio.Event()
+
+    def raise_woops(*args: object, **kwargs: object) -> None:
+        if periodic_evaluation.await_count > 1:
+            evaluated_twice.set()
+        raise ValueError("woops!")
+
+    periodic_evaluation.side_effect = raise_woops
     task = asyncio.create_task(triggers.evaluate_periodically(timedelta(seconds=0.01)))
 
-    await asyncio.sleep(0.1)  # 10x what's needed to register some evaluations
+    # wait for the loop to evaluate again after the first error instead of
+    # sleeping for a fixed period, which can elapse before the second
+    # evaluation on a loaded machine
+    await evaluated_twice.wait()
 
     task.cancel()
     with pytest.raises(asyncio.CancelledError):

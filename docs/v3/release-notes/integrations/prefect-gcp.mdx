@@ -2,6 +2,25 @@
 title: prefect-gcp
 ---
 
+## 0.6.22
+
+_Released on September 08, 2026_
+
+**Features**
+
+- Add configurable base directory for included files [#22855](https://github.com/PrefectHQ/prefect/pull/22855) by [@desertaxle](https://github.com/desertaxle)
+
+**Bug Fixes**
+
+- Restore BigQuery dry-run job config flags when the dry run fails [#22888](https://github.com/PrefectHQ/prefect/pull/22888) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Crash flow runs when a Vertex AI job fails before the container starts [#22728](https://github.com/PrefectHQ/prefect/pull/22728) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.8.4`
+
+---
+
 ## 0.6.21
 
 _Released on July 15, 2026_
@@ -87,7 +106,7 @@ _Released on February 12, 2026_
 **Maintenance**
 
 - Bump `prefect` lower bound to `>=3.6.17` [#20659](https://github.com/PrefectHQ/prefect/pull/20659) by [@desertaxle](https://github.com/desertaxle)
-- chore(deps-dev): bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@dependabot](https://github.com/apps/dependabot)
+- Bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@dependabot](https://github.com/apps/dependabot)
 
 ---
 
@@ -97,14 +116,14 @@ _Released on February 03, 2026_
 
 **Features**
 
-- feat(cloud-run-v2): Add configurable UUID length for job names [#20468](https://github.com/PrefectHQ/prefect/pull/20468) by [@yukiyan](https://github.com/yukiyan)
-- feat: retry Cloud Run V2 job creation on transient errors [#20387](https://github.com/PrefectHQ/prefect/pull/20387) by [@Rodrigorm33](https://github.com/Rodrigorm33)
+- Add configurable UUID length for Cloud Run V2 job names [#20468](https://github.com/PrefectHQ/prefect/pull/20468) by [@yukiyan](https://github.com/yukiyan)
+- Retry Cloud Run V2 job creation on transient errors [#20387](https://github.com/PrefectHQ/prefect/pull/20387) by [@Rodrigorm33](https://github.com/Rodrigorm33)
 
-**Other**
+**Maintenance**
 
-- migrate prefect-gcp cloud_storage from [@sync](https://github.com/sync)_compatible to [@async](https://github.com/async)_dispatch [#20522](https://github.com/PrefectHQ/prefect/pull/20522) by [@zzstoatzz](https://github.com/zzstoatzz)
-- migrate prefect-gcp bigquery from [@sync](https://github.com/sync)_compatible to [@async](https://github.com/async)_dispatch [#20521](https://github.com/PrefectHQ/prefect/pull/20521) by [@zzstoatzz](https://github.com/zzstoatzz)
-- migrate prefect-gcp secret_manager from [@sync](https://github.com/sync)_compatible to [@async](https://github.com/async)_dispatch [#20513](https://github.com/PrefectHQ/prefect/pull/20513) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Migrate `prefect-gcp` `cloud_storage` from `sync_compatible` to `async_dispatch` [#20522](https://github.com/PrefectHQ/prefect/pull/20522) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Migrate `prefect-gcp` `bigquery` from `sync_compatible` to `async_dispatch` [#20521](https://github.com/PrefectHQ/prefect/pull/20521) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Migrate `prefect-gcp` `secret_manager` from `sync_compatible` to `async_dispatch` [#20513](https://github.com/PrefectHQ/prefect/pull/20513) by [@zzstoatzz](https://github.com/zzstoatzz)
 
 ---
 

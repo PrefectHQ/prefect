@@ -37,6 +37,12 @@ This directory contains React components for the Prefect UI migration from Vue t
 - Use `FormField` component from `@/components/ui/form` to wrap form fields
 - Use `Stepper` component for wizard-like flows
 
+## Schema Forms
+
+- `SchemaForm` (`@/components/schemas`) edits free-form objects (no `properties`) with a JSON editor, so its `values` can contain `{ __prefect_kind: "json", value: "<json string>" }` wrappers. The API stores block documents and work pool base job template defaults as plain JSON — call `removePrefectKindValues(values)` from `@/components/schemas/utilities/removePrefectKindValues` before submitting schema form values to the API
+- Block document inputs emit and accept `{ $ref: { block_document_id } }`, the same shape the API expects, so no extra conversion is needed for them
+- Schema `$ref`s may point to `#/definitions/...` while the schema stores them under `$defs` (Pydantic emits `$defs`; the server rewrites refs to `#/definitions/`). `getSchemaDefinition` checks both containers
+
 ## Icon Usage
 
   - Import icons from `lucide-react`
@@ -65,7 +71,7 @@ Import `useTable`, `createColumnHelper`, and table types (`ColumnDef`, `CellCont
 
 Exception: Radix components that render in a portal (e.g., `DropdownMenuContent`) bubble events through React's synthetic event system even when the DOM node is outside the table. Add `onClick={(e) => e.stopPropagation()}` on the portal content component itself.
 
-`Dialog`/`DialogContent` (`@/components/ui/dialog`) already carry `data-row-click-ignore="true"` on both the overlay and content, so opening one from a row action needs no extra stopPropagation. Other portal-rendered primitives (`DropdownMenuContent`, `Popover`, etc.) still need the manual exception above.
+`Dialog`/`DialogContent` (`@/components/ui/dialog`) already carry `data-row-click-ignore="true"` on both the overlay and content, and `PopoverContent` (`@/components/ui/popover`, which also backs `Combobox`) carries it too, so opening either from a row action needs no extra stopPropagation. Other portal-rendered primitives (`DropdownMenuContent`, `SelectContent`, etc.) still need the manual exception above.
 
 ## DataTable Column Resizing
 

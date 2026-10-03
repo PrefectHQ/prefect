@@ -52,6 +52,12 @@ test.describe("Work Pools List Page", () => {
 		await page.goto("/work-pools");
 		await waitForWorkPoolsPageReady(page);
 
+		// Another shard may have created work pools between the skip-check and
+		// page load, putting us in the non-empty state. Re-verify via API so a
+		// rendering bug in the empty state still surfaces as a real failure.
+		const rechecked = await listWorkPools(apiClient);
+		test.skip(rechecked.length > 0, "Work pools appeared from another shard");
+
 		await expect(
 			page.getByRole("heading", { name: /add a work pool to get started/i }),
 		).toBeVisible();

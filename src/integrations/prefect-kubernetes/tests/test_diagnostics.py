@@ -9,6 +9,22 @@ from prefect_kubernetes.diagnostics import (
 )
 
 
+def _unschedulable_diagnosis(message: str) -> InfrastructureDiagnosis:
+    diagnosis = diagnose_k8s_pod(
+        {
+            "conditions": [
+                {
+                    "type": "PodScheduled",
+                    "reason": "Unschedulable",
+                    "message": message,
+                }
+            ]
+        }
+    )
+    assert diagnosis is not None
+    return diagnosis
+
+
 class TestDiagnoseKubernetesPod:
     """Tests for diagnose_k8s_pod."""
 
@@ -369,3 +385,353 @@ class TestDiagnoseKubernetesPod:
             resolution="r",
         )
         assert a == b
+
+    # --- dedupe_key --------------------------------------------------------
+
+    def test_dedupe_key_distinguishes_categories(self):
+        unschedulable = _unschedulable_diagnosis(
+            "0/3 nodes are available: 3 node(s) had untolerated taint."
+        )
+        oom = diagnose_k8s_pod(
+            {
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {"terminated": {"reason": "OOMKilled"}},
+                    }
+                ]
+            }
+        )
+        assert oom is not None
+        assert unschedulable._dedupe_key() != oom._dedupe_key()
+
+    def test_dedupe_key_distinguishes_oom_killed_containers(self):
+        worker_one = diagnose_k8s_pod(
+            {
+                "containerStatuses": [
+                    {
+                        "name": "worker-1",
+                        "state": {"terminated": {"reason": "OOMKilled"}},
+                    }
+                ]
+            }
+        )
+        worker_two = diagnose_k8s_pod(
+            {
+                "containerStatuses": [
+                    {
+                        "name": "worker-2",
+                        "state": {"terminated": {"reason": "OOMKilled"}},
+                    }
+                ]
+            }
+        )
+        assert worker_one is not None and worker_two is not None
+        assert worker_one._dedupe_key() != worker_two._dedupe_key()
+
+    @pytest.mark.parametrize(
+        ("first_detail", "second_detail"),
+        [
+            (
+                "0/3 nodes are available: 3 Insufficient cpu.",
+                "0/5 nodes are available: 5 Insufficient cpu.",
+            ),
+            (
+                "0/3 nodes are available: 2 Insufficient cpu, 1 Insufficient memory.",
+                "0/4 nodes are available: 1 Insufficient memory, 3 Insufficient cpu.",
+            ),
+            (
+                (
+                    "0/8 nodes are available: 8 Insufficient cpu, "
+                    "2 node(s) had untolerated taint. preemption: "
+                    "0/8 nodes are available: 8 Preemption is not helpful for "
+                    "scheduling, 2 No preemption victims found for incoming pod."
+                ),
+                (
+                    "0/12 nodes are available: 4 node(s) had untolerated taint, "
+                    "12 Insufficient cpu. preemption: 0/15 nodes are available: "
+                    "3 No preemption victims found for incoming pod, 12 Preemption "
+                    "is not helpful for scheduling."
+                ),
+            ),
+            (
+                (
+                    "0/1 nodes are available: preemption: 0/1 nodes are available: "
+                    "1 Preemption is not helpful for scheduling."
+                ),
+                (
+                    "0/2 nodes are available: preemption: 0/2 nodes are available: "
+                    "2 Preemption is not helpful for scheduling."
+                ),
+            ),
+            (
+                (
+                    "0/1 nodes are available: 1 cannot allocate all claims. "
+                    "still not schedulable, preemption: 0/1 nodes are available: "
+                    "1 Preemption is not helpful for scheduling."
+                ),
+                (
+                    "0/2 nodes are available: 2 cannot allocate all claims. "
+                    "still not schedulable, preemption: 0/2 nodes are available: "
+                    "2 Preemption is not helpful for scheduling."
+                ),
+            ),
+            (
+                (
+                    "0/3 nodes are available: Node(s) failed PreFilter plugin "
+                    "FalsePreFilter. preemption: 0/3 nodes are available: "
+                    "3 Preemption is not helpful for scheduling."
+                ),
+                (
+                    "0/5 nodes are available: Node(s) failed PreFilter plugin "
+                    "FalsePreFilter. preemption: 0/5 nodes are available: "
+                    "5 Preemption is not helpful for scheduling."
+                ),
+            ),
+            (
+                (
+                    "0/3 nodes are available: 3 node(s) had untolerated taint "
+                    "{node-role.kubernetes.io/master: }."
+                ),
+                (
+                    "0/8 nodes are available: 8 node(s) had untolerated taint "
+                    "{node-role.kubernetes.io/master: }."
+                ),
+            ),
+            (
+                (
+                    "0/3 nodes are available: 3 node(s) didn't match Pod's node "
+                    "affinity/selector."
+                ),
+                (
+                    "0/5 nodes are available: 5 node(s) didn't match Pod's node "
+                    "affinity/selector."
+                ),
+            ),
+            (
+                (
+                    "0/3 nodes are available: 3 node(s) had volume node affinity "
+                    "conflict."
+                ),
+                (
+                    "0/5 nodes are available: 5 node(s) had volume node affinity "
+                    "conflict."
+                ),
+            ),
+            (
+                (
+                    "0/3 nodes are available: 3 node(s) didn't match pod topology "
+                    "spread constraints."
+                ),
+                (
+                    "0/5 nodes are available: 5 node(s) didn't match pod topology "
+                    "spread constraints."
+                ),
+            ),
+            (
+                (
+                    "0/1 nodes are available: 1 node declared features check failed "
+                    "- unsatisfied requirements: FeatureA, FeatureB."
+                ),
+                (
+                    "0/1 nodes are available: 1 node declared features check failed "
+                    "- unsatisfied requirements: FeatureB, FeatureA."
+                ),
+            ),
+            (
+                (
+                    "0/4 nodes are available: 3 Insufficient cpu, "
+                    "1 Insufficient memory. custom post-filter result"
+                ),
+                (
+                    "0/4 nodes are available: 3 Insufficient memory, "
+                    "1 Insufficient cpu. custom post-filter result"
+                ),
+            ),
+        ],
+        ids=[
+            "node-counts",
+            "filter-order",
+            "preemption-counts-and-order",
+            "count-only-preemption",
+            "general-postfilter-preemption",
+            "prefilter-preemption",
+            "dotted-taint-counts",
+            "node-affinity-counts",
+            "volume-node-affinity-counts",
+            "topology-spread-counts",
+            "node-declared-feature-order",
+            "filter-order-with-postfilter",
+        ],
+    )
+    def test_dedupe_key_normalizes_equivalent_scheduler_messages(
+        self, first_detail: str, second_detail: str
+    ):
+        first = _unschedulable_diagnosis(first_detail)
+        second = _unschedulable_diagnosis(second_detail)
+        assert first._dedupe_key() == second._dedupe_key()
+
+    @pytest.mark.parametrize(
+        ("first_detail", "second_detail"),
+        [
+            (
+                "0/3 nodes are available: 3 Insufficient cpu.",
+                "scheduler report: 0/3 nodes are available: 3 Insufficient cpu.",
+            ),
+            (
+                "0/3 nodes are available: 3 Insufficient cpu, 2",
+                "0/5 nodes are available: 5 Insufficient cpu, 2",
+            ),
+            (
+                "0/3 nodes are available: 3 custom plugin reason.",
+                "0/5 nodes are available: 5 custom plugin reason.",
+            ),
+            (
+                "0/3 nodes are available: FutureSchedulerPlugin changed its wording.",
+                "0/5 nodes are available: FutureSchedulerPlugin changed its wording.",
+            ),
+            (
+                (
+                    "0/1 nodes are available: 1 custom plugin observed node "
+                    "declared features check failed - unsatisfied requirements: "
+                    "FeatureA, FeatureB."
+                ),
+                (
+                    "0/1 nodes are available: 1 custom plugin observed node "
+                    "declared features check failed - unsatisfied requirements: "
+                    "FeatureB, FeatureA."
+                ),
+            ),
+            (
+                (
+                    "0/1 nodes are available: 1 cannot allocate all claims. "
+                    "preemption: scheduler report: 0/1 nodes are available: "
+                    "1 Preemption is not helpful for scheduling."
+                ),
+                (
+                    "0/2 nodes are available: 2 cannot allocate all claims. "
+                    "preemption: scheduler report: 0/2 nodes are available: "
+                    "2 Preemption is not helpful for scheduling."
+                ),
+            ),
+            (
+                (
+                    "0/1 nodes are available: 1 cannot allocate all claims. "
+                    "preemption: 0/1 nodes are available: 1 Preemption is not "
+                    "helpful for scheduling."
+                ),
+                (
+                    "0/1 nodes are available: 1 cannot allocate all claims. "
+                    "preemption: 0/1 nodes are available: 1 Preemption is not "
+                    "helpful for scheduling.."
+                ),
+            ),
+        ],
+        ids=[
+            "changed-outer-scaffold",
+            "incomplete-filter-histogram",
+            "unrecognized-filter-reason",
+            "unrecognized-prefilter-reason",
+            "embedded-node-declared-features-prefix",
+            "malformed-nested-preemption",
+            "extra-preemption-terminator",
+        ],
+    )
+    def test_dedupe_key_preserves_unrecognized_scheduler_messages(
+        self, first_detail: str, second_detail: str
+    ):
+        first = _unschedulable_diagnosis(first_detail)
+        second = _unschedulable_diagnosis(second_detail)
+        assert first._dedupe_key() != second._dedupe_key()
+
+    @pytest.mark.parametrize(
+        ("first_detail", "second_detail"),
+        [
+            (
+                "0/3 nodes are available: 3 Insufficient cpu.",
+                "0/3 nodes are available: 3 Insufficient ephemeral-storage.",
+            ),
+            (
+                (
+                    "0/3 nodes are available: 3 node(s) had untolerated taint "
+                    "{gpu-tier: 1}."
+                ),
+                (
+                    "0/3 nodes are available: 3 node(s) had untolerated taint "
+                    "{gpu-tier: 2}."
+                ),
+            ),
+            (
+                (
+                    "0/3 nodes are available: 3 node(s) had untolerated taint "
+                    "{node-role.kubernetes.io/master: }."
+                ),
+                (
+                    "0/3 nodes are available: 3 node(s) had untolerated taint "
+                    "{node-role.kubernetes.io/worker: }."
+                ),
+            ),
+            (
+                (
+                    "0/3 nodes are available: 3 Insufficient example.com/gpu, "
+                    "2 Insufficient vendor.io/fpga."
+                ),
+                (
+                    "0/3 nodes are available: 3 Insufficient example.io/fpga, "
+                    "2 Insufficient vendor.com/gpu."
+                ),
+            ),
+            (
+                (
+                    "0/1 nodes are available: 1 node declared features check failed "
+                    "- unsatisfied requirements: FeatureA, FeatureB."
+                ),
+                (
+                    "0/1 nodes are available: 1 node declared features check failed "
+                    "- unsatisfied requirements: FeatureA, FeatureC."
+                ),
+            ),
+            (
+                "0/1 nodes are available: policy blocked.",
+                "0/1 nodes are available: 1 policy blocked.",
+            ),
+            (
+                "0/2 nodes are available: 1 policy A. policy B",
+                "0/2 nodes are available: 1 policy B. policy A",
+            ),
+        ],
+        ids=[
+            "resource-cause",
+            "taint-value",
+            "dotted-taint-key",
+            "dotted-resource-name",
+            "node-declared-feature-membership",
+            "prefilter-vs-filter",
+            "filter-vs-postfilter",
+        ],
+    )
+    def test_dedupe_key_preserves_meaningful_scheduler_changes(
+        self, first_detail: str, second_detail: str
+    ):
+        first = _unschedulable_diagnosis(first_detail)
+        second = _unschedulable_diagnosis(second_detail)
+        assert first._dedupe_key() != second._dedupe_key()
+
+    def test_dedupe_key_separates_prefilter_and_post_filter(self):
+        first = _unschedulable_diagnosis(
+            "0/3 nodes are available: Node(s) failed PreFilter plugin "
+            "FalsePreFilter. Error running PostFilter plugin FailedPostFilter"
+        )
+        changed_post_filter = _unschedulable_diagnosis(
+            "0/3 nodes are available: Node(s) failed PreFilter plugin "
+            "FalsePreFilter. Error running PostFilter plugin OtherPostFilter"
+        )
+        assert (
+            "prefilter: Node(s) failed PreFilter plugin FalsePreFilter"
+            in first._dedupe_key()
+        )
+        assert (
+            "postfilter: Error running PostFilter plugin FailedPostFilter"
+            in first._dedupe_key()
+        )
+        assert first._dedupe_key() != changed_post_filter._dedupe_key()

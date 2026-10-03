@@ -5,19 +5,22 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import { createWrapper } from "@tests/utils";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BlockDocument } from "@/api/block-documents";
 import { createFakeBlockDocument } from "@/mocks";
 import { BlockDocumentEditPage } from "./block-document-edit-page";
+
+const validateForm = vi.fn();
 
 vi.mock("@/components/schemas", () => ({
 	useSchemaForm: () => ({
 		values: {},
 		setValues: vi.fn(),
 		errors: [],
-		validateForm: vi.fn().mockResolvedValue(undefined),
+		validateForm,
 	}),
 	LazySchemaForm: () => <div data-testid="schema-form" />,
 }));
@@ -40,6 +43,35 @@ const BlockDocumentEditPageRouter = ({
 };
 
 describe("BlockDocumentEditPage", () => {
+	beforeEach(() => {
+		validateForm.mockReset();
+		validateForm.mockResolvedValue({ valid: true, errors: [] });
+	});
+
+	it("does not update the block document when validation fails", async () => {
+		validateForm.mockResolvedValue({
+			valid: false,
+			errors: [{ property: "env", errors: ["Invalid JSON"] }],
+		});
+		const patchHandler = vi.fn();
+		server.use(
+			http.patch(buildApiUrl("/block_documents/:id"), () => {
+				patchHandler();
+				return new HttpResponse(null, { status: 204 });
+			}),
+		);
+		const blockDocument = createFakeBlockDocument({ id: "block-doc-1" });
+
+		render(<BlockDocumentEditPageRouter blockDocument={blockDocument} />, {
+			wrapper: createWrapper(),
+		});
+
+		fireEvent.click(await screen.findByRole("button", { name: "Save" }));
+
+		await waitFor(() => expect(validateForm).toHaveBeenCalled());
+		expect(patchHandler).not.toHaveBeenCalled();
+	});
+
 	it("renders the block name as a disabled field with an explanatory description", async () => {
 		const blockDocument = createFakeBlockDocument({
 			id: "block-doc-1",

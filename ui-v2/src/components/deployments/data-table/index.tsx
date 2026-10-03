@@ -8,6 +8,8 @@ import type {
 import { useCallback } from "react";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import type { components } from "@/api/prefect";
+import { DeploymentTagsSelect } from "@/components/deployments/deployment-tags-select";
+import { PinDeploymentButton } from "@/components/deployments/pinned-deployments";
 import { useDeleteDeploymentConfirmationDialog } from "@/components/deployments/use-delete-deployment-confirmation-dialog";
 import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { Button } from "@/components/ui/button";
@@ -32,7 +34,6 @@ import {
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
-import { TagsInput } from "@/components/ui/tags-input";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { pluralize } from "@/utils";
@@ -62,6 +63,15 @@ const createColumns = ({
 	onDelete: (deployment: DeploymentWithFlow) => void;
 }) =>
 	columnHelper.columns([
+		columnHelper.display({
+			id: "pin",
+			header: () => <span className="sr-only">Pin</span>,
+			cell: ({ row }) => (
+				<PinDeploymentButton deploymentId={row.original.id} revealOnRowHover />
+			),
+			enableResizing: false,
+			size: 48,
+		}),
 		columnHelper.display({
 			id: "name",
 			header: "Deployment",
@@ -189,10 +199,8 @@ export const DeploymentsDataTable = ({
 		[onColumnFiltersChange, columnFilters],
 	);
 
-	const handleTagsSearchChange: React.ChangeEventHandler<HTMLInputElement> &
-		((tags: string[]) => void) = useCallback(
-		(e: string[] | React.ChangeEvent<HTMLInputElement>) => {
-			const tags = Array.isArray(e) ? e : e.target.value;
+	const handleTagsSearchChange = useCallback(
+		(tags: string[]) => {
 			const filters = columnFilters.filter((filter) => filter.id !== "tags");
 			onColumnFiltersChange(
 				tags.length ? [...filters, { id: "tags", value: tags }] : filters,
@@ -234,6 +242,7 @@ export const DeploymentsDataTable = ({
 				confirmDelete({ ...deployment, name });
 			},
 		}),
+		getRowId: (deployment) => deployment.id,
 		pageCount,
 		manualPagination: true,
 		enableColumnResizing: true,
@@ -262,8 +271,7 @@ export const DeploymentsDataTable = ({
 					/>
 				</div>
 				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
-					<TagsInput
-						placeholder="Filter by tags"
+					<DeploymentTagsSelect
 						onChange={handleTagsSearchChange}
 						value={tagsSearchValue}
 					/>
@@ -293,6 +301,7 @@ export const DeploymentsDataTable = ({
 				<FlowRunActivityBarGraphTooltipProvider>
 					<DataTable
 						table={table}
+						animateRowReorder
 						onRowClick={(row) =>
 							void navigate({
 								to: "/deployments/deployment/$id",

@@ -47,6 +47,21 @@ describe("TaskRunDetails", () => {
 		).toHaveAttribute("href", "/runs/flow-run/test-flow-run-id");
 	});
 
+	it("should display durations in hours and minutes", async () => {
+		const taskRun = createFakeTaskRun({
+			total_run_time: 3661,
+			estimated_run_time: 42787.67,
+		});
+		const screen = await waitFor(() =>
+			render(<TaskRunDetailsRouter taskRun={taskRun} />, {
+				wrapper: createWrapper(),
+			}),
+		);
+
+		expect(screen.getByText("1h 1m")).toBeInTheDocument();
+		expect(screen.getByText("11h 53m")).toBeInTheDocument();
+	});
+
 	it("should display task run ID", async () => {
 		const taskRun = createFakeTaskRun({ id: "test-task-id" });
 		const screen = await waitFor(() =>

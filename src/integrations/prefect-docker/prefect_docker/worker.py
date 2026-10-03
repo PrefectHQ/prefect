@@ -20,12 +20,17 @@ import enum
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import urllib.parse
 import uuid
 import warnings
+from _thread import LockType
+from dataclasses import dataclass, field
+from pathlib import Path
+from threading import Lock
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -42,7 +47,7 @@ import packaging.version
 from docker import DockerClient
 from docker.constants import DEFAULT_TIMEOUT_SECONDS as DEFAULT_DOCKER_TIMEOUT_SECONDS
 from docker.models.containers import Container
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 from slugify import slugify
 from typing_extensions import Literal, ParamSpec
 
@@ -80,7 +85,7 @@ from prefect.utilities.dockerutils import (
 from prefect.utilities.processutils import command_to_string
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
-from prefect_docker.types import VolumeStr
+from prefect_docker.types import VolumeStr, is_relative_bind_source
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -96,6 +101,49 @@ CONTAINER_LABELS = {
 }
 
 
+@dataclass
+class _BundleStaging:
+    """Transfer a mounted bundle's cleanup from submission to the Docker thread."""
+
+    path: Path
+    start_attempted: bool = False
+    container_id: str | None = None
+    _claimed: bool = False
+    _closed: bool = False
+    _lock: LockType = field(default_factory=Lock, repr=False)
+
+    def claim(self) -> bool:
+        """Claim cleanup unless submission was cancelled before the thread started."""
+        with self._lock:
+            if self._closed:
+                return False
+            self._claimed = True
+            return True
+
+    def cleanup_if_unclaimed(self) -> None:
+        """Clean staging only when no Docker thread can still consume it."""
+        with self._lock:
+            if self._claimed:
+                return
+            self._closed = True
+        shutil.rmtree(self.path, ignore_errors=True)
+
+
+def _resolve_volumes(volumes: list[str]) -> list[str]:
+    """
+    Resolve explicit relative bind-mount sources (e.g. `.`, `./dir`, `../dir`)
+    against the worker process's current working directory, leaving absolute
+    paths, named volumes, and anonymous volumes unchanged.
+    """
+    resolved: list[str] = []
+    for volume in volumes:
+        source, sep, rest = volume.partition(":")
+        if sep and is_relative_bind_source(source):
+            volume = f"{os.path.abspath(source)}{sep}{rest}"
+        resolved.append(volume)
+    return resolved
+
+
 class ImagePullPolicy(enum.Enum):
     """Enum representing the image pull policy options for a Docker container."""
 
@@ -104,6 +152,21 @@ class ImagePullPolicy(enum.Enum):
     # tries to pull the image, but if not possible it still continues
     IF_POSSIBLE = "IfPossible"
     NEVER = "Never"
+
+
+def _is_missing_container_error(exc: docker.errors.APIError) -> bool:
+    """
+    Report if a Docker API error says that a container does not exist.
+
+    The Docker Engine gives a 404 for a container that does not exist, but
+    Docker-compatible APIs are less consistent. Podman, for example, gives a 500
+    with the explanation `container <id> does not exist in database: no such
+    container`.
+    """
+    return (
+        isinstance(exc, docker.errors.NotFound)
+        or "no such container" in str(exc).lower()
+    )
 
 
 class DockerWorkerJobConfiguration(BaseJobConfiguration):
@@ -128,8 +191,12 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             If 'networks' is set, this cannot be set.
         auto_remove: If set, containers will be deleted on completion.
         volumes: Docker volumes that should be mounted in created containers.
+            Relative bind-mount sources (e.g. `.` or `./data`) are resolved
+            against the worker's current working directory.
         stream_output: If set, the output from created containers will be streamed
             to local standard output.
+        container_wait_timeout: Maximum number of seconds to wait for a created
+            container to exit. If not set, the worker waits indefinitely.
         mem_limit: Memory limit of created containers. Accepts a value
             with a unit identifier (e.g. 100000b, 1000k, 128m, 1g.) If a value is
             given without a unit, bytes are assumed.
@@ -141,6 +208,8 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         privileged: Give extended privileges to created containers.
         container_create_kwargs: Extra args for docker py when creating container.
     """
+
+    _bundle_staging: _BundleStaging | None = PrivateAttr(default=None)
 
     image: str = Field(
         default_factory=get_prefect_image_name,
@@ -176,8 +245,10 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
     )
     volumes: list[VolumeStr] = Field(
         default_factory=list,
-        description="A list of volume to mount into created containers.",
-        examples=["/my/local/path:/path/in/container"],
+        description="A list of volumes to mount into created containers."
+        " Relative bind-mount sources (e.g. '.' or './data') are resolved"
+        " against the worker's current working directory.",
+        examples=["/my/local/path:/path/in/container", "./data:/path/in/container"],
     )
     stream_output: bool = Field(
         default=True,
@@ -185,6 +256,17 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             "If set, the output from created containers will be streamed to local "
             "standard output."
         ),
+    )
+    container_wait_timeout: Optional[int] = Field(
+        default=None,
+        title="Container Wait Timeout",
+        description=(
+            "Maximum number of seconds the worker waits for a created container "
+            "to exit. If the container has not exited within this time, the "
+            "worker stops watching it; the container itself is not stopped. If "
+            "not set, the worker waits indefinitely."
+        ),
+        gt=0,
     )
     mem_limit: Optional[str] = Field(
         default=None,
@@ -477,6 +559,13 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         Executes a flow run within a Docker container and waits for the flow run
         to complete.
         """
+        if configuration._bundle_staging is not None:
+            return await run_sync_in_worker_thread(
+                self._run_container_with_bundle,
+                configuration,
+                configuration._bundle_staging,
+            )
+
         # The `docker` library uses requests instead of an async http library so it must
         # be run in a thread to avoid blocking the event loop.
         container, created_event = await run_sync_in_worker_thread(
@@ -498,6 +587,38 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             status_code=exit_code if exit_code is not None else -1,
             identifier=container_pid,
         )
+
+    def _run_container_with_bundle(
+        self, configuration: DockerWorkerJobConfiguration, staging: _BundleStaging
+    ) -> DockerWorkerResult:
+        """Own a mounted bundle through Docker execution, even after cancellation."""
+        if not staging.claim():
+            raise RuntimeError("Docker submission was cancelled before launch")
+        completed = False
+        try:
+            container, created_event = self._create_and_start_container(
+                configuration, staging=staging
+            )
+            container_pid = self._get_infrastructure_pid(container_id=container.id)
+            container = self._watch_container_safe(
+                container, configuration, created_event
+            )
+            completed = True
+            exit_code = container.attrs["State"].get("ExitCode")
+            return DockerWorkerResult(
+                status_code=exit_code if exit_code is not None else -1,
+                identifier=container_pid,
+            )
+        finally:
+            if completed or not staging.start_attempted:
+                shutil.rmtree(staging.path, ignore_errors=True)
+            else:
+                self._logger.warning(
+                    "Retaining bundle directory %s because Docker container %s "
+                    "may still be running. Remove it after confirming the container has stopped.",
+                    staging.path,
+                    staging.container_id,
+                )
 
     async def _submit_adhoc_run(
         self,
@@ -531,7 +652,9 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         )
 
         bundle_key = str(uuid.uuid4())
+        submission_dir = Path(self._tmp_dir) / bundle_key
         upload_command = None
+        upload_step = None
         flow_launcher = getattr(flow, "launcher", None)
         if not storage_configured_on_work_pool:
             execution_launcher = get_launcher_for_side(flow_launcher, "execution")
@@ -561,7 +684,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     *existing_volumes,
                     *job_variable_volumes,
                     # This is a temporary volume for the bundle
-                    f"{self._tmp_dir}:/tmp/",
+                    f"{submission_dir}:/tmp/",
                 ],
             }
         else:
@@ -629,31 +752,59 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             worker_id=self.backend_id,
         )
 
-        creation_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-        bundle = creation_result["bundle"]
-
-        await (
-            anyio.Path(self._tmp_dir)
-            .joinpath(bundle_key)
-            .write_bytes(json.dumps(bundle).encode("utf-8"))
-        )
-
-        if upload_command:
-            try:
-                full_command = upload_command + [bundle_key]
-                logger.debug(
-                    "Uploading execution bundle with command: %s", full_command
-                )
-                await anyio.run_process(
-                    full_command,
-                    cwd=self._tmp_dir,
-                )
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(e.stderr.decode("utf-8")) from e
-
-        logger.debug("Successfully uploaded execution bundle")
-
         try:
+            creation_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        except Exception as exc:
+            logger.exception(
+                "Failed to create execution bundle for flow run '%s'.", flow_run.id
+            )
+            message = (
+                f"Flow run bundle could not be created: {type(exc).__name__}: {exc}"
+            )
+            await self._propose_crashed_state(flow_run, message)
+            return
+
+        bundle = creation_result["bundle"]
+        zip_path = creation_result["zip_path"]
+        files_key = bundle.get("files_key")
+        staging = _BundleStaging(submission_dir)
+        try:
+            # Each submission owns its staging directory even when included files
+            # have the same content-addressed storage key.
+            submission_dir.mkdir()
+            await anyio.Path(submission_dir / bundle_key).write_bytes(
+                json.dumps(bundle).encode("utf-8")
+            )
+
+            if zip_path and files_key:
+                sidecar_dest = submission_dir / files_key
+                sidecar_dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(zip_path, sidecar_dest)
+
+            if upload_command:
+                try:
+                    full_command = upload_command + [bundle_key]
+                    logger.debug(
+                        "Uploading execution bundle with command: %s", full_command
+                    )
+                    await anyio.run_process(full_command, cwd=submission_dir)
+
+                    if zip_path and files_key and upload_step is not None:
+                        sidecar_command = convert_step_to_command(
+                            upload_step, files_key, quiet=True
+                        ) + [files_key]
+                        logger.debug(
+                            "Uploading sidecar zip with command: %s", sidecar_command
+                        )
+                        await anyio.run_process(sidecar_command, cwd=submission_dir)
+                except subprocess.CalledProcessError as e:
+                    raise RuntimeError(e.stderr.decode("utf-8")) from e
+
+            if storage_configured_on_work_pool:
+                # Storage-backed containers never consume the local staging files.
+                staging.cleanup_if_unclaimed()
+            else:
+                configuration._bundle_staging = staging
             result = await self.run(flow_run=flow_run, configuration=configuration)
 
             if result.status_code != 0:
@@ -665,12 +816,20 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     ),
                 )
         except Exception as exc:
-            # This flow run was being submitted and did not start successfully
             logger.exception(
                 f"Failed to submit flow run '{flow_run.id}' to infrastructure."
             )
             message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
             await self._propose_crashed_state(flow_run, message)
+        finally:
+            staging.cleanup_if_unclaimed()
+            if zip_path:
+                try:
+                    zip_path.unlink(missing_ok=True)
+                    if zip_path.parent.name.startswith("prefect-zip-"):
+                        shutil.rmtree(zip_path.parent, ignore_errors=True)
+                except OSError as cleanup_error:
+                    logger.debug("Failed to clean up sidecar zip: %s", cleanup_error)
 
     def _get_client(self):
         """Returns a docker client."""
@@ -771,7 +930,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             labels=configuration.labels,
             extra_hosts=extra_hosts,
             name=configuration.name,
-            volumes=configuration.volumes,
+            volumes=_resolve_volumes(configuration.volumes),
             mem_limit=configuration.mem_limit,
             memswap_limit=configuration.memswap_limit,
             privileged=configuration.privileged,
@@ -779,90 +938,103 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         )
 
     def _create_and_start_container(
-        self, configuration: DockerWorkerJobConfiguration
+        self,
+        configuration: DockerWorkerJobConfiguration,
+        *,
+        staging: _BundleStaging | None = None,
     ) -> Tuple["Container", Event]:
         """Creates and starts a Docker container."""
         docker_client = self._get_client()
-        container_settings = self._build_container_settings(
-            docker_client, configuration
-        )
-
-        if self._should_pull_image(docker_client, configuration=configuration):
-            try:
-                # Only authenticate to the registry when we actually need to pull an image.
-                # This prevents unnecessary authentication attempts when the image already
-                # exists locally, improving resilience when registries are unavailable.
-                if configuration.registry_credentials:
-                    self._logger.info("Logging into Docker registry...")
-                    docker_client.login(
-                        username=configuration.registry_credentials.username,
-                        password=configuration.registry_credentials.password.get_secret_value(),
-                        registry=configuration.registry_credentials.registry_url,
-                        reauth=configuration.registry_credentials.reauth,
-                    )
-                self._logger.info(f"Pulling image {configuration.image!r}...")
-
-                self._pull_image(docker_client, configuration)
-            except Exception as exc:
-                image_pull_policy = configuration._determine_image_pull_policy()
-                if image_pull_policy is not ImagePullPolicy.IF_POSSIBLE:
-                    raise exc
-                else:
-                    self._logger.warning(
-                        f"We could not pull the image {configuration.image!r}. But because ImagePullPolicy is set to '{ImagePullPolicy.IF_POSSIBLE}' we still continue. Maybe we have an local one."
-                        f"\nPulling failed with:\n{exc}"
-                    )
-                    # if pull policy is if_possible, we check if a local image exists. If yes this will be used, otherwise it will raise a detailed exception
-                    try:
-                        docker_client.images.get(configuration.image)
-                    except docker.errors.ImageNotFound as exc_image_not_found:
-                        # this fail results from different exceptions
-                        """
-                        # if we use one day python >=3.11
-                        docker_errors = [exc, exc_image_not_found]
-                        raise ExceptionGroup(
-                            f"Docker image {configuration.image!r} could neither be pulled online nor found locally.",
-                            docker_errors,
-                        )
-                        """
-                        error_message = (
-                            f"Docker operation completely failed for {configuration.image!r}:\n"
-                            f"-> [1. Login/Pull Error]: {exc}\n\n"
-                            f"-> [2. Local Error]: {exc_image_not_found}\n\n"
-                            f"-> NOTE: Because ImagePullPolicy was set to '{ImagePullPolicy.IF_POSSIBLE}', "
-                            f"a local fallback was attempted after the pull failed, but the image could not be found locally either."
-                        )
-                        raise RuntimeError(error_message) from exc_image_not_found
-
         try:
-            self._logger.info(
-                f"Creating Docker container {container_settings['name']!r}..."
+            container_settings = self._build_container_settings(
+                docker_client, configuration
             )
-            container = self._create_container(docker_client, **container_settings)
-            self._logger.info(
-                f"Docker container {container.name!r} created successfully."
+
+            if self._should_pull_image(docker_client, configuration=configuration):
+                try:
+                    # Only authenticate to the registry when we actually need to pull an image.
+                    # This prevents unnecessary authentication attempts when the image already
+                    # exists locally, improving resilience when registries are unavailable.
+                    if configuration.registry_credentials:
+                        self._logger.info("Logging into Docker registry...")
+                        docker_client.login(
+                            username=configuration.registry_credentials.username,
+                            password=configuration.registry_credentials.password.get_secret_value(),
+                            registry=configuration.registry_credentials.registry_url,
+                            reauth=configuration.registry_credentials.reauth,
+                        )
+                    self._logger.info(f"Pulling image {configuration.image!r}...")
+
+                    self._pull_image(docker_client, configuration)
+                except Exception as exc:
+                    image_pull_policy = configuration._determine_image_pull_policy()
+                    if image_pull_policy is not ImagePullPolicy.IF_POSSIBLE:
+                        raise exc
+                    else:
+                        self._logger.warning(
+                            f"We could not pull the image {configuration.image!r}. But because ImagePullPolicy is set to '{ImagePullPolicy.IF_POSSIBLE}' we still continue. Maybe we have an local one."
+                            f"\nPulling failed with:\n{exc}"
+                        )
+                        # if pull policy is if_possible, we check if a local image exists. If yes this will be used, otherwise it will raise a detailed exception
+                        try:
+                            docker_client.images.get(configuration.image)
+                        except docker.errors.ImageNotFound as exc_image_not_found:
+                            # this fail results from different exceptions
+                            """
+                            # if we use one day python >=3.11
+                            docker_errors = [exc, exc_image_not_found]
+                            raise ExceptionGroup(
+                                f"Docker image {configuration.image!r} could neither be pulled online nor found locally.",
+                                docker_errors,
+                            )
+                            """
+                            error_message = (
+                                f"Docker operation completely failed for {configuration.image!r}:\n"
+                                f"-> [1. Login/Pull Error]: {exc}\n\n"
+                                f"-> [2. Local Error]: {exc_image_not_found}\n\n"
+                                f"-> NOTE: Because ImagePullPolicy was set to '{ImagePullPolicy.IF_POSSIBLE}', "
+                                f"a local fallback was attempted after the pull failed, but the image could not be found locally either."
+                            )
+                            raise RuntimeError(error_message) from exc_image_not_found
+
+            try:
+                self._logger.info(
+                    f"Creating Docker container {container_settings['name']!r}..."
+                )
+                container = self._create_container(docker_client, **container_settings)
+                if staging is not None:
+                    staging.container_id = container.id
+                self._logger.info(
+                    f"Docker container {container.name!r} created successfully."
+                )
+            except Exception as exc:
+                self._emit_container_creation_failed_event(configuration)
+                raise exc
+
+            created_event = self._emit_container_status_change_event(
+                container, configuration
             )
-        except Exception as exc:
-            self._emit_container_creation_failed_event(configuration)
-            raise exc
 
-        created_event = self._emit_container_status_change_event(
-            container, configuration
-        )
+            # Add additional networks after the container is created; only one network can
+            # be attached at creation time
+            if len(configuration.networks) > 1:
+                for network_name in configuration.networks[1:]:
+                    network = docker_client.networks.get(network_name)
+                    network.connect(container)
 
-        # Add additional networks after the container is created; only one network can
-        # be attached at creation time
-        if len(configuration.networks) > 1:
-            for network_name in configuration.networks[1:]:
-                network = docker_client.networks.get(network_name)
-                network.connect(container)
+            # A created container cannot consume the mount until we start it.
+            # Keep all local validation, creation, inspection, and network setup
+            # in the preparation phase. Once start is attempted, a lost response
+            # can hide a running container, so only confirmed completion permits
+            # cleanup. This boundary does not depend on exception types.
+            if staging is not None:
+                staging.start_attempted = True
+            container.start()
 
-        # Start the container
-        container.start()
+            return container, created_event
 
-        docker_client.close()
-
-        return container, created_event
+        finally:
+            docker_client.close()
 
     def _watch_container_safe(
         self,
@@ -888,8 +1060,13 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         container, configuration, last_event=last_event
                     )
 
-        except docker.errors.NotFound:
+        except docker.errors.APIError as exc:
             # The container was removed during watching
+            if not (
+                isinstance(exc, docker.errors.NotFound)
+                or (configuration.auto_remove and _is_missing_container_error(exc))
+            ):
+                raise
             self._logger.warning(
                 f"Docker container {container.name} was removed before we could wait "
                 "for its completion."
@@ -929,6 +1106,11 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         " before logs could be retrieved. Output will not be"
                         " streamed. "
                     )
+                elif configuration.auto_remove and _is_missing_container_error(exc):
+                    self._logger.warning(
+                        f"Docker container {container.name} was removed before logs"
+                        " could be retrieved. Output will not be streamed."
+                    )
                 else:
                     self._logger.exception(
                         "An unexpected Docker API error occurred while streaming output "
@@ -943,7 +1125,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 )
             yield container
 
-        container.wait()
+        container.wait(timeout=configuration.container_wait_timeout)
         self._logger.info(
             f"Docker container {container.name!r} has status {container.status!r}"
         )

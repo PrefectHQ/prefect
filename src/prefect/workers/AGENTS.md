@@ -12,7 +12,7 @@ This module does NOT manage the Runner execution model (no work pool) — see `r
 
 - `BaseWorker` — abstract base; handles heartbeating, polling, cancellation, and attribution env vars
 - `BaseJobConfiguration` — Pydantic model for per-run infrastructure config; `prepare_for_flow_run()` stamps attribution variables into `env`
-- `ProcessWorker` (`process.py`) — runs direct flow runs through `FlowRunExecutor` with `EngineCommandStarter`; ad hoc bundles still use `Runner.execute_bundle()`
+- `ProcessWorker` (`process.py`) — runs direct flow runs through `FlowRunExecutor`; generated commands prepare deployment workspaces with `WorkspaceResolvingEngineCommandStarter`, while explicitly configured commands use `EngineCommandStarter`; ad hoc bundles still use `Runner.execute_bundle()`
 - `BaseWorkerResult` — result returned by `run()`; wraps infrastructure status codes
 
 ## Worker Channel
@@ -48,7 +48,7 @@ Work-pool-level launchers are configured via `prefect work-pool storage configur
 ## Pitfalls
 
 - `backend_id` is `None` until the first heartbeat succeeds; `PREFECT__WORKER_ID` is not set until then. Code that reads `self.backend_id` early in the lifecycle may get `None`.
-- Direct `ProcessWorker.run()` execution uses `FlowRunExecutorContext` with `EngineCommandStarter` and `propose_submitting=False` because `BaseWorker` already proposed Submitting. Consume the executor's normalized infrastructure status, not the raw child exit code. The ad hoc bundle path still uses deprecated `Runner.execute_bundle()` and remains a migration gap (see `runner/AGENTS.md`).
+- Direct `ProcessWorker.run()` execution uses `FlowRunExecutorContext` with `propose_submitting=False` because `BaseWorker` already proposed Submitting. Generated commands use `WorkspaceResolvingEngineCommandStarter` and pass its `hook_runner`; explicitly configured commands use `EngineCommandStarter` and retain their own pull-step behavior. Consume the executor's normalized infrastructure status rather than the raw child exit code. The ad hoc bundle path still uses deprecated `Runner.execute_bundle()` and remains a migration gap (see `runner/AGENTS.md`).
 
 ## Related
 

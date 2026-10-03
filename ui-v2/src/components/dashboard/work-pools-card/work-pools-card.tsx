@@ -638,7 +638,7 @@ const WorkPoolMiniBarChart = ({
 
 		return {
 			limit: NUMBER_OF_BARS,
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 			work_pools: {
 				operator: "and_",

@@ -1849,8 +1849,8 @@ class TestFlowRunExecute:
             captured_starter["starter"], WorkspaceResolvingEngineCommandStarter
         )
         assert (
-            captured_kwargs.get("resolve_flow")
-            == captured_starter["starter"].resolve_flow
+            captured_kwargs.get("hook_runner")
+            is captured_starter["starter"].hook_runner
         )
         assert captured_kwargs.get("propose_submitting") is False
         assert captured_starter["starter"]._deployment_name is None

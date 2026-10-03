@@ -1,6 +1,6 @@
 """Module containing models for Postgres configs"""
 
-from typing import Any, Dict
+from typing import Any
 
 from pydantic import Field
 from typing_extensions import Literal
@@ -44,7 +44,7 @@ class PostgresTargetConfigs(BaseTargetConfigs):
         ),
     )  # noqa
 
-    def get_configs(self) -> Dict[str, Any]:
+    def get_configs(self) -> dict[str, Any]:
         """
         Returns the dbt configs specific to Postgres profile.
 

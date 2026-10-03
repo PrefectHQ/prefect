@@ -24,6 +24,13 @@ class TestIsPidAlive:
         # large PID is almost certainly unused.
         assert _is_pid_alive(4_000_000) is False
 
+    @pytest.mark.windows
+    def test_protected_process_is_alive_on_windows(self):
+        # PID 4 is the Windows `System` process. It is always running but
+        # `OpenProcess` fails with ERROR_ACCESS_DENIED, which must not be
+        # mistaken for a dead process.
+        assert _is_pid_alive(4) is True
+
 
 class TestRemoveStaleLock:
     def test_removes_lock_with_dead_pid(self, tmp_path: Path):

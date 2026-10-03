@@ -727,8 +727,7 @@ describe("FlowRunsAccordionContent", () => {
 			expect(screen.getByText("Timed Run")).toBeInTheDocument();
 		});
 
-		// Duration is formatted as "X.XX seconds" by FlowRunDuration component
-		expect(screen.getByText(/seconds/i)).toBeInTheDocument();
+		expect(screen.getByText("1h 1m")).toBeInTheDocument();
 	});
 
 	it("renders parameters and task runs for flow runs", async () => {

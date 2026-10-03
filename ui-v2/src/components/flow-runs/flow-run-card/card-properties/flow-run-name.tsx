@@ -31,11 +31,11 @@ export const FlowRunName = ({ flowRun }: FlowRunNameProps) => {
 						</BreadcrumbItem>
 					)}
 					{flow && <BreadcrumbSeparator>/</BreadcrumbSeparator>}
-					<BreadcrumbItem className="font-bold text-foreground min-w-0">
+					<BreadcrumbItem className="font-bold text-base min-w-0">
 						<BreadcrumbLink
 							to="/runs/flow-run/$id"
 							params={{ id: flowRun.id }}
-							className="truncate block"
+							className="truncate block text-link hover:text-link-hover hover:underline"
 							title={flowRun.name}
 						>
 							{flowRun.name}

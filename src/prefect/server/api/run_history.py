@@ -3,8 +3,8 @@ Utilities for querying flow and task run history.
 """
 
 import datetime
-import json
-from typing import TYPE_CHECKING, List, Optional
+from collections import defaultdict
+from typing import TYPE_CHECKING, Any, List, Optional
 
 import pydantic
 import sqlalchemy as sa
@@ -41,6 +41,11 @@ async def run_history(
     Produce a history of runs aggregated by interval and state
     """
 
+    # normalize to stdlib timedeltas; pendulum intervals, which the timestamp
+    # arguments produce when they are pendulum instances, do not support floor
+    # division by a timedelta
+    history_interval = datetime.timedelta(seconds=history_interval.total_seconds())
+
     # SQLite has issues with very small intervals
     # (by 0.001 seconds it stops incrementing the interval)
     if history_interval < datetime.timedelta(seconds=1):
@@ -58,112 +63,92 @@ async def run_history(
             f"Unknown run type {run_type!r}. Expected 'flow_run' or 'task_run'."
         )
 
-    # create a CTE for timestamp intervals
-    intervals = db.queries.make_timestamp_intervals(
-        history_start,
-        history_end,
-        history_interval,
-    ).cte("intervals")
+    elapsed = datetime.timedelta(seconds=(history_end - history_start).total_seconds())
+    interval_count = (
+        min(-((-elapsed) // history_interval), 500)
+        if elapsed > datetime.timedelta(0)
+        else 0
+    )
+    if interval_count == 0:
+        return []
+
+    history_query_end = history_start + interval_count * history_interval
 
     # apply filters to the flow runs (and related states)
-    runs = (
-        await run_filter_function(
-            db,
-            sa.select(
-                run_model.id,
+    runs = await run_filter_function(
+        db,
+        sa.select(
+            run_model.id,
+            run_model.expected_start_time,
+            run_model.estimated_run_time,
+            run_model.estimated_start_time_delta,
+            run_model.state_type,
+            run_model.state_name,
+            db.queries.make_timestamp_bucket_index(
                 run_model.expected_start_time,
-                run_model.estimated_run_time,
-                run_model.estimated_start_time_delta,
-                run_model.state_type,
-                run_model.state_name,
-            ).select_from(run_model),
-            flow_filter=flows,
-            flow_run_filter=flow_runs,
-            task_run_filter=task_runs,
-            deployment_filter=deployments,
-            work_pool_filter=work_pools,
-            work_queue_filter=work_queues,
+                history_start,
+                history_interval,
+            ).label("bucket_index"),
         )
-    ).alias("runs")
-    # outer join intervals to the filtered runs to create a dataset composed of
-    # every interval and the aggregate of all its runs. The runs aggregate is represented
-    # by a descriptive JSON object
-    counts = (
-        sa.select(
-            intervals.c.interval_start,
-            intervals.c.interval_end,
-            # build a JSON object, ignoring the case where the count of runs is 0
-            sa.case(
-                (sa.func.count(runs.c.id) == 0, None),
-                else_=db.queries.build_json_object(
-                    "state_type",
-                    runs.c.state_type,
-                    "state_name",
-                    runs.c.state_name,
-                    "count_runs",
-                    sa.func.count(runs.c.id),
-                    # estimated run times only includes positive run times (to avoid any unexpected corner cases)
-                    "sum_estimated_run_time",
-                    sa.func.sum(
-                        sa.func.greatest(
-                            0, sa.extract("epoch", runs.c.estimated_run_time)
-                        )
-                    ),
-                    # estimated lateness is the sum of any positive start time deltas
-                    "sum_estimated_lateness",
-                    sa.func.sum(
-                        sa.func.greatest(
-                            0, sa.extract("epoch", runs.c.estimated_start_time_delta)
-                        )
-                    ),
-                ),
-            ).label("state_agg"),
-        )
-        .select_from(intervals)
-        .join(
-            runs,
-            sa.and_(
-                runs.c.expected_start_time >= intervals.c.interval_start,
-                runs.c.expected_start_time < intervals.c.interval_end,
-            ),
-            isouter=True,
-        )
-        .group_by(
-            intervals.c.interval_start,
-            intervals.c.interval_end,
-            runs.c.state_type,
-            runs.c.state_name,
-        )
-    ).alias("counts")
+        .select_from(run_model)
+        .where(
+            run_model.expected_start_time >= history_start,
+            run_model.expected_start_time < history_query_end,
+        ),
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
+        deployment_filter=deployments,
+        work_pool_filter=work_pools,
+        work_queue_filter=work_queues,
+    )
+    runs = runs.alias("runs")
 
-    # aggregate all state-aggregate objects into a single array for each interval,
-    # ensuring that intervals with no runs have an empty array
-    query = (
-        sa.select(
-            counts.c.interval_start,
-            counts.c.interval_end,
-            sa.func.coalesce(
-                db.queries.json_arr_agg(
-                    db.queries.cast_to_json(counts.c.state_agg)
-                ).filter(counts.c.state_agg.is_not(None)),
-                sa.literal("[]", literal_execute=True),
-            ).label("states"),
-        )
-        .group_by(counts.c.interval_start, counts.c.interval_end)
-        .order_by(counts.c.interval_start)
-        # return no more than 500 bars
-        .limit(500)
+    counts = sa.select(
+        runs.c.bucket_index,
+        runs.c.state_type,
+        runs.c.state_name,
+        sa.func.count(runs.c.id).label("count_runs"),
+        # estimated run times only includes positive run times (to avoid any unexpected corner cases)
+        sa.func.sum(
+            sa.func.greatest(0, sa.extract("epoch", runs.c.estimated_run_time))
+        ).label("sum_estimated_run_time"),
+        # estimated lateness is the sum of any positive start time deltas
+        sa.func.sum(
+            sa.func.greatest(0, sa.extract("epoch", runs.c.estimated_start_time_delta))
+        ).label("sum_estimated_lateness"),
+    ).group_by(
+        runs.c.bucket_index,
+        runs.c.state_type,
+        runs.c.state_name,
     )
 
     # issue the query
-    result = await session.execute(query)
-    records = result.mappings()
+    result = await session.execute(counts)
+    states_by_bucket: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for record in result.mappings():
+        states_by_bucket[record["bucket_index"]].append(
+            {
+                "state_type": record["state_type"],
+                "state_name": record["state_name"],
+                "count_runs": record["count_runs"],
+                "sum_estimated_run_time": record["sum_estimated_run_time"],
+                "sum_estimated_lateness": record["sum_estimated_lateness"],
+            }
+        )
 
-    # load and parse the record if the database returns JSON as strings
-    if db.queries.uses_json_strings:
-        records = [dict(r) for r in records]
-        for r in records:
-            r["states"] = json.loads(r["states"])
+    records = [
+        {
+            "interval_start": (history_start + i * history_interval).astimezone(
+                datetime.timezone.utc
+            ),
+            "interval_end": (history_start + (i + 1) * history_interval).astimezone(
+                datetime.timezone.utc
+            ),
+            "states": states_by_bucket[i],
+        }
+        for i in range(interval_count)
+    ]
 
     return pydantic.TypeAdapter(
         List[schemas.responses.HistoryResponse]

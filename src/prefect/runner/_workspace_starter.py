@@ -3,93 +3,31 @@ from __future__ import annotations
 import functools
 import os
 import site
-import subprocess
 import sys
 import sysconfig
-from contextlib import contextmanager
+import tempfile
+from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 import anyio
 import anyio.abc
+from pydantic import TypeAdapter, ValidationError
 
-from prefect.exceptions import MissingFlowError
-from prefect.flows import load_flow_from_entrypoint, load_function_and_convert_to_flow
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._uv_command import uv_project_command
-from prefect.runner._workspace_resolver import (
-    PreparedWorkspace,
-    PreparedWorkspaceResult,
-    get_workspace_resolver_command,
+from prefect.runner._workspace_hook_runner import WorkspaceHookRunner
+from prefect.runner._workspace_resolver import PreparedWorkspace
+from prefect.runner._workspace_runtime import (
+    WorkspaceSupervisorConfig,
+    write_private_model,
 )
-from prefect.settings import get_current_settings
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import sanitize_subprocess_env
+from prefect.utilities.processutils import command_to_string, get_sys_executable
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
-    from prefect.flows import Flow
     from prefect.runner._control_channel import ControlChannel
-
-
-def _decode_process_output(output: bytes | str | None) -> str:
-    if output is None:
-        return ""
-    if isinstance(output, bytes):
-        return output.decode(errors="replace")
-    return output
-
-
-def _format_workspace_error(result: PreparedWorkspaceResult) -> str:
-    if result.error is None:
-        return "Workspace resolver failed without a structured error payload."
-
-    message = f"{result.error.error_type}: {result.error.error_message}"
-    if result.error.cause_type:
-        message += f" (caused by {result.error.cause_type}"
-        if result.error.cause_message:
-            message += f": {result.error.cause_message}"
-        message += ")"
-    return message
-
-
-async def resolve_workspace_in_subprocess(
-    flow_run_id: UUID | str, workspace_root: Path
-) -> PreparedWorkspace:
-    environment = {
-        **os.environ,
-        **get_current_settings().to_environment_variables(exclude_unset=True),
-    }
-    process = await anyio.run_process(
-        get_workspace_resolver_command(flow_run_id, workspace_root),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=sanitize_subprocess_env(environment),
-        check=False,
-    )
-
-    stderr = _decode_process_output(process.stderr)
-    if stderr:
-        sys.stderr.write(stderr)
-        sys.stderr.flush()
-
-    stdout = _decode_process_output(process.stdout)
-    try:
-        result = PreparedWorkspaceResult.model_validate_json(stdout)
-    except ValueError as exc:
-        raise RuntimeError(
-            "Workspace resolver did not return a valid JSON payload."
-        ) from exc
-
-    if process.returncode != 0 or result.status == "error":
-        raise RuntimeError(_format_workspace_error(result))
-
-    if result.workspace is None:
-        raise RuntimeError("Workspace resolver returned success without a workspace.")
-
-    return result.workspace
 
 
 def _workspace_sys_path(workspace: PreparedWorkspace) -> list[str]:
@@ -199,69 +137,40 @@ def workspace_environment(workspace: PreparedWorkspace) -> dict[str, str]:
     return environment
 
 
-def _absolute_file_entrypoint(workspace: PreparedWorkspace) -> str:
-    entrypoint = workspace.runtime_entrypoint
-    if ":" not in entrypoint:
-        return entrypoint
+def _uv_run_command(
+    workspace: PreparedWorkspace, environment: Mapping[str, str]
+) -> str | None:
+    auto_install = environment.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
+    try:
+        auto_install_dependencies = (
+            TypeAdapter(bool).validate_python(auto_install)
+            if auto_install is not None
+            else None
+        )
+    except ValidationError:
+        auto_install_dependencies = None
 
-    path, object_name = entrypoint.rsplit(":", 1)
-    if not path.endswith(".py"):
-        return entrypoint
-
-    entrypoint_path = Path(path).expanduser()
-    if not entrypoint_path.is_absolute():
-        entrypoint_path = workspace.working_directory / entrypoint_path
-    return f"{entrypoint_path.resolve()}:{object_name}"
-
-
-def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
     return uv_project_command(
         workspace.project_root,
-        ["-m", "prefect.flow_engine", workspace.runtime_entrypoint],
-        path=workspace.environment.get("PATH"),
+        [
+            str(Path(__file__).with_name("_workspace_runtime_bootstrap.py")),
+            "engine",
+            workspace.runtime_entrypoint,
+        ],
+        path=environment.get("PATH"),
+        auto_install_dependencies=auto_install_dependencies,
     )
 
 
 def _workspace_command(
-    workspace: PreparedWorkspace, explicit_command: str | None
+    workspace: PreparedWorkspace,
+    explicit_command: str | None,
+    *,
+    environment: Mapping[str, str],
 ) -> str | None:
     if explicit_command is not None:
         return explicit_command
-    return _uv_run_command(workspace)
-
-
-@contextmanager
-def _prepared_workspace_context(workspace: PreparedWorkspace) -> Iterator[None]:
-    original_environment = dict(os.environ)
-    original_sys_path = list(sys.path)
-
-    try:
-        os.environ.clear()
-        os.environ.update(workspace_environment(workspace))
-        sys.path[:] = _workspace_sys_path(workspace)
-        yield
-    finally:
-        os.environ.clear()
-        os.environ.update(original_environment)
-        sys.path[:] = original_sys_path
-
-
-async def load_flow_from_prepared_workspace(
-    workspace: PreparedWorkspace,
-) -> "Flow[Any, Any]":
-    entrypoint = _absolute_file_entrypoint(workspace)
-    with _prepared_workspace_context(workspace):
-        try:
-            return await run_sync_in_worker_thread(
-                load_flow_from_entrypoint,
-                entrypoint,
-                use_placeholder_flow=False,
-            )
-        except MissingFlowError:
-            return await run_sync_in_worker_thread(
-                load_function_and_convert_to_flow,
-                entrypoint,
-            )
+    return _uv_run_command(workspace, environment)
 
 
 class WorkspaceResolvingEngineCommandStarter:
@@ -274,7 +183,8 @@ class WorkspaceResolvingEngineCommandStarter:
         heartbeat_seconds: int | None = None,
         deployment_name: str | None = None,
         control_channel: ControlChannel | None = None,
-        isolate_process_group: bool = False,
+        source_cwd: Path | str | None = None,
+        environment: Mapping[str, str | None] | None = None,
     ) -> None:
         self._workspace_root = workspace_root
         self._command = command
@@ -282,39 +192,59 @@ class WorkspaceResolvingEngineCommandStarter:
         self._heartbeat_seconds = heartbeat_seconds
         self._deployment_name = deployment_name
         self._control_channel = control_channel
-        self._isolate_process_group = isolate_process_group
-        self._workspace: PreparedWorkspace | None = None
+        self._source_cwd = source_cwd
+        self._environment = dict(environment or {})
+        self._runtime_directory = tempfile.TemporaryDirectory(
+            prefix="prefect-workspace-attempt-"
+        )
+        runtime_root = Path(self._runtime_directory.name)
+        self._config_path = runtime_root / "supervisor.json"
+        self._manifest_path = runtime_root / "workspace.json"
+        self._hook_runner = WorkspaceHookRunner(
+            manifest_path=self._manifest_path,
+            stream_output=self._stream_output,
+        )
 
     @property
-    def workspace(self) -> PreparedWorkspace | None:
-        return self._workspace
+    def hook_runner(self) -> WorkspaceHookRunner:
+        return self._hook_runner
 
-    async def _resolve_workspace(self, flow_run_id: UUID | str) -> PreparedWorkspace:
-        if self._workspace is None:
-            self._workspace = await resolve_workspace_in_subprocess(
-                flow_run_id, self._workspace_root
-            )
-        return self._workspace
+    def close(self) -> None:
+        self._runtime_directory.cleanup()
 
     async def start(
         self,
         flow_run: FlowRun,
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None:
-        workspace = await self._resolve_workspace(flow_run.id)
+        write_private_model(
+            self._config_path,
+            WorkspaceSupervisorConfig(
+                flow_run_id=flow_run.id,
+                workspace_root=self._workspace_root,
+                manifest_path=self._manifest_path,
+                command=self._command,
+            ),
+        )
+        supervisor_command = command_to_string(
+            [
+                get_sys_executable(),
+                "-m",
+                "prefect.runner._workspace_supervisor",
+                str(self._config_path),
+            ]
+        )
         starter = EngineCommandStarter(
-            command=_workspace_command(workspace, self._command),
-            cwd=workspace.working_directory,
-            env=workspace_environment(workspace),
-            entrypoint=workspace.runtime_entrypoint,
+            command=supervisor_command,
+            cwd=self._source_cwd,
+            env=self._environment,
             stream_output=self._stream_output,
             heartbeat_seconds=self._heartbeat_seconds,
             deployment_name=self._deployment_name,
             control_channel=self._control_channel,
-            isolate_process_group=self._isolate_process_group,
+            # The Windows supervisor joins its own Job Object before preparation;
+            # assigning it from this post-spawn callback would leave a race.
+            isolate_process_group=sys.platform != "win32",
+            env_overrides_settings=True,
         )
         await starter.start(flow_run, task_status=task_status)
-
-    async def resolve_flow(self, flow_run: FlowRun) -> "Flow[Any, Any]":
-        workspace = await self._resolve_workspace(flow_run.id)
-        return await load_flow_from_prepared_workspace(workspace)

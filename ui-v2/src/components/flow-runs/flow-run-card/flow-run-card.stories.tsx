@@ -7,6 +7,7 @@ import {
 	createFakeFlowRunWithDeploymentAndFlow,
 	createFakeFlowRunWithFlow,
 } from "@/mocks/create-fake-flow-run";
+import { createFakeWorkQueue } from "@/mocks/create-fake-work-queue";
 import {
 	reactQueryDecorator,
 	routerDecorator,
@@ -19,6 +20,11 @@ const MOCK_DATA = createFakeFlowRunWithFlow({
 });
 const MOCK_DATA_WITH_DEPLOYMENT = createFakeFlowRunWithDeploymentAndFlow({
 	id: "0",
+});
+const MOCK_DATA_WITH_WORK_POOL = createFakeFlowRunWithDeploymentAndFlow({
+	id: "0",
+	work_pool_name: "my-work-pool",
+	work_queue_name: "default",
 });
 const MOCK_FLOW_RUNS_TASK_COUNT = {
 	"0": randNumber({ min: 0, max: 5 }),
@@ -34,6 +40,17 @@ const meta = {
 				http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
 					return HttpResponse.json(MOCK_FLOW_RUNS_TASK_COUNT);
 				}),
+				http.get(
+					buildApiUrl("/work_pools/:work_pool_name/queues/:name"),
+					({ params }) => {
+						return HttpResponse.json(
+							createFakeWorkQueue({
+								name: String(params.name),
+								work_pool_name: String(params.work_pool_name),
+							}),
+						);
+					},
+				),
 			],
 		},
 	},
@@ -50,4 +67,7 @@ export const ViewOnly: Story = {
 };
 export const WithDeployment: Story = {
 	args: { flowRun: MOCK_DATA_WITH_DEPLOYMENT },
+};
+export const WithWorkPoolAndQueue: Story = {
+	args: { flowRun: MOCK_DATA_WITH_WORK_POOL },
 };

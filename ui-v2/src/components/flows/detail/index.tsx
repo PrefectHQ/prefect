@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
-import { type JSX, useCallback, useState } from "react";
+import { type JSX, useCallback, useMemo, useState } from "react";
+import type { Deployment } from "@/api/deployments";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import type { components } from "@/api/prefect";
@@ -26,6 +27,7 @@ import { FlowStatsSummary } from "./flow-stats-summary";
 export default function FlowDetail({
 	flow,
 	flowRuns,
+	flowRunDeployments,
 	flowRunsCount,
 	flowRunsPages,
 	deployments,
@@ -54,6 +56,7 @@ export default function FlowDetail({
 }: {
 	flow: Flow;
 	flowRuns: FlowRun[];
+	flowRunDeployments: Deployment[];
 	flowRunsCount: number;
 	flowRunsPages: number;
 	deployments: components["schemas"]["DeploymentResponse"][];
@@ -90,11 +93,18 @@ export default function FlowDetail({
 	const [selectedRows, setSelectedRows, { onSelectRow, clearSet }] =
 		useFlowRunsSelectedRows();
 
-	// Enrich paginated flow runs with flow object for the list
-	const enrichedFlowRuns: FlowRunCardData[] = flowRuns.map((flowRun) => ({
-		...flowRun,
-		flow: flow,
-	}));
+	// Enrich paginated flow runs with flow and deployment objects for the list
+	const enrichedFlowRuns: FlowRunCardData[] = useMemo(
+		() =>
+			flowRuns.map((flowRun) => ({
+				...flowRun,
+				flow,
+				deployment: flowRunDeployments.find(
+					(deployment) => deployment.id === flowRun.deployment_id,
+				),
+			})),
+		[flowRuns, flow, flowRunDeployments],
+	);
 
 	// Handler to clear filters
 	const onClearFilters = useCallback(() => {

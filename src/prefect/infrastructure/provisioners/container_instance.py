@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import random
 import shlex
+import shutil
 import string
 import subprocess
 import time
@@ -86,7 +87,12 @@ class AzureCLI:
             json.JSONDecodeError: If output cannot be decoded as JSON when return_json is True.
         """
         try:
-            result = await run_process(shlex.split(command), check=False)
+            args = shlex.split(command)
+            # On Windows the Azure CLI launcher is `az.cmd`; resolve the executable
+            # through PATH so subprocess can find it without a shell.
+            if args:
+                args[0] = shutil.which(args[0]) or args[0]
+            result = await run_process(args, check=False)
             output = result.stdout.decode("utf-8").strip()
 
             if result.returncode != 0:

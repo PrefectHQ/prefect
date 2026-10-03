@@ -62,7 +62,7 @@ export const TagsInput = ({
 				onChange={handleInputChange}
 				onKeyDown={handleInputKeyDown}
 				onBlur={handleInputBlur(onBlur)}
-				className="grow border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+				className="grow basis-32 min-w-32 border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
 				placeholder={placeholder}
 				aria-label={placeholder}
 				{...props}

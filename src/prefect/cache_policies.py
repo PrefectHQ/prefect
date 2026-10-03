@@ -1,4 +1,5 @@
 import inspect
+import sys
 from copy import deepcopy
 from dataclasses import dataclass, field
 from logging import Logger
@@ -35,15 +36,18 @@ def _register_stable_transforms() -> None:
     Some inputs do not reliably produce deterministic byte strings when serialized via
     `cloudpickle`. This utility registers stabilizing transformations of such types
     so that cache keys that utilize them are deterministic across invocations.
+
+    Transforms are only registered for modules that the user has already imported so
+    that optional dependencies are never imported on their behalf. A value of a given
+    type cannot exist before its module is imported, so this runs when inputs are
+    hashed instead of at import time.
     """
-    try:
+    if sys.modules.get("pandas") is not None:
         import pandas as pd  # pyright: ignore
 
         STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [  # pyright: ignore
             df[col] for col in sorted(df.columns)
         ]
-    except (ImportError, ModuleNotFoundError):
-        pass
 
 
 @dataclass
@@ -377,6 +381,8 @@ class Inputs(CachePolicy):
         if not inputs:
             return None
 
+        _register_stable_transforms()
+
         for key, val in inputs.items():
             if key not in exclude:
                 transformer = STABLE_TRANSFORMS.get(type(val))  # type: ignore[reportUnknownMemberType]
@@ -400,8 +406,6 @@ class Inputs(CachePolicy):
             raise TypeError("Can only subtract strings from key policies.")
         return Inputs(exclude=self.exclude + [other])
 
-
-_register_stable_transforms()
 
 INPUTS = Inputs()
 NONE = _None()
