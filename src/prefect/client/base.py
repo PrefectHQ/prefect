@@ -194,10 +194,7 @@ def _parse_retry_after(value: str) -> Optional[float]:
     except ValueError:
         try:
             retry_at = parsedate_to_datetime(value)
-        except (TypeError, ValueError):
-            return None
-
-        if retry_at is None:
+        except ValueError:
             return None
 
         if retry_at.tzinfo is None:
