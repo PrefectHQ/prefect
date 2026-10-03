@@ -133,7 +133,9 @@ describe("generateNiceTimeTicks", () => {
 
 		expect(ticks.length).toBeGreaterThan(0);
 		ticks.forEach((tick) => {
-			expect(tick % (60 * 60 * 1000)).toBe(0);
+			const date = new Date(tick);
+			expect(date.getMinutes()).toBe(0);
+			expect(date.getSeconds()).toBe(0);
 		});
 	});
 
@@ -144,8 +146,49 @@ describe("generateNiceTimeTicks", () => {
 
 		expect(ticks.length).toBeGreaterThan(0);
 		ticks.forEach((tick) => {
-			expect(tick % (24 * 60 * 60 * 1000)).toBe(0);
+			const date = new Date(tick);
+			expect(date.getHours()).toBe(0);
+			expect(date.getMinutes()).toBe(0);
 		});
+	});
+
+	// These hold in any timezone. CI runs them in UTC, where local and UTC
+	// boundaries coincide; run with TZ=Asia/Kolkata or TZ=America/Santiago
+	// (DST starts at midnight on 2026-09-06) to exercise the difference.
+	it("puts day ticks on local midnight so they are labelled with a date", () => {
+		const start = new Date("2026-09-02T14:23:00.000Z").getTime();
+		const end = new Date("2026-10-02T14:23:00.000Z").getTime();
+		const ticks = generateNiceTimeTicks(start, end, 10);
+		const formatter = createXAxisTickFormatter();
+
+		expect(ticks.length).toBeGreaterThanOrEqual(8);
+		ticks.forEach((tick) => {
+			expect(new Date(tick).getMinutes()).toBe(0);
+			expect(formatter(tick)).not.toMatch(/AM|PM/);
+		});
+	});
+
+	it("puts multi-hour ticks on local hours divisible by the step", () => {
+		const start = new Date("2026-10-01T14:23:00.000Z").getTime();
+		const end = new Date("2026-10-02T14:23:00.000Z").getTime();
+		const ticks = generateNiceTimeTicks(start, end, 10);
+
+		expect(ticks.length).toBeGreaterThanOrEqual(8);
+		ticks.forEach((tick) => {
+			const date = new Date(tick);
+			expect(date.getMinutes()).toBe(0);
+			expect(date.getHours() % 3).toBe(0);
+		});
+	});
+
+	it("returns about the target number of ticks for a 30-day range", () => {
+		const start = new Date("2026-09-02T14:23:00.000Z").getTime();
+		const end = new Date("2026-10-02T14:23:00.000Z").getTime();
+		const ticks = generateNiceTimeTicks(start, end, 10);
+
+		// 3-day steps, not weekly ones, which left only 4 or 5 ticks
+		expect(ticks.length).toBeGreaterThanOrEqual(9);
+		expect(ticks.length).toBeLessThanOrEqual(11);
 	});
 
 	it("returns at least one tick even for very small ranges", () => {
