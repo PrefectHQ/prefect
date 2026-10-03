@@ -87,7 +87,33 @@ describe("TaskRunsSortFilter", () => {
 		expect(screen.getByText("Oldest to newest")).toBeVisible();
 	});
 
-	it("shows both sort options in the dropdown", async () => {
+	it.each([
+		["DURATION_DESC", "Longest to shortest"],
+		["DURATION_ASC", "Shortest to longest"],
+	] as const)("displays the label for %s when selected", (value, label) => {
+		const onSelect = vi.fn();
+		render(<TaskRunsSortFilter value={value} onSelect={onSelect} />);
+
+		expect(screen.getByText(label)).toBeVisible();
+	});
+
+	it.each([
+		["Longest to shortest", "DURATION_DESC"],
+		["Shortest to longest", "DURATION_ASC"],
+	] as const)("calls onSelect when '%s' is clicked", async (label, value) => {
+		const user = userEvent.setup();
+		const onSelect = vi.fn();
+		render(<TaskRunsSortFilter value={undefined} onSelect={onSelect} />);
+
+		await user.click(
+			screen.getByRole("combobox", { name: /task run sort order/i }),
+		);
+		await user.click(screen.getByRole("option", { name: label }));
+
+		expect(onSelect).toHaveBeenCalledWith(value);
+	});
+
+	it("shows all sort options in the dropdown", async () => {
 		const user = userEvent.setup();
 		const onSelect = vi.fn();
 		render(<TaskRunsSortFilter value={undefined} onSelect={onSelect} />);
@@ -97,10 +123,12 @@ describe("TaskRunsSortFilter", () => {
 		);
 
 		expect(
-			screen.getByRole("option", { name: /newest to oldest/i }),
-		).toBeVisible();
-		expect(
-			screen.getByRole("option", { name: /oldest to newest/i }),
-		).toBeVisible();
+			screen.getAllByRole("option").map((option) => option.textContent),
+		).toEqual([
+			"Newest to oldest",
+			"Oldest to newest",
+			"Longest to shortest",
+			"Shortest to longest",
+		]);
 	});
 });

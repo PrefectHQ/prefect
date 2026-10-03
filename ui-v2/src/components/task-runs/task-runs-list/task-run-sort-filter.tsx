@@ -30,6 +30,8 @@ export const TaskRunsSortFilter = ({
 				<SelectItem value="EXPECTED_START_TIME_ASC">
 					Oldest to newest
 				</SelectItem>
+				<SelectItem value="DURATION_DESC">Longest to shortest</SelectItem>
+				<SelectItem value="DURATION_ASC">Shortest to longest</SelectItem>
 			</SelectContent>
 		</Select>
 	);

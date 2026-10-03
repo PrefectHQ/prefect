@@ -9,9 +9,10 @@ import {
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, server } from "@tests/utils";
+import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
 import { createContext, type ReactNode, Suspense, useContext } from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createFakeState, createFakeTaskRunResponse } from "@/mocks";
 import { FlowRunTaskRuns } from "./flow-run-task-runs";
 
@@ -61,6 +62,8 @@ const renderWithProviders = async (ui: ReactNode) => {
 };
 
 describe("FlowRunTaskRuns", () => {
+	beforeAll(mockPointerEvents);
+
 	const mockTaskRuns = [
 		createFakeTaskRunResponse({
 			id: "task-1",
@@ -172,6 +175,46 @@ describe("FlowRunTaskRuns", () => {
 		});
 
 		expect(screen.getByText("Newest to oldest")).toBeInTheDocument();
+	});
+
+	it("requests task runs sorted by duration when 'Longest to shortest' is selected", async () => {
+		const user = userEvent.setup();
+		const requestedSorts: Array<string | undefined> = [];
+		server.use(
+			http.post(buildApiUrl("/task_runs/paginate"), async ({ request }) => {
+				const body = (await request.json()) as { sort?: string };
+				requestedSorts.push(body.sort);
+				return HttpResponse.json({
+					results: mockTaskRuns,
+					count: 3,
+					pages: 1,
+					page: 1,
+					limit: 20,
+				});
+			}),
+		);
+
+		await renderWithProviders(
+			<Suspense fallback={<div>Loading...</div>}>
+				<FlowRunTaskRuns flowRunId="test-flow-run-id" />
+			</Suspense>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("3 Task runs")).toBeInTheDocument();
+		});
+
+		await user.click(
+			screen.getByRole("combobox", { name: /task run sort order/i }),
+		);
+		await user.click(
+			screen.getByRole("option", { name: /longest to shortest/i }),
+		);
+
+		expect(screen.getByText("Longest to shortest")).toBeInTheDocument();
+		await waitFor(() => {
+			expect(requestedSorts).toContain("DURATION_DESC");
+		});
 	});
 
 	it("renders task runs list", async () => {
