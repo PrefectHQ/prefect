@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 from typing import Any, AsyncGenerator, Dict, List, Tuple
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -17,6 +18,7 @@ from prefect.client.base import (
     PrefectHttpxAsyncClient,
     PrefectResponse,
     ServerType,
+    _parse_retry_after,
     determine_server_type,
 )
 from prefect.client.schemas.objects import CsrfToken
@@ -1109,3 +1111,84 @@ class TestDetermineServerType:
     def test_with_settings_variations(self, temp_settings, expected_type):
         with temporary_settings(temp_settings):
             assert determine_server_type() == expected_type
+
+
+class TestParseRetryAfter:
+    @pytest.mark.parametrize(
+        "header,expected",
+        [("5", 5.0), ("0", 0.0), ("2.5", 2.5), ("-5", 0.0)],
+    )
+    def test_delay_seconds(self, header, expected):
+        assert _parse_retry_after(header) == expected
+
+    def test_http_date_in_the_future(self):
+        header = format_datetime(
+            datetime.now(timezone.utc) + timedelta(seconds=42), usegmt=True
+        )
+        assert 40.0 <= _parse_retry_after(header) <= 42.0
+
+    def test_http_date_that_has_already_passed(self):
+        header = format_datetime(
+            datetime.now(timezone.utc) - timedelta(seconds=42), usegmt=True
+        )
+        assert _parse_retry_after(header) == 0.0
+
+    @pytest.mark.parametrize(
+        "header",
+        ["later", "Wed, 32 Jan 2026 00:00:00 GMT", "", "inf", "-inf", "nan"],
+    )
+    def test_values_that_cannot_be_turned_into_a_wait(self, header):
+        assert _parse_retry_after(header) is None
+
+
+class TestRetryAfterHeaderForms:
+    @pytest.mark.usefixtures("disable_jitter")
+    async def test_http_date_is_honored(self, monkeypatch, mock_anyio_sleep):
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxAsyncClient()
+        retry_response = Response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={
+                "Retry-After": format_datetime(
+                    datetime.now(timezone.utc) + timedelta(seconds=5), usegmt=True
+                )
+            },
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        base_client_send.side_effect = [retry_response, RESPONSE_200]
+
+        with mock_anyio_sleep.assert_sleeps_for(5):
+            async with client:
+                response = await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
+
+        assert response.status_code == status.HTTP_200_OK
+
+    @pytest.mark.usefixtures("disable_jitter")
+    async def test_unparsable_value_falls_back_to_exponential_backoff(
+        self, monkeypatch, mock_anyio_sleep
+    ):
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxAsyncClient()
+        retry_response = Response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": "later"},
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        base_client_send.side_effect = [retry_response, retry_response, RESPONSE_200]
+
+        with mock_anyio_sleep.assert_sleeps_for(2 + 4):
+            async with client:
+                response = await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
+
+        assert response.status_code == status.HTTP_200_OK
+        mock_anyio_sleep.assert_has_awaits([mock.call(2), mock.call(4)])
