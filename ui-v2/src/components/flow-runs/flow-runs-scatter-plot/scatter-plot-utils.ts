@@ -49,14 +49,70 @@ export const TIME_INTERVALS = [
 	{ ms: 6 * 60 * 60 * 1000, name: "6hours" },
 	{ ms: 12 * 60 * 60 * 1000, name: "12hours" },
 	{ ms: 24 * 60 * 60 * 1000, name: "day" },
+	{ ms: 2 * 24 * 60 * 60 * 1000, name: "2days" },
+	{ ms: 3 * 24 * 60 * 60 * 1000, name: "3days" },
 	{ ms: 7 * 24 * 60 * 60 * 1000, name: "week" },
 	{ ms: 30 * 24 * 60 * 60 * 1000, name: "month" },
 ];
+
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const MONTH_MS = 30 * DAY_MS;
+
+/**
+ * Generates ticks for intervals of an hour or more on local time boundaries:
+ * local midnight for day intervals, the first of the month for the month
+ * interval, and local hours divisible by the step for hour intervals.
+ */
+const generateLocalTimeTicks = (
+	startMs: number,
+	endMs: number,
+	intervalMs: number,
+): number[] => {
+	const ticks: number[] = [];
+	const cursor = new Date(startMs);
+
+	if (intervalMs >= MONTH_MS) {
+		cursor.setDate(1);
+		cursor.setHours(0, 0, 0, 0);
+		if (cursor.getTime() < startMs) cursor.setMonth(cursor.getMonth() + 1);
+		while (cursor.getTime() <= endMs) {
+			ticks.push(cursor.getTime());
+			cursor.setMonth(cursor.getMonth() + 1);
+		}
+		return ticks;
+	}
+
+	if (intervalMs >= DAY_MS) {
+		const stepDays = Math.round(intervalMs / DAY_MS);
+		cursor.setHours(0, 0, 0, 0);
+		if (cursor.getTime() < startMs) cursor.setDate(cursor.getDate() + 1);
+		while (cursor.getTime() <= endMs) {
+			ticks.push(cursor.getTime());
+			cursor.setDate(cursor.getDate() + stepDays);
+		}
+		return ticks;
+	}
+
+	const stepHours = Math.round(intervalMs / HOUR_MS);
+	cursor.setMinutes(0, 0, 0);
+	if (cursor.getTime() < startMs) cursor.setHours(cursor.getHours() + 1);
+	while (cursor.getTime() <= endMs) {
+		if (cursor.getHours() % stepHours === 0) ticks.push(cursor.getTime());
+		cursor.setHours(cursor.getHours() + 1);
+	}
+	return ticks;
+};
 
 /**
  * Generates tick values aligned with "nice" time boundaries.
  * Similar to D3's time scale tick generation, this ensures ticks fall on
  * natural boundaries like hour marks, day boundaries, etc.
+ *
+ * Intervals of an hour or more are aligned in local time. Multiples of the
+ * interval since the epoch put day ticks on UTC midnight, which is not a day
+ * boundary in most timezones, so every tick would be labelled with the same
+ * hour instead of a date.
  */
 export const generateNiceTimeTicks = (
 	startMs: number,
@@ -76,10 +132,14 @@ export const generateNiceTimeTicks = (
 		chosenInterval = interval.ms;
 	}
 
-	const firstTick = Math.ceil(startMs / chosenInterval) * chosenInterval;
 	const ticks: number[] = [];
-	for (let tick = firstTick; tick <= endMs; tick += chosenInterval) {
-		ticks.push(tick);
+	if (chosenInterval >= HOUR_MS) {
+		ticks.push(...generateLocalTimeTicks(startMs, endMs, chosenInterval));
+	} else {
+		const firstTick = Math.ceil(startMs / chosenInterval) * chosenInterval;
+		for (let tick = firstTick; tick <= endMs; tick += chosenInterval) {
+			ticks.push(tick);
+		}
 	}
 
 	if (ticks.length === 0) {
