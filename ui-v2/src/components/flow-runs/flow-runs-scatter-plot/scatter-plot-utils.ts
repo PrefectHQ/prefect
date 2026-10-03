@@ -98,10 +98,15 @@ const generateLocalTimeTicks = (
 	}
 
 	// Step by elapsed time rather than by clock hour, so a repeated hour when
-	// clocks fall back still gets its tick.
+	// clocks fall back still gets its tick. The first boundary is found by
+	// subtraction for the same reason, since setMinutes(0) in a repeated hour
+	// resolves to its first occurrence.
 	const stepHours = Math.round(intervalMs / HOUR_MS);
-	cursor.setMinutes(0, 0, 0);
-	let tick = cursor.getTime();
+	let tick =
+		startMs -
+		(cursor.getMinutes() * 60 * 1000 +
+			cursor.getSeconds() * 1000 +
+			cursor.getMilliseconds());
 	if (tick < startMs) tick += HOUR_MS;
 	for (; tick <= endMs; tick += HOUR_MS) {
 		const date = new Date(tick);
