@@ -15,9 +15,7 @@ PYTHON_VERSIONS = [
     "3.13",
 ]
 
-SKIP_VERSIONS: dict[str, list[str]] = {
-    "prefect-ray": ["3.13"],
-}
+SKIP_VERSIONS: dict[str, list[str]] = {}
 
 COMPAT_PYTHON_VERSION = "3.12"
 
