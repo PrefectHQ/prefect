@@ -432,7 +432,16 @@ class TestPrefectHttpxAsyncClient:
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
-        retry_at = datetime.now(timezone.utc) + timedelta(seconds=30)
+        frozen_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+        class FrozenDatetime(datetime):
+            @classmethod
+            def now(cls, tz: Any = None) -> datetime:  # type: ignore[override]
+                return frozen_now
+
+        monkeypatch.setattr("prefect.client.base.datetime", FrozenDatetime)
+
+        retry_at = frozen_now + timedelta(seconds=30)
         base_client_send.side_effect = [
             Response(
                 status.HTTP_429_TOO_MANY_REQUESTS,
@@ -448,9 +457,7 @@ class TestPrefectHttpxAsyncClient:
             )
 
         assert response.status_code == status.HTTP_200_OK
-        assert mock_anyio_sleep.call_count == 1
-        # HTTP-dates have second precision
-        assert 28 <= mock_anyio_sleep.call_args.args[0] <= 30
+        mock_anyio_sleep.assert_has_awaits([mock.call(30)])
 
     @pytest.mark.usefixtures("disable_jitter")
     async def test_prefect_httpx_client_does_not_wait_for_past_http_date_retry_header(
