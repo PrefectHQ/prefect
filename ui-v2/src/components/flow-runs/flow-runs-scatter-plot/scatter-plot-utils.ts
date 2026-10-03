@@ -90,16 +90,24 @@ const generateLocalTimeTicks = (
 		while (cursor.getTime() <= endMs) {
 			ticks.push(cursor.getTime());
 			cursor.setDate(cursor.getDate() + stepDays);
+			// Where a DST change skips midnight the day starts at 01:00. Reset so
+			// that hour is not carried into the following ticks.
+			cursor.setHours(0, 0, 0, 0);
 		}
 		return ticks;
 	}
 
+	// Step by elapsed time rather than by clock hour, so a repeated hour when
+	// clocks fall back still gets its tick.
 	const stepHours = Math.round(intervalMs / HOUR_MS);
 	cursor.setMinutes(0, 0, 0);
-	if (cursor.getTime() < startMs) cursor.setHours(cursor.getHours() + 1);
-	while (cursor.getTime() <= endMs) {
-		if (cursor.getHours() % stepHours === 0) ticks.push(cursor.getTime());
-		cursor.setHours(cursor.getHours() + 1);
+	let tick = cursor.getTime();
+	if (tick < startMs) tick += HOUR_MS;
+	for (; tick <= endMs; tick += HOUR_MS) {
+		const date = new Date(tick);
+		if (date.getMinutes() === 0 && date.getHours() % stepHours === 0) {
+			ticks.push(tick);
+		}
 	}
 	return ticks;
 };
@@ -158,21 +166,18 @@ export const createXAxisTickFormatter = () => {
 	return (value: number): string => {
 		const date = new Date(value);
 
-		const second = new Date(date);
-		second.setMilliseconds(0);
-		if (second.getTime() < date.getTime()) {
+		// Read the fields instead of rounding with setters. In the hour that
+		// repeats when clocks fall back, a setter resolves to the first
+		// occurrence, so the second one looked like it had milliseconds.
+		if (date.getMilliseconds() !== 0) {
 			return `.${date.getMilliseconds().toString().padStart(3, "0").slice(0, 3)}`;
 		}
 
-		const minute = new Date(date);
-		minute.setSeconds(0, 0);
-		if (minute.getTime() < date.getTime()) {
+		if (date.getSeconds() !== 0) {
 			return `:${date.getSeconds().toString().padStart(2, "0")}`;
 		}
 
-		const hour = new Date(date);
-		hour.setMinutes(0, 0, 0);
-		if (hour.getTime() < date.getTime()) {
+		if (date.getMinutes() !== 0) {
 			return date.toLocaleTimeString(undefined, {
 				hour: "numeric",
 				minute: "2-digit",

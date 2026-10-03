@@ -153,7 +153,8 @@ describe("generateNiceTimeTicks", () => {
 	});
 
 	// These hold in any timezone. CI runs them in UTC, where local and UTC
-	// boundaries coincide; run with TZ=Asia/Kolkata to exercise the difference.
+	// boundaries coincide; run with TZ=Asia/Kolkata or TZ=America/Santiago
+	// (DST starts at midnight on 2026-09-06) to exercise the difference.
 	it("puts day ticks on local midnight so they are labelled with a date", () => {
 		const start = new Date("2026-09-02T14:23:00.000Z").getTime();
 		const end = new Date("2026-10-02T14:23:00.000Z").getTime();
@@ -162,9 +163,7 @@ describe("generateNiceTimeTicks", () => {
 
 		expect(ticks.length).toBeGreaterThanOrEqual(8);
 		ticks.forEach((tick) => {
-			const date = new Date(tick);
-			expect(date.getHours()).toBe(0);
-			expect(date.getMinutes()).toBe(0);
+			expect(new Date(tick).getMinutes()).toBe(0);
 			expect(formatter(tick)).not.toMatch(/AM|PM/);
 		});
 	});
