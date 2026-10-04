@@ -17,7 +17,7 @@ from fastapi import (
 
 from prefect.server import models, schemas
 from prefect.server.api import dependencies
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.models.block_schemas import MissingBlockTypeException
 from prefect.server.utilities.server import PrefectRouter
 
@@ -28,7 +28,7 @@ router: PrefectRouter = PrefectRouter(prefix="/block_schemas", tags=["Block sche
 async def create_block_schema(
     block_schema: schemas.actions.BlockSchemaCreate,
     response: Response,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.BlockSchema:
     """
     Create a block schema.
@@ -72,7 +72,7 @@ async def create_block_schema(
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_block_schema(
     block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     api_version: str = Depends(dependencies.provide_request_api_version),
 ) -> None:
     """
@@ -103,7 +103,7 @@ async def read_block_schemas(
     block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.BlockSchema]:
     """
     Read all block schemas, optionally filtered by type
@@ -121,7 +121,7 @@ async def read_block_schemas(
 @router.get("/{id:uuid}")
 async def read_block_schema_by_id(
     block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.BlockSchema:
     """
     Get a block schema by id.
@@ -140,7 +140,7 @@ async def read_block_schema_by_checksum(
     block_schema_checksum: str = Path(
         ..., description="The block schema checksum", alias="checksum"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     version: Optional[str] = Query(
         None,
         description=(

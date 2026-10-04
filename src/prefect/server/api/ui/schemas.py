@@ -4,7 +4,7 @@ from fastapi import Body, Depends, HTTPException
 
 from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.schemas.responses import SchemaValuesValidationResponse
 from prefect.server.utilities.server import APIRouter
 from prefect.utilities.schema_tools.hydration import HydrationContext, hydrate
@@ -37,7 +37,7 @@ async def validate_obj(
     values: dict[str, Any] = Body(
         ..., embed=True, json_schema_extra={"additionalProperties": True}
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> SchemaValuesValidationResponse:
     schema = preprocess_schema(json_schema)
 
