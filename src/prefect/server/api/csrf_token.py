@@ -6,7 +6,7 @@ from starlette.exceptions import HTTPException
 from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server import models, schemas
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_SERVER_CSRF_PROTECTION_ENABLED
 
@@ -20,7 +20,7 @@ router: PrefectRouter = PrefectRouter(prefix="/csrf-token")
 
 @router.get("")
 async def create_csrf_token(
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     client: str = Query(..., description="The client to create a CSRF token for"),
 ) -> schemas.core.CsrfToken:
     """Create or update a CSRF token for a client"""
