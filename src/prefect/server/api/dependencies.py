@@ -20,7 +20,7 @@ from prefect.server import schemas
 from prefect.settings import PREFECT_SERVER_API_DEFAULT_LIMIT
 
 
-def provide_request_api_version(
+async def provide_request_api_version(
     x_prefect_api_version: str = Header(None),
 ) -> Version | None:
     if not x_prefect_api_version:
@@ -108,7 +108,7 @@ def LimitBody() -> Any:
     request body while determining the default from the current settings.
     """
 
-    def get_limit(
+    async def get_limit(
         limit: int = Body(
             None,
             description="Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.",
@@ -131,7 +131,7 @@ def LimitBody() -> Any:
     return Depends(get_limit)
 
 
-def get_created_by(
+async def get_created_by(
     prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False),
     prefect_automation_name: Optional[str] = Header(None, include_in_schema=False),
 ) -> Optional[schemas.core.CreatedBy]:
@@ -153,7 +153,7 @@ def get_created_by(
     return None
 
 
-def get_updated_by(
+async def get_updated_by(
     prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False),
     prefect_automation_name: Optional[str] = Header(None, include_in_schema=False),
 ) -> Optional[schemas.core.UpdatedBy]:
@@ -169,7 +169,7 @@ def get_updated_by(
     return None
 
 
-def is_ephemeral_request(request: Request) -> bool:
+async def is_ephemeral_request(request: Request) -> bool:
     """
     A dependency that returns whether the request is to an ephemeral server.
     """
@@ -181,7 +181,7 @@ PREFECT_CLIENT_USER_AGENT_PATTERN = re.compile(
 )
 
 
-def get_prefect_client_version(
+async def get_prefect_client_version(
     user_agent: Annotated[Optional[str], Header(include_in_schema=False)] = None,
 ) -> Optional[str]:
     """
@@ -198,7 +198,7 @@ def get_prefect_client_version(
     return None
 
 
-def docket(request: Request) -> Docket_:
+async def docket(request: Request) -> Docket_:
     return request.app.state.docket
 
 

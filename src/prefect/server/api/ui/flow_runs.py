@@ -11,7 +11,7 @@ from pydantic import Field
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server import models
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
@@ -56,7 +56,7 @@ async def read_flow_run_history(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[SimpleFlowRun]:
     columns = [
         db.FlowRun.id,
@@ -96,7 +96,7 @@ async def read_flow_run_history(
 @router.post("/count-task-runs")
 async def count_task_runs_by_flow_run(
     flow_run_ids: list[UUID] = Body(default=..., embed=True, max_items=200),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> dict[UUID, int]:
     """
     Get task run counts by flow run id.

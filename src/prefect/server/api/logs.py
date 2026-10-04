@@ -10,7 +10,7 @@ from starlette.status import WS_1002_PROTOCOL_ERROR
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.logs import stream
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import Log
@@ -25,7 +25,7 @@ router: PrefectRouter = PrefectRouter(prefix="/logs", tags=["Logs"])
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_logs(
     logs: Sequence[LogCreate],
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Create new logs from the provided schema.
@@ -46,7 +46,7 @@ async def read_logs(
     offset: int = Body(0, ge=0),
     logs: Optional[LogFilter] = None,
     sort: LogSort = Body(LogSort.TIMESTAMP_ASC),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> Sequence[Log]:
     """
     Query for logs.
