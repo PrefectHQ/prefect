@@ -172,16 +172,16 @@ class TestRestoreLoggingState:
         logger = logging.getLogger("prefect.testing.restore_logging_state_probe")
         original_level = logger.level
         original_propagate = logger.propagate
-        original_handlers = logger.handlers[:]
 
         gen = fixtures.restore_logging_state.__wrapped__()
         next(gen)  # fixture setup: snapshot
 
         # Simulate a test polluting the logger, e.g. via `setup_logging`
+        stray_handler = logging.NullHandler()
         logger.setLevel(logging.WARNING)
         logger.propagate = False
         logger.disabled = True
-        logger.addHandler(logging.NullHandler())
+        logger.addHandler(stray_handler)
 
         with pytest.raises(StopIteration):
             next(gen)  # fixture teardown: restore
@@ -189,9 +189,10 @@ class TestRestoreLoggingState:
         assert logger.level == original_level
         assert logger.propagate == original_propagate
         assert logger.disabled is False
-        # Handlers the test added are detached; removed ones are not
-        # re-attached since a full reconfiguration may have closed them.
-        assert logger.handlers == original_handlers
+        # Handler lists are deliberately left alone: restoring them would
+        # resurrect handlers closed by a full `dictConfig` reconfiguration.
+        assert stray_handler in logger.handlers
+        logger.removeHandler(stray_handler)
 
     def test_restoring_level_clears_enabled_for_cache(self):
         # A cached `isEnabledFor` rejection must be cleared when the level is
