@@ -52,7 +52,7 @@ class RedisStorageContainer(WritableFileSystem):
     """
 
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/dfb02cfce09ce3ca88fea097659a83554dd7a850-596x512.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/redis.png"
     )
 
     host: Optional[str] = Field(default=None, description="Redis hostname")

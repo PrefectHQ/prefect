@@ -1,8 +1,10 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
 from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
-from prefect.filesystems import NullFileSystem
+from prefect.filesystems import LocalFileSystem, NullFileSystem
 from prefect.results import ResultStore
 from prefect.serializers import JSONSerializer
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH
@@ -66,6 +68,21 @@ class TestResultRecord:
         store = ResultStore()
         result_record = store.create_result_record("The results are in...", "the-key")
         await store.apersist_result_record(result_record)
+
+        loaded = await ResultStore._from_metadata(result_record.metadata)
+        assert loaded.result == "The results are in..."
+
+    async def test_from_metadata_with_unsaved_local_storage_outside_default_path(
+        self, tmp_path: Path
+    ):
+        store = ResultStore(
+            result_storage=LocalFileSystem(basepath=str(tmp_path / "custom-storage"))
+        )
+        result_record = store.create_result_record("The results are in...", "the-key")
+        await store.apersist_result_record(result_record)
+
+        assert result_record.metadata.storage_block_id is None
+        assert (tmp_path / "custom-storage" / "the-key").exists()
 
         loaded = await ResultStore._from_metadata(result_record.metadata)
         assert loaded.result == "The results are in..."
