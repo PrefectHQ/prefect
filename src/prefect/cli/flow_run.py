@@ -36,7 +36,7 @@ from prefect.cli._utilities import (
 from prefect.cli.flow_runs_watching import watch_flow_run
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import FlowRunPolicy, StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import Abort, FlowRunWatchError, ObjectNotFound, Pause
@@ -816,6 +816,26 @@ async def execute(
                             pass
                         except Exception:
                             logger.exception("Failed to reschedule flow run")
+                        else:
+                            # The engine may have already reported Failed, in which
+                            # case RetryFailedFlows stamped retry_type="in_process".
+                            # The process is exiting, so that marker would hide the
+                            # run from workers forever. Clear it.
+                            try:
+                                flow_run = await ctx.client.read_flow_run(id)
+                                if flow_run.empirical_policy.retry_type == "in_process":
+                                    updated = flow_run.empirical_policy.model_dump()
+                                    updated["retry_type"] = "reschedule"
+                                    await ctx.client.update_flow_run(
+                                        id,
+                                        empirical_policy=FlowRunPolicy(**updated),
+                                    )
+                            except Exception:
+                                logger.warning(
+                                    "Could not clear in-process retry marker"
+                                    " for flow run %s",
+                                    id,
+                                )
 
                     await ctx.process_manager.kill(id, force=not acknowledged)
                     terminated = True

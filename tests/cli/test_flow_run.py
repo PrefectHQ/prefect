@@ -18,7 +18,7 @@ from prefect import __development_base_path__, flow
 from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS, execute
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
-from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.objects import FlowRun, FlowRunPolicy
 from prefect.deployments.runner import RunnerDeployment
 from prefect.runner._control_channel import ControlChannel, ControlSignalStatus
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
@@ -2074,6 +2074,62 @@ class TestSignalHandling:
 
         kill.assert_not_awaited()
         propose.assert_not_awaited()
+
+    async def test_reschedule_clears_in_process_retry_type(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        """When the engine reports Failed before the runner's reschedule lands,
+        RetryFailedFlows stamps retry_type="in_process". The runner must clear
+        it so workers can pick up the rescheduled run."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Simulate RetryFailedFlows having already stamped retry_type="in_process"
+        # (as happens when the engine's Failed proposal is rejected into a retry).
+        await prefect_client.update_flow_run(
+            flow_run.id,
+            empirical_policy=FlowRunPolicy(retry_type="in_process"),
+        )
+
+        handlers: list[Callable[[], None]] = []
+
+        def capture_install(handler: Callable[[], None]) -> bool:
+            handlers.append(handler)
+            return True
+
+        async def fake_submit(*_: Any, **__: Any) -> None:
+            handlers[0]()
+            await anyio.lowlevel.checkpoint()
+
+        with (
+            patch(
+                "prefect.cli.flow_run._install_termination_handler",
+                side_effect=capture_install,
+            ),
+            patch.object(
+                ControlChannel,
+                "signal",
+                AsyncMock(return_value=ControlSignalStatus.ACKNOWLEDGED),
+            ),
+            patch.object(ProcessManager, "kill", AsyncMock()),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit",
+                fake_submit,
+            ),
+            pytest.raises(SystemExit),
+        ):
+            await execute(id=flow_run.id)
+
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.empirical_policy.retry_type == "reschedule", (
+            "in_process retry_type must be cleared so workers can poll the run"
+        )
 
     async def test_termination_handler_installed_even_when_submit_exits_early(
         self,
