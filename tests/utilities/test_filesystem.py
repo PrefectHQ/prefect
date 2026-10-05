@@ -39,7 +39,7 @@ class TestFilterFiles:
         tmpdir.ensure("utilities/helpers.py")
 
         path = Path(tmpdir)
-        all_files = {str(p.relative_to(tmpdir)) for p in path.rglob("*")}
+        all_files = {p.relative_to(tmpdir).as_posix() for p in path.rglob("*")}
         assert "README.md" in all_files  # ensure directory is populated
         return all_files
 
@@ -144,9 +144,28 @@ class TestFilterFiles:
             ignore_patterns=["*", "!a/b/c/file.py"],
         )
         assert "a" in result
-        assert str(Path("a") / "b") in result
-        assert str(Path("a") / "b" / "c") in result
-        assert str(Path("a") / "b" / "c" / "file.py") in result
+        assert "a/b" in result
+        assert "a/b/c" in result
+        assert "a/b/c/file.py" in result
+
+    @pytest.mark.windows
+    @pytest.mark.parametrize("include_dirs", [True, False])
+    async def test_returns_forward_slash_paths_on_windows(self, tmp_path, include_dirs):
+        (tmp_path / "a" / "b").mkdir(parents=True)
+        (tmp_path / "a" / "b" / "file.py").write_text("print('hi')")
+        (tmp_path / "a" / "b" / "ignored.txt").write_text("ignored")
+
+        result = filter_files(
+            root=str(tmp_path),
+            ignore_patterns=["a/b/ignored.txt"],
+            include_dirs=include_dirs,
+        )
+
+        assert not any("\\" in f for f in result)
+        assert "a/b/file.py" in result
+        assert "a/b/ignored.txt" not in result
+        if include_dirs:
+            assert {"a", "a/b"} <= result
 
 
 class TestPlatformSpecificRelpath:

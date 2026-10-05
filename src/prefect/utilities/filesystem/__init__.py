@@ -7,7 +7,7 @@ import pathlib
 import threading
 from collections.abc import Iterable
 from contextlib import contextmanager
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import Any, AnyStr, Optional, Union, cast
 
 # fsspec has no stubs, see https://github.com/fsspec/filesystem_spec/issues/625
@@ -44,13 +44,20 @@ def filter_files(
     a list of files that excludes those that should be ignored.
 
     The specification matches that of [.gitignore files](https://git-scm.com/docs/gitignore).
+
+    Returned paths are relative to `root` and always use forward slashes as
+    separators, regardless of platform.
     """
     spec = pathspec.GitIgnoreSpec.from_lines(ignore_patterns or [])
-    ignored_files = {p.path for p in spec.match_tree_entries(root)}
+    ignored_files = {PurePath(p.path).as_posix() for p in spec.match_tree_entries(root)}
     if include_dirs:
-        all_files = {p.path for p in pathspec.util.iter_tree_entries(root)}
+        all_files = {
+            PurePath(p.path).as_posix() for p in pathspec.util.iter_tree_entries(root)
+        }
     else:
-        all_files = set(pathspec.util.iter_tree_files(root))
+        all_files = {
+            PurePath(p).as_posix() for p in pathspec.util.iter_tree_files(root)
+        }
     included_files = all_files - ignored_files
 
     # Ensure parent directories of included files are also included,
@@ -59,7 +66,7 @@ def filter_files(
     if include_dirs:
         parent_dirs: set[str] = set()
         for file_path in included_files:
-            for parent in Path(file_path).parents:
+            for parent in PurePosixPath(file_path).parents:
                 parent_str = str(parent)
                 if parent_str == ".":
                     break

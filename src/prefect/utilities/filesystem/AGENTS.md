@@ -8,7 +8,7 @@ Path normalization, file filtering compatible with `.gitignore`/`.prefectignore`
 
 ## Entry Points
 
-- `filter_files(root, ignore_patterns, include_dirs=True) -> set[str]` — return the set of paths under `root` that should be *ignored* according to pathspec patterns. Intended as input to `shutil.copytree`'s `ignore` callback.
+- `filter_files(root, ignore_patterns, include_dirs=True) -> set[str]` — return the set of paths under `root` that should be *ignored* according to pathspec patterns. Returned paths are relative to `root` and always `/`-separated (even on Windows), so compare against `Path.as_posix()`, not `str(Path)`. Intended as input to `shutil.copytree`'s `ignore` callback.
 - `tmpchdir(path)` — context manager that `chdir`s into `path` and restores the previous cwd on exit.
 - `get_open_file_limit() -> int` — platform-specific maximum open-file count, with a conservative Windows default.
 
