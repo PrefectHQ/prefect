@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import signal
 import socket
@@ -48,8 +49,6 @@ from prefect.utilities.processutils import open_process
 def add_prefect_loggers_to_caplog(
     caplog: pytest.LogCaptureFixture,
 ) -> Generator[None, None, None]:
-    import logging
-
     logger = logging.getLogger("prefect")
     logger.propagate = True
 
@@ -73,8 +72,6 @@ def restore_logging_state() -> Generator[None, None, None]:
     assertions fail intermittently. Snapshot every logger's level, propagate,
     and disabled flags and restore them after each test.
     """
-    import logging
-
     loggers = [
         logging.root,
         *(
