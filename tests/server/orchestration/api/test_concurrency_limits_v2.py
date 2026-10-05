@@ -34,6 +34,43 @@ from prefect.settings.context import temporary_settings
 pytestmark = pytest.mark.clear_db
 
 
+@pytest.mark.parametrize("endpoint", ["filter", "count", "paginate"])
+@pytest.mark.parametrize(
+    "pattern, expected",
+    [
+        (r"team\_1", ["team_1"]),
+        (r"\%", []),
+        (r"team\\1", [r"team\1"]),
+        ("team_1", [r"team\1", "teamA1", "team_1"]),
+    ],
+)
+async def test_name_search_escape_and_wildcard_patterns(
+    session: AsyncSession,
+    client: AsyncClient,
+    endpoint: str,
+    pattern: str,
+    expected: list[str],
+):
+    for name in ["team_1", "teamA1", r"team\1"]:
+        await create_concurrency_limit(
+            session=session, concurrency_limit=ConcurrencyLimitV2(name=name, limit=1)
+        )
+    await session.commit()
+    response = await client.post(
+        f"/v2/concurrency_limits/{endpoint}",
+        json={"concurrency_limits": {"name": {"like_": pattern}}},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    if endpoint == "count":
+        assert data == len(expected)
+    else:
+        if endpoint == "paginate":
+            assert data["count"] == len(expected)
+            data = data["results"]
+        assert sorted(row["name"] for row in data) == sorted(expected)
+
+
 @pytest.fixture
 def use_filesystem_lease_storage():
     with temporary_settings(
@@ -223,6 +260,122 @@ async def test_read_all_concurrency_limits(
         str(locked_concurrency_limit.id),
         str(concurrency_limit_with_decay.id),
     }
+
+
+@pytest.mark.clear_db
+async def test_pagination_and_search_beyond_200_limits(session, client: AsyncClient):
+    for index in range(250):
+        await create_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2(name=f"limit-{index:03}", limit=1),
+        )
+    await session.commit()
+
+    response = await client.post(
+        "/v2/concurrency_limits/paginate", json={"page": 22, "limit": 10}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert [limit["name"] for limit in data["results"]] == [
+        f"limit-{index:03}" for index in range(210, 220)
+    ]
+    assert {key: data[key] for key in ("count", "pages", "page", "limit")} == {
+        "count": 250,
+        "pages": 25,
+        "page": 22,
+        "limit": 10,
+    }
+
+    response = await client.post(
+        "/v2/concurrency_limits/paginate",
+        json={"concurrency_limits": {"name": {"like_": "LIMIT-249"}}},
+    )
+    assert response.status_code == 200
+    assert [limit["name"] for limit in response.json()["results"]] == ["limit-249"]
+    assert response.json()["count"] == 1
+
+
+@pytest.mark.parametrize("body", [{"page": 0}, {"limit": 201}, {"limit": -1}])
+async def test_pagination_rejects_invalid_bounds(client: AsyncClient, body):
+    response = await client.post("/v2/concurrency_limits/paginate", json=body)
+    assert response.status_code == 422
+
+
+async def test_read_all_concurrency_limits_filters_by_name_like(
+    concurrency_limit: ConcurrencyLimitV2,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit_with_decay: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/filter",
+        json={"concurrency_limits": {"name": {"like_": "decay"}}},
+    )
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert [limit["id"] for limit in data] == [str(concurrency_limit_with_decay.id)]
+
+
+async def test_read_all_concurrency_limits_filters_by_name_any(
+    concurrency_limit: ConcurrencyLimitV2,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit_with_decay: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/filter",
+        json={"concurrency_limits": {"name": {"any_": ["test_limit"]}}},
+    )
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert [limit["id"] for limit in data] == [str(concurrency_limit.id)]
+
+
+async def test_read_all_concurrency_limits_paginates_filtered_results(
+    concurrency_limit: ConcurrencyLimitV2,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit_with_decay: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/filter",
+        json={
+            "concurrency_limits": {"name": {"like_": "test_limit"}},
+            "limit": 1,
+            "offset": 1,
+        },
+    )
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert [limit["id"] for limit in data] == [str(concurrency_limit_with_decay.id)]
+
+
+async def test_count_all_concurrency_limits(
+    concurrency_limit: ConcurrencyLimitV2,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit_with_decay: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post("/v2/concurrency_limits/count")
+    assert response.status_code == 200, response.text
+    assert response.json() == 3
+
+
+async def test_count_all_concurrency_limits_with_filter(
+    concurrency_limit: ConcurrencyLimitV2,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit_with_decay: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/count",
+        json={"concurrency_limits": {"name": {"like_": "locked"}}},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json() == 1
 
 
 async def test_read_all_concurrency_limits_returns_decayed_active_slots(

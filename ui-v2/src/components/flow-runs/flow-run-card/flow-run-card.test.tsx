@@ -84,6 +84,7 @@ describe("FlowRunCard", () => {
 
 	it("does not render a relationships row when the run has no associations", async () => {
 		const flowRun = createFakeFlowRunWithFlow({
+			name: "unassociated-flow-run",
 			deployment_id: null,
 			work_pool_name: null,
 			work_queue_name: null,

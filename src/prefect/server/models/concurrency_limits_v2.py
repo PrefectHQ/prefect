@@ -162,9 +162,20 @@ async def read_all_concurrency_limits(
     session: AsyncSession,
     limit: int,
     offset: int,
+    concurrency_limit_filter: Optional[schemas.filters.ConcurrencyLimitV2Filter] = None,
+    case_sensitive_ordering: bool = False,
 ) -> Sequence[orm_models.ConcurrencyLimitV2]:
-    query = sa.select(db.ConcurrencyLimitV2).order_by(db.ConcurrencyLimitV2.name)
+    name_order = (
+        db.ConcurrencyLimitV2.name.collate(
+            "C" if db.dialect.name == "postgresql" else "BINARY"
+        )
+        if case_sensitive_ordering
+        else db.ConcurrencyLimitV2.name
+    )
+    query = sa.select(db.ConcurrencyLimitV2).order_by(name_order)
 
+    if concurrency_limit_filter is not None:
+        query = query.where(concurrency_limit_filter.as_sql_filter())
     if offset is not None:
         query = query.offset(offset)
     if limit is not None:
@@ -172,6 +183,21 @@ async def read_all_concurrency_limits(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+@db_injector
+async def count_concurrency_limits(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    concurrency_limit_filter: Optional[schemas.filters.ConcurrencyLimitV2Filter] = None,
+) -> int:
+    query = sa.select(sa.func.count(db.ConcurrencyLimitV2.id))
+
+    if concurrency_limit_filter is not None:
+        query = query.where(concurrency_limit_filter.as_sql_filter())
+
+    result = await session.execute(query)
+    return result.scalar_one()
 
 
 @db_injector
