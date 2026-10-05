@@ -2,6 +2,7 @@
 Tests for prefect.testing.fixtures module.
 """
 
+import logging
 import subprocess
 from contextlib import asynccontextmanager
 from unittest import mock
@@ -166,8 +167,6 @@ class TestRestoreLoggingState:
     """
 
     def test_restores_mutated_logger_configuration(self):
-        import logging
-
         # Create the probe logger before the fixture snapshots so it is
         # included in the saved state.
         logger = logging.getLogger("prefect.testing.restore_logging_state_probe")
@@ -190,11 +189,11 @@ class TestRestoreLoggingState:
         assert logger.level == original_level
         assert logger.propagate == original_propagate
         assert logger.disabled is False
+        # Handlers the test added are detached; removed ones are not
+        # re-attached since a full reconfiguration may have closed them.
         assert logger.handlers == original_handlers
 
     def test_restoring_level_clears_enabled_for_cache(self):
-        import logging
-
         # A cached `isEnabledFor` rejection must be cleared when the level is
         # restored, otherwise records are still dropped at the polluted level.
         logger = logging.getLogger("prefect.testing.restore_logging_state_cache")
