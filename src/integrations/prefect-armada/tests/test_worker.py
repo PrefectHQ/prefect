@@ -230,6 +230,34 @@ class TestArmadaWorkerJobConfiguration:
 
         assert configuration.api_dns_name == "172.18.0.1"
 
+    async def test_queue_defaults_to_the_worker_setting(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE", "batch")
+
+        configuration = await ArmadaWorkerJobConfiguration.from_template_and_values(
+            ArmadaWorker.get_default_base_job_template(), {}
+        )
+
+        assert configuration.queue == "batch"
+
+    async def test_queue_from_the_work_pool_variables_overrides_the_worker_setting(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE", "batch")
+
+        configuration = await ArmadaWorkerJobConfiguration.from_template_and_values(
+            ArmadaWorker.get_default_base_job_template(), {"queue": "analytics"}
+        )
+
+        assert configuration.queue == "analytics"
+
+    def test_default_template_does_not_fix_the_queue(self):
+        template = ArmadaWorker.get_default_base_job_template()
+
+        assert "default" not in template["variables"]["properties"]["queue"]
+        assert "queue" not in template["variables"].get("required", [])
+
     async def test_prepare_for_flow_run_slugifies_labels_and_annotations(
         self, default_configuration, flow_run
     ):

@@ -158,7 +158,7 @@ Set these on the work pool, on a deployment, or per flow run to control how jobs
 | `armada_disable_ssl` | `false` | Whether to connect to the Armada server without TLS. |
 | `armada_root_certificates_path` | none | Path on the worker's host to a PEM file of root certificates verifying the Armada server's TLS certificate. Defaults to gRPC's trust roots. |
 | `api_dns_name` | none | The address the Prefect API is reachable at from inside the cluster, substituted for a local address in each job's `PREFECT_API_URL`. |
-| `queue` | `prefect` | The Armada queue to submit jobs to. The queue must already exist. |
+| `queue` | the worker's `PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE` setting (`prefect`) | The Armada queue to submit jobs to. The queue must already exist. |
 | `job_set_id` | one per flow run | The Armada job set to submit jobs to. |
 | `namespace` | `default` | The Kubernetes namespace Armada runs jobs in. |
 | `priority` | `1.0` | The Armada priority of created jobs. Lower values are higher priority. |
