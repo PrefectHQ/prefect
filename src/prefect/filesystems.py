@@ -197,7 +197,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             def ignore_func(directory, files):
                 relative_path = Path(directory).relative_to(from_path)
                 files_to_ignore = [
-                    f for f in files if str(relative_path / f) not in included_files
+                    f
+                    for f in files
+                    if (relative_path / f).as_posix() not in included_files
                 ]
                 return files_to_ignore
         else:
@@ -216,7 +218,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             relative_path = Path(directory).relative_to(local_path)
 
             files_to_ignore = [
-                f for f in files if str(relative_path / f) not in included_files
+                f for f in files if (relative_path / f).as_posix() not in included_files
             ]
             return files_to_ignore
 
@@ -284,7 +286,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             def ignore_func(directory, files):
                 relative_path = Path(directory).relative_to(local_path)
                 files_to_ignore = [
-                    f for f in files if str(relative_path / f) not in included_files
+                    f
+                    for f in files
+                    if (relative_path / f).as_posix() not in included_files
                 ]
                 return files_to_ignore
         else:
@@ -545,7 +549,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         counter = 0
         for f in Path(local_path).rglob("*"):
             relative_path = f.relative_to(local_path)
-            if included_files and str(relative_path) not in included_files:
+            if included_files and relative_path.as_posix() not in included_files:
                 continue
 
             if to_path.endswith("/"):
@@ -601,7 +605,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         counter = 0
         for f in Path(local_path).rglob("*"):
             relative_path = f.relative_to(local_path)
-            if included_files and str(relative_path) not in included_files:
+            if included_files and relative_path.as_posix() not in included_files:
                 continue
 
             if to_path.endswith("/"):

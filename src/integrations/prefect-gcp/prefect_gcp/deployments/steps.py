@@ -121,7 +121,7 @@ def push_to_gcs(
         relative_local_file_path = local_file_path.relative_to(local_path)
         if (
             included_files is not None
-            and str(relative_local_file_path) not in included_files
+            and relative_local_file_path.as_posix() not in included_files
         ):
             continue
         elif not local_file_path.is_dir():

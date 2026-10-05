@@ -39,7 +39,7 @@ class TestFilterFiles:
         tmpdir.ensure("utilities/helpers.py")
 
         path = Path(tmpdir)
-        all_files = {str(p.relative_to(tmpdir)) for p in path.rglob("*")}
+        all_files = {p.relative_to(tmpdir).as_posix() for p in path.rglob("*")}
         assert "README.md" in all_files  # ensure directory is populated
         return all_files
 
@@ -144,9 +144,9 @@ class TestFilterFiles:
             ignore_patterns=["*", "!a/b/c/file.py"],
         )
         assert "a" in result
-        assert str(Path("a") / "b") in result
-        assert str(Path("a") / "b" / "c") in result
-        assert str(Path("a") / "b" / "c" / "file.py") in result
+        assert "a/b" in result
+        assert "a/b/c" in result
+        assert "a/b/c/file.py" in result
 
 
 class TestPlatformSpecificRelpath:
