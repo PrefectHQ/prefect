@@ -277,10 +277,6 @@ class ArmadaWorkerJobConfiguration(BaseJobConfiguration):
             cluster, substituted for a local address in jobs' `PREFECT_API_URL`.
         cluster_config: The Armada cluster configuration to connect with.
         credentials: The Armada credentials to authenticate with.
-        job_watch_timeout_seconds: The number of seconds to wait for the job to
-            complete before timing out. If `None`, the observer will watch the
-            job indefinitely.
-        stream_output: Whether or not to stream the job's output.
     """
 
     annotations: dict[str, str] = Field(
@@ -303,8 +299,6 @@ class ArmadaWorkerJobConfiguration(BaseJobConfiguration):
     api_dns_name: str | None = Field(default=None)
     cluster_config: ArmadaClusterConfig | None = Field(default=None)
     credentials: ArmadaCredentials | None = Field(default=None)
-    job_watch_timeout_seconds: int | None = Field(default=None)
-    stream_output: bool = Field(default=True)
 
     env: dict[str, str | None] | list[dict[str, Any]] = Field(default_factory=dict)
 
@@ -832,19 +826,6 @@ class ArmadaWorkerVariables(BaseVariables):
     image_pull_policy: Literal["IfNotPresent", "Always", "Never"] = Field(
         default=ArmadaImagePullPolicy.IF_NOT_PRESENT,
         description="The Kubernetes image pull policy to use for job containers.",
-    )
-    job_watch_timeout_seconds: int | None = Field(
-        default=None,
-        description=(
-            "Number of seconds to wait for each event emitted by a job before "
-            "timing out. If not set, the observer will watch each job indefinitely."
-        ),
-    )
-    stream_output: bool = Field(
-        default=True,
-        description=(
-            "If set, output will be streamed from the job to local standard output."
-        ),
     )
     cluster_config: ArmadaClusterConfig | None = Field(
         default=None,

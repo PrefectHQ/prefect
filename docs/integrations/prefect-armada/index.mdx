@@ -168,8 +168,6 @@ Set these on the work pool, on a deployment, or per flow run to control how jobs
 | `cpu_request` / `cpu_limit` | none | CPU resource request and limit, in Kubernetes quantity format (for example `500m`). |
 | `memory_request` / `memory_limit` | none | Memory resource request and limit, in Kubernetes quantity format (for example `128Mi`). |
 | `labels` / `annotations` | none | Kubernetes labels and annotations applied to created jobs. |
-| `job_watch_timeout_seconds` | none | Seconds to wait for each event emitted by a job before timing out. Watches each job indefinitely by default. |
-| `stream_output` | `true` | Whether to stream output from the job to local standard output. |
 | `cluster_config` | none | An `ArmadaClusterConfig` block holding connection details. |
 | `credentials` | none | An `ArmadaCredentials` block used to authenticate. |
 
