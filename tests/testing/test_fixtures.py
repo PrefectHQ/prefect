@@ -287,3 +287,29 @@ class TestRestoreLoggingState:
             assert logger.handlers == []
         finally:
             logger.handlers[:] = []
+
+    def test_open_handler_survives_mixed_cleanup(self):
+        # When a test removes several handlers but only closes some of them,
+        # the still-open ones are restored alongside the new configuration.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_mixed")
+        kept = logging.NullHandler()
+        closed = logging.NullHandler()
+        logger.addHandler(kept)
+        logger.addHandler(closed)
+        replacement = logging.NullHandler()
+        try:
+            gen = fixtures.restore_logging_state.__wrapped__()
+            next(gen)
+
+            logger.removeHandler(kept)
+            logger.removeHandler(closed)
+            closed.close()
+            logger.addHandler(replacement)
+
+            with pytest.raises(StopIteration):
+                next(gen)
+
+            assert logger.handlers == [replacement, kept]
+        finally:
+            logger.handlers[:] = []
+            replacement.close()

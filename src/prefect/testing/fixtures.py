@@ -104,9 +104,16 @@ def restore_logging_state() -> Generator[None, None, None]:
         # still open mean an ordinary test mutation, which should be reverted.
         live_handlers = {ref() for ref in logging._handlerList}
         removed = [h for h in handlers if h not in logger.handlers]
-        if not any(
-            getattr(h, "_closed", False) or h not in live_handlers for h in removed
-        ):
+        closed = {
+            h for h in removed if getattr(h, "_closed", False) or h not in live_handlers
+        }
+        if closed:
+            # Reconfiguration signature: keep the new set, but re-attach any
+            # still-open handlers a mixed manual cleanup also removed.
+            for h in removed:
+                if h not in closed:
+                    logger.addHandler(h)
+        else:
             logger.handlers[:] = handlers
 
 
