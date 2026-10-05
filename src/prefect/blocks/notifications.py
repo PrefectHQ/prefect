@@ -47,7 +47,7 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         )
 
         self._apprise_client = Apprise(asset=prefect_app_data)
-        self._apprise_client.add(servers=url.get_secret_value())  # pyright: ignore[reportUnknownMemberType]
+        self._apprise_client.add(services=url.get_secret_value())  # pyright: ignore[reportUnknownMemberType]
 
     def block_initialization(self) -> None:
         self._start_apprise_client(getattr(self, "url"))
@@ -1115,7 +1115,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
         if hasattr(self, "_apprise_client") and self._apprise_client:
             self._apprise_client.clear()
             self._apprise_client.add(
-                servers=self._build_sendgrid_url().get_secret_value()
+                services=self._build_sendgrid_url().get_secret_value()
             )
 
     async def anotify(
