@@ -10,6 +10,7 @@ import toml
 import prefect.context
 import prefect.settings
 from prefect.context import use_profile
+from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
@@ -61,6 +62,15 @@ def temporary_profiles_path(tmp_path):
     path = tmp_path / "profiles.toml"
     with temporary_settings({PREFECT_PROFILES_PATH: path}):
         yield path
+
+
+@pytest.fixture(autouse=True)
+def restore_logging_setup():
+    yield
+    # Tests that invoke the CLI outside of test mode (e.g. with a fresh profile) run
+    # `setup_logging()` with default settings, which lowers the process-wide `prefect`
+    # logger level to INFO and drops DEBUG logs in later tests on the same worker.
+    setup_logging(incremental=False)
 
 
 def test_set_using_default_profile():
