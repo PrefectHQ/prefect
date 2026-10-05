@@ -57,55 +57,73 @@ export function DurationInput({
 }: DurationInputProps) {
 	const [unit, setUnit] = useState<number>(() => getDefaultUnitForValue(value));
 
-	const availableUnits = useMemo(() => {
-		return DURATION_UNITS.filter((u) => u.value >= min);
-	}, [min]);
-
 	const quantity = useMemo(() => {
 		return value / unit;
 	}, [value, unit]);
+	const [quantityInput, setQuantityInput] = useState(String(quantity));
+
+	useEffect(() => {
+		setQuantityInput(String(quantity));
+	}, [quantity]);
 
 	const handleQuantityChange = useCallback(
-		(newQuantity: number) => {
-			let newValue = newQuantity * unit;
-			if (max !== undefined && newValue > max) {
-				newValue = max;
+		(newQuantity: string) => {
+			setQuantityInput(newQuantity);
+			const newValue = Number(newQuantity) * unit;
+			if (
+				newQuantity !== "" &&
+				newValue >= min &&
+				(max === undefined || newValue <= max)
+			) {
+				onChange(newValue);
 			}
-			onChange(newValue);
 		},
-		[onChange, unit, max],
+		[onChange, unit, min, max],
 	);
+
+	const handleQuantityBlur = useCallback(() => {
+		const parsedQuantity = Number(quantityInput);
+		let newValue = Math.max(
+			(Number.isFinite(parsedQuantity) ? parsedQuantity : 0) * unit,
+			min,
+		);
+		if (max !== undefined && newValue > max) {
+			newValue = max;
+		}
+		setQuantityInput(String(newValue / unit));
+		if (newValue !== value) {
+			onChange(newValue);
+		}
+	}, [quantityInput, unit, min, max, value, onChange]);
 
 	const handleUnitChange = useCallback(
 		(newUnitValue: string) => {
 			const newUnit = Number(newUnitValue);
 			const oldUnit = unit;
 			setUnit(newUnit);
-			let newValue = (value / oldUnit) * newUnit;
+			let newValue = Math.max((value / oldUnit) * newUnit, min);
 			if (max !== undefined && newValue > max) {
 				newValue = max;
 			}
 			onChange(newValue);
 		},
-		[onChange, unit, value, max],
+		[onChange, unit, value, min, max],
 	);
-
-	useEffect(() => {
-		if (!availableUnits.some((u) => u.value === unit)) {
-			const firstAvailable = availableUnits[0];
-			if (firstAvailable) {
-				setUnit(firstAvailable.value);
-			}
-		}
-	}, [availableUnits, unit]);
 
 	return (
 		<div className={cn("grid grid-cols-[1fr_7rem] gap-2 w-full", className)}>
 			<Input
 				type="number"
-				min={0}
-				value={quantity}
-				onChange={(e) => handleQuantityChange(Number(e.target.value))}
+				min={min / unit}
+				step="any"
+				value={quantityInput}
+				onChange={(e) => handleQuantityChange(e.target.value)}
+				onBlur={handleQuantityBlur}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") {
+						handleQuantityBlur();
+					}
+				}}
 				disabled={disabled}
 				aria-label="Duration quantity"
 			/>
@@ -118,7 +136,7 @@ export function DurationInput({
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
-					{availableUnits.map((u) => (
+					{DURATION_UNITS.map((u) => (
 						<SelectItem key={u.value} value={String(u.value)}>
 							{u.label}
 						</SelectItem>

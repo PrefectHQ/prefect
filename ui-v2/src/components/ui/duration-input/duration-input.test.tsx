@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockPointerEvents } from "@tests/utils/browser";
+import { useState } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { DurationInput } from "./index";
 
@@ -73,11 +74,76 @@ describe("DurationInput", () => {
 		expect(onChange).toHaveBeenLastCalledWith(3600);
 	});
 
-	it("filters available units based on min prop", () => {
-		render(<DurationInput value={3600} onChange={vi.fn()} min={60} />);
+	it("enforces the minimum duration", async () => {
+		const user = userEvent.setup();
+		const onChange = vi.fn();
+		render(<DurationInput value={30} onChange={onChange} min={10} />);
 
-		const unitSelect = screen.getByLabelText("Duration unit");
-		expect(unitSelect).toHaveTextContent("Hours");
+		const quantityInput = screen.getByLabelText("Duration quantity");
+		expect(quantityInput).toHaveAttribute("min", "10");
+
+		await user.clear(quantityInput);
+		await user.tab();
+		expect(onChange).toHaveBeenLastCalledWith(10);
+	});
+
+	it("allows replacing a controlled value with a multi-digit value", async () => {
+		const user = userEvent.setup();
+
+		function ControlledDurationInput() {
+			const [value, setValue] = useState(30);
+			return (
+				<>
+					<DurationInput value={value} onChange={setValue} min={10} />
+					<output>{value}</output>
+				</>
+			);
+		}
+
+		render(<ControlledDurationInput />);
+		const quantityInput = screen.getByLabelText("Duration quantity");
+		await user.clear(quantityInput);
+		await user.type(quantityInput, "15");
+
+		expect(quantityInput).toHaveValue(15);
+		expect(screen.getByRole("status")).toHaveTextContent("15");
+	});
+
+	it("commits the minimum before submitting an empty duration", async () => {
+		const user = userEvent.setup();
+		const onSubmit = vi.fn();
+
+		function ControlledForm() {
+			const [value, setValue] = useState(30);
+			return (
+				<form
+					aria-label="Duration form"
+					onSubmit={(event) => {
+						event.preventDefault();
+						onSubmit(value);
+					}}
+				>
+					<DurationInput value={value} onChange={setValue} min={10} />
+					<button type="submit">Submit</button>
+				</form>
+			);
+		}
+
+		render(<ControlledForm />);
+		const quantityInput = screen.getByLabelText("Duration quantity");
+		await user.clear(quantityInput);
+		fireEvent.keyDown(quantityInput, { key: "Enter" });
+		fireEvent.submit(screen.getByRole("form"));
+
+		expect(onSubmit).toHaveBeenCalledWith(10);
+	});
+
+	it("allows valid quantities when the converted minimum is fractional", () => {
+		render(<DurationInput value={60} onChange={vi.fn()} min={10} />);
+
+		const quantityInput = screen.getByLabelText("Duration quantity");
+		expect(quantityInput).toHaveAttribute("step", "any");
+		expect(quantityInput).toBeValid();
 	});
 
 	it("disables inputs when disabled prop is true", () => {
