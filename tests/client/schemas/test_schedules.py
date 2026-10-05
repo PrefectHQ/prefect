@@ -235,6 +235,43 @@ class TestDeploymentFlowRunCreate:
         assert dumped["parameters"]["dates"][1] == "2025-10-25"
 
 
+class TestIanaTimezoneName:
+    def test_bare_iana_filename(self):
+        """`dateutil` stores a bare IANA name in `_filename` when resolving
+        through the `tzdata` package (e.g. on Windows, where there is no
+        system zoneinfo directory)."""
+        from prefect.client.schemas.schedules import _iana_timezone_name
+
+        class FakeTzFile(datetime.tzinfo):
+            _filename = "America/New_York"
+
+        assert _iana_timezone_name(FakeTzFile()) == "America/New_York"
+
+    def test_zoneinfo_path_filename(self):
+        from prefect.client.schemas.schedules import _iana_timezone_name
+
+        class FakeTzFile(datetime.tzinfo):
+            _filename = "/usr/share/zoneinfo/America/New_York"
+
+        assert _iana_timezone_name(FakeTzFile()) == "America/New_York"
+
+    def test_windows_zoneinfo_path_filename(self):
+        from prefect.client.schemas.schedules import _iana_timezone_name
+
+        class FakeTzFile(datetime.tzinfo):
+            _filename = "C:\\zoneinfo\\America\\New_York"
+
+        assert _iana_timezone_name(FakeTzFile()) == "America/New_York"
+
+    def test_unknown_filename_falls_back_to_utc(self):
+        from prefect.client.schemas.schedules import _iana_timezone_name
+
+        class FakeTzFile(datetime.tzinfo):
+            _filename = "not-a-timezone"
+
+        assert _iana_timezone_name(FakeTzFile()) == "UTC"
+
+
 class TestRRuleScheduleFromRRule:
     """Verify that from_rrule() preserves IANA timezone names across DST."""
 
