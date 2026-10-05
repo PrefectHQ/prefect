@@ -141,7 +141,8 @@ def push_to_azure_blob_storage(
         for local_file_path in local_path.expanduser().rglob("*"):
             if (
                 included_files is not None
-                and local_file_path.relative_to(local_path).as_posix() not in included_files
+                and local_file_path.relative_to(local_path).as_posix()
+                not in included_files
             ):
                 continue
             elif not local_file_path.is_dir():

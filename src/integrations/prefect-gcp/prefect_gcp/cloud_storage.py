@@ -1296,7 +1296,8 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         for local_file_path in Path(local_path).rglob("*"):
             if (
                 included_files is not None
-                and local_file_path.relative_to(local_path).as_posix() not in included_files
+                and local_file_path.relative_to(local_path).as_posix()
+                not in included_files
             ):
                 continue
             elif not local_file_path.is_dir():
@@ -1376,7 +1377,8 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         for local_file_path in Path(local_path).rglob("*"):
             if (
                 included_files is not None
-                and local_file_path.relative_to(local_path).as_posix() not in included_files
+                and local_file_path.relative_to(local_path).as_posix()
+                not in included_files
             ):
                 continue
             elif not local_file_path.is_dir():
