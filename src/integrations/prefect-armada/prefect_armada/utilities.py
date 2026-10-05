@@ -160,7 +160,7 @@ def _slugify_label_value(value: str, max_length: int = 63) -> str:
             value,
             lowercase=False,
             max_length=max_length,
-            regex_pattern=r"[^a-zA-Z0-9-_\.]+",
+            regex_pattern=r"[^a-zA-Z0-9_\-.]+",
         ).strip(
             "_-."  # Must start or end with alphanumeric characters
         )
