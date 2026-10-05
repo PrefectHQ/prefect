@@ -174,16 +174,16 @@ class TestRestoreLoggingState:
         logger = logging.getLogger("prefect.testing.restore_logging_state_probe")
         original_level = logger.level
         original_propagate = logger.propagate
+        original_handlers = logger.handlers[:]
 
         gen = fixtures.restore_logging_state.__wrapped__()
         next(gen)  # fixture setup: snapshot
 
         # Simulate a test polluting the logger, e.g. via `setup_logging`
-        stray_handler = logging.NullHandler()
         logger.setLevel(logging.WARNING)
         logger.propagate = False
         logger.disabled = True
-        logger.addHandler(stray_handler)
+        logger.addHandler(logging.NullHandler())
 
         with pytest.raises(StopIteration):
             next(gen)  # fixture teardown: restore
@@ -191,10 +191,8 @@ class TestRestoreLoggingState:
         assert logger.level == original_level
         assert logger.propagate == original_propagate
         assert logger.disabled is False
-        # Handler lists are deliberately left alone: restoring them would
-        # resurrect handlers closed by a full `dictConfig` reconfiguration.
-        assert stray_handler in logger.handlers
-        logger.removeHandler(stray_handler)
+        # A handler that was only appended is detached again on restore.
+        assert logger.handlers == original_handlers
 
     def test_restoring_level_clears_enabled_for_cache(self):
         # A cached `isEnabledFor` rejection must be cleared when the level is
@@ -230,3 +228,22 @@ class TestRestoreLoggingState:
             next(gen)
 
         assert any(isinstance(h, WorkerAPILogHandler) for h in workers_logger.handlers)
+
+    def test_removed_handlers_are_restored(self):
+        # A test that only removes handlers (without attaching replacements)
+        # gets the snapshot's handler list back.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_rm")
+        marker = logging.NullHandler()
+        logger.addHandler(marker)
+        try:
+            gen = fixtures.restore_logging_state.__wrapped__()
+            next(gen)
+
+            logger.removeHandler(marker)
+
+            with pytest.raises(StopIteration):
+                next(gen)
+
+            assert logger.handlers == [marker]
+        finally:
+            logger.removeHandler(marker)
