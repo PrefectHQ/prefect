@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -65,7 +66,7 @@ def temporary_profiles_path(tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def restore_logging_setup():
+def restore_logging_setup() -> Generator[None, None, None]:
     yield
     # Tests that invoke the CLI outside of test mode (e.g. with a fresh profile) run
     # `setup_logging()` with default settings, which lowers the process-wide `prefect`
