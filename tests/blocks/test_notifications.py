@@ -1,3 +1,4 @@
+import json
 import logging
 import urllib
 from typing import Type
@@ -484,6 +485,20 @@ class TestMattermostWebhook:
         apprise_instance_mock.notify.assert_called_once_with(
             body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
         )
+
+    def test_botname_reaches_the_mattermost_payload(self):
+        mm_block = MattermostWebhook(
+            hostname="example.com",
+            token="token",
+            botname="Prefect Bot",
+        )
+
+        with patch("requests.post") as post:
+            post.return_value.status_code = 200
+            list(mm_block._apprise_client)[0].send(body="test")
+
+        payload = json.loads(post.call_args.kwargs["data"])
+        assert payload["username"] == "Prefect Bot"
 
     def test_is_picklable(self):
         block = MattermostWebhook(token="token", hostname="example.com")

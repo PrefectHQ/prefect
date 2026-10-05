@@ -102,6 +102,11 @@ COPY --from=ui-v2-builder /opt/ui-v2/dist ./src/prefect/server/ui-v2
 RUN rm -rf dist && PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1 uv build --sdist --out-dir dist
 RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
+# Export the locked versions so the final image installs what CI tests against
+# (`uv sync --locked`) instead of whatever PyPI resolves to on build day. All
+# extras are exported so one file covers every PREFECT_EXTRAS flavor.
+RUN uv export --frozen --no-dev --all-extras --no-emit-project --no-hashes -o dist/constraints.txt
+
 
 # Setup a base final image from miniconda
 FROM continuumio/miniconda3:26.7.1 AS prefect-conda
@@ -193,7 +198,8 @@ ARG PREFECT_EXTRAS=[redis,client,otel]
 # we push. A bind mount is never committed to a layer.
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,from=python-builder,source=/opt/prefect/dist,target=/dist \
-    UV_COMPILE_BYTECODE=1 uv pip install "/dist/prefect.tar.gz${PREFECT_EXTRAS:-""}"
+    UV_COMPILE_BYTECODE=1 uv pip install --constraint /dist/constraints.txt \
+    "/dist/prefect.tar.gz${PREFECT_EXTRAS:-""}"
 
 # Setuptools is required by pip in the conda environment. Remove it only from
 # base images where it is not managed as part of the environment.
