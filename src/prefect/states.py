@@ -10,11 +10,12 @@ from types import GeneratorType, TracebackType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type
 
 import anyio
-import httpx
+import httpx as legacy_httpx
 from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.schemas.objects import State, StateDetails, StateType
 from prefect.exceptions import (
     CancelledRun,
@@ -222,7 +223,15 @@ async def exception_to_crashed_state(
     elif isinstance(exc, SystemExit):
         state_message = "Execution was aborted by Python system exit call."
 
-    elif isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
+    elif isinstance(
+        exc,
+        (
+            legacy_httpx.TimeoutException,
+            legacy_httpx.ConnectError,
+            httpx.TimeoutException,
+            httpx.ConnectError,
+        ),
+    ):
         try:
             request: httpx.Request = exc.request
         except RuntimeError:

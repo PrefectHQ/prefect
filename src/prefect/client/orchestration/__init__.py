@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Any, Literal, NoReturn, Optional, Union, overl
 from uuid import UUID
 
 import certifi
-import httpcore
-import httpx
+from prefect._internal.compatibility.httpx import httpcore
+from prefect._internal.compatibility.httpx import httpx
 
 import pydantic
 from asgi_lifespan import LifespanManager

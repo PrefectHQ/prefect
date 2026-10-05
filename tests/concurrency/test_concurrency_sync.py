@@ -3,10 +3,10 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
+from prefect._internal.compatibility.httpx import httpx
 from prefect.concurrency._sync import (
     acquire_concurrency_slots,
     acquire_concurrency_slots_with_lease,
@@ -230,15 +230,15 @@ async def test_concurrency_can_be_used_while_event_loop_is_running(
 @pytest.fixture
 def mock_increment_concurrency_slots_with_lease(monkeypatch):
     async def mocked_increment_concurrency_slots_with_lease(*args, **kwargs):
-        response = Response(
+        response = httpx.Response(
             status_code=status.HTTP_423_LOCKED,
             # Use a large Retry-After value to ensure the timeout triggers
             # during the sleep, avoiding race conditions with small timeouts
             headers={"Retry-After": "30"},
         )
-        raise HTTPStatusError(
+        raise httpx.HTTPStatusError(
             message="Locked",
-            request=Request("GET", "http://test.com"),
+            request=httpx.Request("GET", "http://test.com"),
             response=response,
         )
 
@@ -493,11 +493,15 @@ def test_acquire_concurrency_slots_formats_server_validation_error(
     endpoint: str,
     payload_key: str,
 ):
+    reason_phrase = (
+        "Unprocessable Entity" if httpx.__name__ == "httpx" else "Unprocessable Content"
+    )
+
     async def mocked_increment(*args: Any, **kwargs: Any) -> None:
-        raise HTTPStatusError(
-            "Unprocessable Entity",
-            request=Request("POST", "http://test.com"),
-            response=Response(
+        raise httpx.HTTPStatusError(
+            reason_phrase,
+            request=httpx.Request("POST", "http://test.com"),
+            response=httpx.Response(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 json={
                     payload_key: [
@@ -533,7 +537,7 @@ def test_acquire_concurrency_slots_formats_server_validation_error(
                 pass
 
     assert str(exc_info.value) == (
-        "Unable to acquire concurrency slots on ['test']: 422 Unprocessable Entity: "
+        f"Unable to acquire concurrency slots on ['test']: 422 {reason_phrase}: "
         "slots: Input should be greater than 0; "
         "lease_duration: Input should be greater than or equal to 60"
     )

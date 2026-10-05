@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
-from httpx import HTTPStatusError
 from pydantic import Field
 from typing_extensions import TypedDict, Unpack
 
+from prefect._internal.compatibility.httpx import HTTPStatusError
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectNotFound
 

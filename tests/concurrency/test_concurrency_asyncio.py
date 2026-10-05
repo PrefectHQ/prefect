@@ -3,10 +3,10 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
+from prefect._internal.compatibility.httpx import httpx
 from prefect.concurrency._asyncio import (
     aacquire_concurrency_slots,
     aacquire_concurrency_slots_with_lease,
@@ -186,13 +186,13 @@ async def test_concurrency_emits_events(
 @pytest.fixture
 def mock_increment_concurrency_slots(monkeypatch: pytest.MonkeyPatch):
     async def mocked_increment_concurrency_slots(*args: Any, **kwargs: Any):
-        response = Response(
+        response = httpx.Response(
             status_code=status.HTTP_423_LOCKED,
             headers={"Retry-After": "0.01"},
         )
-        raise HTTPStatusError(
+        raise httpx.HTTPStatusError(
             message="Locked",
-            request=Request("GET", "http://test.com"),
+            request=httpx.Request("GET", "http://test.com"),
             response=response,
         )
 
@@ -449,11 +449,15 @@ async def test_acquire_concurrency_slots_formats_server_validation_error(
     endpoint: str,
     payload_key: str,
 ):
+    reason_phrase = (
+        "Unprocessable Entity" if httpx.__name__ == "httpx" else "Unprocessable Content"
+    )
+
     async def mocked_increment(*args: Any, **kwargs: Any) -> None:
-        raise HTTPStatusError(
-            "Unprocessable Entity",
-            request=Request("POST", "http://test.com"),
-            response=Response(
+        raise httpx.HTTPStatusError(
+            reason_phrase,
+            request=httpx.Request("POST", "http://test.com"),
+            response=httpx.Response(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 json={
                     payload_key: [
@@ -491,7 +495,7 @@ async def test_acquire_concurrency_slots_formats_server_validation_error(
         await call
 
     assert str(exc_info.value) == (
-        "Unable to acquire concurrency slots on ['test']: 422 Unprocessable Entity: "
+        f"Unable to acquire concurrency slots on ['test']: 422 {reason_phrase}: "
         "slots: Input should be greater than 0; "
         "lease_duration: Input should be greater than or equal to 60"
     )

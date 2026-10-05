@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from httpx import HTTPStatusError, Request, Response
 
+from prefect._internal.compatibility.httpx import httpx
 from prefect.runner._flow_resolver import FlowResolver
 
 pytestmark = pytest.mark.clear_db
@@ -81,10 +81,10 @@ class TestFlowResolver:
     async def test_api_exception_propagates(self, tmp_path: Path):
         deployment_id = uuid4()
         flow_run = _make_flow_run(deployment_id=deployment_id)
-        request = Request("GET", "http://test")
-        response = Response(status_code=500, request=request)
+        request = httpx.Request("GET", "http://test")
+        response = httpx.Response(status_code=500, request=request)
         load_flow = AsyncMock(
-            side_effect=HTTPStatusError(
+            side_effect=httpx.HTTPStatusError(
                 "server error", request=request, response=response
             )
         )
@@ -98,7 +98,7 @@ class TestFlowResolver:
             extract_flow_from_bundle=extract_flow,
         )
 
-        with pytest.raises(HTTPStatusError):
+        with pytest.raises(httpx.HTTPStatusError):
             await resolver.resolve(flow_run)
 
     async def test_total_miss_raises_value_error(self, tmp_path: Path):

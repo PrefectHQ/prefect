@@ -22,7 +22,6 @@ from typing import (
 )
 from uuid import UUID
 
-import httpx
 from cachetools import LRUCache
 from pydantic import (
     BaseModel,
@@ -40,6 +39,7 @@ from prefect._internal.compatibility.blocks import (
     call_explicitly_async_block_method,
     call_explicitly_sync_block_method,
 )
+from prefect._internal.compatibility.httpx import httpx
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block

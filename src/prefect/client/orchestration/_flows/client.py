@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from httpx import HTTPStatusError, RequestError
-
+from prefect._internal.compatibility.httpx import HTTPStatusError, RequestError
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectNotFound
 

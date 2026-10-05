@@ -1,9 +1,9 @@
 from unittest.mock import ANY
 
-import httpx
 import pytest
 import respx
 
+from prefect._internal.compatibility.httpx import httpcore
 from prefect.server.api import collections
 from prefect.settings import PREFECT_API_URL
 
@@ -478,14 +478,14 @@ def mock_collection_registry(
     }
 
     with respx.mock(
-        using="httpx",
+        using=httpcore.__name__,
         assert_all_mocked=False,
         assert_all_called=False,
         base_url=PREFECT_API_URL.value(),
     ) as respx_mock:
         respx_mock.get("/csrf-token", params={"client": ANY}).pass_through()
         respx_mock.route(path__startswith="/work_pools/").pass_through()
-        respx_mock.get("/collections/views/aggregate-worker-metadata").mock(
-            return_value=httpx.Response(200, json=mock_body)
+        respx_mock.get("/collections/views/aggregate-worker-metadata").respond(
+            200, json=mock_body
         )
         yield

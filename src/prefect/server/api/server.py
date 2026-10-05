@@ -29,7 +29,6 @@ from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
 
 import anyio
 import asyncpg
-import httpx
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
@@ -48,6 +47,7 @@ from typing_extensions import Self
 import prefect
 import prefect.server.api as api
 import prefect.settings
+from prefect._internal.compatibility.httpx import Client, create_ssl_context, httpx
 from prefect._internal.compatibility.starlette import status
 from prefect._internal.observability import configure_logfire
 from prefect.client.constants import SERVER_API_VERSION
@@ -1135,7 +1135,7 @@ class SubprocessASGIServer:
                 self.running = True
                 self.server_process = self._run_uvicorn_command()
                 atexit.register(self.stop)
-                with httpx.Client() as client:
+                with Client(verify=create_ssl_context()) as client:
                     response = None
                     elapsed_time = 0
                     max_wait_time = (

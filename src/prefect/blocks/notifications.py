@@ -9,6 +9,12 @@ from pydantic import AnyHttpUrl, Field, HttpUrl, SecretStr
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.httpx import (
+    AsyncClient,
+    Client,
+    create_ssl_context,
+    warn_on_legacy_httpx,
+)
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.logging import LogEavesdropper
 from prefect.types import SecretDict
@@ -1004,11 +1010,11 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                     raise KeyError(f"{name}/{placeholder}")
 
     async def anotify(self, body: str, subject: str | None = None) -> None:
-        import httpx
-
+        warn_on_legacy_httpx()
         request_args = self._build_request_args(body, subject)
         client_kwargs: dict[str, Any] = {
             "headers": {"user-agent": "Prefect Notifications"},
+            "verify": create_ssl_context(),
         }
         if not self.allow_private_urls:
             validate_restricted_url(request_args["url"])
@@ -1018,17 +1024,17 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         cookies = request_args.pop("cookies", dict())
         client_kwargs["cookies"] = cookies
         # make request with httpx
-        async with httpx.AsyncClient(**client_kwargs) as client:
+        async with AsyncClient(**client_kwargs) as client:
             resp = await client.request(**request_args)
         resp.raise_for_status()
 
     @async_dispatch(anotify)
     def notify(self, body: str, subject: str | None = None) -> None:
-        import httpx
-
+        warn_on_legacy_httpx()
         request_args = self._build_request_args(body, subject)
         client_kwargs: dict[str, Any] = {
             "headers": {"user-agent": "Prefect Notifications"},
+            "verify": create_ssl_context(),
         }
         if not self.allow_private_urls:
             validate_restricted_url(request_args["url"])
@@ -1036,7 +1042,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         cookies = request_args.pop("cookies", dict())
         client_kwargs["cookies"] = cookies
         # make request with httpx
-        with httpx.Client(**client_kwargs) as client:
+        with Client(**client_kwargs) as client:
             resp = client.request(**request_args)
         resp.raise_for_status()
 

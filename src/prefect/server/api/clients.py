@@ -5,12 +5,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from urllib.parse import quote
 from uuid import UUID
 
-import httpx
 import pydantic
-from httpx import Response
 from starlette import status
 from typing_extensions import Self
 
+from prefect._internal.compatibility.httpx import Response, httpx
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.exceptions import ObjectNotFound
 from prefect.logging import get_logger

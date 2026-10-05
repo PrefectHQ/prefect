@@ -10,11 +10,12 @@ keywords: ["troubleshoot", "debug", "error", "Prefect Cloud", "connectivity"]
 Proxies handle network requests between a server and a client.
 
 To communicate with Prefect Cloud, the Prefect client library makes HTTPS requests.
-These requests are made with the [`httpx`](https://www.python-httpx.org/) Python library.
-`httpx` respects accepted proxy environment variables, so the Prefect client can communicate through proxies.
+The Prefect client respects accepted proxy environment variables, so it can communicate through proxies.
 
-To enable communication through proxies, set the `HTTPS_PROXY` and `SSL_CERT_FILE` environment
-variables in your execution environment.
+To enable communication through proxies, set `HTTPS_PROXY` in your execution environment.
+If the proxy requires a custom CA bundle, set `PREFECT_API_SSL_CERT_FILE` for orchestration requests
+and `SSL_CERT_FILE` for other HTTP requests, such as Cloud account operations.
+See [configure network access](/v3/advanced/configure-network-access) for an example.
 
 See the [Using Prefect Cloud with proxies](https://github.com/PrefectHQ/prefect/discussions/16175)
 GitHub Discussion for more information.

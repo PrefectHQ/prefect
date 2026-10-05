@@ -6,11 +6,11 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-import httpx
 import pytest
 import readchar
 
 from prefect import flow as flow_decorator
+from prefect._internal.compatibility.httpx import httpx
 from prefect.cli.work_pool import work_pool_storage_configure_app
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import (

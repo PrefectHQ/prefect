@@ -2,9 +2,8 @@ import asyncio
 from typing import Optional
 from uuid import UUID
 
-import httpx
-
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.httpx import httpx
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 
