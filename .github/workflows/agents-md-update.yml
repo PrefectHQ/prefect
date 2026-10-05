@@ -67,7 +67,7 @@ jobs:
           cat > /tmp/prompt.txt <<'PROMPT'
           You are updating AGENTS.md files in the PrefectHQ/prefect repository after a merge to main.
 
-          Work in the PrefectHQ/prefect repository. The triggering push is the range __BASE__..__SHA__ on main. Check out main at __SHA__, review `git diff __BASE__ __SHA__`, and read the skill file at .claude/skills/agents-md-sync/SKILL.md and follow its workflow exactly.
+          Work in the PrefectHQ/prefect repository. The triggering push is the range __BASE__..__SHA__ on main. Check out main at __SHA__, read the skill file at .claude/skills/agents-md-sync/SKILL.md, and follow its workflow exactly, using __BASE__..__SHA__ as the commit range to audit.
 
           Files changed in the triggering push:
           __CHANGED_FILES__
@@ -108,6 +108,8 @@ jobs:
           For each new AGENTS.md file also include "Ownership boundary" and "Hidden conventions" entries. Also include a <details> section listing the files changed in the triggering push.
 
           If no high-confidence minimal update is needed, or your self-review rejects the update, do not open a PR. Instead, report any recommendations for larger or lower-confidence updates in your final session summary so a human can follow up.
+
+          This workflow runs once per push and cannot be cancelled by newer pushes. Before opening the PR, run `git fetch origin main` and check whether origin/main has advanced beyond __SHA__. If it has, redo the analysis against the new head commit instead of opening a PR for a stale base.
           PROMPT
 
           # Substitute the push metadata into the prompt (Python handles the
