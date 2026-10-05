@@ -728,7 +728,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 with_children.c.child_ids,
                 with_encapsulating.c.encapsulating_ids,
             )
-            .distinct(edges.c.id)
             .join(with_parents, isouter=True, onclause=with_parents.c.id == edges.c.id)
             .join(
                 with_children, isouter=True, onclause=with_children.c.id == edges.c.id
@@ -738,8 +737,14 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 isouter=True,
                 onclause=with_encapsulating.c.id == edges.c.id,
             )
-            .cte("nodes")
         )
+        # SQLAlchemy 2.1 replaces distinct(expr) with the distinct_on extension.
+        distinct_on = getattr(postgresql, "distinct_on", None)
+        if distinct_on is not None:
+            graph = getattr(graph, "ext")(distinct_on(edges.c.id))
+        else:
+            graph = graph.distinct(edges.c.id)
+        graph = graph.cte("nodes")
         query = (
             sa.select(
                 graph.c.kind,
