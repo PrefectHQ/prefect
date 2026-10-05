@@ -154,3 +154,60 @@ class TestHostedApiServerWindowsProcessHandling:
 
         # Verify process.terminate() was called
         mock_process.terminate.assert_called_once()
+
+
+class TestRestoreLoggingState:
+    """Regression tests for the autouse `restore_logging_state` fixture.
+
+    Tests that reconfigure logging in-process (e.g. by invoking the CLI with
+    `test_mode` disabled, which runs `setup_logging`) permanently mutate logger
+    state in their pytest-xdist worker. The fixture must restore that state so
+    later tests' `caplog` assertions are not silently broken.
+    """
+
+    def test_restores_mutated_logger_configuration(self):
+        import logging
+
+        # Create the probe logger before the fixture snapshots so it is
+        # included in the saved state.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_probe")
+        original_level = logger.level
+        original_propagate = logger.propagate
+        original_handlers = logger.handlers[:]
+
+        gen = fixtures.restore_logging_state.__wrapped__()
+        next(gen)  # fixture setup: snapshot
+
+        # Simulate a test polluting the logger, e.g. via `setup_logging`
+        logger.setLevel(logging.WARNING)
+        logger.propagate = False
+        logger.disabled = True
+        logger.addHandler(logging.NullHandler())
+
+        with pytest.raises(StopIteration):
+            next(gen)  # fixture teardown: restore
+
+        assert logger.level == original_level
+        assert logger.propagate == original_propagate
+        assert logger.disabled is False
+        assert logger.handlers == original_handlers
+
+    def test_restoring_level_clears_enabled_for_cache(self):
+        import logging
+
+        # A cached `isEnabledFor` rejection must be cleared when the level is
+        # restored, otherwise records are still dropped at the polluted level.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_cache")
+        original_level = logger.level
+
+        gen = fixtures.restore_logging_state.__wrapped__()
+        next(gen)
+
+        logger.setLevel(logging.WARNING)
+        assert not logger.isEnabledFor(logging.INFO)  # caches a rejection
+
+        with pytest.raises(StopIteration):
+            next(gen)
+
+        assert logger.level == original_level
+        assert logger.isEnabledFor(logging.INFO)

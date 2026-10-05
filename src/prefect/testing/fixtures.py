@@ -70,7 +70,7 @@ def restore_logging_state() -> Generator[None, None, None]:
     pytest-xdist worker -- for example, leaving `prefect.server` at WARNING so
     a later test's expected INFO records are silently dropped and `caplog`
     assertions fail intermittently. Snapshot every logger's level, propagate,
-    and disabled flags and restore them after each test.
+    disabled flag, and handlers and restore them after each test.
     """
     loggers = [
         logging.root,
@@ -81,11 +81,23 @@ def restore_logging_state() -> Generator[None, None, None]:
         ),
     ]
     state = {
-        logger: (logger.level, logger.propagate, logger.disabled) for logger in loggers
+        logger: (
+            logger.level,
+            logger.propagate,
+            logger.disabled,
+            logger.handlers[:],
+        )
+        for logger in loggers
     }
     yield
-    for logger, saved in state.items():
-        logger.level, logger.propagate, logger.disabled = saved
+    for logger, (level, propagate, disabled, handlers) in state.items():
+        # `setLevel` (rather than assigning `.level`) clears logging's
+        # `isEnabledFor` cache, which otherwise keeps dropping records at the
+        # polluted level even after the level is restored.
+        logger.setLevel(level)
+        logger.propagate = propagate
+        logger.disabled = disabled
+        logger.handlers[:] = handlers
 
 
 def is_port_in_use(port: int) -> bool:
