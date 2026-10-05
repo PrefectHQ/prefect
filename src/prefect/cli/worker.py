@@ -7,9 +7,12 @@ Start and interact with workers.
 import asyncio
 import json
 import os
+import subprocess
+import sys
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Optional
+from uuid import uuid4
 
 import cyclopts
 
@@ -18,6 +21,11 @@ from prefect.cli._utilities import (
     exit_with_error,
     with_cli_exception_handling,
 )
+from prefect.context import get_settings_context
+from prefect.settings import PREFECT_HOME
+
+WORKER_READY_ENV = "PREFECT__WORKER_READY_FILE"
+
 
 worker_app: cyclopts.App = cyclopts.App(
     name="worker", help="Start and interact with workers."
@@ -111,6 +119,10 @@ async def start(
             ),
         ),
     ] = True,
+    background: Annotated[
+        bool,
+        cyclopts.Parameter("--background", alias="-b", help="Run in the background."),
+    ] = False,
 ):
     """Start a worker process to poll a work pool for flow runs."""
     from prefect.cli._prompts import confirm
@@ -123,6 +135,7 @@ async def start(
         _retrieve_worker_type_from_pool,
     )
     from prefect.settings import (
+        PREFECT_API_URL,
         PREFECT_WORKER_HEARTBEAT_SECONDS,
         PREFECT_WORKER_PREFETCH_SECONDS,
     )
@@ -136,6 +149,13 @@ async def start(
             work_pool_name = Prompt.ask("Work pool name", console=_cli.console)
         else:
             exit_with_error("Missing required option '--pool' / '-p'.")
+
+    if background and PREFECT_API_URL.value() is None:
+        exit_with_error(
+            "Background workers require a configured Prefect API URL. Start a"
+            " dedicated server with `prefect server start --background`, then set"
+            " `PREFECT_API_URL`, or connect to Prefect Cloud."
+        )
 
     # Resolve settings-backed defaults
     if prefetch_seconds is None:
@@ -209,11 +229,96 @@ async def start(
             " installed to run your desired worker type."
         )
 
+    if background:
+        worker_log_file = Path(PREFECT_HOME.value()) / "worker.log"
+        command = [
+            sys.executable,
+            "-m",
+            "prefect",
+            "worker",
+            "start",
+            "--pool",
+            work_pool_name,
+            "--type",
+            worker_type,
+            "--prefetch-seconds",
+            str(prefetch_seconds),
+        ]
+        if worker_name is not None:
+            command.extend(["--name", worker_name])
+        for work_queue in work_queues or []:
+            command.extend(["--work-queue", work_queue])
+        if run_once:
+            command.append("--run-once")
+        if limit is not None:
+            command.extend(["--limit", str(limit)])
+        if with_healthcheck:
+            command.append("--with-healthcheck")
+        command.extend(["--install-policy", InstallPolicy.NEVER.value])
+        if base_job_template is not None:
+            command.extend(["--base-job-template", str(base_job_template)])
+        if not create_pool_if_not_found:
+            command.append("--no-create-pool-if-not-found")
+
+        # The CLI's --profile context can override environment settings. Pass
+        # the effective values so the child uses the same API and credentials.
+        env = os.environ.copy()
+        env.update(
+            get_settings_context().settings.to_environment_variables(exclude_unset=True)
+        )
+        env["PREFECT_PROFILE"] = get_settings_context().profile.name
+        ready_file = worker_log_file.with_name(f"worker-{uuid4().hex}.ready")
+        env[WORKER_READY_ENV] = str(ready_file)
+
+        worker_log_file.parent.mkdir(parents=True, exist_ok=True)
+        log_fd = os.open(
+            worker_log_file,
+            os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
+        with os.fdopen(log_fd, "a") as log_file:
+            if os.name != "nt":
+                os.fchmod(log_file.fileno(), 0o600)
+            process = subprocess.Popen(  # noqa: ASYNC220
+                command,
+                env=env,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=(os.name != "nt"),
+                creationflags=(
+                    subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+                ),
+            )
+        try:
+            deadline = asyncio.get_running_loop().time() + 30
+            while True:
+                ready = ready_file.exists()
+                returncode = process.poll()
+                if returncode is not None:
+                    if returncode == 0:
+                        _cli.console.print("Background worker completed successfully.")
+                        return
+                    exit_with_error(f"Failed to start worker. See {worker_log_file}.")
+                if ready:
+                    break
+                if asyncio.get_running_loop().time() >= deadline:
+                    process.terminate()
+                    exit_with_error(
+                        f"Worker did not become ready. See {worker_log_file}."
+                    )
+                await asyncio.sleep(0.1)
+        finally:
+            ready_file.unlink(missing_ok=True)
+        _cli.console.print(
+            f"Worker is running in the background with process ID {process.pid}. "
+            f"Logs: {worker_log_file}."
+        )
+        return
+
     worker_process_id = os.getpid()
     setup_signal_handlers_worker(
         worker_process_id, f"the {worker_type} worker", _cli.console.print
     )
-
     template_contents = None
     if base_job_template is not None:
         template_contents = json.loads(base_job_template.read_text())
@@ -228,11 +333,18 @@ async def start(
         base_job_template=template_contents,
         create_pool_if_not_found=create_pool_if_not_found,
     )
+    ready_file = os.environ.get(WORKER_READY_ENV)
+
+    def print_worker_message(message: str) -> None:
+        _cli.console.print(message)
+        if ready_file and message == f"Worker {worker.name!r} started!":
+            Path(ready_file).touch(mode=0o600)
+
     try:
         await worker.start(
             run_once=run_once,
             with_healthcheck=with_healthcheck,
-            printer=_cli.console.print,
+            printer=print_worker_message,
         )
     except asyncio.CancelledError:
         _cli.console.print(f"Worker {worker.name!r} stopped!", style="yellow")
