@@ -2219,6 +2219,29 @@ class TestTaskCaching:
 
         assert foo(1) == 1
 
+    def test_cache_policy_configuration_survives_input_exclusion(self, tmp_path):
+        lock_manager = MemoryLockManager()
+        cache_policy = (
+            INPUTS.configure(
+                key_storage=tmp_path,
+                lock_manager=lock_manager,
+                isolation_level=IsolationLevel.SERIALIZABLE,
+            )
+            - "y"
+        )
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1, "y": 2}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x, y):
+            assert lock_manager.is_locked(expected_cache_key)
+            return x
+
+        assert foo(1, 2) == 1
+        assert (tmp_path / expected_cache_key).exists()
+        assert not lock_manager.is_locked(expected_cache_key)
+
     async def test_cache_policy_lock_manager_async(self, tmp_path):
         """Regression test for https://github.com/PrefectHQ/prefect/issues/17785"""
         cache_policy = (INPUTS + TASK_SOURCE).configure(
@@ -4075,8 +4098,17 @@ class TestTaskWithOptions:
             timeout_seconds=42,
             refresh_cache=True,
             result_storage_key="test",
+            version="1.2.3",
         )
         def initial_task():
+            pass
+
+        @initial_task.on_rollback
+        def rollback_hook(txn):
+            pass
+
+        @initial_task.on_commit
+        def commit_hook(txn):
             pass
 
         task_with_options = initial_task.with_options()
@@ -4099,6 +4131,9 @@ class TestTaskWithOptions:
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "test"
+        assert task_with_options.version == "1.2.3"
+        assert task_with_options.on_rollback_hooks == [rollback_hook]
+        assert task_with_options.on_commit_hooks == [commit_hook]
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         result_storage = LocalFileSystem(basepath=tmp_path)

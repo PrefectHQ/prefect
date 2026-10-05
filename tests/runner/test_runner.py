@@ -597,6 +597,22 @@ class TestRunner:
             "test_runner"
         )
 
+    async def test_runner_name_with_dots_is_not_truncated(
+        self, prefect_client: PrefectClient
+    ):
+        # regression test for https://github.com/PrefectHQ/prefect/issues/13528
+        assert Runner(name="etl.hello").name == "etl.hello"
+        assert Runner(name="my-runner-v1.2.3").name == "my-runner-v1.2.3"
+        # an actual filename is still treated as one, like RunnerDeployment does
+        assert Runner(name="flows.py").name == "flows"
+
+        # `add_flow` defaults the deployment name to the runner name, so the
+        # truncation leaked into the deployment name as well
+        runner = Runner(name="etl.hello")
+        deployment_id = await runner.add_flow(dummy_flow_1, interval=3600)
+        deployment = await prefect_client.read_deployment(deployment_id)
+        assert deployment.name == "etl.hello"
+
     async def test_add_flow_to_runner_always_updates_openapi_schema(
         self, prefect_client: PrefectClient
     ):
