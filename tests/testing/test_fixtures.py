@@ -247,3 +247,43 @@ class TestRestoreLoggingState:
             assert logger.handlers == [marker]
         finally:
             logger.removeHandler(marker)
+
+    def test_replaced_open_handler_is_restored(self):
+        # An ordinary remove-and-add (not a full reconfiguration, which would
+        # have closed the removed handler) gets the original handler back.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_swap")
+        original = logging.NullHandler()
+        logger.addHandler(original)
+        try:
+            gen = fixtures.restore_logging_state.__wrapped__()
+            next(gen)
+
+            logger.removeHandler(original)
+            logger.addHandler(logging.NullHandler())
+
+            with pytest.raises(StopIteration):
+                next(gen)
+
+            assert logger.handlers == [original]
+        finally:
+            logger.handlers[:] = []
+
+    def test_closed_handlers_are_not_restored(self):
+        # A handler closed during the test (as `dictConfig` does to every
+        # registered handler) is not re-attached.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_closed")
+        closed_handler = logging.NullHandler()
+        logger.addHandler(closed_handler)
+        try:
+            gen = fixtures.restore_logging_state.__wrapped__()
+            next(gen)
+
+            logger.removeHandler(closed_handler)
+            closed_handler.close()
+
+            with pytest.raises(StopIteration):
+                next(gen)
+
+            assert logger.handlers == []
+        finally:
+            logger.handlers[:] = []

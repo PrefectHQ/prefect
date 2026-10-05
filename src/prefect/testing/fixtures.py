@@ -97,13 +97,16 @@ def restore_logging_state() -> Generator[None, None, None]:
         logger.setLevel(level)
         logger.propagate = propagate
         logger.disabled = disabled
-        # Restore the handler list when the test only removed handlers or only
-        # appended strays. When handlers were both removed and added -- as a
-        # full `dictConfig` does, replacing existing handlers with new
-        # instances -- the new set is the coherent configuration; keep it.
-        added = [h for h in logger.handlers if h not in handlers]
+        # Restore the snapshot's handler list unless the removed handlers were
+        # closed during the test: a full `dictConfig` closes every handler via
+        # `logging.shutdown` before attaching new instances, and that new set
+        # is the coherent configuration to keep. Removed handlers that are
+        # still open mean an ordinary test mutation, which should be reverted.
+        live_handlers = {ref() for ref in logging._handlerList}
         removed = [h for h in handlers if h not in logger.handlers]
-        if not added or not removed:
+        if not any(
+            getattr(h, "_closed", False) or h not in live_handlers for h in removed
+        ):
             logger.handlers[:] = handlers
 
 
