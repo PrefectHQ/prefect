@@ -9,6 +9,8 @@ from unittest import mock
 
 import pytest
 
+from prefect.logging.configuration import setup_logging
+from prefect.logging.handlers import WorkerAPILogHandler
 from prefect.testing import fixtures
 
 pytestmark = pytest.mark.clear_db
@@ -211,3 +213,20 @@ class TestRestoreLoggingState:
 
         assert logger.level == original_level
         assert logger.isEnabledFor(logging.INFO)
+
+    def test_full_reconfiguration_keeps_configured_handlers(self):
+        # A test that runs `setup_logging(incremental=False)` replaces every
+        # configured logger's handler objects with new instances; those new
+        # handlers are the canonical configuration and must survive teardown.
+        workers_logger = logging.getLogger("prefect.workers")
+
+        gen = fixtures.restore_logging_state.__wrapped__()
+        next(gen)
+
+        setup_logging(incremental=False)
+        assert any(isinstance(h, WorkerAPILogHandler) for h in workers_logger.handlers)
+
+        with pytest.raises(StopIteration):
+            next(gen)
+
+        assert any(isinstance(h, WorkerAPILogHandler) for h in workers_logger.handlers)
