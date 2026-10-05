@@ -170,7 +170,7 @@ class SlackWebhook(AppriseNotificationBlock):
 
     _block_type_name = "Slack Webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/c1965ecbf8704ee1ea20d77786de9a41ce1087d1-500x500.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/slack.png"
     )
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
@@ -267,7 +267,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     _block_type_name = "Microsoft Teams Webhook"
     _block_type_slug = "ms-teams-webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/817efe008a57f0a24f3587414714b563e5e23658-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-teams.png"
     )
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
@@ -329,7 +329,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     _block_type_name = "Pager Duty Webhook"
     _block_type_slug = "pager-duty-webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/8dbf37d17089c1ce531708eac2e510801f7b3aee-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/pagerduty.png"
     )
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
@@ -485,7 +485,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     _block_type_name = "Twilio SMS"
     _block_type_slug = "twilio-sms"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/8bd8777999f82112c09b9c8d57083ac75a4a0d65-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/twilio.png"
     )  # noqa
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
@@ -560,7 +560,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     _block_type_name = "Opsgenie Webhook"
     _block_type_slug = "opsgenie-webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/d8b5bc6244ae6cd83b62ec42f10d96e14d6e9113-280x280.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/opsgenie.png"
     )
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
@@ -685,7 +685,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     _block_type_name = "Mattermost Webhook"
     _block_type_slug = "mattermost-webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/1350a147130bf82cbc799a5f868d2c0116207736-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/mattermost.png"
     )
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
@@ -751,6 +751,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
             token=self.token.get_secret_value(),
             fullpath=self.path,
             host=self.hostname,
+            user=self.botname,
             targets=self.channels,
             include_image=self.include_image,
             port=self.port,
@@ -786,7 +787,7 @@ class DiscordWebhook(AbstractAppriseNotificationBlock):
     _block_type_name = "Discord Webhook"
     _block_type_slug = "discord-webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/9e94976c80ef925b66d24e5d14f0d47baa6b8f88-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/discord.png"
     )
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
@@ -891,7 +892,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
 
     _block_type_name = "Custom Webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/c7247cb359eb6cf276734d4b1fbf00fb8930e89e-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/webhook.png"
     )
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
@@ -1061,7 +1062,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     _block_type_name = "Sendgrid Email"
     _block_type_slug = "sendgrid-email"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/82bc6ed16ca42a2252a5512c72233a253b8a58eb-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/email.png"
     )
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"

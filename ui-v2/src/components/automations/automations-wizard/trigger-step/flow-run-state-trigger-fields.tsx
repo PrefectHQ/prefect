@@ -1,5 +1,5 @@
 import { useFormContext, useWatch } from "react-hook-form";
-import type { StateName } from "@/api/flow-runs/constants";
+import { STATE_NAMES, type StateName } from "@/api/flow-runs/constants";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { FlowMultiSelect } from "@/components/flows/flow-multi-select";
 import { DurationInput } from "@/components/ui/duration-input";
@@ -31,8 +31,13 @@ function toStateNameEvents(stateNames: StateName[]): string[] {
 	return stateNames.map((name) => `prefect.flow-run.${name}`);
 }
 
+function isStateName(value: string): value is StateName {
+	return (STATE_NAMES as readonly string[]).includes(value);
+}
+
 // Convert event strings back to state names (e.g., "prefect.flow-run.Completed" -> "Completed")
 // Wildcard "prefect.flow-run.*" returns empty array (means "any state")
+// Events that are not known state names (e.g. "prefect.flow-run.heartbeat") are ignored
 function fromStateNameEvents(events: string[] | undefined): StateName[] {
 	if (!events || events.length === 0) {
 		return [];
@@ -42,7 +47,8 @@ function fromStateNameEvents(events: string[] | undefined): StateName[] {
 	}
 	return events
 		.filter((event) => event.startsWith("prefect.flow-run."))
-		.map((event) => event.replace("prefect.flow-run.", "") as StateName);
+		.map((event) => event.replace("prefect.flow-run.", ""))
+		.filter(isStateName);
 }
 
 function matchRelatedAsArray(
