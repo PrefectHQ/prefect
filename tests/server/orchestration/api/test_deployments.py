@@ -622,6 +622,31 @@ class TestCreateDeployment:
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.work_queue_id == work_queue_1.id
 
+    async def test_upsert_deployment_clears_job_variables_with_empty_dict(
+        self, client, flow, work_pool
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            job_variables={"cpu": 24},
+            work_pool_name=work_pool.name,
+        ).model_dump(mode="json")
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        deployment_id = response.json()["id"]
+        assert response.json()["job_variables"] == {"cpu": 24}
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            job_variables={},
+            work_pool_name=work_pool.name,
+        ).model_dump(mode="json")
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == deployment_id
+        assert response.json()["job_variables"] == {}
+
     async def test_create_deployment_with_only_work_pool(
         self,
         client,
@@ -1704,6 +1729,27 @@ class TestPaginateDeployments:
 
 
 class TestUpdateDeployment:
+    async def test_update_deployment_clears_job_variables_with_empty_dict(
+        self, client, flow, work_pool
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            job_variables={"cpu": 24},
+            work_pool_name=work_pool.name,
+        ).model_dump(mode="json")
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        deployment_id = response.json()["id"]
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}", json={"job_variables": {}}
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.json()["job_variables"] == {}
+
     async def test_update_deployment_with_schedule_allows_addition_of_concurrency(
         self, client, deployment
     ):

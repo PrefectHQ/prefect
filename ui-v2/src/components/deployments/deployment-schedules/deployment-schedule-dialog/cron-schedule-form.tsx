@@ -281,8 +281,8 @@ const DayOrDialog = () => {
 					<DialogTitle>Day Or</DialogTitle>
 				</DialogHeader>
 				<p className="text-base">
-					When the &quot;Day Or&quot; value is off, this schedule will connect
-					day of the month and day of the week entries using OR logic; when on
+					When the &quot;Day Or&quot; value is on, this schedule will connect
+					day of the month and day of the week entries using OR logic; when off
 					it will connect them using AND logic.
 				</p>
 			</DialogContent>
