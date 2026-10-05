@@ -90,6 +90,35 @@ def test_instance_returns_new_instance_after_stopping():
     assert isinstance(new_instance, MockService)
 
 
+def test_instance_returns_new_instance_if_run_loop_exits_before_registration():
+    class FailingLifespanService(QueueService[int]):
+        async def _handle(self, item: int):
+            pass
+
+        @contextlib.asynccontextmanager
+        async def _lifespan(self):
+            raise ValueError("Oh no!")
+            yield
+
+        @classmethod
+        def _new_instance(cls, *args):
+            instance = super()._new_instance(*args)
+            # Force the run loop to fail and exit before `instance` registers the
+            # new service, so its self-removal from `_instances` is a no-op
+            assert instance._done_event is not None and instance._loop is not None
+            asyncio.run_coroutine_threadsafe(
+                instance._done_event.wait(), instance._loop
+            ).result()
+            return instance
+
+    instance = FailingLifespanService.instance()
+    assert instance._stopped
+
+    new_instance = FailingLifespanService.instance()
+    assert new_instance is not instance
+    assert isinstance(new_instance, FailingLifespanService)
+
+
 def test_instance_returns_new_instance_with_unique_key():
     instance = MockService.instance(1)
     new_instance = MockService.instance(2)

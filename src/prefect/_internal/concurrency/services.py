@@ -312,10 +312,14 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """
         with cls._instance_lock:
             key = hash((cls, *args))
-            if key not in cls._instances:
-                cls._instances[key] = cls._new_instance(*args)
+            instance = cls._instances.get(key)
+            # If the run loop exits (e.g. the lifespan fails) before the new
+            # instance is registered below, its self-removal is a no-op and a
+            # stopped instance would otherwise be returned forever.
+            if instance is None or instance._stopped:
+                instance = cls._instances[key] = cls._new_instance(*args)
 
-            return cls._instances[key]
+            return instance
 
     def _remove_instance(self):
         self._instances.pop(self._key, None)
