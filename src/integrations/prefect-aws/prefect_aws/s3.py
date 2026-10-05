@@ -1042,6 +1042,9 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
                 ignore_patterns = f.readlines()
 
             included_files = filter_files(local_path, ignore_patterns)
+            # normalize separators: prefect cores before the POSIX fix
+            # returned backslash-separated paths on Windows
+            included_files = {Path(p).as_posix() for p in included_files}
 
         uploaded_file_count = 0
         for local_file_path in Path(local_path).expanduser().rglob("*"):
@@ -1098,6 +1101,9 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
                 ignore_patterns = f.readlines()
 
             included_files = filter_files(local_path, ignore_patterns)
+            # normalize separators: prefect cores before the POSIX fix
+            # returned backslash-separated paths on Windows
+            included_files = {Path(p).as_posix() for p in included_files}
 
         uploaded_file_count = 0
         for local_file_path in Path(local_path).expanduser().rglob("*"):

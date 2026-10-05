@@ -136,6 +136,9 @@ def push_to_azure_blob_storage(
             ignore_patterns = f.readlines()
 
         included_files = filter_files(str(local_path), ignore_patterns)
+        # normalize separators: prefect cores before the POSIX fix
+        # returned backslash-separated paths on Windows
+        included_files = {Path(p).as_posix() for p in included_files}
 
     with container_client as client:
         for local_file_path in local_path.expanduser().rglob("*"):
