@@ -744,6 +744,12 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
                 NotifyMattermost,  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
             )
 
+        prefect_app_data = AppriseAsset(
+            app_id="Prefect Notifications",
+            app_desc="Prefect Notifications",
+            app_url="https://prefect.io",
+        )
+
         # Add the NotifyMattermost instance directly rather than going through
         # .url() because apprise>=1.9.9 no longer includes channels in the URL.
         # apprise>=1.9.9 renamed `channels` to `targets`.
@@ -751,17 +757,14 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
             token=self.token.get_secret_value(),
             fullpath=self.path,
             host=self.hostname,
+            user=self.botname,
             targets=self.channels,
             include_image=self.include_image,
             port=self.port,
             secure=self.secure,
+            asset=prefect_app_data,
         )  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
 
-        prefect_app_data = AppriseAsset(
-            app_id="Prefect Notifications",
-            app_desc="Prefect Notifications",
-            app_url="https://prefect.io",
-        )
         self._apprise_client = Apprise(asset=prefect_app_data)
         self._apprise_client.add(mattermost_instance)  # pyright: ignore[reportUnknownMemberType]
 

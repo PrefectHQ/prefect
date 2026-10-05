@@ -1,3 +1,4 @@
+import json
 import logging
 import urllib
 from typing import Type
@@ -5,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import cloudpickle
 import pytest
+import requests
 import respx
 
 from prefect.blocks.abstract import NotificationError
@@ -484,6 +486,28 @@ class TestMattermostWebhook:
         apprise_instance_mock.notify.assert_called_once_with(
             body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
         )
+
+    @pytest.mark.parametrize(
+        "botname, expected_username",
+        [("my-bot", "my-bot"), (None, "Prefect Notifications")],
+    )
+    def test_botname_sent_as_username(
+        self, botname: str | None, expected_username: str
+    ):
+        mm_block = MattermostWebhook(
+            hostname="example.com", token="token", botname=botname
+        )
+
+        plugin = list(mm_block._apprise_client)[0]
+        assert plugin.user == botname
+
+        response = MagicMock(status_code=200, content=b"")
+        with patch.object(requests, "post", return_value=response) as mock_post:
+            mm_block.notify("test")
+
+        mock_post.assert_called_once()
+        payload = json.loads(mock_post.call_args.kwargs["data"])
+        assert payload["username"] == expected_username
 
     def test_is_picklable(self):
         block = MattermostWebhook(token="token", hostname="example.com")
