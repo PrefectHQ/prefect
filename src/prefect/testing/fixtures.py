@@ -59,6 +59,38 @@ def add_prefect_loggers_to_caplog(
         logger.propagate = False
 
 
+@pytest.fixture(autouse=True)
+def restore_logging_state() -> Generator[None, None, None]:
+    """
+    Restore logger configuration that a test mutates in-process.
+
+    Code paths like `setup_logging`, in-process CLI invocations, and uvicorn
+    apply process-global logging configuration from whatever settings context
+    is active at the time. A test running under `temporary_settings` or
+    `use_profile` can therefore permanently change logger levels in its
+    pytest-xdist worker -- for example, leaving `prefect.server` at WARNING so
+    a later test's expected INFO records are silently dropped and `caplog`
+    assertions fail intermittently. Snapshot every logger's level, propagate,
+    and disabled flags and restore them after each test.
+    """
+    import logging
+
+    loggers = [
+        logging.root,
+        *(
+            logger
+            for logger in logging.root.manager.loggerDict.values()
+            if isinstance(logger, logging.Logger)
+        ),
+    ]
+    state = {
+        logger: (logger.level, logger.propagate, logger.disabled) for logger in loggers
+    }
+    yield
+    for logger, saved in state.items():
+        logger.level, logger.propagate, logger.disabled = saved
+
+
 def is_port_in_use(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(("localhost", port)) == 0
