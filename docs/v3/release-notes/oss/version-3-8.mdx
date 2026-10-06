@@ -2,6 +2,63 @@
 title: 3.8
 ---
 
+## 3.8.8 - Patchwork Quilt
+
+*Released on October 06, 2026*
+
+**Bug Fixes 🐞**
+
+* Fix `get_call_parameters` to unwrap `FieldInfo` defaults for flow runs by [@vyagubov](https://github.com/vyagubov) in [#23228](https://github.com/PrefectHQ/prefect/pull/23228)
+* Page through all runs in cancellation cleanup and pause expiration monitors by [@chuqCTC](https://github.com/chuqCTC) in [#23240](https://github.com/PrefectHQ/prefect/pull/23240)
+* Fix `UnboundLocalError` in observer `_get_k8s_jobs` when the Kubernetes client can't be created by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23220](https://github.com/PrefectHQ/prefect/pull/23220)
+* Parse HTTP-date and invalid `Retry-After` headers instead of crashing by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23278](https://github.com/PrefectHQ/prefect/pull/23278)
+* Fix automation edit crash for flow-run triggers with non-state events by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23218](https://github.com/PrefectHQ/prefect/pull/23218)
+* Pass the configured botname to `NotifyMattermost` by [@Ayoubhm07](https://github.com/Ayoubhm07) in [#23281](https://github.com/PrefectHQ/prefect/pull/23281)
+* Stop truncating runner names that contain dots by [@fbossiere](https://github.com/fbossiere) in [#23195](https://github.com/PrefectHQ/prefect/pull/23195)
+* Fix nested schema `required` list leaking onto sibling properties in `process_properties` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23192](https://github.com/PrefectHQ/prefect/pull/23192)
+* Don't reschedule a flow run the server already finished on SIGTERM by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23244](https://github.com/PrefectHQ/prefect/pull/23244)
+* Keep the worker healthcheck healthy while the API is in maintenance by [@jimid27](https://github.com/jimid27) in [#23230](https://github.com/PrefectHQ/prefect/pull/23230)
+* Keep event persister periodic flush alive when the database raises `CancelledError` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23308](https://github.com/PrefectHQ/prefect/pull/23308)
+* Use POSIX paths in `prefect deploy` flow picker by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23310](https://github.com/PrefectHQ/prefect/pull/23310)
+* Add opt-in POSIX paths to `filter_files` while preserving the native default by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23292](https://github.com/PrefectHQ/prefect/pull/23292)
+* Fix misleading cron schedule help text that reverses OR/AND switch behavior by [@uinstinct](https://github.com/uinstinct) in [#23238](https://github.com/PrefectHQ/prefect/pull/23238)
+* Apply `retry_jitter_factor` in the task engine by [@uinstinct](https://github.com/uinstinct) in [#23222](https://github.com/PrefectHQ/prefect/pull/23222)
+* Preserve cache policy configuration when excluding inputs by [@MohammadHijjawi97](https://github.com/MohammadHijjawi97) in [#23224](https://github.com/PrefectHQ/prefect/pull/23224)
+* Fix failed state losing metadata during retry by [@uinstinct](https://github.com/uinstinct) in [#23256](https://github.com/PrefectHQ/prefect/pull/23256)
+* Fix rollback and commit hooks not working by [@uinstinct](https://github.com/uinstinct) in [#23186](https://github.com/PrefectHQ/prefect/pull/23186)
+* Match `_` and `%` literally in log and event text search by [@breken-ai](https://github.com/breken-ai) in [#23214](https://github.com/PrefectHQ/prefect/pull/23214)
+* Resolve single-value block keys that start with `value` by [@breken-ai](https://github.com/breken-ai) in [#23215](https://github.com/PrefectHQ/prefect/pull/23215)
+* Reload collections when a worker type is missing after install by [@wolfgang-aura](https://github.com/wolfgang-aura) in [#23237](https://github.com/PrefectHQ/prefect/pull/23237)
+* Allow `prefect work-pool update --concurrency-limit 0` by [@LuisFigueroaG](https://github.com/LuisFigueroaG) in [#23299](https://github.com/PrefectHQ/prefect/pull/23299)
+* Fix flows multi-select readability by using checkboxes by [@uinstinct](https://github.com/uinstinct) in [#23034](https://github.com/PrefectHQ/prefect/pull/23034)
+
+**Integrations & Dependencies 🤝**
+
+* Bump `undici` from 8.9.0 to 8.11.2 in /ui-v2 by [@dependabot](https://github.com/dependabot)[bot] in [#23236](https://github.com/PrefectHQ/prefect/pull/23236)
+* Bump `urllib3` from 2.7.0 to 2.8.0 by [@dependabot](https://github.com/dependabot)[bot] in [#23245](https://github.com/PrefectHQ/prefect/pull/23245)
+* Bump `pyjwt` from 2.13.0 to 2.15.0 by [@dependabot](https://github.com/dependabot)[bot] in [#23246](https://github.com/PrefectHQ/prefect/pull/23246)
+* Bump `brace-expansion` in /ui-v2 by [@dependabot](https://github.com/dependabot)[bot] in [#23250](https://github.com/PrefectHQ/prefect/pull/23250)
+* Bump `virtualenv` from 21.7.1 to 21.7.12 by [@dependabot](https://github.com/dependabot)[bot] in [#23253](https://github.com/PrefectHQ/prefect/pull/23253)
+* Bump `oauthlib` from 3.3.1 to 4.0.0 by [@dependabot](https://github.com/dependabot)[bot] in [#23251](https://github.com/PrefectHQ/prefect/pull/23251)
+* Bump `virtualenv` from 21.7.12 to 21.7.13 by [@dependabot](https://github.com/dependabot)[bot] in [#23264](https://github.com/PrefectHQ/prefect/pull/23264)
+* Bump `brace-expansion` in /ui by [@dependabot](https://github.com/dependabot)[bot] in [#23285](https://github.com/PrefectHQ/prefect/pull/23285)
+* Bump `tornado` from 6.5.8 to 6.5.9 by [@dependabot](https://github.com/dependabot)[bot] in [#23254](https://github.com/PrefectHQ/prefect/pull/23254)
+
+**Development & Tidiness 🧹**
+
+* Wait for Runs page URL sync instead of re-navigating in ui-v2 e2e tests by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23266](https://github.com/PrefectHQ/prefect/pull/23266)
+* Wait for LISTEN registration in automation notification test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23265](https://github.com/PrefectHQ/prefect/pull/23265)
+* Never hand out a stopped `QueueService` instance from `instance()` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23172](https://github.com/PrefectHQ/prefect/pull/23172)
+* Install locked dependency versions in the Docker image by [@jasperchan](https://github.com/jasperchan) in [#23225](https://github.com/PrefectHQ/prefect/pull/23225)
+* Add repository-hosted block and worker logos by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23231](https://github.com/PrefectHQ/prefect/pull/23231)
+* Replace Sanity-hosted logo URLs by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23235](https://github.com/PrefectHQ/prefect/pull/23235)
+* Migrate AGENTS.md/docs update workflows from Claude Code SDK to Devin by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23289](https://github.com/PrefectHQ/prefect/pull/23289)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.8.7...3.8.8
+
+
+---
+
 ## 3.8.7 - There's no place like local
 
 *Released on September 25, 2026*
