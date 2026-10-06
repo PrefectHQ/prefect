@@ -12,7 +12,7 @@
       "allowedVersions": "<6.1.0"
     },
     {
-      "description": "Keep the old-SQLite compatibility image on Python 3.11.",
+      "description": "Keep the old-SQLite compatibility image on Python 3.10.",
       "matchManagers": ["dockerfile"],
       "matchFileNames": [".github/docker/old-sqlite.Dockerfile"],
       "matchPackageNames": ["python"],
