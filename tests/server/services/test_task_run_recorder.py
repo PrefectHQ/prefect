@@ -1251,6 +1251,35 @@ async def test_periodic_flush_survives_cancelled_error_from_database(
                 assert [e.id for e in recorded] == [first.id, second.id]
 
 
+async def test_cancelled_error_from_database_counts_toward_retry_limit(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    flush_attempts = 0
+
+    async def mock_record_bulk(events: list[ReceivedEvent]):
+        nonlocal flush_attempts
+        flush_attempts += 1
+        raise asyncio.CancelledError()
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_bulk_task_run_events",
+        mock_record_bulk,
+    )
+
+    async with task_run_recorder.consumer(
+        write_batch_size=10, flush_every=1, max_persist_retries=1
+    ) as handler:
+        await handler(message(pending_event))
+
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                assert f"Dropping event {pending_event.id}" in caplog.text
+
+    assert flush_attempts == 2
+
+
 def make_event_with_flow_run(
     task_run_id: str,
     flow_run_id: Optional[str],

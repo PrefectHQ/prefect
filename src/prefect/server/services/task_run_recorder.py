@@ -641,13 +641,9 @@ async def consumer(
 
         try:
             await record_bulk_task_run_events([item.event for item in batch])
-        except asyncio.CancelledError:
+        except (Exception, asyncio.CancelledError) as exc:
             # Database drivers can surface connection failures as
-            # CancelledError; keep the batch rather than losing it
-            for item in batch:
-                queue.put_nowait(item)
-            raise
-        except Exception:
+            # CancelledError, so apply the same retry accounting to it
             dropped = 0
             to_retry = 0
             for item in batch:
@@ -665,7 +661,7 @@ async def consumer(
                 exc_info=True,
             )
 
-            if dropped > 0:
+            if dropped > 0 or isinstance(exc, asyncio.CancelledError):
                 raise
 
     stopping = False
@@ -720,6 +716,8 @@ async def consumer(
     finally:
         stopping = True
         periodic_flush.cancel()
+        # let an in-flight periodic flush restore its batch before the final flush
+        await asyncio.wait([periodic_flush])
 
         if queue.qsize():
             await flush()

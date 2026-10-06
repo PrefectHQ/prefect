@@ -179,8 +179,17 @@ async def create_handler(
                 max_flush_retries,
                 exc_info=True,
             )
-            for event in batch:
-                queue.put_nowait(event)
+            for restored, event in enumerate(batch):
+                try:
+                    queue.put_nowait(event)
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Event queue full (%d/%d), dropping %d events that failed to flush",
+                        queue.qsize(),
+                        queue_max_size,
+                        len(batch) - restored,
+                    )
+                    break
 
     stopping = False
 
@@ -237,5 +246,7 @@ async def create_handler(
     finally:
         stopping = True
         periodic_flush.cancel()
+        # let an in-flight periodic flush restore its batch before the final flush
+        await asyncio.wait([periodic_flush])
         if queue.qsize():
             await flush()
