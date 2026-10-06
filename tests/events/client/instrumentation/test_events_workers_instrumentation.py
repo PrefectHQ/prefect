@@ -1,3 +1,4 @@
+from datetime import UTC
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -86,6 +87,9 @@ async def test_worker_emits_submitted_event(
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.role": "flow-run",
             "prefect.resource.name": flow_run.name,
+            "prefect.flow-run.created": flow_run.created.astimezone(UTC).isoformat(
+                timespec="microseconds"
+            ),
         },
         {
             "prefect.resource.id": "prefect.tag.flow-run-one",
@@ -179,6 +183,9 @@ async def test_worker_emits_executed_event(
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.role": "flow-run",
             "prefect.resource.name": flow_run.name,
+            "prefect.flow-run.created": flow_run.created.astimezone(UTC).isoformat(
+                timespec="microseconds"
+            ),
             "prefect.infrastructure.status-code": "1",
             "prefect.infrastructure.identifier": "process123",
         },

@@ -1,15 +1,19 @@
 from contextlib import ExitStack
+from datetime import UTC, datetime, timedelta, timezone
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 
 from prefect import flow, task
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.objects import FlowRun
 from prefect.context import FlowRunContext
 from prefect.events import RelatedResource
 from prefect.events.related import (
     MAX_CACHE_SIZE,
     _get_and_cache_related_object,
+    object_as_related_resource,
     related_resources_from_run_context,
 )
 from prefect.states import Running
@@ -46,6 +50,54 @@ async def spy_client(test_database_connection_url):
         exit_stack.close()
 
 
+@pytest.mark.parametrize(
+    "created, expected",
+    [
+        (
+            datetime(2026, 1, 2, 3, 4, 5, 678901, tzinfo=UTC),
+            "2026-01-02T03:04:05.678901+00:00",
+        ),
+        (
+            datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
+            "2026-01-02T03:04:05.000000+00:00",
+        ),
+        (
+            datetime(
+                2026, 1, 1, 22, 4, 5, 678901, tzinfo=timezone(timedelta(hours=-5))
+            ),
+            "2026-01-02T03:04:05.678901+00:00",
+        ),
+    ],
+)
+def test_flow_run_related_resource_includes_created(created: datetime, expected: str):
+    flow_run = FlowRun(id=uuid4(), name="my-run", flow_id=uuid4(), created=created)
+
+    resource = object_as_related_resource(
+        kind="flow-run", role="flow-run", object=flow_run
+    )
+
+    assert dict(resource) == {
+        "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+        "prefect.resource.role": "flow-run",
+        "prefect.resource.name": "my-run",
+        "prefect.flow-run.created": expected,
+    }
+
+
+def test_flow_run_related_resource_omits_created_when_none():
+    flow_run = FlowRun(id=uuid4(), name="my-run", flow_id=uuid4(), created=None)
+
+    resource = object_as_related_resource(
+        kind="flow-run", role="flow-run", object=flow_run
+    )
+
+    assert dict(resource) == {
+        "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+        "prefect.resource.role": "flow-run",
+        "prefect.resource.name": "my-run",
+    }
+
+
 async def test_gracefully_handles_missing_context(prefect_client):
     related = await related_resources_from_run_context(prefect_client)
     assert related == []
@@ -72,6 +124,9 @@ async def test_gets_related_from_run_context(
                 "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
                 "prefect.resource.role": "flow-run",
                 "prefect.resource.name": flow_run.name,
+                "prefect.flow-run.created": flow_run.created.astimezone(UTC).isoformat(
+                    timespec="microseconds"
+                ),
             }
         ),
         RelatedResource.model_validate(
@@ -167,6 +222,9 @@ async def test_gets_related_from_task_run_context(prefect_client, events_pipelin
                 "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
                 "prefect.resource.role": "flow-run",
                 "prefect.resource.name": flow_run.name,
+                "prefect.flow-run.created": flow_run.created.astimezone(UTC).isoformat(
+                    timespec="microseconds"
+                ),
             }
         ),
         RelatedResource.model_validate(

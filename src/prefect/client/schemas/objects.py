@@ -74,6 +74,9 @@ from prefect.utilities.collections import AutoEnum, visit_collection
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
 
+if TYPE_CHECKING:
+    from prefect.events.schemas.events import RelatedResource
+
 R = TypeVar("R", default=Any)
 
 
@@ -727,6 +730,23 @@ class FlowRun(TimeSeriesBaseModel, ObjectBaseModel):
     @classmethod
     def set_default_name(cls, name: Optional[str]) -> str:
         return get_or_create_run_name(name)
+
+    def as_related_resource(self, role: str = "flow-run") -> "RelatedResource":
+        # Deferred to avoid a circular import with `prefect.events`
+        from prefect.events.schemas.events import RelatedResource
+
+        labels = {
+            "prefect.resource.id": f"prefect.flow-run.{self.id}",
+            "prefect.resource.role": role,
+            "prefect.resource.name": self.name,
+        }
+
+        if self.created is not None:
+            labels["prefect.flow-run.created"] = self.created.astimezone(
+                datetime.UTC
+            ).isoformat(timespec="microseconds")
+
+        return RelatedResource(labels)
 
 
 class TaskRunPolicy(PrefectBaseModel):
