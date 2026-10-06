@@ -2,7 +2,6 @@
 
 # Setup version and path constants
 
-import sys
 from . import _build_info
 import importlib
 import pathlib
