@@ -6,6 +6,7 @@ import uuid
 from asyncio import sleep
 from collections.abc import Callable
 from pathlib import Path
+from time import monotonic
 from typing import Any, TypeAlias
 
 import grpc
@@ -459,19 +460,17 @@ class ArmadaJobRun(JobRun[dict[str, Any]]):
         """
         self.job_logs = {}
 
-        elapsed_time = 0
+        # A wall-clock deadline, rather than a count of the time spent sleeping,
+        # so that time spent in RPCs counts and a zero interval still times out.
+        timeout_seconds = self._armada_job.timeout_seconds
+        deadline = monotonic() + timeout_seconds if timeout_seconds else None
 
         while not self._completed:
-            job_expired = (
-                elapsed_time > self._armada_job.timeout_seconds
-                if self._armada_job.timeout_seconds
-                else False
-            )
-            if job_expired:
+            if deadline is not None and monotonic() >= deadline:
                 if self._armada_job.cancel_on_timeout:
                     await self._cleanup()
                 raise ArmadaJobTimeoutError(
-                    f"Job timed out after {elapsed_time} seconds."
+                    f"Job timed out after {timeout_seconds} seconds."
                 )
 
             self._job_state = await self._get_job_state()
@@ -500,9 +499,11 @@ class ArmadaJobRun(JobRun[dict[str, Any]]):
             if print_func is not None and self._job_state is JobState.RUNNING:
                 await self._capture_logs(print_func)
 
-            await sleep(self._armada_job.interval_seconds)
-            if self._armada_job.timeout_seconds:
-                elapsed_time += self._armada_job.interval_seconds
+            interval_seconds = self._armada_job.interval_seconds
+            if deadline is not None:
+                # Don't sleep past the deadline
+                interval_seconds = min(interval_seconds, deadline - monotonic())
+            await sleep(max(interval_seconds, 0))
 
     @async_dispatch(await_for_completion)
     def wait_for_completion(self, print_func: Callable | None = None):

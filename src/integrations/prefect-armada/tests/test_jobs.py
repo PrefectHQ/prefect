@@ -21,14 +21,32 @@ from prefect_armada.jobs import (
 )
 
 
+class FakeClock:
+    """A monotonic clock that only moves when told to."""
+
+    def __init__(self):
+        self.now = 1000.0
+        self.sleeps: list[float] = []
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+    async def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.advance(seconds)
+
+
 @pytest.fixture(autouse=True)
-def no_sleep(monkeypatch: pytest.MonkeyPatch):
-    """Keeps status polling from actually sleeping between checks."""
-
-    async def fake_sleep(_seconds):
-        return None
-
-    monkeypatch.setattr("prefect_armada.jobs.sleep", fake_sleep)
+def fake_clock(monkeypatch: pytest.MonkeyPatch) -> FakeClock:
+    """Keeps status polling from actually sleeping between checks; sleeping
+    advances a fake clock instead."""
+    clock = FakeClock()
+    monkeypatch.setattr("prefect_armada.jobs.sleep", clock.sleep)
+    monkeypatch.setattr("prefect_armada.jobs.monotonic", clock.monotonic)
+    return clock
 
 
 class TestTasks:
@@ -285,6 +303,62 @@ class TestArmadaJobRun:
             await job_run.wait_for_completion()
 
         assert mock_armada_client.cancel_jobs.call_args[1]["job_id"] == "test-job-id"
+
+    async def test_wait_for_completion_times_out_with_zero_interval(
+        self, armada_credentials, sample_job_dict, mock_armada_client, fake_clock
+    ):
+        """The timeout is a real-time deadline, so it must fire even when no
+        time is spent sleeping between status checks."""
+        mock_armada_client.submit_jobs.return_value = make_job_submit_response()
+
+        def slow_get_job_status(*args, **kwargs):
+            fake_clock.advance(3)
+            return make_job_status_response(**{"test-job-id": JobState.QUEUED.value})
+
+        mock_armada_client.get_job_status.side_effect = slow_get_job_status
+        mock_armada_client.cancel_jobs.return_value = submit_pb2.CancellationResult(
+            cancelled_ids=["test-job-id"]
+        )
+        job = ArmadaJob(
+            credentials=armada_credentials,
+            job_request=sample_job_dict,
+            queue="test-queue",
+            job_set_id="test-job-set",
+            interval_seconds=0,
+            timeout_seconds=10,
+        )
+
+        job_run = await job.trigger()
+
+        with pytest.raises(ArmadaJobTimeoutError, match="timed out after 10 seconds"):
+            await job_run.wait_for_completion()
+
+        # 3s per status check: the deadline passes during the fourth check
+        assert mock_armada_client.get_job_status.call_count == 4
+        assert mock_armada_client.cancel_jobs.call_args[1]["job_id"] == "test-job-id"
+
+    async def test_wait_for_completion_does_not_sleep_past_deadline(
+        self, armada_credentials, sample_job_dict, mock_armada_client, fake_clock
+    ):
+        mock_armada_client.submit_jobs.return_value = make_job_submit_response()
+        mock_armada_client.get_job_status.return_value = make_job_status_response(
+            **{"test-job-id": JobState.QUEUED.value}
+        )
+        job = ArmadaJob(
+            credentials=armada_credentials,
+            job_request=sample_job_dict,
+            queue="test-queue",
+            interval_seconds=4,
+            timeout_seconds=10,
+            cancel_on_timeout=False,
+        )
+
+        job_run = await job.trigger()
+
+        with pytest.raises(ArmadaJobTimeoutError):
+            await job_run.wait_for_completion()
+
+        assert fake_clock.sleeps == [4, 4, 2]
 
     async def test_wait_for_completion_does_not_cancel_when_disabled(
         self, armada_credentials, sample_job_dict, mock_armada_client
