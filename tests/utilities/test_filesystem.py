@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path, PosixPath, WindowsPath
 
@@ -147,6 +148,50 @@ class TestFilterFiles:
         assert str(Path("a") / "b") in result
         assert str(Path("a") / "b" / "c") in result
         assert str(Path("a") / "b" / "c" / "file.py") in result
+
+    @pytest.mark.unix
+    async def test_symlink_cycle_does_not_raise(self, tmp_path, caplog):
+        """A directory symlink pointing back at an ancestor must not abort the walk.
+
+        pathspec's default link-following traversal reaches the same real
+        directory twice and raises `pathspec.util.RecursionError`, so
+        `filter_files` returned nothing at all for the project.
+        """
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "flow.py").write_text("print('hello')")
+        (src / "project-root").symlink_to(tmp_path, target_is_directory=True)
+
+        with caplog.at_level(logging.WARNING):
+            result = filter_files(root=str(tmp_path))
+
+        assert str(Path("src") / "flow.py") in result
+        # The symlink is listed as an entry, but nothing is reported from inside
+        # it -- the same thing `git` does with a directory symlink.
+        assert str(Path("src") / "project-root") in result
+        assert not [f for f in result if "project-root" in f and f.count(os.sep) > 1]
+        assert "Not following symlinks" in caplog.text
+
+    @pytest.mark.unix
+    async def test_symlink_without_cycle_is_still_followed(self, tmp_path, caplog):
+        """Only the walk that would have raised changes behavior.
+
+        A link with no cycle must keep being descended into, so projects that
+        symlink a shared directory in still get its files.
+        """
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "flow.py").write_text("print('hello')")
+        shared = tmp_path / "shared"
+        shared.mkdir()
+        (shared / "helper.py").write_text("print('helper')")
+        (project / "lib").symlink_to(shared, target_is_directory=True)
+
+        with caplog.at_level(logging.WARNING):
+            result = filter_files(root=str(project))
+
+        assert str(Path("lib") / "helper.py") in result
+        assert "Not following symlinks" not in caplog.text
 
 
 class TestPlatformSpecificRelpath:
