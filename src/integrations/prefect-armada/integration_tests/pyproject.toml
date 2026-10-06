@@ -3,7 +3,7 @@ name = "prefect-armada-integration-tests"
 version = "0.1.0"
 description = "Integration tests for Prefect Armada"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "prefect-armada",
     "pytest>=7.0.0",
