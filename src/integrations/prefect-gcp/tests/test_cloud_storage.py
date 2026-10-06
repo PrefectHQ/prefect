@@ -1,6 +1,7 @@
 import os
 from io import BytesIO
 from pathlib import Path, PurePosixPath
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
@@ -216,7 +217,16 @@ class TestGcsBucket:
 
     @pytest.mark.parametrize("to_path", [None, "to_path"])
     @pytest.mark.parametrize("ignore", [True, False])
-    def test_put_directory(self, gcs_bucket, tmp_path, to_path, ignore):
+    @pytest.mark.parametrize("sync", [False, True])
+    async def test_put_directory(
+        self,
+        gcs_bucket,
+        tmp_path: Path,
+        to_path,
+        ignore: bool,
+        filter_files_format,
+        sync: bool,
+    ):
         local_path = tmp_path / "a_directory"
         local_path.mkdir()
 
@@ -234,10 +244,26 @@ class TestGcsBucket:
         else:
             ignore_file = None
 
-        actual = gcs_bucket.put_directory(
-            local_path=local_path, to_path=to_path, ignore_file=ignore_file
-        )
+        client = MagicMock()
+        gcs_bucket.gcp_credentials.get_cloud_storage_client.return_value = client
+        kwargs = dict(local_path=local_path, to_path=to_path, ignore_file=ignore_file)
+        if sync:
+            actual = gcs_bucket.put_directory(**kwargs, _sync=True)
+        else:
+            actual = await gcs_bucket.aput_directory(**kwargs)
         assert actual == expected
+        blob_calls = client.get_bucket.return_value.blob.call_args_list
+        prefix = (
+            gcs_bucket.bucket_folder
+            if to_path is None
+            else gcs_bucket._resolve_path(to_path)
+        )
+        expected_paths = {"cab.txt", "some_dir/nested_cab.txt"}
+        if not ignore:
+            expected_paths |= {"abc.html", "some_dir/nested_abc.html"}
+        assert {call.args[0] for call in blob_calls} == {
+            str(PurePosixPath(prefix) / path) for path in expected_paths
+        }
 
     def test_get_bucket(self, gcs_bucket):
         bucket = gcs_bucket.get_bucket()

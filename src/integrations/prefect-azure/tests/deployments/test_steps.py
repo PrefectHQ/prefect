@@ -72,12 +72,7 @@ def tmp_files(tmp_path: Path):
         "testdir2/testfile5.txt",
     ]
 
-    (tmp_path / ".prefectignore").write_text(
-        """
-    testdir1/*
-    .prefectignore
-    """
-    )
+    (tmp_path / ".prefectignore").write_text("testdir1/*\n.prefectignore\n")
 
     for file in files:
         filepath = tmp_path / file
@@ -90,13 +85,17 @@ def tmp_files(tmp_path: Path):
 class TestPush:
     @pytest.mark.usefixtures("mock_azure_blob_storage")
     def test_push_to_azure_blob_storage_with_connection_string(
-        self, tmp_files: Path, container_client_mock: MagicMock
+        self,
+        tmp_files: Path,
+        container_client_mock: MagicMock,
+        filter_files_format,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         container = "test-container"
         folder = "test-folder"
         credentials = {"connection_string": "fake_connection_string"}
 
-        os.chdir(tmp_files)
+        monkeypatch.chdir(tmp_files)
 
         push_to_azure_blob_storage(container, folder, credentials)
 
@@ -108,25 +107,26 @@ class TestPush:
             container_client_mock.from_connection_string.return_value.__enter__.return_value.upload_blob  # noqa
         )
 
+        assert upload_blob_mock.call_count == 4
         upload_blob_mock.assert_has_calls(
             [
                 call(
-                    f"{folder}/testfile1.txt",
+                    str(Path(folder) / "testfile1.txt"),
                     ANY,
                     overwrite=True,
                 ),
                 call(
-                    f"{folder}/testfile2.txt",
+                    str(Path(folder) / "testfile2.txt"),
                     ANY,
                     overwrite=True,
                 ),
                 call(
-                    f"{folder}/testfile3.txt",
+                    str(Path(folder) / "testfile3.txt"),
                     ANY,
                     overwrite=True,
                 ),
                 call(
-                    f"{folder}/testdir2/testfile5.txt",
+                    str(Path(folder) / "testdir2/testfile5.txt"),
                     ANY,
                     overwrite=True,
                 ),

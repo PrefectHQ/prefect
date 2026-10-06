@@ -88,11 +88,13 @@ def mock_aws_credentials(monkeypatch):
     monkeypatch.delenv("AWS_SESSION_TOKEN", raising=False)
 
 
-def test_push_to_s3(s3_setup, tmp_files, mock_aws_credentials):
+def test_push_to_s3(
+    s3_setup, tmp_files, mock_aws_credentials, filter_files_format, monkeypatch
+):
     s3, bucket_name = s3_setup
     folder = "my-project"
 
-    os.chdir(tmp_files)
+    monkeypatch.chdir(tmp_files)
 
     push_to_s3(bucket_name, folder)
 

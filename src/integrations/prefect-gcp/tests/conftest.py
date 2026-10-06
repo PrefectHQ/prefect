@@ -9,6 +9,7 @@ from google.cloud.exceptions import NotFound
 from prefect_gcp.credentials import GcpCredentials
 
 from prefect.testing.utilities import prefect_test_harness
+from prefect.utilities.filesystem import filter_files
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -343,3 +344,23 @@ def gcp_credentials(
         gcp_credentials_mock.job_service_async_client
     )
     return gcp_credentials_mock
+
+
+@pytest.fixture(params=["native", "posix"])
+def filter_files_format(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+):
+    """Exercise uploaders with either supported filter_files output format."""
+
+    def formatted_filter_files(*args, **kwargs) -> set[str]:
+        paths = filter_files(*args, **kwargs)
+        if request.param == "posix":
+            return {Path(path).as_posix() for path in paths}
+        return paths
+
+    monkeypatch.setattr(
+        "prefect_gcp.cloud_storage.filter_files", formatted_filter_files
+    )
+    monkeypatch.setattr(
+        "prefect_gcp.deployments.steps.filter_files", formatted_filter_files
+    )
