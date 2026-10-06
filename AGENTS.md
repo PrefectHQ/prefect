@@ -69,7 +69,7 @@ just generate-docs                     # Regenerate all doc artifacts
 just ui-v2                             # Start React dev server at localhost:5173
 
 # Docker
-docker build -t prefect .                              # Default build (Python 3.10)
+docker build -t prefect .                              # Default build (Python 3.11)
 docker build --build-arg PYTHON_VERSION=3.12 -t prefect .  # Custom Python version
 docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With extras
 ```
@@ -89,7 +89,7 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 
 ## Tech Stack & Tooling
 
-- **Python >=3.10,<3.15** with modern typing (`list[int]`, `T | None`)
+- **Python >=3.11,<3.15** with modern typing (`list[int]`, `T | None`)
 - **FastAPI** for REST APIs
 - **Pydantic v2** for validation
 - **SQLAlchemy 2.0** async ORM

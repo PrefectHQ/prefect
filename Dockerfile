@@ -1,5 +1,5 @@
 # The version of Python in the final image
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.11
 # The base image to use for the final image; Prefect and its Python requirements will
 # be installed in this image. The default is the official Python slim image.
 # The following images are also available in this file:
@@ -7,7 +7,7 @@ ARG PYTHON_VERSION=3.10
 # Any image tag can be used, but it must have apt and pip.
 ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
-ARG BUILD_PYTHON_VERSION=3.10
+ARG BUILD_PYTHON_VERSION=3.11
 # The version used to build the V1 UI distributable.
 ARG NODE_VERSION=20.20.2
 # The version used to build the V2 UI distributable (requires Node 22+).

@@ -8,7 +8,7 @@
 
 ### Python setup
 
-Requires an installation of Python 3.10+
+Requires an installation of Python 3.11+
 
 We recommend using a Python virtual environment manager such as [uv](https://docs.astral.sh/uv/), pipenv, conda, or virtualenv.
 
