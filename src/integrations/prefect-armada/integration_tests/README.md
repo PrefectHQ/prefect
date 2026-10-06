@@ -49,8 +49,10 @@ The tests take care of the rest of the setup:
 - **Armada queue.** Flow runs are submitted to the worker's default queue
   (`prefect`, or `PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE`), which is
   created if it does not exist. It is not deleted afterwards.
-- **Work pool.** An `armada-test` work pool is created and deleted again when
-  the session ends.
+- **Work pool.** A work pool with a generated name (`armada-test-<suffix>`) is
+  created and deleted again when the session ends. The tests never overwrite or
+  delete a work pool they did not create: if `--work-pool-name` names a pool
+  that already exists, they stop before changing anything.
 - **Reaching the Prefect API from pods.** The gateway of the `kind` Docker
   network is passed to flow runs as the `api_dns_name` job variable.
 
@@ -59,5 +61,5 @@ The tests take care of the rest of the setup:
 | Option | Default | Description |
 | --- | --- | --- |
 | `--kind-cluster-name` | `armada` | Name of the kind cluster running Armada. |
-| `--work-pool-name` | `armada-test` | Name of the work pool to create and use. |
+| `--work-pool-name` | `armada-test-<suffix>` | Name of the work pool to create and use. Must not already exist. |
 | `--api-dns-name` | kind network gateway | Address the Prefect API is reachable at from inside the cluster. |

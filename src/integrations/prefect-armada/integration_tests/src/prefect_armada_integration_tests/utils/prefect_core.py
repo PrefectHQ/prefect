@@ -10,6 +10,7 @@ from uuid import UUID
 from prefect import get_client
 from prefect.client.schemas.objects import FlowRun
 from prefect.events.schemas.events import Event
+from prefect.exceptions import ObjectNotFound
 from prefect.states import StateType
 
 # Where the flows baked into the test image live, relative to its WORKDIR.
@@ -43,6 +44,16 @@ async def create_flow_run(
         return await client.create_flow_run_from_deployment(
             deployment_id, parameters=parameters
         )
+
+
+def work_pool_exists(work_pool_name: str) -> bool:
+    """Whether a work pool with the given name exists on the Prefect API."""
+    with get_client(sync_client=True) as client:
+        try:
+            client.read_work_pool(work_pool_name)
+        except ObjectNotFound:
+            return False
+        return True
 
 
 @contextmanager

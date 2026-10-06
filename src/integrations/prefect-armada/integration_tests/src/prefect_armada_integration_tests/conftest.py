@@ -1,11 +1,12 @@
 import subprocess
+import uuid
 from collections.abc import Generator
 from typing import Any
 
 import pytest
 from prefect_armada.settings import ArmadaSettings
 
-from prefect_armada_integration_tests.utils import armada, kind
+from prefect_armada_integration_tests.utils import armada, kind, prefect_core
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -19,7 +20,10 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--work-pool-name",
         action="store",
-        help="Name of the work pool to use",
+        help=(
+            "Name of the work pool to create and use. Must not already exist. "
+            "Defaults to a generated name."
+        ),
     )
     parser.addoption(
         "--api-dns-name",
@@ -60,16 +64,28 @@ def armada_queue() -> str:
 
 @pytest.fixture(scope="session")
 def work_pool_name(
-    request: pytest.FixtureRequest, worker_id: str, armada_queue: str
+    request: pytest.FixtureRequest, armada_queue: str
 ) -> Generator[str, None, None]:
-    """Get the work pool name to use for tests."""
-    default_work_pool_name = (
-        f"armada-test-{worker_id}" if worker_id != "master" else "armada-test"
-    )
+    """A work pool created for, and owned by, the test session.
+
+    The pool lives on whatever Prefect API the session is pointed at, so it is
+    only ever created, never overwritten: the teardown deletes it, and that must
+    not reach a pool the session did not create.
+    """
     work_pool_name = request.config.getoption("--work-pool-name")
     if not isinstance(work_pool_name, str):
-        work_pool_name = default_work_pool_name
+        # Unique per session, and so per xdist worker.
+        work_pool_name = f"armada-test-{uuid.uuid4().hex[:8]}"
 
+    if prefect_core.work_pool_exists(work_pool_name):
+        raise pytest.UsageError(
+            f"Work pool {work_pool_name!r} already exists. The tests create "
+            "their work pool and delete it afterwards, so they will not reuse "
+            "an existing one. Pass a different --work-pool-name, or omit it "
+            "to use a generated name."
+        )
+
+    # Without `--overwrite` this fails if the pool appeared since the check.
     subprocess.check_call(
         [
             "prefect",
@@ -78,7 +94,6 @@ def work_pool_name(
             work_pool_name,
             "--type",
             "armada",
-            "--overwrite",
         ]
     )
 
