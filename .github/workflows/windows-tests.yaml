@@ -6,6 +6,10 @@ on:
     paths:
       - "pyproject.toml"
       - "src/prefect/futures.py"
+      - "src/prefect/filesystems.py"
+      - "src/prefect/utilities/filesystem/**"
+      - "tests/test_filesystems.py"
+      - "tests/utilities/test_filesystem.py"
       - "src/prefect/testing/**/*.py"
       - "tests/test_futures.py"
       - "tests/testing/**/*.py"
@@ -74,6 +78,10 @@ jobs:
         run: |
           # Only run tests marked with @pytest.mark.windows
           uv run pytest tests -vv -m windows --durations=25
+
+      - name: Run filesystem contract tests
+        run: |
+          uv run pytest tests/utilities/test_filesystem.py::TestFilterFiles tests/test_filesystems.py -k "TestFilterFiles or nested_ignored_files" -vv --durations=25
 
       - name: Run futures tests
         run: |

@@ -191,7 +191,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             with open(from_path / Path(".prefectignore")) as f:
                 ignore_patterns = f.readlines()
             included_files = filter_files(
-                root=from_path, ignore_patterns=ignore_patterns
+                root=from_path, ignore_patterns=ignore_patterns, as_posix=True
             )
 
             def ignore_func(directory, files):
@@ -212,7 +212,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     async def _get_ignore_func(self, local_path: str, ignore_file: str):
         with open(ignore_file) as f:
             ignore_patterns = f.readlines()
-        included_files = filter_files(root=local_path, ignore_patterns=ignore_patterns)
+        included_files = filter_files(
+            root=local_path, ignore_patterns=ignore_patterns, as_posix=True
+        )
 
         def ignore_func(directory, files):
             relative_path = Path(directory).relative_to(local_path)
@@ -280,7 +282,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             with open(ignore_file) as f:
                 ignore_patterns = f.readlines()
             included_files = filter_files(
-                root=local_path, ignore_patterns=ignore_patterns
+                root=local_path, ignore_patterns=ignore_patterns, as_posix=True
             )
 
             def ignore_func(directory, files):
@@ -543,7 +545,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 ignore_patterns = f.readlines()
 
             included_files = filter_files(
-                local_path, ignore_patterns, include_dirs=True
+                local_path, ignore_patterns, include_dirs=True, as_posix=True
             )
 
         counter = 0
@@ -599,7 +601,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 ignore_patterns = f.readlines()
 
             included_files = filter_files(
-                local_path, ignore_patterns, include_dirs=True
+                local_path, ignore_patterns, include_dirs=True, as_posix=True
             )
 
         counter = 0

@@ -1290,16 +1290,13 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         if ignore_file:
             with open(ignore_file, "r") as f:
                 ignore_patterns = f.readlines()
-            included_files = {
-                Path(p).as_posix() for p in filter_files(local_path, ignore_patterns)
-            }
+            included_files = filter_files(local_path, ignore_patterns)
 
         files_to_upload = []
         for local_file_path in Path(local_path).rglob("*"):
             if (
                 included_files is not None
-                and local_file_path.relative_to(local_path).as_posix()
-                not in included_files
+                and str(local_file_path.relative_to(local_path)) not in included_files
             ):
                 continue
             elif not local_file_path.is_dir():
@@ -1373,16 +1370,13 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         if ignore_file:
             with open(ignore_file, "r") as f:
                 ignore_patterns = f.readlines()
-            included_files = {
-                Path(p).as_posix() for p in filter_files(local_path, ignore_patterns)
-            }
+            included_files = filter_files(local_path, ignore_patterns)
 
         files_to_upload = []
         for local_file_path in Path(local_path).rglob("*"):
             if (
                 included_files is not None
-                and local_file_path.relative_to(local_path).as_posix()
-                not in included_files
+                and str(local_file_path.relative_to(local_path)) not in included_files
             ):
                 continue
             elif not local_file_path.is_dir():
