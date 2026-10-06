@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 import uuid
 from datetime import datetime
 from functools import partial
@@ -290,28 +289,13 @@ def test_start_in_option_invalid_input(
 @pytest.mark.parametrize(
     "start_in, expected_display",
     [
-        (
-            "20 minutes",
-            "in 19 minutes" if sys.version_info < (3, 13) else "20 minutes from now",
-        ),
-        ("5 days", "in 5 days" if sys.version_info < (3, 13) else "4 days from now"),
-        (
-            "3 seconds",
-            "in a few seconds" if sys.version_info < (3, 13) else "2 seconds from now",
-        ),
+        ("20 minutes", "20 minutes from now"),
+        ("5 days", "4 days from now"),
+        ("3 seconds", "2 seconds from now"),
         (None, "now"),
-        (
-            "1 year and 3 months",
-            "in 1 year" if sys.version_info < (3, 13) else "1 year, 3 months from now",
-        ),
-        (
-            "2 weeks & 1 day",
-            "in 2 weeks" if sys.version_info < (3, 13) else "14 days from now",
-        ),
-        (
-            "27 hours + 4 mins",
-            "in 1 day" if sys.version_info < (3, 13) else "a day from now",
-        ),
+        ("1 year and 3 months", "1 year, 3 months from now"),
+        ("2 weeks & 1 day", "14 days from now"),
+        ("27 hours + 4 mins", "a day from now"),
     ],
 )
 async def test_start_in_option_displays_scheduled_start_time(

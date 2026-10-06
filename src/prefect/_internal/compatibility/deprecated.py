@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from pydantic import BaseModel
 from typing_extensions import ParamSpec, TypeAlias, TypeVar
+from whenever import PlainDateTime
 
 from prefect.types._datetime import now
 from prefect.utilities.callables import get_call_parameters
@@ -88,22 +89,13 @@ def generate_deprecation_message(
         if TYPE_CHECKING:
             assert start_date is not None
 
-        if sys.version_info >= (3, 13):
-            from whenever import PlainDateTime
-
-            _pdt_from_dt = (
-                PlainDateTime
-                if hasattr(PlainDateTime, "to_stdlib")
-                else PlainDateTime.from_py_datetime
-            )
-            _dt = _pdt_from_dt(start_date).add(months=6)
-            end_date = (
-                _dt.to_stdlib() if hasattr(_dt, "to_stdlib") else _dt.py_datetime()
-            )
-        else:
-            import pendulum
-
-            end_date = pendulum.instance(start_date).add(months=6)
+        _pdt_from_dt = (
+            PlainDateTime
+            if hasattr(PlainDateTime, "to_stdlib")
+            else PlainDateTime.from_py_datetime
+        )
+        _dt = _pdt_from_dt(start_date).add(months=6)
+        end_date = _dt.to_stdlib() if hasattr(_dt, "to_stdlib") else _dt.py_datetime()
 
     if when:
         when = " when " + when

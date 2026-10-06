@@ -5,9 +5,7 @@ Schedule schemas
 from __future__ import annotations
 
 import datetime
-import sys
 from typing import (
-    Annotated,
     Any,
     ClassVar,
     Generator,
@@ -20,9 +18,9 @@ from zoneinfo import ZoneInfo
 
 import dateutil
 import dateutil.rrule
-import pytz
 from pydantic import ConfigDict, Field, field_validator, model_validator
 from typing_extensions import TypeAlias
+from whenever import DateTimeDelta, PlainDateTime, ZonedDateTime
 
 from prefect._internal.schemas.validators import (
     default_timezone,
@@ -40,24 +38,15 @@ from prefect.types._datetime import (
 
 MAX_ITERATIONS = 1000
 
-if sys.version_info >= (3, 13):
-    from whenever import DateTimeDelta
+try:
+    from whenever import ItemizedDelta as _ItemizedDelta
 
-    try:
-        from whenever import ItemizedDelta as _ItemizedDelta
+    _WHENEVER_DELTA_TYPES: tuple[type, ...] = (_ItemizedDelta,)
+except ImportError:
+    _ItemizedDelta = None  # type: ignore[assignment]
+    _WHENEVER_DELTA_TYPES = (DateTimeDelta,)
 
-        _WHENEVER_DELTA_TYPES: tuple[type, ...] = (_ItemizedDelta,)
-    except ImportError:
-        _ItemizedDelta = None  # type: ignore[assignment]
-        _WHENEVER_DELTA_TYPES = (DateTimeDelta,)
-
-    AnchorDate: TypeAlias = datetime.datetime
-else:
-    from pydantic import AfterValidator
-
-    from prefect._internal.schemas.validators import default_anchor_date
-
-    AnchorDate: TypeAlias = Annotated[DateTime, AfterValidator(default_anchor_date)]
+AnchorDate: TypeAlias = datetime.datetime
 
 
 def _prepare_scheduling_start_and_end(
@@ -68,16 +57,10 @@ def _prepare_scheduling_start_and_end(
     timezone = timezone or "UTC"
 
     if start is not None:
-        if sys.version_info >= (3, 13):
-            start = create_datetime_instance(start).astimezone(ZoneInfo(timezone))
-        else:
-            start = create_datetime_instance(start).in_tz(timezone)
+        start = create_datetime_instance(start).astimezone(ZoneInfo(timezone))
 
     if end is not None:
-        if sys.version_info >= (3, 13):
-            end = create_datetime_instance(end).astimezone(ZoneInfo(timezone))
-        else:
-            end = create_datetime_instance(end).in_tz(timezone)
+        end = create_datetime_instance(end).astimezone(ZoneInfo(timezone))
 
     return start, end
 
@@ -177,168 +160,112 @@ class IntervalSchedule(PrefectBaseModel):
             else:
                 n = 1
 
-        if sys.version_info >= (3, 13):
-            # `pendulum` is not supported in Python 3.13, so we use `whenever` instead
-            from whenever import PlainDateTime, ZonedDateTime
+        if start is None:
+            _zdt = ZonedDateTime.now("UTC")
+            start = (
+                _zdt.to_stdlib() if hasattr(_zdt, "to_stdlib") else _zdt.py_datetime()
+            )
 
-            if start is None:
-                _zdt = ZonedDateTime.now("UTC")
-                start = (
-                    _zdt.to_stdlib()
-                    if hasattr(_zdt, "to_stdlib")
-                    else _zdt.py_datetime()
+        target_timezone = self.timezone or "UTC"
+        _zdt_from_dt = (
+            ZonedDateTime
+            if hasattr(ZonedDateTime, "to_stdlib")
+            else ZonedDateTime.from_py_datetime
+        )
+        _pdt_from_dt = (
+            PlainDateTime
+            if hasattr(PlainDateTime, "to_stdlib")
+            else PlainDateTime.from_py_datetime
+        )
+
+        def to_local_zdt(dt: datetime.datetime | None) -> ZonedDateTime | None:
+            if dt is None:
+                return None
+            if dt.tzinfo is None:
+                return _pdt_from_dt(dt).assume_tz(target_timezone)
+            if isinstance(dt.tzinfo, ZoneInfo):
+                return _zdt_from_dt(dt).to_tz(target_timezone)
+            # For offset-based tzinfo instances (e.g. datetime.timezone(+09:00)),
+            # use astimezone to preserve the instant, then convert to ZonedDateTime.
+            return _zdt_from_dt(dt.astimezone(ZoneInfo(target_timezone)))
+
+        anchor_zdt = to_local_zdt(self.anchor_date)
+        assert anchor_zdt is not None
+
+        local_start = to_local_zdt(start)
+        assert local_start is not None
+
+        local_end = to_local_zdt(end)
+
+        interval = self.interval
+        if isinstance(interval, _WHENEVER_DELTA_TYPES):
+            # whenever delta types distinguish calendar days from exact hours,
+            # so we can use them directly. We still need an approximate
+            # total-seconds value for the initial offset jump.
+            if isinstance(interval, DateTimeDelta):
+                _months, _days, _secs, _nanos = interval.in_months_days_secs_nanos()
+                approx_total_seconds = (
+                    _months * 30 * 86400 + _days * 86400 + _secs + _nanos / 1e9
+                )
+            else:  # ItemizedDelta (whenever >= 0.10.0)
+                _date, _time = interval.date_and_time_parts()
+                _months = _date.get("months") or 0 if _date else 0
+                _days = _date.get("days") or 0 if _date else 0
+                approx_total_seconds = (
+                    _months * 30 * 86400
+                    + _days * 86400
+                    + (int(_time.total("seconds")) if _time else 0)
                 )
 
-            target_timezone = self.timezone or "UTC"
-            _zdt_from_dt = (
-                ZonedDateTime
-                if hasattr(ZonedDateTime, "to_stdlib")
-                else ZonedDateTime.from_py_datetime
-            )
-            _pdt_from_dt = (
-                PlainDateTime
-                if hasattr(PlainDateTime, "to_stdlib")
-                else PlainDateTime.from_py_datetime
-            )
-
-            def to_local_zdt(dt: datetime.datetime | None) -> ZonedDateTime | None:
-                if dt is None:
-                    return None
-                if dt.tzinfo is None:
-                    return _pdt_from_dt(dt).assume_tz(target_timezone)
-                if isinstance(dt.tzinfo, ZoneInfo):
-                    return _zdt_from_dt(dt).to_tz(target_timezone)
-                # For offset-based tzinfo instances (e.g. datetime.timezone(+09:00)),
-                # use astimezone to preserve the instant, then convert to ZonedDateTime.
-                return _zdt_from_dt(dt.astimezone(ZoneInfo(target_timezone)))
-
-            anchor_zdt = to_local_zdt(self.anchor_date)
-            assert anchor_zdt is not None
-
-            local_start = to_local_zdt(start)
-            assert local_start is not None
-
-            local_end = to_local_zdt(end)
-
-            interval = self.interval
-            if isinstance(interval, _WHENEVER_DELTA_TYPES):
-                # whenever delta types distinguish calendar days from exact hours,
-                # so we can use them directly. We still need an approximate
-                # total-seconds value for the initial offset jump.
-                if isinstance(interval, DateTimeDelta):
-                    _months, _days, _secs, _nanos = interval.in_months_days_secs_nanos()
-                    approx_total_seconds = (
-                        _months * 30 * 86400 + _days * 86400 + _secs + _nanos / 1e9
-                    )
-                else:  # ItemizedDelta (whenever >= 0.10.0)
-                    _date, _time = interval.date_and_time_parts()
-                    _months = _date.get("months") or 0 if _date else 0
-                    _days = _date.get("days") or 0 if _date else 0
-                    approx_total_seconds = (
-                        _months * 30 * 86400
-                        + _days * 86400
-                        + (int(_time.total("seconds")) if _time else 0)
-                    )
-
-                def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
-                    return zdt + interval
-            else:
-                approx_total_seconds = interval.total_seconds()
-                # break the interval into `days` and `seconds` because
-                # ZonedDateTime.add will handle DST boundaries properly if
-                # days are provided, but not if we add `total seconds`.
-                _interval_days = interval.days
-                _interval_seconds = interval.total_seconds() - (
-                    _interval_days * 24 * 60 * 60
-                )
-
-                def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
-                    return zdt.add(days=_interval_days, seconds=_interval_seconds)
-
-            _diff = local_start - anchor_zdt
-            _diff_secs = (
-                _diff.total("seconds")
-                if hasattr(_diff, "total")
-                else _diff.in_seconds()
-            )
-            offset = _diff_secs / approx_total_seconds
-            next_date = anchor_zdt.add(seconds=approx_total_seconds * int(offset))
-
-            while next_date < local_start:
-                next_date = _advance(next_date)
-
-            counter = 0
-            dates: set[ZonedDateTime] = set()
-
-            while True:
-                # if the end date was exceeded, exit
-                if local_end and next_date > local_end:
-                    break
-
-                # ensure no duplicates; weird things can happen with DST
-                if next_date not in dates:
-                    dates.add(next_date)
-                    yield (
-                        next_date.to_stdlib()
-                        if hasattr(next_date, "to_stdlib")
-                        else next_date.py_datetime()
-                    )
-
-                # if enough dates have been collected or enough attempts were made, exit
-                if len(dates) >= n or counter > MAX_ITERATIONS:
-                    break
-
-                counter += 1
-
-                next_date = _advance(next_date)
-
+            def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
+                return zdt + interval
         else:
-            if start is None:
-                start = now("UTC")
-            anchor_tz = self.anchor_date.in_tz(self.timezone)
-            start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
-
-            # compute the offset between the anchor date and the start date to jump to the
-            # next date
-            offset = (start - anchor_tz).total_seconds() / self.interval.total_seconds()
-            next_date = anchor_tz.add(
-                seconds=self.interval.total_seconds() * int(offset)
+            approx_total_seconds = interval.total_seconds()
+            # break the interval into `days` and `seconds` because
+            # ZonedDateTime.add will handle DST boundaries properly if
+            # days are provided, but not if we add `total seconds`.
+            _interval_days = interval.days
+            _interval_seconds = interval.total_seconds() - (
+                _interval_days * 24 * 60 * 60
             )
 
-            # break the interval into `days` and `seconds` because the datetime
-            # library will handle DST boundaries properly if days are provided, but not
-            # if we add `total seconds`. Therefore, `next_date + self.interval`
-            # fails while `next_date.add(days=days, seconds=seconds)` works.
-            interval_days = self.interval.days
-            interval_seconds = self.interval.total_seconds() - (
-                interval_days * 24 * 60 * 60
-            )
+            def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
+                return zdt.add(days=_interval_days, seconds=_interval_seconds)
 
-            # daylight saving time boundaries can create a situation where the next date is
-            # before the start date, so we advance it if necessary
-            while next_date < start:
-                next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+        _diff = local_start - anchor_zdt
+        _diff_secs = (
+            _diff.total("seconds") if hasattr(_diff, "total") else _diff.in_seconds()
+        )
+        offset = _diff_secs / approx_total_seconds
+        next_date = anchor_zdt.add(seconds=approx_total_seconds * int(offset))
 
-            counter = 0
-            dates = set()
+        while next_date < local_start:
+            next_date = _advance(next_date)
 
-            while True:
-                # if the end date was exceeded, exit
-                if end and next_date > end:
-                    break
+        counter = 0
+        dates: set[ZonedDateTime] = set()
 
-                # ensure no duplicates; weird things can happen with DST
-                if next_date not in dates:
-                    dates.add(next_date)
-                    yield next_date
+        while True:
+            # if the end date was exceeded, exit
+            if local_end and next_date > local_end:
+                break
 
-                # if enough dates have been collected or enough attempts were made, exit
-                if len(dates) >= n or counter > MAX_ITERATIONS:
-                    break
+            # ensure no duplicates; weird things can happen with DST
+            if next_date not in dates:
+                dates.add(next_date)
+                yield (
+                    next_date.to_stdlib()
+                    if hasattr(next_date, "to_stdlib")
+                    else next_date.py_datetime()
+                )
 
-                counter += 1
+            # if enough dates have been collected or enough attempts were made, exit
+            if len(dates) >= n or counter > MAX_ITERATIONS:
+                break
 
-                next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+            counter += 1
+
+            next_date = _advance(next_date)
 
 
 class CronSchedule(PrefectBaseModel):
@@ -444,10 +371,7 @@ class CronSchedule(PrefectBaseModel):
                 n = 1
 
         if self.timezone:
-            if sys.version_info >= (3, 13):
-                start = start.astimezone(ZoneInfo(self.timezone or "UTC"))
-            else:
-                start = start.in_tz(self.timezone)
+            start = start.astimezone(ZoneInfo(self.timezone or "UTC"))
 
         # subtract one second from the start date, so that croniter returns it
         # as an event (if it meets the cron criteria)
@@ -457,23 +381,8 @@ class CronSchedule(PrefectBaseModel):
         if start.microsecond > 0:
             start += datetime.timedelta(seconds=1)
 
-        # croniter's DST logic interferes with all other datetime libraries except pytz
-        if sys.version_info >= (3, 13):
-            start_localized = start.astimezone(ZoneInfo(self.timezone or "UTC"))
-            start_naive_tz = start.replace(tzinfo=None)
-        else:
-            start_localized = pytz.timezone(start.tz.name).localize(
-                datetime.datetime(
-                    year=start.year,
-                    month=start.month,
-                    day=start.day,
-                    hour=start.hour,
-                    minute=start.minute,
-                    second=start.second,
-                    microsecond=start.microsecond,
-                )
-            )
-            start_naive_tz = start.naive()
+        start_localized = start.astimezone(ZoneInfo(self.timezone or "UTC"))
+        start_naive_tz = start.replace(tzinfo=None)
 
         cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
         dates = set()
@@ -486,25 +395,16 @@ class CronSchedule(PrefectBaseModel):
             # add that time to the original scheduling anchor.
             next_time = cron.get_next(datetime.datetime)
             delta = next_time - start_naive_tz
-            if sys.version_info >= (3, 13):
-                from whenever import ZonedDateTime
-
-                # Use `whenever` to handle DST correctly
-                _zdt_from_dt = (
-                    ZonedDateTime
-                    if hasattr(ZonedDateTime, "to_stdlib")
-                    else ZonedDateTime.from_py_datetime
-                )
-                _zdt = _zdt_from_dt(start_localized + delta).to_tz(
-                    self.timezone or "UTC"
-                )
-                next_date = (
-                    _zdt.to_stdlib()
-                    if hasattr(_zdt, "to_stdlib")
-                    else _zdt.py_datetime()
-                )
-            else:
-                next_date = create_datetime_instance(start_localized + delta)
+            # Use `whenever` to handle DST correctly
+            _zdt_from_dt = (
+                ZonedDateTime
+                if hasattr(ZonedDateTime, "to_stdlib")
+                else ZonedDateTime.from_py_datetime
+            )
+            _zdt = _zdt_from_dt(start_localized + delta).to_tz(self.timezone or "UTC")
+            next_date = (
+                _zdt.to_stdlib() if hasattr(_zdt, "to_stdlib") else _zdt.py_datetime()
+            )
 
             # if the end date was exceeded, exit
             if end and next_date > end:

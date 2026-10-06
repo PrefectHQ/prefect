@@ -230,8 +230,7 @@ def mock_anyio_sleep(
 
     def latest_now(*args: Any) -> DateTime:
         # Fast-forwards the time by the total sleep time
-        # timedelta rather than pendulum's .add: on Python 3.13+ `now` returns a
-        # standard library datetime.
+        # `now` returns a standard library datetime, so plain timedelta works
         return original_now(*args) + timedelta(seconds=time_shift)
 
     monkeypatch.setattr("prefect.types._datetime.now", latest_now)

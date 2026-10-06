@@ -1,10 +1,7 @@
 """Tests for prefect.types._datetime.
 
-These tests are intentionally version-agnostic: they run on all supported
-Python versions without any skips. On Python < 3.13 the pendulum backend is
-exercised; on Python >= 3.13 the whenever backend is exercised. If all
-assertions pass across the CI matrix we have behavioral parity between the
-two backends.
+These tests exercise the `whenever`-backed datetime helpers used across all
+supported Python versions.
 """
 
 import datetime
@@ -104,13 +101,8 @@ class TestEndOfPeriod:
         assert result.utcoffset() == EDT
 
     def test_invalid_period_raises(self):
-        # NOTE: pendulum (Python < 3.13) silently ignores unknown periods, so
-        # this assertion only holds on Python >= 3.13 (whenever backend).
-        import sys
-
-        if sys.version_info >= (3, 13):
-            with pytest.raises(ValueError, match="Invalid period"):
-                end_of_period(FIXED, "century")
+        with pytest.raises(ValueError, match="Invalid period"):
+            end_of_period(FIXED, "century")
 
 
 class TestInLocalTz:
@@ -131,11 +123,8 @@ class TestInLocalTz:
 class TestDateTimeTypeAlias:
     """`DateTime` is the type alias used for Pydantic-validated datetime fields.
 
-    On Python <= 3.12 it is pendulum-backed (`PydanticDateTime`); on Python
-    >= 3.13 it is a `datetime.datetime` subclass with a Pydantic schema that
-    enforces tz-awareness. These tests guard parity across versions — a naive
-    input must come out tz-aware regardless of which backend is active. See
-    #21949.
+    It is a `datetime.datetime` subclass with a Pydantic schema that enforces
+    tz-awareness — a naive input must come out tz-aware. See #21949.
     """
 
     def test_naive_value_is_coerced_to_utc(self):

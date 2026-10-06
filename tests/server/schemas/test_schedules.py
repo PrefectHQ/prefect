@@ -1,5 +1,4 @@
 import asyncio
-import sys
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -98,10 +97,7 @@ class TestCreateIntervalSchedule:
         ].endswith("-05:00")
 
         parsed = IntervalSchedule.model_validate(clock_dict)
-        if sys.version_info >= (3, 13):
-            assert str(parsed.anchor_date.tzinfo) in ("-04:00", "-05:00")
-        else:
-            assert parsed.anchor_date.tzinfo.name in ("-04:00", "-05:00")
+        assert str(parsed.anchor_date.tzinfo) in ("-04:00", "-05:00")
         assert parsed.timezone == "UTC"
 
     def test_parse_utc_offset_timezone_with_specified_tz(self):
@@ -261,10 +257,6 @@ class TestIntervalSchedule:
             datetime(2022, 1, 3, tzinfo=ZoneInfo("UTC")),
         ]
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 13),
-        reason="Bug only affects Python 3.13+ with whenever library",
-    )
     async def test_offset_anchor_preserves_local_hour(self):
         """
         Regression test for timezone bug from pendulum -> datetime/zoneinfo refactor.
@@ -497,39 +489,22 @@ class TestIntervalScheduleDaylightSavingsTime:
         s = IntervalSchedule(interval=timedelta(hours=1), timezone="America/New_York")
         dates = await s.get_dates(n=5, start=dt)
 
-        if sys.version_info >= (3, 13):
-            # Hour is repeated because the interval is 1 hour
-            assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
-                23,
-                0,
-                1,
-                1,
-                2,
-            ]
-            # Runs on every UTC hour
-            assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
-                3,
-                4,
-                5,
-                6,
-                7,
-            ]
-        else:
-            assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
-                23,
-                0,
-                1,
-                2,
-                3,
-            ]
-            # skips an hour UTC - note interval clocks skip the "6"
-            assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
-                3,
-                4,
-                5,
-                7,
-                8,
-            ]
+        # Hour is repeated because the interval is 1 hour
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            23,
+            0,
+            1,
+            1,
+            2,
+        ]
+        # Runs on every UTC hour
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
+            3,
+            4,
+            5,
+            6,
+            7,
+        ]
 
     async def test_interval_schedule_daily_start_daylight_savings_time_forward(self):
         """
@@ -584,10 +559,6 @@ class TestIntervalScheduleDaylightSavingsTime:
         ]
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 13),
-    reason="ItemizedDelta requires Python 3.13+ with whenever library",
-)
 class TestIntervalScheduleDateTimeDelta:
     """Tests that ItemizedDelta intervals correctly distinguish calendar days
     from exact hours across DST boundaries — the core issue from #17749."""

@@ -41,9 +41,8 @@ async def run_history(
     Produce a history of runs aggregated by interval and state
     """
 
-    # normalize to stdlib timedeltas; pendulum intervals, which the timestamp
-    # arguments produce when they are pendulum instances, do not support floor
-    # division by a timedelta
+    # normalize to stdlib timedeltas; non-stdlib intervals do not support
+    # floor division by a timedelta
     history_interval = datetime.timedelta(seconds=history_interval.total_seconds())
 
     # SQLite has issues with very small intervals
