@@ -39,10 +39,7 @@ from prefect._internal.attempt_control import (
     StateOwnershipDelegation,
 )
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
-from prefect._internal.server_maintenance import (
-    record_maintenance_backoff,
-    reset_maintenance_backoff,
-)
+from prefect._internal.server_maintenance import record_maintenance_backoff
 from prefect._internal.versioning import VersionType
 from prefect.blocks.core import BlockNotSavedError
 from prefect.blocks.system import Secret
@@ -4353,13 +4350,6 @@ class TestServer:
                 mocked_thread.return_value.start.assert_not_called()
 
 
-@pytest.fixture
-def clear_maintenance_backoff() -> Generator[None, None, None]:
-    reset_maintenance_backoff()
-    yield
-    reset_maintenance_backoff()
-
-
 def maintenance_response(retry_after: str) -> httpx.Response:
     return httpx.Response(
         status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -4367,7 +4357,6 @@ def maintenance_response(retry_after: str) -> httpx.Response:
     )
 
 
-@pytest.mark.usefixtures("clear_maintenance_backoff")
 class TestHealthCheckDuringServerMaintenance:
     # The default window: 2 missed polls x 10s poll frequency.
     DELAY_THRESHOLD = 20
