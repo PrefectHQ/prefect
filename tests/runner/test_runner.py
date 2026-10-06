@@ -21,7 +21,9 @@ from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import anyio
+import httpx
 import pytest
+import respx
 import uv
 from pydantic import BaseModel
 from starlette import status
@@ -36,6 +38,10 @@ from prefect._internal.attempt_control import (
     StateOwnershipDelegation,
 )
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.server_maintenance import (
+    record_maintenance_backoff,
+    reset_maintenance_backoff,
+)
 from prefect._internal.versioning import VersionType
 from prefect.blocks.core import BlockNotSavedError
 from prefect.blocks.system import Secret
@@ -75,6 +81,7 @@ from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check
 from prefect.schedules import Cron, Interval
 from prefect.settings import (
+    PREFECT_CLIENT_RETRY_JITTER_FACTOR,
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_RUNNER_POLL_FREQUENCY,
@@ -83,7 +90,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import Cancelling, Crashed
-from prefect.types._datetime import now
+from prefect.types._datetime import now, travel_to
 from prefect.utilities import processutils
 from prefect.utilities.annotations import freeze
 from prefect.utilities.dockerutils import parse_image_tag
@@ -4328,6 +4335,20 @@ class TestServer:
         runner.last_polled = now("UTC")
         assert health_check().status_code == status.HTTP_200_OK
 
+    async def test_healthcheck_is_healthy_before_first_poll(self):
+        runner = Runner()
+        assert runner.last_polled is None
+
+        started_at = now("UTC")
+        with travel_to(started_at):
+            health_check = perform_health_check(runner, delay_threshold=20)
+
+        with travel_to(started_at + datetime.timedelta(seconds=20)):
+            assert health_check().status_code == status.HTTP_200_OK
+
+        with travel_to(started_at + datetime.timedelta(seconds=21)):
+            assert health_check().status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
     @pytest.mark.skip("This test is flaky and needs to be fixed")
     @pytest.mark.parametrize("enabled", [True, False])
     async def test_webserver_start_flag(self, enabled: bool):
@@ -4342,6 +4363,115 @@ class TestServer:
             if not enabled:
                 mocked_thread.assert_not_called()
                 mocked_thread.return_value.start.assert_not_called()
+
+
+@pytest.fixture
+def clear_maintenance_backoff() -> Generator[None, None, None]:
+    reset_maintenance_backoff()
+    yield
+    reset_maintenance_backoff()
+
+
+def maintenance_response(retry_after: str) -> httpx.Response:
+    return httpx.Response(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        headers={"Prefect-Maintenance": "true", "Retry-After": retry_after},
+    )
+
+
+@pytest.mark.usefixtures("clear_maintenance_backoff")
+class TestHealthCheckDuringServerMaintenance:
+    @pytest.fixture(autouse=True)
+    def disable_jitter(self) -> Generator[None, None, None]:
+        with temporary_settings({PREFECT_CLIENT_RETRY_JITTER_FACTOR: 0}):
+            yield
+
+    def mock_scheduled_flow_runs(
+        self, respx_mock: respx.MockRouter, side_effect: Any
+    ) -> None:
+        respx_mock.post(path__regex=r"/deployments/get_scheduled_flow_runs$").mock(
+            side_effect=side_effect
+        )
+        respx_mock.route().pass_through()
+
+    def test_healthy_while_waiting_out_maintenance_backoff(self):
+        runner = Runner()
+        health_check = perform_health_check(runner, delay_threshold=20)
+        last_polled = now("UTC") - datetime.timedelta(minutes=5)
+        runner.last_polled = last_polled
+
+        assert health_check().status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+        with travel_to(last_polled + datetime.timedelta(minutes=5)):
+            record_maintenance_backoff(200)
+        backoff_ends_at = last_polled + datetime.timedelta(minutes=5, seconds=200)
+
+        with travel_to(backoff_ends_at - datetime.timedelta(seconds=1)):
+            assert health_check().status_code == status.HTTP_200_OK
+
+        # After the back-off ends, the runner has the usual threshold to poll again.
+        with travel_to(backoff_ends_at + datetime.timedelta(seconds=20)):
+            assert health_check().status_code == status.HTTP_200_OK
+
+        with travel_to(backoff_ends_at + datetime.timedelta(seconds=21)):
+            assert health_check().status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+    async def test_runner_polling_through_maintenance_reports_healthy(
+        self,
+        prefect_client: PrefectClient,
+        respx_mock: respx.MockRouter,
+        mock_anyio_sleep: AsyncMock,
+    ):
+        runner = Runner()
+        runner.last_polled = now("UTC")
+        health_check = perform_health_check(runner, delay_threshold=20)
+        status_at_each_attempt: list[int] = []
+
+        def in_maintenance_for_three_attempts(request: httpx.Request) -> httpx.Response:
+            status_at_each_attempt.append(health_check().status_code)
+            if len(status_at_each_attempt) <= 3:
+                return maintenance_response("200")
+            return httpx.Response(status.HTTP_200_OK, json=[])
+
+        self.mock_scheduled_flow_runs(respx_mock, in_maintenance_for_three_attempts)
+
+        await prefect_client.get_scheduled_flow_runs_for_deployments(
+            deployment_ids=[uuid.uuid4()]
+        )
+
+        # Every attempt after the first comes 200s after the previous one, well
+        # past the 20s threshold, while the poll is waiting out maintenance.
+        assert status_at_each_attempt == [status.HTTP_200_OK] * 4
+
+    async def test_ordinary_retries_do_not_extend_the_threshold(
+        self,
+        prefect_client: PrefectClient,
+        respx_mock: respx.MockRouter,
+        mock_anyio_sleep: AsyncMock,
+    ):
+        runner = Runner()
+        runner.last_polled = now("UTC")
+        health_check = perform_health_check(runner, delay_threshold=20)
+        status_at_each_attempt: list[int] = []
+
+        def unavailable_without_maintenance(request: httpx.Request) -> httpx.Response:
+            status_at_each_attempt.append(health_check().status_code)
+            if len(status_at_each_attempt) <= 1:
+                return httpx.Response(
+                    status.HTTP_503_SERVICE_UNAVAILABLE, headers={"Retry-After": "200"}
+                )
+            return httpx.Response(status.HTTP_200_OK, json=[])
+
+        self.mock_scheduled_flow_runs(respx_mock, unavailable_without_maintenance)
+
+        await prefect_client.get_scheduled_flow_runs_for_deployments(
+            deployment_ids=[uuid.uuid4()]
+        )
+
+        assert status_at_each_attempt == [
+            status.HTTP_200_OK,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        ]
 
 
 class TestDeploy:

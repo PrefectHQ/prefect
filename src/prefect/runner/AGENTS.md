@@ -147,6 +147,10 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 **Automatic dependency installation:** By default, `WorkspaceResolvingEngineCommandStarter` does not install dependencies before starting a flow run. When no explicit command is passed and `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` is true, it auto-selects `uv run --no-default-groups --project <project_root>` with the worker-supplied workspace bootstrap — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). The bootstrap uses the prepared entrypoint with `prefect.flow_engine` when that module exposes its executable `_main`; older selected runtimes fall back to `prefect.engine` with `PREFECT__FLOW_ENTRYPOINT`, preserving the prepared workspace. If the setting is false or any condition fails, the command falls back to `None`. Explicit commands always take precedence.
 
+## Webserver Health Check
+
+`perform_health_check()` (server.py) reports 503 when `last_polled` is older than `missed_polls_tolerance * poll_frequency`. Before the first poll it measures from server start, and it measures from `maintenance_backoff_ends_at()` when that is later: requests answered with `Prefect-Maintenance: true` retry indefinitely, so a poll can block for a whole Cloud maintenance window and must not count as missed polls. Use `prefect.types._datetime.now` via module attribute so `mock_anyio_sleep`/`travel_to` can patch it.
+
 ## Reference
 
 Full refactor design and rationale: plans/completed/2026-02-18-runner-refactor.md

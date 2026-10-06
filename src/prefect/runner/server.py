@@ -8,6 +8,8 @@ from fastapi import APIRouter, FastAPI, status
 from fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
+import prefect.types._datetime
+from prefect._internal.server_maintenance import maintenance_backoff_ends_at
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_RUNNER_POLL_FREQUENCY,
@@ -16,7 +18,6 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE,
     PREFECT_RUNNER_SERVER_PORT,
 )
-from prefect.types._datetime import now as now_fn
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 if TYPE_CHECKING:
@@ -46,9 +47,18 @@ def perform_health_check(
             * PREFECT_RUNNER_POLL_FREQUENCY.value()
         )
 
+    started_at = prefect.types._datetime.now("UTC")
+
     def _health_check():
-        now = now_fn("UTC")
-        poll_delay = (now - runner.last_polled).total_seconds()
+        # Before the first poll completes, measure from when the server started.
+        # While the Prefect API is in maintenance, requests wait out the
+        # `Retry-After` it sends, so measure from the end of that back-off.
+        window_start = runner.last_polled or started_at
+        backoff_ends_at = maintenance_backoff_ends_at()
+        if backoff_ends_at is not None and backoff_ends_at > window_start:
+            window_start = backoff_ends_at
+
+        poll_delay = (prefect.types._datetime.now("UTC") - window_start).total_seconds()
 
         if TYPE_CHECKING:
             assert delay_threshold is not None
