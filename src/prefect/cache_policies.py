@@ -46,7 +46,7 @@ def _register_stable_transforms() -> None:
         import pandas as pd  # pyright: ignore
 
         STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [  # pyright: ignore
-            df[col] for col in sorted(df.columns)
+            df[col] for col in df.columns
         ]
 
 

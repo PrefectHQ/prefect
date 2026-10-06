@@ -154,7 +154,12 @@ class TestInputsPolicy:
             flow_parameters=None,
         )
 
-        assert key == other_key
+        assert key != other_key
+        assert key == policy.compute_key(
+            task_ctx=None,
+            inputs={"df": FakeDataFrame({"a": "1", "b": "2"})},
+            flow_parameters=None,
+        )
 
     def test_importing_module_does_not_import_optional_dependencies(
         self, tmp_path: Path
