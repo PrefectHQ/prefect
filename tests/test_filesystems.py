@@ -46,6 +46,50 @@ def setup_test_directory(tmp_src: str, sub_dir: str = "puppy") -> Tuple[str, str
     return parent_contents, child_contents
 
 
+@pytest.mark.parametrize("sync", [False, True])
+@pytest.mark.parametrize("storage", ["local", "remote"])
+async def test_nested_ignored_files(tmp_path: Path, storage: str, sync: bool):
+    """Copy/upload nested files while honoring POSIX ignore patterns on every OS."""
+    source = tmp_path / "source"
+    nested = source / "a" / "b"
+    nested.mkdir(parents=True)
+    (nested / "keep.py").write_text("pass")
+    (nested / "ignored.txt").write_text("ignored")
+    ignore_file = source / ".prefectignore"
+    ignore_file.write_text("*\n!a/b/keep.py\n")
+
+    if storage == "local":
+        destination = tmp_path / "destination"
+        fs = LocalFileSystem(basepath=str(destination))
+    else:
+        fs = RemoteFileSystem(basepath=f"memory://{tmp_path.name}/{sync}")
+
+    if sync:
+        fs.put_directory(
+            local_path=str(source), ignore_file=str(ignore_file), _sync=True
+        )
+    else:
+        await fs.aput_directory(local_path=str(source), ignore_file=str(ignore_file))
+
+    assert await fs.aread_path("a/b/keep.py") == b"pass"
+    if storage == "local":
+        assert not (destination / "a" / "b" / "ignored.txt").exists()
+    else:
+        with pytest.raises(FileNotFoundError):
+            await fs.aread_path("a/b/ignored.txt")
+
+    if storage == "local":
+        # get_directory reads .prefectignore from its source automatically.
+        downloaded = tmp_path / "downloaded"
+        fs = LocalFileSystem(basepath=str(source))
+        if sync:
+            fs.get_directory(local_path=str(downloaded), _sync=True)
+        else:
+            await fs.aget_directory(local_path=str(downloaded))
+        assert (downloaded / "a" / "b" / "keep.py").read_text() == "pass"
+        assert not (downloaded / "a" / "b" / "ignored.txt").exists()
+
+
 class TestLocalFileSystem:
     async def test_read_write_roundtrip(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
