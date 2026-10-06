@@ -89,7 +89,8 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
 RUN wget https://www.sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_VERSION}.tar.gz \
     && tar xvfz sqlite-autoconf-${SQLITE_VERSION}.tar.gz \
     && cd sqlite-autoconf-${SQLITE_VERSION} \
-    && ./configure \
+    # Enable deserialize to match distro-built libsqlite3 that Python 3.11+ expects
+    && CFLAGS="-DSQLITE_ENABLE_DESERIALIZE" ./configure \
     && make \
     && make install \
     && cd .. \
