@@ -156,7 +156,11 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 from prefect_armada.credentials import ArmadaClusterConfig, ArmadaCredentials
-from prefect_armada.exceptions import rpc_details, rpc_status_code
+from prefect_armada.exceptions import (
+    ArmadaObserverStartupError,
+    rpc_details,
+    rpc_status_code,
+)
 from prefect_armada.observer import observe_job_set, start_observer, stop_observer
 from prefect_armada.settings import ArmadaSettings
 from prefect_armada.utilities import (
@@ -1174,11 +1178,24 @@ class ArmadaWorker(
     async def __aenter__(self):
         """Starts the Armada observer alongside the worker.
 
-        Exits the process if the work pool's Armada queue does not exist, since
-        every flow run the worker submits would be rejected.
+        Exits the process if the observer cannot be started, since jobs that
+        fail before their flow run starts would be left pending, or if the work
+        pool's Armada queue does not exist, since every flow run the worker
+        submits would be rejected.
         """
         if ArmadaSettings().observer.enabled:
-            start_observer()
+            try:
+                start_observer()
+            except ArmadaObserverStartupError as exc:
+                self._logger.error(
+                    "%s. Without the observer, Armada jobs that fail before "
+                    "their flow run starts would never be marked as crashed. "
+                    "Fix the error and restart the worker, or set "
+                    "`PREFECT_INTEGRATIONS_ARMADA_OBSERVER_ENABLED=false` to "
+                    "run without the observer.",
+                    exc,
+                )
+                raise SystemExit(1)
         try:
             await super().__aenter__()
         except BaseException:

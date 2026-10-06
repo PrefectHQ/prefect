@@ -8,6 +8,7 @@ from armada_client.armada import submit_pb2
 from conftest import FakeRpcError, make_job_submit_response
 from prefect_armada import ArmadaWorker
 from prefect_armada.credentials import ArmadaClusterConfig, ArmadaCredentials
+from prefect_armada.exceptions import ArmadaObserverStartupError
 from prefect_armada.worker import ArmadaWorkerJobConfiguration
 from pydantic import ValidationError
 
@@ -737,6 +738,24 @@ class TestQueueCheckOnStartup:
         assert "does not exist" in caplog.text
         assert not worker.is_setup
         mock_observer.stop.assert_called_once()
+
+    async def test_worker_exits_when_the_observer_cannot_start(
+        self, mock_armada_client, mock_observer, caplog
+    ):
+        mock_observer.start.side_effect = ArmadaObserverStartupError(
+            "The Armada observer failed to start: bad credentials"
+        )
+        worker = ArmadaWorker(work_pool_name=f"test-{uuid.uuid4()}")
+
+        with pytest.raises(SystemExit) as exc_info:
+            async with worker:
+                pytest.fail("The worker should not start without its observer")
+
+        assert exc_info.value.code == 1
+        assert "The Armada observer failed to start: bad credentials" in caplog.text
+        assert "PREFECT_INTEGRATIONS_ARMADA_OBSERVER_ENABLED=false" in caplog.text
+        assert not worker.is_setup
+        mock_armada_client.get_queue.assert_not_awaited()
 
     async def test_start_exits_when_the_queue_does_not_exist(self, mock_armada_client):
         mock_armada_client.get_queue.side_effect = FakeRpcError(

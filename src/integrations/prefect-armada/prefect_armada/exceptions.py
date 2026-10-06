@@ -25,6 +25,10 @@ class ArmadaJobTimeoutError(ArmadaError):
     """An exception for when an Armada job times out."""
 
 
+class ArmadaObserverStartupError(ArmadaError):
+    """An exception for when the Armada observer cannot be started."""
+
+
 def rpc_status_code(exc: BaseException) -> grpc.StatusCode | None:
     """Returns the gRPC status code for an exception, if it has one.
 

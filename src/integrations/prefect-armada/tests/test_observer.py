@@ -1,3 +1,4 @@
+import threading
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
@@ -8,6 +9,7 @@ from armada_client.armada import event_pb2
 from conftest import FakeEventStream, FakeRpcError, make_event
 from prefect_armada import observer
 from prefect_armada.credentials import ArmadaCredentials
+from prefect_armada.exceptions import ArmadaObserverStartupError
 
 from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import Abort, ObjectNotFound
@@ -40,7 +42,8 @@ def clean_observer_state():
     observer._observer_loop = None
     observer._observer_thread = None
     observer._stop_flag = None
-    observer._ready_flag = None
+    observer._startup_flag = None
+    observer._startup_error = None
 
 
 @pytest.fixture
@@ -616,6 +619,93 @@ class TestObserverLifecycle:
             observer.stop_observer()
 
         assert watched == [("my-queue", "my-job-set")]
+
+    async def test_restarts_after_client_initialization_fails(
+        self, mock_armada_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(observer, "OBSERVER_RESTART_MAX_DELAY_SECONDS", 0.01)
+        real_get_events_client = observer.get_events_client
+        api_available = threading.Event()
+        watched = []
+
+        def flaky_get_events_client():
+            if not api_available.is_set():
+                raise ConnectionRefusedError("Prefect API is unavailable")
+            return real_get_events_client()
+
+        async def fake_watch(credentials, queue, job_set_id):
+            watched.append((queue, job_set_id))
+
+        monkeypatch.setattr(observer, "get_events_client", flaky_get_events_client)
+        monkeypatch.setattr(observer, "_watch_job_set", fake_watch)
+
+        observer.start_observer()
+        try:
+            # The failed startup must not leave a dead thread or loop behind
+            assert observer._observer_thread.is_alive()
+            assert observer._observer_loop is None
+
+            # A job submitted while the observer is down is watched once it is up
+            observer.observe_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+            assert watched == []
+
+            api_available.set()
+            for _ in range(100):
+                if watched:
+                    break
+                await anyio_sleep(0.05)
+        finally:
+            observer.stop_observer()
+
+        assert watched == [("my-queue", "my-job-set")]
+
+    async def test_stops_while_waiting_to_restart(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        def broken_get_events_client():
+            raise ConnectionRefusedError("Prefect API is unavailable")
+
+        monkeypatch.setattr(observer, "get_events_client", broken_get_events_client)
+
+        observer.start_observer()
+        thread = observer._observer_thread
+        observer.stop_observer()
+
+        assert not thread.is_alive()
+        assert observer._observer_thread is None
+
+    async def test_raises_when_startup_fails_permanently(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        def broken_get_events_client():
+            raise ValueError("bad credentials")
+
+        monkeypatch.setattr(observer, "get_events_client", broken_get_events_client)
+
+        with pytest.raises(
+            ArmadaObserverStartupError, match="bad credentials"
+        ) as exc_info:
+            observer.start_observer()
+
+        assert isinstance(exc_info.value.__cause__, ValueError)
+        assert observer._observer_thread is None
+        assert observer._observer_loop is None
+
+    async def test_can_start_after_a_permanent_startup_failure(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        with monkeypatch.context() as patch:
+            patch.setattr(
+                observer, "get_events_client", MagicMock(side_effect=ValueError("bad"))
+            )
+            with pytest.raises(ArmadaObserverStartupError):
+                observer.start_observer()
+
+        observer.start_observer()
+        try:
+            assert observer._observer_loop is not None
+        finally:
+            observer.stop_observer()
 
     async def test_malformed_configured_job_sets_are_ignored(
         self, monkeypatch: pytest.MonkeyPatch

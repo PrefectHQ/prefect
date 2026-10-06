@@ -30,9 +30,11 @@ from typing import Any
 
 import anyio
 import grpc
+import httpx
 from anyio.to_thread import run_sync
 from armada_client.event import Event as ArmadaEvent
 from cachetools import TTLCache
+from websockets.exceptions import ConnectionClosed
 
 from prefect import __version__, get_client
 from prefect.client.orchestration import PrefectClient
@@ -48,7 +50,11 @@ from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
 from prefect_armada.credentials import ArmadaCredentials
 from prefect_armada.events import stream_job_set_events
-from prefect_armada.exceptions import rpc_details, rpc_status_code
+from prefect_armada.exceptions import (
+    ArmadaObserverStartupError,
+    rpc_details,
+    rpc_status_code,
+)
 from prefect_armada.settings import ArmadaSettings
 from prefect_armada.utilities import UNSUCCESSFUL_EVENT_TYPES
 
@@ -62,6 +68,20 @@ TERMINAL_EVENT_TYPES = {"succeeded", "failed", "cancelled", "preempted"}
 # with this backoff spans a little over two minutes.
 WATCH_RETRY_MAX_ATTEMPTS = 8
 WATCH_RETRY_MAX_DELAY_SECONDS = 30
+
+# The ceiling on the exponential backoff between attempts to restart the
+# observer after it fails, for example because the Prefect API is unreachable.
+OBSERVER_RESTART_MAX_DELAY_SECONDS = 30
+
+# Failures the observer expects to clear on their own, such as the Prefect API
+# being unreachable. Anything else (bad credentials, invalid settings) is
+# treated as permanent, mirroring how Prefect's events client classifies them.
+_TRANSIENT_STARTUP_EXCEPTIONS: tuple[type[Exception], ...] = (
+    ConnectionClosed,
+    TimeoutError,
+    OSError,
+    httpx.TransportError,
+)
 
 # Cache used to keep track of the last event for a job. This is used to populate
 # the `follows` field on events to get correct event ordering. We only hold each
@@ -82,7 +102,11 @@ _watch_tasks: dict[_JobSetKey, asyncio.Task[None]] = {}
 _observer_thread: threading.Thread | None = None
 _observer_loop: asyncio.AbstractEventLoop | None = None
 _stop_flag: threading.Event | None = None
-_ready_flag: threading.Event | None = None
+# Set once the observer's first startup attempt has finished, whether or not it
+# succeeded; `_observer_loop` is only set while the observer is running.
+_startup_flag: threading.Event | None = None
+# The permanent failure that made the observer give up on its first startup.
+_startup_error: Exception | None = None
 
 
 class _JobSetWatchState:
@@ -615,13 +639,11 @@ def _register_configured_job_sets(credentials: ArmadaCredentials) -> None:
             _watch_registry.setdefault((queue, job_set_id), credentials)
 
 
-async def _observer_main() -> None:
+async def _observer_main(stop_flag: threading.Event) -> None:
     """Runs the observer until it is stopped."""
     global _observer_loop
     global events_client
     global orchestration_client
-
-    _observer_loop = asyncio.get_running_loop()
 
     logger.info("Initializing clients")
     async with get_client() as prefect_client, get_events_client() as prefect_events:
@@ -629,33 +651,54 @@ async def _observer_main() -> None:
         events_client = prefect_events
         logger.info("Clients successfully initialized")
 
-        _register_configured_job_sets(ArmadaCredentials())
-
-        with _registry_lock:
-            keys = list(_watch_registry)
-        for key in keys:
-            await _ensure_watch(key)
-
-        if _ready_flag is not None:
-            _ready_flag.set()
-
         try:
-            while _stop_flag is None or not _stop_flag.is_set():
+            _register_configured_job_sets(ArmadaCredentials())
+
+            # Publishing the loop is what tells `observe_job_set` the observer
+            # is running, so it must happen before the registry is read to
+            # avoid missing a job set registered in between.
+            _observer_loop = asyncio.get_running_loop()
+
+            with _registry_lock:
+                keys = list(_watch_registry)
+            for key in keys:
+                await _ensure_watch(key)
+
+            if _startup_flag is not None:
+                _startup_flag.set()
+
+            while not stop_flag.is_set():
                 await asyncio.sleep(0.5)
         finally:
+            _observer_loop = None
             tasks = list(_watch_tasks.values())
             for task in tasks:
                 task.cancel()
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
             _watch_tasks.clear()
-            _observer_loop = None
             orchestration_client = None
             events_client = None
 
 
-def _observer_thread_entry(settings_context: SettingsContext) -> None:
-    """Entrypoint for the observer thread."""
+def _observer_thread_entry(
+    settings_context: SettingsContext, stop_flag: threading.Event
+) -> None:
+    """
+    Entrypoint for the observer thread.
+
+    Runs the observer until it is stopped, restarting it if it fails. Jobs that
+    never reach the Prefect API can only report their failure through the
+    observer, so a failure here (most likely an unreachable Prefect API) must
+    not leave the worker submitting jobs with nothing watching them.
+
+    The exception is a first startup that fails for a reason retrying will not
+    fix. That is recorded for `start_observer` to raise, so the worker refuses
+    to start rather than run without an observer indefinitely.
+    """
+    global _startup_error
+
+    failures = 0
     try:
         # Prefect settings live in a context variable, which a new thread does
         # not inherit, so the starting thread's settings are re-applied here to
@@ -665,42 +708,82 @@ def _observer_thread_entry(settings_context: SettingsContext) -> None:
         with SettingsContext(
             profile=settings_context.profile, settings=settings_context.settings
         ):
-            asyncio.run(_observer_main())
-    except Exception:
-        logger.exception("Armada observer stopped unexpectedly")
+            while not stop_flag.is_set():
+                try:
+                    asyncio.run(_observer_main(stop_flag))
+                except Exception as exc:
+                    if failures == 0 and not isinstance(
+                        exc, _TRANSIENT_STARTUP_EXCEPTIONS
+                    ):
+                        _startup_error = exc
+                        return
+                    delay = min(2**failures, OBSERVER_RESTART_MAX_DELAY_SECONDS)
+                    failures += 1
+                    logger.exception(
+                        "Armada observer stopped unexpectedly; restarting in %s "
+                        "seconds",
+                        delay,
+                    )
+                    # Unblock a caller waiting on startup; `_observer_loop`
+                    # tells it that the observer is not actually running.
+                    if _startup_flag is not None:
+                        _startup_flag.set()
+                    stop_flag.wait(delay)
     finally:
-        # Ensure a caller waiting on startup is never blocked by a failure here.
-        if _ready_flag is not None:
-            _ready_flag.set()
+        if _startup_flag is not None:
+            _startup_flag.set()
 
 
 def start_observer() -> None:
     """
     Start the observer in a separate thread.
+
+    Waits for the observer's first startup attempt to finish. If that attempt
+    fails for a reason that may clear on its own, such as an unreachable
+    Prefect API, the observer keeps retrying in the background, and job sets
+    registered in the meantime are watched once it is running.
+
+    Raises:
+        ArmadaObserverStartupError: If the first startup attempt fails for a
+            reason that retrying will not fix.
     """
     global _observer_thread
     global _stop_flag
-    global _ready_flag
+    global _startup_flag
+    global _startup_error
 
     if _observer_thread is not None:
         return
 
     _stop_flag = threading.Event()
-    _ready_flag = threading.Event()
+    _startup_flag = threading.Event()
+    _startup_error = None
 
     _observer_thread = threading.Thread(
         target=_observer_thread_entry,
-        args=(get_settings_context(),),
+        args=(get_settings_context(), _stop_flag),
         name="prefect-armada-observer",
         daemon=True,
     )
     _observer_thread.start()
-    if not _ready_flag.wait(timeout=30):
+    if not _startup_flag.wait(timeout=30):
         logger.warning(
             "Armada observer did not report readiness within 30 seconds; "
             "continuing without it"
         )
-    _ready_flag = None
+    elif _startup_error is not None:
+        error, _startup_error = _startup_error, None
+        stop_observer()
+        raise ArmadaObserverStartupError(
+            f"The Armada observer failed to start: {error}"
+        ) from error
+    elif _observer_loop is None:
+        logger.warning(
+            "Armada observer failed to start and will keep retrying in the "
+            "background; until it is running, Armada jobs that fail before "
+            "their flow run starts will not be marked as crashed"
+        )
+    _startup_flag = None
 
 
 def stop_observer() -> None:
