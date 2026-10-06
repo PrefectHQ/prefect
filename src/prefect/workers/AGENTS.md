@@ -48,7 +48,7 @@ Work-pool-level launchers are configured via `prefect work-pool storage configur
 ## Pitfalls
 
 - `backend_id` is `None` until the first heartbeat succeeds; `PREFECT__WORKER_ID` is not set until then. Code that reads `self.backend_id` early in the lifecycle may get `None`.
-- API requests can block indefinitely: responses with `Prefect-Maintenance: true` are retried without counting against `PREFECT_CLIENT_MAX_RETRIES`. So the healthcheck server starts before any API call — `prefect worker start` serves it before the pool checks and then calls `worker.start(with_healthcheck=False)`; `BaseWorker.start(with_healthcheck=True)` serves it before `setup()` — and polling-window checks go through `_is_within_polling_window()`, which extends the window past the back-off recorded in `_internal/server_maintenance.py`. New liveness signals should reuse that helper rather than measuring raw time since the last poll.
+- Requests answered with `Prefect-Maintenance: true` retry indefinitely, so any API call can block for an entire Cloud maintenance window. Worker health must be served before the first API call and must not count that wait as a missed poll (`_is_within_polling_window()` handles this).
 - Direct `ProcessWorker.run()` execution uses `FlowRunExecutorContext` with `propose_submitting=False` because `BaseWorker` already proposed Submitting. Generated commands use `WorkspaceResolvingEngineCommandStarter` and pass its `hook_runner`; explicitly configured commands use `EngineCommandStarter` and retain their own pull-step behavior. Consume the executor's normalized infrastructure status rather than the raw child exit code. The ad hoc bundle path still uses deprecated `Runner.execute_bundle()` and remains a migration gap (see `runner/AGENTS.md`).
 
 ## Related
