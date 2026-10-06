@@ -1,11 +1,14 @@
 import json
 import uuid
+from datetime import timedelta
 
 import pytest
 
 import prefect.exceptions
 from prefect import flow
+from prefect.states import Scheduled
 from prefect.testing.cli import invoke_and_assert
+from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 pytestmark = pytest.mark.clear_db
@@ -604,6 +607,34 @@ class TestPreview:
             command=cmd,
             expected_code=0,
         )
+
+    def test_preview_with_pool_only_includes_runs_within_hours(
+        self, sync_prefect_client, work_queue_1, deployment
+    ):
+        soon = sync_prefect_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=now("UTC") + timedelta(minutes=30)),
+        )
+        later = sync_prefect_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=now("UTC") + timedelta(hours=5)),
+        )
+
+        result = invoke_and_assert(
+            command=[
+                "work-queue",
+                "preview",
+                work_queue_1.name,
+                "-p",
+                work_queue_1.work_pool.name,
+                "-o",
+                "json",
+            ],
+            expected_code=0,
+        )
+        run_ids = {run["id"] for run in json.loads(result.stdout)}
+        assert str(soon.id) in run_ids
+        assert str(later.id) not in run_ids
 
     def test_preview_json_output(self, work_queue):
         result = invoke_and_assert(

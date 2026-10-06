@@ -2,6 +2,7 @@ import json
 import sys
 import uuid
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import timedelta
 from io import StringIO
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -31,8 +32,9 @@ from prefect.settings import (
     load_profile,
     temporary_settings,
 )
-from prefect.states import Pending, Running
+from prefect.states import Pending, Running, Scheduled
 from prefect.testing.cli import invoke_and_assert
+from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
@@ -868,6 +870,43 @@ class TestPreview:
 
         payload = json.loads(result.stdout)
         assert isinstance(payload, list)
+
+    async def test_preview_only_includes_runs_within_hours(
+        self, prefect_client, work_pool, deployment
+    ):
+        soon = await prefect_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=now("UTC") + timedelta(minutes=30)),
+        )
+        later = await prefect_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=now("UTC") + timedelta(hours=5)),
+        )
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "preview", work_pool.name, "-o", "json"],
+            expected_code=0,
+        )
+        run_ids = {run["id"] for run in json.loads(result.stdout)}
+        assert str(soon.id) in run_ids
+        assert str(later.id) not in run_ids
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "preview",
+                work_pool.name,
+                "--hours",
+                "6",
+                "-o",
+                "json",
+            ],
+            expected_code=0,
+        )
+        run_ids = {run["id"] for run in json.loads(result.stdout)}
+        assert {str(soon.id), str(later.id)} <= run_ids
 
     async def test_preview_invalid_output_format(self, prefect_client, work_pool):
         await run_sync_in_worker_thread(
