@@ -130,6 +130,7 @@ from typing import (
     Literal,
     TypeVar,
 )
+from urllib.parse import urlsplit
 
 import anyio
 import anyio.abc
@@ -602,7 +603,12 @@ class ArmadaWorkerJobConfiguration(BaseJobConfiguration):
         Warns when a local URL is about to be handed to a job with no
         `api_dns_name` to replace it, since the job cannot reach it.
         """
-        if not any(host in api_url for host in _LOCAL_API_HOSTS):
+        try:
+            parsed = urlsplit(api_url)
+        except ValueError:
+            return None
+
+        if parsed.hostname not in _LOCAL_API_HOSTS:
             return None
 
         if not self.api_dns_name:
@@ -617,9 +623,11 @@ class ArmadaWorkerJobConfiguration(BaseJobConfiguration):
             )
             return None
 
-        for host in _LOCAL_API_HOSTS:
-            api_url = api_url.replace(host, self.api_dns_name)
-        return api_url
+        # Swap only the host, keeping any credentials and port around it
+        userinfo, at, host_and_port = parsed.netloc.rpartition("@")
+        _, colon, port = host_and_port.partition(":")
+        netloc = f"{userinfo}{at}{self.api_dns_name}{colon}{port}"
+        return parsed._replace(netloc=netloc).geturl()
 
     def _slugify_labels(self):
         """Slugifies the labels in the job manifest."""

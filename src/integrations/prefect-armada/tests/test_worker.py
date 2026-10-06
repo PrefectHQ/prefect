@@ -207,6 +207,43 @@ class TestArmadaWorkerJobConfiguration:
         } in env
         assert "resolves to the job's own pod" not in caplog.text
 
+    @pytest.mark.parametrize(
+        "api_url",
+        [
+            "http://localhost.example.com:4200/api",
+            "http://mylocalhost:4200/api",
+            "http://prefect.example.com:4200/localhost/api",
+            "http://10.127.0.0.1:4200/api",
+        ],
+    )
+    async def test_prepare_for_flow_run_leaves_a_url_merely_containing_a_local_host_alone(
+        self, default_configuration, flow_run, caplog, api_url
+    ):
+        default_configuration.api_dns_name = "172.18.0.1"
+        default_configuration.env = {"PREFECT_API_URL": api_url}
+
+        default_configuration.prepare_for_flow_run(flow_run)
+
+        env = default_configuration.job_manifest["podSpec"]["containers"][0]["env"]
+        assert {"name": "PREFECT_API_URL", "value": api_url} in env
+        assert "resolves to the job's own pod" not in caplog.text
+
+    async def test_prepare_for_flow_run_rewrites_only_the_host_of_a_local_api_url(
+        self, default_configuration, flow_run
+    ):
+        default_configuration.api_dns_name = "172.18.0.1"
+        default_configuration.env = {
+            "PREFECT_API_URL": "http://user:pass@localhost:4200/localhost/api?x=localhost"
+        }
+
+        default_configuration.prepare_for_flow_run(flow_run)
+
+        env = default_configuration.job_manifest["podSpec"]["containers"][0]["env"]
+        assert {
+            "name": "PREFECT_API_URL",
+            "value": "http://user:pass@172.18.0.1:4200/localhost/api?x=localhost",
+        } in env
+
     async def test_prepare_for_flow_run_warns_about_an_unreachable_api_url(
         self, default_configuration, flow_run, caplog
     ):
