@@ -268,7 +268,22 @@ class TestArmadaWorkerJobConfiguration:
 
         assert configuration.api_dns_name == "172.18.0.1"
 
-    async def test_queue_defaults_to_the_worker_setting(
+    def test_default_template_shows_the_default_queue(self):
+        template = ArmadaWorker.get_default_base_job_template()
+
+        assert template["variables"]["properties"]["queue"]["default"] == "prefect"
+        assert "queue" not in template["variables"].get("required", [])
+
+    def test_default_template_shows_the_queue_from_the_setting(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE", "batch")
+
+        template = ArmadaWorker.get_default_base_job_template()
+
+        assert template["variables"]["properties"]["queue"]["default"] == "batch"
+
+    async def test_queue_defaults_to_the_setting_when_the_template_is_created(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE", "batch")
@@ -279,7 +294,19 @@ class TestArmadaWorkerJobConfiguration:
 
         assert configuration.queue == "batch"
 
-    async def test_queue_from_the_work_pool_variables_overrides_the_worker_setting(
+    async def test_queue_from_the_work_pool_overrides_the_worker_setting(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        template = ArmadaWorker.get_default_base_job_template()
+        monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE", "batch")
+
+        configuration = await ArmadaWorkerJobConfiguration.from_template_and_values(
+            template, {}
+        )
+
+        assert configuration.queue == "prefect"
+
+    async def test_queue_from_the_work_pool_variables_overrides_the_default(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE", "batch")
@@ -290,11 +317,18 @@ class TestArmadaWorkerJobConfiguration:
 
         assert configuration.queue == "analytics"
 
-    def test_default_template_does_not_fix_the_queue(self):
+    async def test_queue_falls_back_to_the_worker_setting_without_a_pool_default(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         template = ArmadaWorker.get_default_base_job_template()
+        del template["variables"]["properties"]["queue"]["default"]
+        monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE", "batch")
 
-        assert "default" not in template["variables"]["properties"]["queue"]
-        assert "queue" not in template["variables"].get("required", [])
+        configuration = await ArmadaWorkerJobConfiguration.from_template_and_values(
+            template, {}
+        )
+
+        assert configuration.queue == "batch"
 
     async def test_prepare_for_flow_run_slugifies_labels_and_annotations(
         self, default_configuration, flow_run

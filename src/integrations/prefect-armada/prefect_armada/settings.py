@@ -148,8 +148,10 @@ class ArmadaWorkerSettings(PrefectBaseSettings):
 
     default_queue: str = Field(
         default="prefect",
-        description="The Armada queue jobs are submitted to when a work pool does "
-        "not specify one.",
+        description="The Armada queue a work pool submits jobs to by default. It "
+        "is written into the default base job template, so a work pool keeps the "
+        "value in effect where the pool was created; change the pool's `queue` "
+        "variable to change it afterwards.",
     )
 
     add_grpc_keepalive: bool = Field(

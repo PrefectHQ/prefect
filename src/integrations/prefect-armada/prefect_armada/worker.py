@@ -254,6 +254,20 @@ class ArmadaImagePullPolicy(enum.Enum):
     NEVER = "Never"
 
 
+def _get_default_queue() -> str:
+    """Returns the Armada queue used when a work pool does not specify one."""
+    return ArmadaSettings().worker.default_queue
+
+
+def _add_default_queue_to_schema(schema: dict[str, Any]) -> None:
+    """Publishes the default queue in the `queue` variable's schema.
+
+    Pydantic leaves a `default_factory` out of the JSON schema, which would
+    leave a work pool's defaults showing no queue at all.
+    """
+    schema["default"] = _get_default_queue()
+
+
 class ArmadaWorkerJobConfiguration(BaseJobConfiguration):
     """
     Configuration class used by the Armada worker.
@@ -291,7 +305,7 @@ class ArmadaWorkerJobConfiguration(BaseJobConfiguration):
             "this job configuration."
         ),
     )
-    queue: str = Field(default_factory=lambda: ArmadaSettings().worker.default_queue)
+    queue: str = Field(default_factory=_get_default_queue)
     job_set_id: str | None = Field(default=None)
     namespace: str = Field(default="default")
     job_manifest: dict[str, Any] = Field(
@@ -798,16 +812,17 @@ class ArmadaWorkerVariables(BaseVariables):
         default_factory=dict,
         description="Annotations applied to Armada jobs created by the worker.",
     )
-    # A factory keeps the default out of the work pool's variable schema, so a
-    # pool that does not set a queue falls back to the worker's own setting
-    # rather than to a value fixed when the pool was created.
+    # The setting is resolved into the schema as well as the model, so a work
+    # pool's defaults show the queue its jobs go to and every worker polling
+    # the pool submits to that queue, whatever its own setting says.
     queue: str = Field(
-        default_factory=lambda: ArmadaSettings().worker.default_queue,
+        default_factory=_get_default_queue,
         description="The Armada queue to submit jobs to. The queue must already "
         "exist and the worker's credentials must be permitted to submit to it. "
-        "If not set, the worker's "
-        "`PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE` setting is used, "
-        "which defaults to `prefect`.",
+        "A new work pool defaults to the "
+        "`PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE` setting of the "
+        "process that creates it, which defaults to `prefect`.",
+        json_schema_extra=_add_default_queue_to_schema,
     )
     job_set_id: str | None = Field(
         default=None,

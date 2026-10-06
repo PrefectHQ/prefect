@@ -158,7 +158,7 @@ Set these on the work pool, on a deployment, or per flow run to control how jobs
 | `armada_disable_ssl` | `false` | Whether to connect to the Armada server without TLS. |
 | `armada_root_certificates_path` | none | Path on the worker's host to a PEM file of root certificates verifying the Armada server's TLS certificate. Defaults to gRPC's trust roots. |
 | `api_dns_name` | none | The address the Prefect API is reachable at from inside the cluster, substituted for a local address in each job's `PREFECT_API_URL`. |
-| `queue` | the worker's `PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE` setting (`prefect`) | The Armada queue to submit jobs to. The queue must already exist. |
+| `queue` | `prefect` | The Armada queue to submit jobs to. The queue must already exist. A new work pool takes its default from the `PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE` setting of the process that creates it. |
 | `job_set_id` | one per flow run | The Armada job set to submit jobs to. |
 | `namespace` | `default` | The Kubernetes namespace Armada runs jobs in. |
 | `priority` | `1.0` | The Armada priority of created jobs. Lower values are higher priority. |
@@ -353,7 +353,7 @@ All settings are configured through environment variables prefixed with `PREFECT
 | `CONNECTION_TOKEN` | none | A bearer token to authenticate with Armada, without the `Bearer` prefix. |
 | `CONNECTION_USERNAME` | none | The username for basic auth. |
 | `CONNECTION_PASSWORD` | none | The password for basic auth. |
-| `WORKER_DEFAULT_QUEUE` | `prefect` | The queue used when a work pool does not specify one. |
+| `WORKER_DEFAULT_QUEUE` | `prefect` | The default `queue` given to work pools created by this process. Existing work pools keep the queue shown in their defaults. |
 | `WORKER_ADD_GRPC_KEEPALIVE` | `true` | Whether to enable gRPC keepalive pings on channels the worker opens. |
 | `WORKER_SUBMIT_JOB_RETRY_MAX_RETRIES` | `3` | Attempts to submit a job before giving up. |
 | `WORKER_SUBMIT_JOB_RETRY_DELAY_SECONDS` | `1` | Fixed delay between submission retries. |
