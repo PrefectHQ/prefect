@@ -9,8 +9,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from prefect import task
 from prefect.cache_policies import (
     DEFAULT,
+    INPUTS,
     CachePolicy,
     CompoundCachePolicy,
     Inputs,
@@ -19,6 +21,7 @@ from prefect.cache_policies import (
     _None,
 )
 from prefect.context import TaskRunContext
+from prefect.utilities.hashing import hash_objects
 
 
 class TestBaseClass:
@@ -142,7 +145,7 @@ class TestInputsPolicy:
 
         policy = Inputs()
 
-        # column ordering is stabilized by the registered transform
+        # Identical column ordering yields stable keys; reordering changes the key.
         key = policy.compute_key(
             task_ctx=None,
             inputs={"df": FakeDataFrame({"a": "1", "b": "2"})},
@@ -160,6 +163,59 @@ class TestInputsPolicy:
             inputs={"df": FakeDataFrame({"a": "1", "b": "2"})},
             flow_parameters=None,
         )
+
+    def test_dataframe_cache_preserves_order_and_ignores_legacy_results(
+        self, tmp_path: Path
+    ):
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame({"a": [1, 2], "b": [10, 20]})
+        reordered = df[["b", "a"]]
+        executions = []
+
+        @task(cache_policy=INPUTS, persist_result=True, result_storage=tmp_path)
+        def first_column(df) -> list[int]:
+            executions.append(list(df.columns))
+            return df.iloc[:, 0].tolist()
+
+        # Persist a result using the pre-fix transform, as an older version would.
+        legacy_task = first_column.with_options(
+            cache_key_fn=lambda _, inputs: hash_objects(
+                {"df": [inputs["df"][col] for col in sorted(inputs["df"].columns)]}
+            )
+        )
+        legacy = legacy_task(reordered, return_state=True)
+        original = first_column(df, return_state=True)
+        changed = first_column(reordered, return_state=True)
+        repeated = first_column(df.copy(), return_state=True)
+
+        assert legacy.result() == [10, 20]
+        assert original.name == "Completed"
+        assert original.result() == [1, 2]
+        assert changed.name == "Completed"
+        assert changed.result() == [10, 20]
+        assert repeated.name == "Cached"
+        assert repeated.result() == [1, 2]
+        assert executions == [["b", "a"], ["a", "b"], ["b", "a"]]
+
+    def test_dataframe_key_is_stable_across_processes(self):
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame({"b": [10, 20], "a": [1, 2]})
+        key = INPUTS.compute_key(task_ctx=None, inputs={"df": df}, flow_parameters={})
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import pandas as pd; from prefect.cache_policies import INPUTS; "
+                    "df = pd.DataFrame({'b': [10, 20], 'a': [1, 2]}); "
+                    "print(INPUTS.compute_key(None, {'df': df}, {}))"
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert key == result.stdout.strip()
 
     def test_importing_module_does_not_import_optional_dependencies(
         self, tmp_path: Path
