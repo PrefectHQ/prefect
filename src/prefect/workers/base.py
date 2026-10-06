@@ -38,7 +38,7 @@ from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_
 from prefect._internal.launchers import resolve_bundle_step_with_launcher
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect._internal.schemas.validators import return_v_or_none
-from prefect._internal.server_maintenance import maintenance_backoff_ends_at
+from prefect._internal.server_maintenance import polling_window_start
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import (
@@ -137,13 +137,8 @@ def _is_within_polling_window(
     it sends, so the window counts from the later of `last_polled_time` and the
     end of the latest maintenance back-off.
     """
-    window_start = last_polled_time
-    backoff_ends_at = maintenance_backoff_ends_at()
-    if backoff_ends_at is not None and backoff_ends_at > window_start:
-        window_start = backoff_ends_at
-
     seconds_since_window_start = (
-        prefect.types._datetime.now("UTC") - window_start
+        prefect.types._datetime.now("UTC") - polling_window_start(last_polled_time)
     ).total_seconds()
     return seconds_since_window_start <= query_interval_seconds * 30
 
