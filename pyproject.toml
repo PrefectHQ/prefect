@@ -7,7 +7,7 @@ name = "prefect"
 dynamic = ["version"]
 description = "Workflow orchestration and management."
 readme = "README.md"
-requires-python = ">=3.10,<3.15"
+requires-python = ">=3.11,<3.15"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
@@ -16,7 +16,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -148,16 +147,8 @@ dev = [
     "pre-commit>=4.1.0",
     "pluggy>=1.5.0",
     "pyright>=1.1.390",
-    # Keep Python 3.10 on pytest 8. Upgrading 3.10 to pytest 9 forces a newer
-    # pytest-asyncio line, and pytest-asyncio >=1.1 pulls in
-    # backports-asyncio-runner on Python <3.11. That replaces C-accelerated
-    # asyncio.Task with a pure-Python implementation and slows our async-heavy
-    # test suite enough to hit CI timeouts. Remove this split when we drop
-    # Python 3.10 support.
-    "pytest>=9,<10; python_version >= '3.11'",
-    "pytest>=8.4.2,<9; python_version < '3.11'",
-    "pytest-asyncio>=1.1,<1.5; python_version >= '3.11'",
-    "pytest-asyncio>=0.21,<1.1; python_version < '3.11'",
+    "pytest>=9,<10",
+    "pytest-asyncio>=1.1,<1.5",
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
@@ -324,7 +315,7 @@ filterwarnings = [
     "ignore:`PREFECT_API_URL` should have `/api` after the base URL.:UserWarning",
     "ignore:datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version.:DeprecationWarning",
     "ignore::DeprecationWarning:pendulum.*",                                                                             # TODO: remove when pendulum is removed
-    "ignore:SelectableGroups dict interface is deprecated:DeprecationWarning",                                              # opentelemetry on Python 3.10
+    "ignore:SelectableGroups dict interface is deprecated:DeprecationWarning",                                              # opentelemetry
     "ignore::DeprecationWarning:botocore.*",
     "ignore::DeprecationWarning:coolname.*",
     "ignore:Runner\\.execute_flow_run has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
@@ -344,7 +335,7 @@ filterwarnings = [
 plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
 follow_imports = "skip"
-python_version = "3.10"
+python_version = "3.11"
 
 [tool.coverage.run]
 branch = true
