@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.testing import retry_asserts
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.database.orm_models import ORMEventResource
 from prefect.server.events.schemas.events import (
@@ -450,6 +451,44 @@ async def test_successful_flush_resets_retry_counter(
 
     # Event should be persisted after retry succeeded
     assert (await get_event_count(session)) >= 1
+
+
+async def test_periodic_flush_survives_cancelled_error_from_database(
+    event: ReceivedEvent,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23306
+
+    During a database outage the driver can raise `CancelledError` from inside
+    `flush()`. That must neither drop the batch nor end periodic flushing.
+    """
+    call_count = 0
+
+    async def interrupted_write_events(session, events):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise asyncio.CancelledError()
+        return await write_events(session=session, events=events)
+
+    monkeypatch.setattr(
+        "prefect.server.events.services.event_persister.write_events",
+        interrupted_write_events,
+    )
+
+    async with event_persister.create_handler(
+        batch_size=100,  # only the periodic flush can persist the event
+        flush_every=timedelta(seconds=0.01),
+    ) as handler:
+        message = CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+        await handler(message)
+
+        # assert before exiting the context, since teardown also flushes
+        async for attempt in retry_asserts(max_attempts=20, delay=0.25):
+            with attempt:
+                assert await get_event(event.id) is not None
+        assert call_count >= 2
 
 
 async def test_logs_warning_at_high_queue_capacity(

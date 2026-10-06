@@ -171,15 +171,30 @@ async def create_handler(
                     )
                     for event in batch:
                         queue.put_nowait(event)
+            except asyncio.CancelledError:
+                # database drivers can raise `CancelledError` when a connection
+                # is lost, so keep the batch instead of losing it
+                for event in batch:
+                    queue.put_nowait(event)
+                raise
 
     async def flush_periodically():
-        try:
-            while True:
+        while True:
+            try:
                 await asyncio.sleep(flush_every.total_seconds())
                 if queue.qsize():
                     await flush()
-        except asyncio.CancelledError:
-            return
+            except asyncio.CancelledError:
+                if stopping:
+                    return
+                # this task was not cancelled by the handler, so the error came
+                # from within `flush()` (e.g. a database outage); letting it end
+                # this task would stop periodic flushing for good (issue #23306)
+                logger.warning(
+                    "Periodic event flush was interrupted; continuing", exc_info=True
+                )
+            except Exception:
+                logger.exception("Error during periodic event flush; continuing")
 
     async def message_handler(message: Message):
         if not message.data:
@@ -208,11 +223,13 @@ async def create_handler(
         if queue.qsize() >= batch_size:
             await flush()
 
+    stopping = False
     periodic_flush = asyncio.create_task(flush_periodically())
 
     try:
         yield message_handler
     finally:
+        stopping = True
         periodic_flush.cancel()
         if queue.qsize():
             await flush()
