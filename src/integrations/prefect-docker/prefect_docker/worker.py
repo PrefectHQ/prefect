@@ -1074,7 +1074,6 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         """
         container: "Container" = docker_client.containers.get(container_id)
 
-        status = container.status
         self._logger.info(
             f"Docker container {container.name!r} has status {container.status!r}"
         )
@@ -1103,15 +1102,13 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         f"from container {container.name}."
                     )
 
+        wait_result = container.wait(timeout=configuration.container_wait_timeout)
+        try:
             container.reload()
-            if container.status != status:
-                self._logger.info(
-                    f"Docker container {container.name!r} has status"
-                    f" {container.status!r}"
-                )
-            yield container
-
-        container.wait(timeout=configuration.container_wait_timeout)
+        finally:
+            # The wait response remains authoritative if auto-removal prevents
+            # inspecting the container after it exits.
+            container.attrs["State"]["ExitCode"] = wait_result["StatusCode"]
         self._logger.info(
             f"Docker container {container.name!r} has status {container.status!r}"
         )
