@@ -36,52 +36,52 @@ class TestDiscoverFlows:
             {
                 "flow_name": "foobar",
                 "function_name": "foobar",
-                "filepath": str(
+                "filepath": (
                     project_dir / "nested-project" / "implicit_relative.py"
-                ),
+                ).as_posix(),
             },
             {
                 "flow_name": "foobar",
                 "function_name": "foobar",
-                "filepath": str(
+                "filepath": (
                     project_dir / "nested-project" / "explicit_relative.py"
-                ),
+                ).as_posix(),
             },
             {
                 "flow_name": "An important name",
                 "function_name": "my_flow",
-                "filepath": str(project_dir / "flows" / "hello.py"),
+                "filepath": (project_dir / "flows" / "hello.py").as_posix(),
             },
             {
                 "flow_name": "Second important name",
                 "function_name": "my_flow2",
-                "filepath": str(project_dir / "flows" / "hello.py"),
+                "filepath": (project_dir / "flows" / "hello.py").as_posix(),
             },
             {
                 "flow_name": "failed",
                 "function_name": "failed_flow",
-                "filepath": str(
+                "filepath": (
                     project_dir / "import-project" / "my_module" / "flow.py"
-                ),
+                ).as_posix(),
             },
             {
                 "flow_name": "test",
                 "function_name": "prod_flow",
-                "filepath": str(
+                "filepath": (
                     project_dir / "import-project" / "my_module" / "flow.py"
-                ),
+                ).as_posix(),
             },
             {
                 "flow_name": "test",
                 "function_name": "test_flow",
-                "filepath": str(
+                "filepath": (
                     project_dir / "import-project" / "my_module" / "flow.py"
-                ),
+                ).as_posix(),
             },
             {
                 "flow_name": "uses_block",
                 "function_name": "uses_block",
-                "filepath": str(project_dir / "flows" / "uses_block.py"),
+                "filepath": (project_dir / "flows" / "uses_block.py").as_posix(),
             },
         ]
 
@@ -130,6 +130,14 @@ class TestDiscoverFlows:
             flow["flow_name"] == "regular_flow" and flow["filepath"].endswith("flow.py")
             for flow in flows
         )
+
+    @pytest.mark.windows
+    async def test_returns_posix_filepaths_on_windows(self, project_dir: Path):
+        flows = await search_for_flow_functions(str(project_dir))
+
+        assert flows
+        for flow in flows:
+            assert "\\" not in flow["filepath"]
 
     async def test_prefect_can_be_imported_from_non_main_thread(self):
         """testing due to `asyncio.Semaphore` error when importing prefect from a worker thread
