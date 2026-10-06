@@ -6,10 +6,9 @@ import copy
 import datetime
 import logging
 import os
-import threading
 import uuid
 import warnings
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, ExitStack
 from functools import partial
 from importlib.metadata import distributions
 from typing import (
@@ -39,6 +38,7 @@ from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_
 from prefect._internal.launchers import resolve_bundle_step_with_launcher
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect._internal.schemas.validators import return_v_or_none
+from prefect._internal.server_maintenance import maintenance_backoff_ends_at
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import (
@@ -124,6 +124,28 @@ def _is_transient_api_error(exc: httpx.HTTPError) -> bool:
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code >= 500
     return isinstance(exc, httpx.TransportError)
+
+
+def _is_within_polling_window(
+    last_polled_time: datetime.datetime, query_interval_seconds: float
+) -> bool:
+    """
+    Whether a worker that last polled at `last_polled_time` is within its
+    polling window of `query_interval_seconds` x 30.
+
+    While the Prefect API is in maintenance, requests wait out the `Retry-After`
+    it sends, so the window counts from the later of `last_polled_time` and the
+    end of the latest maintenance back-off.
+    """
+    window_start = last_polled_time
+    backoff_ends_at = maintenance_backoff_ends_at()
+    if backoff_ends_at is not None and backoff_ends_at > window_start:
+        window_start = backoff_ends_at
+
+    seconds_since_window_start = (
+        prefect.types._datetime.now("UTC") - window_start
+    ).total_seconds()
+    return seconds_since_window_start <= query_interval_seconds * 30
 
 
 class BaseJobConfiguration(BaseModel):
@@ -848,9 +870,25 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             with_healthcheck: If set, the worker will start a healthcheck server.
             printer: A `print`-like function where logs will be reported.
         """
-        healthcheck_server = None
-        healthcheck_thread = None
+        healthcheck_stack = ExitStack()
         try:
+            if with_healthcheck:
+                from prefect.workers.server import (
+                    _run_healthcheck_server,  # pyright: ignore[reportPrivateUsage]
+                )
+
+                # Started before setup, which syncs with the API: while the API is
+                # in maintenance that sync waits, and the healthcheck must still
+                # answer.
+                query_interval_seconds = PREFECT_WORKER_QUERY_SECONDS.value()
+                healthcheck_stack.enter_context(
+                    _run_healthcheck_server(
+                        lambda: self.is_worker_still_polling(
+                            query_interval_seconds=query_interval_seconds
+                        )
+                    )
+                )
+
             async with self as worker:
                 polling_service = partial(
                     critical_service_loop,
@@ -887,21 +925,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
                     start_client_metrics_server()
 
-                    if with_healthcheck:
-                        from prefect.workers.server import build_healthcheck_server
-
-                        # we'll start the ASGI server in a separate thread so that
-                        # uvicorn does not block the main thread
-                        healthcheck_server = build_healthcheck_server(
-                            worker=worker,
-                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
-                        )
-                        healthcheck_thread = threading.Thread(
-                            name="healthcheck-server-thread",
-                            target=healthcheck_server.run,
-                            daemon=True,
-                        )
-                        healthcheck_thread.start()
                     printer(f"Worker {worker.name!r} started!")
 
                 # If running once, wait for active runs to finish before teardown
@@ -915,12 +938,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                         await anyio.sleep(0.1)
         finally:
             stop_client_metrics_server()
-
-            if healthcheck_server and healthcheck_thread:
-                self._logger.debug("Stopping healthcheck server...")
-                healthcheck_server.should_exit = True
-                healthcheck_thread.join()
-                self._logger.debug("Healthcheck server stopped.")
+            healthcheck_stack.close()
 
         printer(f"Worker {worker.name!r} stopped!")
 
@@ -1299,18 +1317,21 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         the loop services - we will evaluate if the _last_polled_time
         was within that interval x 30 (so 10s -> 5m)
 
+        While the Prefect API is in maintenance, requests wait out the
+        `Retry-After` it sends, so the window counts from the later of
+        `self._last_polled_time` and the end of the latest maintenance back-off.
+
         The instance property `self._last_polled_time`
         is currently set/updated in `get_and_submit_flow_runs()`
         """
-        threshold_seconds = query_interval_seconds * 30
-
-        seconds_since_last_poll = (
-            prefect.types._datetime.now("UTC") - self._last_polled_time
-        ).total_seconds()
-
-        is_still_polling = seconds_since_last_poll <= threshold_seconds
+        is_still_polling = _is_within_polling_window(
+            self._last_polled_time, query_interval_seconds
+        )
 
         if not is_still_polling:
+            seconds_since_last_poll = (
+                prefect.types._datetime.now("UTC") - self._last_polled_time
+            ).total_seconds()
             self._logger.error(
                 f"Worker has not polled in the last {seconds_since_last_poll} seconds "
                 "and should be restarted"

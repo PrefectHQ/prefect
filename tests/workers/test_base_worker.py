@@ -6,9 +6,10 @@ import copy
 import logging
 import sys
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
+from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Generator, Optional, Type
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, Mock
 
@@ -27,8 +28,13 @@ from websockets.frames import Close
 
 import prefect
 import prefect.client.schemas as schemas
+import prefect.types._datetime
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
+from prefect._internal.server_maintenance import (
+    record_maintenance_backoff,
+    reset_maintenance_backoff,
+)
 from prefect._internal.testing import retry_asserts
 from prefect._internal.uuid7 import uuid7
 from prefect.blocks.core import Block
@@ -59,6 +65,7 @@ from prefect.exceptions import (
     CrashedRun,
     ObjectAlreadyExists,
     ObjectNotFound,
+    PrefectHTTPStatusError,
 )
 from prefect.filesystems import WritableFileSystem
 from prefect.flows import bind_flow_to_infrastructure, flow
@@ -70,10 +77,12 @@ from prefect.server.schemas.core import Deployment
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_CLIENT_RETRY_JITTER_FACTOR,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_DEBUG_MODE,
     PREFECT_WORKER_ENABLE_CANCELLATION,
+    PREFECT_WORKER_WEBSERVER_PORT,
     get_current_settings,
     temporary_settings,
 )
@@ -110,6 +119,7 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
+from prefect.workers.server import _WorkerStartupHealthcheck
 
 pytestmark = [pytest.mark.usefixtures("asserting_events_worker"), pytest.mark.clear_db]
 
@@ -2461,7 +2471,220 @@ async def test_worker_last_polled_health_check(work_pool: WorkPool):
         raise e.exceptions[0]
 
 
+@pytest.fixture
+def clear_maintenance_backoff() -> Generator[None, None, None]:
+    reset_maintenance_backoff()
+    yield
+    reset_maintenance_backoff()
+
+
+def maintenance_response(retry_after: str) -> httpx.Response:
+    return httpx.Response(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        headers={"Prefect-Maintenance": "true", "Retry-After": retry_after},
+    )
+
+
+# Over the websocket worker channel, background loops would advance the mocked
+# clock; over REST, the only time that passes is what the client is told to wait.
+@pytest.mark.usefixtures(
+    "clear_maintenance_backoff", "worker_channel_endpoint_unavailable"
+)
+class TestHealthCheckDuringServerMaintenance:
+    @pytest.fixture(autouse=True)
+    def disable_jitter(self) -> Generator[None, None, None]:
+        with temporary_settings({PREFECT_CLIENT_RETRY_JITTER_FACTOR: 0}):
+            yield
+
+    def mock_scheduled_flow_runs(
+        self, respx_mock: respx.MockRouter, work_pool: WorkPool, side_effect: Any
+    ) -> None:
+        respx_mock.post(
+            path__regex=rf"/work_pools/{work_pool.name}/get_scheduled_flow_runs$"
+        ).mock(side_effect=side_effect)
+        respx_mock.route().pass_through()
+
+    async def test_worker_waiting_out_maintenance_reports_healthy(
+        self,
+        work_pool: WorkPool,
+        respx_mock: respx.MockRouter,
+        mock_anyio_sleep: AsyncMock,
+    ):
+        worker = WorkerTestImpl(work_pool_name=work_pool.name)
+        healthy_at_each_attempt: list[bool] = []
+
+        def in_maintenance_for_three_attempts(request: httpx.Request) -> httpx.Response:
+            healthy_at_each_attempt.append(
+                worker.is_worker_still_polling(query_interval_seconds=10)
+            )
+            if len(healthy_at_each_attempt) <= 3:
+                return maintenance_response("200")
+            return httpx.Response(status.HTTP_200_OK, json=[])
+
+        self.mock_scheduled_flow_runs(
+            respx_mock, work_pool, in_maintenance_for_three_attempts
+        )
+        async with worker:
+            await worker.get_and_submit_flow_runs()
+
+        # The last two attempts come 400s and 600s after the previous poll, past
+        # the 300s polling window, while the poll is waiting out maintenance.
+        assert healthy_at_each_attempt == [True, True, True, True]
+
+    async def test_worker_gets_the_polling_window_after_maintenance_ends(
+        self,
+        work_pool: WorkPool,
+        respx_mock: respx.MockRouter,
+        mock_anyio_sleep: AsyncMock,
+    ):
+        worker = WorkerTestImpl(work_pool_name=work_pool.name)
+        attempts: list[tuple[datetime, bool]] = []
+
+        def unavailable_after_maintenance(request: httpx.Request) -> httpx.Response:
+            attempts.append(
+                (
+                    prefect.types._datetime.now("UTC"),
+                    worker.is_worker_still_polling(query_interval_seconds=10),
+                )
+            )
+            if len(attempts) <= 3:
+                return maintenance_response("200")
+            # Maintenance is over, but the API is not answering yet.
+            return httpx.Response(status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        self.mock_scheduled_flow_runs(
+            respx_mock, work_pool, unavailable_after_maintenance
+        )
+        async with worker:
+            with pytest.raises(PrefectHTTPStatusError):
+                await worker.get_and_submit_flow_runs()
+
+            assert all(healthy for _, healthy in attempts)
+
+            # The first attempt after the last maintenance back-off.
+            maintenance_ended_at = attempts[3][0]
+            await anyio.sleep(
+                (
+                    maintenance_ended_at
+                    + timedelta(seconds=299)
+                    - prefect.types._datetime.now("UTC")
+                ).total_seconds()
+            )
+            assert worker.is_worker_still_polling(query_interval_seconds=10)
+
+            await anyio.sleep(2)
+            assert not worker.is_worker_still_polling(query_interval_seconds=10)
+
+    async def test_ordinary_retries_do_not_extend_the_polling_window(
+        self,
+        work_pool: WorkPool,
+        respx_mock: respx.MockRouter,
+        mock_anyio_sleep: AsyncMock,
+    ):
+        worker = WorkerTestImpl(work_pool_name=work_pool.name)
+        healthy_at_each_attempt: list[bool] = []
+
+        def unavailable_without_maintenance(request: httpx.Request) -> httpx.Response:
+            healthy_at_each_attempt.append(
+                worker.is_worker_still_polling(query_interval_seconds=10)
+            )
+            if len(healthy_at_each_attempt) <= 3:
+                return httpx.Response(
+                    status.HTTP_503_SERVICE_UNAVAILABLE, headers={"Retry-After": "200"}
+                )
+            return httpx.Response(status.HTTP_200_OK, json=[])
+
+        self.mock_scheduled_flow_runs(
+            respx_mock, work_pool, unavailable_without_maintenance
+        )
+        async with worker:
+            await worker.get_and_submit_flow_runs()
+
+        # Same timings as maintenance, but these retries do not extend the window.
+        assert healthy_at_each_attempt == [True, True, False, False]
+
+    async def test_startup_healthcheck_uses_the_polling_window_until_the_worker_exists(
+        self, work_pool: WorkPool, mock_anyio_sleep: AsyncMock
+    ):
+        healthcheck = _WorkerStartupHealthcheck(query_interval_seconds=10)
+
+        await anyio.sleep(299)
+        assert healthcheck()
+
+        record_maintenance_backoff(600)
+        await anyio.sleep(600 + 299)
+        assert healthcheck()
+
+        await anyio.sleep(2)
+        assert not healthcheck()
+
+        healthcheck.worker = WorkerTestImpl(work_pool_name=work_pool.name)
+        assert healthcheck()
+
+
 class TestBaseWorkerStart:
+    @pytest.mark.usefixtures(
+        "clear_maintenance_backoff", "worker_channel_endpoint_unavailable"
+    )
+    async def test_healthcheck_answers_while_startup_waits_out_maintenance(
+        self,
+        work_pool: WorkPool,
+        respx_mock: respx.MockRouter,
+        monkeypatch: pytest.MonkeyPatch,
+        unused_tcp_port: int,
+    ):
+        waiting_out_maintenance = anyio.Event()
+        maintenance_over = anyio.Event()
+        original_sleep = anyio.sleep
+
+        async def sleep(delay: float) -> None:
+            if delay == 600:
+                waiting_out_maintenance.set()
+                await maintenance_over.wait()
+            else:
+                await original_sleep(delay)
+
+        monkeypatch.setattr("anyio.sleep", sleep)
+
+        def in_maintenance_once(
+            request: httpx.Request,
+        ) -> httpx.Response | httpx.Request:
+            if work_pool_route.call_count == 0:
+                return maintenance_response("600")
+            return request
+
+        work_pool_route = respx_mock.get(
+            path__regex=rf"/work_pools/{work_pool.name}$"
+        ).mock(side_effect=in_maintenance_once)
+        respx_mock.route().pass_through()
+
+        worker = WorkerTestImpl(work_pool_name=work_pool.name)
+
+        with temporary_settings(
+            {
+                PREFECT_CLIENT_RETRY_JITTER_FACTOR: 0,
+                PREFECT_WORKER_WEBSERVER_PORT: unused_tcp_port,
+            }
+        ):
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(
+                    partial(worker.start, run_once=True, with_healthcheck=True)
+                )
+                response = None
+                with anyio.fail_after(10):
+                    await waiting_out_maintenance.wait()
+                    async with httpx.AsyncClient() as http:
+                        while response is None:
+                            try:
+                                response = await http.get(
+                                    f"http://localhost:{unused_tcp_port}/health"
+                                )
+                            except httpx.ConnectError:
+                                await original_sleep(0.1)
+
+                assert response.status_code == 200
+                maintenance_over.set()
+
     async def test_start_syncs_with_the_server(self, work_pool: WorkPool):
         worker = WorkerTestImpl(work_pool_name=work_pool.name)
         assert worker._work_pool is None

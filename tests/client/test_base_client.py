@@ -2,18 +2,24 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
-from typing import Any, AsyncGenerator, Dict, List, Tuple
+from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple
 from unittest import mock
 from unittest.mock import AsyncMock
 
 import httpx
 import pytest
+import respx
 from httpx import AsyncClient, Client, Request, Response
 
 import prefect
 import prefect.client
 import prefect.client.constants
+import prefect.types._datetime
 from prefect._internal.compatibility.starlette import status
+from prefect._internal.server_maintenance import (
+    maintenance_backoff_ends_at,
+    reset_maintenance_backoff,
+)
 from prefect.client.base import (
     PrefectHttpxAsyncClient,
     PrefectHttpxSyncClient,
@@ -747,6 +753,120 @@ class TestPrefectHttpxAsyncClient:
 
         # Should have tried more times than the normal retry limit
         assert base_client_send.call_count == retry_count + 1
+
+
+@pytest.fixture
+def clear_maintenance_backoff() -> Generator[None, None, None]:
+    reset_maintenance_backoff()
+    yield
+    reset_maintenance_backoff()
+
+
+def maintenance_response(retry_after: str) -> Response:
+    return Response(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        headers={"Prefect-Maintenance": "true", "Retry-After": retry_after},
+    )
+
+
+@pytest.mark.usefixtures("clear_maintenance_backoff", "disable_jitter")
+class TestMaintenanceBackoff:
+    async def test_async_client_records_when_its_maintenance_backoff_ends(
+        self, respx_mock: respx.MockRouter, mock_anyio_sleep: AsyncMock
+    ):
+        respx_mock.get("http://prefect.test/api/flows").mock(
+            side_effect=[maintenance_response("120"), Response(status.HTTP_200_OK)]
+        )
+
+        before = prefect.types._datetime.now("UTC")
+        async with PrefectHttpxAsyncClient(
+            base_url="http://prefect.test/api"
+        ) as client:
+            await client.get("/flows")
+
+        backoff_ends_at = maintenance_backoff_ends_at()
+        assert backoff_ends_at is not None
+        assert before + timedelta(seconds=120) <= backoff_ends_at
+        assert backoff_ends_at <= prefect.types._datetime.now("UTC")
+
+    async def test_ordinary_retry_is_not_a_maintenance_backoff(
+        self, respx_mock: respx.MockRouter, mock_anyio_sleep: AsyncMock
+    ):
+        respx_mock.get("http://prefect.test/api/flows").mock(
+            side_effect=[
+                Response(
+                    status.HTTP_503_SERVICE_UNAVAILABLE, headers={"Retry-After": "120"}
+                ),
+                Response(status.HTTP_200_OK),
+            ]
+        )
+
+        async with PrefectHttpxAsyncClient(
+            base_url="http://prefect.test/api"
+        ) as client:
+            await client.get("/flows")
+
+        assert maintenance_backoff_ends_at() is None
+
+    def test_sync_client_records_when_its_maintenance_backoff_ends(
+        self, respx_mock: respx.MockRouter, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr("time.sleep", lambda _: None)
+        respx_mock.get("http://prefect.test/api/flows").mock(
+            side_effect=[maintenance_response("60"), Response(status.HTTP_200_OK)]
+        )
+
+        before = prefect.types._datetime.now("UTC")
+        with PrefectHttpxSyncClient(base_url="http://prefect.test/api") as client:
+            client.get("/flows")
+        after = prefect.types._datetime.now("UTC")
+
+        backoff_ends_at = maintenance_backoff_ends_at()
+        assert backoff_ends_at is not None
+        assert before + timedelta(seconds=60) <= backoff_ends_at
+        assert backoff_ends_at <= after + timedelta(seconds=60)
+
+    def test_a_shorter_backoff_does_not_cut_a_longer_one_short(
+        self, respx_mock: respx.MockRouter, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr("time.sleep", lambda _: None)
+        respx_mock.get("http://prefect.test/api/flows").mock(
+            side_effect=[
+                maintenance_response("300"),
+                Response(status.HTTP_200_OK),
+                maintenance_response("10"),
+                Response(status.HTTP_200_OK),
+            ]
+        )
+
+        with PrefectHttpxSyncClient(base_url="http://prefect.test/api") as client:
+            client.get("/flows")
+            longer_backoff_ends_at = maintenance_backoff_ends_at()
+            client.get("/flows")
+
+        assert maintenance_backoff_ends_at() == longer_backoff_ends_at
+
+    def test_retrying_an_exception_after_maintenance_is_not_a_maintenance_backoff(
+        self, respx_mock: respx.MockRouter, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr("time.sleep", lambda _: None)
+        respx_mock.get("http://prefect.test/api/flows").mock(
+            side_effect=[
+                maintenance_response("0"),
+                httpx.ReadTimeout("timed out"),
+                Response(status.HTTP_200_OK),
+            ]
+        )
+
+        with PrefectHttpxSyncClient(base_url="http://prefect.test/api") as client:
+            client.get("/flows")
+        after = prefect.types._datetime.now("UTC")
+
+        # The exponential back-off after the timeout (2s) is not recorded, even
+        # though the last response seen was a maintenance response.
+        backoff_ends_at = maintenance_backoff_ends_at()
+        assert backoff_ends_at is not None
+        assert backoff_ends_at <= after
 
 
 @asynccontextmanager

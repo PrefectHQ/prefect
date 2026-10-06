@@ -55,27 +55,27 @@ class TestFilterFiles:
         filtered = filter_files(tmpdir, ignore_patterns=["*.py"])
         assert "README.md" in filtered
         assert "venv" in filtered
-        assert "venv/config.json" in filtered
-        assert "utilities/README.md" in filtered
+        assert str(Path("venv/config.json")) in filtered
+        assert str(Path("utilities/README.md")) in filtered
         assert {f for f in filtered if f.endswith(".py")} == set()
 
     async def test_simple_filetype_filter_with_ignore_dirs(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["*.py"], include_dirs=False)
         assert "README.md" in filtered
         assert "venv" not in filtered
-        assert "venv/config.json" in filtered
-        assert "utilities/README.md" in filtered
+        assert str(Path("venv/config.json")) in filtered
+        assert str(Path("utilities/README.md")) in filtered
         assert {f for f in filtered if f.endswith(".py")} == set()
 
     async def test_simple_filetype_filter_with_override(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["*.py", "!*__init__.py"])
         assert "README.md" in filtered
         assert "venv" in filtered
-        assert "venv/config.json" in filtered
-        assert "utilities/README.md" in filtered
+        assert str(Path("venv/config.json")) in filtered
+        assert str(Path("utilities/README.md")) in filtered
         assert {f for f in filtered if f.endswith(".py")} == {
             "__init__.py",
-            "utilities/__init__.py",
+            str(Path("utilities/__init__.py")),
         }
 
     async def test_comments_and_empty_lines_are_ignored(self, tmpdir, messy_dir):
@@ -86,16 +86,16 @@ class TestFilterFiles:
     async def test_override_order_matters(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["!*__init__.py", "*.py"])
         assert "README.md" in filtered
-        assert "venv/config.json" in filtered
-        assert "utilities/README.md" in filtered
+        assert str(Path("venv/config.json")) in filtered
+        assert str(Path("utilities/README.md")) in filtered
         assert {f for f in filtered if f.endswith(".py")} == set()
 
     async def test_partial_directory_filter(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["utilities/*.md"])
         assert "README.md" in filtered
         assert "utilities" in filtered
-        assert "utilities/__init__.py" in filtered
-        assert "utilities/README.md" not in filtered
+        assert str(Path("utilities/__init__.py")) in filtered
+        assert str(Path("utilities/README.md")) not in filtered
 
     @pytest.mark.parametrize("include_dirs", [True, False])
     async def test_full_directory_filter(self, tmpdir, messy_dir, include_dirs):
@@ -103,7 +103,7 @@ class TestFilterFiles:
         filtered = filter_files(
             tmpdir, ignore_patterns=["venv/**"], include_dirs=include_dirs
         )
-        assert "utilities/venv" in filtered
+        assert str(Path("utilities/venv")) in filtered
         expected = {"venv"} if include_dirs else set()
         assert {f for f in filtered if f.startswith("venv")} == expected
 
@@ -114,7 +114,9 @@ class TestFilterFiles:
         )
         assert "__init__.py" in filtered
         expected = (
-            {"utilities/__pycache__", "venv/__pycache__"} if include_dirs else set()
+            {str(Path("utilities/__pycache__")), str(Path("venv/__pycache__"))}
+            if include_dirs
+            else set()
         )
         assert {f for f in filtered if "pycache" in f} == expected
 
@@ -133,7 +135,10 @@ class TestFilterFiles:
         assert "workflows" in result
         assert any("flow.py" in f for f in result)
 
-    async def test_negation_includes_nested_parent_dirs(self, tmp_path):
+    @pytest.mark.parametrize("as_posix", [False, True])
+    async def test_negation_includes_nested_parent_dirs(
+        self, tmp_path: Path, as_posix: bool
+    ):
         """All ancestor directories of a deeply-nested negation-included file
         must appear in the result."""
         (tmp_path / "a" / "b" / "c").mkdir(parents=True)
@@ -142,11 +147,44 @@ class TestFilterFiles:
         result = filter_files(
             root=str(tmp_path),
             ignore_patterns=["*", "!a/b/c/file.py"],
+            as_posix=as_posix,
         )
-        assert "a" in result
-        assert str(Path("a") / "b") in result
-        assert str(Path("a") / "b" / "c") in result
-        assert str(Path("a") / "b" / "c" / "file.py") in result
+        expected = {"a", "a/b", "a/b/c", "a/b/c/file.py"}
+        if not as_posix:
+            expected = {str(Path(path)) for path in expected}
+        assert result == expected
+
+    @pytest.mark.parametrize("include_dirs", [True, False])
+    @pytest.mark.parametrize("as_posix", [False, True])
+    def test_path_format(self, tmp_path: Path, include_dirs: bool, as_posix: bool):
+        (tmp_path / "a" / "b").mkdir(parents=True)
+        (tmp_path / "a" / "b" / "file.py").write_text("print('hi')")
+        (tmp_path / "a" / "b" / "ignored.txt").write_text("ignored")
+
+        result = filter_files(
+            str(tmp_path),
+            ["a/b/ignored.txt"],
+            include_dirs,
+            as_posix=as_posix,
+        )
+        expected = {"a/b/file.py"}
+        if include_dirs:
+            expected |= {"a", "a/b"}
+        if not as_posix:
+            expected = {str(Path(path)) for path in expected}
+        assert result == expected
+        if not as_posix:
+            # Existing callers can still compare str(relative_path) by default.
+            assert (
+                filter_files(str(tmp_path), ["a/b/ignored.txt"], include_dirs) == result
+            )
+
+    @pytest.mark.unix
+    @pytest.mark.parametrize("as_posix", [False, True])
+    def test_literal_backslash_in_filename(self, tmp_path: Path, as_posix: bool):
+        filename = r"file\name.py"
+        (tmp_path / filename).write_text("pass")
+        assert filter_files(str(tmp_path), as_posix=as_posix) == {filename}
 
 
 class TestPlatformSpecificRelpath:
