@@ -762,6 +762,28 @@ class TestUpdate:
         assert client_res.base_job_template == work_pool.base_job_template
         assert client_res.is_paused == work_pool.is_paused
 
+    async def test_update_concurrency_limit_to_zero(self, prefect_client, work_pool):
+        await prefect_client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate(concurrency_limit=10),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--concurrency-limit",
+                0,
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.concurrency_limit == 0
+
     async def test_update_base_job_template(self, prefect_client, work_pool):
         assert work_pool.description is None
         assert work_pool.type is not None

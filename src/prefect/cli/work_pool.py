@@ -865,7 +865,7 @@ async def update(
     if base_job_template:
         with open(base_job_template) as f:
             wp.base_job_template = json.load(f)
-    if concurrency_limit:
+    if concurrency_limit is not None:
         wp.concurrency_limit = concurrency_limit
     if description:
         wp.description = description
