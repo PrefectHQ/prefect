@@ -134,6 +134,8 @@ async def _install_package(
     console.print(f"Installing {package}...")
     install_package = KNOWN_EXTRAS_FOR_PACKAGES.get(package, package)
     await ainstall_packages([install_package], stream_output=True, upgrade=upgrade)
+    # Collections are cached from the first load; pick up the new package.
+    load_prefect_collections(reload=True)
 
 
 async def _find_package_for_worker_type(
