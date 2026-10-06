@@ -636,6 +636,23 @@ class TestPreview:
         assert str(soon.id) in run_ids
         assert str(later.id) not in run_ids
 
+        result = invoke_and_assert(
+            command=[
+                "work-queue",
+                "preview",
+                work_queue_1.name,
+                "-p",
+                work_queue_1.work_pool.name,
+                "--hours",
+                "6",
+                "-o",
+                "json",
+            ],
+            expected_code=0,
+        )
+        run_ids = {run["id"] for run in json.loads(result.stdout)}
+        assert {str(soon.id), str(later.id)} <= run_ids
+
     def test_preview_json_output(self, work_queue):
         result = invoke_and_assert(
             command=f"work-queue preview {work_queue.name} --output json",
