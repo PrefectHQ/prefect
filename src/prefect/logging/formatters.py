@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 import traceback
 from types import TracebackType
 from typing import Any, Literal, Optional, Tuple, Type, Union
@@ -119,10 +118,8 @@ class PrefectFormatter(logging.Formatter):
         init_kwargs: dict[str, Any] = {}
         style_kwargs: dict[str, Any] = {}
 
-        # defaults added in 3.10
-        if sys.version_info >= (3, 10):
-            init_kwargs["defaults"] = defaults
-            style_kwargs["defaults"] = defaults
+        init_kwargs["defaults"] = defaults
+        style_kwargs["defaults"] = defaults
 
         init_kwargs["validate"] = validate
 

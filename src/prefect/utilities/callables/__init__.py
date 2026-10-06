@@ -489,11 +489,7 @@ def parameter_schema(fn: Callable[..., Any]) -> ParameterSchema:
     Returns:
         ParameterSchema: the argument schema
     """
-    try:
-        signature = inspect.signature(fn, eval_str=True)  # novm
-    except (NameError, TypeError):
-        # `eval_str` is not available in Python < 3.10
-        signature = inspect.signature(fn)
+    signature = inspect.signature(fn, eval_str=True)
 
     docstrings = parameter_docstrings(inspect.getdoc(fn))
 

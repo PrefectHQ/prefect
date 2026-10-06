@@ -212,8 +212,9 @@ def __getattr__(attr_name: str) -> Any:
             return getattr(module, attr_name)
     except ModuleNotFoundError as ex:
         mname, _, attr = (ex.name or "").rpartition(".")
-        ctx = {"name": mname, "obj": attr} if sys.version_info >= (3, 10) else {}
-        raise AttributeError(f"module {mname} has no attribute {attr}", **ctx) from ex
+        raise AttributeError(
+            f"module {mname} has no attribute {attr}", name=mname, obj=attr
+        ) from ex
 
 
 # Initialize plugins on import if enabled
