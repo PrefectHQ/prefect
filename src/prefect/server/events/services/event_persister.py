@@ -231,5 +231,7 @@ async def create_handler(
     finally:
         stopping = True
         periodic_flush.cancel()
+        # let an interrupted flush put its batch back before the final flush
+        await asyncio.wait([periodic_flush])
         if queue.qsize():
             await flush()

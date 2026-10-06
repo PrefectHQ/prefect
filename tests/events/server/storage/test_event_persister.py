@@ -491,6 +491,41 @@ async def test_periodic_flush_survives_cancelled_error_from_database(
         assert call_count >= 2
 
 
+async def test_shutdown_persists_batch_from_interrupted_periodic_flush(
+    event: ReceivedEvent,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Events taken by a periodic flush that is cancelled at shutdown must
+    still be written by the final flush."""
+    write_started = asyncio.Event()
+    call_count = 0
+
+    async def slow_write_events(session, events):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            write_started.set()
+            await asyncio.sleep(100)  # cancelled when the handler shuts down
+        return await write_events(session=session, events=events)
+
+    monkeypatch.setattr(
+        "prefect.server.events.services.event_persister.write_events",
+        slow_write_events,
+    )
+
+    async with event_persister.create_handler(
+        batch_size=100,
+        flush_every=timedelta(seconds=0.01),
+    ) as handler:
+        message = CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+        await handler(message)
+        await asyncio.wait_for(write_started.wait(), timeout=10)
+
+    assert call_count == 2
+    assert await get_event(event.id) is not None
+
+
 async def test_logs_warning_at_high_queue_capacity(
     event: ReceivedEvent,
     caplog: pytest.LogCaptureFixture,
