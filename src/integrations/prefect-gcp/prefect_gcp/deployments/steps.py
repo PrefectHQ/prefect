@@ -116,12 +116,15 @@ def push_to_gcs(
         with open(ignore_file, "r") as f:
             ignore_patterns = f.readlines()
         included_files = filter_files(str(local_path), ignore_patterns)
+        # normalize separators: prefect cores before the POSIX fix
+        # returned backslash-separated paths on Windows
+        included_files = {Path(p).as_posix() for p in included_files}
 
     for local_file_path in local_path.expanduser().rglob("*"):
         relative_local_file_path = local_file_path.relative_to(local_path)
         if (
             included_files is not None
-            and str(relative_local_file_path) not in included_files
+            and relative_local_file_path.as_posix() not in included_files
         ):
             continue
         elif not local_file_path.is_dir():
