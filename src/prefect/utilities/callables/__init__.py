@@ -489,7 +489,11 @@ def parameter_schema(fn: Callable[..., Any]) -> ParameterSchema:
     Returns:
         ParameterSchema: the argument schema
     """
-    signature = inspect.signature(fn, eval_str=True)
+    try:
+        signature = inspect.signature(fn, eval_str=True)  # novm
+    except (NameError, TypeError):
+        # Some annotations can't be resolved (e.g. defined under TYPE_CHECKING)
+        signature = inspect.signature(fn)
 
     docstrings = parameter_docstrings(inspect.getdoc(fn))
 
