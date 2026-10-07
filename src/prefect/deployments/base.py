@@ -47,6 +47,9 @@ def create_default_prefect_yaml(
 
     import prefect
 
+    if contents is None:
+        contents = {}
+
     contents["prefect-version"] = prefect.__version__
     contents["name"] = name
 
