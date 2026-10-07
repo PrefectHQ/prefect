@@ -1548,6 +1548,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     " in progress."
                 )
                 break
+            except RuntimeError:
+                # The run still holds its slot: the slot is kept until its
+                # infrastructure exits, but the run leaves
+                # `_submitting_flow_run_ids` once submitted, so a poll can
+                # return it again.
+                self._logger.warning(
+                    f"Duplicate submission of flow run '{flow_run.id}' detected."
+                    " Worker will not re-submit flow run."
+                )
+                continue
             else:
                 run_logger = self.get_flow_run_logger(flow_run)
                 run_logger.info(

@@ -795,6 +795,56 @@ async def test_worker_handles_double_release_gracefully(
     assert updated_flow_run.state.is_crashed()
 
 
+async def test_worker_with_limit_skips_flow_run_it_is_already_running(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23340"""
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+    release = anyio.Event()
+    started: list[FlowRun] = []
+
+    async def run(
+        flow_run: FlowRun,
+        configuration: BaseJobConfiguration,
+        task_status: anyio.abc.TaskStatus[int] | None = None,
+    ) -> BaseWorkerResult:
+        started.append(flow_run)
+        if task_status:
+            task_status.started(1)
+        await release.wait()
+        return BaseWorkerResult(identifier="test", status_code=0)
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=2) as worker:
+        worker._work_pool = work_pool
+        worker.run = run
+
+        first_poll = await worker._get_scheduled_flow_runs()
+        assert [r.flow_run.id for r in first_poll] == [flow_run.id]
+        await worker._submit_scheduled_flow_runs(flow_run_response=first_poll)
+
+        # Submission is complete once the run leaves `_submitting_flow_run_ids`,
+        # while its limit slot stays held until the infrastructure exits.
+        async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+            with attempt:
+                assert started
+                assert flow_run.id not in worker._submitting_flow_run_ids
+
+        # A poll that still returns the run (e.g. a stale read) must not crash
+        # the worker or start the run a second time.
+        submitted = await worker._submit_scheduled_flow_runs(
+            flow_run_response=first_poll
+        )
+        assert submitted == []
+        assert len(started) == 1
+
+        release.set()
+
+
 async def test_worker_with_work_pool_and_limit(
     prefect_client: PrefectClient,
     worker_deployment_wq1: WorkQueue,
