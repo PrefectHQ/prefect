@@ -1,7 +1,11 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Suspense } from "react";
 import { buildGetArtifactQuery } from "@/api/artifacts";
+import { ArtifactDataView } from "@/components/artifacts/artifact/artifact-data-view";
+import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date/formatted-date";
+import { Icon } from "@/components/ui/icons";
 import { KeyValue } from "@/components/ui/key-value";
 import {
 	Sheet,
@@ -25,7 +29,7 @@ export function FlowRunGraphArtifactDrawer({
 			open={artifactId !== null}
 			onOpenChange={(open) => !open && onClose()}
 		>
-			<SheetContent>
+			<SheetContent className="w-full overflow-y-auto sm:max-w-xl">
 				<SheetHeader>
 					<SheetTitle>Artifact Details</SheetTitle>
 				</SheetHeader>
@@ -84,12 +88,30 @@ function ArtifactContent({ artifactId }: { artifactId: string }) {
 			{artifact.data !== undefined && artifact.data !== null && (
 				<div className="space-y-2">
 					<p className="text-sm text-muted-foreground">Data</p>
-					<pre className="bg-muted p-3 rounded-md text-sm overflow-auto max-h-64">
-						{typeof artifact.data === "string"
-							? artifact.data
-							: JSON.stringify(artifact.data, null, 2)}
-					</pre>
+					<ArtifactDataView
+						artifact={artifact}
+						fallback={
+							<pre className="bg-muted p-3 rounded-md text-sm overflow-auto max-h-64">
+								{typeof artifact.data === "string"
+									? artifact.data
+									: JSON.stringify(artifact.data, null, 2)}
+							</pre>
+						}
+					/>
 				</div>
+			)}
+			{artifact.id && (
+				<Button asChild variant="outline" size="sm">
+					<Link
+						to="/artifacts/artifact/$id"
+						params={{ id: artifact.id }}
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						Open artifact
+						<Icon id="ExternalLink" className="size-4" />
+					</Link>
+				</Button>
 			)}
 		</div>
 	);
