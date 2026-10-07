@@ -128,7 +128,7 @@ export default function FlowsTable({
 			deleteFlow(id);
 		}
 
-		table.toggleAllRowsSelected(false);
+		setRowSelection({});
 	};
 
 	return (

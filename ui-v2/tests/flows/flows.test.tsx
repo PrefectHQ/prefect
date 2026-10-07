@@ -61,12 +61,12 @@ describe("Flows page", () => {
 	});
 
 	it("keeps the search input mounted and focused while typing", async () => {
-		const user = userEvent.setup();
+		// delay > SearchInput's 200ms debounce so each keystroke commits to the URL
+		const user = userEvent.setup({ delay: 300 });
 		const { router } = renderFlowsPage();
 
 		const searchInput = await screen.findByPlaceholderText("Flow names");
-		// delay > SearchInput's 200ms debounce so each keystroke commits to the URL
-		await user.type(searchInput, "alpha", { delay: 300 });
+		await user.type(searchInput, "alpha");
 
 		await waitFor(() => {
 			expect(router.state.location.search).toMatchObject({ name: "alpha" });
@@ -78,11 +78,11 @@ describe("Flows page", () => {
 	});
 
 	it("keeps the search input mounted and focused when a search returns no matches", async () => {
-		const user = userEvent.setup();
+		const user = userEvent.setup({ delay: 300 });
 		renderFlowsPage();
 
 		const searchInput = await screen.findByPlaceholderText("Flow names");
-		await user.type(searchInput, "zzz", { delay: 300 });
+		await user.type(searchInput, "zzz");
 
 		expect(
 			await screen.findByText("No flows match your filters"),

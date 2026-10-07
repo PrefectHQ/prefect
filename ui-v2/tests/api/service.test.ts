@@ -16,6 +16,10 @@ describe("API Service", () => {
 				{ id: "1", name: "Flow 1", tags: [] },
 				{ id: "2", name: "Flow 2", tags: [] },
 			],
+			count: 2,
+			limit: 10,
+			pages: 1,
+			page: 1,
 		});
 	});
 });
