@@ -1,5 +1,6 @@
 import shutil
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -80,7 +81,7 @@ class TestRecipes:
 
 class TestCreateDefaultPrefectYaml:
     @pytest.fixture
-    def default_contents(self):
+    def default_contents(self) -> dict[str, Any]:
         template = (
             prefect.__development_base_path__
             / "src"
@@ -91,7 +92,9 @@ class TestCreateDefaultPrefectYaml:
         )
         return yaml.safe_load(template.read_text())
 
-    def test_omitted_contents_uses_defaults(self, tmp_path, default_contents):
+    def test_omitted_contents_uses_defaults(
+        self, tmp_path: Path, default_contents: dict[str, Any]
+    ):
         assert create_default_prefect_yaml(str(tmp_path), name="demo")
 
         contents = yaml.safe_load((tmp_path / "prefect.yaml").read_text())
@@ -100,7 +103,9 @@ class TestCreateDefaultPrefectYaml:
         for section in ("build", "push", "pull", "deployments"):
             assert contents[section] == default_contents[section]
 
-    def test_explicit_none_contents_uses_defaults(self, tmp_path, default_contents):
+    def test_explicit_none_contents_uses_defaults(
+        self, tmp_path: Path, default_contents: dict[str, Any]
+    ):
         assert create_default_prefect_yaml(str(tmp_path), name="demo", contents=None)
 
         contents = yaml.safe_load((tmp_path / "prefect.yaml").read_text())
@@ -109,7 +114,9 @@ class TestCreateDefaultPrefectYaml:
         for section in ("build", "push", "pull", "deployments"):
             assert contents[section] == default_contents[section]
 
-    def test_provided_contents_override_defaults(self, tmp_path, default_contents):
+    def test_provided_contents_override_defaults(
+        self, tmp_path: Path, default_contents: dict[str, Any]
+    ):
         pull = [{"prefect.deployments.steps.set_working_directory": {"directory": "."}}]
         assert create_default_prefect_yaml(
             str(tmp_path), name="demo", contents={"pull": pull}
@@ -120,7 +127,16 @@ class TestCreateDefaultPrefectYaml:
         for section in ("build", "push", "deployments"):
             assert contents[section] == default_contents[section]
 
-    def test_existing_file_is_not_overwritten(self, tmp_path):
+    def test_omitted_name_uses_directory_name(self, tmp_path: Path):
+        project_dir = tmp_path / "analytics"
+        project_dir.mkdir()
+
+        assert create_default_prefect_yaml(str(project_dir))
+
+        contents = yaml.safe_load((project_dir / "prefect.yaml").read_text())
+        assert contents["name"] == "analytics"
+
+    def test_existing_file_is_not_overwritten(self, tmp_path: Path):
         prefect_file = tmp_path / "prefect.yaml"
         prefect_file.write_text("name: existing\n")
 
