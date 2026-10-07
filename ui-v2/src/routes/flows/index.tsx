@@ -85,16 +85,8 @@ export const Route = createFileRoute("/flows/")({
 
 		const paginationBody = buildPaginationBody(search);
 
-		// Use useSuspenseQuery for count (stable key, won't cause suspense on search change)
-		const { data: count } = useSuspenseQuery(
-			buildCountFlowsFilteredQuery({
-				offset: 0,
-				sort: search.sort,
-				flows: paginationBody.flows ?? undefined,
-			}),
-		);
-
 		// Get total count of all flows (without filters) to determine if empty state should be shown
+		// This query has a stable key, so it won't cause suspense on search change
 		const { data: totalCount } = useSuspenseQuery(
 			buildCountFlowsFilteredQuery({
 				offset: 0,
@@ -104,11 +96,14 @@ export const Route = createFileRoute("/flows/")({
 
 		// Use useQuery for paginated flows to leverage placeholderData: keepPreviousData
 		// This prevents the page from suspending when search/filter changes
-		const { data: flowsPage } = useQuery(
-			buildPaginateFlowsQuery(paginationBody, 30_000),
-		);
+		const {
+			data: flowsPage,
+			isPending,
+			isPlaceholderData,
+		} = useQuery(buildPaginateFlowsQuery(paginationBody, 30_000));
 
 		const flows = flowsPage?.results ?? [];
+		const count = flowsPage?.count ?? 0;
 
 		// Prefetch a page and its child component data when user hovers over pagination buttons
 		const onPrefetchPage = useCallback(
@@ -190,9 +185,11 @@ export const Route = createFileRoute("/flows/")({
 		return (
 			<FlowsPage
 				flows={flows}
-				count={count ?? 0}
+				count={count}
 				totalCount={totalCount ?? 0}
 				pageCount={flowsPage?.pages ?? 0}
+				isPending={isPending}
+				isPlaceholderData={isPlaceholderData}
 				sort={sort}
 				pagination={pagination}
 				onPaginationChange={onPaginationChange}
@@ -233,13 +230,6 @@ export const Route = createFileRoute("/flows/")({
 		// Prefetch current page queries without blocking the loader
 		void context.queryClient.prefetchQuery(
 			buildPaginateFlowsQuery(deps, 30_000),
-		);
-		void context.queryClient.prefetchQuery(
-			buildCountFlowsFilteredQuery({
-				offset: 0,
-				sort: deps.sort,
-				flows: deps.flows ?? undefined,
-			}),
 		);
 		// Prefetch total count for empty state check
 		void context.queryClient.prefetchQuery(

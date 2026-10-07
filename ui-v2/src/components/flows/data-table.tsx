@@ -9,6 +9,13 @@ import { useCallback, useState } from "react";
 import { type Flow, useDeleteFlowById } from "@/api/flows";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
 import {
@@ -42,6 +49,9 @@ export default function FlowsTable({
 	columnFilters,
 	onColumnFiltersChange,
 	onPrefetchPage,
+	onClearFilters,
+	isPending = false,
+	isPlaceholderData = false,
 }: {
 	flows: Flow[];
 	count: number;
@@ -53,9 +63,15 @@ export default function FlowsTable({
 	columnFilters: ColumnFiltersState;
 	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
 	onPrefetchPage?: (page: number) => void;
+	onClearFilters?: () => void;
+	isPending?: boolean;
+	isPlaceholderData?: boolean;
 }) {
 	const { deleteFlow } = useDeleteFlowById();
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+	const showFilteredEmptyState =
+		count === 0 && !isPending && !isPlaceholderData && Boolean(onClearFilters);
 
 	const nameSearchValue = (columnFilters.find((filter) => filter.id === "name")
 		?.value ?? "") as string;
@@ -170,7 +186,30 @@ export default function FlowsTable({
 					</Select>
 				</div>
 			</div>
-			<DataTable table={table} onPrefetchPage={onPrefetchPage} />
+			{showFilteredEmptyState ? (
+				<FlowsFilteredEmptyState onClearFilters={onClearFilters} />
+			) : (
+				<DataTable table={table} onPrefetchPage={onPrefetchPage} />
+			)}
 		</div>
 	);
 }
+
+const FlowsFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters?: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No flows match your filters</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your search or tag filters.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);
