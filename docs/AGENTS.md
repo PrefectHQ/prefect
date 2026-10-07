@@ -72,6 +72,8 @@ See the [flows documentation](/v3/concepts/flows) for details.
 
 Do not use relative paths or include `.mdx` in links.
 
+In-page anchors (`#...`) must match Mintlify's heading slugs, not GitHub's: backticks are dropped, dots and spaces become hyphens, underscores are kept (heading `prefect.automation.created` → `#prefect-automation-created`; `connection_url` → `#connection_url`). `just links` (and CI) skip anchors by default — verify with `npx mint@latest broken-links --check-anchors --files <path>`.
+
 ## Redirects
 
 When renaming or moving a page, add a redirect in `docs/docs.json` `redirects` array so existing links continue to work. Never remove existing redirects unless you are certain the old URL has no inbound traffic. Paths should not include `.mdx`.
