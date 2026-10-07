@@ -67,7 +67,7 @@ jobs:
         uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
-          python-version: "3.10"
+          python-version: "3.11"
           cache-dependency-glob: "pyproject.toml"
 
       - name: Start server@${{ matrix.server-version.version }}
@@ -155,7 +155,7 @@ jobs:
         uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
-          python-version: "3.10"
+          python-version: "3.11"
           cache-dependency-glob: "pyproject.toml"
           activate-environment: true
           working-directory: ${{ env.TMPDIR }}
@@ -199,8 +199,8 @@ jobs:
             pytest-env
           pytest --ignore=integration-tests/test_task_worker.py --ignore=integration-tests/test_concurrency_leases.py --ignore=integration-tests/test_deploy.py integration-tests/ -n auto -vv
 
-  sqlite-3-24-0:
-    name: Test SQLite 3.24.0 Compatibility
+  sqlite-3-25-0:
+    name: Test SQLite 3.25.0 Compatibility
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -208,10 +208,10 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-      - name: Test with SQLite 3.24.0
+      - name: Test with SQLite 3.25.0
         run: >
           docker build -t prefect-server-old-sqlite \
-            --build-arg SQLITE_VERSION=3240000 \
+            --build-arg SQLITE_VERSION=3250000 \
             --build-arg SQLITE_YEAR=2018 \
             -f .github/docker/old-sqlite.Dockerfile . &&
           docker run prefect-server-old-sqlite sh -c "prefect server database downgrade --yes -r base && prefect server database upgrade --yes"
