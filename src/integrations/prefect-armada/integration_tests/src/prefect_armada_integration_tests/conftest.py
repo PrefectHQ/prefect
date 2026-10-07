@@ -6,33 +6,7 @@ from typing import Any
 import pytest
 from prefect_armada.settings import ArmadaSettings
 
-from prefect_armada_integration_tests.utils import armada, kind, prefect_core
-
-
-def pytest_addoption(parser: pytest.Parser) -> None:
-    """Add armada-specific command line options."""
-    parser.addoption(
-        "--kind-cluster-name",
-        action="store",
-        default="armada",
-        help="Name of the kind cluster running Armada",
-    )
-    parser.addoption(
-        "--work-pool-name",
-        action="store",
-        help=(
-            "Name of the work pool to create and use. Must not already exist. "
-            "Defaults to a generated name."
-        ),
-    )
-    parser.addoption(
-        "--api-dns-name",
-        action="store",
-        help=(
-            "Address the Prefect API is reachable at from inside the cluster. "
-            "Defaults to the gateway of the kind Docker network."
-        ),
-    )
+from prefect_armada_integration_tests.utils import armada, kind
 
 
 @pytest.fixture(scope="session")
@@ -77,15 +51,8 @@ def work_pool_name(
         # Unique per session, and so per xdist worker.
         work_pool_name = f"armada-test-{uuid.uuid4().hex[:8]}"
 
-    if prefect_core.work_pool_exists(work_pool_name):
-        raise pytest.UsageError(
-            f"Work pool {work_pool_name!r} already exists. The tests create "
-            "their work pool and delete it afterwards, so they will not reuse "
-            "an existing one. Pass a different --work-pool-name, or omit it "
-            "to use a generated name."
-        )
-
-    # Without `--overwrite` this fails if the pool appeared since the check.
+    # `pytest_sessionstart` has already rejected a requested name that was taken.
+    # Without `--overwrite` this fails if the pool appeared since that check.
     subprocess.check_call(
         [
             "prefect",
