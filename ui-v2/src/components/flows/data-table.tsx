@@ -112,6 +112,7 @@ export default function FlowsTable({
 	const table = useTable({
 		columns: columns,
 		data: flows,
+		getRowId: (flow) => flow.id,
 		manualPagination: true,
 		pageCount,
 		state: {
@@ -123,11 +124,7 @@ export default function FlowsTable({
 	});
 
 	const handleDeleteRows = () => {
-		const selectedRows = Object.keys(rowSelection);
-
-		const idsToDelete = selectedRows.map((rowId) => flows[Number(rowId)].id);
-
-		for (const id of idsToDelete) {
+		for (const id of Object.keys(rowSelection)) {
 			deleteFlow(id);
 		}
 
