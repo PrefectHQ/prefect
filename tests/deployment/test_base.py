@@ -8,6 +8,7 @@ import prefect
 from prefect.deployments.base import (
     _deployment_already_saved_to_prefect_file,
     configure_project_by_recipe,
+    create_default_prefect_yaml,
     initialize_project,
 )
 from prefect.utilities.filesystem import tmpchdir
@@ -75,6 +76,56 @@ class TestRecipes:
             "prefect.deployments.steps.set_working_directory"
         ]
         assert clone_step["directory"] == "/opt/prefect/test-dir"
+
+
+class TestCreateDefaultPrefectYaml:
+    @pytest.fixture
+    def default_contents(self):
+        template = (
+            prefect.__development_base_path__
+            / "src"
+            / "prefect"
+            / "deployments"
+            / "templates"
+            / "prefect.yaml"
+        )
+        return yaml.safe_load(template.read_text())
+
+    def test_omitted_contents_uses_defaults(self, tmp_path, default_contents):
+        assert create_default_prefect_yaml(str(tmp_path), name="demo")
+
+        contents = yaml.safe_load((tmp_path / "prefect.yaml").read_text())
+        assert contents["name"] == "demo"
+        assert contents["prefect-version"] == prefect.__version__
+        for section in ("build", "push", "pull", "deployments"):
+            assert contents[section] == default_contents[section]
+
+    def test_explicit_none_contents_uses_defaults(self, tmp_path, default_contents):
+        assert create_default_prefect_yaml(str(tmp_path), name="demo", contents=None)
+
+        contents = yaml.safe_load((tmp_path / "prefect.yaml").read_text())
+        assert contents["name"] == "demo"
+        assert contents["prefect-version"] == prefect.__version__
+        for section in ("build", "push", "pull", "deployments"):
+            assert contents[section] == default_contents[section]
+
+    def test_provided_contents_override_defaults(self, tmp_path, default_contents):
+        pull = [{"prefect.deployments.steps.set_working_directory": {"directory": "."}}]
+        assert create_default_prefect_yaml(
+            str(tmp_path), name="demo", contents={"pull": pull}
+        )
+
+        contents = yaml.safe_load((tmp_path / "prefect.yaml").read_text())
+        assert contents["pull"] == pull
+        for section in ("build", "push", "deployments"):
+            assert contents[section] == default_contents[section]
+
+    def test_existing_file_is_not_overwritten(self, tmp_path):
+        prefect_file = tmp_path / "prefect.yaml"
+        prefect_file.write_text("name: existing\n")
+
+        assert not create_default_prefect_yaml(str(tmp_path), name="demo")
+        assert prefect_file.read_text() == "name: existing\n"
 
 
 class TestInitProject:
