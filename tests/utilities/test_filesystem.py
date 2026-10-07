@@ -150,7 +150,9 @@ class TestFilterFiles:
         assert str(Path("a") / "b" / "c" / "file.py") in result
 
     @pytest.mark.unix
-    async def test_symlink_cycle_does_not_raise(self, tmp_path, caplog):
+    async def test_symlink_cycle_does_not_raise(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ):
         """A directory symlink pointing back at an ancestor must not abort the walk.
 
         pathspec's default link-following traversal reaches the same real
@@ -173,7 +175,9 @@ class TestFilterFiles:
         assert "Not following symlinks" in caplog.text
 
     @pytest.mark.unix
-    async def test_symlink_without_cycle_is_still_followed(self, tmp_path, caplog):
+    async def test_symlink_without_cycle_is_still_followed(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ):
         """Only the walk that would have raised changes behavior.
 
         A link with no cycle must keep being descended into, so projects that
@@ -192,6 +196,40 @@ class TestFilterFiles:
 
         assert str(Path("lib") / "helper.py") in result
         assert "Not following symlinks" not in caplog.text
+
+    @pytest.mark.unix
+    async def test_symlink_cycle_with_include_dirs_false(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ):
+        """The `include_dirs=False` walk takes the same retry.
+
+        `filter_files` runs a different pathspec traversal for each mode
+        (`iter_tree_files` vs `iter_tree_entries`), so the cycle has to be
+        covered in both or the fallback is only half tested. This mode also
+        skips the parent-directory pass, so the symlink entry arrives on its
+        own with no synthesised parents around it.
+        """
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "flow.py").write_text("print('hello')")
+        (src / "project-root").symlink_to(tmp_path, target_is_directory=True)
+
+        with caplog.at_level(logging.WARNING):
+            result = filter_files(root=str(tmp_path), include_dirs=False)
+
+        assert str(Path("src") / "flow.py") in result
+        assert str(Path("src") / "project-root") in result
+        # No directory entries at all in this mode, not even for the real
+        # directory the cyclic link resolves to.
+        assert "src" not in result
+        assert "Not following symlinks" in caplog.text
+
+    # Both cycle tests are unix-only. Creating a directory symlink on Windows
+    # needs either developer mode or SeCreateSymbolicLinkPrivilege, which CI
+    # runners do not have, and pathspec reports the cycle off `os.path.realpath`,
+    # which resolves extended-length path prefixes differently there. The fix
+    # itself is not platform-specific -- the retry is the same call everywhere --
+    # but it is untested on Windows, which is worth knowing when reading these.
 
 
 class TestPlatformSpecificRelpath:

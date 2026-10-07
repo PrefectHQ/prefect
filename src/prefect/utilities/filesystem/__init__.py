@@ -2,7 +2,6 @@
 Utilities for working with file systems
 """
 
-import logging
 import os
 import pathlib
 import threading
@@ -18,8 +17,6 @@ from fsspec.core import OpenFile  # type: ignore
 from fsspec.implementations.local import LocalFileSystem  # type: ignore
 
 import prefect
-
-logger: logging.Logger = logging.getLogger(__name__)
 
 
 def create_default_ignore_file(path: str) -> bool:
@@ -83,7 +80,13 @@ def filter_files(
         # descended into, which is what `git` itself does with the .gitignore
         # specification this function implements. Only this walk changes --
         # a tree with no cycle still follows links as before.
-        logger.warning(
+        # Imported here rather than at module scope: this is a cold path, and
+        # prefect.logging imports back into prefect.utilities. get_logger
+        # rather than logging.getLogger because it installs
+        # ObfuscateApiKeyFilter, and these paths come from the user's tree.
+        from prefect.logging.loggers import get_logger
+
+        get_logger("utilities.filesystem").warning(
             "Not following symlinks while walking %r: %r and %r both resolve to %r.",
             root,
             exc.first_path or ".",
