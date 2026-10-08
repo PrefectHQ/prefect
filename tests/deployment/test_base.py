@@ -8,6 +8,7 @@ import prefect
 from prefect.deployments.base import (
     _deployment_already_saved_to_prefect_file,
     configure_project_by_recipe,
+    create_default_prefect_yaml,
     initialize_project,
 )
 from prefect.utilities.filesystem import tmpchdir
@@ -195,3 +196,21 @@ class TestDeploymentAlreadySavedToPrefectFile:
         assert not _deployment_already_saved_to_prefect_file(
             {"name": "x", "entrypoint": "flows/hello.py:my_flow"},
         )
+
+
+class TestCreateDefaultPrefectYaml:
+    def test_create_default_prefect_yaml_with_omitted_contents(self, tmp_path: Path):
+        assert create_default_prefect_yaml(str(tmp_path), name="demo") is True
+        content = (tmp_path / "prefect.yaml").read_text()
+        assert "name: demo" in content
+        assert "prefect-version" in content
+
+    def test_create_default_prefect_yaml_with_explicit_none_contents(
+        self, tmp_path: Path
+    ):
+        assert (
+            create_default_prefect_yaml(str(tmp_path), name="demo", contents=None)
+            is True
+        )
+        content = (tmp_path / "prefect.yaml").read_text()
+        assert "name: demo" in content
