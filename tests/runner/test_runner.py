@@ -5628,6 +5628,30 @@ class TestHandleSigterm:
 
         assert cancel_all.await_count == 2
 
+    def test_handle_sigterm_after_restart_on_new_event_loop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(name="test-sigterm-new-loop", pause_on_shutdown=False)
+        cancel_all = AsyncMock()
+        monkeypatch.setattr(runner, "cancel_all", cancel_all)
+
+        async def start_then_sigterm() -> None:
+            start_task = asyncio.create_task(runner.start(webserver=False))
+            with anyio.fail_after(30):
+                while not runner.started:
+                    await anyio.sleep(0.05)
+            assert runner._loop is asyncio.get_running_loop()
+
+            runner.handle_sigterm(signal.SIGTERM, None)
+
+            with anyio.fail_after(30):
+                await start_task
+
+        asyncio.run(start_then_sigterm())
+        asyncio.run(start_then_sigterm())
+
+        assert cancel_all.await_count == 2
+
     async def test_repeated_sigterm_while_stopping_exits(self):
         runner = Runner(name="test-sigterm-repeated")
         runner.started = True

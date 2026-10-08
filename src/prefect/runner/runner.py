@@ -1660,8 +1660,7 @@ class Runner:
         self._logger.debug("Starting runner...")
         self.stopping = False
         self._tmp_dir.mkdir(parents=True, exist_ok=True)
-        if not self._loop:
-            self._loop = asyncio.get_event_loop()
+        self._loop = asyncio.get_running_loop()
 
         self._client = get_client()
 
