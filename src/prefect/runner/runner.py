@@ -600,9 +600,14 @@ class Runner:
         Gracefully shuts down the runner when a SIGTERM is received.
         """
         self._logger.info("SIGTERM received, initiating graceful shutdown...")
-        self.stop()
+        if not self.started or self.stopping or self._loop is None:
+            sys.exit(0)
 
-        sys.exit(0)
+        # The handler runs on the thread driving the runner's event loop, so
+        # schedule `astop` there instead of blocking on it. `astop` cancels
+        # in-flight flow runs and the polling loops, letting `start` return.
+        self.stopping = True
+        self.execute_in_background(self.astop)
 
     async def start(
         self, run_once: bool = False, webserver: Optional[bool] = None
