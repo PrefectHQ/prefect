@@ -110,4 +110,37 @@ describe("ArtifactDataView", () => {
 
 		expect(screen.getByText("fallback content")).toBeInTheDocument();
 	});
+
+	it("falls back for row-less table data such as lists of lists", () => {
+		render(
+			<ArtifactDataView
+				artifact={createFakeArtifact({
+					type: "table",
+					data: JSON.stringify([
+						["latency", 120],
+						["throughput", 1500],
+					]),
+				})}
+				fallback={<p>fallback content</p>}
+			/>,
+		);
+
+		expect(screen.getByText("fallback content")).toBeInTheDocument();
+	});
+
+	it.each([
+		["markdown", { not: "a string" }],
+		["link", 42],
+		["image", ["not", "a", "url"]],
+		["progress", "50"],
+	])("falls back for %s artifacts with unexpected data", (type, data) => {
+		render(
+			<ArtifactDataView
+				artifact={createFakeArtifact({ type, data })}
+				fallback={<p>fallback content</p>}
+			/>,
+		);
+
+		expect(screen.getByText("fallback content")).toBeInTheDocument();
+	});
 });

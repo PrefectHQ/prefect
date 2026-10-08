@@ -237,4 +237,40 @@ describe("FlowRunGraphArtifactDrawer", () => {
 			screen.getByRole("link", { name: /open artifact/i }),
 		).toBeInTheDocument();
 	});
+
+	it("shows an error message when the artifact cannot be loaded", async () => {
+		server.use(
+			http.get(buildApiUrl("/artifacts/:id"), () => {
+				return HttpResponse.json(
+					{ detail: "Artifact not found" },
+					{ status: 404 },
+				);
+			}),
+		);
+		const onClose = vi.fn();
+
+		renderDrawer({ artifactId: "artifact-123", onClose });
+
+		expect(
+			await screen.findByText("This artifact could not be loaded."),
+		).toBeInTheDocument();
+	});
+
+	it("shows raw data for a markdown artifact whose data is not a string", async () => {
+		setupMockServer({
+			...mockArtifactResponse,
+			type: "markdown",
+			data: { unexpected: "shape" },
+		});
+		const onClose = vi.fn();
+
+		renderDrawer({ artifactId: "artifact-123", onClose });
+
+		expect(
+			await screen.findByText(/"unexpected": "shape"/),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("link", { name: /open artifact/i }),
+		).toBeInTheDocument();
+	});
 });

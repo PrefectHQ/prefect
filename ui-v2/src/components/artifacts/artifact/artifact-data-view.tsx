@@ -7,7 +7,10 @@ import { DetailTable } from "./detail-table";
 
 export type ArtifactDataViewProps = {
 	artifact: Artifact;
-	/** Rendered for artifact types without a dedicated view. Defaults to the data as JSON. */
+	/**
+	 * Rendered for artifact types without a dedicated view, or when the data
+	 * doesn't have the shape the type's view expects. Defaults to the data as JSON.
+	 */
 	fallback?: ReactNode;
 };
 
@@ -37,20 +40,27 @@ export const ArtifactDataView = ({
 	artifact,
 	fallback,
 }: ArtifactDataViewProps) => {
-	const rawData = fallback ?? (
-		<pre>{JSON.stringify(artifact.data, null, 2)}</pre>
-	);
+	const { data } = artifact;
+	const rawData = fallback ?? <pre>{JSON.stringify(data, null, 2)}</pre>;
 
 	switch (artifact.type) {
 		case "markdown":
 		case "link":
-			return <DetailMarkdown markdown={artifact.data as string} />;
+			return typeof data === "string" ? (
+				<DetailMarkdown markdown={data} />
+			) : (
+				rawData
+			);
 		case "image":
-			return <DetailImage url={artifact.data as string} />;
+			return typeof data === "string" ? <DetailImage url={data} /> : rawData;
 		case "progress":
-			return <DetailProgress progress={artifact.data as number} />;
+			return typeof data === "number" ? (
+				<DetailProgress progress={data} />
+			) : (
+				rawData
+			);
 		case "table": {
-			const rows = getTableRows(artifact.data);
+			const rows = getTableRows(data);
 			return rows ? <DetailTable tableData={JSON.stringify(rows)} /> : rawData;
 		}
 		default:

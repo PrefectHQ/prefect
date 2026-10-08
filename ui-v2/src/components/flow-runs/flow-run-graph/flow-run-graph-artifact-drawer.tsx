@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { buildGetArtifactQuery } from "@/api/artifacts";
 import { ArtifactDataView } from "@/components/artifacts/artifact/artifact-data-view";
 import { Button } from "@/components/ui/button";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { FormattedDate } from "@/components/ui/formatted-date/formatted-date";
 import { Icon } from "@/components/ui/icons";
 import { KeyValue } from "@/components/ui/key-value";
@@ -34,9 +35,11 @@ export function FlowRunGraphArtifactDrawer({
 					<SheetTitle>Artifact Details</SheetTitle>
 				</SheetHeader>
 				{artifactId && (
-					<Suspense fallback={<ArtifactContentSkeleton />}>
-						<ArtifactContent artifactId={artifactId} />
-					</Suspense>
+					<ErrorBoundary key={artifactId} fallback={<ArtifactContentError />}>
+						<Suspense fallback={<ArtifactContentSkeleton />}>
+							<ArtifactContent artifactId={artifactId} />
+						</Suspense>
+					</ErrorBoundary>
 				)}
 			</SheetContent>
 		</Sheet>
@@ -51,6 +54,14 @@ function ArtifactContentSkeleton() {
 			<Skeleton className="h-4 w-48" />
 			<Skeleton className="h-32 w-full" />
 		</div>
+	);
+}
+
+function ArtifactContentError() {
+	return (
+		<p className="p-4 text-sm text-muted-foreground">
+			This artifact could not be loaded.
+		</p>
 	);
 }
 
