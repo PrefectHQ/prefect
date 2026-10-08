@@ -603,9 +603,10 @@ class Runner:
         if not self.started or self.stopping or self._loop is None:
             sys.exit(0)
 
-        # The handler runs on the thread driving the runner's event loop, so
-        # schedule `astop` there instead of blocking on it. `astop` cancels
-        # in-flight flow runs and the polling loops, letting `start` return.
+        # Signal handlers run on the main thread, which may or may not be the
+        # thread driving the runner's loop, so schedule `astop` thread-safely
+        # rather than blocking on it. `astop` cancels in-flight flow runs and
+        # the polling loops, letting `start` return.
         self.stopping = True
         self.execute_in_background(self.astop)
 
@@ -1657,6 +1658,7 @@ class Runner:
         6. FlowRunCancellingObserver — exits first
         """
         self._logger.debug("Starting runner...")
+        self.stopping = False
         self._tmp_dir.mkdir(parents=True, exist_ok=True)
         if not self._loop:
             self._loop = asyncio.get_event_loop()
