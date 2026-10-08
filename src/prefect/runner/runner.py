@@ -1185,11 +1185,15 @@ class Runner:
             self.started = False
             for scope in self._scheduled_task_scopes:
                 scope.cancel()
-            if self._runs_task_group:
-                await self._runs_task_group.__aexit__(*exc_info)
-            if self._client:
-                await self._client.__aexit__(*exc_info)
-            shutil.rmtree(str(self._tmp_dir))
+            try:
+                if self._runs_task_group:
+                    await self._runs_task_group.__aexit__(*exc_info)
+            finally:
+                try:
+                    if self._client:
+                        await self._client.__aexit__(*exc_info)
+                finally:
+                    shutil.rmtree(str(self._tmp_dir))
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"
