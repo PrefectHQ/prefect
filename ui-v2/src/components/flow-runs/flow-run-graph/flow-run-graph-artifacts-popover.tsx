@@ -75,7 +75,7 @@ export function FlowRunGraphArtifactsPopover({
 										<Link
 											to="/artifacts/artifact/$id"
 											params={{ id: artifact.id as string }}
-											className="text-sm font-medium truncate text-link hover:text-link-hover hover:underline"
+											className="block text-sm font-medium truncate text-link hover:text-link-hover hover:underline"
 										>
 											{artifact.key ?? "Unnamed"}
 										</Link>
