@@ -1178,16 +1178,18 @@ class Runner:
 
     async def __aexit__(self, *exc_info):
         self._logger.debug("Stopping runner...")
-        if self.pause_on_shutdown:
-            await self._pause_schedules()
-        self.started = False
-        for scope in self._scheduled_task_scopes:
-            scope.cancel()
-        if self._runs_task_group:
-            await self._runs_task_group.__aexit__(*exc_info)
-        if self._client:
-            await self._client.__aexit__(*exc_info)
-        shutil.rmtree(str(self._tmp_dir))
+        try:
+            if self.pause_on_shutdown:
+                await self._pause_schedules()
+        finally:
+            self.started = False
+            for scope in self._scheduled_task_scopes:
+                scope.cancel()
+            if self._runs_task_group:
+                await self._runs_task_group.__aexit__(*exc_info)
+            if self._client:
+                await self._client.__aexit__(*exc_info)
+            shutil.rmtree(str(self._tmp_dir))
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"

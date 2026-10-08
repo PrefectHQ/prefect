@@ -27,7 +27,7 @@ except ModuleNotFoundError:  # pragma: no cover
         "    $ pip install httpx\n"
     )
 _PortalFactoryType = typing.Callable[
-    [], typing.ContextManager[anyio.abc.BlockingPortal]
+    [], typing.ContextManager[anyio.from_thread.BlockingPortal]
 ]
 
 ASGIInstance = typing.Callable[[Receive, Send], typing.Awaitable[None]]
@@ -363,7 +363,7 @@ class _TestClientTransport(httpx.BaseTransport):
 class TestClient(httpx.Client):
     __test__ = False
     task: "Future[None]"
-    portal: typing.Optional[anyio.abc.BlockingPortal] = None
+    portal: typing.Optional[anyio.from_thread.BlockingPortal] = None
 
     def __init__(
         self,
@@ -407,7 +407,9 @@ class TestClient(httpx.Client):
         )
 
     @contextlib.contextmanager
-    def _portal_factory(self) -> typing.Generator[anyio.abc.BlockingPortal, None, None]:
+    def _portal_factory(
+        self,
+    ) -> typing.Generator[anyio.from_thread.BlockingPortal, None, None]:
         if self.portal is not None:
             yield self.portal
         else:
