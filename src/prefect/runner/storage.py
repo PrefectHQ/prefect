@@ -482,7 +482,9 @@ class GitRepository:
 
             # Otherwise, move the branch to the remote tip. `git pull` can't do
             # this on a shallow clone: a new remote commit shares no history with
-            # the local one, so the merge fails on every update.
+            # the local one, so the merge fails on every update. Like `git pull`,
+            # `reset --keep` leaves local changes alone when nothing changed
+            # upstream and refuses when they would be overwritten.
             else:
                 fetch_cmd = cmd + ["fetch", "origin"]
                 if self._branch:
@@ -491,7 +493,7 @@ class GitRepository:
                 try:
                     await run_process(fetch_cmd, cwd=self.destination)
                     await run_process(
-                        ["git", "reset", "--hard", "FETCH_HEAD"],
+                        ["git", "reset", "--keep", "FETCH_HEAD"],
                         cwd=self.destination,
                     )
                     if self._include_submodules:

@@ -467,7 +467,7 @@ class TestGitRepository:
                 cwd=Path.cwd() / "repo",
             ),
             call(["git", "fetch", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),
-            call(["git", "reset", "--hard", "FETCH_HEAD"], cwd=Path.cwd() / "repo"),
+            call(["git", "reset", "--keep", "FETCH_HEAD"], cwd=Path.cwd() / "repo"),
         ]
 
         mock_run_process.assert_has_awaits(expected_calls)
@@ -549,7 +549,7 @@ class TestGitRepository:
                     cwd=Path.cwd() / "repo",
                 ),
                 call(
-                    ["git", "reset", "--hard", "FETCH_HEAD"],
+                    ["git", "reset", "--keep", "FETCH_HEAD"],
                     cwd=Path.cwd() / "repo",
                 ),
                 call(
@@ -1697,6 +1697,100 @@ class TestGitRepositoryUpdatesShallowClone:
         await repo.pull_code()
 
         assert (repo.destination / "flow.py").read_text() == "VERSION = 2\n"
+        assert in_use.exists(), "pull_code deleted and re-cloned the checkout"
+
+    async def test_pull_code_keeps_local_changes_when_remote_is_unchanged(
+        self, remote: Path, tmp_path: Path
+    ):
+        repo = GitRepository(url=remote.as_uri(), branch="main")
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        (repo.destination / "flow.py").write_text("VERSION = local\n")
+
+        await repo.pull_code()
+
+        assert (repo.destination / "flow.py").read_text() == "VERSION = local\n"
+
+    async def test_pull_code_keeps_unrelated_local_changes_when_remote_advances(
+        self, remote: Path, tmp_path: Path
+    ):
+        work = tmp_path / "work"
+        (work / "other.py").write_text("OTHER = 1\n")
+        _git("add", "other.py", cwd=work)
+        _git("commit", "-m", "add other.py", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+        repo = GitRepository(url=remote.as_uri(), branch="main")
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        (repo.destination / "other.py").write_text("OTHER = local\n")
+
+        (work / "flow.py").write_text("VERSION = 2\n")
+        _git("commit", "-am", "v2", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+        await repo.pull_code()
+
+        assert (repo.destination / "flow.py").read_text() == "VERSION = 2\n"
+        assert (repo.destination / "other.py").read_text() == "OTHER = local\n"
+
+    async def test_pull_code_re_clones_when_local_changes_would_be_overwritten(
+        self, remote: Path, tmp_path: Path
+    ):
+        repo = GitRepository(url=remote.as_uri(), branch="main")
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        (repo.destination / "flow.py").write_text("VERSION = local\n")
+
+        work = tmp_path / "work"
+        (work / "flow.py").write_text("VERSION = 2\n")
+        _git("commit", "-am", "v2", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+        await repo.pull_code()
+
+        # Same outcome as the `git pull` path: fall back to a fresh clone
+        assert (repo.destination / "flow.py").read_text() == "VERSION = 2\n"
+
+    async def test_pull_code_updates_submodules_in_place(
+        self, remote: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        # git refuses file-based submodules unless explicitly allowed
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "protocol.file.allow")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "always")
+
+        sub_remote = tmp_path / "lib.git"
+        sub_work = tmp_path / "lib-work"
+        _git("init", "--bare", str(sub_remote), cwd=tmp_path)
+        _git("clone", str(sub_remote), str(sub_work), cwd=tmp_path)
+        _git("symbolic-ref", "HEAD", "refs/heads/main", cwd=sub_work)
+        (sub_work / "lib.py").write_text("LIB = 1\n")
+        _git("add", "lib.py", cwd=sub_work)
+        _git("commit", "-m", "lib v1", cwd=sub_work)
+        _git("push", "origin", "main", cwd=sub_work)
+
+        work = tmp_path / "work"
+        _git("submodule", "add", "-b", "main", str(sub_remote), "lib", cwd=work)
+        _git("commit", "-m", "add lib submodule", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+
+        repo = GitRepository(
+            url=remote.as_uri(), branch="main", include_submodules=True
+        )
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        assert (repo.destination / "lib" / "lib.py").read_text() == "LIB = 1\n"
+        in_use = repo.destination / "in_use.txt"
+        in_use.write_text("in use")
+
+        (sub_work / "lib.py").write_text("LIB = 2\n")
+        _git("commit", "-am", "lib v2", cwd=sub_work)
+        _git("push", "origin", "main", cwd=sub_work)
+        _git("submodule", "update", "--remote", "lib", cwd=work)
+        _git("commit", "-am", "bump lib", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+
+        await repo.pull_code()
+
+        assert (repo.destination / "lib" / "lib.py").read_text() == "LIB = 2\n"
         assert in_use.exists(), "pull_code deleted and re-cloned the checkout"
 
 
