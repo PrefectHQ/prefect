@@ -24,6 +24,15 @@ def test_create_default_prefect_yaml_uses_defaults(
     assert contents["deployments"][0]["entrypoint"] is None
 
 
+def test_create_default_prefect_yaml_uses_directory_name_by_default(
+    tmp_path: Path,
+):
+    assert create_default_prefect_yaml(str(tmp_path))
+
+    contents = yaml.safe_load((tmp_path / "prefect.yaml").read_text())
+    assert contents["name"] == tmp_path.name
+
+
 def test_create_default_prefect_yaml_preserves_overrides(tmp_path: Path):
     overrides = {
         "build": [{"example.build": {"image": "demo"}}],
