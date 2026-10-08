@@ -217,4 +217,24 @@ describe("FlowRunGraphArtifactDrawer", () => {
 			await screen.findByRole("heading", { name: "Hello from markdown" }),
 		).toBeInTheDocument();
 	});
+
+	it("renders table artifacts with array data", async () => {
+		setupMockServer({
+			...mockArtifactResponse,
+			type: "table",
+			data: [
+				{ metric: "latency", value: 120 },
+				{ metric: "throughput", value: 1500 },
+			],
+		});
+		const onClose = vi.fn();
+
+		renderDrawer({ artifactId: "artifact-123", onClose });
+
+		expect(await screen.findByText("latency")).toBeInTheDocument();
+		expect(screen.getByText("throughput")).toBeInTheDocument();
+		expect(
+			screen.getByRole("link", { name: /open artifact/i }),
+		).toBeInTheDocument();
+	});
 });
