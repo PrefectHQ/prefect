@@ -69,6 +69,22 @@ describe("TaskRunArtifacts", () => {
 		);
 	});
 
+	it("links each artifact to its detail page", async () => {
+		render(<TaskRunArtifactsRouter taskRun={mockTaskRun} />, {
+			wrapper: createWrapper(),
+		});
+
+		for (const artifact of mockArtifacts) {
+			const link = (await screen.findByText(artifact.key as string)).closest(
+				"a",
+			);
+			expect(link).toHaveAttribute(
+				"href",
+				`/artifacts/artifact/${artifact.id}`,
+			);
+		}
+	});
+
 	it("switches between grid and list views", async () => {
 		render(<TaskRunArtifactsRouter taskRun={mockTaskRun} />, {
 			wrapper: createWrapper(),

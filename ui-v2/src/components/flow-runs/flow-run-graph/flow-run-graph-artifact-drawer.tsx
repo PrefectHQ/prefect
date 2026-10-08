@@ -1,7 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Suspense } from "react";
 import { buildGetArtifactQuery } from "@/api/artifacts";
+import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date/formatted-date";
+import { Icon } from "@/components/ui/icons";
 import { KeyValue } from "@/components/ui/key-value";
 import {
 	Sheet,
@@ -57,6 +60,16 @@ function ArtifactContent({ artifactId }: { artifactId: string }) {
 
 	return (
 		<div className="space-y-4 p-4">
+			<Button variant="outline" size="sm" asChild>
+				<Link
+					to="/artifacts/artifact/$id"
+					params={{ id: artifactId }}
+					target="_blank"
+				>
+					<Icon id="ExternalLink" className="size-4" />
+					Open artifact
+				</Link>
+			</Button>
 			<KeyValue
 				label="Key"
 				value={
