@@ -466,7 +466,8 @@ class TestGitRepository:
                 ["git", "sparse-checkout", "set", "--", "dir_1", "dir_2"],
                 cwd=Path.cwd() / "repo",
             ),
-            call(["git", "pull", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),
+            call(["git", "fetch", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),
+            call(["git", "reset", "--hard", "FETCH_HEAD"], cwd=Path.cwd() / "repo"),
         ]
 
         mock_run_process.assert_has_awaits(expected_calls)
@@ -541,16 +542,21 @@ class TestGitRepository:
         monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
 
         await repo.pull_code()
-        mock_run_process.assert_awaited_with(
+        mock_run_process.assert_has_awaits(
             [
-                "git",
-                "pull",
-                "origin",
-                "--recurse-submodules",
-                "--depth",
-                "1",
-            ],
-            cwd=Path.cwd() / "repo",
+                call(
+                    ["git", "fetch", "origin", "--depth", "1"],
+                    cwd=Path.cwd() / "repo",
+                ),
+                call(
+                    ["git", "reset", "--hard", "FETCH_HEAD"],
+                    cwd=Path.cwd() / "repo",
+                ),
+                call(
+                    ["git", "submodule", "update", "--init", "--recursive"],
+                    cwd=Path.cwd() / "repo",
+                ),
+            ]
         )
 
     async def test_include_submodules_with_credentials(
@@ -1606,7 +1612,7 @@ class TestGitRepositoryConcurrency:
 
             if "config" in cmd:
                 return Result()
-            if "pull" in cmd:
+            if "fetch" in cmd:
                 call_count += 1
                 if call_count == 1:
                     raise subprocess.CalledProcessError(1, cmd)
@@ -1627,8 +1633,71 @@ class TestGitRepositoryConcurrency:
         # Both calls should complete without FileNotFoundError
         await asyncio.gather(repo1.pull_code(), repo2.pull_code())
 
-        # The first call should have triggered rmtree due to the failed pull
+        # The first call should have triggered rmtree due to the failed fetch
         assert len(rmtree_calls) >= 1
+
+
+def _git(*args: str, cwd: Path) -> None:
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+
+
+class TestGitRepositoryUpdatesShallowClone:
+    """
+    Regression tests for #16241: updating an existing shallow clone must apply
+    new remote commits in place, not delete and re-clone a directory that other
+    runs may be using.
+    """
+
+    @pytest.fixture
+    def remote(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        # Keep the user's git config (pull.rebase, pull.ff, ...) out of the test
+        monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+        monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+        for role in ("AUTHOR", "COMMITTER"):
+            monkeypatch.setenv(f"GIT_{role}_NAME", "test")
+            monkeypatch.setenv(f"GIT_{role}_EMAIL", "test@example.com")
+
+        remote = tmp_path / "remote.git"
+        work = tmp_path / "work"
+        _git("init", "--bare", str(remote), cwd=tmp_path)
+        _git("clone", str(remote), str(work), cwd=tmp_path)
+        _git("symbolic-ref", "HEAD", "refs/heads/main", cwd=work)
+        (work / "flow.py").write_text("VERSION = 1\n")
+        _git("add", "flow.py", cwd=work)
+        _git("commit", "-m", "v1", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+        return remote
+
+    @pytest.mark.parametrize("change", ["commit", "merge", "force-push"])
+    async def test_pull_code_applies_new_remote_commit_in_place(
+        self, remote: Path, tmp_path: Path, change: str
+    ):
+        repo = GitRepository(url=remote.as_uri(), branch="main")
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        # Stands in for a flow run that is using the checkout
+        in_use = repo.destination / "in_use.txt"
+        in_use.write_text("in use")
+
+        work = tmp_path / "work"
+        (work / "flow.py").write_text("VERSION = 2\n")
+        if change == "commit":
+            _git("commit", "-am", "v2", cwd=work)
+            _git("push", "origin", "main", cwd=work)
+        elif change == "merge":
+            _git("checkout", "-b", "feature", cwd=work)
+            _git("commit", "-am", "v2", cwd=work)
+            _git("checkout", "main", cwd=work)
+            _git("merge", "--no-ff", "feature", "-m", "merge feature", cwd=work)
+            _git("push", "origin", "main", cwd=work)
+        else:
+            _git("commit", "-a", "--amend", "-m", "v2", cwd=work)
+            _git("push", "--force", "origin", "main", cwd=work)
+
+        await repo.pull_code()
+
+        assert (repo.destination / "flow.py").read_text() == "VERSION = 2\n"
+        assert in_use.exists(), "pull_code deleted and re-cloned the checkout"
 
 
 class TestRemoteStorageErrorHints:

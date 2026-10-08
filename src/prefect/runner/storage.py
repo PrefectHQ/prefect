@@ -480,16 +480,25 @@ class GitRepository:
                     f"Successfully checked out commit {self._commit_sha}"
                 )
 
-            # Otherwise, pull the latest changes from the branch
+            # Otherwise, move the branch to the remote tip. `git pull` can't do
+            # this on a shallow clone: a new remote commit shares no history with
+            # the local one, so the merge fails on every update.
             else:
-                cmd += ["pull", "origin"]
+                fetch_cmd = cmd + ["fetch", "origin"]
                 if self._branch:
-                    cmd += [self._branch]
-                if self._include_submodules:
-                    cmd += ["--recurse-submodules"]
-                cmd += ["--depth", "1"]
+                    fetch_cmd += [self._branch]
+                fetch_cmd += ["--depth", "1"]
                 try:
-                    await run_process(cmd, cwd=self.destination)
+                    await run_process(fetch_cmd, cwd=self.destination)
+                    await run_process(
+                        ["git", "reset", "--hard", "FETCH_HEAD"],
+                        cwd=self.destination,
+                    )
+                    if self._include_submodules:
+                        await run_process(
+                            cmd + ["submodule", "update", "--init", "--recursive"],
+                            cwd=self.destination,
+                        )
                     self._logger.debug("Successfully pulled latest changes")
                 except subprocess.CalledProcessError as exc:
                     self._logger.error(
