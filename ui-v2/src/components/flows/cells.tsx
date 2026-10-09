@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { subWeeks } from "date-fns";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import {
@@ -10,6 +10,7 @@ import {
 	useDeleteFlowById,
 } from "@/api/flows";
 import type { components } from "@/api/prefect";
+import { FlowRunDialog } from "@/components/flows/flow-run-action";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -138,7 +139,18 @@ export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
 export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 	const id = row.original.id;
 
+	const [runOpen, setRunOpen] = useState(false);
 	const { deleteFlow } = useDeleteFlowById();
+
+	const {
+		data: countsMap,
+		isSuccess,
+		isPlaceholderData,
+	} = useQuery(
+		buildDeploymentsCountByFlowQuery(id ? [id] : [], { enabled: !!id }),
+	);
+	const canRun =
+		isSuccess && !isPlaceholderData && (countsMap?.[id ?? ""] ?? 0) > 0;
 
 	if (!id) {
 		return null;
@@ -154,6 +166,11 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
+					{canRun && (
+						<DropdownMenuItem onSelect={() => setRunOpen(true)}>
+							Run
+						</DropdownMenuItem>
+					)}
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(id);
@@ -172,6 +189,11 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 					<DropdownMenuItem>Automate</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
+			<FlowRunDialog
+				flow={row.original}
+				open={runOpen}
+				onOpenChange={setRunOpen}
+			/>
 		</div>
 	);
 };

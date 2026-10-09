@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 /**
  * A custom hook that returns a debounced version of the callback function.
@@ -23,6 +23,17 @@ const useDebounceCallback = <Args extends unknown[], R>(
 
 	// Update the callback reference when it changes
 	callbackRef.current = callback;
+
+	// Cancel a pending trailing-edge call when the component unmounts so it
+	// cannot fire side effects on an unmounted component.
+	useEffect(
+		() => () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+		},
+		[],
+	);
 
 	return useCallback(
 		(...args: Args) => {

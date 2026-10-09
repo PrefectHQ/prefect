@@ -39,12 +39,10 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.lists(), "paginate", filter] as const,
 	details: () => [...queryKeyFactory.all(), "detail"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
+	deploymentsCounts: () =>
+		[...queryKeyFactory.all(), "deploymentsCount"] as const,
 	deploymentsCount: (flowIds: string[]) =>
-		[
-			...queryKeyFactory.all(),
-			"deploymentsCount",
-			[...flowIds].sort(),
-		] as const,
+		[...queryKeyFactory.deploymentsCounts(), [...flowIds].sort()] as const,
 	nextRuns: (flowIds: string[]) =>
 		[...queryKeyFactory.all(), "nextRuns", [...flowIds].sort()] as const,
 };
@@ -199,7 +197,10 @@ export const buildCountFlowsFilteredQuery = (filter: FlowsFilter) =>
  */
 export const buildDeploymentsCountByFlowQuery = (
 	flowIds: string[],
-	{ enabled = true }: { enabled?: boolean } = {},
+	{
+		enabled = true,
+		refetchInterval = 30_000,
+	}: { enabled?: boolean; refetchInterval?: number } = {},
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.deploymentsCount(flowIds),
@@ -213,6 +214,7 @@ export const buildDeploymentsCountByFlowQuery = (
 			return result.data ?? {};
 		},
 		staleTime: 1000,
+		refetchInterval,
 		placeholderData: keepPreviousData,
 		enabled: enabled && flowIds.length > 0,
 	});
