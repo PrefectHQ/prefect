@@ -570,7 +570,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         ```
     """
 
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/googlecloud.png"  # noqa
     _block_type_name = "GCS Bucket"
     _documentation_url = "https://prefecthq.github.io/prefect-gcp/cloud_storage/#prefect_gcp.cloud_storage.GcsBucket"  # noqa: E501
 
@@ -715,7 +715,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         included_files = None
         if ignore_file:
             with open(ignore_file, "r") as f:
-                ignore_patterns = f.readlines()
+                ignore_patterns = [line.rstrip("\r\n").lstrip() for line in f]
             included_files = filter_files(local_path, ignore_patterns)
 
         uploaded_file_count = 0

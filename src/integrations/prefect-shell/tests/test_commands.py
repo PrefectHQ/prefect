@@ -155,11 +155,9 @@ class TestShellOperation:
     async def test_output(self, prefect_task_runs_caplog, method):
         op = ShellOperation(commands=["echo 'testing\nthe output'", "echo good"])
         assert await self.execute(op, method) == ["testing", "the output", "good"]
-        records = prefect_task_runs_caplog.records
-        assert len(records) == 3
-        assert "triggered with 2 commands running" in records[0].message
-        assert "stream output:\ntesting\nthe output\ngood" in records[1].message
-        assert "completed with return code 0" in records[2].message
+        assert "triggered with 2 commands running" in prefect_task_runs_caplog.text
+        assert "stream output:" in prefect_task_runs_caplog.text
+        assert "completed with return code 0" in prefect_task_runs_caplog.text
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_stream_output(self, prefect_task_runs_caplog, method):

@@ -211,7 +211,7 @@ class AzureBlobStorageContainer(
     """
 
     _block_type_name = "Azure Blob Storage Container"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-azure.png"  # noqa
     _documentation_url = "https://prefecthq.github.io/prefect-azure/blob_storage/#prefect_azure.blob_storabe.AzureBlobStorageContainer"  # noqa
 
     container_name: str = Field(
@@ -656,7 +656,7 @@ class AzureBlobStorageContainer(
         included_files = None
         if ignore_file:
             with open(ignore_file, "r") as f:
-                ignore_patterns = f.readlines()
+                ignore_patterns = [line.rstrip("\r\n").lstrip() for line in f]
 
             included_files = filter_files(local_path, ignore_patterns)
 

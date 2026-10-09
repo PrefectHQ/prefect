@@ -68,7 +68,7 @@ class ImagePullPolicy(AutoEnum):
     help="Use the `DockerRegistryCredentials` class from prefect-docker instead.",
 )
 class BaseDockerLogin(Block, ABC):
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/14a315b79990200db7341e42553e23650b34bb96-250x250.png"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/docker.png"
     _block_schema_capabilities = ["docker-login"]
 
     @abstractmethod
@@ -319,7 +319,7 @@ class DockerContainer(Infrastructure):
     )
 
     _block_type_name = "Docker Container"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/14a315b79990200db7341e42553e23650b34bb96-250x250.png"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/docker.png"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer"
 
     @validator("labels")

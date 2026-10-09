@@ -90,7 +90,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "Local File System"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/ad39089fa66d273b943394a68f003f7a19aa850e-48x48.png"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/filesystem.png"
     _documentation_url = (
         "https://docs.prefect.io/concepts/filesystems/#local-filesystem"
     )
@@ -262,7 +262,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "Remote File System"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/e86b41bc0f9c99ba9489abeee83433b43d5c9365-48x48.png"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/filesystem.png"
     _documentation_url = (
         "https://docs.prefect.io/concepts/filesystems/#remote-file-system"
     )
@@ -445,7 +445,7 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "S3"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/aws.png"
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#s3"
 
     bucket_path: str = Field(
@@ -543,7 +543,7 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
         ```
     """
 
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/422d13bb838cf247eb2b2cf229ce6a2e717d601b-256x256.png"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/googlecloud.png"
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#gcs"
 
     bucket_path: str = Field(
@@ -647,7 +647,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "Azure"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-azure.png"
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#azure"
 
     bucket_path: str = Field(
@@ -798,7 +798,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "SMB"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/3f624663f7beb97d011d011bffd51ecf6c499efc-195x195.png"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/smb.png"
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#smb"
 
     share_path: str = Field(
@@ -899,7 +899,7 @@ class GitHub(ReadableDeploymentStorage):
     """
 
     _block_type_name = "GitHub"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/41971cfecfea5f79ff334164f06ecb34d1038dd4-250x250.png"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/github.png"
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#github"
 
     repository: str = Field(

@@ -25,7 +25,9 @@ classifiers = [
 ]
 dependencies = [
   "prefect>=2.20.0, < 3.0.0",
-  "atlassian-python-api>=3.32.1,!=3.41.5,!=3.41.6,!=3.41.7,!=3.41.8",
+  # atlassian-python-api >= 4.0.6 uses PEP 585 generics that break on Python 3.8
+  "atlassian-python-api>=3.32.1,!=3.41.5,!=3.41.6,!=3.41.7,!=3.41.8,<4.0.6; python_version < '3.9'",
+  "atlassian-python-api>=3.32.1,!=3.41.5,!=3.41.6,!=3.41.7,!=3.41.8; python_version >= '3.9'",
 ]
 dynamic = ["version"]
 
