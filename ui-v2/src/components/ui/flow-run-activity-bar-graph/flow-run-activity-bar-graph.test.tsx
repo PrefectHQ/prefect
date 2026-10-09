@@ -180,6 +180,29 @@ describe("FlowRunActivityBarChart", () => {
 		},
 	);
 
+	it.each([
+		["Control", { ctrlKey: true }],
+		["Meta", { metaKey: true }],
+	])("preserves native %s+Enter link behavior", async (_, modifiers) => {
+		await renderChartWithRouter(
+			/* @ts-expect-error - Type error from test data not matching schema */
+			<FlowRunActivityBarChart {...defaultProps} />,
+		);
+
+		const bar = screen.getByRole("link", {
+			name: "Open flow run Test Flow Run",
+		});
+		const event = new KeyboardEvent("keydown", {
+			key: "Enter",
+			bubbles: true,
+			cancelable: true,
+			...modifiers,
+		});
+		bar.dispatchEvent(event);
+
+		expect(event.defaultPrevented).toBe(false);
+	});
+
 	it("keeps empty bars non-interactive", async () => {
 		await renderChartWithRouter(
 			/* @ts-expect-error - Type error from test data not matching schema */
