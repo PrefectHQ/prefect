@@ -51,7 +51,6 @@
 		"src/prefect/_internal/compatibility/deprecated.py",
 		"src/prefect/_internal/concurrency/inspection.py",
 		"src/prefect/_internal/concurrency/waiters.py",
-		"src/prefect/_internal/pydantic/annotations/pendulum.py",
 		"src/prefect/_internal/schemas/validators.py",
 		"src/prefect/_internal/_logging.py",
 		"src/prefect/_internal/pytz.py",

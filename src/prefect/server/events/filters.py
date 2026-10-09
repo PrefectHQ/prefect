@@ -194,8 +194,8 @@ class EventOccurredFilter(EventDataFilter):
 
     def clamp(self, max_duration: timedelta) -> None:
         """Limit how far the query can look back based on the given duration"""
-        # Using datetime.now() instead of prefect.types._datetime.now() to avoid
-        # dropping timezone information which happens if pendulum is used
+        # Using an explicitly tz-aware datetime.now() instead of
+        # prefect.types._datetime.now() to preserve timezone information
         earliest = datetime.now(ZoneInfo("UTC")) - max_duration
         self.since = max(earliest, self.since)
 

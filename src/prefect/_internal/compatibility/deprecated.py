@@ -16,12 +16,17 @@ import datetime
 import functools
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeAlias, Union
 
 from pydantic import BaseModel
-from typing_extensions import ParamSpec, TypeAlias, TypeVar
+from typing_extensions import ParamSpec, TypeVar
 
-from prefect.types._datetime import now
+from prefect.types._datetime import (
+    _whenever_pdt_from_py,
+    _whenever_to_stdlib,
+    now,
+)
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
     AliasedModuleDefinition,
@@ -36,7 +41,7 @@ T = TypeVar("T")
 
 # Note: A datetime is strongly preferred over a string, but a string is acceptable for
 # backwards compatibility until support is dropped from dateparser in Python 3.15.
-_AcceptableDate: TypeAlias = Optional[Union[datetime.datetime, str]]
+_AcceptableDate: TypeAlias = datetime.datetime | str | None
 
 DEPRECATED_WARNING = (
     "{name} has been deprecated{when}. It will not be available in new releases after {end_date}."
@@ -57,8 +62,8 @@ class PrefectDeprecationWarning(DeprecationWarning):
 
 
 def _coerce_datetime(
-    dt: Optional[_AcceptableDate],
-) -> Optional[datetime.datetime]:
+    dt: _AcceptableDate | None,
+) -> datetime.datetime | None:
     if dt is None or isinstance(dt, datetime.datetime):
         return dt
     with warnings.catch_warnings():
@@ -70,8 +75,8 @@ def _coerce_datetime(
 
 def generate_deprecation_message(
     name: str,
-    start_date: Optional[_AcceptableDate] = None,
-    end_date: Optional[_AcceptableDate] = None,
+    start_date: _AcceptableDate | None = None,
+    end_date: _AcceptableDate | None = None,
     help: str = "",
     when: str = "",
 ) -> str:
@@ -88,22 +93,11 @@ def generate_deprecation_message(
         if TYPE_CHECKING:
             assert start_date is not None
 
-        if sys.version_info >= (3, 13):
-            from whenever import PlainDateTime
-
-            _pdt_from_dt = (
-                PlainDateTime
-                if hasattr(PlainDateTime, "to_stdlib")
-                else PlainDateTime.from_py_datetime
-            )
-            _dt = _pdt_from_dt(start_date).add(months=6)
-            end_date = (
-                _dt.to_stdlib() if hasattr(_dt, "to_stdlib") else _dt.py_datetime()
-            )
-        else:
-            import pendulum
-
-            end_date = pendulum.instance(start_date).add(months=6)
+        # PlainDateTime requires a naive datetime; the warning only renders
+        # month and year, so any tzinfo on start_date is dropped.
+        end_date = _whenever_to_stdlib(
+            _whenever_pdt_from_py(start_date.replace(tzinfo=None)).add(months=6)
+        )
 
     if when:
         when = " when " + when
@@ -116,8 +110,8 @@ def generate_deprecation_message(
 
 def deprecated_callable(
     *,
-    start_date: Optional[_AcceptableDate] = None,
-    end_date: Optional[_AcceptableDate] = None,
+    start_date: _AcceptableDate | None = None,
+    end_date: _AcceptableDate | None = None,
     stacklevel: int = 2,
     help: str = "",
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
@@ -140,8 +134,8 @@ def deprecated_callable(
 
 def deprecated_class(
     *,
-    start_date: Optional[_AcceptableDate] = None,
-    end_date: Optional[_AcceptableDate] = None,
+    start_date: _AcceptableDate | None = None,
+    end_date: _AcceptableDate | None = None,
     stacklevel: int = 2,
     help: str = "",
 ) -> Callable[[type[T]], type[T]]:
@@ -168,11 +162,11 @@ def deprecated_class(
 def deprecated_parameter(
     name: str,
     *,
-    start_date: Optional[_AcceptableDate] = None,
-    end_date: Optional[_AcceptableDate] = None,
+    start_date: _AcceptableDate | None = None,
+    end_date: _AcceptableDate | None = None,
     stacklevel: int = 2,
     help: str = "",
-    when: Optional[Callable[[Any], bool]] = None,
+    when: Callable[[Any], bool] | None = None,
     when_message: str = "",
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """
@@ -223,11 +217,11 @@ JsonDict: TypeAlias = dict[str, JsonValue]
 def deprecated_field(
     name: str,
     *,
-    start_date: Optional[_AcceptableDate] = None,
-    end_date: Optional[_AcceptableDate] = None,
+    start_date: _AcceptableDate | None = None,
+    end_date: _AcceptableDate | None = None,
     when_message: str = "",
     help: str = "",
-    when: Optional[Callable[[Any], bool]] = None,
+    when: Callable[[Any], bool] | None = None,
     stacklevel: int = 2,
 ) -> Callable[[type[M]], type[M]]:
     """
@@ -255,7 +249,7 @@ def deprecated_field(
 
         @functools.wraps(model_cls.__init__)
         def __init__(__pydantic_self__: M, **data: Any) -> None:
-            if name in data.keys() and when(data[name]):
+            if name in data and when(data[name]):
                 message = generate_deprecation_message(
                     name=f"The field {name!r} in {model_cls.__name__!r}",
                     start_date=start_date,

@@ -1,10 +1,7 @@
 """Tests for prefect.types._datetime.
 
-These tests are intentionally version-agnostic: they run on all supported
-Python versions without any skips. On Python < 3.13 the pendulum backend is
-exercised; on Python >= 3.13 the whenever backend is exercised. If all
-assertions pass across the CI matrix we have behavioral parity between the
-two backends.
+These tests exercise the `whenever`-backed datetime helpers used across all
+supported Python versions.
 """
 
 import datetime
@@ -16,9 +13,11 @@ from pydantic import BaseModel
 from prefect.types._datetime import (
     DateTime,
     end_of_period,
+    from_timestamp,
     in_local_tz,
     now,
     start_of_day,
+    travel_to,
 )
 
 # Saturday 2024-06-15 14:30:45 America/New_York (UTC-4, i.e. EDT)
@@ -37,6 +36,40 @@ class TestNow:
         after = datetime.datetime.now(ZoneInfo("UTC"))
         assert before <= result.astimezone(ZoneInfo("UTC")) <= after
 
+    @pytest.mark.parametrize(
+        "tz",
+        [
+            ZoneInfo("UTC"),
+            ZoneInfo("America/New_York"),
+            datetime.UTC,
+            datetime.timezone(datetime.timedelta(hours=5, minutes=30)),
+        ],
+    )
+    def test_accepts_tzinfo_objects(self, tz: datetime.tzinfo):
+        result = now(tz)
+
+        assert result.tzinfo is not None
+        assert result.utcoffset() == datetime.datetime.now(tz).utcoffset()
+
+
+class TestFromTimestamp:
+    @pytest.mark.parametrize(
+        "tz",
+        [
+            "UTC",
+            ZoneInfo("UTC"),
+            datetime.UTC,
+            datetime.timezone(datetime.timedelta(hours=5, minutes=30)),
+        ],
+    )
+    def test_accepts_string_and_tzinfo(self, tz):
+        result = from_timestamp(0, tz)
+
+        assert result.tzinfo is not None
+        assert result.astimezone(ZoneInfo("UTC")) == datetime.datetime(
+            1970, 1, 1, 0, 0, tzinfo=ZoneInfo("UTC")
+        )
+
 
 class TestStartOfDay:
     def test_full_datetime(self):
@@ -51,6 +84,19 @@ class TestStartOfDay:
         assert result.microsecond == 0
         assert result.tzinfo is not None
         assert result.utcoffset() == FIXED.utcoffset()
+
+    def test_fixed_offset_tzinfo(self):
+        fixed = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+        result = start_of_day(datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=fixed))
+
+        assert result == datetime.datetime(2024, 6, 15, tzinfo=fixed)
+
+    def test_timezone_utc(self):
+        result = start_of_day(
+            datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC)
+        )
+
+        assert result == datetime.datetime(2024, 6, 15, tzinfo=datetime.UTC)
 
 
 class TestEndOfPeriod:
@@ -104,13 +150,48 @@ class TestEndOfPeriod:
         assert result.utcoffset() == EDT
 
     def test_invalid_period_raises(self):
-        # NOTE: pendulum (Python < 3.13) silently ignores unknown periods, so
-        # this assertion only holds on Python >= 3.13 (whenever backend).
-        import sys
+        with pytest.raises(ValueError, match="Invalid period"):
+            end_of_period(FIXED, "century")
 
-        if sys.version_info >= (3, 13):
-            with pytest.raises(ValueError, match="Invalid period"):
-                end_of_period(FIXED, "century")
+    @pytest.mark.parametrize(
+        "period, expected",
+        [
+            (
+                "day",
+                datetime.datetime(2024, 6, 15, 23, 59, 59, 999999),
+            ),
+            (
+                # June 15 (Sat) → end of ISO week = Sunday June 16
+                "week",
+                datetime.datetime(2024, 6, 16, 23, 59, 59, 999999),
+            ),
+        ],
+    )
+    def test_fixed_offset_tzinfo(self, period: str, expected: datetime.datetime):
+        fixed = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+        result = end_of_period(
+            datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=fixed), period
+        )
+
+        assert result == expected.replace(tzinfo=fixed)
+
+
+class TestTravelTo:
+    def test_freezes_now_for_all_callers(self):
+        """`travel_to` freezes `whenever`'s clock globally, so even modules
+        that bound `now` via `from ... import now` observe the frozen time —
+        matching pendulum's `travel_to(freeze=True)` semantics."""
+        frozen = datetime.datetime(2030, 1, 1, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
+
+        with travel_to(frozen):
+            assert now("UTC") == frozen
+            assert now("America/New_York").astimezone(ZoneInfo("UTC")) == frozen
+
+        assert now("UTC") != frozen
+        assert (
+            abs((now("UTC") - datetime.datetime.now(ZoneInfo("UTC"))).total_seconds())
+            < 60
+        )
 
 
 class TestInLocalTz:
@@ -131,11 +212,8 @@ class TestInLocalTz:
 class TestDateTimeTypeAlias:
     """`DateTime` is the type alias used for Pydantic-validated datetime fields.
 
-    On Python <= 3.12 it is pendulum-backed (`PydanticDateTime`); on Python
-    >= 3.13 it is a `datetime.datetime` subclass with a Pydantic schema that
-    enforces tz-awareness. These tests guard parity across versions — a naive
-    input must come out tz-aware regardless of which backend is active. See
-    #21949.
+    It is a `datetime.datetime` subclass with a Pydantic schema that enforces
+    tz-awareness — a naive input must come out tz-aware. See #21949.
     """
 
     def test_naive_value_is_coerced_to_utc(self):
@@ -182,3 +260,10 @@ class TestDateTimeTypeAlias:
         result = Model(when="2024-06-15T14:30:45").when
         assert result.tzinfo is not None
         assert result.utcoffset() == datetime.timedelta(0)
+
+    def test_result_is_a_datetime_alias_instance(self):
+        class Model(BaseModel):
+            when: DateTime
+
+        result = Model(when="2024-06-15T14:30:45Z").when
+        assert isinstance(result, DateTime)
