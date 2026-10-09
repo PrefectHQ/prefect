@@ -571,7 +571,7 @@ class TestIntervalScheduleDateTimeDelta:
         landing at 11am (due to the lost hour), while timedelta(days=2)
         should land at 10am (preserving the calendar day).
         """
-        from whenever import ItemizedDelta
+        from prefect.types._datetime import ItemizedDelta
 
         anchor = datetime(2023, 3, 24, 10, tzinfo=ZoneInfo("Europe/Amsterdam"))
 
@@ -600,7 +600,7 @@ class TestIntervalScheduleDateTimeDelta:
         ItemizedDelta(hours=72) should add exactly 72 hours, landing at
         8am (due to the gained hour), while timedelta(days=3) preserves 9am.
         """
-        from whenever import ItemizedDelta
+        from prefect.types._datetime import ItemizedDelta
 
         anchor = datetime(2018, 11, 1, 9, tzinfo=ZoneInfo("America/New_York"))
 
@@ -625,7 +625,7 @@ class TestIntervalScheduleDateTimeDelta:
     async def test_datetimedelta_calendar_days_match_timedelta_days(self):
         """ItemizedDelta(days=2) should behave the same as timedelta(days=2)
         — both preserve calendar-day semantics."""
-        from whenever import ItemizedDelta
+        from prefect.types._datetime import ItemizedDelta
 
         anchor = datetime(2023, 3, 24, 10, tzinfo=ZoneInfo("Europe/Amsterdam"))
 
@@ -647,7 +647,7 @@ class TestIntervalScheduleDateTimeDelta:
 
     async def test_datetimedelta_pydantic_roundtrip(self):
         """ItemizedDelta intervals should survive Pydantic serialization."""
-        from whenever import ItemizedDelta
+        from prefect.types._datetime import ItemizedDelta
 
         schedule = IntervalSchedule(
             interval=ItemizedDelta(hours=48),
@@ -664,7 +664,7 @@ class TestIntervalScheduleDateTimeDelta:
         """A positive ItemizedDelta shorter than one second must keep its
         fractional seconds — truncating to int made the offset estimate zero
         and date generation raised ZeroDivisionError."""
-        from whenever import ItemizedDelta
+        from prefect.types._datetime import ItemizedDelta
 
         anchor = datetime(2024, 1, 1, tzinfo=ZoneInfo("UTC"))
         s = IntervalSchedule(
@@ -682,7 +682,7 @@ class TestIntervalScheduleDateTimeDelta:
         """An exact-seconds fast-forward leaves the recurrence phase for
         month-based intervals: an anchor of Jan 31 must produce Feb 29,
         Mar 29, Apr 29 — not the 1st of each month."""
-        from whenever import ItemizedDelta
+        from prefect.types._datetime import ItemizedDelta
 
         anchor = datetime(2024, 1, 31, tzinfo=ZoneInfo("UTC"))
         s = IntervalSchedule(
@@ -701,9 +701,28 @@ class TestIntervalScheduleDateTimeDelta:
             (2024, 5, 29),
         ]
 
+    async def test_monthly_interval_with_future_anchor(self):
+        """When `start` precedes a calendar interval's anchor, runs between
+        `start` and the anchor must still be emitted (phase is approximate,
+        matching the prior seconds-offset behavior)."""
+        from prefect.types._datetime import ItemizedDelta
+
+        s = IntervalSchedule(
+            interval=ItemizedDelta(months=1),
+            anchor_date=datetime(2030, 2, 1, tzinfo=ZoneInfo("UTC")),
+            timezone="UTC",
+        )
+
+        dates = await s.get_dates(
+            n=3, start=datetime(2029, 12, 1, tzinfo=ZoneInfo("UTC"))
+        )
+
+        assert all(d < datetime(2030, 2, 1, tzinfo=ZoneInfo("UTC")) for d in dates[:2])
+        assert dates[0] >= datetime(2029, 12, 1, tzinfo=ZoneInfo("UTC"))
+
     async def test_datetimedelta_negative_rejected(self):
         """A negative ItemizedDelta should be rejected."""
-        from whenever import ItemizedDelta
+        from prefect.types._datetime import ItemizedDelta
 
         with pytest.raises(ValidationError, match="interval must be positive"):
             IntervalSchedule(interval=ItemizedDelta(hours=-1))
