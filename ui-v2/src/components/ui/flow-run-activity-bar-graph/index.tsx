@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
 import { scaleSymlog } from "d3-scale";
 import { format, formatDistanceStrict } from "date-fns";
@@ -71,6 +71,7 @@ const CustomBar = (props: CustomShapeProps) => {
 		radius = [0, 0, 0, 0],
 		role,
 		flowRun,
+		onNavigate,
 	} = props;
 	const flowRunId = flowRun?.id;
 	const effectiveHeight = Math.max(height, minHeight);
@@ -98,6 +99,12 @@ const CustomBar = (props: CustomShapeProps) => {
 					aria-label={`Open flow run ${flowRun?.name ?? flowRunId}`}
 					data-row-click-ignore="true"
 					className="cursor-pointer"
+					onKeyDown={(event) => {
+						if (event.key === "Enter" || event.key === " ") {
+							event.preventDefault();
+							onNavigate?.(flowRunId);
+						}
+					}}
 				>
 					{bar}
 				</Link>
@@ -246,6 +253,17 @@ export const FlowRunActivityBarChart = ({
 		interactionState,
 	] = useIsTooltipActive(chartId);
 	const chartRef = useRef<HTMLDivElement>(null);
+	const navigate = useNavigate();
+	const navigateToFlowRun = useCallback(
+		(flowRunId: string) => {
+			void navigate({
+				to: "/runs/flow-run/$id",
+				params: { id: flowRunId },
+			});
+		},
+		[navigate],
+	);
+
 	// Cap flow runs to prevent crash when there are more runs than bars.
 	// The chart can only display one run per bar, so we take the first N runs
 	// (which are typically the most recent due to query sort order).
@@ -332,7 +350,7 @@ export const FlowRunActivityBarChart = ({
 				/>
 				<Bar
 					dataKey="value"
-					shape={<CustomBar />}
+					shape={<CustomBar onNavigate={navigateToFlowRun} />}
 					radius={[5, 5, 5, 5]}
 					onMouseEnter={() => setIsTooltipActive(true)}
 					onMouseLeave={() => setIsTooltipActive(undefined)}
