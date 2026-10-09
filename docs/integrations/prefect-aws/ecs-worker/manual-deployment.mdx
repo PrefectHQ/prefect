@@ -874,7 +874,7 @@ Now that your infrastructure is deployed, you should update your ECS work pool c
         You can also update the work pool configuration programmatically using the Prefect API:
 
         ```python
-        from prefect.client.schemas.objects import WorkPoolUpdate
+        from prefect.client.schemas.actions import WorkPoolUpdate
         from prefect import get_client
 
         async def update_work_pool():
