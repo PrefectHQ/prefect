@@ -38,7 +38,8 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        # Pull from Google's Docker Hub mirror to avoid anonymous Docker Hub pull rate limits
+        image: mirror.gcr.io/library/postgres:16
         env:
           POSTGRES_USER: prefect
           POSTGRES_PASSWORD: prefect
