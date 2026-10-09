@@ -41,7 +41,7 @@ async def pull_docker_image(
         The image that has been pulled, or a list of images if `all_tags` is `True`.
 
     Examples:
-        Pull prefecthq/prefect image with the tag latest-python3.10.
+        Pull prefecthq/prefect image with the tag latest-python3.11.
         ```python
         from prefect import flow
         from prefect_docker.images import pull_docker_image
@@ -50,7 +50,7 @@ async def pull_docker_image(
         def pull_docker_image_flow():
             image = pull_docker_image(
                 repository="prefecthq/prefect",
-                tag="latest-python3.10"
+                tag="latest-python3.11"
             )
             return image
 

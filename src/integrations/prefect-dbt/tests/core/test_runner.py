@@ -14,7 +14,7 @@ from uuid import uuid4
 import pytest
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
-from dbt.contracts.results import RunExecutionResult, RunStatus
+from dbt.contracts.results import NodeStatus, RunExecutionResult, RunStatus
 from dbt.node_types import NodeType
 
 try:
@@ -973,6 +973,79 @@ class TestPrefectDbtRunnerCallbackCreation:
             True,
         )
 
+    def test_unified_callback_tracks_microbatch_model_as_single_node(
+        self, mock_manifest_node, mock_manifest
+    ):
+        """dbt emits a `NodeStart`/`NodeFinished` pair for a microbatch model and
+        for each of its batches, all with the model's unique_id."""
+        mock_manifest.nodes = {mock_manifest_node.unique_id: mock_manifest_node}
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        task_state = NodeTaskTracker()
+        context = {"test": "context"}
+        post_model_statuses: list[str | None] = []
+
+        @runner.post_model
+        def after_model(ctx):
+            post_model_statuses.append(ctx.status)
+
+        def make_event(name: str, node_status: str | None = None) -> Mock:
+            event = Mock(spec=EventMsg)
+            event.info = Mock()
+            event.info.name = name
+            event.info.msg = f"{name} {node_status}"
+            event.data = Mock()
+            event.data.node_info = Mock()
+            event.data.node_info.unique_id = mock_manifest_node.unique_id
+            event.data.node_status = node_status
+            return event
+
+        events = [
+            make_event("NodeStart"),
+            make_event("NodeStart"),
+            make_event("NodeFinished", "error"),
+            make_event("NodeStart"),
+            make_event("NodeFinished", "success"),
+            make_event("NodeFinished", "success"),
+        ]
+
+        with (
+            patch.object(runner, "_call_task") as mock_call_task,
+            patch(
+                "prefect_dbt.core.runner.MessageToDict",
+                side_effect=lambda data, **kwargs: {
+                    "node_info": {"node_status": data.node_status}
+                },
+            ),
+        ):
+            callback = runner._create_unified_callback(
+                task_state, EventLevel.INFO, context
+            )
+            task_state.start_task(mock_manifest_node.unique_id, Mock())
+
+            for event in events[:-1]:
+                callback(event)
+            runner._event_queue.join()
+
+            assert not task_state.is_node_complete(mock_manifest_node.unique_id)
+            assert mock_manifest_node.unique_id not in runner._skipped_nodes
+            assert post_model_statuses == []
+
+            callback(events[-1])
+            runner._event_queue.join()
+            runner._stop_callback_processor()
+
+        mock_call_task.assert_called_once_with(
+            task_state, mock_manifest_node, context, True
+        )
+        assert task_state.wait_for_node_completion(
+            mock_manifest_node.unique_id, timeout=0
+        )
+        assert task_state.get_node_status(mock_manifest_node.unique_id) == {
+            "event_data": {"node_info": {"node_status": "success"}},
+            "event_message": "NodeFinished success",
+        }
+        assert post_model_statuses == ["success"]
+
     @pytest.mark.parametrize(
         "callback_factory", ["_create_unified_callback", "_create_logging_callback"]
     )
@@ -1504,17 +1577,34 @@ class TestExecuteDbtNode:
         mock_task_state.wait_for_node_completion.assert_called_once_with(node_id)
         mock_task_state.get_node_status.assert_called_once_with(node_id)
 
-    def test_execute_dbt_node_handles_failure_status(self, mock_task_state):
+    @pytest.mark.parametrize(
+        "node_status",
+        [
+            "error",
+            pytest.param(
+                "partial success",
+                marks=pytest.mark.skipif(
+                    not hasattr(NodeStatus, "PartialSuccess"),
+                    reason="partial success requires dbt>=1.9",
+                ),
+            ),
+        ],
+    )
+    def test_execute_dbt_node_handles_failure_status(
+        self, mock_task_state, node_status
+    ):
         """Test that execute_dbt_node handles failure status."""
         node_id = "model.test_project.test_model"
         asset_id = "test_asset"
 
         # Mock failure status
         mock_task_state.get_node_status.return_value = {
-            "event_data": {"node_info": {"node_status": "error"}}
+            "event_data": {"node_info": {"node_status": node_status}}
         }
 
-        with pytest.raises(Exception, match="Node .* finished with status error"):
+        with pytest.raises(
+            Exception, match=f"Node .* finished with status {node_status}"
+        ):
             execute_dbt_node(mock_task_state, node_id, asset_id)
 
     def test_execute_dbt_node_handles_no_status(self, mock_task_state):
@@ -2066,6 +2156,7 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         runner._queue_counter = 42
         runner._skipped_nodes = {"node1", "node2"}
         runner._started_nodes = {"node3", "node4"}
+        runner._open_node_starts = {"node5": 2}
 
         # Stop should reset all state
         runner._stop_callback_processor()
@@ -2076,6 +2167,7 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         assert runner._queue_counter == 0
         assert runner._skipped_nodes == set()
         assert runner._started_nodes == set()
+        assert runner._open_node_starts == {}
 
     def test_multiple_invokes_create_fresh_callback_processors(
         self, mock_dbt_runner_class, mock_settings_context_manager

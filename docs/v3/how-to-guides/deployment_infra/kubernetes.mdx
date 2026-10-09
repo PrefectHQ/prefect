@@ -250,7 +250,7 @@ Kubernetes still retries the job when the backoff limit is greater than 0.
 
 | Value | Behavior on `SIGTERM` |
 | --- | --- |
-| `reschedule` | The run is rescheduled and the worker starts a new pod. |
+| `reschedule` | The run is rescheduled and the worker starts a new pod. A run that is already `Cancelled`, `Completed`, or `Failed` keeps its state. |
 | `relinquish` | Prefect leaves the run state unchanged so a Kubernetes-retried pod can resume it. Requires Prefect 3.8.1 or later. |
 | `crash` (or any other value) | The run ends as `Crashed` and no new pod starts. |
 

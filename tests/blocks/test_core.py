@@ -1,7 +1,6 @@
 import abc
 import collections.abc
 import json
-import sys
 import warnings
 from textwrap import dedent
 from typing import Any, Dict, List, Literal, Tuple, Type, Union
@@ -1252,9 +1251,6 @@ class TestAPICompatibility:
         block_document = await prefect_client.read_block_document(block_document_id)
         assert block_document.block_schema.version == mock_version
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 10), reason="requires python3.10 or higher for `| None`"
-    )
     def test_maintain_secrets_after_load_for_union_type(self):
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/18486
@@ -1449,10 +1445,6 @@ class TestRegisterBlockTypeAndSchema:
         )
         assert umbrella_block_schema is not None
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 10),
-        reason="requires python3.10 or higher for `|` unions",
-    )
     async def test_register_nested_block_union_pipe(
         self, prefect_client: PrefectClient
     ):

@@ -865,7 +865,7 @@ async def update(
     if base_job_template:
         with open(base_job_template) as f:
             wp.base_job_template = json.load(f)
-    if concurrency_limit:
+    if concurrency_limit is not None:
         wp.concurrency_limit = concurrency_limit
     if description:
         wp.description = description
@@ -1151,6 +1151,7 @@ async def preview(
         try:
             responses = await client.get_scheduled_flow_runs_for_work_pool(
                 work_pool_name=name,
+                scheduled_before=now_fn("UTC") + datetime.timedelta(hours=hours),
             )
         except ObjectNotFound as exc:
             exit_with_error(exc)
