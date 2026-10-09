@@ -1,5 +1,4 @@
 import { TooltipContent, TooltipTrigger } from "@radix-ui/react-tooltip";
-import { Link } from "@tanstack/react-router";
 import type { FlowRun } from "@/api/flow-runs";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Popover } from "./popover";
@@ -19,30 +18,19 @@ export const FlowRunCell = ({
 	height,
 	className,
 }: FlowRunCellProps) => {
-	const cellProps = {
-		"data-testid": `flow-run-cell-${flowRun?.id}`,
-		className,
-		style: {
-			width,
-			height,
-			borderRadius: "4px",
-			margin: "3px",
-		},
-	};
-
 	return (
 		<Tooltip delayDuration={0}>
 			<TooltipTrigger asChild>
-				{flowRun ? (
-					<Link
-						to="/runs/flow-run/$id"
-						params={{ id: flowRun.id }}
-						aria-label={`Open flow run ${flowRun.name}`}
-						{...cellProps}
-					/>
-				) : (
-					<div {...cellProps} />
-				)}
+				<div
+					data-testid={`flow-run-cell-${flowRun?.id}`}
+					className={className}
+					style={{
+						width: width,
+						height: height,
+						borderRadius: "4px",
+						margin: "3px",
+					}}
+				/>
 			</TooltipTrigger>
 			<TooltipContent side="bottom" className="z-50">
 				<Popover name={flowName} flowRun={flowRun} />
