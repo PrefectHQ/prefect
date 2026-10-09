@@ -656,7 +656,7 @@ class AzureBlobStorageContainer(
         included_files = None
         if ignore_file:
             with open(ignore_file, "r") as f:
-                ignore_patterns = [line.strip() for line in f]
+                ignore_patterns = [line.rstrip("\r\n").lstrip() for line in f]
 
             included_files = filter_files(local_path, ignore_patterns)
 

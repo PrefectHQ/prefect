@@ -125,7 +125,7 @@ def push_to_gcs(
     included_files = None
     if ignore_file and Path(ignore_file).exists():
         with open(ignore_file, "r") as f:
-            ignore_patterns = [line.strip() for line in f]
+            ignore_patterns = [line.rstrip("\r\n").lstrip() for line in f]
         included_files = filter_files(str(local_path), ignore_patterns)
 
     for local_file_path in local_path.expanduser().rglob("*"):
