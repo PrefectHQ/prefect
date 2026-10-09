@@ -186,7 +186,7 @@ test.describe("Flows List Page", () => {
 		});
 	});
 
-	test("Run menu item shows an empty state for a flow with no deployments", async ({
+	test("Row menu hides Run for a flow with no deployments", async ({
 		page,
 		apiClient,
 	}) => {
@@ -201,16 +201,12 @@ test.describe("Flows List Page", () => {
 		}).toPass({ timeout: 15000 });
 
 		const row = page.getByRole("row", { name: new RegExp(flowName) });
-		await expect(row.getByRole("button", { name: "Run" })).not.toBeVisible();
-
 		await row.getByRole("button", { name: /open menu/i }).click();
-		await page.getByRole("menuitem", { name: "Run" }).click();
 
-		const dialog = page.getByRole("dialog", { name: `Run ${flowName}` });
-		await expect(dialog).toBeVisible();
-		await expect(dialog.getByText("This flow has no deployments.")).toBeVisible(
-			{ timeout: 10000 },
-		);
+		await expect(page.getByRole("menuitem", { name: "Copy ID" })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: "Run" })).not.toBeVisible();
+
+		await page.keyboard.press("Escape");
 
 		const flowRuns = await listFlowRuns(apiClient);
 		expect(flowRuns.some((fr) => fr.flow_id === flow.id)).toBe(false);

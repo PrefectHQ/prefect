@@ -17,7 +17,7 @@ type FlowPageHeaderProps = {
 
 export function FlowPageHeader({ flow, onDelete }: FlowPageHeaderProps) {
 	return (
-		<header className="flex items-center justify-between">
+		<header className="flex items-center justify-between gap-4">
 			<Breadcrumb className="min-w-0">
 				<BreadcrumbList className="flex-nowrap">
 					<BreadcrumbItem>
@@ -33,7 +33,7 @@ export function FlowPageHeader({ flow, onDelete }: FlowPageHeaderProps) {
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
-			<div className="flex items-center gap-2">
+			<div className="flex shrink-0 items-center gap-2">
 				<FlowRunAction flow={flow} />
 				<FlowMenu flow={flow} onDelete={onDelete} />
 			</div>

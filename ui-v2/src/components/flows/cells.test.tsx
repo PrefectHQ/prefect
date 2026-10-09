@@ -17,7 +17,7 @@ import {
 	createFakeFlow,
 	createFakeFlowRun,
 } from "@/mocks";
-import { FlowActionMenu } from "./cells";
+import { FlowActionMenu, FlowDeploymentCount } from "./cells";
 
 beforeAll(() => {
 	// Polyfill scrollIntoView used by cmdk
@@ -52,6 +52,17 @@ const renderMenu = async (children: ReactNode) => {
 	);
 };
 
+const mockCount = (flowId: string, count: number) => {
+	const countDeployments = vi.fn();
+	server.use(
+		http.post(buildApiUrl("/ui/flows/count-deployments"), () => {
+			countDeployments();
+			return HttpResponse.json({ [flowId]: count });
+		}),
+	);
+	return countDeployments;
+};
+
 const mockPaginate = (results: ReturnType<typeof createFakeDeployment>[]) => {
 	server.use(
 		http.post(buildApiUrl("/deployments/paginate"), () =>
@@ -75,6 +86,7 @@ const openMenu = async () => {
 describe("FlowActionMenu", () => {
 	it("renders no standalone Run button in the row", async () => {
 		const flow = createFakeFlow();
+		mockCount(flow.id, 1);
 		await renderMenu(<FlowActionMenu row={{ original: flow }} />);
 
 		expect(screen.getByRole("button", { name: /open menu/i })).toBeVisible();
@@ -83,8 +95,9 @@ describe("FlowActionMenu", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("lists Run first in the overflow menu", async () => {
+	it("lists Run first in the overflow menu when the flow has deployments", async () => {
 		const flow = createFakeFlow();
+		mockCount(flow.id, 2);
 		await renderMenu(<FlowActionMenu row={{ original: flow }} />);
 		await openMenu();
 
@@ -95,8 +108,58 @@ describe("FlowActionMenu", () => {
 		);
 	});
 
+	it("omits the Run menu item when the flow has no deployments", async () => {
+		const flow = createFakeFlow();
+		mockCount(flow.id, 0);
+		await renderMenu(<FlowActionMenu row={{ original: flow }} />);
+		await openMenu();
+
+		await waitFor(() =>
+			expect(
+				screen.getAllByRole("menuitem").map((item) => item.textContent),
+			).toEqual(["Copy ID", "Delete", "Automate"]),
+		);
+		expect(
+			screen.queryByRole("menuitem", { name: "Run" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("omits the Run menu item when the count request fails", async () => {
+		const flow = createFakeFlow();
+		server.use(
+			http.post(buildApiUrl("/ui/flows/count-deployments"), () =>
+				HttpResponse.error(),
+			),
+		);
+		await renderMenu(<FlowActionMenu row={{ original: flow }} />);
+		await openMenu();
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole("menuitem", { name: "Copy ID" }),
+			).toBeInTheDocument(),
+		);
+		expect(
+			screen.queryByRole("menuitem", { name: "Run" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("shares the count query with FlowDeploymentCount", async () => {
+		const flow = createFakeFlow();
+		const countDeployments = mockCount(flow.id, 3);
+		await renderMenu(
+			<>
+				<FlowDeploymentCount row={{ original: flow }} />
+				<FlowActionMenu row={{ original: flow }} />
+			</>,
+		);
+
+		await waitFor(() => expect(countDeployments).toHaveBeenCalledTimes(1));
+	});
+
 	it("opens the run dialog from the menu", async () => {
 		const flow = createFakeFlow({ name: "my-flow" });
+		mockCount(flow.id, 1);
 		mockPaginate([]);
 		await renderMenu(<FlowActionMenu row={{ original: flow }} />);
 		const user = await openMenu();
@@ -111,6 +174,7 @@ describe("FlowActionMenu", () => {
 	it("preselects a single deployment, creates nothing until Quick run, and closes on success", async () => {
 		const flow = createFakeFlow();
 		const deployment = createFakeDeployment({ flow_id: flow.id });
+		mockCount(flow.id, 1);
 		mockPaginate([deployment]);
 		const createFlowRun = vi.fn();
 		server.use(

@@ -142,6 +142,16 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 	const [runOpen, setRunOpen] = useState(false);
 	const { deleteFlow } = useDeleteFlowById();
 
+	const {
+		data: countsMap,
+		isSuccess,
+		isPlaceholderData,
+	} = useQuery(
+		buildDeploymentsCountByFlowQuery(id ? [id] : [], { enabled: !!id }),
+	);
+	const canRun =
+		isSuccess && !isPlaceholderData && (countsMap?.[id ?? ""] ?? 0) > 0;
+
 	if (!id) {
 		return null;
 	}
@@ -156,9 +166,11 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
-					<DropdownMenuItem onSelect={() => setRunOpen(true)}>
-						Run
-					</DropdownMenuItem>
+					{canRun && (
+						<DropdownMenuItem onSelect={() => setRunOpen(true)}>
+							Run
+						</DropdownMenuItem>
+					)}
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(id);
