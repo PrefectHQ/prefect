@@ -130,9 +130,9 @@ const FlowRunDialogBody = ({
 		useIsMutating({ mutationKey: deploymentCreateFlowRunMutationKey }) > 0;
 
 	const flowsFilter = {
-		operator: "and_",
+		operator: "and_" as const,
 		id: { any_: [flow.id ?? ""] },
-	} as components["schemas"]["FlowFilter"];
+	};
 
 	const deploymentsQuery = useQuery(
 		buildPaginateDeploymentsQuery({
@@ -206,7 +206,7 @@ const FlowRunDialogBody = ({
 				>
 					{selection ? selection.name : "Select a deployment"}
 				</ComboboxTrigger>
-				<ComboboxContent>
+				<ComboboxContent className="flex flex-col overflow-hidden">
 					<ComboboxCommandInput
 						value={search}
 						onValueChange={(value) => {
@@ -215,7 +215,7 @@ const FlowRunDialogBody = ({
 						}}
 						placeholder="Search deployments..."
 					/>
-					<ComboboxCommandList>
+					<ComboboxCommandList className="min-h-0 flex-1">
 						<ComboboxCommandEmtpy>
 							{deferredSearch
 								? "No deployments match your search"

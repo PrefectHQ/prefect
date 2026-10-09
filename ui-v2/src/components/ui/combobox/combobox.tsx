@@ -72,9 +72,15 @@ const ComboboxTrigger = ({
 	);
 };
 
-const ComboboxContent = ({ children }: { children: React.ReactNode }) => {
+const ComboboxContent = ({
+	className,
+	children,
+}: {
+	className?: string;
+	children: React.ReactNode;
+}) => {
 	return (
-		<PopoverContent fullWidth>
+		<PopoverContent fullWidth className={className}>
 			<Command shouldFilter={false}>{children}</Command>
 		</PopoverContent>
 	);
@@ -104,12 +110,18 @@ const ComboboxCommandInput = ({
 
 const ComboboxCommandList = ({
 	ref,
+	className,
 	children,
 }: {
 	ref?: React.Ref<HTMLDivElement>;
+	className?: string;
 	children: React.ReactNode;
 }) => {
-	return <CommandList ref={ref}>{children}</CommandList>;
+	return (
+		<CommandList ref={ref} className={className}>
+			{children}
+		</CommandList>
+	);
 };
 
 const ComboboxCommandEmtpy = ({ children }: { children: React.ReactNode }) => {
