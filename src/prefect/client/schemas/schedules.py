@@ -42,6 +42,11 @@ def _iana_timezone_name(tzinfo: datetime.tzinfo) -> str:
             candidate = normalized[idx + len(marker) :]
             if candidate and is_valid_timezone(candidate):
                 return candidate
+        elif is_valid_timezone(normalized):
+            # `dateutil` may store a bare IANA name (e.g. when resolving
+            # through the `tzdata` package, as on Windows) rather than a
+            # path into a zoneinfo directory.
+            return normalized
 
     return "UTC"
 
