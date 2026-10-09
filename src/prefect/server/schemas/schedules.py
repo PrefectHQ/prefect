@@ -208,6 +208,25 @@ class IntervalSchedule(PrefectBaseModel):
 
             def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
                 return zdt + interval
+
+            def _subtract_scaled(zdt: ZonedDateTime, k: int) -> ZonedDateTime:
+                # `zdt - k * interval` as a single calendar step so the
+                # result keeps the anchor's phase — repeated subtraction
+                # compounds clamping (Mar 31 -> Feb 28 -> Jan 28).
+                if isinstance(interval, DateTimeDelta):
+                    return zdt - interval * k
+                result = zdt
+                if _date is not None:
+                    _kw = {
+                        unit: value * k
+                        for unit in ("years", "months", "weeks", "days")
+                        if (value := _date.get(unit))
+                    }
+                    if _kw:
+                        result = result - _ItemizedDelta(**_kw)
+                if _time is not None:
+                    result = result - _time * k
+                return result
         else:
             approx_total_seconds = interval.total_seconds()
             # break the interval into `days` and `seconds` because
@@ -230,15 +249,28 @@ class IntervalSchedule(PrefectBaseModel):
             # the month and days shift across DST), so an exact-seconds jump
             # would leave the recurrence phase. Advance from the anchor
             # instead; the yield loop below bounds any leftover distance.
-            # When `start` precedes the anchor, walk backward in calendar
-            # steps so occurrences between `start` and the anchor keep the
-            # anchor's phase and are not skipped.
             next_date = anchor_zdt
-            while next_date > local_start:
-                next_date = next_date - interval
+            if local_start < anchor_zdt:
+                # `start` precedes the anchor: occurrences between `start`
+                # and the anchor must not be skipped, and they must keep the
+                # anchor's phase, so each is computed as
+                # `anchor - i * interval` in one calendar step. `pre_i`
+                # counts the steps back for the earliest such occurrence and
+                # the yield loop drains i = pre_i..0 lazily, so only the
+                # occurrences actually yielded are computed.
+                pre_i = max(1, int(-_diff_secs / approx_total_seconds))
+                while _subtract_scaled(anchor_zdt, pre_i) > local_start:
+                    pre_i += 1
+                while pre_i > 1 and (
+                    _subtract_scaled(anchor_zdt, pre_i - 1) <= local_start
+                ):
+                    pre_i -= 1
+            else:
+                pre_i = -1
         else:
             offset = _diff_secs / approx_total_seconds
             next_date = anchor_zdt.add(seconds=approx_total_seconds * int(offset))
+            pre_i = -1
 
         while next_date < local_start:
             next_date = _advance(next_date)
@@ -247,6 +279,16 @@ class IntervalSchedule(PrefectBaseModel):
         dates: set[ZonedDateTime] = set()
 
         while True:
+            if pre_i >= 0:
+                # i == 0 is the anchor itself; resume forward advancement
+                # after it is emitted.
+                next_date = (
+                    anchor_zdt if pre_i == 0 else _subtract_scaled(anchor_zdt, pre_i)
+                )
+                pre_i -= 1
+                if next_date < local_start:
+                    continue
+
             # if the end date was exceeded, exit
             if local_end and next_date > local_end:
                 break
@@ -262,7 +304,8 @@ class IntervalSchedule(PrefectBaseModel):
 
             counter += 1
 
-            next_date = _advance(next_date)
+            if pre_i < 0:
+                next_date = _advance(next_date)
 
 
 class CronSchedule(PrefectBaseModel):
