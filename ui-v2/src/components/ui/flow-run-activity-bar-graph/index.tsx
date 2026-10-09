@@ -39,6 +39,7 @@ type CustomShapeProps = {
 	radius?: number[];
 	role?: string;
 	flowRun?: EnrichedFlowRun;
+	onNavigate?: (flowRunId: string) => void;
 };
 
 const barVariants = cva("gap-1 z-1", {
