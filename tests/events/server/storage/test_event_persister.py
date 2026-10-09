@@ -360,6 +360,7 @@ async def test_trims_messages_periodically(
             flush_every=timedelta(seconds=0.001),
             trim_every=timedelta(seconds=0.001),
         ):
+
             async def events_trimmed() -> bool:
                 _, total, _ = await query_events(session, filter=EventFilter())
                 return total == 5
