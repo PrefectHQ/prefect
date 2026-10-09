@@ -2,12 +2,15 @@
 Tests for prefect.testing.fixtures module.
 """
 
+import logging
 import subprocess
 from contextlib import asynccontextmanager
 from unittest import mock
 
 import pytest
 
+from prefect.logging.configuration import setup_logging
+from prefect.logging.handlers import WorkerAPILogHandler
 from prefect.testing import fixtures
 
 pytestmark = pytest.mark.clear_db
@@ -154,3 +157,159 @@ class TestHostedApiServerWindowsProcessHandling:
 
         # Verify process.terminate() was called
         mock_process.terminate.assert_called_once()
+
+
+class TestRestoreLoggingState:
+    """Regression tests for the autouse `restore_logging_state` fixture.
+
+    Tests that reconfigure logging in-process (e.g. by invoking the CLI with
+    `test_mode` disabled, which runs `setup_logging`) permanently mutate logger
+    state in their pytest-xdist worker. The fixture must restore that state so
+    later tests' `caplog` assertions are not silently broken.
+    """
+
+    def test_restores_mutated_logger_configuration(self):
+        # Create the probe logger before the fixture snapshots so it is
+        # included in the saved state.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_probe")
+        original_level = logger.level
+        original_propagate = logger.propagate
+        original_handlers = logger.handlers[:]
+
+        gen = fixtures.restore_logging_state.__wrapped__()
+        next(gen)  # fixture setup: snapshot
+
+        # Simulate a test polluting the logger, e.g. via `setup_logging`
+        logger.setLevel(logging.WARNING)
+        logger.propagate = False
+        logger.disabled = True
+        logger.addHandler(logging.NullHandler())
+
+        with pytest.raises(StopIteration):
+            next(gen)  # fixture teardown: restore
+
+        assert logger.level == original_level
+        assert logger.propagate == original_propagate
+        assert logger.disabled is False
+        # A handler that was only appended is detached again on restore.
+        assert logger.handlers == original_handlers
+
+    def test_restoring_level_clears_enabled_for_cache(self):
+        # A cached `isEnabledFor` rejection must be cleared when the level is
+        # restored, otherwise records are still dropped at the polluted level.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_cache")
+        original_level = logger.level
+
+        gen = fixtures.restore_logging_state.__wrapped__()
+        next(gen)
+
+        logger.setLevel(logging.WARNING)
+        assert not logger.isEnabledFor(logging.INFO)  # caches a rejection
+
+        with pytest.raises(StopIteration):
+            next(gen)
+
+        assert logger.level == original_level
+        assert logger.isEnabledFor(logging.INFO)
+
+    def test_full_reconfiguration_keeps_configured_handlers(self):
+        # A test that runs `setup_logging(incremental=False)` replaces every
+        # configured logger's handler objects with new instances; those new
+        # handlers are the canonical configuration and must survive teardown.
+        workers_logger = logging.getLogger("prefect.workers")
+
+        gen = fixtures.restore_logging_state.__wrapped__()
+        next(gen)
+
+        setup_logging(incremental=False)
+        assert any(isinstance(h, WorkerAPILogHandler) for h in workers_logger.handlers)
+
+        with pytest.raises(StopIteration):
+            next(gen)
+
+        assert any(isinstance(h, WorkerAPILogHandler) for h in workers_logger.handlers)
+
+    def test_removed_handlers_are_restored(self):
+        # A test that only removes handlers (without attaching replacements)
+        # gets the snapshot's handler list back.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_rm")
+        marker = logging.NullHandler()
+        logger.addHandler(marker)
+        try:
+            gen = fixtures.restore_logging_state.__wrapped__()
+            next(gen)
+
+            logger.removeHandler(marker)
+
+            with pytest.raises(StopIteration):
+                next(gen)
+
+            assert logger.handlers == [marker]
+        finally:
+            logger.removeHandler(marker)
+
+    def test_replaced_open_handler_is_restored(self):
+        # An ordinary remove-and-add (not a full reconfiguration, which would
+        # have closed the removed handler) gets the original handler back.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_swap")
+        original = logging.NullHandler()
+        logger.addHandler(original)
+        try:
+            gen = fixtures.restore_logging_state.__wrapped__()
+            next(gen)
+
+            logger.removeHandler(original)
+            logger.addHandler(logging.NullHandler())
+
+            with pytest.raises(StopIteration):
+                next(gen)
+
+            assert logger.handlers == [original]
+        finally:
+            logger.handlers[:] = []
+
+    def test_closed_handlers_are_not_restored(self):
+        # A handler closed during the test (as `dictConfig` does to every
+        # registered handler) is not re-attached.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_closed")
+        closed_handler = logging.NullHandler()
+        logger.addHandler(closed_handler)
+        try:
+            gen = fixtures.restore_logging_state.__wrapped__()
+            next(gen)
+
+            logger.removeHandler(closed_handler)
+            closed_handler.close()
+
+            with pytest.raises(StopIteration):
+                next(gen)
+
+            assert logger.handlers == []
+        finally:
+            logger.handlers[:] = []
+
+    def test_open_handler_survives_mixed_cleanup(self):
+        # When a test removes several handlers but only closes some of them,
+        # the still-open ones are restored alongside the new configuration.
+        logger = logging.getLogger("prefect.testing.restore_logging_state_mixed")
+        kept = logging.NullHandler()
+        closed = logging.NullHandler()
+        logger.addHandler(kept)
+        logger.addHandler(closed)
+        replacement = logging.NullHandler()
+        try:
+            gen = fixtures.restore_logging_state.__wrapped__()
+            next(gen)
+
+            logger.removeHandler(kept)
+            logger.removeHandler(closed)
+            closed.close()
+            logger.addHandler(replacement)
+
+            with pytest.raises(StopIteration):
+                next(gen)
+
+            assert logger.handlers == [replacement, kept]
+        finally:
+            logger.handlers[:] = []
+            replacement.close()
