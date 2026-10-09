@@ -11,11 +11,22 @@ export type ArtifactsCardProps = {
 	compact?: boolean;
 };
 
-const getArtifactId = (artifact: Artifact | ArtifactCollection): string => {
+const getLinkProps = (artifact: Artifact | ArtifactCollection) => {
 	if ("latest_id" in artifact) {
-		return artifact.latest_id;
+		return artifact.key
+			? ({
+					to: "/artifacts/key/$key",
+					params: { key: artifact.key },
+				} as const)
+			: ({
+					to: "/artifacts/artifact/$id",
+					params: { id: artifact.latest_id },
+				} as const);
 	}
-	return artifact.id ?? "";
+	return {
+		to: "/artifacts/artifact/$id",
+		params: { id: artifact.id ?? "" },
+	} as const;
 };
 
 export const ArtifactCard = ({
@@ -26,20 +37,8 @@ export const ArtifactCard = ({
 		return formatDate(new Date(artifact.created ?? ""), "dateTime");
 	}, [artifact.created]);
 
-	const hasKey = Boolean(artifact.key);
-
-	const linkProps = hasKey
-		? ({
-				to: "/artifacts/key/$key",
-				params: { key: artifact.key as string },
-			} as const)
-		: ({
-				to: "/artifacts/artifact/$id",
-				params: { id: getArtifactId(artifact) },
-			} as const);
-
 	return (
-		<Link {...linkProps}>
+		<Link {...getLinkProps(artifact)}>
 			<Card className="hover:shadow-lg hover:border-primary">
 				<CardHeader>
 					<p className="text-sm font-bold text-muted-foreground">

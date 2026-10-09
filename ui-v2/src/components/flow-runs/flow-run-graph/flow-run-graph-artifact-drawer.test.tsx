@@ -1,9 +1,29 @@
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { FlowRunGraphArtifactDrawer } from "./flow-run-graph-artifact-drawer";
+
+const renderWithRouter = async (ui: React.ReactNode) => {
+	const rootRoute = createRootRoute({ component: () => ui });
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({ initialEntries: ["/"] }),
+		context: { queryClient: new QueryClient() },
+	});
+	await router.load();
+	return render(<RouterProvider router={router} />, {
+		wrapper: createWrapper(),
+	});
+};
 
 describe("FlowRunGraphArtifactDrawer", () => {
 	const mockArtifactResponse = {
@@ -32,24 +52,23 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		setupMockServer();
 		const onClose = vi.fn();
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactDrawer
 				artifactId="artifact-123"
 				onClose={onClose}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		expect(await screen.findByText("Artifact Details")).toBeInTheDocument();
 		expect(await screen.findByText("my-artifact")).toBeInTheDocument();
 	});
 
-	it("does not render when artifactId is null", () => {
+	it("does not render when artifactId is null", async () => {
 		const onClose = vi.fn();
 
-		render(<FlowRunGraphArtifactDrawer artifactId={null} onClose={onClose} />, {
-			wrapper: createWrapper(),
-		});
+		await renderWithRouter(
+			<FlowRunGraphArtifactDrawer artifactId={null} onClose={onClose} />,
+		);
 
 		expect(screen.queryByText("Artifact Details")).not.toBeInTheDocument();
 	});
@@ -58,12 +77,11 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		setupMockServer();
 		const onClose = vi.fn();
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactDrawer
 				artifactId="artifact-123"
 				onClose={onClose}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		expect(await screen.findByText("my-artifact")).toBeInTheDocument();
@@ -80,12 +98,11 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		setupMockServer();
 		const onClose = vi.fn();
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactDrawer
 				artifactId="artifact-123"
 				onClose={onClose}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		await screen.findByText("my-artifact");
@@ -93,17 +110,31 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		expect(dataElement).toBeInTheDocument();
 	});
 
+	it("links to the artifact detail page", async () => {
+		setupMockServer();
+
+		await renderWithRouter(
+			<FlowRunGraphArtifactDrawer
+				artifactId="artifact-123"
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(
+			await screen.findByRole("link", { name: /open artifact/i }),
+		).toHaveAttribute("href", "/artifacts/artifact/artifact-123");
+	});
+
 	it("calls onClose when close button is clicked", async () => {
 		setupMockServer();
 		const user = userEvent.setup();
 		const onClose = vi.fn();
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactDrawer
 				artifactId="artifact-123"
 				onClose={onClose}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		await screen.findByText("my-artifact");
@@ -125,12 +156,11 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		);
 		const onClose = vi.fn();
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactDrawer
 				artifactId="artifact-123"
 				onClose={onClose}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		expect(screen.getByText("Artifact Details")).toBeInTheDocument();
@@ -144,12 +174,11 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		setupMockServer({ ...mockArtifactResponse, key: null });
 		const onClose = vi.fn();
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactDrawer
 				artifactId="artifact-123"
 				onClose={onClose}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		expect(await screen.findByText("Unnamed")).toBeInTheDocument();
@@ -159,12 +188,11 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		setupMockServer({ ...mockArtifactResponse, type: null });
 		const onClose = vi.fn();
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactDrawer
 				artifactId="artifact-123"
 				onClose={onClose}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		await screen.findByText("my-artifact");
@@ -175,12 +203,11 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		setupMockServer({ ...mockArtifactResponse, description: null });
 		const onClose = vi.fn();
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactDrawer
 				artifactId="artifact-123"
 				onClose={onClose}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		await screen.findByText("my-artifact");
@@ -191,12 +218,11 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		setupMockServer({ ...mockArtifactResponse, data: "Simple string data" });
 		const onClose = vi.fn();
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactDrawer
 				artifactId="artifact-123"
 				onClose={onClose}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		expect(await screen.findByText("Simple string data")).toBeInTheDocument();
@@ -207,12 +233,11 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		const user = userEvent.setup();
 		const onClose = vi.fn();
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactDrawer
 				artifactId="artifact-123"
 				onClose={onClose}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		await screen.findByText("my-artifact");

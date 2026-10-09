@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { buildListArtifactsQuery } from "@/api/artifacts";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
@@ -71,9 +72,13 @@ export function FlowRunGraphArtifactsPopover({
 									className="flex items-center justify-between gap-2 p-2 rounded-md border bg-muted/50"
 								>
 									<div className="flex flex-col min-w-0 flex-1">
-										<p className="text-sm font-medium truncate">
+										<Link
+											to="/artifacts/artifact/$id"
+											params={{ id: artifact.id as string }}
+											className="block text-sm font-medium truncate text-link hover:text-link-hover hover:underline"
+										>
 											{artifact.key ?? "Unnamed"}
-										</p>
+										</Link>
 										{artifact.type && (
 											<p className="text-xs text-muted-foreground uppercase">
 												{artifact.type}

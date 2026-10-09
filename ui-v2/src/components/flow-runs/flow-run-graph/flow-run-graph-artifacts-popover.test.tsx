@@ -1,3 +1,10 @@
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
@@ -5,6 +12,19 @@ import { HttpResponse, http } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import type { ArtifactsSelection } from "@/graphs";
 import { FlowRunGraphArtifactsPopover } from "./flow-run-graph-artifacts-popover";
+
+const renderWithRouter = async (ui: React.ReactNode) => {
+	const rootRoute = createRootRoute({ component: () => ui });
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({ initialEntries: ["/"] }),
+		context: { queryClient: new QueryClient() },
+	});
+	await router.load();
+	return render(<RouterProvider router={router} />, {
+		wrapper: createWrapper(),
+	});
+};
 
 describe("FlowRunGraphArtifactsPopover", () => {
 	const createSelection = (
@@ -54,13 +74,12 @@ describe("FlowRunGraphArtifactsPopover", () => {
 		const onViewArtifact = vi.fn();
 		const selection = createSelection(["artifact-1", "artifact-2"]);
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactsPopover
 				selection={selection}
 				onClose={onClose}
 				onViewArtifact={onViewArtifact}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		expect(screen.getByText("Artifacts")).toBeInTheDocument();
@@ -83,13 +102,12 @@ describe("FlowRunGraphArtifactsPopover", () => {
 		const onViewArtifact = vi.fn();
 		const selection = createSelection(["artifact-1"]);
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactsPopover
 				selection={selection}
 				onClose={onClose}
 				onViewArtifact={onViewArtifact}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		await waitFor(() => {
@@ -108,13 +126,12 @@ describe("FlowRunGraphArtifactsPopover", () => {
 		const onViewArtifact = vi.fn();
 		const selection = createSelection(["artifact-123"]);
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactsPopover
 				selection={selection}
 				onClose={onClose}
 				onViewArtifact={onViewArtifact}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		await waitFor(() => {
@@ -128,6 +145,24 @@ describe("FlowRunGraphArtifactsPopover", () => {
 		expect(onViewArtifact).toHaveBeenCalledWith("artifact-123");
 	});
 
+	it("links each artifact key to its detail page", async () => {
+		setupMockArtifacts([
+			createArtifactResponse({ id: "artifact-1", key: "first-artifact" }),
+		]);
+
+		await renderWithRouter(
+			<FlowRunGraphArtifactsPopover
+				selection={createSelection(["artifact-1"])}
+				onClose={vi.fn()}
+				onViewArtifact={vi.fn()}
+			/>,
+		);
+
+		expect(
+			await screen.findByRole("link", { name: "first-artifact" }),
+		).toHaveAttribute("href", "/artifacts/artifact/artifact-1");
+	});
+
 	it("calls onClose when close button is clicked", async () => {
 		const user = userEvent.setup();
 		const artifacts = [createArtifactResponse()];
@@ -137,13 +172,12 @@ describe("FlowRunGraphArtifactsPopover", () => {
 		const onViewArtifact = vi.fn();
 		const selection = createSelection(["artifact-123"]);
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactsPopover
 				selection={selection}
 				onClose={onClose}
 				onViewArtifact={onViewArtifact}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		const closeButton = screen.getByRole("button", { name: "Close popover" });
@@ -161,13 +195,12 @@ describe("FlowRunGraphArtifactsPopover", () => {
 		const onViewArtifact = vi.fn();
 		const selection = createSelection(["artifact-123"]);
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactsPopover
 				selection={selection}
 				onClose={onClose}
 				onViewArtifact={onViewArtifact}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		await user.keyboard("{Escape}");
@@ -186,7 +219,7 @@ describe("FlowRunGraphArtifactsPopover", () => {
 		const onViewArtifact = vi.fn();
 		const selection = createSelection(["artifact-123"]);
 
-		render(
+		await renderWithRouter(
 			<div>
 				<div data-testid="outside">Outside</div>
 				<FlowRunGraphArtifactsPopover
@@ -195,7 +228,6 @@ describe("FlowRunGraphArtifactsPopover", () => {
 					onViewArtifact={onViewArtifact}
 				/>
 			</div>,
-			{ wrapper: createWrapper() },
 		);
 
 		const outsideElement = screen.getByTestId("outside");
@@ -206,7 +238,7 @@ describe("FlowRunGraphArtifactsPopover", () => {
 		});
 	});
 
-	it("positions the anchor based on selection position", () => {
+	it("positions the anchor based on selection position", async () => {
 		const artifacts = [createArtifactResponse()];
 		setupMockArtifacts(artifacts);
 
@@ -219,13 +251,12 @@ describe("FlowRunGraphArtifactsPopover", () => {
 			height: 30,
 		});
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactsPopover
 				selection={selection}
 				onClose={onClose}
 				onViewArtifact={onViewArtifact}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		const anchor = document.querySelector('[data-slot="popover-anchor"]');
@@ -252,13 +283,12 @@ describe("FlowRunGraphArtifactsPopover", () => {
 			"artifact-3",
 		]);
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactsPopover
 				selection={selection}
 				onClose={onClose}
 				onViewArtifact={onViewArtifact}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		await waitFor(() => {
@@ -284,13 +314,12 @@ describe("FlowRunGraphArtifactsPopover", () => {
 		const onViewArtifact = vi.fn();
 		const selection = createSelection(["artifact-1"]);
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactsPopover
 				selection={selection}
 				onClose={onClose}
 				onViewArtifact={onViewArtifact}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		await waitFor(() => {
@@ -299,24 +328,23 @@ describe("FlowRunGraphArtifactsPopover", () => {
 		expect(screen.queryByText("result")).not.toBeInTheDocument();
 	});
 
-	it("shows loading state while fetching artifacts", () => {
+	it("shows loading state while fetching artifacts", async () => {
 		const onClose = vi.fn();
 		const onViewArtifact = vi.fn();
 		const selection = createSelection(["artifact-1"]);
 
-		render(
+		await renderWithRouter(
 			<FlowRunGraphArtifactsPopover
 				selection={selection}
 				onClose={onClose}
 				onViewArtifact={onViewArtifact}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		expect(screen.getByText("Artifacts")).toBeInTheDocument();
 	});
 
-	it("returns null when position is not provided", () => {
+	it("returns null when position is not provided", async () => {
 		const onClose = vi.fn();
 		const onViewArtifact = vi.fn();
 		const selection: ArtifactsSelection = {
@@ -324,13 +352,12 @@ describe("FlowRunGraphArtifactsPopover", () => {
 			ids: ["artifact-1"],
 		};
 
-		const { container } = render(
+		const { container } = await renderWithRouter(
 			<FlowRunGraphArtifactsPopover
 				selection={selection}
 				onClose={onClose}
 				onViewArtifact={onViewArtifact}
 			/>,
-			{ wrapper: createWrapper() },
 		);
 
 		expect(container.firstChild).toBeNull();
