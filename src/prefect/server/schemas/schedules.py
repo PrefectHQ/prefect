@@ -225,17 +225,18 @@ class IntervalSchedule(PrefectBaseModel):
         _diff_secs = (
             _diff.total("seconds") if hasattr(_diff, "total") else _diff.in_seconds()
         )
-        if has_calendar_parts and local_start >= anchor_zdt:
+        if has_calendar_parts:
             # Calendar additions are not uniform (months clamp to the end of
             # the month and days shift across DST), so an exact-seconds jump
             # would leave the recurrence phase. Advance from the anchor
             # instead; the yield loop below bounds any leftover distance.
+            # When `start` precedes the anchor, walk backward in calendar
+            # steps so occurrences between `start` and the anchor keep the
+            # anchor's phase and are not skipped.
             next_date = anchor_zdt
+            while next_date > local_start:
+                next_date = next_date - interval
         else:
-            # When `start` precedes a future anchor, jump backward by
-            # approximate seconds so runs between `start` and the anchor
-            # are not skipped (phase is approximate, matching prior
-            # behavior).
             offset = _diff_secs / approx_total_seconds
             next_date = anchor_zdt.add(seconds=approx_total_seconds * int(offset))
 

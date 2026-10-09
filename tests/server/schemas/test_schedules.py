@@ -717,8 +717,33 @@ class TestIntervalScheduleDateTimeDelta:
             n=3, start=datetime(2029, 12, 1, tzinfo=ZoneInfo("UTC"))
         )
 
-        assert all(d < datetime(2030, 2, 1, tzinfo=ZoneInfo("UTC")) for d in dates[:2])
-        assert dates[0] >= datetime(2029, 12, 1, tzinfo=ZoneInfo("UTC"))
+        assert [(d.year, d.month, d.day) for d in dates] == [
+            (2029, 12, 1),
+            (2030, 1, 1),
+            (2030, 2, 1),
+        ]
+
+    async def test_monthly_interval_with_future_month_end_anchor(self):
+        """A month-end anchor must keep its phase when `start` precedes the
+        anchor — stepping backward by approximate seconds would shift the
+        day of month permanently."""
+        from prefect.types._datetime import ItemizedDelta
+
+        s = IntervalSchedule(
+            interval=ItemizedDelta(months=1),
+            anchor_date=datetime(2030, 1, 31, 10, tzinfo=ZoneInfo("UTC")),
+            timezone="UTC",
+        )
+
+        dates = await s.get_dates(
+            n=3, start=datetime(2030, 1, 1, tzinfo=ZoneInfo("UTC"))
+        )
+
+        assert [(d.year, d.month, d.day, d.hour) for d in dates] == [
+            (2030, 1, 31, 10),
+            (2030, 2, 28, 10),
+            (2030, 3, 28, 10),
+        ]
 
     async def test_datetimedelta_negative_rejected(self):
         """A negative ItemizedDelta should be rejected."""
