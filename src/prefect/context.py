@@ -29,7 +29,9 @@ from typing import (
     Union,
 )
 
+import anyio
 import anyio.abc
+import anyio.from_thread
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -257,8 +259,8 @@ class EngineContext(RunContext):
 
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
-    sync_portal: Optional[anyio.abc.BlockingPortal] = None
-    timeout_scope: Optional[anyio.abc.CancelScope] = None
+    sync_portal: Optional[anyio.from_thread.BlockingPortal] = None
+    timeout_scope: Optional[anyio.CancelScope] = None
 
     # Task group that can be used for background tasks during the flow run
     background_tasks: anyio.abc.TaskGroup
