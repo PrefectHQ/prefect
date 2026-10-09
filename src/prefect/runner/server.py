@@ -8,6 +8,7 @@ from fastapi import APIRouter, FastAPI, status
 from fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
+from prefect._internal.server_maintenance import polling_window_start
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_RUNNER_POLL_FREQUENCY,
@@ -46,9 +47,13 @@ def perform_health_check(
             * PREFECT_RUNNER_POLL_FREQUENCY.value()
         )
 
+    # Until the first poll completes, measure from when the health check
+    # started: startup and the first poll may be waiting out API maintenance.
+    started_at = now_fn("UTC")
+
     def _health_check():
-        now = now_fn("UTC")
-        poll_delay = (now - runner.last_polled).total_seconds()
+        last_polled = runner.last_polled or started_at
+        poll_delay = (now_fn("UTC") - polling_window_start(last_polled)).total_seconds()
 
         if TYPE_CHECKING:
             assert delay_threshold is not None
