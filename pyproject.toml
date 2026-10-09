@@ -79,6 +79,8 @@ dependencies = [
     "uvicorn>=0.14.0,!=0.29.0",
     "websockets>=15.0.1,<17.0",
     "whenever>=0.7.3,<0.11.0",
+    # tz database for zoneinfo on systems without a system tzdata
+    "tzdata>=2024.1",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
     "pydocket>=0.23.1",

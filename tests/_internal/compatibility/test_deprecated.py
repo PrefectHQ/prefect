@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime
 
 import pydantic
 import pytest
@@ -12,6 +11,16 @@ from prefect._internal.compatibility.deprecated import (
     deprecated_parameter,
     generate_deprecation_message,
 )
+
+
+def test_generate_deprecation_message_aware_start_date():
+    assert (
+        generate_deprecation_message(
+            "test name",
+            start_date=datetime(2022, 1, 1, tzinfo=UTC),
+        )
+        == "test name has been deprecated. It will not be available in new releases after Jul 2022."
+    )
 
 
 def test_generate_deprecation_message():
@@ -143,8 +152,8 @@ def test_deprecated_parameter_when():
 def test_deprecated_field():
     @deprecated_field(name="y", start_date=datetime(2022, 1, 1), help="test help")
     class Foo(pydantic.BaseModel):
-        x: Optional[int] = None
-        y: Optional[int] = None
+        x: int | None = None
+        y: int | None = None
 
     # Does not warn
     Foo(x=0)
@@ -170,7 +179,7 @@ def test_deprecated_field_when():
         help="test help",
     )
     class Foo(pydantic.BaseModel):
-        x: Optional[int] = None
+        x: int | None = None
 
     # Does not warn
     Foo(x=0)

@@ -2,16 +2,21 @@ from __future__ import annotations
 
 import datetime
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Annotated, Any, Union, cast
-from unittest import mock
+from typing import TYPE_CHECKING, Annotated, Any, TypeAlias, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import humanize
 from dateutil.parser import parse
 from pydantic import AfterValidator, GetCoreSchemaHandler
 from pydantic_core import core_schema as _core_schema
-from typing_extensions import TypeAlias
-from whenever import DateTimeDelta, PlainDateTime, Weekday, ZonedDateTime
+from whenever import (
+    DateTimeDelta,
+    Instant,
+    PlainDateTime,
+    Weekday,
+    ZonedDateTime,
+    patch_current_time,
+)
 from whenever import ZonedDateTime as _ZDTProbe
 
 # True on whenever >= 0.10.0, which introduced ZonedDateTime(stdlib_dt),
@@ -40,8 +45,22 @@ class _DateTime(datetime.datetime):
         source_type: Any,
         handler: GetCoreSchemaHandler,
     ) -> _core_schema.CoreSchema:
+        def _coerce(v: datetime.datetime) -> _DateTime:
+            v = create_datetime_instance(v)
+            return cls(
+                v.year,
+                v.month,
+                v.day,
+                v.hour,
+                v.minute,
+                v.second,
+                v.microsecond,
+                tzinfo=v.tzinfo,
+                fold=v.fold,
+            )
+
         return _core_schema.no_info_after_validator_function(
-            create_datetime_instance,
+            _coerce,
             handler(datetime.datetime),
         )
 
@@ -49,14 +68,12 @@ class _DateTime(datetime.datetime):
 DateTime: TypeAlias = _DateTime
 Date: TypeAlias = datetime.date
 Duration: TypeAlias = datetime.timedelta
-if TYPE_CHECKING:
-    from whenever import ItemizedDelta
-elif _WHENEVER_NEW_API:
+if TYPE_CHECKING or _WHENEVER_NEW_API:
     from whenever import ItemizedDelta
 else:
     from whenever import DateTimeDelta as ItemizedDelta
 
-Interval: TypeAlias = Union[datetime.timedelta, ItemizedDelta]
+Interval: TypeAlias = datetime.timedelta | ItemizedDelta
 
 
 def parse_datetime(dt: str) -> datetime.datetime:
@@ -81,10 +98,10 @@ def create_datetime_instance(v: datetime.datetime) -> datetime.datetime:
 
 
 def from_timestamp(ts: float, tz: str | Any = "UTC") -> datetime.datetime:
-    if not isinstance(tz, str):
-        # Handle timezone objects that expose a `.name` (e.g. pendulum zones)
-        tz = tz.name
-    return datetime.datetime.fromtimestamp(ts, ZoneInfo(tz))
+    tz = _tzinfo_for_conversion(tz)
+    if isinstance(tz, str):
+        tz = ZoneInfo(tz)
+    return datetime.datetime.fromtimestamp(ts, tz)
 
 
 def human_friendly_diff(
@@ -153,14 +170,55 @@ def _whenever_pdt_from_py(dt: datetime.datetime) -> Any:
     return PlainDateTime.from_py_datetime(dt)
 
 
+def _tzinfo_for_conversion(tz: Any) -> str | datetime.tzinfo:
+    """Normalize a `tz` argument to an IANA name or a stdlib `tzinfo`.
+
+    whenever only accepts IANA names, so `ZoneInfo` and pendulum-style
+    objects are unwrapped to their `.key`/`.name`; fixed-offset and other
+    `tzinfo` implementations are returned as-is for the caller to handle
+    with stdlib arithmetic.
+    """
+    if isinstance(tz, str):
+        return tz
+    if isinstance(tz, ZoneInfo):
+        return tz.key
+    name = getattr(tz, "name", None)
+    if isinstance(name, str):
+        return name
+    key = getattr(tz, "key", None)
+    if isinstance(key, str):
+        return key
+    return tz
+
+
+def _zdt_or_fixed_offset(dt: datetime.datetime) -> datetime.datetime:
+    """Return a datetime whose tzinfo is `ZoneInfo` whenever possible.
+
+    whenever requires IANA zones. Aware datetimes carrying a `ZoneInfo`-like
+    or named tzinfo are rekeyed; fixed-offset datetimes (e.g. from parsed
+    timestamps) cannot be represented as `ZonedDateTime` and are returned
+    unchanged for the naive-frame path.
+    """
+    if dt.tzinfo is None or isinstance(dt.tzinfo, ZoneInfo):
+        return dt
+    key = _tzinfo_for_conversion(dt.tzinfo)
+    if isinstance(key, str):
+        try:
+            return dt.replace(tzinfo=ZoneInfo(key))
+        except ZoneInfoNotFoundError:
+            pass
+    return dt
+
+
 def now(
     tz: str | Any = "UTC",
 ) -> datetime.datetime:
-    name = getattr(tz, "name", None)
-    if isinstance(name, str):
-        tz = name
-
-    return _whenever_to_stdlib(ZonedDateTime.now(tz))
+    tz = _tzinfo_for_conversion(tz)
+    zdt_now = ZonedDateTime.now(tz if isinstance(tz, str) else "UTC")
+    now_dt = _whenever_to_stdlib(zdt_now)
+    if not isinstance(tz, str):
+        return now_dt.astimezone(tz)
+    return now_dt
 
 
 def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
@@ -179,8 +237,16 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
     Raises:
         ValueError: If an invalid unit is specified.
     """
-    if not isinstance(dt.tzinfo, ZoneInfo):
-        dt = dt.replace(tzinfo=ZoneInfo(dt.tzname() or "UTC"))
+    dt = _zdt_or_fixed_offset(dt)
+    if dt.tzinfo is not None and not isinstance(dt.tzinfo, ZoneInfo):
+        # Fixed-offset and other non-IANA tzinfo: compute the wall-clock
+        # boundary in the naive frame (no DST transitions to worry about),
+        # then restore the original offset.
+        return _end_of_period_fixed(dt.replace(tzinfo=None), period).replace(
+            tzinfo=dt.tzinfo
+        )
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
     zdt = _whenever_zdt_from_py(dt)
     if period == "second":
         zdt = zdt.replace(nanosecond=999999999)
@@ -214,6 +280,27 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
     return _whenever_to_stdlib(zdt)
 
 
+def _end_of_period_fixed(dt: datetime.datetime, period: str) -> datetime.datetime:
+    """`end_of_period` for a naive datetime, via plain stdlib arithmetic."""
+    if period == "second":
+        return dt.replace(microsecond=999999)
+    if period == "minute":
+        return dt.replace(second=59, microsecond=999999)
+    if period == "hour":
+        return dt.replace(minute=59, second=59, microsecond=999999)
+    if period == "day":
+        return dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+    if period == "week":
+        days_till_end_of_week = 7 - dt.isoweekday()
+        return (dt + datetime.timedelta(days=days_till_end_of_week)).replace(
+            hour=23,
+            minute=59,
+            second=59,
+            microsecond=999999,
+        )
+    raise ValueError(f"Invalid period: {period}")
+
+
 def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
     """
     Returns the start of the specified unit of time.
@@ -227,6 +314,14 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
     Raises:
         ValueError: If an invalid unit is specified.
     """
+    dt = _zdt_or_fixed_offset(dt)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+    if not isinstance(dt.tzinfo, ZoneInfo):
+        # Fixed-offset and other non-IANA tzinfo: the wall-clock boundary is
+        # just the same calendar day at midnight in that offset.
+        return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
     zdt = _whenever_zdt_from_py(dt)
     zdt = (
         zdt.start_of("day")
@@ -243,7 +338,16 @@ def earliest_possible_datetime() -> datetime.datetime:
 
 @contextmanager
 def travel_to(dt: Any):
-    with mock.patch("prefect.types._datetime.now", return_value=dt):
+    """Freeze `whenever`'s clock at `dt` so every caller of `now()` sees it.
+
+    Uses `whenever.patch_current_time`, which patches the clock globally —
+    including modules that imported `now` directly — mirroring pendulum's
+    `travel_to(freeze=True)` semantics.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+    _instant_from_py = Instant if _WHENEVER_NEW_API else Instant.from_py_datetime
+    with patch_current_time(_instant_from_py(dt), keep_ticking=False):
         yield
 
 
@@ -255,7 +359,7 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
             if key := getattr(dt.tzinfo, "key", None):
                 dt = dt.replace(tzinfo=ZoneInfo(key))
             else:
-                utc_dt = dt.astimezone(datetime.timezone.utc)
+                utc_dt = dt.astimezone(datetime.UTC)
                 dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
 
         wdt = _whenever_zdt_from_py(dt).to_system_tz()

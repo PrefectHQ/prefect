@@ -5,13 +5,11 @@ Schedule schemas
 from __future__ import annotations
 
 import datetime
+from collections.abc import Generator
 from typing import (
     Any,
     ClassVar,
-    Generator,
-    List,
-    Optional,
-    Tuple,
+    TypeAlias,
     Union,
 )
 from zoneinfo import ZoneInfo
@@ -19,8 +17,7 @@ from zoneinfo import ZoneInfo
 import dateutil
 import dateutil.rrule
 from pydantic import ConfigDict, Field, field_validator, model_validator
-from typing_extensions import TypeAlias
-from whenever import DateTimeDelta, PlainDateTime, ZonedDateTime
+from whenever import DateTimeDelta, ZonedDateTime
 
 from prefect._internal.schemas.validators import (
     default_timezone,
@@ -32,6 +29,9 @@ from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime, TimeZone
 from prefect.types._datetime import (
     PositiveInterval,
+    _whenever_pdt_from_py,
+    _whenever_to_stdlib,
+    _whenever_zdt_from_py,
     create_datetime_instance,
     now,
 )
@@ -51,7 +51,7 @@ AnchorDate: TypeAlias = datetime.datetime
 
 def _prepare_scheduling_start_and_end(
     start: Any, end: Any, timezone: str
-) -> Tuple[DateTime, Optional[DateTime]]:
+) -> tuple[DateTime, DateTime | None]:
     """Uniformly prepares the start and end dates for any Schedule's get_dates call,
     coercing the arguments into timezone-aware datetimes."""
     timezone = timezone or "UTC"
@@ -101,7 +101,7 @@ class IntervalSchedule(PrefectBaseModel):
         default_factory=lambda: now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: str | None = Field(default=None, examples=["America/New_York"])
 
     @model_validator(mode="after")
     def validate_timezone(self):
@@ -110,10 +110,10 @@ class IntervalSchedule(PrefectBaseModel):
 
     async def get_dates(
         self,
-        n: Optional[int] = None,
-        start: Optional[datetime.datetime] = None,
-        end: Optional[datetime.datetime] = None,
-    ) -> List[DateTime]:
+        n: int | None = None,
+        start: datetime.datetime | None = None,
+        end: datetime.datetime | None = None,
+    ) -> list[DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -133,9 +133,9 @@ class IntervalSchedule(PrefectBaseModel):
 
     def _get_dates_generator(
         self,
-        n: Optional[int] = None,
-        start: Optional[datetime.datetime] = None,
-        end: Optional[datetime.datetime] = None,
+        n: int | None = None,
+        start: datetime.datetime | None = None,
+        end: datetime.datetime | None = None,
     ) -> Generator[DateTime, None, None]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
@@ -161,33 +161,20 @@ class IntervalSchedule(PrefectBaseModel):
                 n = 1
 
         if start is None:
-            _zdt = ZonedDateTime.now("UTC")
-            start = (
-                _zdt.to_stdlib() if hasattr(_zdt, "to_stdlib") else _zdt.py_datetime()
-            )
+            start = now("UTC")
 
         target_timezone = self.timezone or "UTC"
-        _zdt_from_dt = (
-            ZonedDateTime
-            if hasattr(ZonedDateTime, "to_stdlib")
-            else ZonedDateTime.from_py_datetime
-        )
-        _pdt_from_dt = (
-            PlainDateTime
-            if hasattr(PlainDateTime, "to_stdlib")
-            else PlainDateTime.from_py_datetime
-        )
 
         def to_local_zdt(dt: datetime.datetime | None) -> ZonedDateTime | None:
             if dt is None:
                 return None
             if dt.tzinfo is None:
-                return _pdt_from_dt(dt).assume_tz(target_timezone)
+                return _whenever_pdt_from_py(dt).assume_tz(target_timezone)
             if isinstance(dt.tzinfo, ZoneInfo):
-                return _zdt_from_dt(dt).to_tz(target_timezone)
+                return _whenever_zdt_from_py(dt).to_tz(target_timezone)
             # For offset-based tzinfo instances (e.g. datetime.timezone(+09:00)),
             # use astimezone to preserve the instant, then convert to ZonedDateTime.
-            return _zdt_from_dt(dt.astimezone(ZoneInfo(target_timezone)))
+            return _whenever_zdt_from_py(dt.astimezone(ZoneInfo(target_timezone)))
 
         anchor_zdt = to_local_zdt(self.anchor_date)
         assert anchor_zdt is not None
@@ -198,6 +185,7 @@ class IntervalSchedule(PrefectBaseModel):
         local_end = to_local_zdt(end)
 
         interval = self.interval
+        has_calendar_parts = False
         if isinstance(interval, _WHENEVER_DELTA_TYPES):
             # whenever delta types distinguish calendar days from exact hours,
             # so we can use them directly. We still need an approximate
@@ -214,8 +202,9 @@ class IntervalSchedule(PrefectBaseModel):
                 approx_total_seconds = (
                     _months * 30 * 86400
                     + _days * 86400
-                    + (int(_time.total("seconds")) if _time else 0)
+                    + (_time.total("seconds") if _time else 0)
                 )
+            has_calendar_parts = bool(_months or _days)
 
             def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
                 return zdt + interval
@@ -236,8 +225,15 @@ class IntervalSchedule(PrefectBaseModel):
         _diff_secs = (
             _diff.total("seconds") if hasattr(_diff, "total") else _diff.in_seconds()
         )
-        offset = _diff_secs / approx_total_seconds
-        next_date = anchor_zdt.add(seconds=approx_total_seconds * int(offset))
+        if has_calendar_parts:
+            # Calendar additions are not uniform (months clamp to the end of
+            # the month and days shift across DST), so an exact-seconds jump
+            # would leave the recurrence phase. Advance from the anchor
+            # instead; the yield loop below bounds any leftover distance.
+            next_date = anchor_zdt
+        else:
+            offset = _diff_secs / approx_total_seconds
+            next_date = anchor_zdt.add(seconds=approx_total_seconds * int(offset))
 
         while next_date < local_start:
             next_date = _advance(next_date)
@@ -253,11 +249,7 @@ class IntervalSchedule(PrefectBaseModel):
             # ensure no duplicates; weird things can happen with DST
             if next_date not in dates:
                 dates.add(next_date)
-                yield (
-                    next_date.to_stdlib()
-                    if hasattr(next_date, "to_stdlib")
-                    else next_date.py_datetime()
-                )
+                yield (_whenever_to_stdlib(next_date))
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -295,7 +287,7 @@ class CronSchedule(PrefectBaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: str | None = Field(default=None, examples=["America/New_York"])
     day_or: bool = Field(
         default=True,
         description=(
@@ -315,10 +307,10 @@ class CronSchedule(PrefectBaseModel):
 
     async def get_dates(
         self,
-        n: Optional[int] = None,
-        start: Optional[datetime.datetime] = None,
-        end: Optional[datetime.datetime] = None,
-    ) -> List[DateTime]:
+        n: int | None = None,
+        start: datetime.datetime | None = None,
+        end: datetime.datetime | None = None,
+    ) -> list[DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -338,9 +330,9 @@ class CronSchedule(PrefectBaseModel):
 
     def _get_dates_generator(
         self,
-        n: Optional[int] = None,
-        start: Optional[datetime.datetime] = None,
-        end: Optional[datetime.datetime] = None,
+        n: int | None = None,
+        start: datetime.datetime | None = None,
+        end: datetime.datetime | None = None,
     ) -> Generator[DateTime, None, None]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
@@ -396,15 +388,10 @@ class CronSchedule(PrefectBaseModel):
             next_time = cron.get_next(datetime.datetime)
             delta = next_time - start_naive_tz
             # Use `whenever` to handle DST correctly
-            _zdt_from_dt = (
-                ZonedDateTime
-                if hasattr(ZonedDateTime, "to_stdlib")
-                else ZonedDateTime.from_py_datetime
+            _zdt = _whenever_zdt_from_py(start_localized + delta).to_tz(
+                self.timezone or "UTC"
             )
-            _zdt = _zdt_from_dt(start_localized + delta).to_tz(self.timezone or "UTC")
-            next_date = (
-                _zdt.to_stdlib() if hasattr(_zdt, "to_stdlib") else _zdt.py_datetime()
-            )
+            next_date = _whenever_to_stdlib(_zdt)
 
             # if the end date was exceeded, exit
             if end and next_date > end:
@@ -447,7 +434,7 @@ class RRuleSchedule(PrefectBaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: Optional[TimeZone] = "UTC"
+    timezone: TimeZone | None = "UTC"
 
     @field_validator("rrule")
     @classmethod
@@ -457,7 +444,7 @@ class RRuleSchedule(PrefectBaseModel):
     @classmethod
     def from_rrule(
         cls, rrule: dateutil.rrule.rrule | dateutil.rrule.rruleset
-    ) -> "RRuleSchedule":
+    ) -> RRuleSchedule:
         if isinstance(rrule, dateutil.rrule.rrule):
             if rrule._dtstart.tzinfo is not None:
                 timezone = getattr(rrule._dtstart.tzinfo, "name", None) or getattr(
@@ -569,10 +556,10 @@ class RRuleSchedule(PrefectBaseModel):
 
     async def get_dates(
         self,
-        n: Optional[int] = None,
+        n: int | None = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[DateTime]:
+    ) -> list[DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -592,9 +579,9 @@ class RRuleSchedule(PrefectBaseModel):
 
     def _get_dates_generator(
         self,
-        n: Optional[int] = None,
-        start: Optional[datetime.datetime] = None,
-        end: Optional[datetime.datetime] = None,
+        n: int | None = None,
+        start: datetime.datetime | None = None,
+        end: datetime.datetime | None = None,
     ) -> Generator[DateTime, None, None]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.

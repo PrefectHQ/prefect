@@ -660,6 +660,47 @@ class TestIntervalScheduleDateTimeDelta:
         assert isinstance(restored.interval, ItemizedDelta)
         assert restored.interval == ItemizedDelta(hours=48)
 
+    async def test_subsecond_itemized_delta(self):
+        """A positive ItemizedDelta shorter than one second must keep its
+        fractional seconds — truncating to int made the offset estimate zero
+        and date generation raised ZeroDivisionError."""
+        from whenever import ItemizedDelta
+
+        anchor = datetime(2024, 1, 1, tzinfo=ZoneInfo("UTC"))
+        s = IntervalSchedule(
+            interval=ItemizedDelta(nanoseconds=500_000_000),
+            anchor_date=anchor,
+            timezone="UTC",
+        )
+
+        dates = await s.get_dates(n=3, start=anchor)
+
+        assert len(dates) == 3
+        assert dates[1] - dates[0] == timedelta(milliseconds=500)
+
+    async def test_monthly_interval_preserves_anchor_phase(self):
+        """An exact-seconds fast-forward leaves the recurrence phase for
+        month-based intervals: an anchor of Jan 31 must produce Feb 29,
+        Mar 29, Apr 29 — not the 1st of each month."""
+        from whenever import ItemizedDelta
+
+        anchor = datetime(2024, 1, 31, tzinfo=ZoneInfo("UTC"))
+        s = IntervalSchedule(
+            interval=ItemizedDelta(months=1),
+            anchor_date=anchor,
+            timezone="UTC",
+        )
+
+        dates = await s.get_dates(
+            n=3, start=datetime(2024, 3, 1, tzinfo=ZoneInfo("UTC"))
+        )
+
+        assert [(d.year, d.month, d.day) for d in dates] == [
+            (2024, 3, 29),
+            (2024, 4, 29),
+            (2024, 5, 29),
+        ]
+
     async def test_datetimedelta_negative_rejected(self):
         """A negative ItemizedDelta should be rejected."""
         from whenever import ItemizedDelta
