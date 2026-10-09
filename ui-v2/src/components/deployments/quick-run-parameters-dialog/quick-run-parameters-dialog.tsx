@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Deployment } from "@/api/deployments";
 import {
@@ -58,13 +58,17 @@ export const QuickRunParametersDialog = ({
 	} = useSchemaForm(deployment.parameters ?? {});
 	const { createDeploymentFlowRun, isPending } = useDeploymentCreateFlowRun();
 	const parameterSchema = deployment.parameter_openapi_schema;
+	const submittingRef = useRef(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 
-		if (isPending) {
+		if (submittingRef.current || isPending) {
 			return;
 		}
+		submittingRef.current = true;
+		setIsSubmitting(true);
 
 		if (enforceParameterSchema && parameterSchema) {
 			try {
@@ -72,9 +76,13 @@ export const QuickRunParametersDialog = ({
 					schema: parameterSchema,
 				});
 				if (!validationResult?.valid) {
+					submittingRef.current = false;
+					setIsSubmitting(false);
 					return;
 				}
 			} catch (error) {
+				submittingRef.current = false;
+				setIsSubmitting(false);
 				const message =
 					error instanceof Error
 						? error.message
@@ -118,6 +126,10 @@ export const QuickRunParametersDialog = ({
 						error.message || "Unknown error while creating flow run.",
 					);
 				},
+				onSettled: () => {
+					submittingRef.current = false;
+					setIsSubmitting(false);
+				},
 			},
 		);
 	};
@@ -156,7 +168,7 @@ export const QuickRunParametersDialog = ({
 								Cancel
 							</Button>
 						</DialogClose>
-						<Button type="submit" loading={isPending}>
+						<Button type="submit" loading={isPending || isSubmitting}>
 							Run
 						</Button>
 					</DialogFooter>

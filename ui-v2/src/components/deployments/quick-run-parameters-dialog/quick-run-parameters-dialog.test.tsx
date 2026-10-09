@@ -322,3 +322,95 @@ describe("QuickRunParametersDialog onRunCreated", () => {
 		resolveRequest?.();
 	});
 });
+
+describe("QuickRunParametersDialog duplicate submission", () => {
+	it("blocks repeat submits while parameter validation is pending", async () => {
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: parameterSchema,
+			enforce_parameter_schema: true,
+		});
+		const validate = vi.fn();
+		let resolveValidation: ((r: Response) => void) | undefined;
+		const createFlowRun = vi.fn();
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), async () => {
+				validate();
+				return await new Promise<Response>((resolve) => {
+					resolveValidation = resolve;
+				});
+			}),
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+				createFlowRun();
+				return HttpResponse.json(createFakeFlowRun());
+			}),
+		);
+		const user = userEvent.setup();
+		const router = createTestRouter(
+			<QuickRunParametersDialog
+				deployment={deployment}
+				open
+				onOpenChange={vi.fn()}
+			/>,
+		);
+		await waitFor(() =>
+			render(<RouterProvider router={router} />, { wrapper: createWrapper() }),
+		);
+
+		const submit = screen.getByRole("button", { name: "Run" });
+		await user.click(submit);
+		await waitFor(() => expect(validate).toHaveBeenCalledTimes(1));
+
+		// While validation is in flight the submit button is disabled and a
+		// second attempt cannot dispatch another validation/create cycle.
+		await waitFor(() => expect(submit).toBeDisabled());
+		await user.click(submit);
+		resolveValidation?.(HttpResponse.json({ valid: true, errors: [] }));
+
+		await waitFor(() => expect(createFlowRun).toHaveBeenCalledTimes(1));
+		expect(validate).toHaveBeenCalledTimes(1);
+	});
+
+	it("re-enables the submit button after an invalid validation result", async () => {
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: parameterSchema,
+			enforce_parameter_schema: true,
+		});
+		let validateCalls = 0;
+		const createFlowRun = vi.fn();
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), () => {
+				validateCalls += 1;
+				return HttpResponse.json(
+					validateCalls === 1
+						? { valid: false, errors: [] }
+						: { valid: true, errors: [] },
+				);
+			}),
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+				createFlowRun();
+				return HttpResponse.json(createFakeFlowRun());
+			}),
+		);
+		const user = userEvent.setup();
+		const router = createTestRouter(
+			<QuickRunParametersDialog
+				deployment={deployment}
+				open
+				onOpenChange={vi.fn()}
+			/>,
+		);
+		await waitFor(() =>
+			render(<RouterProvider router={router} />, { wrapper: createWrapper() }),
+		);
+
+		const submit = screen.getByRole("button", { name: "Run" });
+		await user.click(submit);
+		await waitFor(() => expect(validateCalls).toBe(1));
+
+		await waitFor(() => expect(submit).toBeEnabled());
+		await user.click(submit);
+
+		await waitFor(() => expect(createFlowRun).toHaveBeenCalledTimes(1));
+		expect(validateCalls).toBe(2);
+	});
+});

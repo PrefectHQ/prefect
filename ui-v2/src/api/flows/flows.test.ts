@@ -185,6 +185,18 @@ describe("flows api", () => {
 			await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
 			expect(result.current.data).toBeUndefined();
 		});
+
+		it("has a 30s refetch interval by default", () => {
+			const query = buildDeploymentsCountByFlowQuery(["a"]);
+			expect(query.refetchInterval).toBe(30_000);
+		});
+
+		it("allows overriding the refetch interval", () => {
+			const query = buildDeploymentsCountByFlowQuery(["a"], {
+				refetchInterval: 60_000,
+			});
+			expect(query.refetchInterval).toBe(60_000);
+		});
 	});
 
 	describe("buildNextRunsByFlowQuery", () => {
