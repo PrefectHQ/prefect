@@ -11,8 +11,12 @@ export type ArtifactsCardProps = {
 	compact?: boolean;
 };
 
+const isArtifactCollection = (
+	artifact: Artifact | ArtifactCollection,
+): artifact is ArtifactCollection => "latest_id" in artifact;
+
 const getArtifactId = (artifact: Artifact | ArtifactCollection): string => {
-	if ("latest_id" in artifact) {
+	if (isArtifactCollection(artifact)) {
 		return artifact.latest_id;
 	}
 	return artifact.id ?? "";
@@ -26,12 +30,16 @@ export const ArtifactCard = ({
 		return formatDate(new Date(artifact.created ?? ""), "dateTime");
 	}, [artifact.created]);
 
-	const hasKey = Boolean(artifact.key);
+	// A collection represents every version of a key, so it links to the key
+	// page. An individual artifact (e.g. one produced by a specific flow or task
+	// run) links directly to that artifact's detail page.
+	const linksToKeyPage =
+		isArtifactCollection(artifact) && Boolean(artifact.key);
 
-	const linkProps = hasKey
+	const linkProps = linksToKeyPage
 		? ({
 				to: "/artifacts/key/$key",
-				params: { key: artifact.key as string },
+				params: { key: artifact.key },
 			} as const)
 		: ({
 				to: "/artifacts/artifact/$id",

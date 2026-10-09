@@ -795,6 +795,54 @@ async def test_worker_handles_double_release_gracefully(
     assert updated_flow_run.state.is_crashed()
 
 
+async def test_worker_skips_duplicate_submission_of_run_holding_limit_slot(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23340"""
+
+    def create_run_with_deployment(state: State):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    running_flow_run = await create_run_with_deployment(
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=2))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=2) as worker:
+
+        async def submit_run_and_keep_slot(flow_run: FlowRun) -> None:
+            # Simulate infrastructure that has started: the run is no longer
+            # "submitting" but its limit slot is held until it exits.
+            worker._submitting_flow_run_ids.remove(flow_run.id)
+
+        worker._submit_run = AsyncMock(side_effect=submit_run_and_keep_slot)
+
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+        assert [flow_run.id for flow_run in submitted_flow_runs] == [
+            running_flow_run.id
+        ]
+        assert worker.limiter.borrowed_tokens == 1
+
+        new_flow_run = await create_run_with_deployment(
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
+        )
+
+        # The API returns the already-running flow run again
+        with caplog.at_level(logging.WARNING):
+            submitted_flow_runs = await worker.get_and_submit_flow_runs()
+
+        assert [flow_run.id for flow_run in submitted_flow_runs] == [new_flow_run.id]
+        assert worker.limiter.borrowed_tokens == 2
+        assert (
+            f"Duplicate submission of flow run '{running_flow_run.id}' detected"
+            in caplog.text
+        )
+
+
 async def test_worker_with_work_pool_and_limit(
     prefect_client: PrefectClient,
     worker_deployment_wq1: WorkQueue,

@@ -1151,6 +1151,7 @@ async def preview(
         try:
             responses = await client.get_scheduled_flow_runs_for_work_pool(
                 work_pool_name=name,
+                scheduled_before=now_fn("UTC") + datetime.timedelta(hours=hours),
             )
         except ObjectNotFound as exc:
             exit_with_error(exc)
