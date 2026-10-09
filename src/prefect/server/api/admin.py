@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, status
 import prefect
 import prefect.settings
 from prefect.server import models, schemas
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.server import PrefectRouter
 
@@ -32,7 +32,7 @@ async def read_version() -> str:
 
 @router.get("/storage")
 async def read_server_default_result_storage(
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.ServerDefaultResultStorage:
     """Get the configured server default result storage block."""
     async with db.session_context() as session:
@@ -44,7 +44,7 @@ async def read_server_default_result_storage(
 @router.put("/storage")
 async def update_server_default_result_storage(
     configuration: schemas.core.ServerDefaultResultStorageUpdate,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.ServerDefaultResultStorage:
     """Set the server default result storage block."""
     try:
@@ -76,7 +76,7 @@ async def update_server_default_result_storage(
 
 @router.delete("/storage", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_server_default_result_storage(
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """Clear the configured server default result storage block."""
     async with db.session_context(begin_transaction=True) as session:

@@ -10,7 +10,7 @@ from fastapi import Body, Depends
 from pydantic import Field, field_validator
 
 from prefect.logging import get_logger
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.schemas.states import StateType
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.schemas import PrefectBaseModel
@@ -47,7 +47,7 @@ class SimpleNextFlowRun(PrefectBaseModel):
 @router.post("/count-deployments")
 async def count_deployments_by_flow(
     flow_ids: List[UUID] = Body(default=..., embed=True, max_items=200),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> Dict[UUID, int]:
     """
     Get deployment counts by flow id.
@@ -142,7 +142,7 @@ def _get_sqlite_next_runs_query(flow_ids: List[UUID]):
 @router.post("/next-runs")
 async def next_runs_by_flow(
     flow_ids: List[UUID] = Body(default=..., embed=True, max_items=200),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> Dict[UUID, Optional[SimpleNextFlowRun]]:
     """
     Get the next flow run by flow id.

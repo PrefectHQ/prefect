@@ -10,7 +10,7 @@ import prefect.server.schemas as schemas
 from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server import models
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types._datetime import end_of_period, now
@@ -47,7 +47,7 @@ async def read_dashboard_task_run_counts(
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[TaskRunCount]:
     if task_runs.start_time is None or task_runs.start_time.after_ is None:
         raise HTTPException(
@@ -165,7 +165,7 @@ async def read_task_run_counts_by_state(
     flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
     task_runs: Optional[schemas.filters.TaskRunFilter] = None,
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.states.CountByState:
     async with db.session_context(begin_transaction=False) as session:
         return await models.task_runs.count_task_runs_by_state(
@@ -180,7 +180,7 @@ async def read_task_run_counts_by_state(
 @router.get("/{id:uuid}")
 async def read_task_run_with_flow_run_name(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.ui.UITaskRun:
     """
     Get a task run by id.

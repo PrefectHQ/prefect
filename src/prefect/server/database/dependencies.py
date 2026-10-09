@@ -139,6 +139,16 @@ def provide_database_interface() -> PrefectDBInterface:
     )
 
 
+async def aprovide_database_interface() -> PrefectDBInterface:
+    """
+    Get the current Prefect REST API database interface in a FastAPI dependency.
+
+    FastAPI runs a sync dependency in a worker thread on every request, so API
+    routes depend on this function to resolve the interface on the event loop.
+    """
+    return provide_database_interface()
+
+
 def inject_db(fn: Callable[P, R]) -> Callable[P, R]:
     """
     Decorator that provides a database interface to a function.

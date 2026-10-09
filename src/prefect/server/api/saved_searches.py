@@ -10,7 +10,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types._datetime import now
 
@@ -21,7 +21,7 @@ router: PrefectRouter = PrefectRouter(prefix="/saved_searches", tags=["SavedSear
 async def create_saved_search(
     saved_search: schemas.actions.SavedSearchCreate,
     response: Response,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.SavedSearch:
     """Creates a new saved search from the provided schema.
 
@@ -48,7 +48,7 @@ async def create_saved_search(
 @router.get("/{id:uuid}")
 async def read_saved_search(
     saved_search_id: UUID = Path(..., description="The saved search id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.SavedSearch:
     """
     Get a saved search by id.
@@ -68,7 +68,7 @@ async def read_saved_search(
 async def read_saved_searches(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.SavedSearch]:
     """
     Query for saved searches.
@@ -84,7 +84,7 @@ async def read_saved_searches(
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_saved_search(
     saved_search_id: UUID = Path(..., description="The saved search id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a saved search by id.

@@ -7,7 +7,7 @@ from typing import List
 from fastapi import Depends
 
 from prefect.server import models
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
 router: PrefectRouter = PrefectRouter(
@@ -17,7 +17,7 @@ router: PrefectRouter = PrefectRouter(
 
 @router.get("/")
 async def read_available_block_capabilities(
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[str]:
     """
     Get available block capabilities.
