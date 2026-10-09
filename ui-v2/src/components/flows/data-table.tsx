@@ -2,15 +2,23 @@ import type {
 	ColumnFiltersState,
 	OnChangeFn,
 	PaginationState,
-	RowSelectionState,
 } from "@tanstack/react-table";
 import type React from "react";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
+import type { ServerError } from "@/api/error-utils";
 import { type Flow, useDeleteFlowById } from "@/api/flows";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import {
 	Select,
 	SelectContent,
@@ -42,6 +50,11 @@ export default function FlowsTable({
 	columnFilters,
 	onColumnFiltersChange,
 	onPrefetchPage,
+	onClearFilters,
+	isPending = false,
+	isPlaceholderData = false,
+	error,
+	onRetry,
 }: {
 	flows: Flow[];
 	count: number;
@@ -53,9 +66,16 @@ export default function FlowsTable({
 	columnFilters: ColumnFiltersState;
 	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
 	onPrefetchPage?: (page: number) => void;
+	onClearFilters?: () => void;
+	isPending?: boolean;
+	isPlaceholderData?: boolean;
+	error?: ServerError;
+	onRetry?: () => void;
 }) {
 	const { deleteFlow } = useDeleteFlowById();
-	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+	const showFilteredEmptyState =
+		count === 0 && !isPending && !isPlaceholderData && Boolean(onClearFilters);
 
 	const nameSearchValue = (columnFilters.find((filter) => filter.id === "name")
 		?.value ?? "") as string;
@@ -96,35 +116,30 @@ export default function FlowsTable({
 	const table = useTable({
 		columns: columns,
 		data: flows,
+		getRowId: (flow) => flow.id,
 		manualPagination: true,
 		pageCount,
 		state: {
-			rowSelection,
 			pagination,
 		},
-		onRowSelectionChange: setRowSelection,
 		onPaginationChange: handlePaginationChange,
 	});
 
 	const handleDeleteRows = () => {
-		const selectedRows = Object.keys(rowSelection);
-
-		const idsToDelete = selectedRows.map((rowId) => flows[Number(rowId)].id);
-
-		for (const id of idsToDelete) {
+		for (const id of table.getSelectedRowIds()) {
 			deleteFlow(id);
 		}
 
-		table.toggleAllRowsSelected(false);
+		table.resetRowSelection(true);
 	};
 
 	return (
 		<div className="h-full">
 			<div className="grid sm:grid-cols-2 md:grid-cols-12 gap-2 pb-4 items-center">
 				<div className="sm:col-span-2 md:col-span-3 lg:col-span-4 md:order-first lg:order-first">
-					{Object.keys(rowSelection).length > 0 ? (
+					{table.getSelectedRowIds().length > 0 ? (
 						<p className="text-sm text-muted-foreground flex items-center">
-							{Object.keys(rowSelection).length} selected
+							{table.getSelectedRowIds().length} selected
 							<Button
 								variant="ghost"
 								size="icon"
@@ -170,7 +185,32 @@ export default function FlowsTable({
 					</Select>
 				</div>
 			</div>
-			<DataTable table={table} onPrefetchPage={onPrefetchPage} />
+			{error && onRetry ? (
+				<RouteErrorState error={error} onRetry={onRetry} />
+			) : showFilteredEmptyState ? (
+				<FlowsFilteredEmptyState onClearFilters={onClearFilters} />
+			) : (
+				<DataTable table={table} onPrefetchPage={onPrefetchPage} />
+			)}
 		</div>
 	);
 }
+
+const FlowsFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters?: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No flows match your filters</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your search or tag filters.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);
