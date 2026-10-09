@@ -58,7 +58,7 @@ This generous threshold accounts for temporary network issues, API unavailabilit
 
 ### During API maintenance
 
-When the API answers with a `Prefect-Maintenance: true` header, as Prefect Cloud does during a maintenance window, the worker waits out the `Retry-After` it was given and then tries again. The open-source Prefect server does not send this header.
+When the API answers with a `Prefect-Maintenance: true` header, as Prefect Cloud does during a maintenance window, the worker waits out the `Retry-After` it was given and then tries again. The open source Prefect server does not send this header.
 
 While it waits, the polling window counts from the later of the last poll and the end of the last maintenance back-off. The worker reports healthy throughout the maintenance, and after it ends the worker has the full window to poll again before it reports unhealthy. Restarting the worker cannot end the maintenance sooner, and a restarted worker would have to wait again before it could poll.
 

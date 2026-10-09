@@ -39,6 +39,18 @@ def maintenance_backoff_ends_at() -> datetime.datetime | None:
         return _backoff_ends_at
 
 
+def polling_window_start(last_polled: datetime.datetime) -> datetime.datetime:
+    """
+    When the polling window of a process that last polled at `last_polled`
+    starts: the later of `last_polled` and the end of the latest maintenance
+    back-off, since a poll cannot complete while it waits out maintenance.
+    """
+    backoff_ends_at = maintenance_backoff_ends_at()
+    if backoff_ends_at is not None and backoff_ends_at > last_polled:
+        return backoff_ends_at
+    return last_polled
+
+
 def reset_maintenance_backoff() -> None:
     """Forget any recorded maintenance back-off (for tests)."""
     global _backoff_ends_at
