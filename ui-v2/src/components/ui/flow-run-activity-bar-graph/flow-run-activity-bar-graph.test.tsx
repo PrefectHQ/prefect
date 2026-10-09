@@ -5,7 +5,7 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -147,8 +147,10 @@ describe("FlowRunActivityBarChart", () => {
 
 		await user.click(bar);
 
-		expect(router.state.location.pathname).toBe(
-			"/runs/flow-run/test-flow-run-1",
+		await waitFor(() =>
+			expect(router.state.location.pathname).toBe(
+				"/runs/flow-run/test-flow-run-1",
+			),
 		);
 	});
 
@@ -168,8 +170,10 @@ describe("FlowRunActivityBarChart", () => {
 
 		await user.keyboard("{Enter}");
 
-		expect(router.state.location.pathname).toBe(
-			"/runs/flow-run/test-flow-run-1",
+		await waitFor(() =>
+			expect(router.state.location.pathname).toBe(
+				"/runs/flow-run/test-flow-run-1",
+			),
 		);
 	});
 
