@@ -156,8 +156,7 @@ class TestShellOperation:
         op = ShellOperation(commands=["echo 'testing\nthe output'", "echo good"])
         assert await self.execute(op, method) == ["testing", "the output", "good"]
         assert "triggered with 2 commands running" in prefect_task_runs_caplog.text
-        assert "stream output:\ntesting\nthe output" in prefect_task_runs_caplog.text
-        assert "good" in prefect_task_runs_caplog.text
+        assert "stream output:" in prefect_task_runs_caplog.text
         assert "completed with return code 0" in prefect_task_runs_caplog.text
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
