@@ -5,14 +5,8 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import {
-	act,
-	fireEvent,
-	render,
-	screen,
-	waitFor,
-	within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { type ReactNode, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -137,19 +131,45 @@ describe("FlowRunActivityBarChart", () => {
 		expect(bar).toHaveAttribute("width", customBarWidth.toString());
 	});
 
-	it("navigates to the flow run when a populated bar is clicked", async () => {
+	it("renders populated bars as native links and navigates on click", async () => {
 		const { router } = await renderChartWithRouter(
 			/* @ts-expect-error - Type error from test data not matching schema */
 			<FlowRunActivityBarChart {...defaultProps} />,
 		);
+		vi.useRealTimers();
+		const user = userEvent.setup();
 
-		const bar = screen.getByRole("link", { name: "Open flow run Test Flow Run" });
-		fireEvent.click(bar);
+		const bar = screen.getByRole("link", {
+			name: "Open flow run Test Flow Run",
+		});
+		expect(bar).toHaveAttribute("href", "/runs/flow-run/test-flow-run-1");
+		expect(bar).toHaveAttribute("data-row-click-ignore", "true");
 
-		await waitFor(() =>
-			expect(router.state.location.pathname).toBe(
-				"/runs/flow-run/test-flow-run-1",
-			),
+		await user.click(bar);
+
+		expect(router.state.location.pathname).toBe(
+			"/runs/flow-run/test-flow-run-1",
+		);
+	});
+
+	it("supports keyboard activation for populated bars", async () => {
+		const { router } = await renderChartWithRouter(
+			/* @ts-expect-error - Type error from test data not matching schema */
+			<FlowRunActivityBarChart {...defaultProps} />,
+		);
+		vi.useRealTimers();
+		const user = userEvent.setup();
+
+		const bar = screen.getByRole("link", {
+			name: "Open flow run Test Flow Run",
+		});
+		bar.focus();
+		expect(bar).toHaveFocus();
+
+		await user.keyboard("{Enter}");
+
+		expect(router.state.location.pathname).toBe(
+			"/runs/flow-run/test-flow-run-1",
 		);
 	});
 
@@ -160,8 +180,7 @@ describe("FlowRunActivityBarChart", () => {
 		);
 
 		const emptyBar = screen.getAllByTestId("bar-rect-undefined")[0];
-		expect(emptyBar).not.toHaveAttribute("role", "link");
-		expect(emptyBar).not.toHaveAttribute("tabindex");
+		expect(emptyBar.closest("a")).toBeNull();
 	});
 
 	it("renders without error when enrichedFlowRuns exceeds numberOfBars", async () => {
