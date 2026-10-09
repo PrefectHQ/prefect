@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
 import { scaleSymlog } from "d3-scale";
 import { format, formatDistanceStrict } from "date-fns";
@@ -39,6 +39,7 @@ type CustomShapeProps = {
 	radius?: number[];
 	role?: string;
 	flowRun?: EnrichedFlowRun;
+	onNavigate?: (flowRunId: string) => void;
 };
 
 const barVariants = cva("gap-1 z-1", {
@@ -71,7 +72,15 @@ const CustomBar = (props: CustomShapeProps) => {
 		radius = [0, 0, 0, 0],
 		role,
 		flowRun,
+		onNavigate,
 	} = props;
+	const flowRunId = flowRun?.id;
+	const isInteractive = Boolean(flowRunId && onNavigate);
+	const activate = () => {
+		if (flowRunId && onNavigate) {
+			onNavigate(flowRunId);
+		}
+	};
 	const effectiveHeight = Math.max(height, minHeight);
 	// Shift the bar up if we're inflating its height, so it still rests on the baseline
 	const yPosition = y + (height - effectiveHeight);
@@ -86,7 +95,28 @@ const CustomBar = (props: CustomShapeProps) => {
 				height={effectiveHeight}
 				rx={radius[0]}
 				ry={radius[0]}
-				className={barVariants({ state: flowRun?.state_type })}
+				role={isInteractive ? "link" : undefined}
+				tabIndex={isInteractive ? 0 : undefined}
+				aria-label={
+					isInteractive
+						? `Open flow run ${flowRun?.name ?? flowRunId}`
+						: undefined
+				}
+				className={cn(
+					barVariants({ state: flowRun?.state_type }),
+					isInteractive && "cursor-pointer",
+				)}
+				onClick={isInteractive ? activate : undefined}
+				onKeyDown={
+					isInteractive
+						? (event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.preventDefault();
+									activate();
+								}
+							}
+						: undefined
+				}
 			/>
 		</g>
 	);
@@ -230,6 +260,16 @@ export const FlowRunActivityBarChart = ({
 		interactionState,
 	] = useIsTooltipActive(chartId);
 	const chartRef = useRef<HTMLDivElement>(null);
+	const navigate = useNavigate();
+	const navigateToFlowRun = useCallback(
+		(flowRunId: string) => {
+			void navigate({
+				to: "/runs/flow-run/$id",
+				params: { id: flowRunId },
+			});
+		},
+		[navigate],
+	);
 
 	// Cap flow runs to prevent crash when there are more runs than bars.
 	// The chart can only display one run per bar, so we take the first N runs
@@ -317,7 +357,7 @@ export const FlowRunActivityBarChart = ({
 				/>
 				<Bar
 					dataKey="value"
-					shape={<CustomBar />}
+					shape={<CustomBar onNavigate={navigateToFlowRun} />}
 					radius={[5, 5, 5, 5]}
 					onMouseEnter={() => setIsTooltipActive(true)}
 					onMouseLeave={() => setIsTooltipActive(undefined)}
