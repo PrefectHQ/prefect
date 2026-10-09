@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from collections import deque
 from contextlib import AsyncExitStack, ExitStack, contextmanager
 from contextvars import copy_context
 from typing import IO, Any, Generator, Optional, Union
@@ -203,6 +204,12 @@ async def shell_run_command(
     return lines if return_all else line
 
 
+# How many trailing lines of stderr (or, without stderr, of output) a failure
+# message includes. Enough to show the error without copying a noisy command's
+# whole log into the exception.
+_FAILURE_OUTPUT_LINES = 20
+
+
 class ShellProcess(JobRun[list[str]]):
     """
     A class representing a shell process.
@@ -218,6 +225,7 @@ class ShellProcess(JobRun[list[str]]):
         self._shell_operation = shell_operation
         self._process = process
         self._output: list[str] = []
+        self._stderr_tail: deque[str] = deque(maxlen=_FAILURE_OUTPUT_LINES)
 
     @property
     def pid(self) -> int:
@@ -259,6 +267,8 @@ class ShellProcess(JobRun[list[str]]):
             if self._shell_operation.stream_output:
                 self.logger.info(self._format_output_log(output_label, text))
             self._output.extend(text.split(os.linesep))
+            if output_label == "stderr":
+                self._stderr_tail.extend(text.split(os.linesep))
 
     def _capture_output_sync(
         self,
@@ -277,6 +287,22 @@ class ShellProcess(JobRun[list[str]]):
                 self.logger.info(self._format_output_log(output_label, text))
             if include_in_output:
                 self._output.extend(text.split(os.linesep))
+            if output_label == "stderr":
+                self._stderr_tail.extend(text.split(os.linesep))
+
+    def _failure_message(self) -> str:
+        """
+        Describe a non-zero exit, including the end of what the process wrote.
+
+        Uses the last lines of stderr, or the last lines of output when nothing
+        was written to stderr, like `shell_run_command` does.
+        """
+        message = f"PID {self.pid} failed with return code {self.return_code}."
+        detail = list(self._stderr_tail) or self._output[-_FAILURE_OUTPUT_LINES:]
+        detail = [line for line in detail if line.strip()]
+        if detail:
+            message += os.linesep + os.linesep.join(detail)
+        return message
 
     async def await_for_completion(self) -> None:
         """
@@ -297,9 +323,7 @@ class ShellProcess(JobRun[list[str]]):
         await self._process.wait()
 
         if self.return_code != 0:
-            raise RuntimeError(
-                f"PID {self.pid} failed with return code {self.return_code}."
-            )
+            raise RuntimeError(self._failure_message())
         self.logger.info(
             f"PID {self.pid} completed with return code {self.return_code}."
         )
@@ -360,9 +384,7 @@ class ShellProcess(JobRun[list[str]]):
         self._process.wait()
 
         if self.return_code != 0:
-            raise RuntimeError(
-                f"PID {self.pid} failed with return code {self.return_code}."
-            )
+            raise RuntimeError(self._failure_message())
         self.logger.info(
             f"PID {self.pid} completed with return code {self.return_code}."
         )
