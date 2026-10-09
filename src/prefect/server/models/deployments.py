@@ -217,21 +217,25 @@ async def create_deployment(
         future_only=True,
     )
 
-    await delete_schedules_for_deployment(session=session, deployment_id=deployment_id)
-
     if schedules:
-        await create_deployment_schedules(
+        await reconcile_deployment_schedules(
             session=session,
             deployment_id=deployment_id,
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
                     active=schedule.active,
+                    max_scheduled_runs=schedule.max_scheduled_runs,
                     parameters=schedule.parameters,
                     slug=schedule.slug,
+                    replaces=getattr(schedule, "replaces", None),
                 )
                 for schedule in schedules
             ],
+        )
+    else:
+        await delete_schedules_for_deployment(
+            session=session, deployment_id=deployment_id
         )
 
     if requested_concurrency_limit != "unset":
@@ -1252,6 +1256,140 @@ async def delete_schedules_for_deployment(
 
     await session.refresh(deployment)
     return result.rowcount > 0
+
+
+@db_injector
+async def reconcile_deployment_schedules(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
+    schedules: list[schemas.actions.DeploymentScheduleCreate],
+) -> list[schemas.core.DeploymentSchedule]:
+    """
+    Reconciles a deployment's schedules against a new set of schedules.
+
+    When every existing schedule and every provided schedule has a slug,
+    schedules are matched by slug (honoring the `replaces` directive for
+    renames) and updated in place, preserving their ids. Stable schedule ids
+    keep the scheduler's per-schedule run accounting and the idempotency keys
+    of already-scheduled flow runs valid across redeployments, which prevents
+    duplicate scheduled runs when a deployment is updated while the scheduler
+    is running (see https://github.com/PrefectHQ/prefect/issues/18894).
+
+    Otherwise, falls back to deleting all existing schedules and recreating
+    them.
+
+    Args:
+        session: A database session
+        deployment_id: a deployment id
+        schedules: the new set of schedules for the deployment
+    """
+    existing_schedules = await read_deployment_schedules(
+        session=session, deployment_id=deployment_id
+    )
+
+    if not (
+        existing_schedules
+        and all(schedule.slug is not None for schedule in existing_schedules)
+        and all(schedule.slug is not None for schedule in schedules)
+    ):
+        await delete_schedules_for_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if schedules:
+            await create_deployment_schedules(
+                session=session, deployment_id=deployment_id, schedules=schedules
+            )
+        return await read_deployment_schedules(
+            session=session, deployment_id=deployment_id
+        )
+
+    existing_by_slug = {schedule.slug: schedule for schedule in existing_schedules}
+    matched_ids: set[UUID] = set()
+    renames: list[tuple[UUID, schemas.actions.DeploymentScheduleCreate]] = []
+    schedules_to_create: list[schemas.actions.DeploymentScheduleCreate] = []
+
+    # Pass 1: schedules matched directly by slug are updated in place,
+    # preserving their ids.
+    for schedule in schedules:
+        replaces = getattr(schedule, "replaces", None)
+        if replaces:
+            # handled in pass 2
+            continue
+        existing = existing_by_slug.get(schedule.slug)
+        if existing is not None and existing.id not in matched_ids:
+            await update_deployment_schedule(
+                session=session,
+                deployment_id=deployment_id,
+                deployment_schedule_id=existing.id,
+                schedule=schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule.schedule,
+                    active=schedule.active,
+                    max_scheduled_runs=schedule.max_scheduled_runs,
+                    parameters=schedule.parameters,
+                    slug=schedule.slug,
+                ),
+            )
+            matched_ids.add(existing.id)
+        else:
+            schedules_to_create.append(schedule)
+
+    # Pass 2: renames (`replaces`) are applied by row id, preserving ids.
+    for schedule in schedules:
+        replaces = getattr(schedule, "replaces", None)
+        if not replaces:
+            continue
+        existing = existing_by_slug.get(replaces)
+        if existing is not None and existing.id not in matched_ids:
+            renames.append((existing.id, schedule))
+            matched_ids.add(existing.id)
+        else:
+            logger.warning(
+                f"Schedule with slug {schedule.slug!r} has 'replaces: {replaces}' "
+                f"but no schedule with slug {replaces!r} exists. Creating new schedule."
+            )
+            schedules_to_create.append(schedule)
+
+    if renames:
+        # Clear the old slugs first so the unique index on
+        # (deployment_id, slug) cannot block the renames.
+        await session.execute(
+            sa.update(db.DeploymentSchedule)
+            .where(db.DeploymentSchedule.id.in_([row_id for row_id, _ in renames]))
+            .values(slug=None)
+        )
+        await session.flush()
+        for row_id, schedule in renames:
+            await update_deployment_schedule(
+                session=session,
+                deployment_id=deployment_id,
+                deployment_schedule_id=row_id,
+                schedule=schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule.schedule,
+                    active=schedule.active,
+                    max_scheduled_runs=schedule.max_scheduled_runs,
+                    parameters=schedule.parameters,
+                    slug=schedule.slug,
+                ),
+            )
+
+    # Schedules that were not provided are removed.
+    for existing in existing_schedules:
+        if existing.id not in matched_ids:
+            await delete_deployment_schedule(
+                session=session,
+                deployment_id=deployment_id,
+                deployment_schedule_id=existing.id,
+            )
+
+    if schedules_to_create:
+        await create_deployment_schedules(
+            session=session,
+            deployment_id=deployment_id,
+            schedules=schedules_to_create,
+        )
+
+    return await read_deployment_schedules(session=session, deployment_id=deployment_id)
 
 
 @db_injector
