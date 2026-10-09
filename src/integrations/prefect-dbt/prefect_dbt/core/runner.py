@@ -78,6 +78,9 @@ FAILURE_STATUSES = [
     NodeStatus.Fail,
     NodeStatus.RuntimeErr,
 ]
+# dbt>=1.9 reports a microbatch model with some failed batches as `partial success`
+if hasattr(NodeStatus, "PartialSuccess"):
+    FAILURE_STATUSES.append(NodeStatus.PartialSuccess)
 SKIPPED_STATUSES = [
     RunStatus.Skipped,
     TestStatus.Skipped,
@@ -181,6 +184,7 @@ class PrefectDbtRunner(DbtHookMixin):
         self._graph: Graph | None = None
         self._skipped_nodes: set[str] = set()
         self._started_nodes: set[str] = set()
+        self._open_node_starts: dict[str, int] = {}
 
         self._event_queue: queue.PriorityQueue | None = None
         self._callback_thread: threading.Thread | None = None
@@ -648,6 +652,7 @@ class PrefectDbtRunner(DbtHookMixin):
         self._queue_counter = 0
         self._skipped_nodes = set()
         self._started_nodes = set()
+        self._open_node_starts = {}
 
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
@@ -840,6 +845,14 @@ class PrefectDbtRunner(DbtHookMixin):
                 self._skipped_nodes.add(node_id)
                 return
 
+            # dbt emits a `NodeStart`/`NodeFinished` pair for the model and for
+            # each of its microbatch batches, all with the model's unique_id.
+            # Only the outermost pair represents the node.
+            open_starts = self._open_node_starts.get(node_id, 0)
+            self._open_node_starts[node_id] = open_starts + 1
+            if open_starts:
+                return
+
             enable_assets = (
                 prefect_config.get("enable_assets", True) and not self.disable_assets
             )
@@ -851,6 +864,11 @@ class PrefectDbtRunner(DbtHookMixin):
             """Actual node finished logic - runs in background thread."""
             node_id = self._get_dbt_event_node_id(event)
             if node_id in self._skipped_nodes and node_id not in self._started_nodes:
+                return
+
+            open_starts = self._open_node_starts.pop(node_id, 0) - 1
+            if open_starts > 0:
+                self._open_node_starts[node_id] = open_starts
                 return
 
             manifest_node, _ = self._get_manifest_node_and_config(node_id)
