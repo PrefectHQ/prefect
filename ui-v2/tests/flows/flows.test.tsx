@@ -95,4 +95,21 @@ describe("Flows page", () => {
 			expect(screen.getByPlaceholderText("Flow names")).toHaveValue("");
 		});
 	});
+
+	it("shows the error state instead of onboarding when pagination fails on an empty account", async () => {
+		server.use(
+			http.post(buildApiUrl("/flows/count"), () => HttpResponse.json(0)),
+			http.post(buildApiUrl("/flows/paginate"), () =>
+				HttpResponse.json({ detail: "Internal Server Error" }, { status: 500 }),
+			),
+		);
+		renderFlowsPage();
+
+		expect(await screen.findByText("Something went wrong")).toBeVisible();
+		expect(screen.getByRole("button", { name: "Retry" })).toBeVisible();
+		expect(
+			screen.queryByText("Run a flow to get started"),
+		).not.toBeInTheDocument();
+		expect(screen.getByPlaceholderText("Flow names")).toBeVisible();
+	});
 });
