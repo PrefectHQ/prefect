@@ -7,6 +7,7 @@ from prefect.workers.process import ProcessWorker
 from prefect.workers.utilities import (
     get_available_work_pool_types,
     get_default_base_job_template_for_infrastructure_type,
+    get_locally_installed_worker_metadata,
 )
 
 pytestmark = pytest.mark.clear_db
@@ -101,3 +102,56 @@ class TestGetDefaultBaseJobTemplateForInfrastructureType:
             "non-existent"
         )
         assert result is None
+
+
+class TestGetLocallyInstalledWorkerMetadata:
+    def test_metadata_is_keyed_by_collection_then_worker_type(self):
+        metadata = get_locally_installed_worker_metadata()
+
+        assert metadata["prefect"]["process"]["type"] == "process"
+
+    def test_metadata_matches_the_registry_view_shape(self):
+        process = get_locally_installed_worker_metadata()["prefect"]["process"]
+
+        assert process == {
+            "type": "process",
+            "display_name": ProcessWorker.get_display_name(),
+            "description": ProcessWorker.get_description(),
+            "documentation_url": ProcessWorker.get_documentation_url(),
+            "logo_url": ProcessWorker.get_logo_url(),
+            "install_command": "pip install prefect",
+            "default_base_job_configuration": (
+                ProcessWorker.get_default_base_job_template()
+            ),
+            "is_beta": False,
+        }
+
+    def test_collection_name_derived_from_the_worker_module(self, monkeypatch):
+        class ArmadaWorker(ProcessWorker):
+            type: str = "armada"
+            _display_name = "Armada"
+
+        ArmadaWorker.__module__ = "prefect_armada.worker"
+
+        monkeypatch.setattr(
+            BaseWorker, "get_all_available_worker_types", lambda: ["armada"]
+        )
+        monkeypatch.setattr(
+            BaseWorker, "get_worker_class_from_type", lambda type: ArmadaWorker
+        )
+
+        metadata = get_locally_installed_worker_metadata()
+
+        assert metadata["prefect-armada"]["armada"]["display_name"] == "Armada"
+        assert (
+            metadata["prefect-armada"]["armada"]["install_command"]
+            == "pip install prefect-armada"
+        )
+
+    def test_unregistered_worker_types_are_skipped(self, monkeypatch):
+        monkeypatch.setattr(
+            BaseWorker, "get_all_available_worker_types", lambda: ["gone"]
+        )
+        monkeypatch.setattr(BaseWorker, "get_worker_class_from_type", lambda type: None)
+
+        assert get_locally_installed_worker_metadata() == {}

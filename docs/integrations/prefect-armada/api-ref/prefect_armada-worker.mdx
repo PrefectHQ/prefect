@@ -1,0 +1,285 @@
+---
+title: worker
+sidebarTitle: worker
+---
+
+# `prefect_armada.worker`
+
+
+
+
+Module containing the Armada worker used for executing flow runs as Armada jobs.
+
+To start an Armada worker, run the following command:
+
+```bash
+prefect worker start --pool 'my-work-pool' --type armada
+```
+
+Replace `my-work-pool` with the name of the work pool you want the worker
+to poll for flow runs.
+
+### Connecting to Armada
+
+The worker connects to the Armada server's gRPC endpoint. The address can be set
+on the work pool itself with the `armada_host`, `armada_port`, and
+`armada_disable_ssl` variables, which are editable in the Prefect UI when
+creating or editing an Armada work pool. Armada clusters that serve gRPC without
+TLS - which is how the armada-operator's quickstart is configured - need
+`armada_disable_ssl` set, or the worker's TLS handshake fails with
+`WRONG_VERSION_NUMBER`.
+
+A server whose certificate is privately issued, by an internal or cluster-local
+CA, needs the issuing CA supplied with `armada_root_certificates_path`, a path
+on the worker's host; gRPC's default roots only trust publicly-issued
+certificates. gRPC matches that certificate's Subject Alternative Name against
+`armada_host`, so a certificate issued for an in-cluster service name fails when
+the worker dials `localhost` unless `grpc.ssl_target_name_override` is set in an
+`ArmadaClusterConfig`'s `channel_options`. Armada does not support mutual TLS,
+so a client certificate has no role here; authenticate with a token or basic
+auth on an `ArmadaCredentials` block.
+
+When none is set, and the work pool does not reference an
+`ArmadaClusterConfig` or `ArmadaCredentials` block, connection details are read
+from the environment:
+
+```bash
+export PREFECT_INTEGRATIONS_ARMADA_CONNECTION_HOST="armada.example.com"
+export PREFECT_INTEGRATIONS_ARMADA_CONNECTION_PORT="50051"
+export PREFECT_INTEGRATIONS_ARMADA_CONNECTION_DISABLE_SSL="true"
+prefect worker start --pool 'my-work-pool' --type armada
+```
+
+The `ARMADA_SERVER` and `ARMADA_PORT` environment variables used by Armada's own
+tooling are also honored.
+
+### Reaching the Prefect API from flow-run pods
+
+Flow runs execute as pods inside the Armada cluster and inherit the worker's
+`PREFECT_API_URL`, so that address has to be routable from the cluster. A worker
+pointed at a Prefect server on `localhost` hands each pod an address that
+resolves to the pod itself; set the `api_dns_name` work pool variable to an
+address the API is reachable at from inside the cluster - for a kind cluster,
+the gateway of its Docker network - and bind the server to it:
+
+```bash
+prefect server start --host 0.0.0.0
+```
+
+The worker warns when it is about to hand a job a local API address with no
+`api_dns_name` set.
+
+### Using a custom Armada job template
+
+The default template used for Armada job submissions looks like this:
+```yaml
+---
+priority: "{{ priority }}"
+namespace: "{{ namespace }}"
+labels: "{{ labels }}"
+annotations: "{{ annotations }}"
+podSpec:
+  restartPolicy: Never
+  serviceAccountName: "{{ service_account_name }}"
+  containers:
+  - name: prefect-job
+    image: "{{ image }}"
+    imagePullPolicy: "{{ image_pull_policy }}"
+    args: "{{ command }}"
+    env: "{{ env }}"
+```
+
+Each value enclosed in `{{ }}` is a placeholder that will be replaced with
+a value at runtime. The values that can be used as placeholders are defined
+by the `variables` schema defined in the base job template.
+
+The default job template and available variables can be customized on a work
+pool by work pool basis. These customizations can be made via the Prefect UI
+when creating or editing a work pool.
+
+For example, if you wanted to require a node label for an Armada work pool you
+could update the job template to look like this:
+
+```yaml
+---
+priority: "{{ priority }}"
+namespace: "{{ namespace }}"
+labels: "{{ labels }}"
+annotations: "{{ annotations }}"
+requiredNodeLabels:
+  node-pool: "{{ node_pool }}"
+podSpec:
+  restartPolicy: Never
+  containers:
+  - name: prefect-job
+    image: "{{ image }}"
+    args: "{{ command }}"
+    env: "{{ env }}"
+```
+
+The job template is an Armada `JobSubmitRequestItem` in dictionary form, so any
+field Armada accepts on a job submission can be templated, including `ingress`,
+`services`, and `requiredNodeLabels`.
+
+For more information about work pools and workers,
+checkout out the [Prefect docs](https://docs.prefect.io/concepts/work-pools/).
+
+
+## Classes
+
+### `ArmadaImagePullPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Enum representing the image pull policy options for an Armada job.
+
+
+### `ArmadaWorkerJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Configuration class used by the Armada worker.
+
+An instance of this class is passed to the Armada worker's `run` method
+for each flow run. It contains all of the information necessary to execute
+the flow run as an Armada job.
+
+**Attributes:**
+- `name`: The name to give to created Armada jobs.
+- `command`: The command executed in created Armada jobs to kick off
+flow run execution.
+- `env`: The environment variables to set in created Armada jobs.
+- `labels`: The labels to set on created Armada jobs.
+- `annotations`: The annotations to set on created Armada jobs.
+- `queue`: The Armada queue to submit jobs to.
+- `job_set_id`: The Armada job set to submit jobs to.
+- `namespace`: The Kubernetes namespace Armada should run jobs in.
+- `job_manifest`: The Armada job request used to submit jobs.
+- `armada_host`: The hostname or IP address of the Armada server.
+- `armada_port`: The port of the Armada server.
+- `armada_disable_ssl`: Whether to connect to the Armada server without TLS.
+- `armada_root_certificates_path`: Path to a PEM file of root certificates
+verifying the Armada server's TLS certificate.
+- `api_dns_name`: The address the Prefect API is reachable at from inside the
+cluster, substituted for a local address in jobs' `PREFECT_API_URL`.
+- `cluster_config`: The Armada cluster configuration to connect with.
+- `credentials`: The Armada credentials to authenticate with.
+
+
+**Methods:**
+
+#### `container` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L412" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+container(self) -> dict[str, Any]
+```
+
+The first container in the job manifest's pod spec.
+
+
+#### `get_credentials` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L432" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_credentials(self) -> ArmadaCredentials
+```
+
+Returns the credentials used to connect to Armada.
+
+A `credentials` block takes precedence over a `cluster_config` block, and
+a `cluster_config` set on the job configuration is used when the
+credentials block does not carry one of its own. When neither is set,
+connection details are read from the current environment.
+
+`armada_host`, `armada_port`, `armada_disable_ssl`, and
+`armada_root_certificates_path` override the host, port, and TLS settings
+of whichever cluster config is used, so a work pool can point at an
+Armada server without configuring a block.
+
+
+#### `get_environment_variable_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L416" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_environment_variable_value(self, name: str) -> str | None
+```
+
+Returns the value of an environment variable from the job manifest.
+
+
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L480" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+prepare_for_flow_run(self, flow_run: FlowRun, deployment: DeploymentResponse | None = None, flow: APIFlow | None = None, work_pool: WorkPool | None = None, worker_name: str | None = None, worker_id: UUID | None = None)
+```
+
+Prepares the job configuration for a flow run.
+
+Ensures that necessary values are present in the job manifest and that the
+job manifest is valid.
+
+**Args:**
+- `flow_run`: The flow run to prepare the job configuration for
+- `deployment`: The deployment associated with the flow run used for
+preparation.
+- `flow`: The flow associated with the flow run used for preparation.
+- `work_pool`: The work pool associated with the flow run used for preparation.
+- `worker_name`: The name of the worker used for preparation.
+
+
+### `ArmadaWorkerVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L714" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Default variables for the Armada worker.
+
+The schema for this class is used to populate the `variables` section of the
+default base job template.
+
+
+### `ArmadaWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L890" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Contains information about the final state of a completed process
+
+
+### `ArmadaWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Prefect worker that executes flow runs within Armada jobs.
+
+
+**Methods:**
+
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L973" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+kill_infrastructure(self, infrastructure_pid: str, configuration: ArmadaWorkerJobConfiguration, grace_seconds: int = 30) -> None
+```
+
+Kill an Armada job by cancelling it.
+
+**Args:**
+- `infrastructure_pid`: The infrastructure identifier in the format
+"queue\:job_set_id\:job_id".
+- `configuration`: The job configuration used to connect to Armada.
+- `grace_seconds`: Unused. Armada does not support a grace period when
+cancelling a job.
+
+**Raises:**
+- `InfrastructureNotFound`: If the job doesn't exist.
+
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L933" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(self, flow_run: FlowRun, configuration: ArmadaWorkerJobConfiguration, task_status: anyio.abc.TaskStatus[str] | None = None) -> ArmadaWorkerResult
+```
+
+Executes a flow run within an Armada job.
+
+**Args:**
+- `flow_run`: The flow run to execute
+- `configuration`: The configuration to use when executing the flow run.
+- `task_status`: The task status object for the current flow run. If provided,
+the task will be marked as started.
+
+**Returns:**
+- A result object containing information about the
+final state of the flow run
+

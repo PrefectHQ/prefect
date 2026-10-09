@@ -1,0 +1,169 @@
+---
+title: utilities
+sidebarTitle: utilities
+---
+
+# `prefect_armada.utilities`
+
+
+Utilities for working with the Armada Python client.
+
+## Functions
+
+### `pod_spec_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pod_spec_from_dict(pod_spec: dict[str, Any]) -> core_v1.PodSpec
+```
+
+
+Converts a Kubernetes pod spec dictionary into an Armada pod spec.
+
+**Args:**
+- `pod_spec`: A Kubernetes pod spec, for example one produced by
+`yaml.safe_load`.
+
+**Returns:**
+- The equivalent `PodSpec` protobuf message.
+
+**Raises:**
+- `ArmadaJobDefinitionError`: If the pod spec cannot be converted.
+
+
+### `job_request_item_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+job_request_item_from_dict(job_request: dict[str, Any]) -> submit_pb2.JobSubmitRequestItem
+```
+
+
+Converts a job request dictionary into an Armada job submit request item.
+
+**Args:**
+- `job_request`: An Armada `JobSubmitRequestItem` in dictionary form. Nested
+pod specs may be given under either `pod_spec` or `podSpec`.
+
+**Returns:**
+- The equivalent `JobSubmitRequestItem` protobuf message.
+
+**Raises:**
+- `ArmadaJobDefinitionError`: If the job request cannot be converted.
+
+
+### `coerce_job_request_items` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+coerce_job_request_items(job_request: dict[str, Any] | submit_pb2.JobSubmitRequestItem | list[dict[str, Any] | submit_pb2.JobSubmitRequestItem]) -> list[submit_pb2.JobSubmitRequestItem]
+```
+
+
+Coerces job request input into a list of job submit request items.
+
+Accepts a single job request or a list of job requests, in either
+dictionary or protobuf form, so that tasks and blocks can be given whatever
+representation is most convenient.
+
+**Args:**
+- `job_request`: The job request(s) to coerce.
+
+**Returns:**
+- A list of `JobSubmitRequestItem` protobuf messages.
+
+**Raises:**
+- `ArmadaJobDefinitionError`: If a job request cannot be converted.
+
+
+### `queue_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+queue_from_dict(queue: dict[str, Any]) -> submit_pb2.Queue
+```
+
+
+Converts a queue dictionary into an Armada queue.
+
+**Args:**
+- `queue`: An Armada `Queue` in dictionary form.
+
+**Returns:**
+- The equivalent `Queue` protobuf message.
+
+**Raises:**
+- `ArmadaJobDefinitionError`: If the queue cannot be converted.
+
+
+### `coerce_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L383" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+coerce_queues(queues: Iterable[dict[str, Any] | submit_pb2.Queue]) -> list[submit_pb2.Queue]
+```
+
+
+Coerces queue input into a list of Armada queues.
+
+**Args:**
+- `queues`: Queues given in dictionary or protobuf form.
+
+**Returns:**
+- A list of `Queue` protobuf messages.
+
+**Raises:**
+- `ArmadaJobDefinitionError`: If a queue cannot be converted.
+
+
+### `job_state_from_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+job_state_from_value(value: Any) -> JobState
+```
+
+
+Converts an Armada job state value into a `JobState`.
+
+**Args:**
+- `value`: A `JobState` enum member, its integer value, or its name.
+
+**Returns:**
+- The corresponding `JobState`.
+
+**Raises:**
+- `ValueError`: If the value does not correspond to a known job state.
+
+
+### `format_job_pid` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L422" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+format_job_pid(queue: str, job_set_id: str, job_id: str) -> str
+```
+
+
+Formats an Armada job identifier for use as an infrastructure PID.
+
+**Args:**
+- `queue`: The name of the Armada queue.
+- `job_set_id`: The name of the Armada job set.
+- `job_id`: The Armada job ID.
+
+**Returns:**
+- The infrastructure PID, for example `"my-queue:my-job-set:01hqk..."`.
+
+
+### `parse_job_pid` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L436" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+parse_job_pid(infrastructure_pid: str) -> tuple[str, str, str]
+```
+
+
+Parses an infrastructure PID into its Armada job identifiers.
+
+**Args:**
+- `infrastructure_pid`: An identifier in the format
+`"<queue>\:<job_set_id>\:<job_id>"`.
+
+**Returns:**
+- A tuple of `(queue, job_set_id, job_id)`.
+
+**Raises:**
+- `ValueError`: If the identifier is not in the expected format.
+

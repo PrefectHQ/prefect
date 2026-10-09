@@ -1,0 +1,27 @@
+[project]
+name = "prefect-armada-integration-tests"
+version = "0.1.0"
+description = "Integration tests for Prefect Armada"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "prefect-armada",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-xdist",
+    "pytest-timeout>=2.3.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+prefect-armada = { workspace = true }
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["src/prefect_armada_integration_tests"]
+python_files = ["test_*.py"]
+addopts = "-v -ra"
+asyncio_mode = "auto"

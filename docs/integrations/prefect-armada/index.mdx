@@ -1,0 +1,376 @@
+---
+title: prefect-armada
+description: Run Prefect flow runs as jobs on an Armada multi-cluster batch scheduler.
+keywords: ["Armada", "batch", "scheduler", "gRPC", "queue", "job set", "preemption"]
+---
+
+`prefect-armada` runs Prefect flow runs on [Armada](https://armadaproject.io/), a multi-cluster batch
+scheduler for Kubernetes. It provides an Armada worker for executing flow runs as Armada jobs, blocks for
+storing connection details and credentials, and tasks that wrap the Armada API so flows can manage jobs,
+job sets, and queues directly.
+
+Armada is a queueing layer in front of one or more Kubernetes clusters. Submitting a job places it on a
+queue; Armada leases the job to a cluster when capacity is available, and may preempt it later in favor of
+higher-priority work. Flow runs therefore start some time after they are submitted, and can be interrupted
+by the scheduler.
+
+## Getting started
+
+### Prerequisites
+
+- An [Armada server](https://armadaproject.io/) reachable over gRPC.
+- An Armada queue your credentials are permitted to submit to.
+
+### Install `prefect-armada`
+
+```bash
+pip install prefect-armada
+```
+
+### Register newly installed block types
+
+Register the block types in the `prefect_armada` module to make them available in the UI.
+
+```bash
+prefect block register -m prefect_armada
+```
+
+## Run flow runs as Armada jobs
+
+Create an Armada work pool and start a worker that polls it:
+
+```bash
+prefect work-pool create --type armada my-armada-pool
+prefect worker start --pool my-armada-pool
+```
+
+The worker submits each flow run as an Armada job. By default it connects to `localhost:50051` and submits
+to the `prefect` queue.
+
+### Configure the connection to Armada
+
+Set the Armada server's address on the work pool with the `armada_host` and `armada_port` job variables,
+and turn TLS off with `armada_disable_ssl` when the server serves gRPC in plaintext. All three are
+editable in the Prefect UI when creating or editing an Armada work pool.
+
+<Note>
+Armada clusters started by the [armada-operator](https://github.com/armadaproject/armada-operator) serve
+gRPC without TLS. Leaving `armada_disable_ssl` unset against such a cluster fails job submission with
+`Ssl handshake failed (TSI_PROTOCOL_FAILURE): ... WRONG_VERSION_NUMBER`.
+</Note>
+
+Alternatively, set connection details in the worker's environment:
+
+```bash
+export PREFECT_INTEGRATIONS_ARMADA_CONNECTION_HOST="armada.example.com"
+export PREFECT_INTEGRATIONS_ARMADA_CONNECTION_PORT="50051"
+export PREFECT_INTEGRATIONS_ARMADA_CONNECTION_DISABLE_SSL="false"
+```
+
+The `ARMADA_SERVER`, `ARMADA_PORT`, and `ARMADA_DISABLE_SSL` variables used by Armada's own tooling are
+also honored.
+
+To share connection details across work pools, or to authenticate, save an `ArmadaClusterConfig` or
+`ArmadaCredentials` block and reference it from the work pool's `cluster_config` or `credentials` job
+variable instead. Blocks take precedence over the environment, and `armada_host`, `armada_port`,
+`armada_disable_ssl`, and `armada_root_certificates_path` take precedence over both.
+
+### Connect over TLS
+
+An Armada server serving gRPC with a publicly-issued certificate needs no extra configuration: leave
+`armada_disable_ssl` unset and the worker verifies it against gRPC's default trust roots.
+
+For a privately-issued certificate — one signed by an internal or cluster-local CA, as
+[cert-manager](https://cert-manager.io/) issues — point the worker at the issuing CA. The simplest way
+is in the environment the worker starts in:
+
+```bash
+export PREFECT_INTEGRATIONS_ARMADA_CONNECTION_ROOT_CERTIFICATES_PATH="/etc/prefect/armada/ca.crt"
+prefect worker start --pool my-armada-pool
+```
+
+To set it for every worker on a pool instead, set the `armada_root_certificates_path` job variable as a
+default in the pool's base job template, from the work pool's **Edit** page in the UI or by editing the
+template and applying it with `prefect work-pool update my-armada-pool --base-job-template template.json`.
+
+The worker reads the file when it opens a channel, so use an absolute path that exists on the worker's
+host, not inside the cluster. To carry the certificate in a block instead of on disk, set
+`root_certificates` on an `ArmadaClusterConfig` to the PEM text itself; it takes precedence over any
+path.
+
+<Warning>
+gRPC matches the server's certificate against the **Subject Alternative Name** (SAN), not the Common
+Name, and checks it against the address in `armada_host`. A certificate issued for
+`armada-server.armada.svc.cluster.local` fails when the worker dials `localhost`, even though the CA
+verifies, with `CERTIFICATE_VERIFY_FAILED` or a name-mismatch error.
+
+Either include every address the worker dials in the certificate's SAN list, or override the name gRPC
+matches by setting `channel_options` on an `ArmadaClusterConfig` block:
+
+```python
+ArmadaClusterConfig(
+    host="localhost",
+    port=30002,
+    root_certificates_path="/etc/prefect/armada/ca.crt",
+    channel_options={"grpc.ssl_target_name_override": "armada-server.armada.svc.cluster.local"},
+).save("armada-tls")
+```
+</Warning>
+
+<Note>
+Armada's gRPC API does **not** support mutual TLS: its server config exposes only `enabled`, `certPath`,
+and `keyPath`, and it never requests a client certificate. Authenticate with the `token` or
+`username`/`password` fields on an `ArmadaCredentials` block instead. A client certificate and key — such
+as the ones in a `kubeconfig`, which belong to the Kubernetes API server rather than to Armada — have no
+role here.
+</Note>
+
+### Let flow-run pods reach the Prefect API
+
+Flow runs execute as pods inside the Armada cluster and inherit the worker's `PREFECT_API_URL`, so that
+address has to be routable from the cluster. A worker pointed at a Prefect server on `localhost` hands
+each pod an address that resolves to the pod itself, and the flow run fails to connect.
+
+Set the `api_dns_name` job variable to an address the API is reachable at from inside the cluster, and
+bind the server to it:
+
+```bash
+prefect server start --host 0.0.0.0
+```
+
+For a [kind](https://kind.sigs.k8s.io/) cluster, that address is the gateway of its Docker network:
+
+```bash
+docker network inspect kind -f '{{range .IPAM.Config}}{{.Gateway}} {{end}}'
+```
+
+The worker warns when it is about to hand a job a local API address with no `api_dns_name` set. This is
+not needed for Prefect Cloud, or for any server the cluster can already reach.
+
+### Job variables
+
+Set these on the work pool, on a deployment, or per flow run to control how jobs are submitted.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `armada_host` | `localhost` | The hostname or IP address of the Armada server's gRPC endpoint. |
+| `armada_port` | `50051` | The port of the Armada server's gRPC endpoint. |
+| `armada_disable_ssl` | `false` | Whether to connect to the Armada server without TLS. |
+| `armada_root_certificates_path` | none | Path on the worker's host to a PEM file of root certificates verifying the Armada server's TLS certificate. Defaults to gRPC's trust roots. |
+| `api_dns_name` | none | The address the Prefect API is reachable at from inside the cluster, substituted for a local address in each job's `PREFECT_API_URL`. |
+| `queue` | `prefect` | The Armada queue to submit jobs to. The queue must already exist. A new work pool takes its default from the `PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE` setting of the process that creates it. |
+| `job_set_id` | one per flow run | The Armada job set to submit jobs to. |
+| `namespace` | `default` | The Kubernetes namespace Armada runs jobs in. |
+| `priority` | `1.0` | The Armada priority of created jobs. Lower values are higher priority. |
+| `image` | the latest Prefect image | The container image to run the flow in, for example `docker.io/prefecthq/prefect:3-latest`. |
+| `image_pull_policy` | `IfNotPresent` | The Kubernetes image pull policy for job containers. |
+| `service_account_name` | none | The Kubernetes service account for created jobs. |
+| `cpu_request` / `cpu_limit` | none | CPU resource request and limit, in Kubernetes quantity format (for example `500m`). |
+| `memory_request` / `memory_limit` | none | Memory resource request and limit, in Kubernetes quantity format (for example `128Mi`). |
+| `labels` / `annotations` | none | Kubernetes labels and annotations applied to created jobs. |
+| `cluster_config` | none | An `ArmadaClusterConfig` block holding connection details. |
+| `credentials` | none | An `ArmadaCredentials` block used to authenticate. |
+
+<Warning>
+When customizing a work pool's base job template, variables defined in the `variables` section must be
+referenced in `job_configuration` using `{{ variable_name }}` syntax to take effect. A variable that is
+defined but never referenced is not passed to the worker, including its default.
+</Warning>
+
+### Run a flow on Armada without a deployment
+
+The `armada` decorator binds a flow to an Armada work pool. Calling the flow bundles it, submits an Armada
+job, and waits for the result.
+
+```python
+from prefect import flow
+from prefect_armada.decorators import armada
+
+
+@armada(work_pool="my-armada-pool")
+@flow
+def my_flow():
+    print("Hello from Armada!")
+
+
+my_flow()
+```
+
+Pass job variables to the decorator to override the work pool's defaults, and `include_files` to bundle
+files the flow needs at runtime:
+
+```python
+from prefect import flow
+from prefect_armada.decorators import armada
+
+
+@armada(
+    work_pool="my-armada-pool",
+    include_files=["config.yaml", "data/"],
+    cpu_limit="500m",
+    memory_limit="1Gi",
+)
+@flow
+def train_model():
+    ...
+```
+
+## Blocks
+
+`ArmadaClusterConfig` stores where an Armada cluster lives: the server host and port, whether to connect
+without TLS, root certificates, gRPC channel options, and the host and port of Armada's Binoculars service,
+which serves job logs.
+
+`ArmadaCredentials` holds an optional `ArmadaClusterConfig` along with a bearer token or a username and
+password, and produces configured Armada clients from them. Without a cluster config, it reads connection
+details from the current environment.
+
+```python
+from prefect_armada.credentials import ArmadaClusterConfig, ArmadaCredentials
+
+cluster_config = ArmadaClusterConfig(
+    host="armada.example.com",
+    port=50051,
+    binoculars_port=50053,
+)
+cluster_config.save("production-armada")
+
+ArmadaCredentials(
+    cluster_config=cluster_config,
+    token="my-token",
+).save("production-armada-credentials")
+```
+
+<Note>
+The `token` is sent verbatim in the `authorization` header. Include the `Bearer` prefix if the Armada
+server expects one.
+</Note>
+
+## Submit Armada jobs from a flow
+
+`ArmadaJob` submits an arbitrary Armada job and waits for it to finish. Use it to run work on Armada that
+is not itself a Prefect flow.
+
+```python
+from prefect import flow
+from prefect_armada import ArmadaJob
+from prefect_armada.credentials import ArmadaCredentials
+
+
+@flow
+def run_a_job():
+    job = ArmadaJob(
+        credentials=ArmadaCredentials.load("production-armada-credentials"),
+        queue="prefect",
+        job_request={
+            "priority": 1,
+            "podSpec": {
+                "restartPolicy": "Never",
+                "containers": [
+                    {
+                        "name": "prefect-job",
+                        "image": "docker.io/library/ubuntu:latest",
+                        "args": ["echo", "hello from armada"],
+                        "resources": {
+                            "requests": {"cpu": "120m", "memory": "510Mi"},
+                            "limits": {"cpu": "120m", "memory": "510Mi"},
+                        },
+                    }
+                ],
+            },
+        },
+    )
+
+    job_run = job.trigger()
+    job_run.wait_for_completion()
+    return job_run.fetch_result()
+```
+
+Individual Armada API calls are also available as tasks:
+
+| Module | Tasks |
+| --- | --- |
+| `prefect_armada.jobs` | `submit_job`, `cancel_job`, `preempt_job`, `reprioritize_job`, `get_job_status`, `get_job_details`, `get_job_errors`, `get_job_run_details` |
+| `prefect_armada.jobsets` | `cancel_jobset`, `reprioritize_jobset`, `get_job_status_by_external_job_uri` |
+| `prefect_armada.queues` | `create_queue`, `update_queue`, `create_queues`, `update_queues`, `delete_queue`, `get_queue`, `get_queues` |
+| `prefect_armada.events` | `stream_job_set_events`, `get_job_set_events`, `wait_for_job_event` |
+| `prefect_armada.logs` | `read_job_log`, `read_job_log_lines` |
+
+## How the worker and observer work
+
+Armada accepts a job and schedules it later, so the worker returns as soon as the job is accepted rather
+than holding a connection open for the life of the run. An **observer** thread in the worker watches the
+event stream for each job set it submits, and does two things with it.
+
+### Armada job events in Prefect
+
+The observer replicates Armada job events into Prefect's event system as `prefect.armada.job.<event-type>`,
+where the event type is one of Armada's own: `submitted`, `queued`, `leased`, `pending`, `running`,
+`succeeded`, `failed`, `cancelling`, `cancelled`, `preempting`, `preempted`, `reprioritizing`,
+`reprioritized`, `lease_returned`, `lease_expired`, `utilisation`, and `ingress_info`.
+
+Each event's resource carries the Armada job ID, queue, and job set ID, plus the Kubernetes namespace,
+cluster ID, and Armada's reason where the underlying message provides them. Use these events to trigger
+[automations](/v3/concepts/automations), for example to notify a team when a job is preempted.
+
+Set `PREFECT_INTEGRATIONS_ARMADA_OBSERVER_REPLICATE_JOB_EVENTS=false` to stop replicating events while
+leaving the rest of the observer running.
+
+### Crashed flow runs
+
+A flow run whose Armada job fails before the run can report its own state would otherwise stay `Pending`
+indefinitely. A bad entrypoint or a missing dependency never gets far enough to talk to the Prefect
+server. The observer marks these runs `Crashed` and forwards the job's logs to the flow run so the
+failure is visible in the UI.
+
+The observer waits `PREFECT_INTEGRATIONS_ARMADA_OBSERVER_CRASHED_RUN_GRACE_SECONDS` (30 by default) for the
+run to report its own state before doing so.
+
+### Watching job sets from another process
+
+Each flow run is submitted to its own job set by default, so the observer's watch ends when that flow run's
+job reaches a terminal state. To also watch job sets submitted elsewhere, list them in
+`<queue>/<job_set_id>` format:
+
+```bash
+export PREFECT_INTEGRATIONS_ARMADA_OBSERVER_JOB_SETS="my-queue/my-job-set,my-queue/another-job-set"
+```
+
+Disable the observer entirely with `PREFECT_INTEGRATIONS_ARMADA_OBSERVER_ENABLED=false`.
+
+## Settings
+
+All settings are configured through environment variables prefixed with `PREFECT_INTEGRATIONS_ARMADA_`.
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `CLUSTER_UID` | none | A unique identifier for the Armada cluster in use. |
+| `CONNECTION_HOST` | `localhost` | The hostname of the Armada server's gRPC endpoint. |
+| `CONNECTION_PORT` | `50051` | The port of the Armada server's gRPC endpoint. |
+| `CONNECTION_DISABLE_SSL` | `false` | Whether to connect to Armada without TLS. |
+| `CONNECTION_BINOCULARS_HOST` | the server host | The hostname of Armada's Binoculars endpoint, which serves job logs. |
+| `CONNECTION_BINOCULARS_PORT` | `50053` | The port of Armada's Binoculars endpoint. |
+| `CONNECTION_TOKEN` | none | A bearer token to authenticate with Armada, without the `Bearer` prefix. |
+| `CONNECTION_USERNAME` | none | The username for basic auth. |
+| `CONNECTION_PASSWORD` | none | The password for basic auth. |
+| `WORKER_DEFAULT_QUEUE` | `prefect` | The default `queue` given to work pools created by this process. Existing work pools keep the queue shown in their defaults. |
+| `WORKER_ADD_GRPC_KEEPALIVE` | `true` | Whether to enable gRPC keepalive pings on channels the worker opens. |
+| `WORKER_SUBMIT_JOB_RETRY_MAX_RETRIES` | `3` | Attempts to submit a job before giving up. |
+| `WORKER_SUBMIT_JOB_RETRY_DELAY_SECONDS` | `1` | Fixed delay between submission retries. |
+| `WORKER_SUBMIT_JOB_RETRY_JITTER_MIN_SECONDS` | `0` | Minimum jitter added to the retry delay. |
+| `WORKER_SUBMIT_JOB_RETRY_JITTER_MAX_SECONDS` | `3` | Maximum jitter added to the retry delay. |
+| `OBSERVER_ENABLED` | `true` | Whether the observer watches events for Prefect-submitted jobs. |
+| `OBSERVER_REPLICATE_JOB_EVENTS` | `true` | Whether the observer replicates Armada job events into Prefect. |
+| `OBSERVER_JOB_SETS` | none | Additional job sets to watch, in `<queue>/<job_set_id>` format. |
+| `OBSERVER_FORWARD_CRASHED_RUN_LOGS` | `true` | Whether to forward job logs for runs that crashed before reporting state. |
+| `OBSERVER_FORWARD_CRASHED_RUN_LOGS_TAIL_LINES` | `500` | Tail lines to fetch when forwarding logs. |
+| `OBSERVER_CRASHED_RUN_GRACE_SECONDS` | `30` | How long to wait for a run to report its own state before marking it crashed. |
+
+Connection settings can also be supplied through an `ArmadaClusterConfig` block, which takes precedence.
+
+## Resources
+
+- [Armada documentation](https://armadaproject.io/)
+- [Work pools](/v3/concepts/work-pools)
+- [How to configure a work pool](/v3/how-to-guides/deployment_infra/manage-work-pools)
+- [Automations](/v3/concepts/automations)

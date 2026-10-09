@@ -1964,6 +1964,7 @@ class TestWorkerProperties:
         assert WorkerImplNoCustomization.get_logo_url() == ""
         assert WorkerImplNoCustomization.get_documentation_url() == ""
         assert WorkerImplNoCustomization.get_description() == ""
+        assert WorkerImplNoCustomization.get_display_name() == "test-no-customization"
         assert WorkerImplNoCustomization.get_default_base_job_template() == {
             "job_configuration": {
                 "command": "{{ command }}",
@@ -2031,6 +2032,21 @@ class TestWorkerProperties:
                 pass
 
         assert WorkerImplWithLogoUrl.get_logo_url() == "https://example.com/logo.png"
+
+    def test_custom_display_name(self):
+        class WorkerImplWithDisplayName(BaseWorker):
+            type = "test-with-display-name"
+            job_configuration = BaseJobConfiguration
+
+            _display_name = "Test Display Name"
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert WorkerImplWithDisplayName.get_display_name() == "Test Display Name"
 
     def test_custom_documentation_url(self):
         class WorkerImplWithDocumentationUrl(BaseWorker):

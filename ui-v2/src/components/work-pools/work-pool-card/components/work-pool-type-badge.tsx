@@ -15,6 +15,7 @@ const WORK_POOL_TYPE_LABELS: Record<WorkPool["type"], string> = {
 	"cloud-run-v2": "Cloud Run v2",
 	"vertex-ai": "Vertex AI",
 	kubernetes: "Kubernetes",
+	armada: "Armada",
 } as const;
 
 const WORK_POOL_TYPE_ICONS: Record<WorkPool["type"], IconId> = {
@@ -26,6 +27,7 @@ const WORK_POOL_TYPE_ICONS: Record<WorkPool["type"], IconId> = {
 	"cloud-run-v2": "Cpu",
 	"vertex-ai": "Cpu",
 	kubernetes: "Cpu",
+	armada: "Cpu",
 } as const;
 
 const getWorkPoolTypeLabel = (type: WorkPool["type"]) => {
