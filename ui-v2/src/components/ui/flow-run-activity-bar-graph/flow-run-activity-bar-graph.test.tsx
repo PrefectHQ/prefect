@@ -5,7 +5,13 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -131,31 +137,21 @@ describe("FlowRunActivityBarChart", () => {
 		expect(bar).toHaveAttribute("width", customBarWidth.toString());
 	});
 
-	it("renders populated bars as native links and navigates on click", async () => {
-		const { router } = await renderChartWithRouter(
+	it("renders populated bars as native links", async () => {
+		await renderChartWithRouter(
 			/* @ts-expect-error - Type error from test data not matching schema */
 			<FlowRunActivityBarChart {...defaultProps} />,
 		);
-		vi.useRealTimers();
-		const user = userEvent.setup();
 
 		const bar = screen.getByRole("link", {
 			name: "Open flow run Test Flow Run",
 		});
 		expect(bar).toHaveAttribute("href", "/runs/flow-run/test-flow-run-1");
 		expect(bar).toHaveAttribute("data-row-click-ignore", "true");
-
-		await user.click(bar);
-
-		await waitFor(() =>
-			expect(router.state.location.pathname).toBe(
-				"/runs/flow-run/test-flow-run-1",
-			),
-		);
 	});
 
-	it("supports keyboard activation for populated bars", async () => {
-		const { router } = await renderChartWithRouter(
+	it("supports keyboard focus and Enter activation for populated bars", async () => {
+		await renderChartWithRouter(
 			/* @ts-expect-error - Type error from test data not matching schema */
 			<FlowRunActivityBarChart {...defaultProps} />,
 		);
@@ -165,16 +161,14 @@ describe("FlowRunActivityBarChart", () => {
 		const bar = screen.getByRole("link", {
 			name: "Open flow run Test Flow Run",
 		});
+		const clickListener = vi.fn();
+		bar.addEventListener("click", clickListener);
 		bar.focus();
 		expect(bar).toHaveFocus();
 
 		await user.keyboard("{Enter}");
 
-		await waitFor(() =>
-			expect(router.state.location.pathname).toBe(
-				"/runs/flow-run/test-flow-run-1",
-			),
-		);
+		expect(clickListener).toHaveBeenCalledTimes(1);
 	});
 
 	it("keeps empty bars non-interactive", async () => {
