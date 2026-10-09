@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import socket
 import time
@@ -93,6 +94,16 @@ class RedisMessagingPublisherSettings(PrefectBaseSettings):
     batch_size: int = Field(default=5)
     publish_every: TimeDelta = Field(default=timedelta(seconds=10))
     deduplicate_by: Optional[str] = Field(default=None)
+
+
+@functools.cache
+def _get_publisher_settings() -> RedisMessagingPublisherSettings:
+    """Return the publisher settings, resolved once per process.
+
+    The server creates a publisher for every event it emits, and resolving
+    settings reads the environment and configuration files each time.
+    """
+    return RedisMessagingPublisherSettings()
 
 
 class RedisMessagingConsumerSettings(PrefectBaseSettings):
@@ -254,7 +265,7 @@ class Publisher(_Publisher):
         batch_size: Optional[int] = None,
         publish_every: Optional[timedelta] = None,
     ):
-        settings = RedisMessagingPublisherSettings()
+        settings = _get_publisher_settings()
 
         self.topic = topic
         self.stream = _stream_key(topic)

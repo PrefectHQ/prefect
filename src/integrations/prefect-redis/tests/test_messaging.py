@@ -23,6 +23,7 @@ from prefect_redis.messaging import (
     _deduplication_key,
     _dlq_key,
     _dlq_message_key,
+    _get_publisher_settings,
     _stream_key,
     _trim_stream_to_lowest_delivered_id,
 )
@@ -698,6 +699,57 @@ class TestRedisMessagingSettings:
         monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PUBLISHER_BATCH_SIZE", "10")
         settings = RedisMessagingPublisherSettings()
         assert settings.batch_size == 10
+
+    async def test_publishers_resolve_settings_once(self):
+        """Test that creating many publishers resolves the settings once."""
+        cache = Cache()
+        with patch(
+            "prefect_redis.messaging.RedisMessagingPublisherSettings",
+            wraps=RedisMessagingPublisherSettings,
+        ) as settings:
+            for _ in range(3):
+                Publisher("message-tests", cache=cache, deduplicate_by="id")
+
+        settings.assert_called_once_with()
+
+    async def test_publisher_settings_are_reread_after_cache_clear(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that a changed setting applies once the settings cache is cleared."""
+        cache = Cache()
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PUBLISHER_BATCH_SIZE", "7")
+        assert Publisher("message-tests", cache=cache).batch_size == 7
+
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PUBLISHER_BATCH_SIZE", "11")
+        assert Publisher("message-tests", cache=cache).batch_size == 7
+
+        _get_publisher_settings.cache_clear()
+        assert Publisher("message-tests", cache=cache).batch_size == 11
+
+    async def test_publisher_arguments_override_cached_settings(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that explicit publisher arguments take precedence over settings."""
+        cache = Cache()
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PUBLISHER_BATCH_SIZE", "7")
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PUBLISHER_PUBLISH_EVERY", "30")
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PUBLISHER_DEDUPLICATE_BY", "id")
+
+        from_settings = Publisher("message-tests", cache=cache)
+        assert from_settings.batch_size == 7
+        assert from_settings.publish_every == timedelta(seconds=30)
+        assert from_settings.deduplicate_by == "id"
+
+        explicit = Publisher(
+            "message-tests",
+            cache=cache,
+            deduplicate_by="other-id",
+            batch_size=2,
+            publish_every=timedelta(seconds=1),
+        )
+        assert explicit.batch_size == 2
+        assert explicit.publish_every == timedelta(seconds=1)
+        assert explicit.deduplicate_by == "other-id"
 
     def test_consumer_settings_can_be_overridden(self, monkeypatch: pytest.MonkeyPatch):
         """Test that Redis consumer settings can be overridden."""
