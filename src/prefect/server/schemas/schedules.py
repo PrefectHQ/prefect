@@ -186,6 +186,7 @@ class IntervalSchedule(PrefectBaseModel):
 
         interval = self.interval
         has_calendar_parts = False
+        _years = _weeks = 0
         if isinstance(interval, _WHENEVER_DELTA_TYPES):
             # whenever delta types distinguish calendar days from exact hours,
             # so we can use them directly. We still need an approximate
@@ -197,14 +198,18 @@ class IntervalSchedule(PrefectBaseModel):
                 )
             else:  # ItemizedDelta (whenever >= 0.10.0)
                 _date, _time = interval.date_and_time_parts()
+                _years = _date.get("years") or 0 if _date else 0
                 _months = _date.get("months") or 0 if _date else 0
+                _weeks = _date.get("weeks") or 0 if _date else 0
                 _days = _date.get("days") or 0 if _date else 0
                 approx_total_seconds = (
-                    _months * 30 * 86400
+                    _years * 365 * 86400
+                    + _months * 30 * 86400
+                    + _weeks * 7 * 86400
                     + _days * 86400
                     + (_time.total("seconds") if _time else 0)
                 )
-            has_calendar_parts = bool(_months or _days)
+            has_calendar_parts = bool(_years or _months or _weeks or _days)
 
             def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
                 return zdt + interval
@@ -258,11 +263,21 @@ class IntervalSchedule(PrefectBaseModel):
                 # counts the steps back for the earliest such occurrence and
                 # the yield loop drains i = pre_i..0 lazily, so only the
                 # occurrences actually yielded are computed.
+                def _occurrence(i: int) -> ZonedDateTime | None:
+                    try:
+                        return _subtract_scaled(anchor_zdt, i)
+                    except (ValueError, OverflowError):
+                        # out of the representable range — earlier than any
+                        # valid occurrence
+                        return None
+
                 pre_i = max(1, int(-_diff_secs / approx_total_seconds))
-                while _subtract_scaled(anchor_zdt, pre_i) > local_start:
+                while (
+                    _occurrence(pre_i) is not None and _occurrence(pre_i) > local_start
+                ):
                     pre_i += 1
                 while pre_i > 1 and (
-                    _subtract_scaled(anchor_zdt, pre_i - 1) <= local_start
+                    (o := _occurrence(pre_i - 1)) is None or o <= local_start
                 ):
                     pre_i -= 1
             else:
@@ -282,11 +297,11 @@ class IntervalSchedule(PrefectBaseModel):
             if pre_i >= 0:
                 # i == 0 is the anchor itself; resume forward advancement
                 # after it is emitted.
-                next_date = (
-                    anchor_zdt if pre_i == 0 else _subtract_scaled(anchor_zdt, pre_i)
-                )
+                next_date = anchor_zdt if pre_i == 0 else _occurrence(pre_i)
                 pre_i -= 1
-                if next_date < local_start:
+                if next_date is None or next_date < local_start:
+                    if pre_i < 0:
+                        next_date = anchor_zdt
                     continue
 
             # if the end date was exceeded, exit

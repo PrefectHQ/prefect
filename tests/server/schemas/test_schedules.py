@@ -745,6 +745,28 @@ class TestIntervalScheduleDateTimeDelta:
             (2030, 3, 28, 10),
         ]
 
+    async def test_yearly_interval_with_distant_start_and_future_anchor(self):
+        """An interval combining years and days must estimate pre-anchor
+        occurrences correctly — omitting years from the estimate overshoots
+        and subtracts thousands of years out of range."""
+        from prefect.types._datetime import ItemizedDelta
+
+        s = IntervalSchedule(
+            interval=ItemizedDelta(years=1, days=1),
+            anchor_date=datetime(2030, 1, 1, tzinfo=ZoneInfo("UTC")),
+            timezone="UTC",
+        )
+
+        dates = await s.get_dates(
+            n=3, start=datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
+        )
+
+        assert [(d.year, d.month, d.day) for d in dates] == [
+            (2020, 12, 23),
+            (2021, 12, 24),
+            (2022, 12, 25),
+        ]
+
     async def test_datetimedelta_negative_rejected(self):
         """A negative ItemizedDelta should be rejected."""
         from prefect.types._datetime import ItemizedDelta
