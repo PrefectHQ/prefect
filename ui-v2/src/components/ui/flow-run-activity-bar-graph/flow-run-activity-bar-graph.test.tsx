@@ -1,10 +1,18 @@
 import {
 	createMemoryHistory,
 	createRootRoute,
+	createRoute,
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import { type ReactNode, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -35,6 +43,23 @@ const mockFlowRun = {
 
 const mockEnrichedFlowRuns = [mockFlowRun];
 
+const renderChartWithRouter = async (component: ReactNode) => {
+	vi.useRealTimers();
+	const rootRoute = createRootRoute({ component: () => component });
+	const flowRunRoute = createRoute({
+		getParentRoute: () => rootRoute,
+		path: "/runs/flow-run/$id",
+	});
+	const router = createRouter({
+		routeTree: rootRoute.addChildren([flowRunRoute]),
+		history: createMemoryHistory({ initialEntries: ["/"] }),
+	});
+	const view = render(<RouterProvider router={router} />);
+	await screen.findAllByRole("graphics-symbol");
+	vi.useFakeTimers();
+	return { ...view, router };
+};
+
 describe("FlowRunActivityBarChart", () => {
 	const defaultProps = {
 		enrichedFlowRuns: mockEnrichedFlowRuns,
@@ -51,16 +76,17 @@ describe("FlowRunActivityBarChart", () => {
 		vi.useRealTimers();
 	});
 
-	it("renders correct number of bars", () => {
-		const { rerender } = render(
+	it("renders correct number of bars", async () => {
+		const firstView = await renderChartWithRouter(
 			/* @ts-expect-error - Type error from test data not matching schema */
 			<FlowRunActivityBarChart {...defaultProps} />,
 		);
 
 		let bars = screen.getAllByRole("graphics-symbol");
 		expect(bars).toHaveLength(defaultProps.numberOfBars);
+		firstView.unmount();
 
-		rerender(
+		await renderChartWithRouter(
 			/* @ts-expect-error - Type error from test data not matching schema */
 			<FlowRunActivityBarChart {...defaultProps} numberOfBars={10} />,
 		);
@@ -81,12 +107,12 @@ describe("FlowRunActivityBarChart", () => {
 		["CRASHED", "fill-state-crashed-500"],
 	])(
 		"renders the bars with expected colors for %s",
-		(stateType, expectedClass) => {
+		async (stateType, expectedClass) => {
 			const enrichedFlowRun = {
 				...mockFlowRun,
 				state_type: stateType,
 			};
-			render(
+			await renderChartWithRouter(
 				<FlowRunActivityBarChart
 					{...defaultProps}
 					// @ts-expect-error - Type error from test data not matching schema
@@ -100,9 +126,9 @@ describe("FlowRunActivityBarChart", () => {
 		},
 	);
 
-	it("applies custom bar width when provided", () => {
+	it("applies custom bar width when provided", async () => {
 		const customBarWidth = 12;
-		render(
+		await renderChartWithRouter(
 			/* @ts-expect-error - Type error from test data not matching schema */
 			<FlowRunActivityBarChart {...defaultProps} barWidth={customBarWidth} />,
 		);
@@ -111,7 +137,34 @@ describe("FlowRunActivityBarChart", () => {
 		expect(bar).toHaveAttribute("width", customBarWidth.toString());
 	});
 
-	it("renders without error when enrichedFlowRuns exceeds numberOfBars", () => {
+	it("navigates to the flow run when a populated bar is clicked", async () => {
+		const { router } = await renderChartWithRouter(
+			/* @ts-expect-error - Type error from test data not matching schema */
+			<FlowRunActivityBarChart {...defaultProps} />,
+		);
+
+		const bar = screen.getByRole("link", { name: "Open flow run Test Flow Run" });
+		fireEvent.click(bar);
+
+		await waitFor(() =>
+			expect(router.state.location.pathname).toBe(
+				"/runs/flow-run/test-flow-run-1",
+			),
+		);
+	});
+
+	it("keeps empty bars non-interactive", async () => {
+		await renderChartWithRouter(
+			/* @ts-expect-error - Type error from test data not matching schema */
+			<FlowRunActivityBarChart {...defaultProps} />,
+		);
+
+		const emptyBar = screen.getAllByTestId("bar-rect-undefined")[0];
+		expect(emptyBar).not.toHaveAttribute("role", "link");
+		expect(emptyBar).not.toHaveAttribute("tabindex");
+	});
+
+	it("renders without error when enrichedFlowRuns exceeds numberOfBars", async () => {
 		const manyFlowRuns = Array.from({ length: 50 }, (_, i) => ({
 			...mockFlowRun,
 			id: `test-flow-run-${i}`,
@@ -121,7 +174,7 @@ describe("FlowRunActivityBarChart", () => {
 		}));
 
 		// Should not throw when there are more flow runs than bars
-		render(
+		await renderChartWithRouter(
 			<FlowRunActivityBarChart
 				{...defaultProps}
 				// @ts-expect-error - Type error from test data not matching schema
