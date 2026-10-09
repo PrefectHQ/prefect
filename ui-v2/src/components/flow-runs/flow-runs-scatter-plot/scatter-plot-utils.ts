@@ -49,14 +49,83 @@ export const TIME_INTERVALS = [
 	{ ms: 6 * 60 * 60 * 1000, name: "6hours" },
 	{ ms: 12 * 60 * 60 * 1000, name: "12hours" },
 	{ ms: 24 * 60 * 60 * 1000, name: "day" },
+	{ ms: 2 * 24 * 60 * 60 * 1000, name: "2days" },
+	{ ms: 3 * 24 * 60 * 60 * 1000, name: "3days" },
 	{ ms: 7 * 24 * 60 * 60 * 1000, name: "week" },
 	{ ms: 30 * 24 * 60 * 60 * 1000, name: "month" },
 ];
+
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const MONTH_MS = 30 * DAY_MS;
+
+/**
+ * Generates ticks for intervals of an hour or more on local time boundaries:
+ * local midnight for day intervals, the first of the month for the month
+ * interval, and local hours divisible by the step for hour intervals.
+ */
+const generateLocalTimeTicks = (
+	startMs: number,
+	endMs: number,
+	intervalMs: number,
+): number[] => {
+	const ticks: number[] = [];
+	const cursor = new Date(startMs);
+
+	if (intervalMs >= MONTH_MS) {
+		cursor.setDate(1);
+		cursor.setHours(0, 0, 0, 0);
+		if (cursor.getTime() < startMs) cursor.setMonth(cursor.getMonth() + 1);
+		while (cursor.getTime() <= endMs) {
+			ticks.push(cursor.getTime());
+			cursor.setMonth(cursor.getMonth() + 1);
+		}
+		return ticks;
+	}
+
+	if (intervalMs >= DAY_MS) {
+		const stepDays = Math.round(intervalMs / DAY_MS);
+		cursor.setHours(0, 0, 0, 0);
+		if (cursor.getTime() < startMs) cursor.setDate(cursor.getDate() + 1);
+		while (cursor.getTime() <= endMs) {
+			ticks.push(cursor.getTime());
+			cursor.setDate(cursor.getDate() + stepDays);
+			// Where a DST change skips midnight the day starts at 01:00. Reset so
+			// that hour is not carried into the following ticks.
+			cursor.setHours(0, 0, 0, 0);
+		}
+		return ticks;
+	}
+
+	// Step by elapsed time rather than by clock hour, so a repeated hour when
+	// clocks fall back still gets its tick. The first boundary is found by
+	// subtraction for the same reason, since setMinutes(0) in a repeated hour
+	// resolves to its first occurrence.
+	const stepHours = Math.round(intervalMs / HOUR_MS);
+	let tick =
+		startMs -
+		(cursor.getMinutes() * 60 * 1000 +
+			cursor.getSeconds() * 1000 +
+			cursor.getMilliseconds());
+	if (tick < startMs) tick += HOUR_MS;
+	for (; tick <= endMs; tick += HOUR_MS) {
+		const date = new Date(tick);
+		if (date.getMinutes() === 0 && date.getHours() % stepHours === 0) {
+			ticks.push(tick);
+		}
+	}
+	return ticks;
+};
 
 /**
  * Generates tick values aligned with "nice" time boundaries.
  * Similar to D3's time scale tick generation, this ensures ticks fall on
  * natural boundaries like hour marks, day boundaries, etc.
+ *
+ * Intervals of an hour or more are aligned in local time. Multiples of the
+ * interval since the epoch put day ticks on UTC midnight, which is not a day
+ * boundary in most timezones, so every tick would be labelled with the same
+ * hour instead of a date.
  */
 export const generateNiceTimeTicks = (
 	startMs: number,
@@ -76,10 +145,14 @@ export const generateNiceTimeTicks = (
 		chosenInterval = interval.ms;
 	}
 
-	const firstTick = Math.ceil(startMs / chosenInterval) * chosenInterval;
 	const ticks: number[] = [];
-	for (let tick = firstTick; tick <= endMs; tick += chosenInterval) {
-		ticks.push(tick);
+	if (chosenInterval >= HOUR_MS) {
+		ticks.push(...generateLocalTimeTicks(startMs, endMs, chosenInterval));
+	} else {
+		const firstTick = Math.ceil(startMs / chosenInterval) * chosenInterval;
+		for (let tick = firstTick; tick <= endMs; tick += chosenInterval) {
+			ticks.push(tick);
+		}
 	}
 
 	if (ticks.length === 0) {
@@ -98,21 +171,18 @@ export const createXAxisTickFormatter = () => {
 	return (value: number): string => {
 		const date = new Date(value);
 
-		const second = new Date(date);
-		second.setMilliseconds(0);
-		if (second.getTime() < date.getTime()) {
+		// Read the fields instead of rounding with setters. In the hour that
+		// repeats when clocks fall back, a setter resolves to the first
+		// occurrence, so the second one looked like it had milliseconds.
+		if (date.getMilliseconds() !== 0) {
 			return `.${date.getMilliseconds().toString().padStart(3, "0").slice(0, 3)}`;
 		}
 
-		const minute = new Date(date);
-		minute.setSeconds(0, 0);
-		if (minute.getTime() < date.getTime()) {
+		if (date.getSeconds() !== 0) {
 			return `:${date.getSeconds().toString().padStart(2, "0")}`;
 		}
 
-		const hour = new Date(date);
-		hour.setMinutes(0, 0, 0);
-		if (hour.getTime() < date.getTime()) {
+		if (date.getMinutes() !== 0) {
 			return date.toLocaleTimeString(undefined, {
 				hour: "numeric",
 				minute: "2-digit",
