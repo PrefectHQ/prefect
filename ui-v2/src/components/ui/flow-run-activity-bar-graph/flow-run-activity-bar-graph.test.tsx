@@ -154,28 +154,31 @@ describe("FlowRunActivityBarChart", () => {
 	it.each([
 		["Enter", "{Enter}"],
 		["Space", " "],
-	])("supports keyboard focus and %s activation for populated bars", async (_, key) => {
-		const { router } = await renderChartWithRouter(
-			/* @ts-expect-error - Type error from test data not matching schema */
-			<FlowRunActivityBarChart {...defaultProps} />,
-		);
-		vi.useRealTimers();
-		const user = userEvent.setup();
+	])(
+		"supports keyboard focus and %s activation for populated bars",
+		async (_, key) => {
+			const { router } = await renderChartWithRouter(
+				/* @ts-expect-error - Type error from test data not matching schema */
+				<FlowRunActivityBarChart {...defaultProps} />,
+			);
+			vi.useRealTimers();
+			const user = userEvent.setup();
 
-		const bar = screen.getByRole("link", {
-			name: "Open flow run Test Flow Run",
-		});
-		bar.focus();
-		expect(bar).toHaveFocus();
+			const bar = screen.getByRole("link", {
+				name: "Open flow run Test Flow Run",
+			});
+			bar.focus();
+			expect(bar).toHaveFocus();
 
-		await user.keyboard(key);
+			await user.keyboard(key);
 
-		await waitFor(() =>
-			expect(router.state.location.pathname).toBe(
-				"/runs/flow-run/test-flow-run-1",
-			),
-		);
-	});
+			await waitFor(() =>
+				expect(router.state.location.pathname).toBe(
+					"/runs/flow-run/test-flow-run-1",
+				),
+			);
+		},
+	);
 
 	it("keeps empty bars non-interactive", async () => {
 		await renderChartWithRouter(
