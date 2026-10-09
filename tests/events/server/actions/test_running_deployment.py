@@ -1,11 +1,17 @@
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+import anyio
 import pytest
+import sqlalchemy as sa
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server.api.clients import OrchestrationClient
+from prefect.server.database import PrefectDBInterface
+from prefect.server.database.orm_models import FlowRun as ORMFlowRun
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.events.schemas.automations import (
@@ -20,6 +26,11 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows, variables, workers
 from prefect.server.schemas.actions import VariableCreate, WorkPoolCreate
 from prefect.server.schemas.core import CreatedBy, Deployment, Flow
+from prefect.server.utilities.messaging.memory import MemoryMessage
+from prefect.settings import (
+    PREFECT_SERVER_API_CSRF_PROTECTION_ENABLED,
+    temporary_settings,
+)
 from prefect.types._datetime import now
 
 pytestmark = pytest.mark.clear_db
@@ -177,6 +188,158 @@ async def test_running_a_deployment(
     )
 
     assert run.job_variables == {"mode": "color", "resolution": "high"}
+
+
+def run_deployment_triggered_action(
+    deployment: Deployment, automation_name: str, triggering_event: ReceivedEvent
+) -> TriggeredAction:
+    automation = Automation(
+        name=automation_name,
+        trigger=EventTrigger(
+            expect={"animal.ingested"},
+            posture=Posture.Reactive,
+            threshold=0,
+            within=timedelta(seconds=30),
+        ),
+        actions=[actions.RunDeployment(deployment_id=deployment.id)],
+    )
+    return TriggeredAction(
+        automation=automation,
+        triggered=now("UTC"),
+        triggering_labels={},
+        triggering_event=triggering_event,
+        action=automation.actions[0],
+    )
+
+
+def as_message(triggered_action: TriggeredAction) -> MemoryMessage:
+    return MemoryMessage(
+        data=triggered_action.model_dump_json().encode(), attributes=None
+    )
+
+
+@pytest.fixture
+def orchestration_clients_built(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[OrchestrationClient]:
+    built: list[OrchestrationClient] = []
+    original_init = OrchestrationClient.__init__
+
+    def record_init(self: OrchestrationClient, *args: Any, **kwargs: Any) -> None:
+        built.append(self)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(OrchestrationClient, "__init__", record_init)
+    return built
+
+
+async def test_consumer_shares_one_orchestration_client_across_actions(
+    take_a_picture: Deployment,
+    woodchonk_nibbled: ReceivedEvent,
+    orchestration_clients_built: list[OrchestrationClient],
+    session: AsyncSession,
+):
+    first = run_deployment_triggered_action(
+        take_a_picture, "First automation", woodchonk_nibbled
+    )
+    second = run_deployment_triggered_action(
+        take_a_picture, "Second automation", woodchonk_nibbled
+    )
+
+    async with actions.consumer() as handler:
+        await handler(as_message(first))
+        await handler(as_message(second))
+
+    assert len(orchestration_clients_built) == 1
+    assert len(await flow_runs.read_flow_runs(session)) == 2
+
+
+def automation_attribution(runs: Sequence[ORMFlowRun]) -> set[tuple[UUID, str]]:
+    return {
+        (run.created_by.id, run.created_by.display_value)
+        for run in runs
+        if run.created_by and run.created_by.id and run.created_by.display_value
+    }
+
+
+async def test_consumer_does_not_share_orchestration_client_with_csrf_enabled(
+    take_a_picture: Deployment,
+    woodchonk_nibbled: ReceivedEvent,
+    orchestration_clients_built: list[OrchestrationClient],
+    session: AsyncSession,
+    db: PrefectDBInterface,
+):
+    first = run_deployment_triggered_action(
+        take_a_picture, "First automation", woodchonk_nibbled
+    )
+    second = run_deployment_triggered_action(
+        take_a_picture, "Second automation", woodchonk_nibbled
+    )
+
+    with temporary_settings({PREFECT_SERVER_API_CSRF_PROTECTION_ENABLED: True}):
+        async with actions.consumer() as handler:
+            assert orchestration_clients_built == []
+
+            await handler(as_message(first))
+            await handler(as_message(second))
+
+    csrf_clients = (await session.execute(sa.select(db.CsrfToken.client))).scalars()
+    assert len(set(csrf_clients)) == 2
+
+    runs = await flow_runs.read_flow_runs(session)
+    assert automation_attribution(runs) == {
+        (first.automation.id, first.automation.name),
+        (second.automation.id, second.automation.name),
+    }
+
+
+async def test_concurrent_actions_on_a_shared_client_attribute_runs_correctly(
+    take_a_picture: Deployment,
+    woodchonk_nibbled: ReceivedEvent,
+    orchestration_clients_built: list[OrchestrationClient],
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    first = run_deployment_triggered_action(
+        take_a_picture, "First automation", woodchonk_nibbled
+    )
+    second = run_deployment_triggered_action(
+        take_a_picture, "Second automation", woodchonk_nibbled
+    )
+
+    # Hold each action at its flow run creation until both have reached it, so
+    # both requests go out on the shared client while both actions are in flight.
+    arrived = 0
+    both_arrived = anyio.Event()
+    original_create_flow_run = OrchestrationClient.create_flow_run
+
+    async def create_flow_run_together(
+        self: OrchestrationClient, *args: Any, **kwargs: Any
+    ) -> Any:
+        nonlocal arrived
+        arrived += 1
+        if arrived == 2:
+            both_arrived.set()
+        await both_arrived.wait()
+        return await original_create_flow_run(self, *args, **kwargs)
+
+    monkeypatch.setattr(
+        OrchestrationClient, "create_flow_run", create_flow_run_together
+    )
+
+    async with actions.consumer() as handler:
+        with anyio.fail_after(30):
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(handler, as_message(first))
+                tg.start_soon(handler, as_message(second))
+
+    assert len(orchestration_clients_built) == 1
+
+    runs = await flow_runs.read_flow_runs(session)
+    assert automation_attribution(runs) == {
+        (first.automation.id, first.automation.name),
+        (second.automation.id, second.automation.name),
+    }
 
 
 async def test_running_a_deployment_with_overrides_enabled(
