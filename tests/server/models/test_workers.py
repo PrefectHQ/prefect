@@ -836,6 +836,14 @@ class TestGetScheduledRuns:
         # runs are not sorted by time because they're sorted by queue priority
         assert runs != sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time)
 
+    async def test_get_all_runs_include_state(self, session):
+        runs = await models.workers.get_scheduled_flow_runs(session=session)
+        assert len(runs) == 45
+        for run in runs:
+            assert run.flow_run.state is not None
+            assert run.flow_run.state.type == schemas.states.StateType.SCHEDULED
+            assert run.flow_run.state.id == run.flow_run.state_id
+
     async def test_get_all_runs_without_queue_priority(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
             session=session, respect_queue_priorities=False
