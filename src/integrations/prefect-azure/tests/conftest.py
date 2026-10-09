@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -6,6 +7,7 @@ from azure.storage.blob.aio import ContainerClient
 from prefect_azure.credentials import AzureBlobStorageCredentials
 
 from prefect.testing.utilities import prefect_test_harness
+from prefect.utilities.filesystem import filter_files
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -216,3 +218,23 @@ class CosmosClientMock(MagicMock):
 def cosmos_connection_string(monkeypatch):
     monkeypatch.setattr("prefect_azure.credentials.CosmosClient", CosmosClientMock)
     return "AccountEndpoint=url/;AccountKey=AccountKey==;"
+
+
+@pytest.fixture(params=["native", "posix"])
+def filter_files_format(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+):
+    """Exercise uploaders with either supported filter_files output format."""
+
+    def formatted_filter_files(*args, **kwargs) -> set[str]:
+        paths = filter_files(*args, **kwargs)
+        if request.param == "posix":
+            return {Path(path).as_posix() for path in paths}
+        return paths
+
+    monkeypatch.setattr(
+        "prefect_azure.blob_storage.filter_files", formatted_filter_files
+    )
+    monkeypatch.setattr(
+        "prefect_azure.deployments.steps.filter_files", formatted_filter_files
+    )
