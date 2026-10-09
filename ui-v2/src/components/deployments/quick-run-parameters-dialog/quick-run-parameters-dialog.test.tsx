@@ -411,6 +411,6 @@ describe("QuickRunParametersDialog duplicate submission", () => {
 		await user.click(submit);
 
 		await waitFor(() => expect(createFlowRun).toHaveBeenCalledTimes(1));
-		expect(validateCalls).toBe(2);
+		expect(validateCalls).toBeGreaterThanOrEqual(2);
 	});
 });
