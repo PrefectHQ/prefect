@@ -18,7 +18,7 @@ import {
 	createFakeFlowRun,
 } from "@/mocks";
 import { FlowDeploymentCount } from "../cells";
-import { FlowRunAction } from "./flow-run-action";
+import { FlowRunAction, FlowRunDialog } from "./flow-run-action";
 
 beforeAll(() => {
 	// Polyfill scrollIntoView used by cmdk
@@ -176,6 +176,31 @@ const openDialog = async () => {
 	await user.click(screen.getByRole("button", { name: /run/i }));
 	return user;
 };
+
+describe("FlowRunDialog", () => {
+	it("shows an empty state for a flow with no deployments and creates nothing", async () => {
+		const flow = createFakeFlow();
+		mockPaginate({ results: [], count: 0 }, []);
+		const createFlowRun = vi.fn();
+		server.use(
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+				createFlowRun();
+				return HttpResponse.json(createFakeFlowRun());
+			}),
+		);
+		await renderAction(
+			<FlowRunDialog flow={flow} open={true} onOpenChange={vi.fn()} />,
+		);
+
+		await screen.findByRole("dialog", {
+			name: new RegExp(`Run ${flow.name}`),
+		});
+		expect(
+			await screen.findByText("This flow has no deployments."),
+		).toBeVisible();
+		expect(createFlowRun).not.toHaveBeenCalled();
+	});
+});
 
 describe("FlowRunAction dialog", () => {
 	it("opens a dialog titled with the flow name", async () => {

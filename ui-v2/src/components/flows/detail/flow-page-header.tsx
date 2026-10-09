@@ -1,4 +1,5 @@
 import type { Flow } from "@/api/flows";
+import { FlowRunAction } from "@/components/flows/flow-run-action";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -32,7 +33,10 @@ export function FlowPageHeader({ flow, onDelete }: FlowPageHeaderProps) {
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
-			<FlowMenu flow={flow} onDelete={onDelete} />
+			<div className="flex items-center gap-2">
+				<FlowRunAction flow={flow} />
+				<FlowMenu flow={flow} onDelete={onDelete} />
+			</div>
 		</header>
 	);
 }

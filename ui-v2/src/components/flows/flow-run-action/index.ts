@@ -1,1 +1,6 @@
-export { FlowRunAction, type FlowRunActionProps } from "./flow-run-action";
+export {
+	FlowRunAction,
+	type FlowRunActionProps,
+	FlowRunDialog,
+	type FlowRunDialogProps,
+} from "./flow-run-action";

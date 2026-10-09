@@ -95,21 +95,37 @@ export const FlowRunAction = ({ flow }: FlowRunActionProps) => {
 					{disabledReason}
 				</span>
 			)}
-			<Dialog open={open} onOpenChange={setOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Run {flow.name}</DialogTitle>
-					</DialogHeader>
-					{open && (
-						<FlowRunDialogBody
-							key={flow.id}
-							flow={flow}
-							onRunCreated={() => setOpen(false)}
-						/>
-					)}
-				</DialogContent>
-			</Dialog>
+			<FlowRunDialog flow={flow} open={open} onOpenChange={setOpen} />
 		</>
+	);
+};
+
+export type FlowRunDialogProps = {
+	flow: Flow;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+};
+
+export const FlowRunDialog = ({
+	flow,
+	open,
+	onOpenChange,
+}: FlowRunDialogProps) => {
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Run {flow.name}</DialogTitle>
+				</DialogHeader>
+				{open && (
+					<FlowRunDialogBody
+						key={flow.id}
+						flow={flow}
+						onRunCreated={() => onOpenChange(false)}
+					/>
+				)}
+			</DialogContent>
+		</Dialog>
 	);
 };
 
