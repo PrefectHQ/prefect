@@ -29,6 +29,9 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
   "coverage",
+  # cryptography >= 39 requires pyopenssl >= 23.2, which no longer
+  # supports Python 3.8 (snowflake-connector pulls in pyopenssl)
+  "cryptography<39; python_version < '3.9'",
   "interrogate",
   "mkdocs-gen-files",
   "mkdocs-material",

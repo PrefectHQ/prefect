@@ -564,7 +564,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         included_files = None
         if ignore_file:
             with open(ignore_file, "r") as f:
-                ignore_patterns = f.readlines()
+                ignore_patterns = [line.strip() for line in f]
 
             included_files = filter_files(local_path, ignore_patterns)
 

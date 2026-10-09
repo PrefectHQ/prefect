@@ -74,7 +74,10 @@ jobs:
         run: |
           python -m pip install setuptools
           python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev]
+          # prefect >= 2.20.26 constrains pydantic/anyio/sqlalchemy to versions
+          # compatible with the 2.x branch; older 2.x releases resolve to
+          # dependency versions that break the test suites
+          uv pip install --upgrade --system -e .[dev] "prefect>=2.20.26"
 
       - name: Run tests
         env:
