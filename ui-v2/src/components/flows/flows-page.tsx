@@ -2,6 +2,7 @@ import type {
 	ColumnFiltersState,
 	PaginationState,
 } from "@tanstack/react-table";
+import type { ServerError } from "@/api/error-utils";
 import type { Flow } from "@/api/flows";
 import FlowsTable from "./data-table";
 import { FlowsEmptyState } from "./empty-state";
@@ -24,6 +25,8 @@ type FlowsPageProps = {
 	onClearFilters: () => void;
 	isPending?: boolean;
 	isPlaceholderData?: boolean;
+	error?: ServerError;
+	onRetry?: () => void;
 };
 
 export default function FlowsPage({
@@ -41,6 +44,8 @@ export default function FlowsPage({
 	onClearFilters,
 	isPending = false,
 	isPlaceholderData = false,
+	error,
+	onRetry,
 }: FlowsPageProps) {
 	return (
 		<div className="flex flex-col gap-4">
@@ -62,6 +67,8 @@ export default function FlowsPage({
 					onClearFilters={onClearFilters}
 					isPending={isPending}
 					isPlaceholderData={isPlaceholderData}
+					error={error}
+					onRetry={onRetry}
 				/>
 			)}
 		</div>

@@ -2,10 +2,10 @@ import type {
 	ColumnFiltersState,
 	OnChangeFn,
 	PaginationState,
-	RowSelectionState,
 } from "@tanstack/react-table";
 import type React from "react";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
+import type { ServerError } from "@/api/error-utils";
 import { type Flow, useDeleteFlowById } from "@/api/flows";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import {
 	Select,
 	SelectContent,
@@ -52,6 +53,8 @@ export default function FlowsTable({
 	onClearFilters,
 	isPending = false,
 	isPlaceholderData = false,
+	error,
+	onRetry,
 }: {
 	flows: Flow[];
 	count: number;
@@ -66,9 +69,10 @@ export default function FlowsTable({
 	onClearFilters?: () => void;
 	isPending?: boolean;
 	isPlaceholderData?: boolean;
+	error?: ServerError;
+	onRetry?: () => void;
 }) {
 	const { deleteFlow } = useDeleteFlowById();
-	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
 	const showFilteredEmptyState =
 		count === 0 && !isPending && !isPlaceholderData && Boolean(onClearFilters);
@@ -116,28 +120,26 @@ export default function FlowsTable({
 		manualPagination: true,
 		pageCount,
 		state: {
-			rowSelection,
 			pagination,
 		},
-		onRowSelectionChange: setRowSelection,
 		onPaginationChange: handlePaginationChange,
 	});
 
 	const handleDeleteRows = () => {
-		for (const id of Object.keys(rowSelection)) {
+		for (const id of table.getSelectedRowIds()) {
 			deleteFlow(id);
 		}
 
-		setRowSelection({});
+		table.resetRowSelection(true);
 	};
 
 	return (
 		<div className="h-full">
 			<div className="grid sm:grid-cols-2 md:grid-cols-12 gap-2 pb-4 items-center">
 				<div className="sm:col-span-2 md:col-span-3 lg:col-span-4 md:order-first lg:order-first">
-					{Object.keys(rowSelection).length > 0 ? (
+					{table.getSelectedRowIds().length > 0 ? (
 						<p className="text-sm text-muted-foreground flex items-center">
-							{Object.keys(rowSelection).length} selected
+							{table.getSelectedRowIds().length} selected
 							<Button
 								variant="ghost"
 								size="icon"
@@ -183,7 +185,9 @@ export default function FlowsTable({
 					</Select>
 				</div>
 			</div>
-			{showFilteredEmptyState ? (
+			{error && onRetry ? (
+				<RouteErrorState error={error} onRetry={onRetry} />
+			) : showFilteredEmptyState ? (
 				<FlowsFilteredEmptyState onClearFilters={onClearFilters} />
 			) : (
 				<DataTable table={table} onPrefetchPage={onPrefetchPage} />

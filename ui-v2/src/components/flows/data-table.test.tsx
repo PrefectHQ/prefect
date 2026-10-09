@@ -9,6 +9,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Flow } from "@/api/flows";
 import { createFakeFlow } from "@/mocks/create-fake-flow";
@@ -160,6 +161,109 @@ describe("FlowsTable", () => {
 				{ id: "name", value: "my-flow" },
 			]);
 		});
+	});
+
+	it("deletes the correct flows when selected across pages", async () => {
+		const user = userEvent.setup();
+		const deletedIds: string[] = [];
+		server.use(
+			http.delete(buildApiUrl("/flows/:id"), ({ params }) => {
+				deletedIds.push(params.id as string);
+				return HttpResponse.json({ status: 204 });
+			}),
+		);
+
+		const flows = Array.from({ length: 20 }, () => createFakeFlow());
+
+		// Owns pagination state so navigating updates the rows fed to the table,
+		// like the route does with URL-driven pagination
+		const PaginatedTable = () => {
+			const [pagination, setPagination] = useState({
+				pageIndex: 0,
+				pageSize: 10,
+			});
+			const pageFlows = flows.slice(
+				pagination.pageIndex * pagination.pageSize,
+				(pagination.pageIndex + 1) * pagination.pageSize,
+			);
+			return (
+				<FlowsTable
+					{...defaultProps}
+					flows={pageFlows}
+					count={20}
+					pageCount={2}
+					pagination={pagination}
+					onPaginationChange={setPagination}
+				/>
+			);
+		};
+
+		const router = createRouter({
+			routeTree: createRootRoute({ component: PaginatedTable }),
+			history: createMemoryHistory({ initialEntries: ["/"] }),
+			context: { queryClient: new QueryClient() },
+		});
+
+		await waitFor(() =>
+			render(<RouterProvider router={router} />, {
+				wrapper: createWrapper(),
+			}),
+		);
+
+		await user.click(
+			screen.getAllByRole("checkbox", { name: "Select row" })[0],
+		);
+		expect(screen.getByText("1 selected")).toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: "Go to next page" }));
+
+		await user.click(
+			screen.getAllByRole("checkbox", { name: "Select row" })[0],
+		);
+		expect(screen.getByText("2 selected")).toBeInTheDocument();
+
+		await user.click(
+			screen.getByRole("button", { name: "Delete selected flows" }),
+		);
+
+		await waitFor(() => {
+			expect(deletedIds.sort()).toEqual([flows[0].id, flows[10].id].sort());
+		});
+		await waitFor(() => {
+			expect(screen.queryByText("2 selected")).not.toBeInTheDocument();
+		});
+	});
+
+	it("shows the error state with retry while keeping the toolbar mounted", async () => {
+		const user = userEvent.setup();
+		const onRetry = vi.fn();
+
+		await waitFor(() =>
+			render(
+				<FlowsTableRouter
+					{...defaultProps}
+					flows={[]}
+					count={0}
+					onClearFilters={vi.fn()}
+					error={{
+						type: "server-error",
+						message: "Prefect server error",
+						statusCode: 500,
+					}}
+					onRetry={onRetry}
+				/>,
+				{ wrapper: createWrapper() },
+			),
+		);
+
+		expect(screen.getByPlaceholderText("Flow names")).toBeInTheDocument();
+		expect(screen.getByText("Prefect server error")).toBeVisible();
+		expect(
+			screen.queryByText("No flows match your filters"),
+		).not.toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: "Retry" }));
+		expect(onRetry).toHaveBeenCalled();
 	});
 
 	it("calls onPaginationChange when pagination buttons are clicked", async () => {

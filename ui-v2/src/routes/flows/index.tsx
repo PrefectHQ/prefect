@@ -100,10 +100,16 @@ export const Route = createFileRoute("/flows/")({
 			data: flowsPage,
 			isPending,
 			isPlaceholderData,
+			isError,
+			error: flowsPageError,
+			refetch,
 		} = useQuery(buildPaginateFlowsQuery(paginationBody, 30_000));
 
 		const flows = flowsPage?.results ?? [];
 		const count = flowsPage?.count ?? 0;
+		const serverError = isError
+			? categorizeError(flowsPageError, "Failed to load flows")
+			: undefined;
 
 		// Prefetch a page and its child component data when user hovers over pagination buttons
 		const onPrefetchPage = useCallback(
@@ -190,6 +196,8 @@ export const Route = createFileRoute("/flows/")({
 				pageCount={flowsPage?.pages ?? 0}
 				isPending={isPending}
 				isPlaceholderData={isPlaceholderData}
+				error={serverError}
+				onRetry={() => void refetch()}
 				sort={sort}
 				pagination={pagination}
 				onPaginationChange={onPaginationChange}
