@@ -101,7 +101,7 @@ const CustomBar = (props: CustomShapeProps) => {
 					data-row-click-ignore="true"
 					className="cursor-pointer"
 					onKeyDown={(event) => {
-						if (event.key === "Enter" || event.key === " ") {
+						if (event.key === " ") {
 							event.preventDefault();
 							onNavigate?.(flowRunId);
 						}
