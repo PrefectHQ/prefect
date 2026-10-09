@@ -177,11 +177,8 @@ async def inspect(
     async with get_client() as client:
         try:
             flow_run = await client.read_flow_run(id)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                exit_with_error(f"Flow run {id!r} not found!")
-            else:
-                raise
+        except ObjectNotFound:
+            exit_with_error(f"Flow run '{id}' not found!")
 
     if web:
         flow_run_url = url_for("flow-run", obj_id=id)
