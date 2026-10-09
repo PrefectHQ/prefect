@@ -101,7 +101,13 @@ const CustomBar = (props: CustomShapeProps) => {
 					data-row-click-ignore="true"
 					className="cursor-pointer"
 					onKeyDown={(event) => {
-						if (event.key === " ") {
+						const isUnmodifiedEnter =
+							event.key === "Enter" &&
+							!event.ctrlKey &&
+							!event.metaKey &&
+							!event.altKey &&
+							!event.shiftKey;
+						if (event.key === " " || isUnmodifiedEnter) {
 							event.preventDefault();
 							onNavigate?.(flowRunId);
 						}
