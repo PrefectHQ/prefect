@@ -392,11 +392,12 @@ describe("QuickRunParametersDialog duplicate submission", () => {
 			}),
 		);
 		const user = userEvent.setup();
+		const onOpenChange = vi.fn();
 		const router = createTestRouter(
 			<QuickRunParametersDialog
 				deployment={deployment}
 				open
-				onOpenChange={vi.fn()}
+				onOpenChange={onOpenChange}
 			/>,
 		);
 		await waitFor(() =>
@@ -410,7 +411,55 @@ describe("QuickRunParametersDialog duplicate submission", () => {
 		await waitFor(() => expect(submit).toBeEnabled());
 		await user.click(submit);
 
-		await waitFor(() => expect(createFlowRun).toHaveBeenCalledTimes(1));
-		expect(validateCalls).toBeGreaterThanOrEqual(2);
+		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+		expect(createFlowRun).toHaveBeenCalledTimes(1);
+		expect(validateCalls).toBe(2);
+	});
+
+	it("does not revalidate after the dialog unmounts", async () => {
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: parameterSchema,
+			enforce_parameter_schema: true,
+		});
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), () =>
+				HttpResponse.json({
+					valid: false,
+					errors: [
+						{
+							type: "value_error",
+							property: "project",
+							errors: ["Project is required"],
+						},
+					],
+				}),
+			),
+		);
+		const user = userEvent.setup();
+		const { unmount } = render(
+			<QuickRunParametersDialog
+				deployment={deployment}
+				open
+				onOpenChange={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await user.click(screen.getByRole("button", { name: "Run" }));
+		await waitFor(() =>
+			expect(screen.getByText("Project is required")).toBeVisible(),
+		);
+		unmount();
+
+		let postUnmountCalls = 0;
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), () => {
+				postUnmountCalls += 1;
+				return HttpResponse.json({ valid: true, errors: [] });
+			}),
+		);
+		// Wait past the schema form's 1s debounced revalidation window
+		await new Promise((resolve) => setTimeout(resolve, 1500));
+		expect(postUnmountCalls).toBe(0);
 	});
 });
