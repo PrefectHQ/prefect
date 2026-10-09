@@ -10,6 +10,7 @@ import {
 	useDeleteFlowById,
 } from "@/api/flows";
 import type { components } from "@/api/prefect";
+import { FlowRunAction } from "@/components/flows/flow-run-action";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -144,7 +145,8 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 		return null;
 	}
 	return (
-		<div className="flex justify-end">
+		<div className="flex items-center justify-end gap-2">
+			<FlowRunAction flow={row.original} />
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="ghost" size="icon">

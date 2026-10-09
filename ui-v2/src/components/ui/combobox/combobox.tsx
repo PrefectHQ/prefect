@@ -36,11 +36,13 @@ const ComboboxTrigger = ({
 	"aria-label": ariaLabel,
 	selected = false,
 	id,
+	disabled = false,
 	children,
 }: {
 	"aria-label"?: string;
 	selected?: boolean;
 	id?: string;
+	disabled?: boolean;
 	children: React.ReactNode;
 }) => {
 	const comboboxCtx = use(ComboboxContext);
@@ -56,6 +58,7 @@ const ComboboxTrigger = ({
 				aria-expanded={open}
 				aria-haspopup="listbox"
 				variant="outline"
+				disabled={disabled}
 				className={cn(
 					"w-full justify-between bg-card dark:bg-background",
 					selected && "text-muted-foreground",

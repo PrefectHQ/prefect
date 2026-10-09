@@ -194,3 +194,80 @@ describe("RunFlowButton", () => {
 		);
 	});
 });
+
+describe("RunFlowButton onRunCreated", () => {
+	const RunFlowButtonRouter = (props: RunFlowButtonProps) => {
+		const rootRoute = createRootRoute({
+			component: () => (
+				<>
+					<Toaster />
+					<RunFlowButton {...props} />,
+				</>
+			),
+		});
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({ initialEntries: ["/"] }),
+			context: { queryClient: new QueryClient() },
+		});
+		return <RouterProvider router={router} />;
+	};
+
+	it("calls onRunCreated after a successful quick run", async () => {
+		const MOCK_DEPLOYMENT = createFakeDeployment();
+		const MOCK_FLOW_RUN = createFakeFlowRun();
+		server.use(
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+				return HttpResponse.json(MOCK_FLOW_RUN);
+			}),
+		);
+		const onRunCreated = vi.fn();
+		const user = userEvent.setup();
+		await waitFor(() =>
+			render(
+				<RunFlowButtonRouter
+					deployment={MOCK_DEPLOYMENT}
+					onRunCreated={onRunCreated}
+				/>,
+				{ wrapper: createWrapper() },
+			),
+		);
+
+		await user.click(screen.getByRole("button", { name: "Run" }));
+		await user.click(screen.getByRole("menuitem", { name: "Quick run" }));
+
+		await waitFor(() =>
+			expect(onRunCreated).toHaveBeenCalledWith(
+				expect.objectContaining({ id: MOCK_FLOW_RUN.id }),
+			),
+		);
+	});
+
+	it("does not call onRunCreated when the quick run fails", async () => {
+		const MOCK_DEPLOYMENT = createFakeDeployment();
+		server.use(
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+				return HttpResponse.error();
+			}),
+		);
+		const onRunCreated = vi.fn();
+		const user = userEvent.setup();
+		await waitFor(() =>
+			render(
+				<RunFlowButtonRouter
+					deployment={MOCK_DEPLOYMENT}
+					onRunCreated={onRunCreated}
+				/>,
+				{ wrapper: createWrapper() },
+			),
+		);
+
+		await user.click(screen.getByRole("button", { name: "Run" }));
+		await user.click(screen.getByRole("menuitem", { name: "Quick run" }));
+
+		await waitFor(() =>
+			expect(screen.getByText(/error|failed/i)).toBeVisible(),
+		);
+		expect(onRunCreated).not.toHaveBeenCalled();
+	});
+});

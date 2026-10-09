@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { Deployment } from "@/api/deployments";
 import {
 	type CreateNewFlowRun,
+	type FlowRun,
 	useDeploymentCreateFlowRun,
 } from "@/api/flow-runs";
 import {
@@ -27,6 +28,7 @@ export type QuickRunParametersDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	deployment: Deployment;
+	onRunCreated?: (flowRun: FlowRun) => void;
 };
 
 const QUICK_RUN_STATE = {
@@ -43,6 +45,7 @@ export const QuickRunParametersDialog = ({
 	open,
 	onOpenChange,
 	deployment,
+	onRunCreated,
 }: QuickRunParametersDialogProps) => {
 	const [enforceParameterSchema, setEnforceParameterSchema] = useState(
 		() => deployment.enforce_parameter_schema,
@@ -58,6 +61,10 @@ export const QuickRunParametersDialog = ({
 
 	const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
+
+		if (isPending) {
+			return;
+		}
 
 		if (enforceParameterSchema && parameterSchema) {
 			try {
@@ -104,6 +111,7 @@ export const QuickRunParametersDialog = ({
 						),
 					});
 					onOpenChange(false);
+					onRunCreated?.(res);
 				},
 				onError: (error) => {
 					toast.error(
