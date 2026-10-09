@@ -1543,6 +1543,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     " in progress."
                 )
                 break
+            except RuntimeError as exc:
+                if "already holding" not in str(exc):
+                    raise
+                self._logger.warning(
+                    f"Duplicate submission of flow run '{flow_run.id}' detected. Worker"
+                    " will not re-submit flow run."
+                )
+                continue
             else:
                 run_logger = self.get_flow_run_logger(flow_run)
                 run_logger.info(
