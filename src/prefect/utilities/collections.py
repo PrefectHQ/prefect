@@ -511,7 +511,7 @@ def visit_collection(
     # --- Dataclasses
 
     elif is_dataclass(expr) and not isinstance(expr, type):
-        expr_fields = fields(expr)
+        expr_fields = [f for f in fields(expr) if hasattr(expr, f.name)]
         values = [visit_nested(getattr(expr, f.name)) for f in expr_fields]
         if return_data:
             modified = any(
@@ -519,8 +519,14 @@ def visit_collection(
             )
             if modified:
                 result = replace(
-                    expr, **{f.name: v for f, v in zip(expr_fields, values)}
+                    expr,
+                    **{f.name: v for f, v in zip(expr_fields, values) if f.init},
                 )
+                # `replace` cannot accept `init=False` fields, so carry over their
+                # visited values directly; this also works for frozen dataclasses
+                for f, v in zip(expr_fields, values):
+                    if not f.init:
+                        object.__setattr__(result, f.name, v)
 
     # --- Pydantic models
 
