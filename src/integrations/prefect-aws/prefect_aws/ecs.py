@@ -303,7 +303,7 @@ class ECSTask(Infrastructure):
 
     _block_type_slug = "ecs-task"
     _block_type_name = "ECS Task"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/aws.png"  # noqa
     _description = "Run a command as an ECS task."  # noqa
     _documentation_url = (
         "https://prefecthq.github.io/prefect-aws/ecs/#prefect_aws.ecs.ECSTask"  # noqa

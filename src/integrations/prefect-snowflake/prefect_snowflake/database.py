@@ -80,7 +80,7 @@ class SnowflakeConnector(DatabaseBlock):
     """  # noqa
 
     _block_type_name = "Snowflake Connector"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/bd359de0b4be76c2254bd329fe3a267a1a3879c2-250x250.png"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/snowflake.png"  # noqa
     _documentation_url = "https://prefecthq.github.io/prefect-snowflake/database/#prefect_snowflake.database.SnowflakeConnector"  # noqa
     _description = "Perform data operations against a Snowflake database."
 
