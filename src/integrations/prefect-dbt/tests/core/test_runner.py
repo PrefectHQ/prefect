@@ -14,7 +14,7 @@ from uuid import uuid4
 import pytest
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
-from dbt.contracts.results import RunExecutionResult, RunStatus
+from dbt.contracts.results import NodeStatus, RunExecutionResult, RunStatus
 from dbt.node_types import NodeType
 
 try:
@@ -1577,7 +1577,19 @@ class TestExecuteDbtNode:
         mock_task_state.wait_for_node_completion.assert_called_once_with(node_id)
         mock_task_state.get_node_status.assert_called_once_with(node_id)
 
-    @pytest.mark.parametrize("node_status", ["error", "partial success"])
+    @pytest.mark.parametrize(
+        "node_status",
+        [
+            "error",
+            pytest.param(
+                "partial success",
+                marks=pytest.mark.skipif(
+                    not hasattr(NodeStatus, "PartialSuccess"),
+                    reason="partial success requires dbt>=1.9",
+                ),
+            ),
+        ],
+    )
     def test_execute_dbt_node_handles_failure_status(
         self, mock_task_state, node_status
     ):
