@@ -23,10 +23,10 @@ def _gather_deployment_sla_definitions(
                 if s.endswith(".yaml"):
                     import yaml
 
-                    with open(s, "r") as f:
+                    with open(s, "r", encoding="utf-8") as f:
                         sla_specs.extend(yaml.safe_load(f).get("sla", []))
                 elif s.endswith(".json"):
-                    with open(s, "r") as f:
+                    with open(s, "r", encoding="utf-8") as f:
                         sla_specs.extend(json.load(f).get("sla", []))
                 else:
                     sla_specs.append(json.loads(s))

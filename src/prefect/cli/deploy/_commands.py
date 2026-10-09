@@ -73,7 +73,7 @@ async def init(
         recipes: list[dict[str, Any]] = []
         for r in recipe_paths.iterdir():
             if r.is_dir() and (r / "prefect.yaml").exists():
-                with open(r / "prefect.yaml") as f:
+                with open(r / "prefect.yaml", encoding="utf-8") as f:
                     recipe_data = yaml.safe_load(f)
                     recipe_name = r.name
                     recipe_description = recipe_data.get(
@@ -98,7 +98,7 @@ async def init(
             recipe = selected_recipe["name"]
 
     if recipe and (recipe_paths / recipe / "prefect.yaml").exists():
-        with open(recipe_paths / recipe / "prefect.yaml") as f:
+        with open(recipe_paths / recipe / "prefect.yaml", encoding="utf-8") as f:
             recipe_inputs = yaml.safe_load(f).get("required_inputs") or {}
         if recipe_inputs:
             if set(recipe_inputs.keys()) < set(inputs.keys()):
