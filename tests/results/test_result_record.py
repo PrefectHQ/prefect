@@ -41,6 +41,8 @@ class TestResultRecord:
             {"data": [1, 2, 3], "total": 3},
             {"result": 5, "status": "ok"},
             {"data": "hello"},
+            {"data": '"hello"', "serializer": {"type": "json"}, "total": 1},
+            {"data": [1], "serializer": {"type": "json"}},
         ],
     )
     def test_deserialize_raw_result_with_record_like_keys(self, value):

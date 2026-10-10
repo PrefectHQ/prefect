@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 ResultSerializer = Union[Serializer, str]
 LITERAL_TYPES: set[type] = {type(None), bool, UUID}
 R = TypeVar("R")
+_LEGACY_RESULT_BLOB_KEYS = {"serializer", "data", "prefect_version", "expiration"}
 
 
 class ResultRecordMetadata(BaseModel):
@@ -173,9 +174,13 @@ class ResultRecord(BaseModel, Generic[R]):
         if isinstance(value, dict):
             if TYPE_CHECKING:  # TODO: # isintance doesn't accept generic parameters
                 value = cast(dict[str, Any], value)
-            # Only coerce the legacy `PersistedResultBlob` shape so that raw JSON
-            # results that happen to contain a `data` key aren't misread
-            if "metadata" not in value and "data" in value and "serializer" in value:
+            # Only coerce the exact legacy `PersistedResultBlob` shape so that raw
+            # JSON results that happen to contain a `data` key aren't misread
+            if (
+                {"data", "serializer"} <= value.keys() <= _LEGACY_RESULT_BLOB_KEYS
+                and isinstance(value["data"], str)
+                and isinstance(value["serializer"], dict)
+            ):
                 value["result"] = value.pop("data")
                 value["metadata"] = {"serializer": value.pop("serializer")}
                 if "expiration" in value:
