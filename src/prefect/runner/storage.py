@@ -377,18 +377,25 @@ class GitRepository:
 
     async def is_current_commit(self) -> bool:
         """
-        Check if the current commit is the same as the commit SHA
+        Check if `HEAD` is the commit referenced by the commit SHA.
+
+        Returns `False` if the commit SHA does not resolve to a commit in the
+        local repository.
         """
         if not self._commit_sha:
             raise ValueError("No commit SHA provided")
         try:
-            result = await run_process(
-                ["git", "rev-parse", self._commit_sha],
+            head = await run_process(
+                ["git", "rev-parse", "HEAD"],
                 cwd=self.destination,
             )
-            return result.stdout.decode().strip() == self._commit_sha
+            target = await run_process(
+                ["git", "rev-parse", "--verify", f"{self._commit_sha}^{{commit}}"],
+                cwd=self.destination,
+            )
         except Exception:
             return False
+        return head.stdout.decode().strip() == target.stdout.decode().strip()
 
     async def pull_code(self) -> None:
         """

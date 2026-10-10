@@ -1631,6 +1631,82 @@ class TestGitRepositoryConcurrency:
         assert len(rmtree_calls) >= 1
 
 
+def _git(*args: str, cwd: Path) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+class TestGitRepositoryCommitSha:
+    """Exercise `commit_sha` handling against a real local git repository."""
+
+    @pytest.fixture
+    def upstream(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        for var in ("AUTHOR", "COMMITTER"):
+            monkeypatch.setenv(f"GIT_{var}_NAME", "test")
+            monkeypatch.setenv(f"GIT_{var}_EMAIL", "test@example.com")
+
+        upstream = tmp_path / "upstream"
+        upstream.mkdir()
+        _git("init", "-q", cwd=upstream)
+        (upstream / "f.txt").write_text("A")
+        _git("add", ".", cwd=upstream)
+        _git("commit", "-q", "-m", "A", cwd=upstream)
+        sha_a = _git("rev-parse", "HEAD", cwd=upstream)
+        (upstream / "f.txt").write_text("B")
+        _git("commit", "-q", "-am", "B", cwd=upstream)
+        sha_b = _git("rev-parse", "HEAD", cwd=upstream)
+        return upstream.as_uri(), sha_a, sha_b
+
+    @pytest.fixture
+    def base_path(self, tmp_path: Path) -> Path:
+        base_path = tmp_path / "work"
+        base_path.mkdir()
+        return base_path
+
+    async def _pull(self, url: str, commit_sha: str, base_path: Path) -> GitRepository:
+        repo = GitRepository(url=url, commit_sha=commit_sha, name="repo")
+        repo.set_base_path(base_path)
+        await repo.pull_code()
+        return repo
+
+    async def test_pull_code_checks_out_new_commit_in_existing_checkout(
+        self, upstream: tuple[str, str, str], base_path: Path
+    ):
+        url, sha_a, sha_b = upstream
+
+        repo = await self._pull(url, sha_a, base_path)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == sha_a
+        assert (repo.destination / "f.txt").read_text() == "A"
+
+        repo = await self._pull(url, sha_b, base_path)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == sha_b
+        assert (repo.destination / "f.txt").read_text() == "B"
+
+    @pytest.mark.parametrize(
+        "pick_sha, expected",
+        [
+            pytest.param(lambda a, b: a, True, id="full-sha-of-head"),
+            pytest.param(lambda a, b: a[:7], True, id="short-sha-of-head"),
+            pytest.param(lambda a, b: b, False, id="other-commit"),
+            pytest.param(lambda a, b: "f" * 40, False, id="nonexistent-sha"),
+        ],
+    )
+    async def test_is_current_commit(
+        self,
+        upstream: tuple[str, str, str],
+        base_path: Path,
+        pick_sha,
+        expected: bool,
+    ):
+        url, sha_a, sha_b = upstream
+        await self._pull(url, sha_a, base_path)
+
+        repo = GitRepository(url=url, commit_sha=pick_sha(sha_a, sha_b), name="repo")
+        repo.set_base_path(base_path)
+        assert await repo.is_current_commit() is expected
+
+
 class TestRemoteStorageErrorHints:
     """Tests for _get_remote_storage_error_hint pattern matching."""
 
