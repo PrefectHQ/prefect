@@ -608,12 +608,22 @@ def _run_task_in_subprocess(
     """
     Wrapper function to update environment variables and settings before running a task in a subprocess.
     """
+    # Apply this task's environment and restore the worker's environment
+    # afterwards so values from one task's settings do not leak into later
+    # tasks run by the same worker process.
+    original_environ = os.environ.copy()
+    os.environ.update(env or {})
+    try:
+        return _run_task_with_hydrated_context(*args, **kwargs)
+    finally:
+        os.environ.clear()
+        os.environ.update(original_environ)
+
+
+def _run_task_with_hydrated_context(*args: Any, **kwargs: Any) -> Any:
     from prefect.context import hydrated_context
     from prefect.engine import handle_engine_signals
     from prefect.task_engine import run_task_async, run_task_sync
-
-    # Update environment variables
-    os.environ.update(env or {})
 
     # Extract context from kwargs
     context = kwargs.pop("context", None)

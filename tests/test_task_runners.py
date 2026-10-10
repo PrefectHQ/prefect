@@ -754,14 +754,17 @@ class TestProcessPoolTaskRunner:
         assert first == {"early"}
         assert second == set()
 
-    def test_temporary_settings_applied_to_later_submits(self):
+    def test_temporary_settings_scoped_to_submits_inside_block(self):
         with ProcessPoolTaskRunner(max_workers=1) as runner:
             first = runner.submit(read_default_retries_setting, {}).result()
             with temporary_settings({PREFECT_TASK_DEFAULT_RETRIES: 7}):
                 second = runner.submit(read_default_retries_setting, {}).result()
 
+            third = runner.submit(read_default_retries_setting, {}).result()
+
         assert first == 0
         assert second == 7
+        assert third == 0
 
     def test_equality(self):
         runner1 = ProcessPoolTaskRunner(max_workers=4)
