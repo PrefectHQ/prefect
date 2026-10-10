@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 from textwrap import dedent
-from typing import Optional
+from typing import Callable, NamedTuple, Optional
 from unittest.mock import AsyncMock, MagicMock, call
 from urllib.parse import urlparse, urlunparse
 
@@ -588,6 +588,7 @@ class TestGitRepository:
         monkeypatch.setattr(
             GitRepository, "is_current_commit", AsyncMock(return_value=False)
         )
+        monkeypatch.setattr(GitRepository, "_has_commit", AsyncMock(return_value=False))
         # Mock is_shallow_clone to return True to test unshallow behavior
         monkeypatch.setattr(
             GitRepository, "is_shallow_clone", AsyncMock(return_value=True)
@@ -606,7 +607,7 @@ class TestGitRepository:
                 cwd=str(Path.cwd() / "repo"),
             ),
             call(
-                ["git", "fetch", "origin", "--unshallow"],
+                ["git", "fetch", "origin", "--unshallow", "1234567890"],
                 cwd=Path.cwd() / "repo",
             ),
             call(
@@ -1629,6 +1630,152 @@ class TestGitRepositoryConcurrency:
 
         # The first call should have triggered rmtree due to the failed pull
         assert len(rmtree_calls) >= 1
+
+
+def _git(*args: str, cwd: Path) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+class _Upstream(NamedTuple):
+    path: Path
+    url: str
+    sha_a: str
+    sha_b: str
+
+
+class TestGitRepositoryCommitSha:
+    """Exercise `commit_sha` handling against a real local git repository."""
+
+    @pytest.fixture
+    def upstream(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Upstream:
+        for var in ("AUTHOR", "COMMITTER"):
+            monkeypatch.setenv(f"GIT_{var}_NAME", "test")
+            monkeypatch.setenv(f"GIT_{var}_EMAIL", "test@example.com")
+
+        path = tmp_path / "upstream"
+        path.mkdir()
+        _git("init", "-q", cwd=path)
+        (path / "f.txt").write_text("A")
+        _git("add", "f.txt", cwd=path)
+        _git("commit", "-q", "-m", "A", cwd=path)
+        sha_a = _git("rev-parse", "HEAD", cwd=path)
+        (path / "f.txt").write_text("B")
+        _git("commit", "-q", "-am", "B", cwd=path)
+        sha_b = _git("rev-parse", "HEAD", cwd=path)
+        return _Upstream(path=path, url=path.as_uri(), sha_a=sha_a, sha_b=sha_b)
+
+    @pytest.fixture
+    def base_path(self, tmp_path: Path) -> Path:
+        base_path = tmp_path / "work"
+        base_path.mkdir()
+        return base_path
+
+    async def _pull(
+        self, url: str, base_path: Path, commit_sha: str | None = None
+    ) -> GitRepository:
+        repo = GitRepository(url=url, commit_sha=commit_sha, name="repo")
+        repo.set_base_path(base_path)
+        await repo.pull_code()
+        return repo
+
+    async def test_pull_code_checks_out_new_commit_in_existing_checkout(
+        self, upstream: _Upstream, base_path: Path
+    ):
+        repo = await self._pull(upstream.url, base_path, upstream.sha_a)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == upstream.sha_a
+        assert (repo.destination / "f.txt").read_text() == "A"
+
+        repo = await self._pull(upstream.url, base_path, upstream.sha_b)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == upstream.sha_b
+        assert (repo.destination / "f.txt").read_text() == "B"
+
+    async def test_pull_code_checks_out_commit_on_other_branch_in_shallow_checkout(
+        self, upstream: _Upstream, base_path: Path
+    ):
+        _git("checkout", "-q", "-b", "feature", cwd=upstream.path)
+        (upstream.path / "f.txt").write_text("C")
+        _git("commit", "-q", "-am", "C", cwd=upstream.path)
+        sha_c = _git("rev-parse", "HEAD", cwd=upstream.path)
+        _git("checkout", "-q", "-", cwd=upstream.path)
+
+        repo = await self._pull(upstream.url, base_path)
+        assert _git("rev-parse", "--is-shallow-repository", cwd=repo.destination) == (
+            "true"
+        )
+
+        repo = await self._pull(upstream.url, base_path, sha_c)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == sha_c
+        assert (repo.destination / "f.txt").read_text() == "C"
+
+    async def test_pull_code_checks_out_local_commit_without_fetching(
+        self, upstream: _Upstream, base_path: Path
+    ):
+        await self._pull(upstream.url, base_path, upstream.sha_a)
+        await self._pull(upstream.url, base_path, upstream.sha_b)
+        upstream.path.rename(upstream.path.with_name("unreachable"))
+
+        repo = await self._pull(upstream.url, base_path, upstream.sha_a)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == upstream.sha_a
+        assert (repo.destination / "f.txt").read_text() == "A"
+
+    async def test_pull_code_updates_submodules_when_commit_changes(
+        self, upstream: _Upstream, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "protocol.file.allow")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "always")
+
+        parent = tmp_path / "parent"
+        parent.mkdir()
+        _git("init", "-q", cwd=parent)
+        _git("submodule", "add", "-q", upstream.url, "sub", cwd=parent)
+        _git("-C", "sub", "checkout", "-q", upstream.sha_a, cwd=parent)
+        _git("add", "sub", cwd=parent)
+        _git("commit", "-q", "-m", "sub at A", cwd=parent)
+        parent_a = _git("rev-parse", "HEAD", cwd=parent)
+        _git("-C", "sub", "checkout", "-q", upstream.sha_b, cwd=parent)
+        _git("add", "sub", cwd=parent)
+        _git("commit", "-q", "-m", "sub at B", cwd=parent)
+        parent_b = _git("rev-parse", "HEAD", cwd=parent)
+
+        base_path = tmp_path / "work"
+        base_path.mkdir()
+        for parent_sha, expected in [(parent_a, "A"), (parent_b, "B")]:
+            repo = GitRepository(
+                url=parent.as_uri(),
+                commit_sha=parent_sha,
+                include_submodules=True,
+                name="repo",
+            )
+            repo.set_base_path(base_path)
+            await repo.pull_code()
+            assert (repo.destination / "sub" / "f.txt").read_text() == expected
+
+    @pytest.mark.parametrize(
+        "pick_sha, expected",
+        [
+            pytest.param(lambda up: up.sha_a, True, id="full-sha-of-head"),
+            pytest.param(lambda up: up.sha_a[:7], True, id="short-sha-of-head"),
+            pytest.param(lambda up: up.sha_b, False, id="other-commit"),
+            pytest.param(lambda up: "f" * 40, False, id="nonexistent-sha"),
+        ],
+    )
+    async def test_is_current_commit(
+        self,
+        upstream: _Upstream,
+        base_path: Path,
+        pick_sha: Callable[[_Upstream], str],
+        expected: bool,
+    ):
+        await self._pull(upstream.url, base_path, upstream.sha_a)
+
+        repo = GitRepository(
+            url=upstream.url, commit_sha=pick_sha(upstream), name="repo"
+        )
+        repo.set_base_path(base_path)
+        assert await repo.is_current_commit() is expected
 
 
 class TestRemoteStorageErrorHints:
