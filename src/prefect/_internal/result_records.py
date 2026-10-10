@@ -173,16 +173,15 @@ class ResultRecord(BaseModel, Generic[R]):
         if isinstance(value, dict):
             if TYPE_CHECKING:  # TODO: # isintance doesn't accept generic parameters
                 value = cast(dict[str, Any], value)
-            if "data" in value:
+            # Only coerce the legacy `PersistedResultBlob` shape so that raw JSON
+            # results that happen to contain a `data` key aren't misread
+            if "metadata" not in value and "data" in value and "serializer" in value:
                 value["result"] = value.pop("data")
-            if "metadata" not in value:
-                value["metadata"] = {}
-            if "expiration" in value:
-                value["metadata"]["expiration"] = value.pop("expiration")
-            if "serializer" in value:
-                value["metadata"]["serializer"] = value.pop("serializer")
-            if "prefect_version" in value:
-                value["metadata"]["prefect_version"] = value.pop("prefect_version")
+                value["metadata"] = {"serializer": value.pop("serializer")}
+                if "expiration" in value:
+                    value["metadata"]["expiration"] = value.pop("expiration")
+                if "prefect_version" in value:
+                    value["metadata"]["prefect_version"] = value.pop("prefect_version")
         return value
 
     def serialize_metadata(self) -> bytes:

@@ -35,6 +35,34 @@ class TestResultRecord:
         )
         assert deserialized.result == "The results are in..."
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            {"data": [1, 2, 3], "total": 3},
+            {"result": 5, "status": "ok"},
+            {"data": "hello"},
+        ],
+    )
+    def test_deserialize_raw_result_with_record_like_keys(self, value):
+        serialized = JSONSerializer().dumps(value)
+
+        deserialized = ResultRecord.deserialize(
+            serialized, backup_serializer=JSONSerializer()
+        )
+        assert deserialized.result == value
+        assert deserialized.serializer == JSONSerializer()
+
+    def test_deserialize_legacy_persisted_result_blob(self):
+        serialized = (
+            b'{"serializer": {"type": "json"}, "data": "\\"hello\\"",'
+            b' "prefect_version": "2.20.0", "expiration": null}'
+        )
+
+        deserialized = ResultRecord.deserialize(serialized)
+        assert deserialized.result == "hello"
+        assert deserialized.serializer == JSONSerializer()
+        assert deserialized.metadata.prefect_version == "2.20.0"
+
     def test_result_record_metadata_tolerates_unknown_serializer_types(self):
         metadata = ResultRecordMetadata.load_bytes(
             b'{"storage_key":"my-storage-key","serializer":{"type":"custom","foo":"bar"}}'
