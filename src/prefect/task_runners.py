@@ -40,6 +40,7 @@ from prefect.futures import (
 from prefect.logging.handlers import APILogWorker, set_api_log_sink
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.settings.context import get_current_settings
+from prefect.settings.models.root import Settings
 from prefect.utilities.annotations import allow_failure, opaque, quote, unmapped
 from prefect.utilities.callables import (
     cloudpickle_wrapped_call,
@@ -871,8 +872,8 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         self._subprocess_message_processor_factories: tuple[
             _SubprocessMessageProcessorFactory, ...
         ] = tuple(subprocess_message_processor_factories or ())
-        self._cached_context: dict[str, Any] | None = None
         self._cached_env: dict[str, str] | None = None
+        self._cached_env_settings: Settings | None = None
 
     def duplicate(self) -> Self:
         duplicate_runner = type(self)(max_workers=self._max_workers)
@@ -1201,16 +1202,21 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 f"Submitting task {task.name} to process pool executor..."
             )
 
-        # Serialize the current context for the subprocess (cached per runner lifecycle)
-        if self._cached_context is None:
-            from prefect.context import serialize_context
+        from prefect.context import serialize_context
 
-            self._cached_context = serialize_context()
+        # Context (tags, settings, etc.) can change between submits, so it is
+        # serialized every time. The env is only rebuilt when settings change.
+        context = serialize_context()
+        current_settings = get_current_settings()
+        if (
+            self._cached_env is None
+            or self._cached_env_settings is not current_settings
+        ):
             self._cached_env = (
-                get_current_settings().to_environment_variables(exclude_unset=True)
+                current_settings.to_environment_variables(exclude_unset=True)
                 | os.environ
             )
-        context = self._cached_context
+            self._cached_env_settings = current_settings
         env = self._cached_env
 
         # Submit the resolution and subprocess execution to a background thread
@@ -1261,9 +1267,9 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         return super().map(task, parameters, wait_for)
 
     def cancel_all(self) -> None:
-        # Invalidate cached context and env so they are recomputed on next start
-        self._cached_context = None
+        # Invalidate cached env so it is recomputed on next start
         self._cached_env = None
+        self._cached_env_settings = None
 
         # Clear cancel events first to avoid resource tracking issues
         events_to_set = list(self._cancel_events.values())
