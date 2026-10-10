@@ -138,7 +138,7 @@ This works well if you and your team are familiar with Docker.  However, if youâ
 - You may need to rebuild your Docker image each time you update libraries
 - People on your team may not know how Docker works, limiting who can use Prefect
 
-Because of this, Coiled also provides a Dockerless execution process that called [Package Sync](#how-environment-synchronization).  Coiled can automatically inspect your local environment and build a remote cloud environment on the fly.  This can be more ergonomic and accessible to everyone on the team.
+Because of this, Coiled also provides a Dockerless execution process that called [Package Sync](https://docs.coiled.io/user_guide/software/sync.html).  Coiled can automatically inspect your local environment and build a remote cloud environment on the fly.  This can be more ergonomic and accessible to everyone on the team.
 
 To invoke this feature today you need to have both a Python file such as `example_flow.py` with your flow defined, and a `prefect.yaml` deployment configuration file .
 
