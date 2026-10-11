@@ -108,10 +108,14 @@ Configure authentication for private container registries:
   "variables": {
     "image_pull_secrets": {
       "title": "Image Pull Secrets",
-      "description": "Names of Kubernetes secrets for pulling images from private registries",
+      "description": "Kubernetes secrets used to pull images from private registries",
       "default": [],
       "type": "array",
-      "items": {"type": "string"}
+      "items": {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+        "required": ["name"]
+      }
     }
   },
   "job_configuration": {
@@ -126,6 +130,13 @@ Configure authentication for private container registries:
     }
   }
 }
+```
+
+Kubernetes expects each entry in `imagePullSecrets` to be an object with a `name` field ([`LocalObjectReference`](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret)), not a bare string. Provide the secrets in the same shape when setting job variables, for example in `prefect.yaml`:
+```yaml
+job_variables:
+  image_pull_secrets:
+    - name: regcred
 ```
 
 ### Resource Limits and Requests
