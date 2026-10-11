@@ -57,6 +57,13 @@ async def revoke_expired_lease(
         datetime.now(timezone.utc) - expired_lease.created_at
     ).total_seconds()
 
+    # Revoke before decrementing, and decrement only if this task is the one
+    # that removed the lease. The holder releasing it, or a duplicate reaper,
+    # may be working on the same lease, and each decrement would free a slot.
+    if await lease_storage.revoke_lease(lease_id) is False:
+        logger.info(f"Lease {lease_id} was already revoked")
+        return
+
     logger.info(
         f"Revoking lease {lease_id} for {len(expired_lease.resource_ids)} "
         f"concurrency limits with {expired_lease.metadata.slots} slots"
@@ -69,7 +76,6 @@ async def revoke_expired_lease(
             slots=expired_lease.metadata.slots,
             occupancy_seconds=occupancy_seconds,
         )
-        await lease_storage.revoke_lease(lease_id)
 
 
 @perpetual_service(

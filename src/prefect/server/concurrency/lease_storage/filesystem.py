@@ -282,12 +282,17 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             await self._remove_from_expiration_index(lease_id)
             return False
 
-    async def revoke_lease(self, lease_id: UUID) -> None:
+    async def revoke_lease(self, lease_id: UUID) -> bool:
         lease_file = self._lease_file_path(lease_id)
-        lease_file.unlink(missing_ok=True)
+        try:
+            lease_file.unlink()
+            revoked = True
+        except FileNotFoundError:
+            revoked = False
 
         # Remove from expiration index
         await self._remove_from_expiration_index(lease_id)
+        return revoked
 
     async def read_active_lease_ids(
         self, limit: int = 100, offset: int = 0

@@ -78,9 +78,10 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self.expirations[lease_id] = expiration
         return True
 
-    async def revoke_lease(self, lease_id: UUID) -> None:
-        self.leases.pop(lease_id, None)
+    async def revoke_lease(self, lease_id: UUID) -> bool:
+        lease = self.leases.pop(lease_id, None)
         self.expirations.pop(lease_id, None)
+        return lease is not None
 
     async def read_active_lease_ids(
         self, limit: int = 100, offset: int = 0
