@@ -480,6 +480,18 @@ class GitRepository:
                     ["git", "checkout", self._commit_sha],
                     cwd=self.destination,
                 )
+                if self._include_submodules:
+                    await run_process(
+                        [
+                            "git",
+                            *self._git_config,
+                            "submodule",
+                            "update",
+                            "--init",
+                            "--recursive",
+                        ],
+                        cwd=self.destination,
+                    )
                 self._logger.debug(
                     f"Successfully checked out commit {self._commit_sha}"
                 )

@@ -703,6 +703,65 @@ class TestGitRepository:
         assert head == sha_b
         assert (repo_b.destination / "flow.py").read_text() == "B"
 
+    async def test_pull_code_with_new_commit_sha_updates_submodules(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        # Local file:// submodules are blocked by default since git 2.38.1
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "protocol.file.allow")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "always")
+
+        def git(cwd: Path, *args: str) -> str:
+            return subprocess.run(
+                ["git", *args],
+                cwd=cwd,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+
+        sub_repo = tmp_path / "sub"
+        super_repo = tmp_path / "super"
+        for repo in (sub_repo, super_repo):
+            repo.mkdir()
+            git(repo, "init")
+            git(repo, "config", "user.email", "storage@example.com")
+            git(repo, "config", "user.name", "Storage")
+
+        (sub_repo / "lib.py").write_text("S1")
+        git(sub_repo, "add", ".")
+        git(sub_repo, "commit", "-m", "S1")
+
+        git(super_repo, "submodule", "add", sub_repo.as_uri(), "sub")
+        git(super_repo, "commit", "-m", "A")
+        sha_a = git(super_repo, "rev-parse", "HEAD")
+
+        (sub_repo / "lib.py").write_text("S2")
+        git(sub_repo, "commit", "-am", "S2")
+        sha_s2 = git(sub_repo, "rev-parse", "HEAD")
+        git(super_repo / "sub", "pull", "origin")
+        git(super_repo, "commit", "-am", "B")
+        sha_b = git(super_repo, "rev-parse", "HEAD")
+
+        base_path = tmp_path / "work"
+        base_path.mkdir()
+
+        repo_a = GitRepository(
+            url=super_repo.as_uri(), commit_sha=sha_a, include_submodules=True
+        )
+        repo_a.set_base_path(base_path)
+        await repo_a.pull_code()
+
+        repo_b = GitRepository(
+            url=super_repo.as_uri(), commit_sha=sha_b, include_submodules=True
+        )
+        repo_b.set_base_path(base_path)
+        await repo_b.pull_code()
+
+        assert git(repo_b.destination, "rev-parse", "HEAD") == sha_b
+        assert git(repo_b.destination / "sub", "rev-parse", "HEAD") == sha_s2
+        assert (repo_b.destination / "sub" / "lib.py").read_text() == "S2"
+
     async def test_git_clone_errors_obscure_access_token(
         self, monkeypatch, capsys, tmp_path: Path
     ):
