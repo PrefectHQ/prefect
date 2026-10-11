@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, call
 from urllib.parse import urlparse, urlunparse
 
 import pytest
+from anyio import run_process
 from pydantic import SecretStr
 
 from prefect.blocks.core import Block, BlockNotSavedError
@@ -751,6 +752,157 @@ class TestGitRepository:
         )
         repo_a.set_base_path(base_path)
         await repo_a.pull_code()
+
+        repo_b = GitRepository(
+            url=super_repo.as_uri(), commit_sha=sha_b, include_submodules=True
+        )
+        repo_b.set_base_path(base_path)
+        await repo_b.pull_code()
+
+        assert git(repo_b.destination, "rev-parse", "HEAD") == sha_b
+        assert git(repo_b.destination / "sub", "rev-parse", "HEAD") == sha_s2
+        assert (repo_b.destination / "sub" / "lib.py").read_text() == "S2"
+
+    async def test_pull_code_retries_failed_submodule_update(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        # Local file:// submodules are blocked by default since git 2.38.1
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "protocol.file.allow")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "always")
+
+        def git(cwd: Path, *args: str) -> str:
+            return subprocess.run(
+                ["git", *args],
+                cwd=cwd,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+
+        sub_repo = tmp_path / "sub"
+        super_repo = tmp_path / "super"
+        for repo in (sub_repo, super_repo):
+            repo.mkdir()
+            git(repo, "init")
+            git(repo, "config", "user.email", "storage@example.com")
+            git(repo, "config", "user.name", "Storage")
+
+        (sub_repo / "lib.py").write_text("S1")
+        git(sub_repo, "add", ".")
+        git(sub_repo, "commit", "-m", "S1")
+
+        git(super_repo, "submodule", "add", sub_repo.as_uri(), "sub")
+        git(super_repo, "commit", "-m", "A")
+        sha_a = git(super_repo, "rev-parse", "HEAD")
+
+        (sub_repo / "lib.py").write_text("S2")
+        git(sub_repo, "commit", "-am", "S2")
+        sha_s2 = git(sub_repo, "rev-parse", "HEAD")
+        git(super_repo / "sub", "pull", "origin")
+        git(super_repo, "commit", "-am", "B")
+        sha_b = git(super_repo, "rev-parse", "HEAD")
+
+        base_path = tmp_path / "work"
+        base_path.mkdir()
+
+        repo_a = GitRepository(
+            url=super_repo.as_uri(), commit_sha=sha_a, include_submodules=True
+        )
+        repo_a.set_base_path(base_path)
+        await repo_a.pull_code()
+
+        failures = []
+
+        async def fail_submodule_update_once(command, **kwargs):
+            if "update" in command and "submodule" in command and not failures:
+                failures.append(command)
+                raise subprocess.CalledProcessError(1, command)
+            return await run_process(command, **kwargs)
+
+        monkeypatch.setattr(
+            "prefect.runner.storage.run_process", fail_submodule_update_once
+        )
+
+        repo_b = GitRepository(
+            url=super_repo.as_uri(), commit_sha=sha_b, include_submodules=True
+        )
+        repo_b.set_base_path(base_path)
+        with pytest.raises(subprocess.CalledProcessError):
+            await repo_b.pull_code()
+        assert failures
+
+        await repo_b.pull_code()
+
+        assert git(repo_b.destination, "rev-parse", "HEAD") == sha_b
+        assert git(repo_b.destination / "sub", "rev-parse", "HEAD") == sha_s2
+        assert (repo_b.destination / "sub" / "lib.py").read_text() == "S2"
+
+    async def test_pull_code_with_new_commit_sha_follows_submodule_url_change(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        # Local file:// submodules are blocked by default since git 2.38.1.
+        # Without recursive fetches, the parent fetch succeeds and the
+        # submodule step alone has to follow the new URL.
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "2")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "protocol.file.allow")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "always")
+        monkeypatch.setenv("GIT_CONFIG_KEY_1", "fetch.recurseSubmodules")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_1", "false")
+
+        def git(cwd: Path, *args: str) -> str:
+            return subprocess.run(
+                ["git", *args],
+                cwd=cwd,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+
+        old_sub_repo = tmp_path / "old"
+        new_sub_repo = tmp_path / "new"
+        super_repo = tmp_path / "super"
+        for repo in (old_sub_repo, super_repo):
+            repo.mkdir()
+            git(repo, "init")
+            git(repo, "config", "user.email", "storage@example.com")
+            git(repo, "config", "user.name", "Storage")
+
+        (old_sub_repo / "lib.py").write_text("S1")
+        git(old_sub_repo, "add", ".")
+        git(old_sub_repo, "commit", "-m", "S1")
+
+        git(super_repo, "submodule", "add", old_sub_repo.as_uri(), "sub")
+        git(super_repo, "commit", "-m", "A")
+        sha_a = git(super_repo, "rev-parse", "HEAD")
+        (super_repo / "flow.py").write_text("A2")
+        git(super_repo, "add", ".")
+        git(super_repo, "commit", "-m", "A2")
+        sha_a2 = git(super_repo, "rev-parse", "HEAD")
+
+        base_path = tmp_path / "work"
+        base_path.mkdir()
+
+        # The second pull initializes the submodule from the old URL
+        for sha in (sha_a, sha_a2):
+            repo_a = GitRepository(
+                url=super_repo.as_uri(), commit_sha=sha, include_submodules=True
+            )
+            repo_a.set_base_path(base_path)
+            await repo_a.pull_code()
+
+        git(tmp_path, "clone", old_sub_repo.as_uri(), str(new_sub_repo))
+        git(new_sub_repo, "config", "user.email", "storage@example.com")
+        git(new_sub_repo, "config", "user.name", "Storage")
+        (new_sub_repo / "lib.py").write_text("S2")
+        git(new_sub_repo, "commit", "-am", "S2")
+        sha_s2 = git(new_sub_repo, "rev-parse", "HEAD")
+
+        git(super_repo, "submodule", "set-url", "sub", new_sub_repo.as_uri())
+        git(super_repo / "sub", "fetch", "origin")
+        git(super_repo / "sub", "checkout", sha_s2)
+        git(super_repo, "commit", "-am", "B")
+        sha_b = git(super_repo, "rev-parse", "HEAD")
 
         repo_b = GitRepository(
             url=super_repo.as_uri(), commit_sha=sha_b, include_submodules=True

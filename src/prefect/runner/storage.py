@@ -456,45 +456,42 @@ class GitRepository:
             # Add the git configuration, must be given after `git` and before the command
             cmd += self._git_config
 
-            # If the commit is already checked out, skip the pull
-            if self._commit_sha and await self.is_current_commit():
-                return
-
             # If checking out a specific commit, fetch the latest changes and unshallow the repository if necessary
-            elif self._commit_sha:
-                if await self.is_shallow_clone():
-                    cmd += ["fetch", "origin", "--unshallow"]
-                else:
-                    cmd += ["fetch", "origin", self._commit_sha]
-                try:
-                    await run_process(cmd, cwd=self.destination)
-                    self._logger.debug("Successfully fetched latest changes")
-                except subprocess.CalledProcessError as exc:
-                    self._logger.error(
-                        f"Failed to fetch latest changes with exit code {exc}"
-                    )
-                    _rmtree_including_read_only(self.destination)
-                    await self._clone_repo()
+            if self._commit_sha:
+                if not await self.is_current_commit():
+                    if await self.is_shallow_clone():
+                        cmd += ["fetch", "origin", "--unshallow"]
+                    else:
+                        cmd += ["fetch", "origin", self._commit_sha]
+                    try:
+                        await run_process(cmd, cwd=self.destination)
+                        self._logger.debug("Successfully fetched latest changes")
+                    except subprocess.CalledProcessError as exc:
+                        self._logger.error(
+                            f"Failed to fetch latest changes with exit code {exc}"
+                        )
+                        _rmtree_including_read_only(self.destination)
+                        await self._clone_repo()
 
-                await run_process(
-                    ["git", "checkout", self._commit_sha],
-                    cwd=self.destination,
-                )
-                if self._include_submodules:
                     await run_process(
-                        [
-                            "git",
-                            *self._git_config,
-                            "submodule",
-                            "update",
-                            "--init",
-                            "--recursive",
-                        ],
+                        ["git", "checkout", self._commit_sha],
                         cwd=self.destination,
                     )
-                self._logger.debug(
-                    f"Successfully checked out commit {self._commit_sha}"
-                )
+                    self._logger.debug(
+                        f"Successfully checked out commit {self._commit_sha}"
+                    )
+
+                # Runs even when the commit is already checked out, so a failed
+                # update from an earlier pull is retried
+                if self._include_submodules:
+                    for submodule_cmd in (
+                        ["sync", "--recursive"],
+                        ["update", "--init", "--recursive"],
+                    ):
+                        await run_process(
+                            ["git", *self._git_config, "submodule", *submodule_cmd],
+                            cwd=self.destination,
+                        )
 
             # Otherwise, pull the latest changes from the branch
             else:
