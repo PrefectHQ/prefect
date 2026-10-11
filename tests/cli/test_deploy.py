@@ -1788,6 +1788,45 @@ class TestProjectDeploy:
         assert deployment.description == "This one is actually a string"
 
     @pytest.mark.usefixtures("project_dir")
+    async def test_project_deploy_templates_step_outputs_in_tag_list(
+        self, work_pool, prefect_client
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        deployment_name = f"test-name-{uuid4()}"
+        prefect_config["deployments"][0]["name"] = deployment_name
+        prefect_config["deployments"][0]["tags"] = [
+            "static",
+            "{{ get-commit-hash.stdout }}",
+            "commit-{{ get-commit-hash.stdout }}",
+        ]
+        prefect_config["build"] = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "id": "get-commit-hash",
+                    "script": "echo abc1234",
+                    "stream_output": False,
+                }
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool.name}",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            f"An important name/{deployment_name}"
+        )
+        assert deployment.tags == ["static", "abc1234", "commit-abc1234"]
+
+    @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_env_var_values(
         self,
         prefect_client: PrefectClient,

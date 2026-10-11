@@ -215,6 +215,20 @@ class TestApplyValues:
             }
         ]
 
+    def test_apply_values_list_with_missing_value_not_removed(self):
+        template = ["eks", "{{ get-commit-hash.stdout }}", "{{ name }}"]
+        values = {"name": "Bob"}
+        assert apply_values(template, values, remove_notset=False) == [
+            "eks",
+            "{{ get-commit-hash.stdout }}",
+            "Bob",
+        ]
+
+    def test_apply_values_list_with_missing_value_removed(self):
+        template = ["eks", "{{ get-commit-hash.stdout }}", "{{ name }}"]
+        values = {"name": "Bob"}
+        assert apply_values(template, values) == ["eks", "Bob"]
+
     def test_apply_values_list_with_placeholders(self):
         template = [
             "Hello, {{first_name}} {{last_name}}!",
