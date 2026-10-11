@@ -382,11 +382,15 @@ class GitRepository:
         if not self._commit_sha:
             raise ValueError("No commit SHA provided")
         try:
-            result = await run_process(
-                ["git", "rev-parse", self._commit_sha],
+            head = await run_process(
+                ["git", "rev-parse", "HEAD"],
                 cwd=self.destination,
             )
-            return result.stdout.decode().strip() == self._commit_sha
+            commit = await run_process(
+                ["git", "rev-parse", "--verify", f"{self._commit_sha}^{{commit}}"],
+                cwd=self.destination,
+            )
+            return head.stdout.decode().strip() == commit.stdout.decode().strip()
         except Exception:
             return False
 

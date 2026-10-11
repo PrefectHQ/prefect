@@ -654,6 +654,55 @@ class TestGitRepository:
         mock_run_process.assert_has_awaits(expected_calls)
         assert mock_run_process.await_args_list == expected_calls
 
+    async def test_pull_code_with_new_commit_sha_checks_out_existing_repo(
+        self, tmp_path: Path
+    ):
+        source_repo = tmp_path / "source"
+        source_repo.mkdir()
+
+        def git(*args: str) -> str:
+            return subprocess.run(
+                ["git", *args],
+                cwd=source_repo,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+
+        git("init")
+        git("config", "user.email", "storage@example.com")
+        git("config", "user.name", "Storage")
+        (source_repo / "flow.py").write_text("A")
+        git("add", ".")
+        git("commit", "-m", "A")
+        sha_a = git("rev-parse", "HEAD")
+        (source_repo / "flow.py").write_text("B")
+        git("commit", "-am", "B")
+        sha_b = git("rev-parse", "HEAD")
+
+        base_path = tmp_path / "work"
+        base_path.mkdir()
+
+        repo_a = GitRepository(url=source_repo.as_uri(), commit_sha=sha_a)
+        repo_a.set_base_path(base_path)
+        await repo_a.pull_code()
+        assert (repo_a.destination / "flow.py").read_text() == "A"
+
+        repo_b = GitRepository(url=source_repo.as_uri(), commit_sha=sha_b)
+        repo_b.set_base_path(base_path)
+        assert repo_b.destination == repo_a.destination
+        await repo_b.pull_code()
+
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_b.destination,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        assert head == sha_b
+        assert (repo_b.destination / "flow.py").read_text() == "B"
+
     async def test_git_clone_errors_obscure_access_token(
         self, monkeypatch, capsys, tmp_path: Path
     ):
