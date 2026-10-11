@@ -565,6 +565,16 @@ class TestProcessPoolTaskRunner:
                 result = future.result()
                 assert result == {"tag1", "tag2"}
 
+    def test_submit_receives_context_at_each_submit(self):
+        with ProcessPoolTaskRunner(max_workers=1) as runner:
+            with tags("tag1"):
+                first = runner.submit(context_matters, {}).result()
+            with tags("tag2"):
+                second = runner.submit(context_matters, {}).result()
+
+        assert first == {"tag1"}
+        assert second == {"tag2"}
+
     def test_map_sync_task(self):
         with ProcessPoolTaskRunner() as runner:
             parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
@@ -664,63 +674,6 @@ class TestProcessPoolTaskRunner:
 
         # After exiting context, executor should be shut down
         assert runner._executor is None
-
-    def test_cached_context_initialized_to_none(self):
-        runner = ProcessPoolTaskRunner()
-        assert runner._cached_context is None
-        assert runner._cached_env is None
-
-    def test_cached_context_populated_after_submit(self):
-        with ProcessPoolTaskRunner(max_workers=1) as runner:
-            assert runner._cached_context is None
-            assert runner._cached_env is None
-
-            future = runner.submit(my_test_task, {"param1": 1, "param2": 2})
-            future.result()
-
-            assert runner._cached_context is not None
-            assert runner._cached_env is not None
-
-    def test_cached_context_reused_across_submits(self):
-        with ProcessPoolTaskRunner(max_workers=1) as runner:
-            future1 = runner.submit(my_test_task, {"param1": 1, "param2": 2})
-            future1.result()
-
-            context_after_first = runner._cached_context
-            env_after_first = runner._cached_env
-
-            future2 = runner.submit(my_test_task, {"param1": 3, "param2": 4})
-            future2.result()
-
-            # Same cached objects should be reused
-            assert runner._cached_context is context_after_first
-            assert runner._cached_env is env_after_first
-
-    def test_cached_context_cleared_on_cancel_all(self):
-        with ProcessPoolTaskRunner(max_workers=1) as runner:
-            future = runner.submit(my_test_task, {"param1": 1, "param2": 2})
-            future.result()
-
-            assert runner._cached_context is not None
-            assert runner._cached_env is not None
-
-            runner.cancel_all()
-
-            assert runner._cached_context is None
-            assert runner._cached_env is None
-
-    def test_cached_context_cleared_on_exit(self):
-        runner = ProcessPoolTaskRunner(max_workers=1)
-        with runner:
-            future = runner.submit(my_test_task, {"param1": 1, "param2": 2})
-            future.result()
-
-            assert runner._cached_context is not None
-            assert runner._cached_env is not None
-
-        # After exiting context, cache should be cleared
-        assert runner._cached_context is None
-        assert runner._cached_env is None
 
     def test_equality(self):
         runner1 = ProcessPoolTaskRunner(max_workers=4)
