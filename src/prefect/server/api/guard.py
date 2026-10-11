@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from guard import SecurityConfig
 
 DEFAULT_EXCLUDED_PATHS = "/api/health,/ready,/docs,/redoc,/openapi.json"
-DEFAULT_TRUSTED_PROXIES = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
 
 def _csv(raw: str | None) -> tuple[str, ...]:
@@ -50,6 +49,15 @@ def _build_guard_config() -> SecurityConfig:
         "auto_ban_threshold": _setting("auto_ban_threshold"),
         "auto_ban_duration": _setting("auto_ban_duration"),
         "enable_penetration_detection": True,
+        # Rate-limit violations feed the ban engine rather than only
+        # returning 429 (the advertised auto-ban behavior); the threshold
+        # and duration come from the guard_auto_ban_* settings.
+        "enable_rate_limit_auto_ban": True,
+        # Bodies here are data (flow runs, deployment manifests, API
+        # payloads), not commands the server executes: signature-scanning
+        # them false-positives on ordinary content. URL, query, and header
+        # screening stays on.
+        "detection_scan_body": False,
         # In-memory state unless a Redis URL is configured: never implicitly
         # depend on a Redis server being reachable. With
         # `prefect server start --workers > 1` each worker is a separate
@@ -58,8 +66,12 @@ def _build_guard_config() -> SecurityConfig:
         "passive_mode": _setting("passive_mode"),
         "blacklist": _csv(_setting("blocked_ips")),
         "blocked_user_agents": list(_csv(_setting("blocked_user_agents"))),
-        "trusted_proxies": _csv(_setting("trusted_proxies"))
-        or _csv(DEFAULT_TRUSTED_PROXIES),
+        # Zero-trust by default (guard_trusted_proxies defaults to empty):
+        # Prefect servers are often reached from private-network peers, and
+        # trusting private-range proxies would let any of them spoof
+        # X-Forwarded-For past the blocklist and rate limits. Behind a
+        # reverse proxy, set guard_trusted_proxies to the proxy addresses.
+        "trusted_proxies": _csv(_setting("trusted_proxies")),
         "trusted_proxy_depth": _setting("trusted_proxy_depth"),
         "exclude_paths": list(
             _csv(_setting("excluded_paths")) or DEFAULT_EXCLUDED_PATHS.split(",")

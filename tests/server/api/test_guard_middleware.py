@@ -101,6 +101,40 @@ async def test_redis_stays_off_without_config():
         assert config.enable_redis is False
 
 
+async def test_zero_trust_proxy_default():
+    """No proxy is trusted unless explicitly configured.
+
+    Prefect servers are often reached from private-network peers, and
+    trusting private-range proxies would let any of them spoof
+    X-Forwarded-For past the blocklist and rate limits.
+    """
+    from prefect.settings import PREFECT_SERVER_API_GUARD_TRUSTED_PROXIES
+
+    with temporary_settings({PREFECT_SERVER_API_GUARD_ENABLED: True}):
+        from prefect.server.api.guard import _build_guard_config
+
+        config = _build_guard_config()
+        assert config.trusted_proxies == ()
+        # Bodies here are data (flow runs, deployment manifests):
+        # signature-scanning them would false-positive on ordinary
+        # content, so it stays off; URL/query/header screening is on.
+        assert config.detection_scan_body is False
+        # Rate-limit violations feed the ban engine (the advertised
+        # auto-ban behavior).
+        assert config.enable_rate_limit_auto_ban is True
+
+    with temporary_settings(
+        {
+            PREFECT_SERVER_API_GUARD_ENABLED: True,
+            PREFECT_SERVER_API_GUARD_TRUSTED_PROXIES: "10.0.0.1,10.0.0.2",
+        }
+    ):
+        from prefect.server.api.guard import _build_guard_config
+
+        config = _build_guard_config()
+        assert config.trusted_proxies == ("10.0.0.1", "10.0.0.2")
+
+
 def test_settings_fields_exist():
     api_settings = get_current_settings().server.api
     for name in (

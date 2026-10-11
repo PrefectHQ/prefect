@@ -987,6 +987,16 @@ def create_app(
     )
     ui_app = create_ui_app(ephemeral)
 
+    # Optional fastapi-guard security middleware (off unless
+    # PREFECT_SERVER_API_GUARD_ENABLED). Attached before the CORS middleware
+    # below so the guard nests inside it (last-added is outermost) and
+    # guard-generated 403/429 responses still leave with CORS headers;
+    # the CSRF and request-limit middlewares added after it also stay
+    # outside the guard.
+    from prefect.server.api.guard import attach_guard
+
+    attach_guard(app)
+
     # middleware
     app.add_middleware(
         CORSMiddleware,
@@ -1013,12 +1023,6 @@ def create_app(
 
     if prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value():
         app.add_middleware(api.middleware.CsrfMiddleware)
-
-    # Optional fastapi-guard security middleware (off unless
-    # PREFECT_SERVER_API_GUARD_ENABLED)
-    from prefect.server.api.guard import attach_guard
-
-    attach_guard(app)
 
     if prefect.settings.PREFECT_API_ENABLE_METRICS:
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
