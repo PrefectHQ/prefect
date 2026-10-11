@@ -5428,7 +5428,7 @@ class TestFlowConcurrencyLimits:
         lease_storage = get_concurrency_lease_storage()
         lease = await lease_storage.create_lease(
             resource_ids=[deployment.concurrency_limit_id],
-            metadata=dict(slots=1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
             ttl=timedelta(seconds=60),
         )
 
@@ -5466,7 +5466,7 @@ class TestFlowConcurrencyLimits:
         lease_storage = get_concurrency_lease_storage()
         lease = await lease_storage.create_lease(
             resource_ids=[deployment.concurrency_limit_id],
-            metadata=dict(slots=1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
             ttl=timedelta(seconds=60),
         )
 

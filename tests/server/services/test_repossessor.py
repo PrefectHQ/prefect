@@ -6,7 +6,10 @@ import pytest
 from docket import Docket
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLimitLeaseMetadata,
+    get_concurrency_lease_storage,
+)
 from prefect.server.concurrency.lease_storage.memory import (
     ConcurrencyLeaseStorage,
 )
@@ -441,3 +444,44 @@ class TestMonitorExpiredLeases:
 
             snapshot = await docket.snapshot()
             assert snapshot.total_tasks == 1
+
+
+class TestLeasesAcrossRestarts:
+    @pytest.fixture
+    def restart_server(self, monkeypatch: pytest.MonkeyPatch):
+        """Forget everything the server process held in memory."""
+
+        def restart() -> None:
+            monkeypatch.setattr(ConcurrencyLeaseStorage, "_instance", None)
+            monkeypatch.setattr(ConcurrencyLeaseStorage, "_initialized", False)
+
+        return restart
+
+    async def test_default_lease_storage_frees_slots_held_before_a_restart(
+        self, session: AsyncSession, restart_server
+    ):
+        limit = await create_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2(name="restart_limit", limit=1),
+        )
+        await bulk_increment_active_slots(session, [limit.id], 1)
+        await session.commit()
+
+        await get_concurrency_lease_storage().create_lease(
+            resource_ids=[limit.id],
+            ttl=timedelta(seconds=-1),  # its holder never comes back
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        restart_server()
+
+        lease_storage = get_concurrency_lease_storage()
+        for lease_id in await lease_storage.read_expired_lease_ids():
+            await revoke_expired_lease(
+                lease_id,
+                db=provide_database_interface(),
+                lease_storage=lease_storage,
+            )
+
+        await session.refresh(limit)
+        assert limit.active_slots == 0
