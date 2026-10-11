@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 import uuid
@@ -46,6 +47,11 @@ async def my_test_async_task(param1: Any, param2: Any) -> tuple[Any, Any]:
 @task(task_run_name=f"context_matters_{uuid.uuid4()}")
 def context_matters(param1: Any = None, param2: Any = None) -> set[str]:
     return TagsContext.get().current_tags
+
+
+@task
+def get_feature_flag_env_var() -> str | None:
+    return os.environ.get("PREFECT_TEST_FEATURE_FLAG")
 
 
 @task(task_run_name=f"context_matters_async_{uuid.uuid4()}")
@@ -574,6 +580,17 @@ class TestProcessPoolTaskRunner:
 
         assert first == {"tag1"}
         assert second == {"tag2"}
+
+    def test_submit_does_not_leak_environment_between_tasks(self, monkeypatch):
+        monkeypatch.delenv("PREFECT_TEST_FEATURE_FLAG", raising=False)
+        with ProcessPoolTaskRunner(max_workers=1) as runner:
+            results = [runner.submit(get_feature_flag_env_var, {}).result()]
+            monkeypatch.setenv("PREFECT_TEST_FEATURE_FLAG", "on")
+            results.append(runner.submit(get_feature_flag_env_var, {}).result())
+            monkeypatch.delenv("PREFECT_TEST_FEATURE_FLAG")
+            results.append(runner.submit(get_feature_flag_env_var, {}).result())
+
+        assert results == [None, "on", None]
 
     def test_map_sync_task(self):
         with ProcessPoolTaskRunner() as runner:

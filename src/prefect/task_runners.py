@@ -611,50 +611,55 @@ def _run_task_in_subprocess(
     from prefect.engine import handle_engine_signals
     from prefect.task_engine import run_task_async, run_task_sync
 
-    # Update environment variables
+    # Update environment variables, restoring them afterwards so a reused
+    # worker process does not carry variables over to later tasks
+    original_env = os.environ.copy()
     os.environ.update(env or {})
+    try:
+        # Extract context from kwargs
+        context = kwargs.pop("context", None)
 
-    # Extract context from kwargs
-    context = kwargs.pop("context", None)
+        with hydrated_context(context):
+            with handle_engine_signals(kwargs.get("task_run_id")):
+                # Determine if this is an async task
+                task = kwargs.get("task")
+                if task and task.isasync:
+                    # For async tasks, we need to create a new event loop
+                    import asyncio
 
-    with hydrated_context(context):
-        with handle_engine_signals(kwargs.get("task_run_id")):
-            # Determine if this is an async task
-            task = kwargs.get("task")
-            if task and task.isasync:
-                # For async tasks, we need to create a new event loop
-                import asyncio
+                    maybe_coro = run_task_async(*args, **kwargs)
+                    result = asyncio.run(maybe_coro)
+                else:
+                    result = run_task_sync(*args, **kwargs)
 
-                maybe_coro = run_task_async(*args, **kwargs)
-                result = asyncio.run(maybe_coro)
-            else:
-                result = run_task_sync(*args, **kwargs)
+                # Flush the subprocess's EventsWorker so that any events emitted
+                # during the task are forwarded to the parent process's
+                # multiprocessing queue before this function returns.  Without
+                # this, the process pool may shut down the worker before the
+                # async EventsWorker processing completes, causing events to be
+                # silently lost.
+                #
+                # Only flush when a worker already exists (i.e. events were
+                # actually emitted) to avoid instantiating a new EventsWorker
+                # and its associated orchestration client for tasks that never
+                # emit events.
+                with EventsWorker._instance_lock:
+                    has_events_worker = bool(EventsWorker._instances)
+                if has_events_worker:
+                    try:
+                        EventsWorker.instance().wait_until_empty()
+                    except Exception:
+                        get_logger("task_runner").debug(
+                            "Failed to flush subprocess EventsWorker; "
+                            "some events may not have been forwarded to the parent"
+                            " process",
+                            exc_info=True,
+                        )
 
-            # Flush the subprocess's EventsWorker so that any events emitted
-            # during the task are forwarded to the parent process's
-            # multiprocessing queue before this function returns.  Without
-            # this, the process pool may shut down the worker before the
-            # async EventsWorker processing completes, causing events to be
-            # silently lost.
-            #
-            # Only flush when a worker already exists (i.e. events were
-            # actually emitted) to avoid instantiating a new EventsWorker
-            # and its associated orchestration client for tasks that never
-            # emit events.
-            with EventsWorker._instance_lock:
-                has_events_worker = bool(EventsWorker._instances)
-            if has_events_worker:
-                try:
-                    EventsWorker.instance().wait_until_empty()
-                except Exception:
-                    get_logger("task_runner").debug(
-                        "Failed to flush subprocess EventsWorker; "
-                        "some events may not have been forwarded to the parent"
-                        " process",
-                        exc_info=True,
-                    )
-
-            return result
+                return result
+    finally:
+        os.environ.clear()
+        os.environ.update(original_env)
 
 
 class _ChainedFuture(concurrent.futures.Future[bytes]):
