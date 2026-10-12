@@ -267,3 +267,28 @@ class TestDateTimeTypeAlias:
 
         result = Model(when="2024-06-15T14:30:45Z").when
         assert isinstance(result, DateTime)
+
+    def test_pendulum_compat_methods(self):
+        """`DateTime` used to be a pendulum type; the common methods callers
+        used on it must keep working."""
+        dt = DateTime.instance(datetime.datetime(2024, 6, 15, 14, 30))
+        assert isinstance(dt, DateTime)
+        assert dt.utcoffset() == datetime.timedelta(0)
+
+        aware = DateTime.instance(
+            datetime.datetime(2024, 6, 15, 14, 30, tzinfo=ZoneInfo("UTC"))
+        )
+        in_ny = aware.in_tz("America/New_York")
+        assert isinstance(in_ny, DateTime)
+        assert in_ny.tzinfo == ZoneInfo("America/New_York")
+        assert in_ny.hour == 10
+        assert aware.in_timezone("UTC") == aware
+
+        assert aware.naive().tzinfo is None
+
+        assert DateTime.now("UTC").tzinfo is not None
+        assert isinstance(DateTime.now(), DateTime)
+
+        from_ts = DateTime.fromtimestamp(0, "UTC")
+        assert isinstance(from_ts, DateTime)
+        assert (from_ts.year, from_ts.month, from_ts.day) == (1970, 1, 1)

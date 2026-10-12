@@ -214,6 +214,16 @@ class IntervalSchedule(PrefectBaseModel):
             def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
                 return zdt + interval
 
+            def _scaled_date_delta(k: int) -> _ItemizedDelta | None:
+                if _date is None:
+                    return None
+                _kw = {
+                    unit: value * k
+                    for unit in ("years", "months", "weeks", "days")
+                    if (value := _date.get(unit))
+                }
+                return _ItemizedDelta(**_kw) if _kw else None
+
             def _subtract_scaled(zdt: ZonedDateTime, k: int) -> ZonedDateTime:
                 # `zdt - k * interval` as a single calendar step so the
                 # result keeps the anchor's phase — repeated subtraction
@@ -221,16 +231,24 @@ class IntervalSchedule(PrefectBaseModel):
                 if isinstance(interval, DateTimeDelta):
                     return zdt - interval * k
                 result = zdt
-                if _date is not None:
-                    _kw = {
-                        unit: value * k
-                        for unit in ("years", "months", "weeks", "days")
-                        if (value := _date.get(unit))
-                    }
-                    if _kw:
-                        result = result - _ItemizedDelta(**_kw)
+                if (_dd := _scaled_date_delta(k)) is not None:
+                    result = result - _dd
                 if _time is not None:
                     result = result - _time * k
+                return result
+
+            def _add_scaled(zdt: ZonedDateTime, k: int) -> ZonedDateTime:
+                # `zdt + k * interval` as a single calendar step. This equals
+                # advancing `interval` k times only when no month-end clamping
+                # can occur along the way (iterating Jan 31 + 1 month drifts
+                # to Feb 28/29 -> Mar 28/29, while one step stays at day 31).
+                if isinstance(interval, DateTimeDelta):
+                    return zdt + interval * k
+                result = zdt
+                if (_dd := _scaled_date_delta(k)) is not None:
+                    result = result + _dd
+                if _time is not None:
+                    result = result + _time * k
                 return result
         else:
             approx_total_seconds = interval.total_seconds()
@@ -282,6 +300,17 @@ class IntervalSchedule(PrefectBaseModel):
                     pre_i -= 1
             else:
                 pre_i = -1
+                # When no month-end clamping can occur, `anchor + k * interval`
+                # in one step equals advancing k times, so seek near `start`
+                # directly instead of replaying every occurrence — a daily
+                # schedule anchored years back would otherwise walk the whole
+                # range on each query.
+                if not (_years or _months) or anchor_zdt.date().day <= 28:
+                    k = int(_diff_secs / approx_total_seconds)
+                    while k > 0 and _add_scaled(anchor_zdt, k) > local_start:
+                        k -= 1
+                    if k > 0:
+                        next_date = _add_scaled(anchor_zdt, k)
         else:
             offset = _diff_secs / approx_total_seconds
             next_date = anchor_zdt.add(seconds=approx_total_seconds * int(offset))
@@ -429,8 +458,12 @@ class CronSchedule(PrefectBaseModel):
             start = start.astimezone(ZoneInfo(self.timezone or "UTC"))
 
         # subtract one second from the start date, so that croniter returns it
-        # as an event (if it meets the cron criteria)
-        start = start - datetime.timedelta(seconds=1)
+        # as an event (if it meets the cron criteria). The subtraction happens
+        # on the instant timeline (via UTC): a wall-clock subtraction would
+        # cross a DST fold and land ~an hour early for second-fold starts.
+        start = (
+            start.astimezone(datetime.UTC) - datetime.timedelta(seconds=1)
+        ).astimezone(start.tzinfo)
 
         # Respect microseconds by rounding up
         if start.microsecond > 0:
@@ -450,8 +483,21 @@ class CronSchedule(PrefectBaseModel):
             # add that time to the original scheduling anchor.
             next_time = cron.get_next(datetime.datetime)
             delta = next_time - start_naive_tz
-            # Use `whenever` to handle DST correctly
-            _zdt = _whenever_zdt_from_py(start_localized + delta).to_tz(
+            # Use `whenever` to handle DST correctly. The wall-clock delta is
+            # added to the localized start, then the result is disambiguated
+            # on the instant timeline: when the wall time falls in a DST fold,
+            # pick the earliest interpretation still on/after `start` so a
+            # start in the second fold yields second-fold dates.
+            next_wall = (start_localized + delta).replace(tzinfo=None)
+            candidates = {
+                _whenever_zdt_from_py(
+                    next_wall.replace(tzinfo=start_localized.tzinfo, fold=fold)
+                )
+                for fold in (0, 1)
+            }
+            start_instant = _whenever_zdt_from_py(start_localized)
+            viable = [c for c in candidates if c >= start_instant]
+            _zdt = (min(viable) if viable else min(candidates)).to_tz(
                 self.timezone or "UTC"
             )
             next_date = _whenever_to_stdlib(_zdt)

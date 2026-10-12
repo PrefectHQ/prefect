@@ -64,6 +64,73 @@ class _DateTime(datetime.datetime):
             handler(datetime.datetime),
         )
 
+    # Compatibility surface for code written against the previous
+    # pendulum-backed `PydanticDateTime`. These mirror the pendulum methods
+    # users are most likely to call; prefer the stdlib equivalents
+    # (`astimezone`, `datetime.fromtimestamp`, ...) in new code.
+
+    @classmethod
+    def now(cls, tz: Any = None) -> _DateTime:
+        """Current time in `tz` (defaults to the local timezone, like
+        `pendulum.now()`), always timezone-aware."""
+        tzinfo: datetime.tzinfo
+        if tz is None:
+            tzinfo = datetime.datetime.now().astimezone().tzinfo or ZoneInfo("UTC")
+        else:
+            resolved = _tzinfo_for_conversion(tz)
+            tzinfo = ZoneInfo(resolved) if isinstance(resolved, str) else resolved
+        return cls.fromtimestamp(datetime.datetime.now(tzinfo).timestamp(), tzinfo)
+
+    @classmethod
+    def instance(cls, dt: datetime.datetime, tz: Any = "UTC") -> _DateTime:
+        """Wrap a stdlib datetime, interpreting naive values in `tz`
+        (default UTC) like `pendulum.instance`."""
+        if dt.tzinfo is None:
+            resolved = _tzinfo_for_conversion(tz)
+            dt = dt.replace(
+                tzinfo=ZoneInfo(resolved) if isinstance(resolved, str) else resolved
+            )
+        return cls(
+            dt.year,
+            dt.month,
+            dt.day,
+            dt.hour,
+            dt.minute,
+            dt.second,
+            dt.microsecond,
+            tzinfo=dt.tzinfo,
+            fold=dt.fold,
+        )
+
+    @classmethod
+    def fromtimestamp(cls, ts: float, tz: Any = "UTC") -> _DateTime:
+        resolved = _tzinfo_for_conversion(tz)
+        tzinfo = ZoneInfo(resolved) if isinstance(resolved, str) else resolved
+        dt = datetime.datetime.fromtimestamp(ts, tzinfo)
+        return cls.instance(dt)
+
+    def in_tz(self, tz: Any = "UTC") -> _DateTime:
+        """Convert to timezone `tz`, like `pendulum.DateTime.in_tz`."""
+        resolved = _tzinfo_for_conversion(tz)
+        tzinfo = ZoneInfo(resolved) if isinstance(resolved, str) else resolved
+        return self.instance(self.astimezone(tzinfo))
+
+    in_timezone = in_tz
+
+    def naive(self) -> _DateTime:
+        """Drop tzinfo, like `pendulum.DateTime.naive`."""
+        dt = self.replace(tzinfo=None)
+        return type(self)(
+            dt.year,
+            dt.month,
+            dt.day,
+            dt.hour,
+            dt.minute,
+            dt.second,
+            dt.microsecond,
+            fold=dt.fold,
+        )
+
 
 DateTime: TypeAlias = _DateTime
 Date: TypeAlias = datetime.date

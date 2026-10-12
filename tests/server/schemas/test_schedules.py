@@ -745,6 +745,35 @@ class TestIntervalScheduleDateTimeDelta:
             (2030, 3, 28, 10),
         ]
 
+    async def test_daily_interval_seeks_to_distant_start(self):
+        """A calendar interval whose occurrences never hit month-end clamping
+        (daily, or monthly with anchor day <= 28) must produce identical dates
+        whether `start` is near the anchor or years after it — the far-start
+        path seeks directly instead of replaying every occurrence."""
+        from prefect.types._datetime import ItemizedDelta
+
+        s = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC")),
+            timezone="UTC",
+        )
+
+        near = await s.get_dates(
+            n=3, start=datetime(2020, 1, 2, tzinfo=ZoneInfo("UTC"))
+        )
+        far = await s.get_dates(n=3, start=datetime(2026, 1, 1, tzinfo=ZoneInfo("UTC")))
+
+        assert [(d.year, d.month, d.day) for d in near] == [
+            (2020, 1, 2),
+            (2020, 1, 3),
+            (2020, 1, 4),
+        ]
+        assert [(d.year, d.month, d.day) for d in far] == [
+            (2026, 1, 1),
+            (2026, 1, 2),
+            (2026, 1, 3),
+        ]
+
     async def test_yearly_interval_with_distant_start_and_future_anchor(self):
         """An interval combining years and days must estimate pre-anchor
         occurrences correctly — omitting years from the estimate overshoots
@@ -891,6 +920,25 @@ class TestCronScheduleDaylightSavingsTime:
             0,
         ]
         assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [4, 4, 4, 4, 4]
+
+    async def test_cron_schedule_start_in_second_dst_fold(self):
+        """
+        On 11/4/2018, America/New_York repeated 1am-2am when clocks fell back.
+        A start time in the second occurrence (fold=1, -05:00) must not be
+        normalized to the first fold — otherwise the yielded dates land an
+        hour before `start`.
+        """
+        dt = datetime(2018, 11, 4, 1, 30, tzinfo=ZoneInfo("America/New_York"), fold=1)
+        s = CronSchedule(cron="* * * * *", timezone="America/New_York")
+        dates = await s.get_dates(n=3, start=dt)
+
+        # the start instant itself matches the cron and must come first
+        assert [d.utcoffset() for d in dates] == [timedelta(hours=-5)] * 3
+        assert [d.astimezone(ZoneInfo("UTC")) for d in dates] == [
+            datetime(2018, 11, 4, 6, 30, tzinfo=ZoneInfo("UTC")),
+            datetime(2018, 11, 4, 6, 31, tzinfo=ZoneInfo("UTC")),
+            datetime(2018, 11, 4, 6, 32, tzinfo=ZoneInfo("UTC")),
+        ]
 
 
 class TestRRuleScheduleDaylightSavingsTime:
