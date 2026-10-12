@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 import dateutil
 import pytest
+import pytz
 from dateutil import rrule
 from pydantic import ValidationError
 from whenever import Instant, ZonedDateTime
@@ -966,6 +967,16 @@ class TestCreateRRuleSchedule:
             )
         )
         assert s.timezone == "America/New_York"
+
+    async def test_create_from_rrule_obj_reads_pytz_timezone(self):
+        timezone = pytz.timezone("America/New_York")
+        start = timezone.localize(datetime(2020, 1, 1))
+
+        schedule = RRuleSchedule.from_rrule(
+            rrule.rrule(rrule.DAILY, dtstart=start)
+        )
+
+        assert schedule.timezone == "America/New_York"
 
     async def test_default_timezone_is_utc(self):
         s = RRuleSchedule(rrule=RRDaily)
