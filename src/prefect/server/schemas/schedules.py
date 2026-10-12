@@ -266,6 +266,46 @@ class IntervalSchedule(PrefectBaseModel):
                         return True
                     offset = t.offset
                 return False
+
+            def _first_offset_change_after(
+                a: ZonedDateTime, b: ZonedDateTime
+            ) -> ZonedDateTime | None:
+                # The first instant in (a, b] where the zone's UTC offset
+                # differs from a's, or None. Weekly scan then bisect to ~1s.
+                _step = TimeDelta(hours=7 * 24)
+                offset = a.offset
+                t = a
+                while t < b:
+                    nxt = min(b, t + _step)
+                    if nxt.offset != offset:
+                        lo, hi = t, nxt
+                        while (hi - lo).total("seconds") > 1:
+                            mid = lo + TimeDelta(seconds=(hi - lo).total("seconds") / 2)
+                            if mid.offset != offset:
+                                hi = mid
+                            else:
+                                lo = mid
+                        return hi
+                    t = nxt
+                return None
+
+            def _seek_within(frm: ZonedDateTime, upto: ZonedDateTime) -> ZonedDateTime:
+                # The last occurrence on or before `upto`, computed with a
+                # scaled step. Valid only where the UTC offset is constant
+                # and no month-end clamping occurs over (frm, upto].
+                _span = upto - frm
+                _span_secs = (
+                    _span.total("seconds")
+                    if hasattr(_span, "total")
+                    else _span.in_seconds()
+                )
+                k = max(0, int(_span_secs / approx_total_seconds))
+                while k > 0 and _add_scaled(frm, k) > upto:
+                    k -= 1
+                while _add_scaled(frm, k + 1) <= upto:
+                    k += 1
+                return _add_scaled(frm, k)
+
         else:
             approx_total_seconds = interval.total_seconds()
             # break the interval into `days` and `seconds` because
@@ -317,18 +357,23 @@ class IntervalSchedule(PrefectBaseModel):
             else:
                 pre_i = -1
                 # When no month-end clamping can occur, `anchor + k * interval`
-                # in one step equals advancing k times, so seek near `start`
-                # directly instead of replaying every occurrence — a daily
-                # schedule anchored years back would otherwise walk the whole
-                # range on each query.
-                if (not (_years or _months) or anchor_zdt.date().day <= 28) and (
-                    not _offset_change_between(anchor_zdt, local_start)
-                ):
-                    k = int(_diff_secs / approx_total_seconds)
-                    while k > 0 and _add_scaled(anchor_zdt, k) > local_start:
-                        k -= 1
-                    if k > 0:
-                        next_date = _add_scaled(anchor_zdt, k)
+                # in one step equals advancing k times within a constant-offset
+                # segment, so seek near `start` instead of replaying every
+                # occurrence — a daily schedule anchored years back would
+                # otherwise walk the whole range on each query. Across a DST
+                # transition a calendar add can drift the phase, so hop
+                # transition to transition: seek within each constant-offset
+                # segment, then `_advance` once across the change.
+                if not (_years or _months) or anchor_zdt.date().day <= 28:
+                    for _ in range(MAX_ITERATIONS):
+                        if next_date >= local_start:
+                            break
+                        _trans = _first_offset_change_after(next_date, local_start)
+                        if _trans is None:
+                            break
+                        next_date = _advance(_seek_within(next_date, _trans))
+                    if not _offset_change_between(next_date, local_start):
+                        next_date = _seek_within(next_date, local_start)
         else:
             offset = _diff_secs / approx_total_seconds
             next_date = anchor_zdt.add(seconds=approx_total_seconds * int(offset))
@@ -489,7 +534,10 @@ class CronSchedule(PrefectBaseModel):
         # Respect microseconds by rounding up
         if start.microsecond > 0:
             start_naive_tz += datetime.timedelta(seconds=1)
-            start_localized += datetime.timedelta(seconds=1)
+            # The +1s undoes the -1s on the instant anchor; rebuilding it
+            # from `start` keeps its fold — adding a timedelta to an aware
+            # datetime resets `fold` to 0.
+            start_localized = start
 
         cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
         dates = set()

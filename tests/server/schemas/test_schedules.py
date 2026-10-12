@@ -982,6 +982,32 @@ class TestCronScheduleDaylightSavingsTime:
             datetime(2018, 11, 4, 8, 0, tzinfo=ZoneInfo("UTC")),
         ]
 
+    async def test_cron_schedule_subsecond_start_in_second_dst_fold(self):
+        """
+        A minute schedule queried from 01:30:00.5 in the second fold (fold=1,
+        -05:00) must yield second-fold runs — rounding the instant anchor
+        through aware arithmetic resets `fold` to 0 and would accept the
+        first-fold candidate at 05:31 UTC, before `start`.
+        """
+        dt = datetime(
+            2018,
+            11,
+            4,
+            1,
+            30,
+            0,
+            500000,
+            tzinfo=ZoneInfo("America/New_York"),
+            fold=1,
+        )
+        s = CronSchedule(cron="* * * * *", timezone="America/New_York")
+        dates = await s.get_dates(n=2, start=dt)
+
+        assert [d.astimezone(ZoneInfo("UTC")) for d in dates] == [
+            datetime(2018, 11, 4, 6, 31, tzinfo=ZoneInfo("UTC")),
+            datetime(2018, 11, 4, 6, 32, tzinfo=ZoneInfo("UTC")),
+        ]
+
 
 class TestRRuleScheduleDaylightSavingsTime:
     async def test_rrule_schedule_hourly_daylight_savings_time_forward_with_UTC(
