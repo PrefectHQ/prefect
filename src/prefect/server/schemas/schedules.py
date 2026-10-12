@@ -560,9 +560,11 @@ class RRuleSchedule(PrefectBaseModel):
     ) -> "RRuleSchedule":
         if isinstance(rrule, dateutil.rrule.rrule):
             if rrule._dtstart.tzinfo is not None:
-                timezone = getattr(rrule._dtstart.tzinfo, "name", None)
-                or getattr(rrule._dtstart.tzinfo, "key", None)
-                or getattr(rrule._dtstart.tzinfo, "zone", "UTC")
+                timezone = (
+                    getattr(rrule._dtstart.tzinfo, "name", None)
+                    or getattr(rrule._dtstart.tzinfo, "key", None)
+                    or getattr(rrule._dtstart.tzinfo, "zone", "UTC")
+                )
             else:
                 timezone = "UTC"
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
@@ -584,9 +586,11 @@ class RRuleSchedule(PrefectBaseModel):
 
             if unique_dstarts and unique_timezones:
                 tzinfo = dtstarts[0].tzinfo
-                timezone = getattr(tzinfo, "name", None)
-                or getattr(tzinfo, "key", None)
-                or getattr(tzinfo, "zone", "UTC")
+                timezone = (
+                    getattr(tzinfo, "name", None)
+                    or getattr(tzinfo, "key", None)
+                    or getattr(tzinfo, "zone", "UTC")
+                )
             else:
                 timezone = "UTC"
 
