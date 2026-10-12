@@ -35,7 +35,7 @@ import importlib
 import os
 import sys
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -129,6 +129,32 @@ _DEPLOYMENT_PARAMETER_SERIALIZER = TypeAdapter(
     dict[str, Any],
     config=ConfigDict(ser_json_timedelta="float"),
 )
+
+
+def _encode_temporal(value: Any) -> Any:
+    # `ser_json_timedelta="float"` also used to encode datetimes, dates, and
+    # times as epoch floats; pydantic 2.14 narrowed it to timedeltas only, so
+    # reproduce the epoch encoding ourselves to keep the API contract
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value.timestamp()
+    if isinstance(value, date):
+        return datetime(
+            value.year, value.month, value.day, tzinfo=UTC
+        ).timestamp()
+    if isinstance(value, time):
+        return (
+            value.hour * 3600
+            + value.minute * 60
+            + value.second
+            + value.microsecond / 1e6
+        )
+    return value
+
+
+def _encode_temporal_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
+    return visit_collection(parameters, _encode_temporal, return_data=True)
 
 
 def _extract_concurrency_options(
@@ -328,7 +354,7 @@ class RunnerDeployment(BaseModel):
     @field_serializer("parameters", when_used="json")
     def serialize_block_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
         return _DEPLOYMENT_PARAMETER_SERIALIZER.dump_python(
-            parameters,
+            _encode_temporal_parameters(parameters),
             mode="json",
             context={"serialize_blocks_as_references": True},
         )
