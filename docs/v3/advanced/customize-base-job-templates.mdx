@@ -111,7 +111,15 @@ Configure authentication for private container registries:
       "description": "Names of Kubernetes secrets for pulling images from private registries",
       "default": [],
       "type": "array",
-      "items": {"type": "string"}
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["name"]
+      }
     }
   },
   "job_configuration": {
