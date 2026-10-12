@@ -1296,6 +1296,7 @@ class TestTaskRetries:
         assert await final_state.result() == "success"
 
     @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("async_predicate", [False, True])
     @pytest.mark.parametrize("should_retry", [False, True])
     @pytest.mark.parametrize(
         "predicate_type", ["function", "method", "partial", "instance"]
@@ -1303,6 +1304,7 @@ class TestTaskRetries:
     async def test_retry_condition_accepts_callable_types(
         self,
         async_task: bool,
+        async_predicate: bool,
         should_retry: bool,
         predicate_type: Literal["function", "method", "partial", "instance"],
     ):
@@ -1315,17 +1317,31 @@ class TestTaskRetries:
             assert state.is_failed()
             return should_retry
 
+        async def async_retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> bool:
+            return retry_condition(task, task_run, state)
+
         class RetryPolicy:
             def should_retry(self, task: Task, task_run: TaskRun, state: State) -> bool:
                 return retry_condition(task, task_run, state)
 
             __call__ = should_retry
 
-        policy = RetryPolicy()
+        class AsyncRetryPolicy:
+            async def should_retry(
+                self, task: Task, task_run: TaskRun, state: State
+            ) -> bool:
+                return await async_retry_condition(task, task_run, state)
+
+            __call__ = should_retry
+
+        policy = AsyncRetryPolicy() if async_predicate else RetryPolicy()
+        predicate = async_retry_condition if async_predicate else retry_condition
         predicates = {
-            "function": retry_condition,
+            "function": predicate,
             "method": policy.should_retry,
-            "partial": partial(retry_condition),
+            "partial": partial(predicate),
             "instance": policy,
         }
 
