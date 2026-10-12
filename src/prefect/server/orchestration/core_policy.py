@@ -1428,6 +1428,19 @@ class HandlePausingFlows(FlowRunOrchestrationRule):
         updated_policy["pause_keys"].add(self.key)
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
+        # The pause key has not fired on this attempt, so any input stored under
+        # its keyset belongs to an earlier attempt and must not be reused.
+        run_input_keyset = (
+            validated_state.state_details.run_input_keyset
+            if validated_state is not None
+            else None
+        )
+        if run_input_keyset:
+            for key in run_input_keyset.values():
+                await models.flow_run_input.delete_flow_run_input(
+                    session=context.session, flow_run_id=context.run.id, key=key
+                )
+
 
 class HandleResumingPausedFlows(FlowRunOrchestrationRule):
     """
