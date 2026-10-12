@@ -437,6 +437,17 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
         self._task_group.start_soon(self._run_and_store, key, fn, args)
         return key
 
+    @property
+    def cancel_scope(self):
+        return self._task_group.cancel_scope
+
+    def create_task(self, coro, *, name=None, context=None):
+        create_task = getattr(self._task_group, "create_task", None)
+        if create_task is None:
+            coro.close()
+            raise RuntimeError("`create_task` requires AnyIO 4.14.0 or newer.")
+        return create_task(coro, name=name, context=context)
+
     async def start(self, fn, *args):
         """
         Since `start` returns the result of `task_status.started()` but here we must

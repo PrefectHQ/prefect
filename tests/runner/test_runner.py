@@ -17,6 +17,7 @@ from unittest.mock import MagicMock
 import anyio
 import pendulum
 import pytest
+from exceptiongroup import BaseExceptionGroup  # novermin
 from prefect._vendor.starlette import status
 
 import prefect.runner
@@ -376,6 +377,44 @@ class TestRunner:
 
         assert "Pausing all deployments" in caplog.text
         assert "All deployments have been paused" in caplog.text
+
+    async def test_runner_exits_task_group_when_pausing_schedules_fails(self):
+        runner = Runner()
+        runner._pause_schedules = AsyncMock(side_effect=RuntimeError("pause failed"))
+        completed = []
+
+        async def short_task():
+            await anyio.sleep(0.1)
+            completed.append(True)
+
+        with pytest.raises(RuntimeError, match="pause failed"):
+            async with runner:
+                runner._runs_task_group.start_soon(short_task)
+
+        # The runs task group waits for its tasks on exit, so the task completes
+        # only if `__aexit__` exited the task group.
+        assert completed == [True]
+        assert not runner.started
+        assert not runner._tmp_dir.exists()
+
+    async def test_runner_closes_client_when_run_task_and_pausing_schedules_fail(
+        self,
+    ):
+        runner = Runner()
+        runner._pause_schedules = AsyncMock(side_effect=RuntimeError("pause failed"))
+
+        async def failing_task():
+            raise ValueError("task failed")
+
+        with pytest.raises(BaseExceptionGroup) as exc_info:
+            async with runner:
+                runner._runs_task_group.start_soon(failing_task)
+
+        task_errors, _ = exc_info.value.split(ValueError)
+        assert task_errors is not None
+        assert isinstance(exc_info.value.__context__, RuntimeError)
+        assert runner._client._closed
+        assert not runner._tmp_dir.exists()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
