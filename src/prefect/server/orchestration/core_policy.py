@@ -1506,7 +1506,27 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         updated_policy = context.run.empirical_policy.model_dump()
-        updated_policy["resuming"] = True
+
+        api_version = context.parameters.get("api-version", None)
+        if (
+            initial_state is not None
+            and not initial_state.state_details.pause_reschedule
+            and validated_state is not None
+            and validated_state.is_scheduled()
+            and (api_version is None or api_version >= Version("0.8.4"))
+        ):
+            # A blocking pause is resumed in-process, so leaving it for a
+            # scheduled state means the run will start a new attempt from the
+            # beginning (e.g. the process was terminated and rescheduled).
+            # Reset pause metadata so that pauses fire again on the new attempt.
+            # Reschedule-style pauses keep their keys so already-fired pauses
+            # are skipped when the run resumes from the top.
+            updated_policy["resuming"] = False
+            updated_policy["pause_keys"] = set()
+            updated_policy["retry_type"] = "reschedule"
+        else:
+            updated_policy["resuming"] = True
+
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
 

@@ -3391,6 +3391,75 @@ class TestResumingFlows:
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.run.empirical_policy.resuming
 
+    async def test_resets_pause_metadata_when_blocking_pause_is_rescheduled(
+        self,
+        session: AsyncSession,
+        deployment: orm.Deployment,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+    ):
+        """A blocking pause resumes in-process, so moving to a scheduled state
+        means the run restarts from the top (e.g. after SIGTERM). Pauses must
+        fire again on the new attempt."""
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            deployment_id=deployment.id,
+            initial_details={
+                "pause_key": "2",
+                "pause_timeout": now("UTC") + timedelta(minutes=5),
+            },
+            proposed_state_name="AwaitingRetry",
+        )
+        ctx.run.empirical_policy.pause_keys = {"1", "2"}
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.empirical_policy.pause_keys == set()
+        assert not ctx.run.empirical_policy.resuming
+        assert ctx.run.empirical_policy.retry_type == "reschedule"
+
+    async def test_preserves_pause_keys_when_resuming_reschedule_style_pause(
+        self,
+        session: AsyncSession,
+        deployment: orm.Deployment,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+    ):
+        """Reschedule-style pauses (e.g. suspends) resume by rerunning the flow
+        from the top and rely on stored keys to skip pauses that already fired."""
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            deployment_id=deployment.id,
+            initial_details={
+                "pause_key": "1",
+                "pause_reschedule": True,
+                "pause_timeout": now("UTC") + timedelta(minutes=5),
+            },
+            proposed_state_name="Resuming",
+        )
+        ctx.run.empirical_policy.pause_keys = {"1"}
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.empirical_policy.pause_keys == {"1"}
+        assert ctx.run.empirical_policy.resuming
+
 
 class TestPreventRunningTasksFromStoppedFlows:
     async def test_allows_task_runs_to_run(self, session, initialize_orchestration):
