@@ -22,7 +22,10 @@ from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.objects import FlowRun
 from prefect.deployments.runner import RunnerDeployment
 from prefect.runner._control_channel import ControlChannel, ControlSignalStatus
-from prefect.runner._flow_run_executor import FlowRunExecutorContext
+from prefect.runner._flow_run_executor import (
+    FlowRunExecutionResult,
+    FlowRunExecutorContext,
+)
 from prefect.runner._process_manager import ProcessManager
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.settings import PREFECT_UI_URL, temporary_settings
@@ -58,6 +61,11 @@ def hello_flow():
 @flow(name="goodbye")
 def goodbye_flow():
     return "Goodbye"
+
+
+@flow()
+def crashing_flow():
+    os._exit(1)
 
 
 @flow()
@@ -1901,6 +1909,115 @@ class TestFlowRunExecute:
         assert workspace_exists_during_context_exit == [True]
         assert workspace_path
         assert not workspace_path[0].exists()
+
+    async def test_execute_exits_zero_when_crash_is_reported(
+        self, prefect_client: PrefectClient
+    ):
+        deployment_id = await (await crashing_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=0,
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_crashed()
+
+    async def test_execute_exits_with_process_status_when_crash_cannot_be_reported(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        deployment_id = await (await crashing_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        monkeypatch.setattr(
+            "prefect.runner._state_proposer.propose_state",
+            AsyncMock(side_effect=httpx.ConnectError("API unreachable")),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="could not be reported",
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert not flow_run.state.is_final()
+
+    @pytest.mark.parametrize(
+        ("status_code", "expected_exit_code"), [(1, 1), (7, 7), (-9, 137)]
+    )
+    async def test_execute_exit_code_reflects_unreported_crash_status(
+        self,
+        prefect_client: PrefectClient,
+        status_code: int,
+        expected_exit_code: int,
+    ):
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        mock_submit = AsyncMock(
+            return_value=FlowRunExecutionResult(
+                handle=MagicMock(),
+                status_code=status_code,
+                crash_unreported=True,
+            )
+        )
+        original_create_executor = FlowRunExecutorContext.create_executor
+
+        def capture_create_executor(self_ctx, *args, **kwargs):
+            result = original_create_executor(self_ctx, *args, **kwargs)
+            result.submit = mock_submit
+            return result
+
+        with (
+            patch.object(
+                FlowRunExecutorContext,
+                "create_executor",
+                side_effect=capture_create_executor,
+                autospec=True,
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            await execute(id=flow_run.id)
+
+        assert exc_info.value.code == expected_exit_code
+
+    async def test_execute_exits_zero_when_nonzero_exit_crash_was_reported(
+        self, prefect_client: PrefectClient
+    ):
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        mock_submit = AsyncMock(
+            return_value=FlowRunExecutionResult(
+                handle=MagicMock(), status_code=1, crash_unreported=False
+            )
+        )
+        original_create_executor = FlowRunExecutorContext.create_executor
+
+        def capture_create_executor(self_ctx, *args, **kwargs):
+            result = original_create_executor(self_ctx, *args, **kwargs)
+            result.submit = mock_submit
+            return result
+
+        with patch.object(
+            FlowRunExecutorContext,
+            "create_executor",
+            side_effect=capture_create_executor,
+            autospec=True,
+        ):
+            await execute(id=flow_run.id)
+
+        mock_submit.assert_awaited_once()
 
 
 class TestSignalHandling:
