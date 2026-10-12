@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 import dateutil.rrule
 import dateutil.tz
 import pytest
+import pytz
 
 from prefect.client.schemas.actions import (
     DeploymentFlowRunCreate,
@@ -14,6 +15,7 @@ from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
+    _iana_timezone_name,
     construct_schedule,
 )
 from prefect.types import DateTime
@@ -310,6 +312,11 @@ class TestRRuleScheduleFromRRule:
         rset.rrule(rule)
         schedule = RRuleSchedule.from_rrule(rset)
         self._assert_daily_9am_across_dst(schedule, tz_name)
+
+    def test_pytz_timezone_name_is_preserved(self) -> None:
+        """Regression: pytz zones expose their IANA name through `.zone`."""
+        timezone = pytz.timezone("America/New_York")
+        assert _iana_timezone_name(timezone) == "America/New_York"
 
     def test_single_rrule_preserves_name_bearing_tzinfo(self) -> None:
         """Regression: tzinfo with a public .name attribute (e.g. pendulum)."""
