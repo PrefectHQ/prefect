@@ -25,7 +25,7 @@ import json
 import threading
 import uuid
 from contextlib import aclosing
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import anyio
@@ -328,7 +328,7 @@ def _event_occurred(message: Any) -> datetime | None:
     except (AttributeError, ValueError):
         return None
     if occurred.tzinfo is None:
-        occurred = occurred.replace(tzinfo=timezone.utc)
+        occurred = occurred.replace(tzinfo=UTC)
     return occurred
 
 

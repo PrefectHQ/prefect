@@ -7,7 +7,7 @@ from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import grpc
 from armada_client.asyncio_client import ArmadaAsyncIOClient
@@ -18,7 +18,6 @@ from armada_client.client import ArmadaClient
 # and cannot carry call credentials, so we build the channel ourselves.
 from armada_client.internal.binoculars_client import BinocularsClient
 from pydantic import Field, SecretStr
-from typing_extensions import Self
 
 from prefect.blocks.core import Block
 from prefect_armada.settings import ArmadaSettings

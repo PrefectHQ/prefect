@@ -1,6 +1,6 @@
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import grpc
@@ -150,11 +150,11 @@ class TestEventOccurred:
 
     def test_reads_a_protobuf_timestamp(self):
         message = event_pb2.JobFailedEvent(job_id="job-1")
-        message.created.FromDatetime(datetime(2026, 7, 29, tzinfo=timezone.utc))
+        message.created.FromDatetime(datetime(2026, 7, 29, tzinfo=UTC))
 
         occurred = observer._event_occurred(message)
 
-        assert occurred == datetime(2026, 7, 29, tzinfo=timezone.utc)
+        assert occurred == datetime(2026, 7, 29, tzinfo=UTC)
 
     def test_returns_none_for_a_message_without_a_created_field(self):
         assert observer._event_occurred(object()) is None

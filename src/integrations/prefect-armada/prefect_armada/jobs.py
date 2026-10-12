@@ -7,14 +7,13 @@ from asyncio import sleep
 from collections.abc import Callable
 from pathlib import Path
 from time import monotonic
-from typing import Any, TypeAlias
+from typing import Any, Self, TypeAlias
 
 import grpc
 import yaml
 from armada_client.armada import job_pb2, submit_pb2
 from armada_client.typings import JobState
 from pydantic import Field
-from typing_extensions import Self
 
 from prefect import task
 from prefect._internal.compatibility.async_dispatch import async_dispatch

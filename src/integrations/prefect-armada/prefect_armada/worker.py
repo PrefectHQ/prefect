@@ -128,6 +128,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
+    Self,
     TypeVar,
 )
 from urllib.parse import urlsplit
@@ -139,7 +140,6 @@ from armada_client.asyncio_client import ArmadaAsyncIOClient
 from jsonpatch import JsonPatch
 from pydantic import Field, field_validator, model_validator
 from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, wait_random
-from typing_extensions import Self
 
 import prefect
 from prefect.client.schemas.objects import Flow as APIFlow
