@@ -474,6 +474,7 @@ class GitRepository:
 
             # If the commit is already checked out, skip the pull
             if self._commit_sha and await self.is_current_commit():
+                await self._update_submodules()
                 return
 
             # If checking out a specific commit, fetch it unless it is already
@@ -525,7 +526,16 @@ class GitRepository:
             ["git", "checkout", commit_sha],
             cwd=self.destination,
         )
-        if self._include_submodules:
+        await self._update_submodules()
+        self._logger.debug(f"Successfully checked out commit {commit_sha}")
+
+    async def _update_submodules(self) -> None:
+        """
+        Updates submodules to the revisions recorded in `HEAD` if they are included.
+        """
+        if not self._include_submodules:
+            return
+        try:
             await run_process(
                 [
                     "git",
@@ -537,7 +547,27 @@ class GitRepository:
                 ],
                 cwd=self.destination,
             )
-        self._logger.debug(f"Successfully checked out commit {commit_sha}")
+        except subprocess.CalledProcessError as exc:
+            # Hide the command used to avoid leaking credentials from the git config
+            parsed_url = urlparse(self._url)
+            exc_chain = (
+                None
+                if self._credentials or parsed_url.password or parsed_url.username
+                else exc
+            )
+            sanitized_stderr = strip_auth_from_urls_in_text(
+                _decode_stderr(exc),
+                extra_secrets=_url_auth_secrets(
+                    self._url, self._repository_url_with_credentials
+                ),
+            ).strip()
+            error_message = (
+                f"Failed to update submodules with exit code {exc.returncode}."
+            )
+            if sanitized_stderr:
+                tail = " | ".join(sanitized_stderr.splitlines()[-3:])
+                error_message += f" git stderr: {tail}"
+            raise RuntimeError(error_message) from exc_chain
 
     async def _clone_repo(self):
         """

@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 from textwrap import dedent
-from typing import Callable, NamedTuple, Optional
+from typing import Any, Callable, NamedTuple, Optional
 from unittest.mock import AsyncMock, MagicMock, call
 from urllib.parse import urlparse, urlunparse
 
@@ -693,6 +693,44 @@ class TestGitRepository:
             console_output = capsys.readouterr()
             assert "user:password".upper() not in console_output.out
             assert "user:password".upper() not in console_output.err
+
+    async def test_submodule_update_errors_obscure_access_token(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ):
+        # we uppercase the token because this test definition does show up in the exception traceback
+        token = "super-secret-42".upper()
+
+        async def mock_run_process(cmd: list[str], **kwargs: Any) -> MagicMock:
+            if "submodule" in cmd:
+                raise subprocess.CalledProcessError(
+                    128,
+                    cmd,
+                    stderr=f"fatal: unable to access 'https://{token}@github.com/org/sub.git/'".encode(),
+                )
+            result = MagicMock()
+            result.stdout = b"https://github.com/org/repo.git"
+            return result
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+        monkeypatch.setattr(
+            GitRepository, "is_current_commit", AsyncMock(return_value=True)
+        )
+
+        with pytest.raises(RuntimeError, match="Failed to update submodules") as exc:
+            await GitRepository(
+                url="https://github.com/org/repo.git",
+                commit_sha="1234567890",
+                include_submodules=True,
+                credentials={"access_token": token},
+            ).pull_code()
+        assert "unable to access" in str(exc.value)
+        assert token not in str(exc.getrepr())
+        console_output = capsys.readouterr()
+        assert token not in console_output.out
+        assert token not in console_output.err
 
     class TestCredentialFormatting:
         async def test_credential_formatting_maintains_secrets(
@@ -1720,38 +1758,62 @@ class TestGitRepositoryCommitSha:
         assert _git("rev-parse", "HEAD", cwd=repo.destination) == upstream.sha_a
         assert (repo.destination / "f.txt").read_text() == "A"
 
-    async def test_pull_code_updates_submodules_when_commit_changes(
+    @pytest.fixture
+    def parent(
         self, upstream: _Upstream, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ):
+    ) -> _Upstream:
+        """A repository with `upstream` as a submodule at A, then at B."""
         monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
         monkeypatch.setenv("GIT_CONFIG_KEY_0", "protocol.file.allow")
         monkeypatch.setenv("GIT_CONFIG_VALUE_0", "always")
 
-        parent = tmp_path / "parent"
-        parent.mkdir()
-        _git("init", "-q", cwd=parent)
-        _git("submodule", "add", "-q", upstream.url, "sub", cwd=parent)
-        _git("-C", "sub", "checkout", "-q", upstream.sha_a, cwd=parent)
-        _git("add", "sub", cwd=parent)
-        _git("commit", "-q", "-m", "sub at A", cwd=parent)
-        parent_a = _git("rev-parse", "HEAD", cwd=parent)
-        _git("-C", "sub", "checkout", "-q", upstream.sha_b, cwd=parent)
-        _git("add", "sub", cwd=parent)
-        _git("commit", "-q", "-m", "sub at B", cwd=parent)
-        parent_b = _git("rev-parse", "HEAD", cwd=parent)
+        path = tmp_path / "parent"
+        path.mkdir()
+        _git("init", "-q", cwd=path)
+        _git("submodule", "add", "-q", upstream.url, "sub", cwd=path)
+        _git("-C", "sub", "checkout", "-q", upstream.sha_a, cwd=path)
+        _git("add", "sub", cwd=path)
+        _git("commit", "-q", "-m", "sub at A", cwd=path)
+        sha_a = _git("rev-parse", "HEAD", cwd=path)
+        _git("-C", "sub", "checkout", "-q", upstream.sha_b, cwd=path)
+        _git("add", "sub", cwd=path)
+        _git("commit", "-q", "-m", "sub at B", cwd=path)
+        sha_b = _git("rev-parse", "HEAD", cwd=path)
+        return _Upstream(path=path, url=path.as_uri(), sha_a=sha_a, sha_b=sha_b)
 
-        base_path = tmp_path / "work"
-        base_path.mkdir()
-        for parent_sha, expected in [(parent_a, "A"), (parent_b, "B")]:
-            repo = GitRepository(
-                url=parent.as_uri(),
-                commit_sha=parent_sha,
-                include_submodules=True,
-                name="repo",
-            )
-            repo.set_base_path(base_path)
-            await repo.pull_code()
-            assert (repo.destination / "sub" / "f.txt").read_text() == expected
+    async def _pull_with_submodules(
+        self, parent: _Upstream, base_path: Path, commit_sha: str
+    ) -> GitRepository:
+        repo = GitRepository(
+            url=parent.url,
+            commit_sha=commit_sha,
+            include_submodules=True,
+            name="repo",
+        )
+        repo.set_base_path(base_path)
+        await repo.pull_code()
+        return repo
+
+    async def test_pull_code_updates_submodules_when_commit_changes(
+        self, parent: _Upstream, base_path: Path
+    ):
+        repo = await self._pull_with_submodules(parent, base_path, parent.sha_a)
+        assert (repo.destination / "sub" / "f.txt").read_text() == "A"
+
+        repo = await self._pull_with_submodules(parent, base_path, parent.sha_b)
+        assert (repo.destination / "sub" / "f.txt").read_text() == "B"
+
+    async def test_pull_code_retries_failed_submodule_update_for_current_commit(
+        self, upstream: _Upstream, parent: _Upstream, base_path: Path
+    ):
+        unreachable = upstream.path.rename(upstream.path.with_name("unreachable"))
+        with pytest.raises(RuntimeError, match="Failed to update submodules"):
+            await self._pull_with_submodules(parent, base_path, parent.sha_a)
+        unreachable.rename(upstream.path)
+
+        repo = await self._pull_with_submodules(parent, base_path, parent.sha_a)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == parent.sha_a
+        assert (repo.destination / "sub" / "f.txt").read_text() == "A"
 
     @pytest.mark.parametrize(
         "pick_sha, expected",
