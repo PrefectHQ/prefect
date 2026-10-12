@@ -5,6 +5,7 @@ import os
 import random
 import time
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from typing import List, Literal, Optional
 from unittest import mock
@@ -1293,6 +1294,65 @@ class TestTaskRetries:
         assert attempts == 2
         assert final_state.is_completed()
         assert await final_state.result() == "success"
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("should_retry", [False, True])
+    @pytest.mark.parametrize(
+        "predicate_type", ["function", "method", "partial", "instance"]
+    )
+    async def test_retry_condition_accepts_callable_types(
+        self,
+        async_task: bool,
+        should_retry: bool,
+        predicate_type: Literal["function", "method", "partial", "instance"],
+    ):
+        attempts = 0
+        predicate_calls = 0
+
+        def retry_condition(task: Task, task_run: TaskRun, state: State) -> bool:
+            nonlocal predicate_calls
+            predicate_calls += 1
+            assert state.is_failed()
+            return should_retry
+
+        class RetryPolicy:
+            def should_retry(self, task: Task, task_run: TaskRun, state: State) -> bool:
+                return retry_condition(task, task_run, state)
+
+            __call__ = should_retry
+
+        policy = RetryPolicy()
+        predicates = {
+            "function": retry_condition,
+            "method": policy.should_retry,
+            "partial": partial(retry_condition),
+            "instance": policy,
+        }
+
+        def flaky_function() -> str:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise ValueError("Temporary failure")
+            return "success"
+
+        async def async_flaky_function() -> str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=predicates[predicate_type],
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert predicate_calls == 1
+        assert attempts == (2 if should_retry else 1)
+        assert final_state.is_completed() == should_retry
+        assert final_state.is_failed() == (not should_retry)
 
     async def test_task_retries_receive_latest_task_run_in_context(self):
         state_names: List[str] = []

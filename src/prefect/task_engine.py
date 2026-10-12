@@ -463,7 +463,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 should_retry = run_coro_as_sync(
                     retry_condition(self.task, self.task_run, state)
                 )
-            elif inspect.isfunction(retry_condition):
+            elif callable(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
             else:
                 should_retry = not retry_condition
@@ -1079,7 +1079,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             if inspect.iscoroutinefunction(retry_condition):
                 should_retry = await retry_condition(self.task, self.task_run, state)
-            elif inspect.isfunction(retry_condition):
+            elif callable(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
             else:
                 should_retry = not retry_condition
