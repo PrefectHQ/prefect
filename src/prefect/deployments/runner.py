@@ -140,9 +140,7 @@ def _encode_temporal(value: Any) -> Any:
             value = value.replace(tzinfo=UTC)
         return value.timestamp()
     if isinstance(value, date):
-        return datetime(
-            value.year, value.month, value.day, tzinfo=UTC
-        ).timestamp()
+        return datetime(value.year, value.month, value.day, tzinfo=UTC).timestamp()
     if isinstance(value, time):
         return (
             value.hour * 3600
