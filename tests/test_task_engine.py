@@ -7,7 +7,7 @@ import time
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Any, Awaitable, Generator, List, Literal, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
@@ -1359,6 +1359,54 @@ class TestTaskRetries:
             async_flaky_function if async_task else flaky_function,
             retries=1,
             retry_condition_fn=predicates[predicate_type],
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert predicate_calls == 1
+        assert attempts == (2 if should_retry else 1)
+        assert final_state.is_completed() == should_retry
+        assert final_state.is_failed() == (not should_retry)
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("should_retry", [False, True])
+    async def test_retry_condition_returns_custom_awaitable(
+        self, async_task: bool, should_retry: bool
+    ):
+        attempts = 0
+        predicate_calls = 0
+
+        class RetryDecision(Awaitable[bool]):
+            def __await__(self) -> Generator[Any, None, bool]:
+                async def resolve() -> bool:
+                    nonlocal predicate_calls
+                    predicate_calls += 1
+                    return should_retry
+
+                return resolve().__await__()
+
+        def retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> Awaitable[bool]:
+            assert state.is_failed()
+            return RetryDecision()
+
+        def flaky_function() -> str:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise ValueError("Temporary failure")
+            return "success"
+
+        async def async_flaky_function() -> str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=retry_condition,
         )
         if async_task:
             final_state = await flaky_task(return_state=True)

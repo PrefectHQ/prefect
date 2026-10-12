@@ -16,6 +16,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    Awaitable,
     Callable,
     Coroutine,
     Generator,
@@ -462,7 +463,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if callable(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
                 if inspect.isawaitable(should_retry):
-                    should_retry = run_coro_as_sync(should_retry)
+
+                    async def await_retry_condition(result: Awaitable[bool]) -> bool:
+                        return await result
+
+                    should_retry = run_coro_as_sync(await_retry_condition(should_retry))
             else:
                 should_retry = not retry_condition
             return should_retry
