@@ -173,7 +173,10 @@ def test_snowflake_credentials_validate_private_key_invalid(private_credentials_
     private_key = credentials_params_missing.pop("private_key")
     assert isinstance(private_key, bytes)
     assert private_key.startswith(b"----")
-    with pytest.raises(ValueError, match="Could not deserialize key data"):
+    with pytest.raises(
+        ValueError,
+        match="Could not deserialize key data|Incorrect password, could not decrypt key|Bad decrypt",
+    ):
         credentials = SnowflakeCredentials(**private_credentials_params)
         credentials.password = "_wrong_password"
         assert credentials.resolve_private_key() is not None

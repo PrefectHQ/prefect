@@ -1,2 +1,2 @@
-pandas
+pandas<3
 numpy

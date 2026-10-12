@@ -104,7 +104,7 @@ def push_to_azure_blob_storage(
     included_files = None
     if ignore_file and Path(ignore_file).exists():
         with open(ignore_file, "r") as f:
-            ignore_patterns = f.readlines()
+            ignore_patterns = [line.rstrip("\r\n").lstrip() for line in f]
 
         included_files = filter_files(str(local_path), ignore_patterns)
 

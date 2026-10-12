@@ -18,7 +18,13 @@ FROM node:${NODE_VERSION}-bullseye-slim as ui-builder
 
 WORKDIR /opt/ui
 
-RUN apt-get update && \
+# Debian 11 (bullseye) is EOL and its package repositories were moved to archive.debian.org
+RUN sed -i \
+        -e 's|deb.debian.org|archive.debian.org|g' \
+        -e 's|security.debian.org|archive.debian.org|g' \
+        /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
     # Required for arm64 builds
     chromium \

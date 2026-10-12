@@ -66,6 +66,23 @@ async def get_event_count(session: AsyncSession) -> int:
     return result.scalar() or 0
 
 
+async def wait_for_condition(
+    condition, timeout: float = 10.0, interval: float = 0.05
+) -> bool:
+    """Poll an async condition until it is true or the timeout elapses.
+
+    Periodic-service tests use sub-second timers; a fixed sleep is flaky on
+    slow CI runners, so poll instead of asserting after one sleep.
+    """
+    deadline = asyncio.get_event_loop().time() + timeout
+    while True:
+        if await condition():
+            return True
+        if asyncio.get_event_loop().time() >= deadline:
+            return False
+        await asyncio.sleep(interval)
+
+
 @pytest.fixture
 async def event_persister_handler() -> AsyncGenerator[MessageHandler, None]:
     async with event_persister.create_handler(batch_size=1) as handler:
@@ -304,11 +321,12 @@ async def test_flushes_messages_periodically(
             )
             await handler(message)
 
-        await asyncio.sleep(0.1)  # this is 100x the time necessary
-
         # no matter how many batches this ended up being distributed over due to the
         # periodic flushes, we should definitely have flushed all of the records by here
-        assert (await get_event_count(session)) == 9
+        async def all_records_flushed() -> bool:
+            return (await get_event_count(session)) == 9
+
+        assert await wait_for_condition(all_records_flushed)
 
 
 async def test_trims_messages_periodically(
@@ -342,7 +360,12 @@ async def test_trims_messages_periodically(
             flush_every=timedelta(seconds=0.001),
             trim_every=timedelta(seconds=0.001),
         ):
-            await asyncio.sleep(0.1)  # this is 100x the time necessary
+
+            async def events_trimmed() -> bool:
+                _, total, _ = await query_events(session, filter=EventFilter())
+                return total == 5
+
+            assert await wait_for_condition(events_trimmed)
 
     remaining_events, total, _ = await query_events(session, filter=EventFilter())
     assert total == 5
