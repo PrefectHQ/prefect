@@ -375,20 +375,40 @@ class GitRepository:
         except Exception:
             return False
 
+    async def _has_commit(self) -> bool:
+        """
+        Check if the commit SHA resolves to a commit in the local repository.
+        """
+        try:
+            await run_process(
+                ["git", "cat-file", "-e", f"{self._commit_sha}^{{commit}}"],
+                cwd=self.destination,
+            )
+        except Exception:
+            return False
+        return True
+
     async def is_current_commit(self) -> bool:
         """
-        Check if the current commit is the same as the commit SHA
+        Check if `HEAD` is the commit referenced by the commit SHA.
+
+        Returns `False` if the commit SHA does not resolve to a commit in the
+        local repository.
         """
         if not self._commit_sha:
             raise ValueError("No commit SHA provided")
         try:
-            result = await run_process(
-                ["git", "rev-parse", self._commit_sha],
+            head = await run_process(
+                ["git", "rev-parse", "HEAD"],
                 cwd=self.destination,
             )
-            return result.stdout.decode().strip() == self._commit_sha
+            target = await run_process(
+                ["git", "rev-parse", "--verify", f"{self._commit_sha}^{{commit}}"],
+                cwd=self.destination,
+            )
         except Exception:
             return False
+        return head.stdout.decode().strip() == target.stdout.decode().strip()
 
     async def pull_code(self) -> None:
         """
@@ -454,31 +474,28 @@ class GitRepository:
 
             # If the commit is already checked out, skip the pull
             if self._commit_sha and await self.is_current_commit():
+                await self._update_submodules()
                 return
 
-            # If checking out a specific commit, fetch the latest changes and unshallow the repository if necessary
+            # If checking out a specific commit, fetch it unless it is already
+            # available locally, unshallowing the repository if necessary
             elif self._commit_sha:
-                if await self.is_shallow_clone():
-                    cmd += ["fetch", "origin", "--unshallow"]
-                else:
-                    cmd += ["fetch", "origin", self._commit_sha]
-                try:
-                    await run_process(cmd, cwd=self.destination)
-                    self._logger.debug("Successfully fetched latest changes")
-                except subprocess.CalledProcessError as exc:
-                    self._logger.error(
-                        f"Failed to fetch latest changes with exit code {exc}"
-                    )
-                    _rmtree_including_read_only(self.destination)
-                    await self._clone_repo()
+                if not await self._has_commit():
+                    if await self.is_shallow_clone():
+                        cmd += ["fetch", "origin", "--unshallow", self._commit_sha]
+                    else:
+                        cmd += ["fetch", "origin", self._commit_sha]
+                    try:
+                        await run_process(cmd, cwd=self.destination)
+                        self._logger.debug("Successfully fetched latest changes")
+                    except subprocess.CalledProcessError as exc:
+                        self._logger.error(
+                            f"Failed to fetch latest changes with exit code {exc}"
+                        )
+                        _rmtree_including_read_only(self.destination)
+                        await self._clone_repo()
 
-                await run_process(
-                    ["git", "checkout", self._commit_sha],
-                    cwd=self.destination,
-                )
-                self._logger.debug(
-                    f"Successfully checked out commit {self._commit_sha}"
-                )
+                await self._checkout_commit(self._commit_sha)
 
             # Otherwise, pull the latest changes from the branch
             else:
@@ -500,6 +517,57 @@ class GitRepository:
 
         else:
             await self._clone_repo()
+
+    async def _checkout_commit(self, commit_sha: str) -> None:
+        """
+        Checks out the commit SHA, updating submodules if they are included.
+        """
+        await run_process(
+            ["git", "checkout", commit_sha],
+            cwd=self.destination,
+        )
+        await self._update_submodules()
+        self._logger.debug(f"Successfully checked out commit {commit_sha}")
+
+    async def _update_submodules(self) -> None:
+        """
+        Updates submodules to the revisions recorded in `HEAD` if they are included.
+        """
+        if not self._include_submodules:
+            return
+        try:
+            await run_process(
+                [
+                    "git",
+                    *self._git_config,
+                    "submodule",
+                    "update",
+                    "--init",
+                    "--recursive",
+                ],
+                cwd=self.destination,
+            )
+        except subprocess.CalledProcessError as exc:
+            # Hide the command used to avoid leaking credentials from the git config
+            parsed_url = urlparse(self._url)
+            exc_chain = (
+                None
+                if self._credentials or parsed_url.password or parsed_url.username
+                else exc
+            )
+            sanitized_stderr = strip_auth_from_urls_in_text(
+                _decode_stderr(exc),
+                extra_secrets=_url_auth_secrets(
+                    self._url, self._repository_url_with_credentials
+                ),
+            ).strip()
+            error_message = (
+                f"Failed to update submodules with exit code {exc.returncode}."
+            )
+            if sanitized_stderr:
+                tail = " | ".join(sanitized_stderr.splitlines()[-3:])
+                error_message += f" git stderr: {tail}"
+            raise RuntimeError(error_message) from exc_chain
 
     async def _clone_repo(self):
         """
@@ -583,12 +651,7 @@ class GitRepository:
                 ["git", "fetch", "origin", self._commit_sha],
                 cwd=self.destination,
             )
-            # Checkout the specific commit
-            await run_process(
-                ["git", "checkout", self._commit_sha],
-                cwd=self.destination,
-            )
-            self._logger.debug(f"Successfully checked out commit {self._commit_sha}")
+            await self._checkout_commit(self._commit_sha)
 
         # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
         if self._directories:
