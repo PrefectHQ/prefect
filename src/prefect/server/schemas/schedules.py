@@ -241,7 +241,10 @@ class IntervalSchedule(PrefectBaseModel):
                     )
 
                 def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
-                    return zdt + interval
+                    # `ZonedDateTime + ItemizedDelta` is unsupported in
+                    # whenever's pure-Python fallback (no cp315 wheels yet);
+                    # `.add()` works in both implementations
+                    return zdt.add(interval)
             else:
                 approx_total_seconds = interval.total_seconds()
                 # break the interval into `days` and `seconds` because
