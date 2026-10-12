@@ -79,7 +79,9 @@ class _DateTime(datetime.datetime):
         else:
             resolved = _tzinfo_for_conversion(tz)
             tzinfo = ZoneInfo(resolved) if isinstance(resolved, str) else resolved
-        return cls.fromtimestamp(datetime.datetime.now(tzinfo).timestamp(), tzinfo)
+        # module-level `now()` goes through `whenever`, so the result is
+        # frozen under `travel_to` like the pendulum version was
+        return cls.instance(now(tzinfo))
 
     @classmethod
     def instance(cls, dt: datetime.datetime, tz: Any = "UTC") -> _DateTime:
