@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 import dateutil
 import dateutil.rrule
 from pydantic import ConfigDict, Field, field_validator, model_validator
-from whenever import DateTimeDelta, TimeDelta, ZonedDateTime
+from whenever import DateTimeDelta, ZonedDateTime
 
 from prefect._internal.schemas.validators import (
     default_timezone,
@@ -45,6 +45,17 @@ try:
 except ImportError:
     _ItemizedDelta = None  # type: ignore[assignment]
     _WHENEVER_DELTA_TYPES = (DateTimeDelta,)
+
+# An exact-seconds delta compatible with `zdt + delta` on both whenever API
+# generations — `ItemizedDelta` on >= 0.10.0, `DateTimeDelta` before.
+_SecondsDelta = _ItemizedDelta or DateTimeDelta
+
+
+def _whenever_delta_seconds(delta: Any) -> float:
+    # whenever >= 0.10.0 exposes `total("seconds")`; older versions
+    # expose `in_seconds()`
+    return delta.total("seconds") if hasattr(delta, "total") else delta.in_seconds()
+
 
 AnchorDate: TypeAlias = datetime.datetime
 
@@ -257,7 +268,7 @@ class IntervalSchedule(PrefectBaseModel):
                 # iterating `interval` through it can drift the recurrence
                 # phase — so the scaled seek must not be used. Sampled weekly:
                 # real-world transitions are at least a month apart.
-                _step = TimeDelta(hours=7 * 24)
+                _step = _SecondsDelta(seconds=7 * 24 * 3600)
                 t = a
                 offset = t.offset
                 while t < b:
@@ -272,15 +283,20 @@ class IntervalSchedule(PrefectBaseModel):
             ) -> ZonedDateTime | None:
                 # The first instant in (a, b] where the zone's UTC offset
                 # differs from a's, or None. Weekly scan then bisect to ~1s.
-                _step = TimeDelta(hours=7 * 24)
+                _step = _SecondsDelta(seconds=7 * 24 * 3600)
                 offset = a.offset
                 t = a
                 while t < b:
                     nxt = min(b, t + _step)
                     if nxt.offset != offset:
                         lo, hi = t, nxt
-                        while (hi - lo).total("seconds") > 1:
-                            mid = lo + TimeDelta(seconds=(hi - lo).total("seconds") / 2)
+                        while _whenever_delta_seconds(hi - lo) > 1:
+                            mid = lo + _SecondsDelta(
+                                seconds=max(
+                                    1,
+                                    int(_whenever_delta_seconds(hi - lo) / 2),
+                                )
+                            )
                             if mid.offset != offset:
                                 hi = mid
                             else:
@@ -293,12 +309,7 @@ class IntervalSchedule(PrefectBaseModel):
                 # The last occurrence on or before `upto`, computed with a
                 # scaled step. Valid only where the UTC offset is constant
                 # and no month-end clamping occurs over (frm, upto].
-                _span = upto - frm
-                _span_secs = (
-                    _span.total("seconds")
-                    if hasattr(_span, "total")
-                    else _span.in_seconds()
-                )
+                _span_secs = _whenever_delta_seconds(upto - frm)
                 k = max(0, int(_span_secs / approx_total_seconds))
                 while k > 0 and _add_scaled(frm, k) > upto:
                     k -= 1
@@ -319,10 +330,7 @@ class IntervalSchedule(PrefectBaseModel):
             def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
                 return zdt.add(days=_interval_days, seconds=_interval_seconds)
 
-        _diff = local_start - anchor_zdt
-        _diff_secs = (
-            _diff.total("seconds") if hasattr(_diff, "total") else _diff.in_seconds()
-        )
+        _diff_secs = _whenever_delta_seconds(local_start - anchor_zdt)
         if has_calendar_parts:
             # Calendar additions are not uniform (months clamp to the end of
             # the month and days shift across DST), so an exact-seconds jump

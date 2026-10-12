@@ -800,6 +800,32 @@ class TestIntervalScheduleDateTimeDelta:
             (3, 15, 3, 30),
         ]
 
+    async def test_daily_interval_across_many_dst_transitions(self):
+        """A daily schedule anchored years before `start` crosses many DST
+        transitions; the transition-hopping seek must yield the same dates
+        as sequential iteration — including the permanent 02:30 -> 03:30
+        phase shift established at the first spring-forward gap."""
+        from prefect.types._datetime import ItemizedDelta
+
+        s = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(
+                2020, 1, 1, 2, 30, tzinfo=ZoneInfo("America/New_York")
+            ),
+            timezone="America/New_York",
+        )
+
+        dates = await s.get_dates(
+            n=3,
+            start=datetime(2026, 9, 1, tzinfo=ZoneInfo("UTC")),
+        )
+
+        assert [(d.year, d.month, d.day, d.hour, d.minute) for d in dates] == [
+            (2026, 9, 1, 3, 30),
+            (2026, 9, 2, 3, 30),
+            (2026, 9, 3, 3, 30),
+        ]
+
     async def test_yearly_interval_with_distant_start_and_future_anchor(self):
         """An interval combining years and days must estimate pre-anchor
         occurrences correctly — omitting years from the estimate overshoots
