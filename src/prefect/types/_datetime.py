@@ -73,12 +73,13 @@ class _DateTime(datetime.datetime):
     def now(cls, tz: Any = None) -> _DateTime:
         """Current time in `tz` (defaults to the local timezone, like
         `pendulum.now()`), always timezone-aware."""
-        tzinfo: datetime.tzinfo
         if tz is None:
-            tzinfo = datetime.datetime.now().astimezone().tzinfo or ZoneInfo("UTC")
-        else:
-            resolved = _tzinfo_for_conversion(tz)
-            tzinfo = ZoneInfo(resolved) if isinstance(resolved, str) else resolved
+            # Convert via `astimezone()` so the system zone's historical
+            # offset rules apply — a frozen clock in another DST season
+            # still shows the correct local time.
+            return cls.instance(now("UTC").astimezone())
+        resolved = _tzinfo_for_conversion(tz)
+        tzinfo = ZoneInfo(resolved) if isinstance(resolved, str) else resolved
         # module-level `now()` goes through `whenever`, so the result is
         # frozen under `travel_to` like the pendulum version was
         return cls.instance(now(tzinfo))

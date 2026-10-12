@@ -774,6 +774,32 @@ class TestIntervalScheduleDateTimeDelta:
             (2026, 1, 3),
         ]
 
+    async def test_daily_interval_across_dst_gap_keeps_iterated_phase(self):
+        """Iterating `days=1` through a spring-forward gap shifts the wall
+        time (02:30 -> 03:30) and that shifted phase persists. A scaled seek
+        must not be used across an offset change or it would resume at the
+        original wall time."""
+        from prefect.types._datetime import ItemizedDelta
+
+        s = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(
+                2024, 3, 9, 2, 30, tzinfo=ZoneInfo("America/New_York")
+            ),
+            timezone="America/New_York",
+        )
+
+        dates = await s.get_dates(
+            n=3,
+            start=datetime(2024, 3, 13, tzinfo=ZoneInfo("America/New_York")),
+        )
+
+        assert [(d.month, d.day, d.hour, d.minute) for d in dates] == [
+            (3, 13, 3, 30),
+            (3, 14, 3, 30),
+            (3, 15, 3, 30),
+        ]
+
     async def test_yearly_interval_with_distant_start_and_future_anchor(self):
         """An interval combining years and days must estimate pre-anchor
         occurrences correctly — omitting years from the estimate overshoots
@@ -938,6 +964,22 @@ class TestCronScheduleDaylightSavingsTime:
             datetime(2018, 11, 4, 6, 30, tzinfo=ZoneInfo("UTC")),
             datetime(2018, 11, 4, 6, 31, tzinfo=ZoneInfo("UTC")),
             datetime(2018, 11, 4, 6, 32, tzinfo=ZoneInfo("UTC")),
+        ]
+
+    async def test_cron_schedule_hourly_start_in_second_dst_fold(self):
+        """
+        An hourly schedule queried from 01:00 in the second fold (fold=1,
+        -05:00) must yield that 01:00 run — instant subtraction into the
+        first fold would make croniter skip it.
+        """
+        dt = datetime(2018, 11, 4, 1, 0, tzinfo=ZoneInfo("America/New_York"), fold=1)
+        s = CronSchedule(cron="0 * * * *", timezone="America/New_York")
+        dates = await s.get_dates(n=3, start=dt)
+
+        assert [d.astimezone(ZoneInfo("UTC")) for d in dates] == [
+            datetime(2018, 11, 4, 6, 0, tzinfo=ZoneInfo("UTC")),
+            datetime(2018, 11, 4, 7, 0, tzinfo=ZoneInfo("UTC")),
+            datetime(2018, 11, 4, 8, 0, tzinfo=ZoneInfo("UTC")),
         ]
 
 

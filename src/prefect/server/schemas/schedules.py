@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 import dateutil
 import dateutil.rrule
 from pydantic import ConfigDict, Field, field_validator, model_validator
-from whenever import DateTimeDelta, ZonedDateTime
+from whenever import DateTimeDelta, TimeDelta, ZonedDateTime
 
 from prefect._internal.schemas.validators import (
     default_timezone,
@@ -250,6 +250,22 @@ class IntervalSchedule(PrefectBaseModel):
                 if _time is not None:
                     result = result + _time * k
                 return result
+
+            def _offset_change_between(a: ZonedDateTime, b: ZonedDateTime) -> bool:
+                # Whether the zone's UTC offset changes anywhere in (a, b].
+                # A change means a DST gap/fold sits in the span, and
+                # iterating `interval` through it can drift the recurrence
+                # phase — so the scaled seek must not be used. Sampled weekly:
+                # real-world transitions are at least a month apart.
+                _step = TimeDelta(hours=7 * 24)
+                t = a
+                offset = t.offset
+                while t < b:
+                    t = min(b, t + _step)
+                    if t.offset != offset:
+                        return True
+                    offset = t.offset
+                return False
         else:
             approx_total_seconds = interval.total_seconds()
             # break the interval into `days` and `seconds` because
@@ -305,7 +321,9 @@ class IntervalSchedule(PrefectBaseModel):
                 # directly instead of replaying every occurrence — a daily
                 # schedule anchored years back would otherwise walk the whole
                 # range on each query.
-                if not (_years or _months) or anchor_zdt.date().day <= 28:
+                if (not (_years or _months) or anchor_zdt.date().day <= 28) and (
+                    not _offset_change_between(anchor_zdt, local_start)
+                ):
                     k = int(_diff_secs / approx_total_seconds)
                     while k > 0 and _add_scaled(anchor_zdt, k) > local_start:
                         k -= 1
@@ -458,19 +476,20 @@ class CronSchedule(PrefectBaseModel):
             start = start.astimezone(ZoneInfo(self.timezone or "UTC"))
 
         # subtract one second from the start date, so that croniter returns it
-        # as an event (if it meets the cron criteria). The subtraction happens
-        # on the instant timeline (via UTC): a wall-clock subtraction would
-        # cross a DST fold and land ~an hour early for second-fold starts.
-        start = (
+        # as an event (if it meets the cron criteria). The croniter anchor is
+        # wall-clock time: subtracting on the instant timeline would cross a
+        # DST fold and skip a matching occurrence in the second fold.
+        start_naive_tz = start.replace(tzinfo=None) - datetime.timedelta(seconds=1)
+        # The instant anchor is used to disambiguate candidates inside a fold
+        # and stays on the instant timeline.
+        start_localized = (
             start.astimezone(datetime.UTC) - datetime.timedelta(seconds=1)
         ).astimezone(start.tzinfo)
 
         # Respect microseconds by rounding up
         if start.microsecond > 0:
-            start += datetime.timedelta(seconds=1)
-
-        start_localized = start.astimezone(ZoneInfo(self.timezone or "UTC"))
-        start_naive_tz = start.replace(tzinfo=None)
+            start_naive_tz += datetime.timedelta(seconds=1)
+            start_localized += datetime.timedelta(seconds=1)
 
         cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
         dates = set()
@@ -488,7 +507,7 @@ class CronSchedule(PrefectBaseModel):
             # on the instant timeline: when the wall time falls in a DST fold,
             # pick the earliest interpretation still on/after `start` so a
             # start in the second fold yields second-fold dates.
-            next_wall = (start_localized + delta).replace(tzinfo=None)
+            next_wall = start_naive_tz + delta  # == next_time
             candidates = {
                 _whenever_zdt_from_py(
                     next_wall.replace(tzinfo=start_localized.tzinfo, fold=fold)
