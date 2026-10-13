@@ -978,6 +978,16 @@ class TestCreateRRuleSchedule:
 
         assert schedule.timezone == "America/New_York"
 
+    async def test_create_from_rruleset_reads_pytz_timezone(self):
+        timezone = pytz.timezone("America/New_York")
+        start = timezone.localize(datetime(2020, 1, 1))
+        ruleset = rrule.rruleset()
+        ruleset.rrule(rrule.rrule(rrule.DAILY, dtstart=start))
+
+        schedule = RRuleSchedule.from_rrule(ruleset)
+
+        assert schedule.timezone == "America/New_York"
+
     async def test_default_timezone_is_utc(self):
         s = RRuleSchedule(rrule=RRDaily)
         assert s.timezone == "UTC"
