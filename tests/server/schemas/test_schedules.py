@@ -972,9 +972,7 @@ class TestCreateRRuleSchedule:
         timezone = pytz.timezone("America/New_York")
         start = timezone.localize(datetime(2020, 1, 1))
 
-        schedule = RRuleSchedule.from_rrule(
-            rrule.rrule(rrule.DAILY, dtstart=start)
-        )
+        schedule = RRuleSchedule.from_rrule(rrule.rrule(rrule.DAILY, dtstart=start))
 
         assert schedule.timezone == "America/New_York"
 
