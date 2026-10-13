@@ -76,9 +76,17 @@ def get_call_parameters(
         bound_signature.apply_defaults()
 
     # We cast from `OrderedDict` to `dict` because Dask will not convert futures in an
-    # ordered dictionary to values during execution; this is the default behavior in
-    # Python 3.9 anyway.
-    return dict(bound_signature.arguments)
+    # ordered dictionary to values during execution.
+    arguments = dict(bound_signature.arguments)
+
+    # apply_defaults() fills in param.default directly from the signature, which is
+    # a FieldInfo object when the user writes `param: T = Field(default=..., ...)`.
+    # Unwrap those to their actual default values.
+    for key, value in arguments.items():
+        if isinstance(value, pydantic.fields.FieldInfo):
+            arguments[key] = value.default
+
+    return arguments
 
 
 def get_parameter_defaults(
@@ -484,7 +492,7 @@ def parameter_schema(fn: Callable[..., Any]) -> ParameterSchema:
     try:
         signature = inspect.signature(fn, eval_str=True)  # novm
     except (NameError, TypeError):
-        # `eval_str` is not available in Python < 3.10
+        # Some annotations can't be resolved (e.g. defined under TYPE_CHECKING)
         signature = inspect.signature(fn)
 
     docstrings = parameter_docstrings(inspect.getdoc(fn))

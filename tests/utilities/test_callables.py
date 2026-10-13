@@ -7,7 +7,7 @@ from textwrap import dedent
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pytest
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 
 from prefect.exceptions import ParameterBindError
 from prefect.types._datetime import Date, DateTime, Duration
@@ -767,6 +767,37 @@ class TestGetCallParameters:
 
         with pytest.raises(ParameterBindError):
             callables.get_call_parameters(dog, call_args=(), call_kwargs={"x": "y"})
+
+    def test_field_defaults_are_unwrapped(self):
+        """Quick Run passes no parameters; apply_defaults() must not return FieldInfo objects."""
+
+        def run(
+            some_string: str = Field(default="", description="a string param"),
+            name: str = Field(default="hello", description="a non-empty string param"),
+            count: int = Field(default=0, description="a count param"),
+            retries: int = Field(default=3, description="a non-zero int param"),
+            tags: list[str] = Field(default=[], description="a list param"),
+            labels: list[str] = Field(
+                default=["a", "b"], description="a non-empty list param"
+            ),
+        ):
+            pass
+
+        result = callables.get_call_parameters(run, call_args=(), call_kwargs={})
+        assert result == {
+            "some_string": "",
+            "name": "hello",
+            "count": 0,
+            "retries": 3,
+            "tags": [],
+            "labels": ["a", "b"],
+        }
+        assert isinstance(result["some_string"], str)
+        assert isinstance(result["name"], str)
+        assert isinstance(result["count"], int)
+        assert isinstance(result["retries"], int)
+        assert isinstance(result["tags"], list)
+        assert isinstance(result["labels"], list)
 
 
 class TestExplodeVariadicParameter:

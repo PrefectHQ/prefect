@@ -434,7 +434,7 @@ includes(self, event: Event) -> bool
 Does the given event match the criteria of this filter?
 
 
-### `EventOrder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L739" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventOrder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L745" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -447,11 +447,11 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `EventFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L744" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L750" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L781" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L787" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
@@ -481,7 +481,7 @@ includes(self, event: Event) -> bool
 Does the given event match the criteria of this filter?
 
 
-#### `logical_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L798" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `logical_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L804" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 logical_limit(self) -> int

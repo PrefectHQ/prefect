@@ -930,9 +930,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         run, if appropriate.
 
         If the parent task run is in a final state, we return the existing
-        subflow run to avoid re-execution (unless the parent is being rerun
-        and the subflow did not complete, in which case a fresh run is
-        desired).
+        subflow run unless the parent is being rerun and the subflow either
+        did not complete or has no persisted result. In those cases a fresh
+        run gives the subflow its full retry budget while preserving the
+        previous run's history.
 
         If the parent task run is in a non-final state (e.g. still Running
         after a process restart), we also look for an existing subflow run
@@ -972,8 +973,18 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         )
         if flow_runs:
             loaded_flow_run = flow_runs[0]
-            # When the parent task run is final the subflow has already
-            # finished; cache the result so the engine skips re-execution.
+            if (
+                rerunning
+                and parent_task_run.state.is_completed()
+                and loaded_flow_run.state is not None
+                and loaded_flow_run.state.is_completed()
+                and loaded_flow_run.state.data is None
+            ):
+                # Without a persisted result the child must execute again. A
+                # fresh run preserves its history and restores its retry budget.
+                return None
+
+            # Keep the previous state available when reusing a finished run.
             if parent_task_run.state.is_final():
                 self._return_value = loaded_flow_run.state
             return loaded_flow_run
@@ -1638,9 +1649,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         run, if appropriate.
 
         If the parent task run is in a final state, we return the existing
-        subflow run to avoid re-execution (unless the parent is being rerun
-        and the subflow did not complete, in which case a fresh run is
-        desired).
+        subflow run unless the parent is being rerun and the subflow either
+        did not complete or has no persisted result. In those cases a fresh
+        run gives the subflow its full retry budget while preserving the
+        previous run's history.
 
         If the parent task run is in a non-final state (e.g. still Running
         after a process restart), we also look for an existing subflow run
@@ -1680,8 +1692,18 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         )
         if flow_runs:
             loaded_flow_run = flow_runs[0]
-            # When the parent task run is final the subflow has already
-            # finished; cache the result so the engine skips re-execution.
+            if (
+                rerunning
+                and parent_task_run.state.is_completed()
+                and loaded_flow_run.state is not None
+                and loaded_flow_run.state.is_completed()
+                and loaded_flow_run.state.data is None
+            ):
+                # Without a persisted result the child must execute again. A
+                # fresh run preserves its history and restores its retry budget.
+                return None
+
+            # Keep the previous state available when reusing a finished run.
             if parent_task_run.state.is_final():
                 self._return_value = loaded_flow_run.state
             return loaded_flow_run

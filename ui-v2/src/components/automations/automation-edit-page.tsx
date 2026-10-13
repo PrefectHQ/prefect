@@ -2,6 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { buildGetAutomationQuery } from "@/api/automations";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { AutomationsEditHeader } from "./automations-edit-header";
 import type { AutomationWizardSchema } from "./automations-wizard/automation-schema";
 import { AutomationWizard } from "./automations-wizard/automation-wizard";
@@ -14,6 +15,7 @@ type AutomationEditPageProps = {
 export const AutomationEditPage = ({ id }: AutomationEditPageProps) => {
 	const navigate = useNavigate();
 	const { data: automation } = useSuspenseQuery(buildGetAutomationQuery(id));
+	usePageTitle(`Edit Automation: ${automation.name}`);
 
 	const { defaultValues, updateAutomation, isPending } = useEditAutomation({
 		automationId: id,

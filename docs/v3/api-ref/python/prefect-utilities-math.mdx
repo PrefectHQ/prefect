@@ -55,8 +55,10 @@ Bounds Poisson "inter-arrival times" to a range defined by the clamping factor.
 The upper bound for this random variate is: average_interval * (1 + clamping_factor).
 A lower bound is picked so that the average interval remains approximately fixed.
 
+An `average_interval` of zero (or less) yields an interval of `0.0`.
 
-### `bounded_poisson_interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/math.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `bounded_poisson_interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/math.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bounded_poisson_interval(lower_bound: float, upper_bound: float) -> float

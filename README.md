@@ -40,6 +40,10 @@
         Deploy workflows
     </a>
     ·
+    <a href="https://www.prefect.io/agents">
+        Agent setup
+    </a>
+    ·
     <a href="https://app.prefect.cloud/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
         Prefect Cloud
     </a>
@@ -62,7 +66,7 @@ Workflow activity is tracked and can be monitored with a self-hosted [Prefect se
 
 ## Getting started
 
-Prefect requires Python 3.10+. To [install the latest version of Prefect](https://docs.prefect.io/v3/get-started/install), run one of the following commands:
+Prefect requires Python 3.11+. To [install the latest version of Prefect](https://docs.prefect.io/v3/get-started/install), run one of the following commands:
 
 ```bash
 pip install -U prefect
@@ -124,6 +128,10 @@ Additionally you can run your workflow manually from the UI or CLI. You can even
 > - [Integrating with your existing tools](https://docs.prefect.io/integrations/integrations?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none)
 > - [Setting up team collaboration features](https://docs.prefect.io/v3/manage/cloud/manage-users/manage-teams#manage-teams?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none)
 
+
+## Work with your agent
+
+Use the [agent setup guides](https://www.prefect.io/agents) to connect your agent to Prefect through plugins or MCP and get started with the CLI. An [agent-readable setup index](https://www.prefect.io/agents/llms.txt) provides the guides as plain text.
 
 ## Prefect Cloud
 

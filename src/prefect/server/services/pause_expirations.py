@@ -63,15 +63,19 @@ async def monitor_expired_pauses(
 ) -> None:
     """Monitor for expired paused flow runs and schedule failure tasks."""
     batch_size = 200
+    paused_flow_query = (
+        sa.select(db.FlowRun)
+        .where(db.FlowRun.state_type == states.StateType.PAUSED)
+        .order_by(db.FlowRun.id)
+        .limit(batch_size)
+    )
+    last_flow_run_id = UUID(int=0)
 
-    async with db.session_context() as session:
-        query = (
-            sa.select(db.FlowRun)
-            .where(db.FlowRun.state_type == states.StateType.PAUSED)
-            .limit(batch_size)
-        )
-
-        result = await session.execute(query)
+    while True:
+        async with db.session_context() as session:
+            result = await session.execute(
+                paused_flow_query.where(db.FlowRun.id > last_flow_run_id)
+            )
         runs = result.scalars().all()
 
         for run in runs:
@@ -80,6 +84,10 @@ async def monitor_expired_pauses(
                 and run.state.state_details.pause_timeout is not None
                 and run.state.state_details.pause_timeout < now("UTC")
             ):
-                await docket.add(fail_expired_pause)(
-                    run.id, str(run.state.state_details.pause_timeout)
-                )
+                await docket.add(
+                    fail_expired_pause, key=f"fail-expired-pause:{run.id}"
+                )(run.id, str(run.state.state_details.pause_timeout))
+
+        if len(runs) < batch_size:
+            break
+        last_flow_run_id = runs[-1].id

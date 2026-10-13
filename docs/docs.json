@@ -28,10 +28,11 @@
   "favicon": "/logos/favicon.svg",
   "footer": {
     "socials": {
+      "bluesky": "https://bsky.app/profile/prefect.io",
       "github": "https://github.com/PrefectHQ/prefect",
       "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
       "slack": "https://prefect.io/slack",
-      "twitter": "https://x.com/prefectio",
+      "x": "https://x.com/PrefectIO",
       "youtube": "https://www.youtube.com/c/PrefectIO"
     }
   },
@@ -726,6 +727,7 @@
                       "integrations/prefect-redis/api-ref/prefect_redis-blocks",
                       "integrations/prefect-redis/api-ref/prefect_redis-cleanup_queue",
                       "integrations/prefect-redis/api-ref/prefect_redis-client",
+                      "integrations/prefect-redis/api-ref/prefect_redis-connection",
                       "integrations/prefect-redis/api-ref/prefect_redis-lease_storage",
                       "integrations/prefect-redis/api-ref/prefect_redis-locking",
                       "integrations/prefect-redis/api-ref/prefect_redis-messaging",

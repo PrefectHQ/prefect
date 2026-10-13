@@ -760,6 +760,7 @@
           "auto_remove": "{{ auto_remove }}",
           "volumes": "{{ volumes }}",
           "stream_output": "{{ stream_output }}",
+          "container_wait_timeout": "{{ container_wait_timeout }}",
           "mem_limit": "{{ mem_limit }}",
           "memswap_limit": "{{ memswap_limit }}",
           "privileged": "{{ privileged }}"
@@ -855,6 +856,12 @@
               "description": "If set, the output from created containers will be streamed to local standard output.",
               "default": true,
               "type": "boolean"
+            },
+            "container_wait_timeout": {
+              "title": "Container Wait Timeout",
+              "description": "Maximum number of seconds the worker waits for a created container to exit. If the container has not exited within this time, the worker stops watching it; the container itself is not stopped. If not set, the worker waits indefinitely.",
+              "exclusiveMinimum": 0,
+              "type": "integer"
             },
             "mem_limit": {
               "title": "Memory Limit",

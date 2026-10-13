@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { CreateFlowRunForm } from "@/components/deployments/create-flow-run-form";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { DeploymentActionHeader } from "./deployment-action-header";
 import { DeploymentLinks } from "./deployment-links";
 
@@ -16,6 +17,7 @@ export const CustomRunPage = ({
 	additionalOptions,
 }: CustomRunPageProps) => {
 	const { data } = useSuspenseQuery(buildDeploymentDetailsQuery(id));
+	usePageTitle(`Create Flow Run for Deployment: ${data.name}`);
 
 	return (
 		<div className="flex flex-col gap-4">
