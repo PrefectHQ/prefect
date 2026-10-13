@@ -2406,6 +2406,30 @@ class TestTaskCaching:
             not in caplog.text
         )
 
+    def test_task_source_distinguishes_factory_tasks_with_different_closures(
+        self,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23062"""
+        cache_policy = TASK_SOURCE + INPUTS
+
+        def make_scaler(factor):
+            @task(cache_policy=cache_policy, persist_result=True)
+            def scale(x):
+                return x * factor
+
+            return scale
+
+        double = make_scaler(2)
+        triple = make_scaler(3)
+
+        # The tasks share identical source text and differ only in the
+        # values they capture
+        assert double.source_code == triple.source_code
+
+        assert double(10) == 20
+        # Previously `triple` was served `double`'s cached result here
+        assert triple(10) == 30
+
 
 class TestCacheFunctionBuiltins:
     async def test_task_input_hash_within_flows(
