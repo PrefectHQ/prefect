@@ -913,7 +913,9 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         # AWS object key naming guidelines require '/' for bucket folders.
         # Get POSIX path to prevent `pathlib` from inferring '\' on Windows OS
         path = (
-            (Path(self.bucket_folder) / path).as_posix() if self.bucket_folder else path
+            (Path(self.bucket_folder) / path.lstrip("/")).as_posix()
+            if self.bucket_folder
+            else path
         )
 
         return path
@@ -1139,7 +1141,8 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         Provide the entire path to the key in S3.
 
         Args:
-            path: Entire path to (and including) the key.
+            path: Entire path to (and including) the key. A leading slash
+                does not bypass a configured `bucket_folder`.
 
         Example:
             Read "subfolder/file1" contents from an S3 bucket named "bucket":
@@ -1171,7 +1174,8 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         path to the key in S3.
 
         Args:
-            path: Entire path to (and including) the key.
+            path: Entire path to (and including) the key. A leading slash
+                does not bypass a configured `bucket_folder`.
 
         Example:
             Read "subfolder/file1" contents from an S3 bucket named "bucket":
@@ -1215,7 +1219,8 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         Args:
 
             path: The key name. Each object in your bucket has a unique
-                key (or key name).
+                key (or key name). A leading slash does not bypass a
+                configured `bucket_folder`.
             content: What you are uploading to S3.
 
         Example:
@@ -1254,7 +1259,8 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         Args:
 
             path: The key name. Each object in your bucket has a unique
-                key (or key name).
+                key (or key name). A leading slash does not bypass a
+                configured `bucket_folder`.
             content: What you are uploading to S3.
 
         Example:
