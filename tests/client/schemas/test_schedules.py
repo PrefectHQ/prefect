@@ -14,6 +14,7 @@ from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
+    _iana_timezone_name,
     construct_schedule,
 )
 from prefect.types import DateTime
@@ -310,6 +311,31 @@ class TestRRuleScheduleFromRRule:
         rset.rrule(rule)
         schedule = RRuleSchedule.from_rrule(rset)
         self._assert_daily_9am_across_dst(schedule, tz_name)
+
+    def test_single_rrule_preserves_pytz_timezone(self) -> None:
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23394.
+
+        pytz timezones expose their IANA name as `.zone`; the schedule must
+        honor it instead of silently falling back to UTC.
+        """
+        import pytz
+
+        tz = pytz.timezone("America/New_York")
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=tz.localize(self._DTSTART_BEFORE_DST),
+        )
+        schedule = RRuleSchedule.from_rrule(rule)
+        self._assert_daily_9am_across_dst(schedule, "America/New_York")
+
+    def test_iana_timezone_name_recognizes_pytz_zone_attribute(self) -> None:
+        """Unit test for https://github.com/PrefectHQ/prefect/issues/23394."""
+        import pytz
+
+        assert (
+            _iana_timezone_name(pytz.timezone("America/New_York")) == "America/New_York"
+        )
+        assert _iana_timezone_name(pytz.UTC) == "UTC"
 
     def test_single_rrule_preserves_name_bearing_tzinfo(self) -> None:
         """Regression: tzinfo with a public .name attribute (e.g. pendulum)."""
