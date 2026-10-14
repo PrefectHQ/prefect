@@ -1021,6 +1021,33 @@ class TestPrefectFutureList:
 
         assert futures.result(timeout=0) == [0, 1, 2]
 
+    def test_result_with_zero_timeout_returns_uncached_completed_results(self):
+        futures: PrefectFutureList[int] = PrefectFutureList()
+        for i in range(3):
+            wrapped_future: Future[Any] = Future()
+            future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+            wrapped_future.set_result(Completed(data=i))
+            futures.append(future)
+
+        assert futures.result(timeout=0) == [0, 1, 2]
+
+    def test_result_with_zero_timeout_raises_for_unfinished_future(self):
+        completed_future: Future[Any] = Future()
+        completed_future.set_result(Completed(data=42))
+        unfinished_future: Future[Any] = Future()
+        futures = PrefectFutureList(
+            [
+                PrefectConcurrentFuture(uuid.uuid4(), completed_future),
+                PrefectConcurrentFuture(uuid.uuid4(), unfinished_future),
+            ]
+        )
+
+        with pytest.raises(
+            TimeoutError,
+            match="Timed out waiting for all futures to complete within 0 seconds",
+        ):
+            futures.result(timeout=0)
+
     @pytest.mark.timeout(method="thread")
     def test_result_timeout_raises_dedicated_message(self):
         futures = PrefectFutureList([PrefectConcurrentFuture(uuid.uuid4(), Future())])
