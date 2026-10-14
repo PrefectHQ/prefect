@@ -3351,6 +3351,50 @@ class TestSchedules:
         assert actual_slug_active == expected_slug_active
 
     @pytest.mark.usefixtures("project_dir")
+    async def test_redeploy_with_empty_schedules_removes_existing_schedules(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        config = {
+            "deployments": [
+                {
+                    "name": "test-name",
+                    "entrypoint": "flows/hello.py:my_flow",
+                    "work_pool": {"name": work_pool.name},
+                    "schedules": [{"cron": "0 4 * * *"}],
+                }
+            ]
+        }
+        prefect_file = Path("prefect.yaml")
+        prefect_file.write_text(yaml.safe_dump(config))
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].active is True
+        deployment_id = deployment.id
+
+        config["deployments"][0]["schedules"] = []
+        prefect_file.write_text(yaml.safe_dump(config))
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.id == deployment_id
+        assert deployment.schedules == []
+        assert deployment.paused is False
+
+    @pytest.mark.usefixtures("project_dir")
     async def test_yaml_null_schedules(
         self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
