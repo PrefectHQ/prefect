@@ -754,29 +754,65 @@ def test_write_path_in_sync_context(s3_bucket):
 
 
 @pytest.mark.parametrize(
-    "bucket_folder, expected_key",
+    "bucket_folder, path, expected_key, object_path",
     [
-        ("", "/reports/file.txt"),
-        ("prefix", "prefix/reports/file.txt"),
-        ("prefix/", "prefix/reports/file.txt"),
-        ("/prefix", "/prefix/reports/file.txt"),
-        ("/prefix/", "/prefix/reports/file.txt"),
+        ("", "/reports/file.txt", "/reports/file.txt", "/reports/file.txt"),
+        ("prefix", "/reports/file.txt", "prefix/reports/file.txt", "reports/file.txt"),
+        ("prefix/", "/reports/file.txt", "prefix/reports/file.txt", "reports/file.txt"),
+        (
+            "/prefix",
+            "/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "/prefix/",
+            "/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "prefix",
+            "/prefix/reports/file.txt",
+            "prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "prefix/",
+            "/prefix/reports/file.txt",
+            "prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "/prefix/",
+            "/prefix/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        ("prefix/", "", "prefix", ""),
+        ("/prefix/", "", "/prefix", ""),
+        ("/", "", "/", ""),
+        (
+            "prefix",
+            "/prefix-other/file.txt",
+            "prefix/prefix-other/file.txt",
+            "prefix-other/file.txt",
+        ),
     ],
 )
-def test_write_path_with_leading_slash(
-    s3_bucket, s3, tmp_path, bucket_folder, expected_key
+def test_write_path_resolves_bucket_folder(
+    s3_bucket, s3, tmp_path, bucket_folder, path, expected_key, object_path
 ):
     s3_bucket.bucket_folder = bucket_folder
 
-    key = s3_bucket.write_path("/reports/file.txt", content=b"hello")
+    key = s3_bucket.write_path(path, content=b"hello")
 
     assert key == expected_key
     assert [
         obj["Key"] for obj in s3.list_objects_v2(Bucket=BUCKET_NAME)["Contents"]
     ] == [expected_key]
-    assert s3_bucket.read_path("/reports/file.txt") == b"hello"
+    assert s3_bucket.read_path(path) == b"hello"
     assert s3_bucket.read_path(key) == b"hello"
-    object_path = "reports/file.txt" if bucket_folder else "/reports/file.txt"
     downloaded = s3_bucket.download_object_to_path(
         object_path, tmp_path / "download.txt"
     )
@@ -784,29 +820,65 @@ def test_write_path_with_leading_slash(
 
 
 @pytest.mark.parametrize(
-    "bucket_folder, expected_key",
+    "bucket_folder, path, expected_key, object_path",
     [
-        ("", "/reports/file.txt"),
-        ("prefix", "prefix/reports/file.txt"),
-        ("prefix/", "prefix/reports/file.txt"),
-        ("/prefix", "/prefix/reports/file.txt"),
-        ("/prefix/", "/prefix/reports/file.txt"),
+        ("", "/reports/file.txt", "/reports/file.txt", "/reports/file.txt"),
+        ("prefix", "/reports/file.txt", "prefix/reports/file.txt", "reports/file.txt"),
+        ("prefix/", "/reports/file.txt", "prefix/reports/file.txt", "reports/file.txt"),
+        (
+            "/prefix",
+            "/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "/prefix/",
+            "/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "prefix",
+            "/prefix/reports/file.txt",
+            "prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "prefix/",
+            "/prefix/reports/file.txt",
+            "prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "/prefix/",
+            "/prefix/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        ("prefix/", "", "prefix", ""),
+        ("/prefix/", "", "/prefix", ""),
+        ("/", "", "/", ""),
+        (
+            "prefix",
+            "/prefix-other/file.txt",
+            "prefix/prefix-other/file.txt",
+            "prefix-other/file.txt",
+        ),
     ],
 )
-async def test_awrite_path_with_leading_slash(
-    s3_bucket, s3, tmp_path, bucket_folder, expected_key
+async def test_awrite_path_resolves_bucket_folder(
+    s3_bucket, s3, tmp_path, bucket_folder, path, expected_key, object_path
 ):
     s3_bucket.bucket_folder = bucket_folder
 
-    key = await s3_bucket.awrite_path("/reports/file.txt", content=b"hello")
+    key = await s3_bucket.awrite_path(path, content=b"hello")
 
     assert key == expected_key
     assert [
         obj["Key"] for obj in s3.list_objects_v2(Bucket=BUCKET_NAME)["Contents"]
     ] == [expected_key]
-    assert await s3_bucket.aread_path("/reports/file.txt") == b"hello"
+    assert await s3_bucket.aread_path(path) == b"hello"
     assert await s3_bucket.aread_path(key) == b"hello"
-    object_path = "reports/file.txt" if bucket_folder else "/reports/file.txt"
     downloaded = await s3_bucket.adownload_object_to_path(
         object_path, tmp_path / "download.txt"
     )

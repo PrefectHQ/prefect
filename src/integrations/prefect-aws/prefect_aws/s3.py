@@ -898,13 +898,17 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
                 bucket has a unique key (or key name).
 
         """
+        if not self.bucket_folder:
+            return path
+
+        if not self.bucket_folder.startswith("/"):
+            path = path.lstrip("/")
+
         # Avoid double prefix when path already contains bucket_folder (e.g. when
         # Prefect ResultStore pre-resolves paths for blocks without block_document_id).
         # See https://github.com/PrefectHQ/prefect-aws/issues/141 and GCS equivalent.
-        if self.bucket_folder and (
-            path == self.bucket_folder
-            or path.startswith(self.bucket_folder.rstrip("/") + "/")
-        ):
+        bucket_folder = self.bucket_folder.rstrip("/")
+        if path and (path == bucket_folder or path.startswith(bucket_folder + "/")):
             return path
 
         # If bucket_folder provided, it means we won't write to the root dir of
@@ -912,11 +916,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         #
         # AWS object key naming guidelines require '/' for bucket folders.
         # Get POSIX path to prevent `pathlib` from inferring '\' on Windows OS
-        path = (
-            (Path(self.bucket_folder) / path.lstrip("/")).as_posix()
-            if self.bucket_folder
-            else path
-        )
+        path = (Path(self.bucket_folder) / path.lstrip("/")).as_posix()
 
         return path
 
