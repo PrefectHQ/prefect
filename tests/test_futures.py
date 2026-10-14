@@ -1016,6 +1016,11 @@ class TestPrefectFutureList:
         ):
             futures.result(timeout=0.1)
 
+    def test_result_with_zero_timeout_returns_completed_results(self):
+        futures = PrefectFutureList([MockFuture(data=i) for i in range(3)])
+
+        assert futures.result(timeout=0) == [0, 1, 2]
+
     @pytest.mark.timeout(method="thread")
     def test_result_timeout_raises_dedicated_message(self):
         futures = PrefectFutureList([PrefectConcurrentFuture(uuid.uuid4(), Future())])
