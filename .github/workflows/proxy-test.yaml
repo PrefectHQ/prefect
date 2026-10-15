@@ -32,7 +32,7 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v7
         id: setup_python
         with:

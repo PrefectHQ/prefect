@@ -208,6 +208,18 @@ class TestInputsPolicy:
             )
             assert new_key == key
 
+    def test_subtraction_preserves_configuration(self):
+        policy = Inputs().configure(
+            key_storage="/path/to/storage",
+            lock_manager="/path/to/locks",
+            isolation_level="SERIALIZABLE",
+        )
+        new_policy = policy - "y"
+        assert new_policy.exclude == ["y"]
+        assert new_policy.key_storage == "/path/to/storage"
+        assert new_policy.lock_manager == "/path/to/locks"
+        assert new_policy.isolation_level == "SERIALIZABLE"
+
 
 class TestCompoundPolicy:
     def test_initializes(self):
@@ -232,6 +244,18 @@ class TestCompoundPolicy:
         assert isinstance(new_policy, CompoundCachePolicy)
         assert policy != new_policy
         assert policy.policies != new_policy.policies
+
+    def test_subtraction_preserves_configuration(self):
+        policy = DEFAULT.configure(
+            key_storage="/path/to/storage",
+            lock_manager="/path/to/locks",
+            isolation_level="SERIALIZABLE",
+        )
+        new_policy = policy - "y"
+        assert isinstance(new_policy, CompoundCachePolicy)
+        assert new_policy.key_storage == "/path/to/storage"
+        assert new_policy.lock_manager == "/path/to/locks"
+        assert new_policy.isolation_level == "SERIALIZABLE"
 
     def test_creation_via_subtraction(self):
         one = DEFAULT

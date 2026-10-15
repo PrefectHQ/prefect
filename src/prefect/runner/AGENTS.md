@@ -47,6 +47,10 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 
 These will be removed once internal callers are migrated. Direct ProcessWorker flow runs already use `FlowRunExecutorContext`; generated commands use `WorkspaceResolvingEngineCommandStarter`, while explicitly configured commands use `EngineCommandStarter`. Only the ad hoc bundle path still calls deprecated `Runner.execute_bundle()`. Keep lifecycle behavior in the extracted classes and do not route direct worker execution back through Runner.
 
+## Webserver Health Check
+
+The health check must not count a maintenance wait as a missed poll. Requests answered with `Prefect-Maintenance: true` retry indefinitely, so a poll can block for an entire Cloud maintenance window. `perform_health_check()` in `server.py` measures from `polling_window_start()` (`prefect._internal.server_maintenance`), the same rule the worker health check uses. `last_polled` is `None` until the first poll completes, so the health check measures from its own creation until then.
+
 ## EventEmitter WebSocket Degradation
 
 `EventEmitter.__aenter__` catches connection failures and silently swaps the failed client for a `NullEventsClient` — events are non-critical telemetry (the runner emits only `prefect.runner.cancelled-flow-run`), so the flow run must not crash when the events WebSocket is unreachable. Two failure classes are caught (`_NONFATAL_CONNECTION_EXCEPTIONS`): permanent rejections (`websockets.exceptions.InvalidStatus`, i.e. HTTP 4xx — e.g. a client ≤3.6.13 connecting to a server ≥3.6.14 with `PREFECT_SERVER_API_AUTH_STRING` configured) and transient failures (`RETRYABLE_EXCEPTIONS` from `events/clients.py`: `ConnectionClosed`, `TimeoutError`, `OSError`) that outlive the events client's own reconnection attempts. A `WARNING` is logged. If `__aenter__` raises, `__aexit__` is **not** called on the original client (it was never successfully entered); the replacement `NullEventsClient` is entered instead.

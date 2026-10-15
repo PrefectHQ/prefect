@@ -6,6 +6,7 @@ import socket
 import subprocess
 import sys
 from contextlib import contextmanager
+from datetime import timedelta
 from typing import Any, AsyncGenerator, Callable, Generator, List, Optional, Union
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -229,11 +230,9 @@ def mock_anyio_sleep(
 
     def latest_now(*args: Any) -> DateTime:
         # Fast-forwards the time by the total sleep time
-        return original_now(*args).add(
-            # Ensure we retain float precision
-            seconds=int(time_shift),
-            microseconds=int((time_shift - int(time_shift)) * 1000000),
-        )
+        # timedelta rather than pendulum's .add: on Python 3.13+ `now` returns a
+        # standard library datetime.
+        return original_now(*args) + timedelta(seconds=time_shift)
 
     monkeypatch.setattr("prefect.types._datetime.now", latest_now)
 

@@ -1,4 +1,5 @@
 import copy
+import math
 import sys
 import threading
 import time
@@ -7,6 +8,7 @@ from collections import defaultdict
 from collections.abc import AsyncGenerator, Awaitable, MutableMapping
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, runtime_checkable
 
@@ -18,6 +20,7 @@ from typing_extensions import Self
 
 import prefect
 from prefect._internal.compatibility.starlette import status
+from prefect._internal.server_maintenance import record_maintenance_backoff
 from prefect.client import constants
 from prefect.client.attribution import get_attribution_headers
 from prefect.client.schemas.objects import CsrfToken
@@ -42,6 +45,20 @@ APP_LIFESPANS_REF_COUNTS: dict[tuple[int, int], int] = {}
 # Blocks concurrent access to the above dicts per thread. The index should be the thread
 # identity.
 APP_LIFESPANS_LOCKS: dict[int, anyio.Lock] = defaultdict(anyio.Lock)
+
+
+def _record_if_maintenance_backoff(
+    response: Optional[Response],
+    exc_info: Optional[tuple[Any, ...]],
+    retry_seconds: float,
+) -> None:
+    # After a retryable exception, `response` is still the previous attempt's.
+    if (
+        exc_info is None
+        and response is not None
+        and response.headers.get("Prefect-Maintenance") == "true"
+    ):
+        record_maintenance_backoff(retry_seconds)
 
 
 logger: Logger = get_logger("client")
@@ -177,6 +194,31 @@ class PrefectResponse(httpx.Response):
         return new_response
 
 
+def _parse_retry_after(value: str) -> float | None:
+    """
+    Parse a `Retry-After` header value into a number of seconds to wait.
+
+    Supports both forms allowed by RFC 9110: delay-seconds and HTTP-date. Returns
+    `None` if the value cannot be interpreted so callers can fall back to their
+    default backoff.
+    """
+    try:
+        seconds = float(value)
+    except ValueError:
+        try:
+            retry_at = parsedate_to_datetime(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
+
+    if not math.isfinite(seconds):
+        return None
+
+    return max(0.0, seconds)
+
+
 class PrefectHttpxAsyncClient(httpx.AsyncClient):
     """
     A Prefect wrapper for the async httpx client with support for retry-after headers
@@ -293,7 +335,9 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                     return response
 
                 if "Retry-After" in response.headers:
-                    retry_seconds = float(response.headers["Retry-After"])
+                    retry_seconds = _parse_retry_after(response.headers["Retry-After"])
+
+            retry_after_from_header = retry_seconds is not None
 
             # Use an exponential back-off if not set in a header
             if retry_seconds is None:
@@ -302,7 +346,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
             # Add jitter
             jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
             if retry_seconds > 0 and jitter_factor > 0:
-                if response is not None and "Retry-After" in response.headers:
+                if retry_after_from_header:
                     # Always wait for _at least_ retry seconds if requested by the API
                     retry_seconds = bounded_poisson_interval(
                         retry_seconds, retry_seconds * (1 + jitter_factor)
@@ -327,6 +371,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                 f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
                 exc_info=exc_info,
             )
+            _record_if_maintenance_backoff(response, exc_info, retry_seconds)
             await anyio.sleep(retry_seconds)
 
         assert response is not None, (
@@ -563,7 +608,9 @@ class PrefectHttpxSyncClient(httpx.Client):
                     return response
 
                 if "Retry-After" in response.headers:
-                    retry_seconds = float(response.headers["Retry-After"])
+                    retry_seconds = _parse_retry_after(response.headers["Retry-After"])
+
+            retry_after_from_header = retry_seconds is not None
 
             # Use an exponential back-off if not set in a header
             if retry_seconds is None:
@@ -572,7 +619,7 @@ class PrefectHttpxSyncClient(httpx.Client):
             # Add jitter
             jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
             if retry_seconds > 0 and jitter_factor > 0:
-                if response is not None and "Retry-After" in response.headers:
+                if retry_after_from_header:
                     # Always wait for _at least_ retry seconds if requested by the API
                     retry_seconds = bounded_poisson_interval(
                         retry_seconds, retry_seconds * (1 + jitter_factor)
@@ -597,6 +644,7 @@ class PrefectHttpxSyncClient(httpx.Client):
                 f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
                 exc_info=exc_info,
             )
+            _record_if_maintenance_backoff(response, exc_info, retry_seconds)
             time.sleep(retry_seconds)
 
         assert response is not None, (

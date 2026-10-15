@@ -401,8 +401,15 @@ async def resolve_block_document_references(
         value: Any = data
 
         if len(data) == 1 and "value" in data:
-            # only resolve the value if the keypath is not already pointing to "value"
-            if not (value_keypath and value_keypath[0].startswith("value")):
+            # only resolve the value if the keypath is not already pointing to "value";
+            # a key that merely starts with "value" (e.g. "values") is inside it
+            if not (
+                value_keypath
+                and (
+                    value_keypath[0] == "value"
+                    or value_keypath[0].startswith(("value.", "value["))
+                )
+            ):
                 data = value = value["value"]
 
         if value_keypath:
