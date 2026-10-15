@@ -652,8 +652,11 @@ class Task(Generic[P, R]):
     def __get__(self, instance: None, owner: type) -> "Task[P, R]": ...
 
     @overload
-    def __get__(self: "Task[Concatenate[_Self, _BoundP], R]",
-            instance: _Self, owner: type[_Self]) -> "Task[_BoundP, R]": ...
+    def __get__(
+        self: "Task[Concatenate[_Self, _BoundP], R]",
+        instance: _Self,
+        owner: type[_Self],
+    ) -> "Task[_BoundP, R]": ...
 
     def __get__(self, instance: Any, owner: Any) -> "Task[P, R]":
         """
