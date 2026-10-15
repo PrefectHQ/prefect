@@ -110,6 +110,36 @@ class TestRunDeployment:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.job_variables == job_vars
 
+    async def test_run_deployment_for_flow_with_variadic_parameters(
+        self, prefect_client: PrefectClient
+    ):
+        @flow
+        def flow_with_variadic_parameters(x: int, *args: int, **kwargs: str):
+            pass
+
+        flow_id = await prefect_client.create_flow(flow_with_variadic_parameters)
+        deployment_id = await prefect_client.create_deployment(
+            name=f"foo-deployment-{uuid4()}",
+            flow_id=flow_id,
+            parameter_openapi_schema=(
+                flow_with_variadic_parameters.parameters.model_dump_for_openapi()
+            ),
+            enforce_parameter_schema=True,
+        )
+
+        # `*args` and `**kwargs` can be omitted
+        flow_run = await run_deployment(
+            deployment_id, parameters={"x": 1}, timeout=0, client=prefect_client
+        )
+        assert flow_run.parameters == {"x": 1}
+
+        # and accept a list and a mapping of the annotated type
+        parameters = {"x": 1, "args": [2, 3], "kwargs": {"y": "z"}}
+        flow_run = await run_deployment(
+            deployment_id, parameters=parameters, timeout=0, client=prefect_client
+        )
+        assert flow_run.parameters == parameters
+
     async def test_returns_flow_run_on_timeout(
         self,
         test_deployment,

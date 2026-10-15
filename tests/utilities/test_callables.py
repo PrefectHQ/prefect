@@ -519,6 +519,93 @@ class TestFunctionToSchema:
             "definitions": {},
         }
 
+    def test_function_with_variadic_arguments(self):
+        def f(x: int, *args, **kwargs):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {"title": "x", "type": "integer", "position": 0},
+                "args": {
+                    "title": "args",
+                    "type": "array",
+                    "items": {},
+                    "position": 1,
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "type": "object",
+                    "additionalProperties": True,
+                    "position": 2,
+                },
+            },
+            "required": ["x"],
+            "definitions": {},
+        }
+
+    def test_function_with_annotated_variadic_arguments(self):
+        def f(*args: int, **kwargs: str):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "args": {
+                    "title": "args",
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "position": 0,
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "position": 1,
+                },
+            },
+            "definitions": {},
+        }
+
+    def test_function_with_variadic_arguments_and_v1_types(self):
+        import pydantic.v1 as pydantic
+
+        def f(x: pydantic.SecretStr, *args: int, **kwargs: str):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "title": "x",
+                    "position": 0,
+                    "type": "string",
+                    "writeOnly": True,
+                    "format": "password",
+                },
+                "args": {
+                    "title": "args",
+                    "position": 1,
+                    "type": "array",
+                    "items": {"type": "integer"},
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "position": 2,
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                },
+            },
+            "required": ["x"],
+            "definitions": {},
+        }
+
 
 class TestMethodToSchema:
     def test_methods_with_no_arguments(self):
@@ -1902,5 +1989,32 @@ class TestEntrypointToSchema:
             },
             "title": "Parameters",
             "type": "object",
+            "definitions": {},
+        }
+
+    def test_function_with_variadic_arguments(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        def f(x: int, *args, **kwargs):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "properties": {
+                "x": {"title": "x", "position": 0, "type": "integer"},
+                "args": {"title": "args", "position": 1, "type": "array", "items": {}},
+                "kwargs": {
+                    "title": "kwargs",
+                    "position": 2,
+                    "type": "object",
+                    "additionalProperties": True,
+                },
+            },
+            "title": "Parameters",
+            "type": "object",
+            "required": ["x"],
             "definitions": {},
         }
