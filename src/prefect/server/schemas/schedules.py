@@ -5,8 +5,10 @@ Schedule schemas
 from __future__ import annotations
 
 import datetime
+import sys
 from collections.abc import Generator
 from typing import (
+    Annotated,
     Any,
     ClassVar,
     TypeAlias,
@@ -16,10 +18,11 @@ from zoneinfo import ZoneInfo
 
 import dateutil
 import dateutil.rrule
-from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 from whenever import DateTimeDelta, ZonedDateTime
 
 from prefect._internal.schemas.validators import (
+    default_anchor_date,
     default_timezone,
     validate_cron_string,
     validate_rrule_string,
@@ -57,7 +60,10 @@ def _whenever_delta_seconds(delta: Any) -> float:
     return delta.total("seconds") if hasattr(delta, "total") else delta.in_seconds()
 
 
-AnchorDate: TypeAlias = datetime.datetime
+if sys.version_info >= (3, 13):
+    AnchorDate: TypeAlias = datetime.datetime
+else:
+    AnchorDate: TypeAlias = Annotated[DateTime, AfterValidator(default_anchor_date)]
 
 
 def _prepare_scheduling_start_and_end(
@@ -204,6 +210,7 @@ class IntervalSchedule(PrefectBaseModel):
             # total-seconds value for the initial offset jump.
             if isinstance(interval, DateTimeDelta):
                 _months, _days, _secs, _nanos = interval.in_months_days_secs_nanos()
+                has_day_or_time_parts = bool(_days or _secs or _nanos)
                 approx_total_seconds = (
                     _months * 30 * 86400 + _days * 86400 + _secs + _nanos / 1e9
                 )
@@ -213,6 +220,7 @@ class IntervalSchedule(PrefectBaseModel):
                 _months = _date.get("months") or 0 if _date else 0
                 _weeks = _date.get("weeks") or 0 if _date else 0
                 _days = _date.get("days") or 0 if _date else 0
+                has_day_or_time_parts = bool(_weeks or _days or _time)
                 approx_total_seconds = (
                     _years * 365 * 86400
                     + _months * 30 * 86400
@@ -372,7 +380,9 @@ class IntervalSchedule(PrefectBaseModel):
                 # transition a calendar add can drift the phase, so hop
                 # transition to transition: seek within each constant-offset
                 # segment, then `_advance` once across the change.
-                if not (_years or _months) or anchor_zdt.date().day <= 28:
+                if not (_years or _months) or (
+                    anchor_zdt.date().day <= 28 and not has_day_or_time_parts
+                ):
                     for _ in range(MAX_ITERATIONS):
                         if next_date >= local_start:
                             break
@@ -411,7 +421,7 @@ class IntervalSchedule(PrefectBaseModel):
             # ensure no duplicates; weird things can happen with DST
             if next_date not in dates:
                 dates.add(next_date)
-                yield (_whenever_to_stdlib(next_date))
+                yield create_datetime_instance(_whenever_to_stdlib(next_date))
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -525,6 +535,9 @@ class CronSchedule(PrefectBaseModel):
             else:
                 n = 1
 
+        # Keep wall-clock arithmetic in stdlib datetime even when the public
+        # input is a Pendulum datetime during the deprecation window.
+        start = datetime.datetime.combine(start, start.timetz())
         if self.timezone:
             start = start.astimezone(ZoneInfo(self.timezone or "UTC"))
 
@@ -564,12 +577,19 @@ class CronSchedule(PrefectBaseModel):
             # pick the earliest interpretation still on/after `start` so a
             # start in the second fold yields second-fold dates.
             next_wall = start_naive_tz + delta  # == next_time
-            candidates = {
-                _whenever_zdt_from_py(
-                    next_wall.replace(tzinfo=start_localized.tzinfo, fold=fold)
+            first = _whenever_zdt_from_py(
+                next_wall.replace(tzinfo=start_localized.tzinfo, fold=0)
+            )
+            candidates = {first}
+            # A nonexistent wall time is shifted forward, matching the
+            # existing Whenever behavior. Only consider the second fold
+            # when the first interpretation preserves the wall time.
+            if _whenever_to_stdlib(first).replace(tzinfo=None) == next_wall:
+                candidates.add(
+                    _whenever_zdt_from_py(
+                        next_wall.replace(tzinfo=start_localized.tzinfo, fold=1)
+                    )
                 )
-                for fold in (0, 1)
-            }
             start_instant = _whenever_zdt_from_py(start_localized)
             viable = [c for c in candidates if c >= start_instant]
             _zdt = (min(viable) if viable else min(candidates)).to_tz(
@@ -583,7 +603,7 @@ class CronSchedule(PrefectBaseModel):
             # ensure no duplicates; weird things can happen with DST
             if next_date not in dates:
                 dates.add(next_date)
-                yield next_date
+                yield create_datetime_instance(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -812,7 +832,7 @@ class RRuleSchedule(PrefectBaseModel):
             # ensure no duplicates; weird things can happen with DST
             if next_date not in dates:
                 dates.add(next_date)
-                yield next_date
+                yield create_datetime_instance(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:

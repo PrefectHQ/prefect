@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import sys
 
 import pytest
 from pydantic import BaseModel
@@ -64,6 +65,7 @@ def test_seconds_timedelta_accepts_numeric_values():
     assert Model(duration="PT5S").duration == datetime.timedelta(seconds=5)
 
 
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="Whenever clock on Python 3.13+")
 def test_now_uses_to_stdlib_on_python_313_plus(monkeypatch: pytest.MonkeyPatch):
     expected = datetime.datetime(2026, 4, 9, tzinfo=datetime.timezone.utc)
 
@@ -85,6 +87,7 @@ def test_now_uses_to_stdlib_on_python_313_plus(monkeypatch: pytest.MonkeyPatch):
     assert datetime_types.now("UTC") == expected
 
 
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="Whenever clock on Python 3.13+")
 def test_now_falls_back_to_py_datetime_without_to_stdlib(
     monkeypatch: pytest.MonkeyPatch,
 ):

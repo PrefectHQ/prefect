@@ -5,24 +5,42 @@ supported Python versions.
 """
 
 import datetime
+import subprocess
+import sys
+from collections.abc import Callable
 from zoneinfo import ZoneInfo
 
 import pytest
+from dateutil.tz import tzoffset
 from pydantic import BaseModel
 
 from prefect.types._datetime import (
+    Date,
     DateTime,
+    Duration,
+    create_datetime_instance,
     end_of_period,
     from_timestamp,
+    human_friendly_diff,
     in_local_tz,
     now,
+    parse_datetime,
     start_of_day,
     travel_to,
 )
 
+if sys.version_info < (3, 13):
+    import pendulum
+
 # Saturday 2024-06-15 14:30:45 America/New_York (UTC-4, i.e. EDT)
 FIXED = datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=ZoneInfo("America/New_York"))
 EDT = datetime.timedelta(hours=-4)
+
+
+class NamedFixedOffset(tzoffset):
+    """A fixed-offset tzinfo exposing a Pendulum-style name."""
+
+    name = "+05:30"
 
 
 class TestNow:
@@ -43,6 +61,7 @@ class TestNow:
             ZoneInfo("America/New_York"),
             datetime.UTC,
             datetime.timezone(datetime.timedelta(hours=5, minutes=30)),
+            NamedFixedOffset("+05:30", 19800),
         ],
     )
     def test_accepts_tzinfo_objects(self, tz: datetime.tzinfo):
@@ -60,6 +79,7 @@ class TestFromTimestamp:
             ZoneInfo("UTC"),
             datetime.UTC,
             datetime.timezone(datetime.timedelta(hours=5, minutes=30)),
+            NamedFixedOffset("+05:30", 19800),
         ],
     )
     def test_accepts_string_and_tzinfo(self, tz):
@@ -150,8 +170,8 @@ class TestEndOfPeriod:
         assert result.utcoffset() == EDT
 
     def test_invalid_period_raises(self):
-        with pytest.raises(ValueError, match="Invalid period"):
-            end_of_period(FIXED, "century")
+        with pytest.raises(ValueError, match="Invalid (period|unit)"):
+            end_of_period(FIXED, "unsupported")
 
     @pytest.mark.parametrize(
         "period, expected",
@@ -261,34 +281,141 @@ class TestDateTimeTypeAlias:
         assert result.tzinfo is not None
         assert result.utcoffset() == datetime.timedelta(0)
 
-    def test_result_is_a_datetime_alias_instance(self):
+    @pytest.mark.parametrize(
+        "value, serialized",
+        [
+            ("2024-06-15T14:30:45", '{"when":"2024-06-15T14:30:45Z"}'),
+            ("2024-06-15T14:30:45Z", '{"when":"2024-06-15T14:30:45Z"}'),
+            (
+                "2024-06-15T14:30:45.123456+05:30",
+                '{"when":"2024-06-15T14:30:45.123456+05:30"}',
+            ),
+            (
+                datetime.datetime(
+                    2024, 6, 15, 14, 30, 45, tzinfo=NamedFixedOffset("+05:30", 19800)
+                ),
+                '{"when":"2024-06-15T14:30:45+05:30"}',
+            ),
+            (
+                datetime.datetime(
+                    2018,
+                    11,
+                    4,
+                    1,
+                    30,
+                    tzinfo=ZoneInfo("America/New_York"),
+                    fold=1,
+                ),
+                '{"when":"2018-11-04T01:30:00-05:00"}',
+            ),
+        ],
+    )
+    def test_validation_and_json_match_stdlib_datetime(
+        self, value: str | datetime.datetime, serialized: str
+    ):
         class Model(BaseModel):
             when: DateTime
 
-        result = Model(when="2024-06-15T14:30:45Z").when
-        assert isinstance(result, DateTime)
+        model = Model(when=value)
+        if sys.version_info < (3, 13):
+            assert isinstance(model.when, pendulum.DateTime)
+        else:
+            assert type(model.when) is datetime.datetime
+        assert model.model_dump_json() == serialized
+        restored = Model.model_validate_json(serialized).when
+        assert restored.astimezone(datetime.UTC) == model.when.astimezone(datetime.UTC)
+        assert restored.utcoffset() == model.when.utcoffset()
 
-    def test_pendulum_compat_methods(self):
-        """`DateTime` used to be a pendulum type; the common methods callers
-        used on it must keep working."""
-        dt = DateTime.instance(datetime.datetime(2024, 6, 15, 14, 30))
-        assert isinstance(dt, DateTime)
-        assert dt.utcoffset() == datetime.timedelta(0)
-
-        aware = DateTime.instance(
-            datetime.datetime(2024, 6, 15, 14, 30, tzinfo=ZoneInfo("UTC"))
+    @pytest.mark.skipif(sys.version_info < (3, 13), reason="stdlib datetime API")
+    def test_construction_matches_stdlib_datetime(self):
+        assert DateTime(2024, 6, 15).tzinfo is None
+        assert DateTime.now().tzinfo is None
+        assert DateTime.fromtimestamp(0).tzinfo is None
+        assert DateTime.fromtimestamp(0, datetime.UTC) == datetime.datetime(
+            1970, 1, 1, tzinfo=datetime.UTC
         )
-        in_ny = aware.in_tz("America/New_York")
-        assert isinstance(in_ny, DateTime)
-        assert in_ny.tzinfo == ZoneInfo("America/New_York")
-        assert in_ny.hour == 10
-        assert aware.in_timezone("UTC") == aware
 
-        assert aware.naive().tzinfo is None
 
-        assert DateTime.now("UTC").tzinfo is not None
-        assert isinstance(DateTime.now(), DateTime)
+def test_pendulum_deprecation_notice_matches_python_version():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-W",
+            "always::DeprecationWarning",
+            "-c",
+            "import prefect; import prefect",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
 
-        from_ts = DateTime.fromtimestamp(0, "UTC")
-        assert isinstance(from_ts, DateTime)
-        assert (from_ts.year, from_ts.month, from_ts.day) == (1970, 1, 1)
+    if sys.version_info < (3, 13):
+        assert result.stderr.count("Pendulum datetime behavior") == 1
+        assert "six months and three minor" in result.stderr
+        assert "datetime" in result.stderr
+    else:
+        assert "Pendulum datetime behavior" not in result.stderr
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+class TestPendulumCompatibility:
+    @pytest.mark.parametrize(
+        "factory",
+        [
+            lambda: now("UTC"),
+            lambda: from_timestamp(0),
+            lambda: parse_datetime("2024-W24-6T14:30:45"),
+            lambda: create_datetime_instance(FIXED),
+            lambda: start_of_day(FIXED),
+            lambda: end_of_period(FIXED, "day"),
+            lambda: end_of_period(FIXED, "month"),
+            lambda: end_of_period(FIXED, "year"),
+            lambda: in_local_tz(FIXED),
+        ],
+    )
+    def test_helpers_retain_pendulum_methods(
+        self, factory: Callable[[], datetime.datetime]
+    ):
+        value = factory()
+        assert isinstance(value, pendulum.DateTime)
+        assert value.add(days=1) > value
+        assert value.in_tz("UTC").utcoffset() == datetime.timedelta(0)
+        assert isinstance(value.to_iso8601_string(), str)
+
+    def test_human_friendly_diff_preserves_pendulum_wording(self):
+        assert (
+            human_friendly_diff(FIXED, FIXED + datetime.timedelta(days=1))
+            == "1 day before"
+        )
+
+    def test_pydantic_types_preserve_calendar_duration_and_json(self):
+        class Model(BaseModel):
+            timestamp: DateTime
+            date: Date
+            duration: Duration
+
+        value = Model(
+            timestamp="2024-06-15T14:30:45Z",
+            date="2024-06-15",
+            duration="P1M2DT3H",
+        )
+
+        assert isinstance(value.timestamp, pendulum.DateTime)
+        assert value.timestamp.in_tz("America/New_York").hour == 10
+        assert isinstance(value.date, pendulum.Date)
+        assert value.date.add(days=1).day == 16
+        assert isinstance(value.duration, pendulum.Duration)
+        assert value.duration.months == 1
+        assert value.model_dump_json() == (
+            '{"timestamp":"2024-06-15T14:30:45Z","date":"2024-06-15",'
+            '"duration":"P1M2DT3H"}'
+        )
+
+    def test_direct_construction_and_frozen_pendulum_clock(self):
+        value = DateTime.instance(FIXED)
+        assert value.in_tz("UTC").hour == 18
+        assert value.naive().tzinfo is None
+        with travel_to(FIXED):
+            assert DateTime.now("UTC") == FIXED
+            assert pendulum.now("UTC") == FIXED

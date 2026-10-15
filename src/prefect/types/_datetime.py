@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import datetime
-from contextlib import contextmanager
+import sys
+import warnings
+from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING, Annotated, Any, TypeAlias, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
@@ -45,99 +47,37 @@ class _DateTime(datetime.datetime):
         source_type: Any,
         handler: GetCoreSchemaHandler,
     ) -> _core_schema.CoreSchema:
-        def _coerce(v: datetime.datetime) -> _DateTime:
-            v = create_datetime_instance(v)
-            return cls(
-                v.year,
-                v.month,
-                v.day,
-                v.hour,
-                v.minute,
-                v.second,
-                v.microsecond,
-                tzinfo=v.tzinfo,
-                fold=v.fold,
-            )
-
         return _core_schema.no_info_after_validator_function(
-            _coerce,
+            create_datetime_instance,
             handler(datetime.datetime),
         )
 
-    # Compatibility surface for code written against the previous
-    # pendulum-backed `PydanticDateTime`. These mirror the pendulum methods
-    # users are most likely to call; prefer the stdlib equivalents
-    # (`astimezone`, `datetime.fromtimestamp`, ...) in new code.
 
-    @classmethod
-    def now(cls, tz: Any = None) -> _DateTime:
-        """Current time in `tz` (defaults to the local timezone, like
-        `pendulum.now()`), always timezone-aware."""
-        if tz is None:
-            # Convert via `astimezone()` so the system zone's historical
-            # offset rules apply — a frozen clock in another DST season
-            # still shows the correct local time.
-            return cls.instance(now("UTC").astimezone())
-        resolved = _tzinfo_for_conversion(tz)
-        tzinfo = ZoneInfo(resolved) if isinstance(resolved, str) else resolved
-        # module-level `now()` goes through `whenever`, so the result is
-        # frozen under `travel_to` like the pendulum version was
-        return cls.instance(now(tzinfo))
+if sys.version_info >= (3, 13):
+    DateTime: TypeAlias = _DateTime
+    Date: TypeAlias = datetime.date
+    Duration: TypeAlias = datetime.timedelta
+else:
+    import pendulum
+    from pydantic_extra_types.pendulum_dt import Date as PydanticDate
+    from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
+    from pydantic_extra_types.pendulum_dt import Duration as PydanticDuration
 
-    @classmethod
-    def instance(cls, dt: datetime.datetime, tz: Any = "UTC") -> _DateTime:
-        """Wrap a stdlib datetime, interpreting naive values in `tz`
-        (default UTC) like `pendulum.instance`."""
-        if dt.tzinfo is None:
-            resolved = _tzinfo_for_conversion(tz)
-            dt = dt.replace(
-                tzinfo=ZoneInfo(resolved) if isinstance(resolved, str) else resolved
-            )
-        return cls(
-            dt.year,
-            dt.month,
-            dt.day,
-            dt.hour,
-            dt.minute,
-            dt.second,
-            dt.microsecond,
-            tzinfo=dt.tzinfo,
-            fold=dt.fold,
-        )
+    DateTime: TypeAlias = PydanticDateTime
+    Date: TypeAlias = PydanticDate
+    Duration: TypeAlias = PydanticDuration
 
-    @classmethod
-    def fromtimestamp(cls, ts: float, tz: Any = "UTC") -> _DateTime:
-        resolved = _tzinfo_for_conversion(tz)
-        tzinfo = ZoneInfo(resolved) if isinstance(resolved, str) else resolved
-        dt = datetime.datetime.fromtimestamp(ts, tzinfo)
-        return cls.instance(dt)
+    warnings.warn(
+        "Pendulum datetime behavior on Python 3.11 and 3.12 is deprecated. "
+        "It will be retained for at least six months and three minor version "
+        "increases after the deprecation release, whichever is longer. "
+        "A later minor release will return standard-library datetime types. "
+        "See https://docs.prefect.io/v3/get-started/install#datetime-values "
+        "for migration guidance.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
-    def in_tz(self, tz: Any = "UTC") -> _DateTime:
-        """Convert to timezone `tz`, like `pendulum.DateTime.in_tz`."""
-        resolved = _tzinfo_for_conversion(tz)
-        tzinfo = ZoneInfo(resolved) if isinstance(resolved, str) else resolved
-        return self.instance(self.astimezone(tzinfo))
-
-    in_timezone = in_tz
-
-    def naive(self) -> _DateTime:
-        """Drop tzinfo, like `pendulum.DateTime.naive`."""
-        dt = self.replace(tzinfo=None)
-        return type(self)(
-            dt.year,
-            dt.month,
-            dt.day,
-            dt.hour,
-            dt.minute,
-            dt.second,
-            dt.microsecond,
-            fold=dt.fold,
-        )
-
-
-DateTime: TypeAlias = _DateTime
-Date: TypeAlias = datetime.date
-Duration: TypeAlias = datetime.timedelta
 if TYPE_CHECKING or _WHENEVER_NEW_API:
     from whenever import ItemizedDelta
 else:
@@ -147,6 +87,8 @@ Interval: TypeAlias = datetime.timedelta | ItemizedDelta
 
 
 def parse_datetime(dt: str) -> datetime.datetime:
+    if sys.version_info < (3, 13):
+        return cast(datetime.datetime, pendulum.parse(dt))
     parsed_dt = parse(dt)
     if parsed_dt.tzinfo is None:
         # Assume UTC if no timezone is provided
@@ -160,6 +102,8 @@ def get_timezones() -> tuple[str, ...]:
 
 
 def create_datetime_instance(v: datetime.datetime) -> datetime.datetime:
+    if sys.version_info < (3, 13):
+        return DateTime.instance(v)
     if v.tzinfo is None:
         # Assume UTC if no timezone is provided
         return v.replace(tzinfo=ZoneInfo("UTC"))
@@ -168,6 +112,8 @@ def create_datetime_instance(v: datetime.datetime) -> datetime.datetime:
 
 
 def from_timestamp(ts: float, tz: str | Any = "UTC") -> datetime.datetime:
+    if sys.version_info < (3, 13):
+        return pendulum.from_timestamp(ts, tz)
     tz = _tzinfo_for_conversion(tz)
     if isinstance(tz, str):
         tz = ZoneInfo(tz)
@@ -202,6 +148,13 @@ def human_friendly_diff(
     if other is not None:
         other = _normalize(other)
 
+    if sys.version_info < (3, 13):
+        pendulum_dt = DateTime.instance(dt.astimezone(ZoneInfo("UTC")))
+        pendulum_other = (
+            DateTime.instance(other.astimezone(ZoneInfo("UTC"))) if other else None
+        )
+        return pendulum_dt.diff_for_humans(other=pendulum_other)
+
     # humanize expects ZoneInfo or None
     return humanize.naturaltime(dt, when=other)
 
@@ -224,6 +177,11 @@ def _whenever_zdt_from_py(dt: datetime.datetime) -> Any:
     whenever >= 0.10.0 accepts a stdlib datetime directly in the constructor.
     Older versions require the `from_py_datetime()` classmethod.
     """
+    if isinstance(dt.tzinfo, ZoneInfo) and type(dt.tzinfo) is not ZoneInfo:
+        # Whenever requires an exact ZoneInfo, not Pendulum's subclass.
+        dt = datetime.datetime.combine(dt, dt.timetz()).replace(
+            tzinfo=ZoneInfo(dt.tzinfo.key)
+        )
     if _WHENEVER_NEW_API:
         return ZonedDateTime(dt)  # type: ignore[arg-type]
     return ZonedDateTime.from_py_datetime(dt)
@@ -254,6 +212,12 @@ def _tzinfo_for_conversion(tz: Any) -> str | datetime.tzinfo:
         return tz.key
     name = getattr(tz, "name", None)
     if isinstance(name, str):
+        if isinstance(tz, datetime.tzinfo):
+            try:
+                ZoneInfo(name)
+            except ZoneInfoNotFoundError:
+                # Fixed-offset names such as "+05:30" are not IANA keys.
+                return tz
         return name
     key = getattr(tz, "key", None)
     if isinstance(key, str):
@@ -283,11 +247,13 @@ def _zdt_or_fixed_offset(dt: datetime.datetime) -> datetime.datetime:
 def now(
     tz: str | Any = "UTC",
 ) -> datetime.datetime:
+    if sys.version_info < (3, 13):
+        return pendulum.now(tz)
     tz = _tzinfo_for_conversion(tz)
     zdt_now = ZonedDateTime.now(tz if isinstance(tz, str) else "UTC")
     now_dt = _whenever_to_stdlib(zdt_now)
     if not isinstance(tz, str):
-        return now_dt.astimezone(tz)
+        now_dt = now_dt.astimezone(tz)
     return now_dt
 
 
@@ -307,13 +273,17 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
     Raises:
         ValueError: If an invalid unit is specified.
     """
+    if sys.version_info < (3, 13):
+        return DateTime.instance(dt).end_of(period)
     dt = _zdt_or_fixed_offset(dt)
     if dt.tzinfo is not None and not isinstance(dt.tzinfo, ZoneInfo):
         # Fixed-offset and other non-IANA tzinfo: compute the wall-clock
         # boundary in the naive frame (no DST transitions to worry about),
         # then restore the original offset.
-        return _end_of_period_fixed(dt.replace(tzinfo=None), period).replace(
-            tzinfo=dt.tzinfo
+        return create_datetime_instance(
+            _end_of_period_fixed(dt.replace(tzinfo=None), period).replace(
+                tzinfo=dt.tzinfo
+            )
         )
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=ZoneInfo("UTC"))
@@ -347,7 +317,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
     else:
         raise ValueError(f"Invalid period: {period}")
 
-    return _whenever_to_stdlib(zdt)
+    return create_datetime_instance(_whenever_to_stdlib(zdt))
 
 
 def _end_of_period_fixed(dt: datetime.datetime, period: str) -> datetime.datetime:
@@ -384,13 +354,17 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
     Raises:
         ValueError: If an invalid unit is specified.
     """
+    if sys.version_info < (3, 13):
+        return DateTime.instance(dt).start_of("day")
     dt = _zdt_or_fixed_offset(dt)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=ZoneInfo("UTC"))
     if not isinstance(dt.tzinfo, ZoneInfo):
         # Fixed-offset and other non-IANA tzinfo: the wall-clock boundary is
         # just the same calendar day at midnight in that offset.
-        return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        return create_datetime_instance(
+            dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        )
 
     zdt = _whenever_zdt_from_py(dt)
     zdt = (
@@ -399,7 +373,7 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
         else zdt.start_of_day()
     )
 
-    return _whenever_to_stdlib(zdt)
+    return create_datetime_instance(_whenever_to_stdlib(zdt))
 
 
 def earliest_possible_datetime() -> datetime.datetime:
@@ -410,18 +384,24 @@ def earliest_possible_datetime() -> datetime.datetime:
 def travel_to(dt: Any):
     """Freeze `whenever`'s clock at `dt` so every caller of `now()` sees it.
 
-    Uses `whenever.patch_current_time`, which patches the clock globally —
-    including modules that imported `now` directly — mirroring pendulum's
-    `travel_to(freeze=True)` semantics.
+    Also freezes Pendulum's clock on Python 3.11 and 3.12 during the
+    deprecation window.
     """
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=ZoneInfo("UTC"))
     _instant_from_py = Instant if _WHENEVER_NEW_API else Instant.from_py_datetime
-    with patch_current_time(_instant_from_py(dt), keep_ticking=False):
+    pendulum_clock = (
+        pendulum.travel_to(dt, freeze=True)
+        if sys.version_info < (3, 13)
+        else nullcontext()
+    )
+    with patch_current_time(_instant_from_py(dt), keep_ticking=False), pendulum_clock:
         yield
 
 
 def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
+    if sys.version_info < (3, 13):
+        return DateTime.instance(dt).in_tz(pendulum.local_timezone())
     if dt.tzinfo is None:
         wdt = _whenever_pdt_from_py(dt).assume_system_tz()
     else:
@@ -434,7 +414,7 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
 
         wdt = _whenever_zdt_from_py(dt).to_system_tz()
 
-    return _whenever_to_stdlib(wdt)
+    return create_datetime_instance(_whenever_to_stdlib(wdt))
 
 
 def to_datetime_string(dt: datetime.datetime, include_tz: bool = True) -> str:

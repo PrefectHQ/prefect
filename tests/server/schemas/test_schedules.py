@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -15,10 +16,29 @@ from prefect.server.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.types._datetime import now, parse_datetime
+from prefect.types._datetime import DateTime, ItemizedDelta, now, parse_datetime
 
 dt = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
 RRDaily = "FREQ=DAILY"
+
+
+@pytest.mark.parametrize(
+    "schedule",
+    [
+        IntervalSchedule(interval=timedelta(days=1), anchor_date=dt),
+        CronSchedule(cron="0 0 * * *", timezone="UTC"),
+        RRuleSchedule(rrule="DTSTART:20200101T000000\nRRULE:FREQ=DAILY"),
+    ],
+)
+async def test_schedule_results_preserve_python_datetime_contract(schedule):
+    dates = await schedule.get_dates(n=2, start=dt)
+
+    if sys.version_info < (3, 13):
+        assert all(isinstance(value, DateTime) for value in dates)
+        assert dates[0].add(days=1) == dates[1]
+        assert dates[0].in_tz("UTC").to_iso8601_string() == "2020-01-01T00:00:00Z"
+    else:
+        assert all(type(value) is datetime for value in dates)
 
 
 class TestCreateIntervalSchedule:
@@ -97,7 +117,7 @@ class TestCreateIntervalSchedule:
         ].endswith("-05:00")
 
         parsed = IntervalSchedule.model_validate(clock_dict)
-        assert str(parsed.anchor_date.tzinfo) in ("-04:00", "-05:00")
+        assert parsed.anchor_date.utcoffset() == offset_dt.utcoffset()
         assert parsed.timezone == "UTC"
 
     def test_parse_utc_offset_timezone_with_specified_tz(self):
@@ -774,6 +794,25 @@ class TestIntervalScheduleDateTimeDelta:
             (2026, 1, 3),
         ]
 
+    async def test_mixed_calendar_interval_preserves_occurrences_when_seeking(self):
+        anchor = datetime(2024, 1, 1, tzinfo=ZoneInfo("UTC"))
+        start = datetime(2029, 11, 9, tzinfo=ZoneInfo("UTC"))
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(months=1, days=1),
+            anchor_date=anchor,
+            timezone="UTC",
+        )
+
+        sequential = await schedule.get_dates(n=90, start=anchor)
+        dates = await schedule.get_dates(n=3, start=start)
+
+        assert dates == [d for d in sequential if d >= start][:3]
+        assert dates == [
+            start,
+            datetime(2029, 12, 10, tzinfo=ZoneInfo("UTC")),
+            datetime(2030, 1, 11, tzinfo=ZoneInfo("UTC")),
+        ]
+
     async def test_daily_interval_across_dst_gap_keeps_iterated_phase(self):
         """Iterating `days=1` through a spring-forward gap shifts the wall
         time (02:30 -> 03:30) and that shifted phase persists. A scaled seek
@@ -860,6 +899,27 @@ class TestCronScheduleDaylightSavingsTime:
     """
     Tests that DST boundaries are respected
     """
+
+    @pytest.mark.parametrize("start_hour, start_minute", [(0, 0), (1, 45)])
+    async def test_cron_schedule_nonexistent_time_moves_forward(
+        self, start_hour: int, start_minute: int
+    ):
+        schedule = CronSchedule(cron="30 2 * * *", timezone="America/New_York")
+        start = datetime(
+            2024,
+            3,
+            10,
+            start_hour,
+            start_minute,
+            tzinfo=ZoneInfo("America/New_York"),
+        )
+
+        dates = await schedule.get_dates(n=2, start=start)
+
+        assert [d.astimezone(ZoneInfo("UTC")) for d in dates] == [
+            datetime(2024, 3, 10, 7, 30, tzinfo=ZoneInfo("UTC")),
+            datetime(2024, 3, 11, 6, 30, tzinfo=ZoneInfo("UTC")),
+        ]
 
     async def test_cron_schedule_hourly_daylight_savings_time_forward(self):
         """
