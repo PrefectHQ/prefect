@@ -529,11 +529,18 @@ class TestFunctionToSchema:
             "type": "object",
             "properties": {
                 "x": {"title": "x", "type": "integer", "position": 0},
-                "args": {"title": "args", "type": "array", "items": {}, "position": 1},
+                "args": {
+                    "title": "args",
+                    "type": "array",
+                    "items": {},
+                    "default": [],
+                    "position": 1,
+                },
                 "kwargs": {
                     "title": "kwargs",
                     "type": "object",
                     "additionalProperties": True,
+                    "default": {},
                     "position": 2,
                 },
             },
@@ -554,12 +561,14 @@ class TestFunctionToSchema:
                     "title": "args",
                     "type": "array",
                     "items": {"type": "integer"},
+                    "default": [],
                     "position": 0,
                 },
                 "kwargs": {
                     "title": "kwargs",
                     "type": "object",
                     "additionalProperties": {"type": "string"},
+                    "default": {},
                     "position": 1,
                 },
             },
@@ -589,12 +598,14 @@ class TestFunctionToSchema:
                     "position": 1,
                     "type": "array",
                     "items": {"type": "integer"},
+                    "default": [],
                 },
                 "kwargs": {
                     "title": "kwargs",
                     "position": 2,
                     "type": "object",
                     "additionalProperties": {"type": "string"},
+                    "default": {},
                 },
             },
             "required": ["x"],
@@ -1045,6 +1056,13 @@ class TestParametersToArgsKwargs:
 
         args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": []})
         assert fn(*args, **kwargs) == (1, ())
+
+    def test_var_positional_with_omitted_field_defaulted_param(self):
+        def fn(a: int = Field(default=1), *args):
+            return a, args
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": [2]})
+        assert fn(*args, **kwargs) == (1, (2,))
 
     def test_wraps_with_fewer_positional_params_routes_rest_via_kwargs(self):
         """When the wrapper accepts fewer positional params than the wrapped
@@ -2021,12 +2039,14 @@ class TestEntrypointToSchema:
                     "position": 1,
                     "type": "array",
                     "items": {"type": "integer"},
+                    "default": [],
                 },
                 "kwargs": {
                     "title": "kwargs",
                     "position": 2,
                     "type": "object",
                     "additionalProperties": {"type": "string"},
+                    "default": {},
                 },
             },
             "title": "Parameters",

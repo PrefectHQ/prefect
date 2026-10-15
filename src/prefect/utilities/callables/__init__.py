@@ -310,7 +310,11 @@ def parameters_to_args_kwargs(
             }
         elif var_positional.name in parameters:
             parameters = {
-                p.name: p.default
+                p.name: (
+                    p.default.get_default(call_default_factory=True)
+                    if isinstance(p.default, pydantic.fields.FieldInfo)
+                    else p.default
+                )
                 for p in sig.parameters.values()
                 if p.kind
                 in (
@@ -468,22 +472,20 @@ def process_v1_params(
 
     type_ = Any if param.annotation is inspect.Parameter.empty else param.annotation
 
+    default = ... if param.default is param.empty else param.default
     # `*args` and `**kwargs` accept any number of values, including none
-    default: dict[str, Any]
     if param.kind is inspect.Parameter.VAR_POSITIONAL:
         type_ = list[type_]
-        default = {"default_factory": list}
+        default = []
     elif param.kind is inspect.Parameter.VAR_KEYWORD:
         type_ = dict[str, type_]
-        default = {"default_factory": dict}
-    else:
-        default = {"default": ... if param.default is param.empty else param.default}
+        default = {}
 
     with warnings.catch_warnings():
         # Note: pydantic.v1 doesn't have the warnings module, so we can't suppress them
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         field: Any = pydantic_v1.Field(
-            **default,
+            default=default,
             title=param.name,
             description=docstrings.get(param.name, None),
             alias=aliases.get(name),

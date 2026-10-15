@@ -15,6 +15,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRunResult
 from prefect.context import FlowRunContext
 from prefect.deployments import arun_deployment, run_deployment
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.flow_engine import run_flow, run_flow_async
 from prefect.settings import (
     PREFECT_API_URL,
@@ -137,6 +138,15 @@ class TestRunDeployment:
             )
             assert flow_run.parameters == parameters
             assert await run_flow(flow_with_variadic_parameters, flow_run) == expected
+
+        for parameters in [{"args": None}, {"kwargs": None}]:
+            with pytest.raises(PrefectHTTPStatusError, match="409"):
+                await run_deployment(
+                    deployment_id,
+                    parameters=parameters,
+                    timeout=0,
+                    client=prefect_client,
+                )
 
     async def test_returns_flow_run_on_timeout(
         self,
