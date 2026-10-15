@@ -4392,6 +4392,10 @@ class TestSuspendFlowRun:
             "prefect.flow_engine.observe_flow_run_suspension",
             lambda *args, **kwargs: nullcontext(),
         )
+        monkeypatch.setattr(
+            "prefect.flow_engine.observe_flow_run_suspension_async",
+            lambda *args, **kwargs: nullcontext(),
+        )
 
         if engine_type == "sync":
             original_begin_run = FlowRunEngine.begin_run
@@ -4441,6 +4445,58 @@ class TestSuspendFlowRun:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_paused(), flow_run.state
         assert flow_run.state.name == "Suspended"
+
+    async def test_async_engine_does_not_block_event_loop_while_observing_suspension(
+        self,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        test_loop = asyncio.get_running_loop()
+        loop_ran_during_start = False
+        loop_ran_during_shutdown = False
+
+        async def run_on_test_loop() -> None:
+            # Completes only if the engine's event loop keeps running.
+            await asyncio.wait_for(
+                asyncio.wrap_future(
+                    asyncio.run_coroutine_threadsafe(asyncio.sleep(0), test_loop)
+                ),
+                timeout=10,
+            )
+
+        class FakeFlowRunSuspendingObserver:
+            def __init__(self, *args: Any, **kwargs: Any):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info: Any):
+                nonlocal loop_ran_during_shutdown
+                await run_on_test_loop()
+                loop_ran_during_shutdown = True
+
+            async def watch_flow_run_id(self, flow_run_id: UUID):
+                nonlocal loop_ran_during_start
+                await run_on_test_loop()
+                loop_ran_during_start = True
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FakeFlowRunSuspendingObserver,
+        )
+
+        @flow(name=f"test_async_engine_observer_{uuid.uuid4()}")
+        async def deployment_flow():
+            return 42
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, deployment_flow
+        )
+
+        assert await run_flow_async(deployment_flow, flow_run=flow_run) == 42
+        assert loop_ran_during_start
+        assert loop_ran_during_shutdown
 
     @pytest.mark.parametrize("engine_type", ["sync", "async"])
     async def test_task_call_stops_at_suspension_boundary(

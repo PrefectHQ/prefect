@@ -48,6 +48,7 @@ from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
     is_suspended_flow_run_state,
     observe_flow_run_suspension,
+    observe_flow_run_suspension_async,
     raise_if_flow_run_suspension_requested,
     register_flow_run_suspension_request,
 )
@@ -608,30 +609,6 @@ class BaseFlowRunEngine(Generic[P, R]):
         if parent_flow_run_context:
             return parent_flow_run_context.flow_run_suspension_request
         return self._flow_run_suspension_request
-
-    @contextmanager
-    def setup_flow_run_suspension_request(
-        self,
-    ) -> Generator[FlowRunSuspensionRequest, None, None]:
-        if not self.flow_run:
-            raise ValueError("Flow run not set")
-
-        flow_run_suspension_request = self._get_flow_run_suspension_request()
-        with ExitStack() as stack:
-            stack.enter_context(
-                register_flow_run_suspension_request(
-                    self.flow_run.id, flow_run_suspension_request
-                )
-            )
-            if self.flow_run.deployment_id:
-                stack.enter_context(
-                    observe_flow_run_suspension(
-                        self.flow_run.id, flow_run_suspension_request
-                    )
-                )
-
-            flow_run_suspension_request.raise_if_requested()
-            yield flow_run_suspension_request
 
 
 @dataclass
@@ -1298,6 +1275,30 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
     # The following methods compose the main task run loop
     #
     # --------------------------
+
+    @contextmanager
+    def setup_flow_run_suspension_request(
+        self,
+    ) -> Generator[FlowRunSuspensionRequest, None, None]:
+        if not self.flow_run:
+            raise ValueError("Flow run not set")
+
+        flow_run_suspension_request = self._get_flow_run_suspension_request()
+        with ExitStack() as stack:
+            stack.enter_context(
+                register_flow_run_suspension_request(
+                    self.flow_run.id, flow_run_suspension_request
+                )
+            )
+            if self.flow_run.deployment_id:
+                stack.enter_context(
+                    observe_flow_run_suspension(
+                        self.flow_run.id, flow_run_suspension_request
+                    )
+                )
+
+            flow_run_suspension_request.raise_if_requested()
+            yield flow_run_suspension_request
 
     @contextmanager
     def start(self) -> Generator[None, None, None]:
@@ -2043,6 +2044,30 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     # --------------------------
 
     @asynccontextmanager
+    async def setup_flow_run_suspension_request(
+        self,
+    ) -> AsyncGenerator[FlowRunSuspensionRequest, None]:
+        if not self.flow_run:
+            raise ValueError("Flow run not set")
+
+        flow_run_suspension_request = self._get_flow_run_suspension_request()
+        async with AsyncExitStack() as stack:
+            stack.enter_context(
+                register_flow_run_suspension_request(
+                    self.flow_run.id, flow_run_suspension_request
+                )
+            )
+            if self.flow_run.deployment_id:
+                await stack.enter_async_context(
+                    observe_flow_run_suspension_async(
+                        self.flow_run.id, flow_run_suspension_request
+                    )
+                )
+
+            flow_run_suspension_request.raise_if_requested()
+            yield flow_run_suspension_request
+
+    @asynccontextmanager
     async def start(self) -> AsyncGenerator[None, None]:
         async with self.initialize_run():
             with (
@@ -2050,7 +2075,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                with self.setup_flow_run_suspension_request():
+                async with self.setup_flow_run_suspension_request():
                     await self.begin_run()
 
                     yield
