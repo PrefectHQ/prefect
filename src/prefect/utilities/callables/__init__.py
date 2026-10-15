@@ -289,12 +289,37 @@ def parameters_to_args_kwargs(
     # Skip the rewrite entirely when the exposed signature contains a
     # VAR_POSITIONAL (*args) parameter because inserting KEYWORD_ONLY params
     # before *args would produce an invalid parameter ordering.
-    has_var_positional = any(
-        p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values()
+    var_positional = next(
+        (
+            p
+            for p in sig.parameters.values()
+            if p.kind == inspect.Parameter.VAR_POSITIONAL
+        ),
+        None,
     )
 
-    if has_var_positional:
+    if var_positional is not None:
         modified_sig = sig
+        # Values for `*args` can only be passed positionally, so every positional
+        # parameter before it must be bound too, otherwise `*args` is passed as a
+        # keyword. Drop an empty `*args` and fill omitted parameters with their
+        # defaults otherwise.
+        if var_positional.name in parameters and not parameters[var_positional.name]:
+            parameters = {
+                k: v for k, v in parameters.items() if k != var_positional.name
+            }
+        elif var_positional.name in parameters:
+            parameters = {
+                p.name: p.default
+                for p in sig.parameters.values()
+                if p.kind
+                in (
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                )
+                and p.default is not p.empty
+                and p.name not in parameters
+            } | parameters
     elif hasattr(fn, "__wrapped__") or (
         isinstance(fn, partial) and hasattr(fn.func, "__wrapped__")
     ):
@@ -443,11 +468,22 @@ def process_v1_params(
 
     type_ = Any if param.annotation is inspect.Parameter.empty else param.annotation
 
+    # `*args` and `**kwargs` accept any number of values, including none
+    default: dict[str, Any]
+    if param.kind is inspect.Parameter.VAR_POSITIONAL:
+        type_ = list[type_]
+        default = {"default_factory": list}
+    elif param.kind is inspect.Parameter.VAR_KEYWORD:
+        type_ = dict[str, type_]
+        default = {"default_factory": dict}
+    else:
+        default = {"default": ... if param.default is param.empty else param.default}
+
     with warnings.catch_warnings():
         # Note: pydantic.v1 doesn't have the warnings module, so we can't suppress them
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         field: Any = pydantic_v1.Field(
-            default=... if param.default is param.empty else param.default,
+            **default,
             title=param.name,
             description=docstrings.get(param.name, None),
             alias=aliases.get(name),
@@ -604,6 +640,23 @@ def raise_for_reserved_arguments(
             )
 
 
+def _evaluate_annotation(arg: ast.arg, namespace: dict[str, Any]) -> Any:
+    """
+    Evaluate the annotation of a function argument parsed from source code.
+
+    Returns `inspect.Parameter.empty`, equivalent to no annotation, if the argument
+    is not annotated or the annotation can't be evaluated.
+    """
+    if arg.annotation is None:
+        return inspect.Parameter.empty
+    try:
+        ann_code = compile(ast.Expression(arg.annotation), "<string>", "eval")
+        return eval(ann_code, namespace)
+    except Exception as e:
+        logger.debug("Failed to evaluate annotation for %s: %s", arg.arg, e)
+        return inspect.Parameter.empty
+
+
 def _generate_signature_from_source(
     source_code: str, func_name: str, filepath: Optional[str] = None
 ) -> inspect.Signature:
@@ -647,16 +700,7 @@ def _generate_signature_from_source(
     # Handle annotations for positional only args e.g. def func(a, /, b, c)
     for arg in func_def.args.posonlyargs:
         name = arg.arg
-        annotation = arg.annotation
-        if annotation is not None:
-            try:
-                ann_code = compile(ast.Expression(annotation), "<string>", "eval")
-                annotation = eval(ann_code, namespace)
-            except Exception as e:
-                logger.debug("Failed to evaluate annotation for %s: %s", name, e)
-                annotation = inspect.Parameter.empty
-        else:
-            annotation = inspect.Parameter.empty
+        annotation = _evaluate_annotation(arg, namespace)
 
         param = inspect.Parameter(
             name, inspect.Parameter.POSITIONAL_ONLY, annotation=annotation
@@ -666,20 +710,7 @@ def _generate_signature_from_source(
     # Determine the annotations for args e.g. def func(a: int, b: str, c: float)
     for arg in func_def.args.args:
         name = arg.arg
-        annotation = arg.annotation
-        if annotation is not None:
-            try:
-                # Compile and evaluate the annotation
-                ann_code = compile(ast.Expression(annotation), "<string>", "eval")
-                annotation = eval(ann_code, namespace)
-            except Exception as e:
-                # Don't raise an error if the annotation evaluation fails. Set the
-                # annotation to `inspect.Parameter.empty` instead which is equivalent to
-                # not having an annotation.
-                logger.debug("Failed to evaluate annotation for %s: %s", name, e)
-                annotation = inspect.Parameter.empty
-        else:
-            annotation = inspect.Parameter.empty
+        annotation = _evaluate_annotation(arg, namespace)
 
         param = inspect.Parameter(
             name, inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=annotation
@@ -705,16 +736,7 @@ def _generate_signature_from_source(
     # Handle annotations for keyword only args e.g. def func(*, a: int, b: str)
     for kwarg in func_def.args.kwonlyargs:
         name = kwarg.arg
-        annotation = kwarg.annotation
-        if annotation is not None:
-            try:
-                ann_code = compile(ast.Expression(annotation), "<string>", "eval")
-                annotation = eval(ann_code, namespace)
-            except Exception as e:
-                logger.debug("Failed to evaluate annotation for %s: %s", name, e)
-                annotation = inspect.Parameter.empty
-        else:
-            annotation = inspect.Parameter.empty
+        annotation = _evaluate_annotation(kwarg, namespace)
 
         param = inspect.Parameter(
             name, inspect.Parameter.KEYWORD_ONLY, annotation=annotation
@@ -738,15 +760,21 @@ def _generate_signature_from_source(
             parameters[parameters.index(param)] = param.replace(default=default)
 
     # Handle annotations for varargs and kwargs e.g. def func(*args: int, **kwargs: str)
-    if func_def.args.vararg:
+    if vararg := func_def.args.vararg:
         parameters.append(
             inspect.Parameter(
-                func_def.args.vararg.arg, inspect.Parameter.VAR_POSITIONAL
+                vararg.arg,
+                inspect.Parameter.VAR_POSITIONAL,
+                annotation=_evaluate_annotation(vararg, namespace),
             )
         )
-    if func_def.args.kwarg:
+    if varkw := func_def.args.kwarg:
         parameters.append(
-            inspect.Parameter(func_def.args.kwarg.arg, inspect.Parameter.VAR_KEYWORD)
+            inspect.Parameter(
+                varkw.arg,
+                inspect.Parameter.VAR_KEYWORD,
+                annotation=_evaluate_annotation(varkw, namespace),
+            )
         )
 
     # Handle return annotation e.g. def func() -> int
