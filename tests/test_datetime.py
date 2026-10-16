@@ -198,13 +198,24 @@ class TestDateTimeTypeAlias:
 
 
 def test_pendulum_deprecation_notice_matches_python_version():
+    code = (
+        "from datetime import UTC, datetime\n"
+        "import prefect\n"
+        "from prefect.types._datetime import create_datetime_instance\n"
+        "dt = create_datetime_instance(datetime(2024, 1, 1, tzinfo=UTC))\n"
+        "# stdlib members must not warn\n"
+        "dt.isoformat()\n"
+        "# Pendulum-only member must warn\n"
+        "if hasattr(dt, 'in_tz'):\n"
+        "    dt.in_tz('UTC')\n"
+    )
     result = subprocess.run(
         [
             sys.executable,
             "-W",
             "always::DeprecationWarning",
             "-c",
-            "import prefect; import prefect",
+            code,
         ],
         capture_output=True,
         text=True,
@@ -212,11 +223,28 @@ def test_pendulum_deprecation_notice_matches_python_version():
     )
 
     if sys.version_info < (3, 13):
-        assert result.stderr.count("Pendulum datetime behavior") == 1
+        assert result.stderr.count("Pendulum datetime member 'in_tz'") == 1
         assert "six months and three minor" in result.stderr
         assert "datetime" in result.stderr
     else:
-        assert "Pendulum datetime behavior" not in result.stderr
+        assert "Pendulum datetime member" not in result.stderr
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+def test_no_pendulum_deprecation_warning_on_import():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-W",
+            "always::DeprecationWarning",
+            "-c",
+            "import prefect",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "Pendulum datetime member" not in result.stderr
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")

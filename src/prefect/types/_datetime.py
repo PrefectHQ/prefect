@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import datetime
+import functools
 import sys
 import warnings
 from contextlib import contextmanager
-from typing import Annotated, Any, Union, cast
+from typing import Annotated, Any, ClassVar, Union, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
@@ -74,21 +75,68 @@ else:
         Duration as PydanticDuration,
     )
 
-    DateTime: TypeAlias = PydanticDateTime
-    Date: TypeAlias = PydanticDate
-    Duration: TypeAlias = PydanticDuration
-    Interval: TypeAlias = datetime.timedelta
+    def _warn_pendulum_member(name: str) -> None:
+        warnings.warn(
+            f"Pendulum datetime member {name!r} is deprecated. Pendulum "
+            "datetime behavior on Python 3.11 and 3.12 will be retained for "
+            "at least six months and three minor version increases after the "
+            "deprecation release, whichever is longer; a later minor release "
+            "will return standard-library datetime types without "
+            "Pendulum-specific members.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
 
-    warnings.warn(
-        "Pendulum datetime behavior on Python 3.11 and 3.12 is deprecated. "
-        "It will be retained for at least six months and three minor version "
-        "increases after the deprecation release, whichever is longer. "
-        "A later minor release will return standard-library datetime types. "
-        "See https://docs.prefect.io/v3/get-started/install#datetime-values "
-        "for migration guidance.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
+    def _pendulum_only_members(native: type, stdlib: type) -> frozenset[str]:
+        """Members Pendulum provides beyond the equivalent stdlib type."""
+        return frozenset(
+            name
+            for name in dir(native)
+            if not name.startswith("__") and name not in dir(stdlib)
+        )
+
+    class _PendulumDeprecationMixin:
+        """Warns when a Pendulum-only member is called.
+
+        Only callable members that have no standard-library counterpart
+        (e.g. `in_tz`, `add`, `diff`, `start_of`) warn; plain attribute
+        access and methods shared with `datetime` stay quiet.
+        """
+
+        _pendulum_only_members: ClassVar[frozenset[str]]
+
+        def __getattribute__(self, name: str) -> Any:
+            attr = super().__getattribute__(name)
+            if callable(attr) and name in type(self)._pendulum_only_members:
+
+                @functools.wraps(attr)
+                def deprecated_member(*args: Any, **kwargs: Any) -> Any:
+                    _warn_pendulum_member(name)
+                    return attr(*args, **kwargs)
+
+                return deprecated_member
+            return attr
+
+    class DateTime(_PendulumDeprecationMixin, PydanticDateTime):  # type: ignore[no-redef]
+        """Pendulum `DateTime` that warns on Pendulum-only member calls."""
+
+        _pendulum_only_members = _pendulum_only_members(
+            pendulum.DateTime, datetime.datetime
+        )
+
+    class Date(_PendulumDeprecationMixin, PydanticDate):  # type: ignore[no-redef]
+        """Pendulum `Date` that warns on Pendulum-only member calls."""
+
+        _pendulum_only_members = _pendulum_only_members(pendulum.Date, datetime.date)
+
+    class Duration(_PendulumDeprecationMixin, PydanticDuration):  # type: ignore[no-redef]
+        """Pendulum `Duration` that warns on Pendulum-only member calls."""
+
+        _pendulum_only_members = _pendulum_only_members(
+            pendulum.Duration, datetime.timedelta
+        )
+
+    Interval: TypeAlias = datetime.timedelta
 
 
 def parse_datetime(dt: str) -> datetime.datetime:
@@ -100,7 +148,7 @@ def parse_datetime(dt: str) -> datetime.datetime:
         else:
             return parsed_dt
     else:
-        return cast(datetime.datetime, pendulum.parse(dt))
+        return cast(datetime.datetime, DateTime.instance(pendulum.parse(dt)))
 
 
 def get_timezones() -> tuple[str, ...]:
@@ -125,7 +173,7 @@ def from_timestamp(ts: float, tz: str | Any = "UTC") -> datetime.datetime:
             tz = tz.name
         return datetime.datetime.fromtimestamp(ts, ZoneInfo(tz))
 
-    return pendulum.from_timestamp(ts, tz)
+    return DateTime.instance(pendulum.from_timestamp(ts, tz))
 
 
 def human_friendly_diff(
@@ -217,7 +265,7 @@ def now(
 
         return _whenever_to_stdlib(ZonedDateTime.now(tz))
     else:
-        return pendulum.now(tz)
+        return DateTime.instance(pendulum.now(tz))
 
 
 def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
