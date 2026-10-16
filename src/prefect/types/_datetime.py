@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime
-import functools
+import os
 import sys
 import warnings
 from contextlib import contextmanager
@@ -75,6 +75,11 @@ else:
         Duration as PydanticDuration,
     )
 
+    _PREFECT_PACKAGE_DIR = (
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + os.sep
+    )
+    _PENDULUM_PACKAGE_DIR = os.path.dirname(pendulum.__file__) + os.sep
+
     def _warn_pendulum_member(name: str) -> None:
         warnings.warn(
             f"Pendulum datetime member {name!r} is deprecated. Pendulum "
@@ -95,6 +100,35 @@ else:
             if not name.startswith("__") and name not in dir(stdlib)
         )
 
+    class _DeprecatedMemberCall:
+        """Callable proxy for a Pendulum-only member that warns when called.
+
+        Calls originating inside the `prefect` or `pendulum` packages are
+        internal machinery (Prefect helpers, or Pendulum methods delegating
+        to each other) and do not warn; only calls from user code do. The
+        proxy pickles back to a plain attribute lookup so Pendulum-only
+        bound methods remain serializable across process boundaries.
+        """
+
+        def __init__(self, obj: Any, name: str, member: Any) -> None:
+            self._obj = obj
+            self._name = name
+            self._member = member
+            self.__name__ = name
+            self.__doc__ = getattr(member, "__doc__", None)
+            self.__wrapped__ = member
+
+        def __call__(self, *args: Any, **kwargs: Any) -> Any:
+            caller_file = sys._getframe(1).f_code.co_filename
+            if not caller_file.startswith(
+                (_PREFECT_PACKAGE_DIR, _PENDULUM_PACKAGE_DIR)
+            ):
+                _warn_pendulum_member(self._name)
+            return self._member(*args, **kwargs)
+
+        def __reduce__(self) -> Any:
+            return (getattr, (self._obj, self._name))
+
     class _PendulumDeprecationMixin:
         """Warns when a Pendulum-only member is called.
 
@@ -108,13 +142,7 @@ else:
         def __getattribute__(self, name: str) -> Any:
             attr = super().__getattribute__(name)
             if callable(attr) and name in type(self)._pendulum_only_members:
-
-                @functools.wraps(attr)
-                def deprecated_member(*args: Any, **kwargs: Any) -> Any:
-                    _warn_pendulum_member(name)
-                    return attr(*args, **kwargs)
-
-                return deprecated_member
+                return _DeprecatedMemberCall(self, name, attr)
             return attr
 
     class DateTime(_PendulumDeprecationMixin, PydanticDateTime):  # type: ignore[no-redef]

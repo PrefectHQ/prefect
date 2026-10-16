@@ -8,8 +8,10 @@ two backends.
 """
 
 import datetime
+import pickle
 import subprocess
 import sys
+import warnings
 from collections.abc import Callable
 from zoneinfo import ZoneInfo
 
@@ -245,6 +247,25 @@ def test_no_pendulum_deprecation_warning_on_import():
         check=True,
     )
     assert "Pendulum datetime member" not in result.stderr
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+def test_pendulum_only_bound_method_remains_picklable():
+    restored = pickle.loads(pickle.dumps(now("UTC").add))
+    with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'add'"):
+        assert restored(days=1) > now("UTC")
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+def test_prefect_helpers_do_not_emit_pendulum_warnings():
+    """Prefect's internal Pendulum-only calls must not warn — even under
+    `-W error::DeprecationWarning` — since callers never invoked one."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        start_of_day(FIXED)
+        end_of_period(FIXED, "day")
+        in_local_tz(FIXED)
+        human_friendly_diff(FIXED)
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
