@@ -2610,7 +2610,6 @@ class TestInvalidProfileValues:
         with pytest.warns(UserWarning, match="PREFECT_SERVER_API_PORT") as record:
             settings = Settings()
 
-        assert "not-a-port" in str(record[0].message)
         assert "prefect config unset PREFECT_SERVER_API_PORT" in str(record[0].message)
         # The invalid value falls back to the default...
         assert settings.server.api.port == 4200
@@ -2658,6 +2657,70 @@ class TestInvalidProfileValues:
 
         assert settings.server.api.port == 4300
         assert settings.flows.heartbeat_frequency == 40
+
+    def test_warning_does_not_include_the_invalid_value(self, profiles_path: Path):
+        # The value may be a secret, such as an API key written as a number.
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_API_KEY = 123456789
+                """
+            )
+        )
+
+        with pytest.warns(UserWarning, match="PREFECT_API_KEY") as record:
+            settings = Settings()
+
+        assert all("123456789" not in str(warning.message) for warning in record)
+        assert settings.api.key is None
+
+    def test_warning_names_the_legacy_key_used_in_the_profile(
+        self, profiles_path: Path
+    ):
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_API_DATABASE_TIMEOUT = "abc"
+                """
+            )
+        )
+
+        with pytest.warns(UserWarning, match="PREFECT_API_DATABASE_TIMEOUT"):
+            settings = Settings()
+
+        assert (
+            settings.server.database.timeout
+            == ServerDatabaseSettings.model_fields["timeout"].default
+        )
+
+    def test_value_that_needs_other_settings_to_validate_is_left_to_the_model(
+        self, profiles_path: Path
+    ):
+        # `profiles_path` is validated with the model's other values, which a
+        # check of the value on its own does not have.
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_PROFILES_PATH = "$PREFECT_HOME/other.toml"
+                """
+            )
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            settings = Settings()
+
+        # The environment variable outranks the profile.
+        assert settings.profiles_path == profiles_path
 
 
 class TestUpdateCurrentProfile:

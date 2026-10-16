@@ -274,21 +274,48 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         try:
             adapter.validate_python(value)
         except ValidationError as exc:
-            name = f"{self.config.get('env_prefix', '')}{field_name.upper()}"
+            name = self._profile_key(field, field_name)
             problems = "; ".join(error["msg"] for error in exc.errors())
             where = (
                 f"profile {self._profile_name!r}"
                 if self._profile_name
                 else "the active profile"
             )
+            # The value itself is left out of the message, since it may be a
+            # secret such as an API key.
             warnings.warn(
-                f"Ignoring invalid value {value!r} for setting {name} in {where}: "
+                f"Ignoring invalid value for setting {name} in {where}: "
                 f"{problems}. Fix it with `prefect config set {name}=<value>` or "
                 f"remove it with `prefect config unset {name}`.",
                 stacklevel=2,
             )
             return False
+        except Exception:
+            # Some validators need the model's other values (for example
+            # `profiles_path` reads `home`), which a check in isolation does
+            # not have. Leave those to the model's validation.
+            return True
         return True
+
+    def _profile_key(self, field: FieldInfo, field_name: str) -> str:
+        """
+        The key the profile uses for this field, which may be a legacy alias,
+        looked up in the same order as `get_field_value`.
+        """
+        alias = field.validation_alias
+        if isinstance(alias, str):
+            choices: list[Any] = [alias]
+        elif isinstance(alias, AliasChoices):
+            choices = list(alias.choices)
+        else:
+            choices = []
+        for choice in choices:
+            if (
+                isinstance(choice, str)
+                and self.profile_settings.get(choice.upper()) is not None
+            ):
+                return choice.upper()
+        return f"{self.config.get('env_prefix', '')}{field_name.upper()}"
 
 
 DEFAULT_PREFECT_TOML_PATH = Path("prefect.toml")
