@@ -444,8 +444,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State[R]], bool]
         ] = self.task.retry_condition_fn
 
-        failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
-
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
@@ -453,9 +451,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 f"Running `retry_condition_fn` check {retry_condition!r} for task"
                 f" {self.task.name!r}"
             )
-            state = Failed(
-                data=exc_or_state,
-                message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
+            state = (
+                exc_or_state
+                if isinstance(exc_or_state, State)
+                else Failed(
+                    data=exc_or_state,
+                    message=f"Task run encountered unexpected exception: {repr(exc_or_state)}",
+                )
             )
             if inspect.iscoroutinefunction(retry_condition):
                 should_retry = run_coro_as_sync(
@@ -1060,8 +1062,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State[R]], bool]
         ] = self.task.retry_condition_fn
 
-        failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
-
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
@@ -1069,9 +1069,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 f"Running `retry_condition_fn` check {retry_condition!r} for task"
                 f" {self.task.name!r}"
             )
-            state = Failed(
-                data=exc_or_state,
-                message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
+            state = (
+                exc_or_state
+                if isinstance(exc_or_state, State)
+                else Failed(
+                    data=exc_or_state,
+                    message=f"Task run encountered unexpected exception: {repr(exc_or_state)}",
+                )
             )
             if inspect.iscoroutinefunction(retry_condition):
                 should_retry = await retry_condition(self.task, self.task_run, state)
