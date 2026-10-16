@@ -2752,6 +2752,35 @@ class TestAsyncGenerators:
         tr = await prefect_client.read_task_run(tr_id)
         assert tr.state.is_failed()
 
+    async def test_generator_task_closed_early_is_completed(
+        self, prefect_client: PrefectClient, events_pipeline
+    ):
+        hooks: list[str] = []
+        finally_ran_in_context: list[bool] = []
+
+        @task(
+            on_completion=[lambda *args: hooks.append("completion")],
+            on_failure=[lambda *args: hooks.append("failure")],
+        )
+        async def g():
+            try:
+                yield TaskRunContext.get().task_run.id
+                yield 2
+            finally:
+                finally_ran_in_context.append(TaskRunContext.get() is not None)
+
+        gen = g()
+        async for val in gen:
+            tr_id = val
+            break
+        await gen.aclose()
+
+        await events_pipeline.process_events()
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_completed()
+        assert hooks == ["completion"]
+        assert finally_ran_in_context == [True]
+
     async def test_generator_parent_tracking(
         self, prefect_client: PrefectClient, events_pipeline
     ):

@@ -2211,10 +2211,12 @@ async def run_generator_flow_async(
                         # link the current state to the result for dependency tracking
                         link_state_to_flow_run_result(engine.state, gen_result)
                         yield gen_result
-                except (StopAsyncIteration, GeneratorExit) as exc:
+                except StopAsyncIteration:
                     await engine.handle_success(None)
-                    if isinstance(exc, GeneratorExit):
-                        gen.throw(exc)
+                except GeneratorExit:
+                    await engine.handle_success(None)
+                    await gen.aclose()
+                    raise
 
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():

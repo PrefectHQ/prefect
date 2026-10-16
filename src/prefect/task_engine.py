@@ -1843,10 +1843,12 @@ async def run_generator_task_async(
                             link_state_to_task_run_result(engine.state, gen_result)
                             raise_if_flow_run_suspension_requested()
                             yield gen_result
-                    except (StopAsyncIteration, GeneratorExit) as exc:
+                    except StopAsyncIteration:
                         await engine.handle_success(None, transaction=txn)
-                        if isinstance(exc, GeneratorExit):
-                            gen.throw(exc)
+                    except GeneratorExit:
+                        await engine.handle_success(None, transaction=txn)
+                        await gen.aclose()
+                        raise
             raise_if_flow_run_suspension_requested()
 
     # async generators can't return, but we can raise failures here
