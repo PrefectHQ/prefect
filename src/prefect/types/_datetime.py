@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import humanize
 from dateutil.parser import parse
-from pydantic import AfterValidator, GetCoreSchemaHandler
+from pydantic import AfterValidator, GetCoreSchemaHandler, WithJsonSchema
 from pydantic_core import core_schema as _core_schema
 from whenever import (
     DateTimeDelta,
@@ -83,7 +83,42 @@ if TYPE_CHECKING or _WHENEVER_NEW_API:
 else:
     from whenever import DateTimeDelta as ItemizedDelta
 
-Interval: TypeAlias = datetime.timedelta | ItemizedDelta
+# Pydantic also accepts repeated ISO units and a fraction on the final unit.
+_TIMEDELTA_ISO_PATTERN = (
+    r"P(?=[0-9]|T[0-9])(?:[0-9]+[YMWD])*"
+    r"(?:[0-9]+[.,][0-9]*[YMWD]T?|T(?:[0-9]+[HMS])*(?:[0-9]+[.,][0-9]*[HMS])?)?"
+)
+_ITEMIZED_ISO_PATTERN = (
+    r"[Pp](?=[0-9]|[Tt][0-9])(?:[0-9]+[Yy])?(?:[0-9]+[Mm])?"
+    r"(?:[0-9]+[Ww])?(?:[0-9]+[Dd])?(?:[Tt](?:[0-9]+[Hh])?"
+    r"(?:[0-9]+[Mm])?(?:[0-9]+(?:[.,][0-9]{1,9})?[Ss])?)?"
+)
+_INTERVAL_CLOCK_PATTERN = (
+    r"(?:[0-9]{2,10}:[0-5][0-9]|"
+    r"[0-9]{0,10}:[0-5][0-9]:[0-5][0-9](?:[.,][0-9]+)?)"
+)
+_INTERVAL_DAYS_PATTERN = r"[0-9]+ ?[dD](?:ays?|AYS?)?(?:, ?| )?"
+
+Interval: TypeAlias = Annotated[
+    datetime.timedelta | ItemizedDelta,
+    WithJsonSchema(
+        {
+            "anyOf": [
+                {"type": "number"},
+                {
+                    "type": "string",
+                    # The end assertion also rejects a trailing newline in JS/Python.
+                    "pattern": (
+                        rf"^[+-]?(?:{_TIMEDELTA_ISO_PATTERN}|{_ITEMIZED_ISO_PATTERN}|"
+                        rf"{_INTERVAL_CLOCK_PATTERN}|{_INTERVAL_DAYS_PATTERN}"
+                        rf"(?:(?=0*(?:[0-9]|1[0-9]|2[0-3])?:)"
+                        rf"{_INTERVAL_CLOCK_PATTERN})?)(?![\s\S])"
+                    ),
+                },
+            ]
+        },
+    ),
+]
 
 
 def parse_datetime(dt: str) -> datetime.datetime:
