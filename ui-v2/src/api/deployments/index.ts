@@ -4,6 +4,7 @@ import {
 	useMutation,
 	useQueryClient,
 } from "@tanstack/react-query";
+import { queryKeyFactory as flowsQueryKeyFactory } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
@@ -244,9 +245,14 @@ export const useCreateDeployment = () => {
 			return res.data;
 		},
 		onSettled: async () => {
-			return await queryClient.invalidateQueries({
-				queryKey: queryKeyFactory.all(),
-			});
+			return await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: queryKeyFactory.all(),
+				}),
+				queryClient.invalidateQueries({
+					queryKey: flowsQueryKeyFactory.deploymentsCounts(),
+				}),
+			]);
 		},
 	});
 	return { createDeployment, ...rest };
@@ -325,9 +331,14 @@ export const useDeleteDeployment = () => {
 				params: { path: { id } },
 			}),
 		onSettled: async () => {
-			return await queryClient.invalidateQueries({
-				queryKey: queryKeyFactory.all(),
-			});
+			return await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: queryKeyFactory.all(),
+				}),
+				queryClient.invalidateQueries({
+					queryKey: flowsQueryKeyFactory.deploymentsCounts(),
+				}),
+			]);
 		},
 	});
 
