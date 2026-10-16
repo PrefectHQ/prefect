@@ -49,10 +49,6 @@ except ImportError:
     _ItemizedDelta = None  # type: ignore[assignment]
     _WHENEVER_DELTA_TYPES = (DateTimeDelta,)
 
-# An exact-seconds delta compatible with `zdt + delta` on both whenever API
-# generations — `ItemizedDelta` on >= 0.10.0, `DateTimeDelta` before.
-_SecondsDelta = _ItemizedDelta or DateTimeDelta
-
 
 def _whenever_delta_seconds(delta: Any) -> float:
     # whenever >= 0.10.0 exposes `total("seconds")`; older versions
@@ -270,47 +266,15 @@ class IntervalSchedule(PrefectBaseModel):
                     result = result + _time * k
                 return result
 
-            def _offset_change_between(a: ZonedDateTime, b: ZonedDateTime) -> bool:
-                # Whether the zone's UTC offset changes anywhere in (a, b].
-                # A change means a DST gap/fold sits in the span, and
-                # iterating `interval` through it can drift the recurrence
-                # phase — so the scaled seek must not be used. Sampled weekly:
-                # real-world transitions are at least a month apart.
-                _step = _SecondsDelta(seconds=7 * 24 * 3600)
-                t = a
-                offset = t.offset
-                while t < b:
-                    t = min(b, t + _step)
-                    if t.offset != offset:
-                        return True
-                    offset = t.offset
-                return False
-
             def _first_offset_change_after(
                 a: ZonedDateTime, b: ZonedDateTime
             ) -> ZonedDateTime | None:
-                # The first instant in (a, b] where the zone's UTC offset
-                # differs from a's, or None. Weekly scan then bisect to ~1s.
-                _step = _SecondsDelta(seconds=7 * 24 * 3600)
-                offset = a.offset
-                t = a
-                while t < b:
-                    nxt = min(b, t + _step)
-                    if nxt.offset != offset:
-                        lo, hi = t, nxt
-                        while _whenever_delta_seconds(hi - lo) > 1:
-                            mid = lo + _SecondsDelta(
-                                seconds=max(
-                                    1,
-                                    int(_whenever_delta_seconds(hi - lo) / 2),
-                                )
-                            )
-                            if mid.offset != offset:
-                                hi = mid
-                            else:
-                                lo = mid
-                        return hi
-                    t = nxt
+                # Consult the zone's transitions instead of scanning its history.
+                transition = a.next_transition()
+                while transition is not None and transition <= b:
+                    if transition.offset != a.offset:
+                        return transition
+                    transition = transition.next_transition()
                 return None
 
             def _seek_within(frm: ZonedDateTime, upto: ZonedDateTime) -> ZonedDateTime:
@@ -389,8 +353,10 @@ class IntervalSchedule(PrefectBaseModel):
                         _trans = _first_offset_change_after(next_date, local_start)
                         if _trans is None:
                             break
-                        next_date = _advance(_seek_within(next_date, _trans))
-                    if not _offset_change_between(next_date, local_start):
+                        next_date = _seek_within(next_date, _trans)
+                        if next_date < local_start:
+                            next_date = _advance(next_date)
+                    if _first_offset_change_after(next_date, local_start) is None:
                         next_date = _seek_within(next_date, local_start)
         else:
             offset = _diff_secs / approx_total_seconds

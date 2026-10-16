@@ -1,6 +1,8 @@
 import asyncio
 import sys
 from datetime import date, datetime, timedelta
+from types import FrameType
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import dateutil
@@ -813,6 +815,60 @@ class TestIntervalScheduleDateTimeDelta:
             (2026, 1, 2),
             (2026, 1, 3),
         ]
+
+    @pytest.mark.parametrize("timezone", ["UTC", "Etc/GMT+5"])
+    @pytest.mark.parametrize("anchor_year", [1, 1900])
+    async def test_fixed_offset_seek_has_bounded_work(
+        self, timezone: str, anchor_year: int
+    ):
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(anchor_year, 1, 1, tzinfo=ZoneInfo(timezone)),
+            timezone=timezone,
+        )
+        start = datetime(2026, 1, 1, tzinfo=ZoneInfo(timezone))
+        source_file = IntervalSchedule.get_dates.__code__.co_filename
+        steps = 0
+
+        # Bound scheduling work instead of elapsed time to avoid timing-sensitive tests.
+        def trace(frame: FrameType, event: str, arg: object) -> Any:
+            nonlocal steps
+            if frame.f_code.co_filename != source_file:
+                return None
+            if event == "line":
+                steps += 1
+                assert steps < 1000, "Interval seek replayed its history"
+            return trace
+
+        previous_trace = sys.gettrace()
+        sys.settrace(trace)
+        try:
+            dates = await schedule.get_dates(n=1, start=start)
+        finally:
+            sys.settrace(previous_trace)
+
+        assert dates == [start]
+
+    @pytest.mark.parametrize(
+        "start, expected",
+        [
+            (datetime(2024, 3, 10, 6, 59, 59, tzinfo=ZoneInfo("UTC")), (10, 3)),
+            (datetime(2024, 3, 10, 7, tzinfo=ZoneInfo("UTC")), (10, 3)),
+            (datetime(2024, 3, 10, 7, 0, 1, tzinfo=ZoneInfo("UTC")), (11, 3)),
+        ],
+    )
+    async def test_seek_preserves_occurrence_at_dst_transition(
+        self, start: datetime, expected: tuple[int, int]
+    ):
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(2024, 3, 9, 3, tzinfo=ZoneInfo("America/New_York")),
+            timezone="America/New_York",
+        )
+
+        dates = await schedule.get_dates(n=1, start=start)
+
+        assert [(value.day, value.hour) for value in dates] == [expected]
 
     async def test_mixed_calendar_interval_preserves_occurrences_when_seeking(self):
         anchor = datetime(2024, 1, 1, tzinfo=ZoneInfo("UTC"))

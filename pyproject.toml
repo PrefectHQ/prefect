@@ -79,7 +79,7 @@ dependencies = [
     "typing_extensions>=4.10.0,<5.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
     "websockets>=15.0.1,<17.0",
-    "whenever>=0.10.0,<0.11.0",
+    "whenever>=0.10.3,<0.11.0",
     # tz database for zoneinfo on systems without a system tzdata
     "tzdata>=2024.1",
     "semver>=3.0.4",
@@ -177,7 +177,7 @@ dev = [
     "mkdocs-material>=9.6.4",
     "mkdocstrings[python]>=0.28.0",
     "mkdocs-gen-files>=0.5.0",
-    "whenever>=0.10.0,<0.11.0",
+    "whenever>=0.10.3,<0.11.0",
     # Need to stay in sync with otel extra
     "opentelemetry-distro>=0.48b0,<1.0.0",
     "opentelemetry-exporter-otlp>=1.27.0,<2.0.0",
