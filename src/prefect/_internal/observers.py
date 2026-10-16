@@ -336,20 +336,26 @@ class FlowRunCancellingObserver:
             self._dispatch(flow_run.id, registrations.get(flow_run.id))
 
     async def __aenter__(self):
-        self._client = await self._exit_stack.enter_async_context(get_client())
-        delivery = ObservationDelivery(
-            name="FlowRunCancellingObserver",
-            logger=self.logger,
-            subscriber_factory=lambda: get_events_subscriber(
-                filter=self._event_filter, reconnection_attempts=0
-            ),
-            on_event=self._handle_event,
-            check_current_state=self._check_for_cancelled_flow_runs,
-            on_unavailable=self._handle_unavailable,
-            polling_interval=self.polling_interval,
-        )
-        self._exit_stack.push_async_callback(delivery.stop)
-        await delivery.start()
+        try:
+            self._client = await self._exit_stack.enter_async_context(get_client())
+            delivery = ObservationDelivery(
+                name="FlowRunCancellingObserver",
+                logger=self.logger,
+                subscriber_factory=lambda: get_events_subscriber(
+                    filter=self._event_filter, reconnection_attempts=0
+                ),
+                on_event=self._handle_event,
+                check_current_state=self._check_for_cancelled_flow_runs,
+                on_unavailable=self._handle_unavailable,
+                polling_interval=self.polling_interval,
+            )
+            self._exit_stack.push_async_callback(delivery.stop)
+            await delivery.start()
+        except BaseException:
+            # `__aexit__` is not called when entry fails or is cancelled
+            self._is_shutting_down = True
+            await self._exit_stack.aclose()
+            raise
         return self
 
     async def __aexit__(self, *exc_info: Any):
@@ -532,20 +538,26 @@ class FlowRunSuspendingObserver:
                 watch.notify_if_suspended(flow_run.state)
 
     async def __aenter__(self):
-        self._client = await self._exit_stack.enter_async_context(get_client())
-        delivery = ObservationDelivery(
-            name="FlowRunSuspendingObserver",
-            logger=self.logger,
-            subscriber_factory=lambda: get_events_subscriber(
-                filter=self._event_filter, reconnection_attempts=0
-            ),
-            on_event=self._handle_event,
-            check_current_state=self._check_for_suspended_flow_runs,
-            on_unavailable=self._handle_unavailable,
-            polling_interval=self.polling_interval,
-        )
-        self._exit_stack.push_async_callback(delivery.stop)
-        await delivery.start()
+        try:
+            self._client = await self._exit_stack.enter_async_context(get_client())
+            delivery = ObservationDelivery(
+                name="FlowRunSuspendingObserver",
+                logger=self.logger,
+                subscriber_factory=lambda: get_events_subscriber(
+                    filter=self._event_filter, reconnection_attempts=0
+                ),
+                on_event=self._handle_event,
+                check_current_state=self._check_for_suspended_flow_runs,
+                on_unavailable=self._handle_unavailable,
+                polling_interval=self.polling_interval,
+            )
+            self._exit_stack.push_async_callback(delivery.stop)
+            await delivery.start()
+        except BaseException:
+            # `__aexit__` is not called when entry fails or is cancelled
+            self._is_shutting_down = True
+            await self._exit_stack.aclose()
+            raise
         return self
 
     async def __aexit__(self, *exc_info: Any):

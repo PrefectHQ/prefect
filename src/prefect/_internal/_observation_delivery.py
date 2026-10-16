@@ -176,35 +176,49 @@ class ObservationDelivery:
             return None
 
         consumer = self._spawn(self._consume())
-        reconcile = self._spawn(self._check_current_state())
-        await asyncio.wait([consumer, reconcile], return_when=asyncio.FIRST_COMPLETED)
-        if reconcile.done() and reconcile.exception() is None and not consumer.done():
-            if poller.done():
-                _polling_error(poller)
-            else:
-                poller.cancel()
-                await asyncio.wait([poller])
-            self._logger.info(
-                "%s reconnected to the events stream and stopped polling.",
-                self._name,
+        failed_checks = 0
+        while True:
+            reconcile = self._spawn(self._check_current_state())
+            await asyncio.wait(
+                [consumer, reconcile], return_when=asyncio.FIRST_COMPLETED
             )
-            return consumer
+            if consumer.done():
+                break
+            if (error := reconcile.exception()) is None:
+                if poller.done():
+                    _polling_error(poller)
+                else:
+                    poller.cancel()
+                    await asyncio.wait([poller])
+                self._logger.info(
+                    "%s reconnected to the events stream and stopped polling.",
+                    self._name,
+                )
+                return consumer
+
+            # The stream is working, so keep it while retrying the check, even
+            # if polling has also stopped working in the meantime.
+            self._logger.debug(
+                "%s reconnected to the events stream, but could not check the"
+                " current state: %r",
+                self._name,
+                error,
+            )
+            retry = self._spawn(_sleep(reconnect_delay(failed_checks)))
+            failed_checks += 1
+            await asyncio.wait([consumer, retry], return_when=asyncio.FIRST_COMPLETED)
+            if consumer.done():
+                retry.cancel()
+                await asyncio.wait([retry])
+                break
 
         reconcile.cancel()
-        consumer.cancel()
-        await asyncio.wait([reconcile, consumer])
-        failure = (
-            reconcile.exception()
-            if not reconcile.cancelled()
-            else consumer.exception()
-            if not consumer.cancelled()
-            else None
-        )
+        await asyncio.wait([reconcile])
         self._logger.debug(
-            "%s reconnected to the events stream, but could not resume event"
-            " delivery: %s",
+            "%s reconnected to the events stream, but it ended before polling"
+            " stopped: %s",
             self._name,
-            failure or "the stream closed",
+            consumer.exception() or "the stream closed",
         )
         await self._disconnect()
         return None

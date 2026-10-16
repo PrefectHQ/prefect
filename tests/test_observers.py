@@ -904,12 +904,15 @@ class FakeAPI:
         self.hold: Callable[[int], Awaitable[None]] | None = None
         self.reads = 0
         self.waiting = 0
+        self.enters = 0
+        self.exits = 0
 
     async def __aenter__(self) -> "FakeAPI":
+        self.enters += 1
         return self
 
     async def __aexit__(self, *exc_info: object) -> None:
-        pass
+        self.exits += 1
 
     async def read_flow_runs(self, flow_run_filter: FlowRunFilter) -> list[MagicMock]:
         self.reads += 1
@@ -939,6 +942,32 @@ class FakeAPI:
 
     async def read_flow_run(self, flow_run_id: uuid.UUID) -> MagicMock:
         return MagicMock(state=self.states.get(flow_run_id))
+
+
+class HeldReads:
+    """Holds each API read until the test resolves it, in the order started."""
+
+    def __init__(self):
+        self.reads: list[asyncio.Future[None]] = []
+        self.taken = 0
+
+    async def __call__(self, read: int) -> None:
+        read_completes = asyncio.get_running_loop().create_future()
+        self.reads.append(read_completes)
+        await read_completes
+
+    async def next(self) -> asyncio.Future[None]:
+        """Wait for the next read to start and return its outcome to resolve."""
+        await until(lambda: len(self.reads) > self.taken)
+        self.taken += 1
+        return self.reads[self.taken - 1]
+
+
+def unavailable() -> httpx.HTTPStatusError:
+    request = httpx.Request("POST", "http://api/flow_runs/filter")
+    return httpx.HTTPStatusError(
+        "unavailable", request=request, response=httpx.Response(503, request=request)
+    )
 
 
 async def until(predicate: Callable[[], bool], timeout: float = 5) -> None:
@@ -1284,6 +1313,125 @@ class TestObserverRecovery:
             await until(lambda: restored(caplog) == 1)
             await assert_not_polling(api)
 
+        case.on_failure.assert_not_called()
+
+    @pytest.mark.parametrize("first_failure", ["polling", "reconciliation"])
+    async def test_failed_reconciliation_keeps_working_stream(
+        self,
+        case: RecoveryCase,
+        stream: ScriptedEventStream,
+        api: FakeAPI,
+        timer: ReconnectTimer,
+        caplog: pytest.LogCaptureFixture,
+        first_failure: str,
+    ):
+        held = HeldReads()
+        api.hold = held
+        connection = ScriptedConnection()
+        stream.script = [ConnectionError("down"), connection]
+        first_run, second_run, running = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+
+        async def exhaust_polling(first_poll: asyncio.Future[None]) -> None:
+            first_poll.set_exception(unavailable())
+            for _ in range(2):
+                (await held.next()).set_exception(unavailable())
+
+        async with case.observer:
+            case.observer.add_in_flight_flow_run_id(first_run)
+            case.observer.add_in_flight_flow_run_id(second_run)
+            case.observer.add_in_flight_flow_run_id(running)
+            poll = await held.next()
+            await timer.fire()
+            reconciliation = await held.next()
+            assert stream.connections == 1
+
+            connection.send(case.signal_event(first_run))
+            await until(lambda: case.notified == [first_run])
+
+            if first_failure == "polling":
+                await exhaust_polling(poll)
+                reconciliation.set_exception(unavailable())
+            else:
+                reconciliation.set_exception(unavailable())
+                await until(lambda: timer.pending == 1)
+                await exhaust_polling(poll)
+            await until(lambda: timer.pending == 1)
+            await asyncio.sleep(0.1)
+            assert held.taken == len(held.reads), "polling should have stopped"
+
+            # The stream keeps delivering while both HTTP mechanisms are failing
+            connection.send(case.signal_event(second_run))
+            await until(lambda: case.notified == [first_run, second_run])
+            assert stream.exits == 0
+            case.on_failure.assert_not_called()
+            assert restored(caplog) == 0
+
+            # The handoff completes once the current state has been checked
+            api.hold = None
+            reads = api.reads
+            await timer.fire()
+            await until(lambda: restored(caplog) == 1)
+            assert api.reads > reads
+
+        case.on_failure.assert_not_called()
+
+    async def test_reports_failure_when_stream_ends_after_polling_failed(
+        self,
+        case: RecoveryCase,
+        stream: ScriptedEventStream,
+        api: FakeAPI,
+        timer: ReconnectTimer,
+    ):
+        held = HeldReads()
+        api.hold = held
+        connection = ScriptedConnection()
+        stream.script = [ConnectionError("down"), connection]
+        flow_run_id = uuid.uuid4()
+
+        async with case.observer:
+            case.observer.add_in_flight_flow_run_id(flow_run_id)
+            poll = await held.next()
+            await timer.fire()
+            reconciliation = await held.next()
+            reconciliation.set_exception(unavailable())
+            poll.set_exception(unavailable())
+            for _ in range(2):
+                (await held.next()).set_exception(unavailable())
+            await until(lambda: timer.pending == 1)
+            case.on_failure.assert_not_called()
+
+            connection.send(CLOSE)
+            await until(lambda: case.on_failure.called)
+            assert stream.exits == 1
+
+        case.on_failure.assert_called_once_with({flow_run_id})
+
+    async def test_cancelled_entry_releases_resources(
+        self,
+        case: RecoveryCase,
+        stream: ScriptedEventStream,
+        api: FakeAPI,
+    ):
+        setup_completes = asyncio.Event()
+        stream.script = [setup_completes]
+
+        async def enter_observer() -> None:
+            async with case.observer:
+                pytest.fail("entry should have been cancelled")
+
+        entering = asyncio.create_task(enter_observer())
+        await until(lambda: stream.attempts == 1)
+        assert api.enters == 1
+        entering.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await entering
+
+        assert entering.cancelled()
+        assert stream.abandoned == 1
+        assert api.exits == 1
+        setup_completes.set()
+        await asyncio.sleep(0.05)
+        assert stream.attempts == 1
         case.on_failure.assert_not_called()
 
     @pytest.mark.parametrize(
