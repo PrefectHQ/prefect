@@ -182,13 +182,8 @@ def test_list_schedules_with_json_output(flojo_deployment: DeploymentResponse):
     )
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 13),
-    reason="Calendar intervals require a Python 3.13+ server",
-)
-async def test_list_schedules_displays_calendar_interval(
-    prefect_client: PrefectClient,
-):
+@pytest.fixture
+async def calendar_deployment(prefect_client: PrefectClient) -> UUID:
     from prefect.types._datetime import ItemizedDelta
 
     @flow
@@ -196,7 +191,7 @@ async def test_list_schedules_displays_calendar_interval(
         pass
 
     flow_id = await prefect_client.create_flow(calendar_flow)
-    deployment_id = await prefect_client.create_deployment(
+    return await prefect_client.create_deployment(
         flow_id=flow_id,
         name="calendar-deployment",
         version="git-commit-hash",
@@ -207,8 +202,15 @@ async def test_list_schedules_displays_calendar_interval(
         ],
         parameter_openapi_schema={"type": "object", "properties": {}},
     )
-    assert deployment_id
 
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 13),
+    reason="Calendar intervals require a Python 3.13+ server",
+)
+def test_list_schedules_displays_calendar_interval(
+    calendar_deployment: UUID,
+):
     invoke_and_assert(
         ["deployment", "schedule", "ls", "calendar-flow/calendar-deployment"],
         expected_code=0,
