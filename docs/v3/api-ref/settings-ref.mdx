@@ -1463,11 +1463,11 @@ The maximum size of parameters (in bytes, JSON-serialized) that can be stored on
 ---
 ## ServerConcurrencySettings
 ### `lease_storage`
-The module to use for storing concurrency limit leases.
+The module to use for storing concurrency limit leases. Leases must outlive a server restart: the slots they hold are counted in the database, and a lease that is lost can never release them.
 
 **Type**: `string`
 
-**Default**: `prefect.server.concurrency.lease_storage.memory`
+**Default**: `prefect.server.concurrency.lease_storage.filesystem`
 
 **TOML dotted key path**: `server.concurrency.lease_storage`
 
