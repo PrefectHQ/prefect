@@ -230,6 +230,30 @@ class TestShellOperation:
             await self.execute(op, method)
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_error_includes_stderr(self, method):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/13070
+        """
+        op = ShellOperation(
+            commands=[
+                "Write-Output 'not-the-reason'",
+                "[Console]::Error.WriteLine('boom-from-stderr')",
+                "exit 3",
+            ]
+        )
+        with pytest.raises(RuntimeError, match="return code") as exc_info:
+            await self.execute(op, method)
+        assert "boom-from-stderr" in str(exc_info.value)
+
+    def test_error_includes_stderr_sync(self):
+        op = ShellOperation(
+            commands=["[Console]::Error.WriteLine('boom-from-stderr')", "exit 3"]
+        )
+        with pytest.raises(RuntimeError, match="return code") as exc_info:
+            op.run()
+        assert "boom-from-stderr" in str(exc_info.value)
+
+    @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_output(self, prefect_task_runs_caplog, method):
         op = ShellOperation(commands=["echo 'testing'"])
         assert await self.execute(op, method) == ["testing"]
