@@ -519,8 +519,14 @@ def visit_collection(
             )
             if modified:
                 result = replace(
-                    expr, **{f.name: v for f, v in zip(expr_fields, values)}
+                    expr,
+                    **{f.name: v for f, v in zip(expr_fields, values) if f.init},
                 )
+                # `replace` rejects `init=False` fields and resets them, so set
+                # their visited values directly; this also works on frozen dataclasses
+                for f, v in zip(expr_fields, values):
+                    if not f.init:
+                        object.__setattr__(result, f.name, v)
 
     # --- Pydantic models
 
