@@ -296,6 +296,7 @@ asyncio_default_fixture_loop_scope = "session"
 timeout = 90
 filterwarnings = [
     "error",
+    "ignore:Pendulum datetime member:DeprecationWarning",
     "ignore::DeprecationWarning:tornado.platform.asyncio.*",
     "ignore::DeprecationWarning:tornado.ioloop",
     "ignore:Default value default=",
