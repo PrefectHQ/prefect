@@ -15,6 +15,7 @@ from prefect.utilities.collections import (
     deep_merge,
     deep_merge_dicts,
     dict_to_flatdict,
+    extract_instances,
     flatdict_to_dict,
     get_from_dict,
     isiterable,
@@ -786,6 +787,26 @@ class TestIsIterable:
     @pytest.mark.parametrize("obj", [5, Exception(), True, "hello", bytes()])
     def test_not_iterable(self, obj):
         assert not isiterable(obj)
+
+
+class TestExtractInstances:
+    def test_extract_instances_single_type(self):
+        assert extract_instances([1, "a", 2, "b"], str) == ["a", "b"]
+
+    def test_extract_instances_single_type_no_matches_returns_empty_list(self):
+        assert extract_instances([1, 2, 3], str) == []
+
+    def test_extract_instances_single_element_tuple_no_matches_returns_empty_list(self):
+        assert extract_instances([1, 2, 3], (str,)) == []
+
+    def test_extract_instances_empty_objects_returns_empty_list(self):
+        assert extract_instances([]) == []
+
+    def test_extract_instances_multiple_types(self):
+        assert extract_instances([1, "a", 2.0], (int, str)) == {
+            int: [1],
+            str: ["a"],
+        }
 
 
 class TestGetFromDict:
