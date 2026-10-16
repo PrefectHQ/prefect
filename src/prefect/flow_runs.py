@@ -233,6 +233,8 @@ async def apause_flow_run(
     """
     # Get the flow run context - this works even when called from within a task
     # since both FlowRunContext and TaskRunContext are independently active
+    if timeout is not None and timeout < 0:
+        raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
     context = FlowRunContext.get()
     if not context:
         raise RuntimeError("Flow runs can only be paused from within a flow run.")
@@ -387,6 +389,9 @@ def pause_flow_run(
 
     # Get the flow run context - this works even when called from within a task
     # since both FlowRunContext and TaskRunContext are independently active
+
+    if timeout is not None and timeout < 0:
+        raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
     context = FlowRunContext.get()
     if not context:
         raise RuntimeError("Flow runs can only be paused from within a flow run.")
@@ -524,6 +529,8 @@ async def asuspend_flow_run(
             resumed with the input, the flow will resume and the input will be
             loaded and returned from this function.
     """
+    if timeout is not None and timeout < 0:
+        raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
     context = FlowRunContext.get()
 
     if flow_run_id is None:
@@ -651,6 +658,8 @@ def suspend_flow_run(
             resumed with the input, the flow will resume and the input will be
             loaded and returned from this function.
     """
+    if timeout is not None and timeout < 0:
+        raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
     context = FlowRunContext.get()
 
     if flow_run_id is None:
