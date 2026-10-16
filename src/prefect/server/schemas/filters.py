@@ -1551,7 +1551,7 @@ class LogFilterTextSearch(PrefectFilterBaseModel):
         parsed = parse_text_search_query(self.query)
 
         # Build combined searchable text field (message + name)
-        searchable_field = sa.func.concat(db.Log.message, " ", db.Log.name)
+        searchable_field = db.Log.message + " " + db.Log.name
 
         # Handle include terms (OR logic)
         if parsed.include:
