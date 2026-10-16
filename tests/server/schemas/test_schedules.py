@@ -1159,6 +1159,20 @@ class TestRRuleSchedule:
         assert roundtrip_rruleset._rdate[0].tzinfo == expected_tzinfo
         assert roundtrip_rruleset._exdate[0].tzinfo == expected_tzinfo
 
+    async def test_serialization_preserves_rdate_and_exdate_in_another_timezone(
+        self,
+    ):
+        dt_nyc = datetime(2024, 3, 1, 9, tzinfo=ZoneInfo("America/New_York"))
+        rrset = rrule.rruleset(cache=True)
+        rrset.rrule(rrule.rrule(rrule.DAILY, count=3, dtstart=dt_nyc))
+        # 9 AM New York on 2024-03-02 and 2024-03-20, given in UTC
+        rrset.exdate(datetime(2024, 3, 2, 14, tzinfo=ZoneInfo("UTC")))
+        rrset.rdate(datetime(2024, 3, 20, 13, tzinfo=ZoneInfo("UTC")))
+
+        roundtrip_rruleset = RRuleSchedule.from_rrule(rrset).to_rrule()
+
+        assert list(roundtrip_rruleset) == list(rrset)
+
     @pytest.mark.xfail(
         reason="we currently cannot roundtrip RRuleSchedule objects for all timezones"
     )

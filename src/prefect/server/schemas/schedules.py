@@ -524,6 +524,16 @@ class CronSchedule(PrefectBaseModel):
 DEFAULT_ANCHOR_DATE = datetime.date(2020, 1, 1)
 
 
+def _format_rdate(dt: datetime.datetime, timezone: str) -> str:
+    """
+    Format an RDATE or EXDATE as wall-clock time in the schedule's timezone,
+    which is how `RRuleSchedule.to_rrule()` reads it back.
+    """
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(dateutil.tz.gettz(timezone))
+    return dt.strftime("%Y%m%dT%H%M%SZ")
+
+
 class RRuleSchedule(PrefectBaseModel):
     """
     RRule schedule, based on the iCalendar standard
@@ -601,12 +611,12 @@ class RRuleSchedule(PrefectBaseModel):
             if rrule._rdate:
                 rruleset_string += "\n" if rruleset_string else ""
                 rruleset_string += "RDATE:" + ",".join(
-                    rd.strftime("%Y%m%dT%H%M%SZ") for rd in rrule._rdate
+                    _format_rdate(rd, timezone) for rd in rrule._rdate
                 )
             if rrule._exdate:
                 rruleset_string += "\n" if rruleset_string else ""
                 rruleset_string += "EXDATE:" + ",".join(
-                    exd.strftime("%Y%m%dT%H%M%SZ") for exd in rrule._exdate
+                    _format_rdate(exd, timezone) for exd in rrule._exdate
                 )
             return RRuleSchedule(rrule=rruleset_string, timezone=timezone)
         else:

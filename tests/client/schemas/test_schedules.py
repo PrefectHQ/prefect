@@ -379,3 +379,38 @@ class TestRRuleScheduleFromRRule:
         )
         schedule = RRuleSchedule.from_rrule(rule)
         assert schedule.timezone == "America/New_York"
+
+    def test_rruleset_keeps_rdate_and_exdate_instants_in_another_timezone(
+        self,
+    ) -> None:
+        """Regression: RDATE/EXDATE given in a different timezone than DTSTART."""
+        utc = ZoneInfo("UTC")
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(
+            dateutil.rrule.rrule(
+                freq=dateutil.rrule.DAILY,
+                count=3,
+                dtstart=self._DTSTART_BEFORE_DST.replace(
+                    tzinfo=ZoneInfo("America/New_York")
+                ),
+            )
+        )
+        # 9 AM New York on 2024-03-02 and 2024-03-20, given in UTC
+        rset.exdate(datetime.datetime(2024, 3, 2, 14, 0, tzinfo=utc))
+        rset.rdate(datetime.datetime(2024, 3, 20, 13, 0, tzinfo=utc))
+
+        schedule = RRuleSchedule.from_rrule(rset)
+
+        assert schedule.timezone == "America/New_York"
+        assert [dt.astimezone(utc) for dt in schedule.to_rrule()] == [
+            dt.astimezone(utc) for dt in rset
+        ]
+
+    def test_rruleset_with_only_rdates_keeps_their_instants(self) -> None:
+        tz = ZoneInfo("America/New_York")
+        rset = dateutil.rrule.rruleset()
+        rset.rdate(datetime.datetime(2024, 3, 20, 9, 0, tzinfo=tz))
+
+        schedule = RRuleSchedule.from_rrule(rset)
+
+        assert list(schedule.to_rrule()) == list(rset)

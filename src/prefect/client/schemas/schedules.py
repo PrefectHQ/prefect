@@ -47,6 +47,16 @@ def _iana_timezone_name(tzinfo: datetime.tzinfo) -> str:
     return "UTC"
 
 
+def _format_rdate(dt: datetime.datetime, timezone: str) -> str:
+    """
+    Format an RDATE or EXDATE as wall-clock time in the schedule's timezone,
+    which is how `RRuleSchedule.to_rrule()` reads it back.
+    """
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(dateutil.tz.gettz(timezone))
+    return dt.strftime("%Y%m%dT%H%M%SZ")
+
+
 def is_valid_timezone(v: str) -> bool:
     """
     Validate that the provided timezone is a valid IANA timezone.
@@ -260,12 +270,12 @@ class RRuleSchedule(PrefectBaseModel):
         if rdates := _rdates(rrule):
             rruleset_string += "\n" if rruleset_string else ""
             rruleset_string += "RDATE:" + ",".join(
-                rd.strftime("%Y%m%dT%H%M%SZ") for rd in rdates
+                _format_rdate(rd, timezone) for rd in rdates
             )
         if exdates := _rdates(rrule, "_exdate"):
             rruleset_string += "\n" if rruleset_string else ""
             rruleset_string += "EXDATE:" + ",".join(
-                exd.strftime("%Y%m%dT%H%M%SZ") for exd in exdates
+                _format_rdate(exd, timezone) for exd in exdates
             )
         return RRuleSchedule(rrule=rruleset_string, timezone=timezone)
 
