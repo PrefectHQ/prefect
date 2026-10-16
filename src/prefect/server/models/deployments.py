@@ -1370,6 +1370,7 @@ async def mark_deployments_not_ready(
         if not deployment_ids and not work_queue_ids:
             return
 
+        # See comments in mark_deployments_ready.
         async with db.session_context(
             begin_transaction=True,
             with_for_update=True,

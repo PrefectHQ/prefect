@@ -1,0 +1,92 @@
+---
+title: jobsets
+sidebarTitle: jobsets
+---
+
+# `prefect_armada.jobsets`
+
+
+Module to define tasks for interacting with Armada job sets.
+
+## Functions
+
+### `cancel_jobset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobsets.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cancel_jobset(armada_credentials: ArmadaCredentials, queue: str, job_set_id: str, filter_states: Sequence[JobState | str | int] | None = None) -> Any
+```
+
+
+Task for cancelling the jobs in an Armada job set.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `queue`: The name of the Armada queue the job set was submitted to.
+- `job_set_id`: The name of the Armada job set to cancel.
+- `filter_states`: If provided, only jobs in these states are cancelled.
+States may be given as `JobState` members, names, or values.
+
+**Returns:**
+- An empty response.
+
+
+### `reprioritize_jobset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobsets.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reprioritize_jobset(armada_credentials: ArmadaCredentials, queue: str, job_set_id: str, new_priority: float) -> submit_pb2.JobReprioritizeResponse
+```
+
+
+Task for changing the priority of every job in an Armada job set.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `queue`: The name of the Armada queue the job set was submitted to.
+- `job_set_id`: The name of the Armada job set to reprioritize.
+- `new_priority`: The new priority for the jobs in the job set.
+
+**Returns:**
+- An Armada `JobReprioritizeResponse` object.
+
+
+### `get_job_status_by_external_job_uri` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobsets.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_job_status_by_external_job_uri(armada_credentials: ArmadaCredentials, queue: str, job_set_id: str, external_job_uri: str) -> job_pb2.JobDetailsResponse
+```
+
+
+Task for looking up jobs by their `externalJobUri` annotation.
+
+Prefect's Armada worker sets the `armadaproject.io/externalJobUri` annotation
+to `prefect://flow-run/<flow run id>`, so this task can find the Armada job
+for a flow run without knowing its job ID.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `queue`: The name of the Armada queue the job was submitted to.
+- `job_set_id`: The name of the Armada job set the job belongs to.
+- `external_job_uri`: The value of the job's `externalJobUri` annotation.
+
+**Returns:**
+- An Armada `JobDetailsResponse` object.
+
+
+### `job_states_from_values` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobsets.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+job_states_from_values(values: Sequence[JobState | str | int]) -> list[JobState]
+```
+
+
+Coerces a sequence of job state representations into `JobState` members.
+
+**Args:**
+- `values`: Job states given as `JobState` members, names, or values.
+
+**Returns:**
+- A list of `JobState` members.
+

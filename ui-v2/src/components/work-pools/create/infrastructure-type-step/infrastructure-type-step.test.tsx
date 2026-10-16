@@ -26,6 +26,14 @@ const mockWorkersResponse = {
 			is_beta: true,
 		},
 	},
+	// A collection the registry does not publish: the server contributes it from
+	// the locally installed worker, and it may carry no logo or description.
+	"prefect-armada": {
+		armada: {
+			type: "armada",
+			display_name: "Armada",
+		},
+	},
 };
 
 // Mock the API query
@@ -127,16 +135,29 @@ describe("InfrastructureTypeStep", () => {
 		expect(processOption).toBeChecked();
 	});
 
+	it("renders worker types that have no logo or description", async () => {
+		renderComponent();
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("radio", { name: /armada/i }),
+			).toBeInTheDocument();
+		});
+	});
+
 	it("sorts options with non-beta first, then alphabetically", async () => {
 		renderComponent();
 
 		await waitFor(() => {
 			const options = screen.getAllByRole("radio");
-			expect(options).toHaveLength(2);
+			expect(options).toHaveLength(3);
 
-			// Process (non-beta) should come before ECS (beta)
-			expect(options[0]).toHaveAttribute("aria-checked", "false");
-			expect(screen.getByText("Process")).toBeInTheDocument();
+			// Armada and Process (non-beta) come before ECS (beta)
+			expect(options.map((option) => option.getAttribute("id"))).toEqual([
+				"armada",
+				"process",
+				"ecs",
+			]);
 		});
 	});
 

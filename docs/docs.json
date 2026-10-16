@@ -351,6 +351,31 @@
               "integrations/integrations",
               "integrations/use-integrations",
               {
+                "group": "Armada",
+                "pages": [
+                  "integrations/prefect-armada/index",
+                  {
+                    "anchor": "prefect-armada-sdk-reference",
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-armada/api-ref/prefect_armada-credentials",
+                      "integrations/prefect-armada/api-ref/prefect_armada-decorators",
+                      "integrations/prefect-armada/api-ref/prefect_armada-events",
+                      "integrations/prefect-armada/api-ref/prefect_armada-exceptions",
+                      "integrations/prefect-armada/api-ref/prefect_armada-flows",
+                      "integrations/prefect-armada/api-ref/prefect_armada-jobs",
+                      "integrations/prefect-armada/api-ref/prefect_armada-jobsets",
+                      "integrations/prefect-armada/api-ref/prefect_armada-logs",
+                      "integrations/prefect-armada/api-ref/prefect_armada-observer",
+                      "integrations/prefect-armada/api-ref/prefect_armada-queues",
+                      "integrations/prefect-armada/api-ref/prefect_armada-settings",
+                      "integrations/prefect-armada/api-ref/prefect_armada-utilities",
+                      "integrations/prefect-armada/api-ref/prefect_armada-worker"
+                    ]
+                  }
+                ]
+              },
+              {
                 "group": "AWS",
                 "pages": [
                   "integrations/prefect-aws/index",

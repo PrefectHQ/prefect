@@ -21,6 +21,7 @@ SKIP_FILES = {
     "docs/v3/develop/interact-with-api.mdx": "Async function outside of async context",
     "docs/v3/develop/big-data.mdx": "Needs block cleanup handling",
     "docs/contribute/dev-contribute.mdx": "SQLAlchemy model modifications can't be safely tested without affecting the global database schema",
+    "docs/integrations/prefect-armada/index.mdx": "Needs a running Armada server",
     "docs/integrations/prefect-azure/index.mdx": "Makes live network calls which should be mocked",
     "docs/integrations/prefect-bitbucket/index.mdx": "Needs block cleanup handling",
     "docs/integrations/prefect-dask/index.mdx": "Needs a `dask_cloudprovider` harness",
