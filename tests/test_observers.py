@@ -1375,6 +1375,49 @@ class TestObserverRecovery:
 
         case.on_failure.assert_not_called()
 
+    @pytest.mark.parametrize("next_action", ["stream_end", "shutdown"])
+    async def test_leaves_reconciliation_retry_safely(
+        self,
+        case: RecoveryCase,
+        stream: ScriptedEventStream,
+        api: FakeAPI,
+        timer: ReconnectTimer,
+        caplog: pytest.LogCaptureFixture,
+        next_action: str,
+    ):
+        held = HeldReads()
+        api.hold = held
+        first, second = ScriptedConnection(), ScriptedConnection()
+        stream.script = [ConnectionError("down"), first, second]
+        flow_run_id = uuid.uuid4()
+
+        async with case.observer:
+            case.observer.add_in_flight_flow_run_id(flow_run_id)
+            poll = await held.next()
+            await timer.fire()
+            reconciliation = await held.next()
+            reconciliation.set_exception(unavailable())
+            await until(lambda: timer.pending == 1)
+
+            if next_action == "stream_end":
+                api.hold = None
+                poll.set_result(None)
+                first.send(CLOSE)
+                await until(lambda: stream.exits == 1)
+                await timer.fire()
+                await until(lambda: restored(caplog) == 1)
+                second.send(case.signal_event(flow_run_id))
+                await until(lambda: case.notified == [flow_run_id])
+
+        if next_action == "shutdown":
+            assert poll.cancelled()
+            assert stream.attempts == 2
+            case.callback.assert_not_called()
+        assert timer.pending == 0
+        assert api.waiting == 0
+        assert stream.exits == stream.connections
+        case.on_failure.assert_not_called()
+
     async def test_reports_failure_when_stream_ends_after_polling_failed(
         self,
         case: RecoveryCase,

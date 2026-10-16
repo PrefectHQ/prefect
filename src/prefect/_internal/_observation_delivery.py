@@ -7,6 +7,48 @@ state while it is not, and periodically tries to restore the stream. Observers
 supply what to do with an event, how to check the current state, and how to
 report that neither mechanism is working; interpreting flow run state remains
 their responsibility.
+
+Lifecycle state machine (`_DeliveryState` selects the active phase in `_run`;
+`start`, `stop`, and `_supervise` own startup and terminal transitions):
+
+    STARTING ---- setup succeeds -----------------------> STREAMING
+        |                                                   |
+        +--- setup fails ---> POLLING <--- consumer ends ----+
+                                 |
+                              retry due
+                                 v
+                            CONNECTING
+                                 |
+                           setup succeeds
+                                 v
+                            RECONCILING --- check succeeds -> STREAMING
+
+Additional transitions and guards:
+
+* CONNECTING -> POLLING when setup fails and the poller is still running.
+* RECONCILING -> RECONCILING when a state check fails: retain the consumer,
+  wait with jittered backoff, then retry the check.
+* RECONCILING -> POLLING when the consumer ends and the poller is still running.
+* POLLING or CONNECTING -> FAILED when polling ends without an established
+  consumer. A completed successful setup wins over simultaneous poll failure.
+* RECONCILING -> FAILED only when its consumer ends and polling has also ended.
+* Any active phase -> STOPPING -> STOPPED on deliberate shutdown or cancelled
+  entry. Cancel and await owned work, then close the connection.
+* FAILED releases owned work before reporting unavailability once. STOPPED
+  does not report unavailability or schedule further work.
+
+Phase ownership and invariants:
+
+* STARTING owns bounded setup; initial success needs no recovery reconciliation.
+* POLLING owns the fallback poller and reconnect delay; CONNECTING keeps that
+  same poller while owning a bounded setup attempt.
+* RECONCILING owns a live consumer and a state check or retry delay. The poller
+  may still be running or may have exhausted its policy; a live consumer keeps
+  delivery available in either case.
+* RECONCILING -> STREAMING requires a successful current-state check and a
+  running consumer, followed by cancelling and awaiting any live poller.
+* STREAMING owns only the consumer. A quiet stream has no idle deadline.
+* STOPPED and FAILED own no running tasks or open connection.
 """
 
 from __future__ import annotations
@@ -15,6 +57,7 @@ import asyncio
 import logging
 import random
 from collections.abc import Callable, Coroutine
+from enum import Enum, auto
 from typing import Any, TypeVar
 
 from prefect.events import Event
@@ -43,6 +86,17 @@ def reconnect_delay(attempt: int) -> float:
         RECONNECT_BASE_DELAY_SECONDS * 2 ** min(attempt, 32),
     )
     return random.uniform(ceiling / 2, ceiling)
+
+
+class _DeliveryState(Enum):
+    STOPPED = auto()
+    STARTING = auto()
+    STREAMING = auto()
+    POLLING = auto()
+    CONNECTING = auto()
+    RECONCILING = auto()
+    STOPPING = auto()
+    FAILED = auto()
 
 
 class ObservationDelivery:
@@ -74,17 +128,22 @@ class ObservationDelivery:
         self._check_current_state = check_current_state
         self._on_unavailable = on_unavailable
         self._polling_interval = polling_interval
+        self._state = _DeliveryState.STOPPED
         self._connected = False
         self._tasks: set[asyncio.Task[Any]] = set()
         self._supervisor: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         """Attempt the initial connection and begin streaming or polling."""
+        assert self._state is _DeliveryState.STOPPED
+        self._state = _DeliveryState.STARTING
         consumer: asyncio.Task[None] | None = None
         error = await self._connect()
         if error is None:
             consumer = self._spawn(self._consume())
+            self._state = _DeliveryState.STREAMING
         else:
+            self._state = _DeliveryState.POLLING
             self._logger.warning(
                 "%s failed to connect to the events stream. Falling back to"
                 " polling until it reconnects. Reason: %s",
@@ -95,10 +154,12 @@ class ObservationDelivery:
 
     async def stop(self) -> None:
         """Stop delivery, awaiting owned work and closing the connection."""
+        self._state = _DeliveryState.STOPPING
         if self._supervisor is not None:
             self._supervisor.cancel()
             await asyncio.wait([self._supervisor])
         await self._shutdown_owned_work()
+        self._state = _DeliveryState.STOPPED
 
     def _spawn(self, coroutine: Coroutine[Any, Any, T]) -> asyncio.Task[T]:
         task = asyncio.create_task(coroutine)
@@ -122,106 +183,126 @@ class ObservationDelivery:
             error = exc
         finally:
             await self._shutdown_owned_work()
+        self._state = _DeliveryState.FAILED
         self._on_unavailable(error)
 
     async def _run(self, consumer: asyncio.Task[None] | None) -> BaseException:
-        """Alternate between streaming and polling; return why both failed."""
+        """Advance delivery states until neither transport is working."""
         loop = asyncio.get_running_loop()
         failed_attempts = 0
-        while True:
-            if consumer is not None:
-                connected_at = loop.time()
-                await asyncio.wait([consumer])
-                self._log_stream_end(consumer)
-                await self._disconnect()
-                if loop.time() - connected_at >= STABLE_CONNECTION_SECONDS:
-                    failed_attempts = 0
-
-            poller = self._spawn(
-                critical_service_loop(
-                    workload=self._check_current_state,
-                    interval=self._polling_interval,
-                    jitter_range=0.3,
-                )
-            )
-            consumer = None
-            while consumer is None:
-                delay = self._spawn(_sleep(reconnect_delay(failed_attempts)))
-                failed_attempts += 1
-                await asyncio.wait([delay, poller], return_when=asyncio.FIRST_COMPLETED)
-                if poller.done():
-                    return _polling_error(poller)
-                consumer = await self._hand_off(poller)
-                if consumer is None and poller.done():
-                    return _polling_error(poller)
-
-    async def _hand_off(self, poller: asyncio.Task[None]) -> asyncio.Task[None] | None:
-        """
-        Try to replace `poller` with a new stream consumer.
-
-        Returns the running consumer once the stream is established and the
-        current state has been checked, or `None` if the attempt failed.
-        """
-        setup = self._spawn(self._connect())
-        await asyncio.wait([setup, poller], return_when=asyncio.FIRST_COMPLETED)
-        if not setup.done():
-            # Polling failed; a pending connection is not working monitoring.
-            setup.cancel()
-            await asyncio.wait([setup])
-            return None
-        if (error := setup.result()) is not None:
-            self._logger.debug(
-                "%s failed to reconnect to the events stream: %r", self._name, error
-            )
-            return None
-
-        consumer = self._spawn(self._consume())
         failed_checks = 0
+        poller: asyncio.Task[None] | None = None
         while True:
-            reconcile = self._spawn(self._check_current_state())
-            await asyncio.wait(
-                [consumer, reconcile], return_when=asyncio.FIRST_COMPLETED
-            )
-            if consumer.done():
-                break
-            if (error := reconcile.exception()) is None:
-                if poller.done():
-                    _polling_error(poller)
-                else:
-                    poller.cancel()
-                    await asyncio.wait([poller])
-                self._logger.info(
-                    "%s reconnected to the events stream and stopped polling.",
-                    self._name,
-                )
-                return consumer
+            match self._state:
+                case _DeliveryState.STREAMING:
+                    assert consumer is not None
+                    connected_at = loop.time()
+                    await asyncio.wait([consumer])
+                    self._log_stream_end(consumer)
+                    await self._disconnect()
+                    if loop.time() - connected_at >= STABLE_CONNECTION_SECONDS:
+                        failed_attempts = 0
+                    consumer = None
+                    self._state = _DeliveryState.POLLING
 
-            # The stream is working, so keep it while retrying the check, even
-            # if polling has also stopped working in the meantime.
-            self._logger.debug(
-                "%s reconnected to the events stream, but could not check the"
-                " current state: %r",
-                self._name,
-                error,
-            )
-            retry = self._spawn(_sleep(reconnect_delay(failed_checks)))
-            failed_checks += 1
-            await asyncio.wait([consumer, retry], return_when=asyncio.FIRST_COMPLETED)
-            if consumer.done():
-                retry.cancel()
-                await asyncio.wait([retry])
-                break
+                case _DeliveryState.POLLING:
+                    if poller is None:
+                        poller = self._spawn(
+                            critical_service_loop(
+                                workload=self._check_current_state,
+                                interval=self._polling_interval,
+                                jitter_range=0.3,
+                            )
+                        )
+                    delay = self._spawn(_sleep(reconnect_delay(failed_attempts)))
+                    failed_attempts += 1
+                    await asyncio.wait(
+                        [delay, poller], return_when=asyncio.FIRST_COMPLETED
+                    )
+                    if poller.done():
+                        return _polling_error(poller)
+                    self._state = _DeliveryState.CONNECTING
 
-        reconcile.cancel()
-        await asyncio.wait([reconcile])
-        self._logger.debug(
-            "%s reconnected to the events stream, but it ended before polling"
-            " stopped: %s",
-            self._name,
-            consumer.exception() or "the stream closed",
-        )
-        await self._disconnect()
-        return None
+                case _DeliveryState.CONNECTING:
+                    assert poller is not None
+                    setup = self._spawn(self._connect())
+                    await asyncio.wait(
+                        [setup, poller], return_when=asyncio.FIRST_COMPLETED
+                    )
+                    if not setup.done():
+                        # A pending connection is not working monitoring.
+                        setup.cancel()
+                        await asyncio.wait([setup])
+                        return _polling_error(poller)
+                    if (error := setup.result()) is not None:
+                        self._logger.debug(
+                            "%s failed to reconnect to the events stream: %r",
+                            self._name,
+                            error,
+                        )
+                        if poller.done():
+                            return _polling_error(poller)
+                        self._state = _DeliveryState.POLLING
+                    else:
+                        consumer = self._spawn(self._consume())
+                        failed_checks = 0
+                        self._state = _DeliveryState.RECONCILING
+
+                case _DeliveryState.RECONCILING:
+                    assert consumer is not None and poller is not None
+                    reconcile = self._spawn(self._check_current_state())
+                    await asyncio.wait(
+                        [consumer, reconcile], return_when=asyncio.FIRST_COMPLETED
+                    )
+                    if not consumer.done():
+                        if (error := reconcile.exception()) is None:
+                            if poller.done():
+                                _polling_error(poller)
+                            else:
+                                poller.cancel()
+                                await asyncio.wait([poller])
+                            self._logger.info(
+                                "%s reconnected to the events stream and stopped"
+                                " polling.",
+                                self._name,
+                            )
+                            poller = None
+                            self._state = _DeliveryState.STREAMING
+                            continue
+
+                        # Keep the functioning stream while HTTP checks recover.
+                        self._logger.debug(
+                            "%s reconnected to the events stream, but could not"
+                            " check the current state: %r",
+                            self._name,
+                            error,
+                        )
+                        retry = self._spawn(_sleep(reconnect_delay(failed_checks)))
+                        failed_checks += 1
+                        await asyncio.wait(
+                            [consumer, retry], return_when=asyncio.FIRST_COMPLETED
+                        )
+                        if not consumer.done():
+                            continue
+                        retry.cancel()
+                        await asyncio.wait([retry])
+
+                    reconcile.cancel()
+                    await asyncio.wait([reconcile])
+                    self._logger.debug(
+                        "%s reconnected to the events stream, but it ended before"
+                        " polling stopped: %s",
+                        self._name,
+                        consumer.exception() or "the stream closed",
+                    )
+                    await self._disconnect()
+                    consumer = None
+                    if poller.done():
+                        return _polling_error(poller)
+                    self._state = _DeliveryState.POLLING
+
+                case _:
+                    raise RuntimeError(f"Unexpected delivery state: {self._state}")
 
     async def _connect(self) -> Exception | None:
         """Open the stream within the setup deadline, returning any failure."""
