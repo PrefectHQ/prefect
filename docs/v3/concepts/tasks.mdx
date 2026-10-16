@@ -120,7 +120,7 @@ For more details on concurrent execution patterns, see [how to run work concurre
 
 #### Delaying a task (`.delay()`)
 
-When the result of a task is not required by the caller, it may be delayed to run on separate infrastructure by an available [task worker](/v3/how-to-guides/workflows/run-background-tasks#task-workers). Like `.submit()`, calling `.delay()` returns a `PrefectFuture` immediately, but this future does not need to be resolved from the context that submitted it.
+When the result of a task is not required by the caller, it may be delayed to run on separate infrastructure by an available [task worker](/v3/how-to-guides/workflows/run-background-tasks#start-a-background-task-worker). Like `.submit()`, calling `.delay()` returns a `PrefectFuture` immediately, but this future does not need to be resolved from the context that submitted it.
 
 ```python
 from prefect import task
@@ -341,7 +341,7 @@ For detailed configuration options and implementation guidance, see [how to writ
 
 Background tasks are an alternate task execution model where tasks are submitted in a non-blocking manner by one process and executed by a pool of processes. This execution model is particularly valuable for web applications and workflows that need to dispatch heavy or long-running work without waiting for completion to dedicated, horizontally scaled infrastructure.
 
-When a task is executed with `.delay()`, it pushes the resulting task run onto a server-side topic, which is distributed to an available [task worker](/v3/how-to-guides/workflows/run-background-tasks#task-workers) for execution.
+When a task is executed with `.delay()`, it pushes the resulting task run onto a server-side topic, which is distributed to an available [task worker](/v3/how-to-guides/workflows/run-background-tasks#start-a-background-task-worker) for execution.
 
 <Note>
 Prefect background tasks can be used in place of tools like [Celery](https://docs.celeryq.dev/en/stable/getting-started/introduction.html) and [RabbitMQ](https://www.rabbitmq.com/) for task queue functionality.
