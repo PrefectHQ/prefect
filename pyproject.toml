@@ -7,7 +7,7 @@ name = "prefect"
 dynamic = ["version"]
 description = "Workflow orchestration and management."
 readme = "README.md"
-requires-python = ">=3.11,<3.15"
+requires-python = ">=3.11,<3.16"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
@@ -20,6 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
@@ -141,7 +142,10 @@ dev = [
     "ipython",
     "jinja2>=3.1.6",
     "moto>=5",
-    "numpy",
+    # numpy 2.5+ stubs use `type` statements mypy can't parse with
+    # python_version = "3.11"; only 2.5+ publishes cp315 wheels
+    "numpy<2.5; python_version<'3.15'",
+    "numpy>=2.5.4; python_version>='3.15'",
     "pendulum[test]>=3.1.0,<4; python_version<'3.13'",
     "pillow>=11.1.0; python_version<'3.14'",
     "pre-commit>=4.1.0",

@@ -243,9 +243,10 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
                 Weekday.SUNDAY.value - zdt.date().day_of_week().value
             )
             if _WHENEVER_NEW_API:
-                from whenever import ItemizedDateDelta
-
-                zdt = zdt + ItemizedDateDelta(days=days_till_end_of_week)
+                # `ZonedDateTime + ItemizedDateDelta` is unsupported in
+                # whenever's pure-Python fallback (e.g. CPython 3.15 until
+                # cp315 wheels ship); `.add()` works in both implementations
+                zdt = zdt.add(days=days_till_end_of_week)
             else:
                 from whenever import days
 
