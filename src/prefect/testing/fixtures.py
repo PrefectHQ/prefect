@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import signal
 import socket
@@ -49,8 +50,6 @@ from prefect.utilities.processutils import open_process
 def add_prefect_loggers_to_caplog(
     caplog: pytest.LogCaptureFixture,
 ) -> Generator[None, None, None]:
-    import logging
-
     logger = logging.getLogger("prefect")
     logger.propagate = True
 
@@ -58,6 +57,65 @@ def add_prefect_loggers_to_caplog(
         yield
     finally:
         logger.propagate = False
+
+
+@pytest.fixture(autouse=True)
+def restore_logging_state() -> Generator[None, None, None]:
+    """
+    Restore logger configuration that a test mutates in-process.
+
+    Code paths like `setup_logging`, in-process CLI invocations, and uvicorn
+    apply process-global logging configuration from whatever settings context
+    is active at the time. A test running under `temporary_settings` or
+    `use_profile` can therefore permanently change logger levels in its
+    pytest-xdist worker -- for example, leaving `prefect.server` at WARNING so
+    a later test's expected INFO records are silently dropped and `caplog`
+    assertions fail intermittently. Snapshot every logger's level, propagate,
+    disabled flag, and handler list and restore them after each test.
+    """
+    loggers = [
+        logging.root,
+        *(
+            logger
+            for logger in logging.root.manager.loggerDict.values()
+            if isinstance(logger, logging.Logger)
+        ),
+    ]
+    state = {
+        logger: (
+            logger.level,
+            logger.propagate,
+            logger.disabled,
+            logger.handlers[:],
+        )
+        for logger in loggers
+    }
+    yield
+    for logger, (level, propagate, disabled, handlers) in state.items():
+        # `setLevel` (rather than assigning `.level`) clears logging's
+        # `isEnabledFor` cache, which otherwise keeps dropping records at the
+        # polluted level even after the level is restored.
+        logger.setLevel(level)
+        logger.propagate = propagate
+        logger.disabled = disabled
+        # Restore the snapshot's handler list unless the removed handlers were
+        # closed during the test: a full `dictConfig` closes every handler via
+        # `logging.shutdown` before attaching new instances, and that new set
+        # is the coherent configuration to keep. Removed handlers that are
+        # still open mean an ordinary test mutation, which should be reverted.
+        live_handlers = {ref() for ref in logging._handlerList}
+        removed = [h for h in handlers if h not in logger.handlers]
+        closed = {
+            h for h in removed if getattr(h, "_closed", False) or h not in live_handlers
+        }
+        if closed:
+            # Reconfiguration signature: keep the new set, but re-attach any
+            # still-open handlers a mixed manual cleanup also removed.
+            for h in removed:
+                if h not in closed:
+                    logger.addHandler(h)
+        else:
+            logger.handlers[:] = handlers
 
 
 def is_port_in_use(port: int) -> bool:
