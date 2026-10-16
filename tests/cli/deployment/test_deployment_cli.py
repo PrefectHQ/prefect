@@ -182,6 +182,57 @@ def test_list_schedules_with_json_output(flojo_deployment: DeploymentResponse):
     )
 
 
+@pytest.fixture
+async def calendar_deployment(prefect_client: PrefectClient) -> UUID:
+    from prefect.types._datetime import ItemizedDelta
+
+    @flow
+    async def calendar_flow():
+        pass
+
+    flow_id = await prefect_client.create_flow(calendar_flow)
+    return await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="calendar-deployment",
+        version="git-commit-hash",
+        schedules=[
+            DeploymentScheduleCreate(
+                schedule=IntervalSchedule(interval=ItemizedDelta(months=1))
+            )
+        ],
+        parameter_openapi_schema={"type": "object", "properties": {}},
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 13),
+    reason="Calendar intervals require a Python 3.13+ server",
+)
+def test_list_schedules_displays_calendar_interval(
+    calendar_deployment: UUID,
+):
+    invoke_and_assert(
+        ["deployment", "schedule", "ls", "calendar-flow/calendar-deployment"],
+        expected_code=0,
+        expected_output_contains=["interval: P1M"],
+        expected_output_does_not_contain="P1Ms",
+    )
+
+    invoke_and_assert(
+        [
+            "deployment",
+            "schedule",
+            "ls",
+            "-o",
+            "json",
+            "calendar-flow/calendar-deployment",
+        ],
+        expected_code=0,
+        expected_output_contains=["interval: P1M"],
+        expected_output_does_not_contain="P1Ms",
+    )
+
+
 class TestDeploymentSchedules:
     @pytest.fixture(autouse=True)
     def enable_triggers(self):

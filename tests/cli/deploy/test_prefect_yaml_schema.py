@@ -2,9 +2,11 @@
 
 import json
 import uuid
+from typing import Any
 
 import pytest
 from jsonschema import Draft202012Validator, ValidationError, validate
+from pydantic import ValidationError as PydanticValidationError
 
 from prefect import __development_base_path__
 from prefect.cli.deploy._models import PrefectYamlModel
@@ -112,6 +114,100 @@ class TestPrefectYamlSchema:
         # Check that key definitions exist in both
         assert "DeploymentConfig" in schema.get("$defs", {})
         assert "DeploymentConfig" in model_schema.get("$defs", {})
+
+    @pytest.mark.parametrize(
+        "interval",
+        [
+            600,
+            600.5,
+            "P1M",
+            "P1Y",
+            "P1M1W",
+            "P1Y2M3W4DT5H6M7.123456789S",
+            "PT48H",
+            "PT0.0000015S",
+            "P1.5D",
+            "P1.5M",
+            "P0.5W",
+            "PT1.5H",
+            "PT0,5S",
+            "p1m1w",
+            "p1y2w3dt4h",
+            "+P1D",
+            "P1D1Y",
+            "PT1S2H",
+            "P1D1D",
+            "P1DT",
+            "P1.D",
+            "PT1.S",
+            "1:30:00",
+            "01:02",
+            "0001:02",
+            ":02:03",
+            "01:02:03,5",
+            "+01:02:03.5",
+            "25:00:00",
+            "1 day, 2:03:04",
+            "1 days, 02:03:04",
+            "1d02:03:04",
+            "1D 02:03:04",
+            "1 DAY, 02:03:04",
+            "1d",
+            "1 days",
+            "1d,",
+        ],
+    )
+    @pytest.mark.parametrize("shape", ["bare", "raw", "wrapped"])
+    def test_schema_accepts_interval_formats(
+        self, schema: dict[str, Any], interval: str | int | float, shape: str
+    ):
+        schedule = {"interval": interval}
+        if shape == "raw":
+            schedule["active"] = True
+        elif shape == "wrapped":
+            schedule = {"schedule": schedule}
+        config = {"deployments": [{"name": "calendar", "schedules": [schedule]}]}
+
+        validate(config, schema)
+        PrefectYamlModel.model_validate(config)
+
+    @pytest.mark.parametrize(
+        "interval",
+        [
+            "not-a-duration",
+            "P",
+            "PT",
+            "P1Q",
+            "PT1X",
+            "P1D junk",
+            "P1.5D2D",
+            "PT1.5H30M",
+            "p1d1y",
+            "01:99:00",
+            "00:00:99",
+            "1:2:3",
+            "1:02",
+            "1 day, not-a-duration",
+            "1 day, 24:00:00",
+            "1d 25:00:00",
+            "PT1H\n",
+        ],
+    )
+    @pytest.mark.parametrize("shape", ["bare", "raw", "wrapped"])
+    def test_schema_rejects_invalid_interval_syntax(
+        self, schema: dict[str, Any], interval: str, shape: str
+    ):
+        schedule = {"interval": interval}
+        if shape == "raw":
+            schedule["active"] = True
+        elif shape == "wrapped":
+            schedule = {"schedule": schedule}
+        config = {"deployments": [{"name": "invalid", "schedules": [schedule]}]}
+
+        with pytest.raises(PydanticValidationError):
+            PrefectYamlModel.model_validate(config)
+        with pytest.raises(ValidationError):
+            validate(config, schema)
 
 
 class TestActionMappingNormalization:
