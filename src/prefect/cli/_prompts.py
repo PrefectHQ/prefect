@@ -9,6 +9,7 @@ import os
 import shutil
 from datetime import timedelta
 from getpass import GetPassWarning
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -102,7 +103,11 @@ async def search_for_flow_functions(
         logger.error(f"Error searching for flow functions: {e}")
         return []
 
-    flows = [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]
+    flows = [
+        {**fn, "filepath": Path(fn["filepath"]).as_posix()}
+        for file_fns in await asyncio.gather(*coros)
+        for fn in file_fns
+    ]
     return sorted(flows, key=lambda x: (x["filepath"], x["function_name"]))
 
 

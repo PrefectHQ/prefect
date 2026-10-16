@@ -1,5 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { buildApiUrl, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { ThemeProvider } from "next-themes";
@@ -12,6 +20,16 @@ vi.mock("@/graphs", () => ({
 	emitter: {
 		on: vi.fn(() => vi.fn()),
 	},
+	isArtifactSelection: (selection: { kind: string }) =>
+		selection.kind === "artifact",
+	isArtifactsSelection: (selection: { kind: string }) =>
+		selection.kind === "artifacts",
+	isEventSelection: (selection: { kind: string }) => selection.kind === "event",
+	isEventsSelection: (selection: { kind: string }) =>
+		selection.kind === "events",
+	isNodeSelection: (selection: { kind: string }) =>
+		selection.kind === "task-run" || selection.kind === "flow-run",
+	isStateSelection: (selection: { kind: string }) => selection.kind === "state",
 	selectItem: vi.fn(),
 	setConfig: vi.fn(),
 	start: vi.fn(),
@@ -257,6 +275,87 @@ describe("FlowRunGraph", () => {
 					"This flow run has not yet generated any task or subflow runs",
 				),
 			).toBeInTheDocument();
+		});
+	});
+
+	describe("artifact selection", () => {
+		const renderWithRouter = (ui: React.ReactNode) => {
+			const queryClient = new QueryClient({
+				defaultOptions: { queries: { retry: false } },
+			});
+			const rootRoute = createRootRoute();
+			const indexRoute = createRoute({
+				getParentRoute: () => rootRoute,
+				path: "/",
+				component: () => (
+					<ThemeProvider attribute="class" defaultTheme="light">
+						{ui}
+					</ThemeProvider>
+				),
+			});
+			const router = createRouter({
+				routeTree: rootRoute.addChildren([indexRoute]),
+				history: createMemoryHistory({ initialEntries: ["/"] }),
+				context: { queryClient },
+			});
+			return render(
+				<QueryClientProvider client={queryClient}>
+					<RouterProvider router={router} />
+				</QueryClientProvider>,
+			);
+		};
+
+		beforeEach(() => {
+			server.use(
+				http.get(buildApiUrl("/artifacts/:id"), () => {
+					return HttpResponse.json({
+						id: "artifact-123",
+						key: "my-artifact",
+						type: "markdown",
+						description: null,
+						data: "# Report",
+						created: "2024-01-15T10:30:00Z",
+						updated: "2024-01-15T10:30:00Z",
+						flow_run_id: "test-flow-run",
+						task_run_id: null,
+					});
+				}),
+			);
+		});
+
+		it("opens the artifact drawer when a single artifact is selected", async () => {
+			renderWithRouter(
+				<FlowRunGraph
+					flowRunId="test-flow-run"
+					selected={{ kind: "artifact", id: "artifact-123" }}
+				/>,
+			);
+
+			expect(await screen.findByText("Artifact Details")).toBeInTheDocument();
+			expect(await screen.findByText("my-artifact")).toBeInTheDocument();
+			expect(
+				screen.getByRole("link", { name: /open artifact/i }),
+			).toHaveAttribute("href", "/artifacts/artifact/artifact-123");
+		});
+
+		it("clears the selection when the artifact drawer is closed", async () => {
+			const user = userEvent.setup();
+			const onSelectedChange = vi.fn();
+
+			renderWithRouter(
+				<FlowRunGraph
+					flowRunId="test-flow-run"
+					selected={{ kind: "artifact", id: "artifact-123" }}
+					onSelectedChange={onSelectedChange}
+				/>,
+			);
+
+			await screen.findByText("my-artifact");
+			await user.click(screen.getByRole("button", { name: "Close" }));
+
+			await waitFor(() => {
+				expect(onSelectedChange).toHaveBeenCalledWith(undefined);
+			});
 		});
 	});
 });

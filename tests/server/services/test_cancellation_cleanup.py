@@ -23,6 +23,8 @@ from prefect.server.services.cancellation_cleanup import (
     ensure_cancelling_timeout_checks,
     handle_cancelling_timeout,
     maybe_schedule_cancelling_timeout_check_for_state,
+    monitor_cancelled_flow_runs,
+    monitor_subflow_runs,
     schedule_cancelling_timeout_check,
 )
 from prefect.server.worker_communication.cleanup_queue.memory import WorkerCleanupQueue
@@ -325,6 +327,70 @@ async def test_ensure_cancelling_timeout_checks_pages_past_first_batch(
     task_keys = [task.key for task in snapshot.future]
     task_keys.extend(task.key for task in snapshot.running)
     assert cancelling_timeout_check_key(max(flow_run_ids)) in task_keys
+
+
+async def test_monitor_cancelled_flow_runs_pages_past_first_batch(
+    session: AsyncSession,
+    flow: Flow,
+):
+    flow_run_ids = []
+    async with session.begin():
+        for _ in range(201):
+            flow_run = await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id, state=states.Cancelled(), end_time=THE_PAST
+                ),
+            )
+            flow_run_ids.append(flow_run.id)
+
+    async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+        # the second pass checks that pending cleanups aren't enqueued again
+        for _ in range(2):
+            await monitor_cancelled_flow_runs(
+                docket=docket, db=provide_database_interface()
+            )
+        snapshot = await docket.snapshot()
+
+    scheduled_ids = [execution.args[0] for execution in snapshot.future]
+    assert sorted(scheduled_ids) == sorted(flow_run_ids)
+
+
+async def test_monitor_subflow_runs_pages_past_first_batch(
+    session: AsyncSession,
+    flow: Flow,
+    cancelled_flow_run: FlowRun,
+):
+    subflow_run_ids = []
+    async with session.begin():
+        virtual_task = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=cancelled_flow_run.id,
+                task_key="a virtual task",
+                dynamic_key="a virtual dynamic key",
+                state=states.Running(),
+            ),
+        )
+        for _ in range(201):
+            subflow_run = await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    parent_task_run_id=virtual_task.id,
+                    state=states.Running(),
+                ),
+            )
+            subflow_run_ids.append(subflow_run.id)
+
+    async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+        # the second pass checks that pending cleanups aren't enqueued again
+        for _ in range(2):
+            await monitor_subflow_runs(docket=docket, db=provide_database_interface())
+        snapshot = await docket.snapshot()
+
+    scheduled_ids = [execution.args[0] for execution in snapshot.future]
+    assert sorted(scheduled_ids) == sorted(subflow_run_ids)
 
 
 async def test_handle_cancelling_timeout_cancels_and_enqueues_cleanup(
