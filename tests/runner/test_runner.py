@@ -5730,6 +5730,129 @@ class TestRunnerAsyncDispatch:
             await result
 
 
+class TestHandleSigterm:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/23345"""
+
+    @pytest.fixture(autouse=True)
+    def preserve_sigterm_handler(self) -> Generator[None, None, None]:
+        original_handler = signal.getsignal(signal.SIGTERM)
+        yield
+        signal.signal(signal.SIGTERM, original_handler)
+
+    def test_handle_sigterm_exits_when_runner_not_started(self):
+        runner = Runner(name="test-sigterm-not-started")
+
+        with pytest.raises(SystemExit):
+            runner.handle_sigterm(signal.SIGTERM, None)
+
+    async def test_handle_sigterm_schedules_astop_on_runner_loop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(name="test-sigterm-astop", pause_on_shutdown=False)
+        cancel_all = AsyncMock()
+        monkeypatch.setattr(runner, "cancel_all", cancel_all)
+
+        start_task = asyncio.create_task(runner.start(webserver=False))
+        with anyio.fail_after(30):
+            while not runner.started:
+                await anyio.sleep(0.05)
+
+        runner.handle_sigterm(signal.SIGTERM, None)
+
+        with anyio.fail_after(30):
+            await start_task
+
+        cancel_all.assert_awaited_once()
+        assert runner.stopping
+        assert not runner.started
+
+    async def test_handle_sigterm_after_restart_schedules_astop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(name="test-sigterm-restart", pause_on_shutdown=False)
+        cancel_all = AsyncMock()
+        monkeypatch.setattr(runner, "cancel_all", cancel_all)
+
+        for _ in range(2):
+            start_task = asyncio.create_task(runner.start(webserver=False))
+            with anyio.fail_after(30):
+                while not runner.started:
+                    await anyio.sleep(0.05)
+            assert not runner.stopping
+
+            runner.handle_sigterm(signal.SIGTERM, None)
+
+            with anyio.fail_after(30):
+                await start_task
+
+        assert cancel_all.await_count == 2
+
+    def test_handle_sigterm_after_restart_on_new_event_loop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(name="test-sigterm-new-loop", pause_on_shutdown=False)
+        cancel_all = AsyncMock()
+        monkeypatch.setattr(runner, "cancel_all", cancel_all)
+
+        async def start_then_sigterm() -> None:
+            start_task = asyncio.create_task(runner.start(webserver=False))
+            with anyio.fail_after(30):
+                while not runner.started:
+                    await anyio.sleep(0.05)
+            assert runner._loop is asyncio.get_running_loop()
+
+            runner.handle_sigterm(signal.SIGTERM, None)
+
+            with anyio.fail_after(30):
+                await start_task
+
+        asyncio.run(start_then_sigterm())
+        asyncio.run(start_then_sigterm())
+
+        assert cancel_all.await_count == 2
+
+    async def test_repeated_sigterm_while_stopping_exits(self):
+        runner = Runner(name="test-sigterm-repeated")
+        runner.started = True
+        runner.stopping = True
+        runner._loop = asyncio.get_running_loop()
+
+        with pytest.raises(SystemExit):
+            runner.handle_sigterm(signal.SIGTERM, None)
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_handle_sigterm_cancels_served_flow_runs(
+        self, prefect_client: PrefectClient
+    ):
+        runner = Runner(query_seconds=1, pause_on_shutdown=False)
+        deployment_id = await runner.add_flow(tired_flow, __file__)
+
+        start_task = asyncio.create_task(runner.start(webserver=False))
+        with anyio.fail_after(30):
+            while not runner.started:
+                await anyio.sleep(0.1)
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        with anyio.fail_after(60):
+            while True:
+                await anyio.sleep(0.5)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
+                if flow_run.state.is_running():
+                    break
+
+        runner.handle_sigterm(signal.SIGTERM, None)
+
+        with anyio.fail_after(60):
+            await start_task
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_cancelled()
+
+
 class TestResolveStarter:
     """Regression tests for _resolve_starter routing."""
 
