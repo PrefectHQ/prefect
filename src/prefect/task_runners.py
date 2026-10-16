@@ -611,50 +611,55 @@ def _run_task_in_subprocess(
     from prefect.engine import handle_engine_signals
     from prefect.task_engine import run_task_async, run_task_sync
 
-    # Update environment variables
+    # Update environment variables, restoring them afterwards so a reused
+    # worker process does not carry variables over to later tasks
+    original_env = os.environ.copy()
     os.environ.update(env or {})
+    try:
+        # Extract context from kwargs
+        context = kwargs.pop("context", None)
 
-    # Extract context from kwargs
-    context = kwargs.pop("context", None)
+        with hydrated_context(context):
+            with handle_engine_signals(kwargs.get("task_run_id")):
+                # Determine if this is an async task
+                task = kwargs.get("task")
+                if task and task.isasync:
+                    # For async tasks, we need to create a new event loop
+                    import asyncio
 
-    with hydrated_context(context):
-        with handle_engine_signals(kwargs.get("task_run_id")):
-            # Determine if this is an async task
-            task = kwargs.get("task")
-            if task and task.isasync:
-                # For async tasks, we need to create a new event loop
-                import asyncio
+                    maybe_coro = run_task_async(*args, **kwargs)
+                    result = asyncio.run(maybe_coro)
+                else:
+                    result = run_task_sync(*args, **kwargs)
 
-                maybe_coro = run_task_async(*args, **kwargs)
-                result = asyncio.run(maybe_coro)
-            else:
-                result = run_task_sync(*args, **kwargs)
+                # Flush the subprocess's EventsWorker so that any events emitted
+                # during the task are forwarded to the parent process's
+                # multiprocessing queue before this function returns.  Without
+                # this, the process pool may shut down the worker before the
+                # async EventsWorker processing completes, causing events to be
+                # silently lost.
+                #
+                # Only flush when a worker already exists (i.e. events were
+                # actually emitted) to avoid instantiating a new EventsWorker
+                # and its associated orchestration client for tasks that never
+                # emit events.
+                with EventsWorker._instance_lock:
+                    has_events_worker = bool(EventsWorker._instances)
+                if has_events_worker:
+                    try:
+                        EventsWorker.instance().wait_until_empty()
+                    except Exception:
+                        get_logger("task_runner").debug(
+                            "Failed to flush subprocess EventsWorker; "
+                            "some events may not have been forwarded to the parent"
+                            " process",
+                            exc_info=True,
+                        )
 
-            # Flush the subprocess's EventsWorker so that any events emitted
-            # during the task are forwarded to the parent process's
-            # multiprocessing queue before this function returns.  Without
-            # this, the process pool may shut down the worker before the
-            # async EventsWorker processing completes, causing events to be
-            # silently lost.
-            #
-            # Only flush when a worker already exists (i.e. events were
-            # actually emitted) to avoid instantiating a new EventsWorker
-            # and its associated orchestration client for tasks that never
-            # emit events.
-            with EventsWorker._instance_lock:
-                has_events_worker = bool(EventsWorker._instances)
-            if has_events_worker:
-                try:
-                    EventsWorker.instance().wait_until_empty()
-                except Exception:
-                    get_logger("task_runner").debug(
-                        "Failed to flush subprocess EventsWorker; "
-                        "some events may not have been forwarded to the parent"
-                        " process",
-                        exc_info=True,
-                    )
-
-            return result
+                return result
+    finally:
+        os.environ.clear()
+        os.environ.update(original_env)
 
 
 class _ChainedFuture(concurrent.futures.Future[bytes]):
@@ -871,8 +876,6 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         self._subprocess_message_processor_factories: tuple[
             _SubprocessMessageProcessorFactory, ...
         ] = tuple(subprocess_message_processor_factories or ())
-        self._cached_context: dict[str, Any] | None = None
-        self._cached_env: dict[str, str] | None = None
 
     def duplicate(self) -> Self:
         duplicate_runner = type(self)(max_workers=self._max_workers)
@@ -1201,17 +1204,14 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 f"Submitting task {task.name} to process pool executor..."
             )
 
-        # Serialize the current context for the subprocess (cached per runner lifecycle)
-        if self._cached_context is None:
-            from prefect.context import serialize_context
+        # Serialize the current context for the subprocess
+        from prefect.context import serialize_context
 
-            self._cached_context = serialize_context()
-            self._cached_env = (
-                get_current_settings().to_environment_variables(exclude_unset=True)
-                | os.environ
-            )
-        context = self._cached_context
-        env = self._cached_env
+        context = serialize_context()
+        env = (
+            get_current_settings().to_environment_variables(exclude_unset=True)
+            | os.environ
+        )
 
         # Submit the resolution and subprocess execution to a background thread
         # This keeps submit() non-blocking while still resolving futures before pickling
@@ -1261,10 +1261,6 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         return super().map(task, parameters, wait_for)
 
     def cancel_all(self) -> None:
-        # Invalidate cached context and env so they are recomputed on next start
-        self._cached_context = None
-        self._cached_env = None
-
         # Clear cancel events first to avoid resource tracking issues
         events_to_set = list(self._cancel_events.values())
         self._cancel_events.clear()
