@@ -260,7 +260,9 @@ class TestAzureBlobStorageContainer:
         with open(tmp_path / "local_directory" / "prefect.txt", "rb") as f:
             assert f.read() == b"prefect_works"
 
-    async def test_put_directory(self, mock_blob_storage_credentials, tmp_path):
+    async def test_put_directory(
+        self, mock_blob_storage_credentials, tmp_path: Path, filter_files_format
+    ):
         container = AzureBlobStorageContainer(
             container_name="container",
             credentials=mock_blob_storage_credentials,
@@ -274,7 +276,27 @@ class TestAzureBlobStorageContainer:
         file1_path.write_bytes(b"file1_content")
         file2_path.write_bytes(b"file2_content")
 
-        await container.put_directory(local_path=str(local_path), to_path=to_path)
+        nested = local_path / "a" / "b"
+        nested.mkdir(parents=True)
+        (nested / "keep.txt").write_bytes(b"nested_content")
+        (nested / "ignored.txt").write_bytes(b"ignored")
+        ignore_file = tmp_path / ".prefectignore"
+        ignore_file.write_text("a/b/*\n!a/b/keep.txt")
+
+        await container.put_directory(
+            local_path=str(local_path), to_path=to_path, ignore_file=str(ignore_file)
+        )
+
+        assert await container.read_path(f"{to_path}/a/b/keep.txt") == b"nested_content"
+        uploaded_names = {
+            call.args[1]
+            for call in mock_blob_storage_credentials.get_blob_client.call_args_list
+        }
+        assert uploaded_names == {
+            f"{to_path}/file1.txt",
+            f"{to_path}/file2.txt",
+            f"{to_path}/a/b/keep.txt",
+        }
 
         await container.download_object_to_path(
             "destination_directory/file1.txt", tmp_path / "read_file1.txt"

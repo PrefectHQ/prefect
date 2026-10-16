@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 import pytest
 from botocore import UNSIGNED
@@ -7,6 +8,7 @@ from prefect_aws import AwsCredentials
 from prefect_aws.client_parameters import AwsClientParameters
 
 from prefect.testing.utilities import prefect_test_harness
+from prefect.utilities.filesystem import filter_files
 
 
 # added to eliminate warnings
@@ -59,3 +61,21 @@ def aws_client_parameters_empty():
 @pytest.fixture
 def aws_client_parameters_public_bucket():
     return AwsClientParameters(config=Config(signature_version=UNSIGNED))
+
+
+@pytest.fixture(params=["native", "posix"])
+def filter_files_format(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+):
+    """Exercise uploaders with either supported filter_files output format."""
+
+    def formatted_filter_files(*args, **kwargs) -> set[str]:
+        paths = filter_files(*args, **kwargs)
+        if request.param == "posix":
+            return {Path(path).as_posix() for path in paths}
+        return paths
+
+    monkeypatch.setattr("prefect_aws.s3.filter_files", formatted_filter_files)
+    monkeypatch.setattr(
+        "prefect_aws.deployments.steps.filter_files", formatted_filter_files
+    )

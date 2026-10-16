@@ -100,13 +100,15 @@ def dummy_service_account_file(tmp_path):
     return str(file)
 
 
-def test_push_to_gcs(gcs_setup, tmp_files, mock_credentials):
+def test_push_to_gcs(
+    gcs_setup, tmp_files, mock_credentials, filter_files_format, monkeypatch
+):
     mocked_storage_client, mocked_bucket, mocked_blob = gcs_setup
 
     bucket_name = "my-test-bucket"
     folder = "my-project"
 
-    os.chdir(tmp_files)
+    monkeypatch.chdir(tmp_files)
 
     push_to_gcs(bucket_name, folder)
 
