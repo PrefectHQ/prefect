@@ -498,17 +498,20 @@ class TestMigratableAutomation:
             trigger=create_test_trigger(),
             actions=[
                 DoNothing(),
-                UnknownAction(type="archive-flow", flow_id=str(uuid.uuid4())),
+                UnknownAction(
+                    type="pause-schedule-for-flow-run",
+                    deployment_id=str(uuid.uuid4()),
+                ),
             ],
             actions_on_trigger=[UnknownAction(type="sla-violation")],
-            actions_on_resolve=[UnknownAction(type="archive-flow")],
+            actions_on_resolve=[UnknownAction(type="pause-schedule-for-flow-run")],
         )
 
         migratable = await MigratableAutomation.construct(automation)
 
         with pytest.raises(
             TransferSkipped,
-            match="does not recognize: archive-flow, sla-violation$",
+            match="does not recognize: pause-schedule-for-flow-run, sla-violation$",
         ):
             await migratable.migrate()
 

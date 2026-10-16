@@ -117,33 +117,31 @@ class TestUnknownActions:
         }
 
     def test_unknown_action_type_is_read_as_unknown_action(self):
-        flow_id = str(uuid.uuid4())
+        email = {
+            "type": "send-email-notification",
+            "emails": ["ops@example.com"],
+            "subject": "Flow run failed",
+            "body": "{{ flow_run.name }} failed",
+        }
         automation = Automation.model_validate(
             self.automation_data(
-                actions=[
-                    {"type": "archive-flow", "source": "selected", "flow_id": flow_id},
-                    {"type": "run-deployment", "source": "inferred"},
-                ]
+                actions=[email, {"type": "run-deployment", "source": "inferred"}]
             )
         )
 
         unknown, known = automation.actions
         assert isinstance(unknown, UnknownAction)
-        assert unknown.type == "archive-flow"
-        assert unknown.model_dump() == {
-            "type": "archive-flow",
-            "source": "selected",
-            "flow_id": flow_id,
-        }
-        assert unknown.describe_for_cli() == "Archive flow"
+        assert unknown.type == "send-email-notification"
+        assert unknown.model_dump() == email
+        assert unknown.describe_for_cli() == "Send email notification"
         assert isinstance(known, RunDeployment)
 
     def test_unknown_action_types_in_every_action_list(self):
         automation = Automation.model_validate(
             self.automation_data(
-                actions=[{"type": "archive-flow"}],
+                actions=[{"type": "send-email-notification"}],
                 actions_on_trigger=[{"type": "sla-violation"}],
-                actions_on_resolve=[{"type": "send-email-notification"}],
+                actions_on_resolve=[{"type": "pause-schedule-for-flow-run"}],
             )
         )
 
@@ -155,9 +153,10 @@ class TestUnknownActions:
         """`Automation.update` sends the automation back as an `AutomationCore`
         built from `model_dump`, so an unknown action must survive that"""
         sent = {
-            "type": "archive-flow",
-            "source": "selected",
-            "flow_id": str(uuid.uuid4()),
+            "type": "send-email-notification",
+            "emails": ["ops@example.com", "oncall@example.com"],
+            "subject": "Flow run failed",
+            "body": "{{ flow_run.name }} failed",
             "nested": {"key": ["value"]},
         }
         automation = Automation.model_validate(self.automation_data(actions=[sent]))
