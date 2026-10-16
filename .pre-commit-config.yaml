@@ -59,7 +59,7 @@ repos:
             "run",
             "--isolated",
             "-p",
-            "3.10",
+            "3.11",
             "--with",
             "pydantic>=2.9.0",
             "scripts/generate_settings_types.py",
