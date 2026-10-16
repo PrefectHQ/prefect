@@ -5,18 +5,18 @@ import os
 import sys
 import warnings
 from contextlib import contextmanager
+from functools import update_wrapper
 from typing import Annotated, Any, ClassVar, Union, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import humanize
 from dateutil.parser import parse
-from pydantic import AfterValidator
+from pydantic import AfterValidator, GetCoreSchemaHandler
 from pydantic_core import core_schema as _core_schema
 from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
-    from pydantic import GetCoreSchemaHandler
     from whenever import DateTimeDelta
     from whenever import ZonedDateTime as _ZDTProbe
 
@@ -65,7 +65,6 @@ else:
     _WHENEVER_NEW_API = False
     import pendulum
     import pendulum.tz
-    import pydantic_extra_types
     from pydantic_extra_types.pendulum_dt import (
         Date as PydanticDate,
     )
@@ -77,13 +76,6 @@ else:
     )
 
     _PENDULUM_PACKAGE_DIR = os.path.dirname(pendulum.__file__) + os.sep
-    # Library internals that may call Pendulum-only members without warning:
-    # Pendulum delegates between its own methods, and pydantic_extra_types
-    # invokes `to_iso8601_string` from its serializers.
-    _WARNING_EXEMPT_DIRS = (
-        _PENDULUM_PACKAGE_DIR,
-        os.path.dirname(pydantic_extra_types.__file__) + os.sep,
-    )
 
     def _warn_pendulum_member(name: str) -> None:
         warnings.warn(
@@ -102,7 +94,7 @@ else:
         return frozenset(
             name
             for name in dir(native)
-            if not name.startswith("__") and name not in dir(stdlib)
+            if not name.startswith("_") and name not in dir(stdlib)
         )
 
     class _DeprecatedMemberCall:
@@ -120,16 +112,12 @@ else:
             self._obj = obj
             self._name = name
             self._member = member
-            self.__name__ = name
-            self.__qualname__ = (
-                f"{getattr(obj, '__qualname__', type(obj).__qualname__)}.{name}"
-            )
-            self.__doc__ = getattr(member, "__doc__", None)
-            self.__wrapped__ = member
+            update_wrapper(self, member, updated=())
+            self.__code__ = getattr(member, "__code__", None)
 
         def __call__(self, *args: Any, **kwargs: Any) -> Any:
             caller_file = sys._getframe(1).f_code.co_filename
-            if not caller_file.startswith(_WARNING_EXEMPT_DIRS):
+            if not caller_file.startswith(_PENDULUM_PACKAGE_DIR):
                 _warn_pendulum_member(self._name)
             return _wrap_pendulum_value(self._member(*args, **kwargs))
 
@@ -195,12 +183,9 @@ else:
             """Return the date portion, preserving the deprecation notice."""
             return _wrap_pendulum_value(super().date())
 
-        # Note: `__sub__`/`__add__`/`__rsub__`/`__radd__` are deliberately
-        # not overridden. Defining them changes the C-level numeric slots
-        # and breaks `datetime.astimezone` for Pendulum-timezone values
-        # (intermediate results lose their timezone). Subtraction still
-        # produces a wrapped `_Interval` via the proxied `diff` call
-        # inside `pendulum.DateTime.__sub__`.
+        def __sub__(self, other: datetime.datetime | datetime.timedelta) -> Any:
+            """Retain warnings when subtracting a plain naive datetime."""
+            return _wrap_pendulum_value(super().__sub__(other))
 
     class Date(  # type: ignore[no-redef]
         _PendulumDeprecationMixin,
@@ -229,6 +214,16 @@ else:
         _pendulum_only_members = _pendulum_only_members(
             PydanticDuration, datetime.timedelta
         )
+
+        @classmethod
+        def __get_pydantic_core_schema__(
+            cls, source_type: Any, handler: GetCoreSchemaHandler
+        ) -> _core_schema.CoreSchema:
+            schema = super().__get_pydantic_core_schema__(source_type, handler)
+            schema["serialization"] = _core_schema.plain_serializer_function_ser_schema(
+                PydanticDuration.to_iso8601_string, when_used="json-unless-none"
+            )
+            return schema
 
         @classmethod
         def _validate(
@@ -281,7 +276,7 @@ else:
         if isinstance(value, pendulum.DateTime):
             if isinstance(value, DateTime):
                 return value
-            return _datetime_instance(value)
+            return _PDT_INSTANCE(DateTime, value, tz=value.tzinfo)
         if isinstance(value, pendulum.Date):
             if isinstance(value, Date):
                 return value
@@ -289,18 +284,13 @@ else:
         if isinstance(value, pendulum.Interval):
             if isinstance(value, _Interval):
                 return value
-            # Absolute intervals store their endpoints already swapped
-            # (start <= end) with `_invert` recording the original
-            # direction; re-constructing without it would flip "from now"
-            # into "ago". Date differences produce Date endpoints, which
-            # must not be coerced to DateTime.
-            wrapped = _Interval(
-                start=_wrap_pendulum_value(value.start),
-                end=_wrap_pendulum_value(value.end),
-                absolute=value._absolute,
+            # Pendulum's pickle state preserves the original interval direction.
+            start, end, absolute = pendulum.Interval._getstate(value)
+            return _Interval(
+                start=_wrap_pendulum_value(start),
+                end=_wrap_pendulum_value(end),
+                absolute=absolute,
             )
-            wrapped._invert = value._invert
-            return wrapped
         if isinstance(value, pendulum.Duration):
             if isinstance(value, Duration):
                 return value

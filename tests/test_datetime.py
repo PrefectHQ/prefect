@@ -13,11 +13,13 @@ import subprocess
 import sys
 import warnings
 from collections.abc import Callable
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
 from pydantic import BaseModel
 
+from prefect import task
 from prefect.client.schemas.objects import FlowRun
 from prefect.types._datetime import (
     Date,
@@ -382,6 +384,133 @@ def test_astimezone_preserves_timezone_for_pendulum_tz():
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 class TestPendulumCompatibility:
+    @pytest.mark.parametrize(
+        "factory, member, kwargs",
+        [
+            (lambda: create_datetime_instance(FIXED).date(), "add", {"days": 1}),
+            (
+                lambda: (
+                    create_datetime_instance(FIXED)
+                    - create_datetime_instance(FIXED - datetime.timedelta(days=1))
+                ),
+                "in_words",
+                {},
+            ),
+            (lambda: Date(2024, 6, 15) - Date(2024, 6, 14), "in_words", {}),
+            (
+                lambda: DateTime(2024, 6, 15) - datetime.datetime(2024, 6, 14),
+                "in_words",
+                {},
+            ),
+            (
+                lambda: datetime.datetime(2024, 6, 15) - DateTime(2024, 6, 14),
+                "in_words",
+                {},
+            ),
+        ],
+    )
+    def test_derived_values_warn_on_pendulum_members(
+        self, factory: Callable[[], Any], member: str, kwargs: dict[str, Any]
+    ):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            value = factory()
+            pickle.loads(pickle.dumps(value))
+
+        with pytest.warns(
+            DeprecationWarning, match=f"Pendulum datetime member '{member}'"
+        ):
+            getattr(value, member)(**kwargs)
+
+    @pytest.mark.parametrize("zone", ["UTC", "America/New_York", "Europe/Paris"])
+    @pytest.mark.parametrize(
+        "factory",
+        [
+            lambda: create_datetime_instance(FIXED),
+            lambda: DateTime(2024, 6, 15, 14, 30),
+            lambda: DateTime(
+                2024, 3, 10, 1, 30, tzinfo=pendulum.timezone("America/New_York")
+            ),
+            lambda: DateTime(
+                2024, 11, 3, 1, 30, tzinfo=pendulum.timezone("America/New_York"), fold=1
+            ),
+        ],
+    )
+    def test_timezone_conversion_preserves_pendulum_behavior(
+        self, factory: Callable[[], DateTime], zone: str
+    ):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            value = factory()
+            expected = pendulum.DateTime.instance(value, tz=value.tzinfo).astimezone(
+                ZoneInfo(zone)
+            )
+            actual = value.astimezone(ZoneInfo(zone))
+
+        assert actual == expected
+        assert actual.tzinfo == expected.tzinfo
+        assert actual.utcoffset() == expected.utcoffset()
+        assert actual.fold == expected.fold
+
+    @pytest.mark.parametrize("absolute", [False, True])
+    def test_derived_intervals_preserve_endpoints_and_range(self, absolute: bool):
+        start = create_datetime_instance(FIXED)
+        end = create_datetime_instance(FIXED - datetime.timedelta(days=2))
+        expected = pendulum.interval(start, end, absolute=absolute)
+        with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'diff'"):
+            interval = start.diff(end, abs=absolute)
+
+        assert isinstance(interval, pendulum.Interval)
+        assert interval.start == expected.start
+        assert interval.end == expected.end
+        assert interval.total_seconds() == expected.total_seconds()
+        assert pickle.loads(pickle.dumps(interval)) == expected
+        with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'range'"):
+            assert list(interval.range("days")) == list(expected.range("days"))
+
+    @pytest.mark.parametrize(
+        "member, kwargs",
+        [
+            ("instance", {"dt": FIXED}),
+            ("create", {"year": 2024, "month": 6, "day": 15}),
+        ],
+    )
+    def test_pendulum_class_methods_warn(self, member: str, kwargs: dict[str, Any]):
+        restored = pickle.loads(pickle.dumps(getattr(DateTime, member)))
+        with pytest.warns(
+            DeprecationWarning, match=f"Pendulum datetime member '{member}'"
+        ):
+            value = restored(**kwargs)
+        assert isinstance(value, DateTime)
+
+    def test_duration_iso_method_warns(self):
+        with pytest.warns(
+            DeprecationWarning, match="Pendulum datetime member 'to_iso8601_string'"
+        ):
+            assert Duration(months=1).to_iso8601_string() == "P1M"
+
+    @pytest.mark.parametrize("text", ["P1D", "2024-06-15/2024-06-17"])
+    def test_parser_preserves_non_datetime_values(self, text: str):
+        expected = pendulum.parse(text)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            value = parse_datetime(text)
+
+        assert isinstance(value, type(expected))
+        assert value == expected
+        with pytest.warns(
+            DeprecationWarning, match="Pendulum datetime member 'in_words'"
+        ):
+            value.in_words()
+
+    def test_pendulum_method_task_keys_preserve_method_identity(self):
+        dt = create_datetime_instance(FIXED)
+        methods = [dt.add, dt.subtract, Date(2024, 6, 15).add]
+        tasks = [task(method) for method in methods]
+        assert len({wrapped.task_key for wrapped in tasks}) == len(tasks)
+        for wrapped, method in zip(tasks, methods):
+            assert wrapped.task_key == task(method.__wrapped__).task_key
+
     @pytest.mark.parametrize(
         "factory",
         [
