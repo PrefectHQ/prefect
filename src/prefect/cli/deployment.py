@@ -1143,7 +1143,11 @@ async def list_schedules(
 
     def schedule_details(schedule: DeploymentSchedule) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
-            return f"interval: {schedule.schedule.interval}s"
+            interval = schedule.schedule.interval
+            if not isinstance(interval, timedelta):
+                # A calendar interval such as "P1M" has no fixed length.
+                return f"interval: {interval}"
+            return f"interval: {interval}s"
         elif isinstance(schedule.schedule, CronSchedule):
             return f"cron: {schedule.schedule.cron}"
         elif isinstance(schedule.schedule, RRuleSchedule):
