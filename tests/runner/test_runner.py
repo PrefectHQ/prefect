@@ -3629,6 +3629,52 @@ class TestRunnerDeployment:
         assert deployment.paused is False
         assert deployment.global_concurrency_limit is None
 
+    @pytest.mark.parametrize(
+        "apply_kwargs, expected_cron",
+        [
+            pytest.param({}, "0 4 * * *", id="omitted"),
+            pytest.param({"schedules": None}, "0 4 * * *", id="none"),
+            pytest.param({"schedules": []}, None, id="empty"),
+            pytest.param(
+                {"schedules": [{"schedule": CronSchedule(cron="0 5 * * *")}]},
+                "0 5 * * *",
+                id="populated",
+            ),
+        ],
+    )
+    async def test_aapply_existing_deployment_schedules(
+        self,
+        prefect_client: PrefectClient,
+        apply_kwargs: dict[str, Any],
+        expected_cron: str | None,
+    ):
+        original = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            name="schedule-update",
+            cron="0 4 * * *",
+            version_type=VersionType.SIMPLE,
+        )
+        deployment_id = await original.aapply()
+        before = await prefect_client.read_deployment(deployment_id)
+        assert len(before.schedules) == 1
+        assert before.schedules[0].active is True
+
+        deployment = RunnerDeployment(
+            name=original.name,
+            flow_name=original.flow_name,
+            version_type=VersionType.SIMPLE,
+        )
+        updated_id = await deployment.aapply(**apply_kwargs)
+
+        assert updated_id == deployment_id
+        updated = await prefect_client.read_deployment(deployment_id)
+        assert updated.paused is False
+        if expected_cron is None:
+            assert updated.schedules == []
+        else:
+            assert len(updated.schedules) == 1
+            assert updated.schedules[0].schedule == CronSchedule(cron=expected_cron)
+
     async def test_saved_block_parameters_are_converted_to_references(
         self, saved_secret_block: tuple[Secret[Any], uuid.UUID]
     ):
@@ -5562,6 +5608,52 @@ class TestAsyncDispatch:
 
         result = sync_prefect_client.read_deployment(deployment_id)
         assert result.name == "test_runner"
+
+    @pytest.mark.parametrize(
+        "apply_kwargs, expected_cron",
+        [
+            pytest.param({}, "0 4 * * *", id="omitted"),
+            pytest.param({"schedules": None}, "0 4 * * *", id="none"),
+            pytest.param({"schedules": []}, None, id="empty"),
+            pytest.param(
+                {"schedules": [{"schedule": CronSchedule(cron="0 5 * * *")}]},
+                "0 5 * * *",
+                id="populated",
+            ),
+        ],
+    )
+    def test_apply_existing_deployment_schedules(
+        self,
+        sync_prefect_client: SyncPrefectClient,
+        apply_kwargs: dict[str, Any],
+        expected_cron: str | None,
+    ):
+        original = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            name="schedule-update",
+            cron="0 4 * * *",
+            version_type=VersionType.SIMPLE,
+        )
+        deployment_id = original.apply()
+        before = sync_prefect_client.read_deployment(deployment_id)
+        assert len(before.schedules) == 1
+        assert before.schedules[0].active is True
+
+        deployment = RunnerDeployment(
+            name=original.name,
+            flow_name=original.flow_name,
+            version_type=VersionType.SIMPLE,
+        )
+        updated_id = deployment.apply(**apply_kwargs)
+
+        assert updated_id == deployment_id
+        updated = sync_prefect_client.read_deployment(deployment_id)
+        assert updated.paused is False
+        if expected_cron is None:
+            assert updated.schedules == []
+        else:
+            assert len(updated.schedules) == 1
+            assert updated.schedules[0].schedule == CronSchedule(cron=expected_cron)
 
     def test_apply_saved_block_parameter_in_sync_context(
         self, sync_prefect_client: SyncPrefectClient

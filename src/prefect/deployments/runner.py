@@ -784,7 +784,7 @@ class RunnerDeployment(BaseModel):
                     self.job_variables["image"] = image
                 if work_pool_name:
                     self.work_pool_name = work_pool_name
-                if schedules:
+                if schedules is not None:
                     self.schedules = [
                         DeploymentScheduleUpdate(**schedule) for schedule in schedules
                     ]
@@ -829,7 +829,7 @@ class RunnerDeployment(BaseModel):
                     self.job_variables["image"] = image
                 if work_pool_name:
                     self.work_pool_name = work_pool_name
-                if schedules:
+                if schedules is not None:
                     self.schedules = [
                         DeploymentScheduleUpdate(**schedule) for schedule in schedules
                     ]
