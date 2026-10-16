@@ -19,7 +19,7 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-from prefect.types._datetime import Date, DateTime, now
+from prefect.types._datetime import Date, DateTime, Interval, PositiveInterval, now
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
@@ -86,7 +86,7 @@ class IntervalSchedule(PrefectBaseModel):
     continue to fire at 9am in the local time zone.
 
     Args:
-        interval (datetime.timedelta): an interval to schedule on
+        interval (datetime.timedelta | ItemizedDelta): an interval to schedule on
         anchor_date (DateTime, optional): an anchor date to schedule increments against;
             if not provided, the current timestamp will be used
         timezone (str, optional): a valid timezone string
@@ -94,7 +94,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
-    interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
+    interval: PositiveInterval = Field()
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(  # pyright: ignore[reportAssignmentType] DateTime is split into two types depending on Python version
         default_factory=lambda: now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
@@ -111,7 +111,7 @@ class IntervalSchedule(PrefectBaseModel):
         def __init__(
             self,
             /,
-            interval: datetime.timedelta,
+            interval: Interval,
             anchor_date: Optional[Union[DateTime, datetime.datetime, str]] = None,
             timezone: Optional[str] = None,
         ) -> None: ...
@@ -356,7 +356,7 @@ def is_schedule_type(obj: Any) -> TypeGuard[SCHEDULE_TYPES]:
 
 
 def construct_schedule(
-    interval: Optional[Union[int, float, datetime.timedelta]] = None,
+    interval: float | Interval | None = None,
     anchor_date: Optional[Union[datetime.datetime, str]] = None,
     cron: Optional[str] = None,
     rrule: Optional[str] = None,
@@ -366,8 +366,8 @@ def construct_schedule(
     Construct a schedule from the provided arguments.
 
     Args:
-        interval: An interval on which to schedule runs. Accepts either a number
-            or a timedelta object. If a number is given, it will be interpreted as seconds.
+        interval: An interval on which to schedule runs. Accepts a number,
+            timedelta, or ItemizedDelta. Numbers are interpreted as seconds.
         anchor_date: The start date for an interval schedule.
         cron: A cron schedule for runs.
         rrule: An rrule schedule of when to execute runs of this flow.

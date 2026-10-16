@@ -278,7 +278,7 @@ def _interval_schedule_to_dict(schedule: IntervalSchedule) -> dict[str, Any]:
         - dict[str, Any]: the schedule as a dictionary
     """
     schedule_config = schedule.model_dump()
-    schedule_config["interval"] = schedule_config["interval"].total_seconds()
+    schedule_config["interval"] = schedule.model_dump(mode="json")["interval"]
     schedule_config["anchor_date"] = schedule_config["anchor_date"].isoformat()
 
     return schedule_config

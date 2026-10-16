@@ -385,7 +385,8 @@ def travel_to(dt: Any):
     """Freeze `whenever`'s clock at `dt` so every caller of `now()` sees it.
 
     Also freezes Pendulum's clock on Python 3.11 and 3.12 during the
-    deprecation window.
+    deprecation window. Those versions require the optional `pendulum[test]`
+    extra, which is included in Prefect's development dependencies.
     """
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=ZoneInfo("UTC"))

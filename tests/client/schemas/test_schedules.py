@@ -5,10 +5,12 @@ from zoneinfo import ZoneInfo
 import dateutil.rrule
 import dateutil.tz
 import pytest
+from pydantic import ValidationError
 
 from prefect.client.schemas.actions import (
     DeploymentFlowRunCreate,
     DeploymentScheduleCreate,
+    DeploymentScheduleUpdate,
 )
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -17,7 +19,7 @@ from prefect.client.schemas.schedules import (
     construct_schedule,
 )
 from prefect.types import DateTime
-from prefect.types._datetime import now
+from prefect.types._datetime import Interval, ItemizedDelta, now
 
 
 class TestConstructSchedule:
@@ -85,6 +87,12 @@ class TestConstructSchedule:
         assert isinstance(result, IntervalSchedule)
         assert result.interval == interval
 
+    def test_calendar_interval_schedule(self):
+        interval = ItemizedDelta(months=1)
+        result = construct_schedule(interval=interval)
+        assert isinstance(result, IntervalSchedule)
+        assert result.interval == interval
+
     def test_datetime_anchor_date(self):
         anchor = now()
         result = construct_schedule(interval=300, anchor_date=anchor)
@@ -134,6 +142,56 @@ class TestConstructSchedule:
         )
 
 
+class TestIntervalScheduleSerialization:
+    @pytest.mark.parametrize(
+        "interval, expected",
+        [
+            ("P1M", "P1M"),
+            ("P1Y2M3DT4H", "P1Y2M3DT4H"),
+            ("PT48H", "PT48H"),
+            (ItemizedDelta(months=1), "P1M"),
+            (datetime.timedelta(days=2), 172800.0),
+            (300.0, 300.0),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "action_type", [DeploymentScheduleCreate, DeploymentScheduleUpdate]
+    )
+    def test_interval_survives_client_read_and_write(
+        self,
+        interval: str | Interval | float,
+        expected: str | float,
+        action_type: type[DeploymentScheduleCreate] | type[DeploymentScheduleUpdate],
+    ):
+        schedule = IntervalSchedule.model_validate(
+            {
+                "interval": interval,
+                "anchor_date": "2024-01-31T00:00:00Z",
+                "timezone": "UTC",
+            }
+        )
+
+        payload = action_type(schedule=schedule).model_dump(
+            mode="json", exclude_unset=True
+        )
+
+        assert payload["schedule"]["interval"] == expected
+        assert payload["schedule"]["timezone"] == "UTC"
+
+    @pytest.mark.parametrize(
+        "interval",
+        [
+            datetime.timedelta(0),
+            datetime.timedelta(days=-1),
+            ItemizedDelta(seconds=0),
+            ItemizedDelta(months=-1),
+        ],
+    )
+    def test_interval_must_be_positive(self, interval: Interval):
+        with pytest.raises(ValidationError):
+            IntervalSchedule(interval=interval)
+
+
 class TestRRuleNormalizationOnClientWrite:
     """Mirror of `tests/server/schemas/test_actions.py::TestRRuleNormalizationOnWrite`.
 
@@ -161,8 +219,6 @@ class TestRRuleNormalizationOnClientWrite:
         assert action.schedule.rrule == original
 
     def test_update_normalizes_bare_secondly(self):
-        from prefect.client.schemas.actions import DeploymentScheduleUpdate
-
         action = DeploymentScheduleUpdate(schedule=RRuleSchedule(rrule="FREQ=SECONDLY"))
         assert action.schedule.rrule.startswith("DTSTART:")
         assert action.schedule.rrule.endswith("FREQ=SECONDLY")

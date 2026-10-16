@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from whenever import Instant, ZonedDateTime
 
 from prefect._internal.schemas.validators import MAX_RRULE_LENGTH
+from prefect.client.schemas.actions import DeploymentScheduleUpdate
 from prefect.server.schemas.schedules import (
     MAX_ITERATIONS,
     CronSchedule,
@@ -582,6 +583,25 @@ class TestIntervalScheduleDaylightSavingsTime:
 class TestIntervalScheduleDateTimeDelta:
     """Tests that ItemizedDelta intervals correctly distinguish calendar days
     from exact hours across DST boundaries — the core issue from #17749."""
+
+    async def test_calendar_recurrence_survives_client_round_trip(self):
+        anchor = datetime(2024, 1, 31, tzinfo=ZoneInfo("UTC"))
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(months=1), anchor_date=anchor, timezone="UTC"
+        )
+
+        update = DeploymentScheduleUpdate.model_validate(
+            {"schedule": schedule.model_dump(mode="json")}
+        )
+        payload = update.model_dump(mode="json", exclude_unset=True)
+        restored = IntervalSchedule.model_validate(payload["schedule"])
+
+        assert payload["schedule"]["interval"] == "P1M"
+        assert await restored.get_dates(n=3, start=anchor) == [
+            anchor,
+            datetime(2024, 2, 29, tzinfo=ZoneInfo("UTC")),
+            datetime(2024, 3, 29, tzinfo=ZoneInfo("UTC")),
+        ]
 
     async def test_hours_48_differs_from_days_2_across_spring_forward(self):
         """
