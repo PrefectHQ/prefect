@@ -118,6 +118,73 @@ describe("IntervalScheduleForm", () => {
 		expect(schedule.interval).toBe(MOCK_SCHEDULE.schedule.interval);
 	});
 
+	it.each([
+		["P1M", "30"],
+		["P1Y", "365"],
+		["PT48H", "2"],
+	])(
+		"preserves %s when saving other schedule fields",
+		async (interval, value) => {
+			const request = captureSaveRequest();
+			render(
+				<IntervalScheduleFormTest
+					deployment_id="0"
+					onSubmit={vi.fn()}
+					scheduleToEdit={{
+						...baseSchedule,
+						schedule: {
+							interval,
+							anchor_date: "2024-01-01T12:00:00.000Z",
+							timezone: "UTC",
+						},
+					}}
+				/>,
+				{ wrapper: createWrapper() },
+			);
+			await waitFor(() =>
+				expect(screen.getByLabelText(/value/i)).toHaveValue(value),
+			);
+			fireEvent.click(screen.getByLabelText(/active/i));
+			fireEvent.click(screen.getByRole("button", { name: /save/i }));
+			await waitFor(() => expect(request.body).toBeDefined());
+			const body = request.body as {
+				active: boolean;
+				schedule: { interval: string };
+			};
+			expect(body.active).toBe(false);
+			expect(body.schedule.interval).toBe(interval);
+		},
+	);
+
+	it("allows an explicit change from a calendar interval to days", async () => {
+		const request = captureSaveRequest();
+		render(
+			<IntervalScheduleFormTest
+				deployment_id="0"
+				onSubmit={vi.fn()}
+				scheduleToEdit={{
+					...baseSchedule,
+					schedule: {
+						interval: "P1M",
+						anchor_date: "2024-01-01T12:00:00.000Z",
+						timezone: "UTC",
+					},
+				}}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await waitFor(() =>
+			expect(screen.getByLabelText(/value/i)).toHaveValue("30"),
+		);
+		fireEvent.change(screen.getByLabelText(/value/i), {
+			target: { value: "31" },
+		});
+		fireEvent.click(screen.getByRole("button", { name: /save/i }));
+		await waitFor(() => expect(request.body).toBeDefined());
+		const body = request.body as { schedule: { interval: number } };
+		expect(body.schedule.interval).toBe(31 * 86400);
+	});
+
 	it("is able to edit an interval schedule", () => {
 		// Setup
 		const MOCK_SCHEDULE = {

@@ -129,6 +129,12 @@ deprecation, whichever is longer. A later minor release will switch to Python's
 standard datetime types. See [Versioning and compatibility](/v3/release-notes/versioning#deprecation).
 Python 3.13 and 3.14 already use standard datetime types and retain that behavior.
 
+During this window, servers running Python 3.11 and 3.12 also retain their
+`timedelta` interval validation and numeric serialization. Calendar intervals
+such as `P1M` and the distinction between `PT48H` and two calendar days remain
+features of servers running Python 3.13 and 3.14. Updated SDKs on every supported
+Python version preserve calendar intervals received from those servers.
+
 To prepare for the transition, use standard datetime operations such as
 `timedelta` arithmetic, `.astimezone()`, and `.isoformat()` where appropriate:
 

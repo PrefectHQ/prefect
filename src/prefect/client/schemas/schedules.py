@@ -9,7 +9,14 @@ from zoneinfo import ZoneInfo
 import dateutil
 import dateutil.rrule
 import dateutil.tz
-from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AfterValidator,
+    ConfigDict,
+    Field,
+    ValidatorFunctionWrapHandler,
+    field_validator,
+    model_validator,
+)
 from typing_extensions import TypeAlias, TypeGuard
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -19,7 +26,14 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-from prefect.types._datetime import Date, DateTime, Interval, PositiveInterval, now
+from prefect.types._datetime import (
+    Date,
+    DateTime,
+    Interval,
+    ItemizedDelta,
+    PositiveInterval,
+    now,
+)
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
@@ -101,6 +115,27 @@ class IntervalSchedule(PrefectBaseModel):
         examples=["2020-01-01T00:00:00Z"],
     )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+
+    @field_validator("interval", mode="wrap")
+    @classmethod
+    def preserve_timedelta_intervals(
+        cls, value: Any, handler: ValidatorFunctionWrapHandler
+    ) -> Interval:
+        interval = handler(value)
+        if not isinstance(value, str) or not isinstance(interval, ItemizedDelta):
+            return interval
+        date, time = interval.date_and_time_parts()
+        if date and (date.get("years") or date.get("months")):
+            return interval
+        nanoseconds = time.total("nanoseconds") if time else 0
+        # Exact hours spanning a day and sub-microsecond precision would be lost.
+        if nanoseconds >= 86_400_000_000_000 or nanoseconds % 1000:
+            return interval
+        return datetime.timedelta(
+            weeks=(date.get("weeks") or 0) if date else 0,
+            days=(date.get("days") or 0) if date else 0,
+            microseconds=nanoseconds // 1000,
+        )
 
     @model_validator(mode="after")
     def validate_timezone(self):

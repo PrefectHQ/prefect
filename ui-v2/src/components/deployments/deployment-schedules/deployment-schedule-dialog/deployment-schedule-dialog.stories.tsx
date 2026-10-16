@@ -79,3 +79,21 @@ export const WithoutParameters: Story = {
 		}),
 	},
 };
+
+export const EditCalendarSchedule: Story = {
+	args: {
+		scheduleToEdit: {
+			id: "calendar-schedule-id",
+			created: "2024-01-01T12:00:00.000Z",
+			updated: "2024-01-01T12:00:00.000Z",
+			deployment_id: MOCK_DEPLOYMENT.id,
+			active: true,
+			schedule: {
+				interval: "P1M",
+				anchor_date: "2024-01-31T12:00:00.000Z",
+				timezone: "UTC",
+			},
+			parameters: { name: "marvin" },
+		},
+	},
+};

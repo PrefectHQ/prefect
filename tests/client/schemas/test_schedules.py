@@ -151,6 +151,12 @@ class TestIntervalScheduleSerialization:
             ("P1M", "P1M"),
             ("P1Y2M3DT4H", "P1Y2M3DT4H"),
             ("PT48H", "PT48H"),
+            ("PT24H", "PT24H"),
+            ("PT0.0000015S", "PT0.0000015S"),
+            ("PT42S", 42.0),
+            ("PT10M", 600.0),
+            ("P1D", 86400.0),
+            ("P1DT2H", 93600.0),
             (ItemizedDelta(months=1), "P1M"),
             (datetime.timedelta(days=2), 172800.0),
             (300.0, 300.0),
@@ -192,6 +198,11 @@ class TestIntervalScheduleSerialization:
     def test_interval_must_be_positive(self, interval: Interval):
         with pytest.raises(ValidationError):
             IntervalSchedule(interval=interval)
+
+    @pytest.mark.parametrize("nanoseconds", [1, 999])
+    def test_interval_must_reach_datetime_precision(self, nanoseconds: int):
+        with pytest.raises(ValidationError, match="at least one microsecond"):
+            IntervalSchedule(interval=ItemizedDelta(nanoseconds=nanoseconds))
 
 
 class TestRRuleNormalizationOnClientWrite:

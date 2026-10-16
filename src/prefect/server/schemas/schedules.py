@@ -58,8 +58,12 @@ def _whenever_delta_seconds(delta: Any) -> float:
 
 if sys.version_info >= (3, 13):
     AnchorDate: TypeAlias = datetime.datetime
+    _ScheduleInterval: TypeAlias = PositiveInterval
 else:
     AnchorDate: TypeAlias = Annotated[DateTime, AfterValidator(default_anchor_date)]
+    _ScheduleInterval: TypeAlias = Annotated[
+        datetime.timedelta, Field(gt=datetime.timedelta(0))
+    ]
 
 
 def _prepare_scheduling_start_and_end(
@@ -109,7 +113,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
-    interval: PositiveInterval = Field()
+    interval: _ScheduleInterval = Field()
     anchor_date: AnchorDate = Field(
         default_factory=lambda: now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
@@ -198,6 +202,13 @@ class IntervalSchedule(PrefectBaseModel):
         local_end = to_local_zdt(end)
 
         interval = self.interval
+        # Keep the public timedelta contract while seeking in calendar days across DST.
+        if isinstance(interval, datetime.timedelta) and _ItemizedDelta is not None:
+            interval = _ItemizedDelta(
+                days=interval.days,
+                seconds=interval.seconds,
+                nanoseconds=interval.microseconds * 1000,
+            )
         has_calendar_parts = False
         _years = _weeks = 0
         if isinstance(interval, _WHENEVER_DELTA_TYPES):

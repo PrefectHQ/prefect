@@ -430,8 +430,15 @@ def _validate_positive_interval(v: Interval) -> Interval:
         if v <= datetime.timedelta(0):
             raise ValueError("interval must be positive")
     elif _WHENEVER_NEW_API:
-        if isinstance(v, ItemizedDelta) and v.sign() <= 0:
-            raise ValueError("interval must be positive")
+        if isinstance(v, ItemizedDelta):
+            if v.sign() <= 0:
+                raise ValueError("interval must be positive")
+            date, time = v.date_and_time_parts()
+            has_calendar_units = date and any(
+                date.get(unit) for unit in ("years", "months", "weeks", "days")
+            )
+            if not has_calendar_units and time and time.total("nanoseconds") < 1000:
+                raise ValueError("interval must be at least one microsecond")
     elif isinstance(v, DateTimeDelta):
         _months, _days, _secs, _nanos = v.in_months_days_secs_nanos()
         if _months <= 0 and _days <= 0 and _secs <= 0 and _nanos <= 0:

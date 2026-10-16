@@ -113,6 +113,19 @@ class TestPrefectYamlSchema:
         assert "DeploymentConfig" in schema.get("$defs", {})
         assert "DeploymentConfig" in model_schema.get("$defs", {})
 
+    @pytest.mark.parametrize("interval", ["P1M", "P1Y", "PT48H"])
+    @pytest.mark.parametrize("wrapped", [False, True])
+    def test_schema_accepts_calendar_intervals(
+        self, schema, interval: str, wrapped: bool
+    ):
+        schedule = {"interval": interval}
+        if wrapped:
+            schedule = {"schedule": schedule}
+        config = {"deployments": [{"name": "calendar", "schedules": [schedule]}]}
+
+        validate(config, schema)
+        PrefectYamlModel.model_validate(config)
+
 
 class TestActionMappingNormalization:
     @pytest.mark.parametrize("action_field", ["build", "push", "pull"])
