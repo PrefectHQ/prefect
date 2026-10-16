@@ -269,6 +269,16 @@ def test_prefect_helpers_do_not_emit_pendulum_warnings():
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+def test_pendulum_method_invoked_through_prefect_machinery_warns():
+    """A user-supplied Pendulum-only bound method invoked via Prefect (e.g.
+    the task engine's `call_with_parameters`) still warns."""
+    from prefect.utilities.callables import call_with_parameters
+
+    with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'add'"):
+        call_with_parameters(now("UTC").add, {"days": 1})
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 class TestPendulumCompatibility:
     @pytest.mark.parametrize(
         "factory",

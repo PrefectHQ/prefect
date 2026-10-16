@@ -75,9 +75,6 @@ else:
         Duration as PydanticDuration,
     )
 
-    _PREFECT_PACKAGE_DIR = (
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + os.sep
-    )
     _PENDULUM_PACKAGE_DIR = os.path.dirname(pendulum.__file__) + os.sep
 
     def _warn_pendulum_member(name: str) -> None:
@@ -103,9 +100,10 @@ else:
     class _DeprecatedMemberCall:
         """Callable proxy for a Pendulum-only member that warns when called.
 
-        Calls originating inside the `prefect` or `pendulum` packages are
-        internal machinery (Prefect helpers, or Pendulum methods delegating
-        to each other) and do not warn; only calls from user code do. The
+        Calls originating inside the `pendulum` package are Pendulum methods
+        delegating to each other and do not warn; every other caller —
+        including Prefect code invoking a user-supplied bound method — warns.
+        Prefect's own internal calls go through `_pendulum_call` instead. The
         proxy pickles back to a plain attribute lookup so Pendulum-only
         bound methods remain serializable across process boundaries.
         """
@@ -120,9 +118,7 @@ else:
 
         def __call__(self, *args: Any, **kwargs: Any) -> Any:
             caller_file = sys._getframe(1).f_code.co_filename
-            if not caller_file.startswith(
-                (_PREFECT_PACKAGE_DIR, _PENDULUM_PACKAGE_DIR)
-            ):
+            if not caller_file.startswith(_PENDULUM_PACKAGE_DIR):
                 _warn_pendulum_member(self._name)
             return self._member(*args, **kwargs)
 
@@ -165,6 +161,16 @@ else:
         )
 
     Interval: TypeAlias = datetime.timedelta
+
+
+def _pendulum_call(obj: Any, name: str, *args: Any, **kwargs: Any) -> Any:
+    """Invoke a Pendulum-only member without the deprecation warning.
+
+    For internal Prefect use: bypasses the `_PendulumDeprecationMixin`
+    proxy so Prefect's own machinery can keep using Pendulum behavior
+    silently. `obj` may be any Pendulum value.
+    """
+    return object.__getattribute__(obj, name)(*args, **kwargs)
 
 
 def parse_datetime(dt: str) -> datetime.datetime:
@@ -241,7 +247,7 @@ def human_friendly_diff(
     pendulum_other = (
         DateTime.instance(other.astimezone(ZoneInfo("UTC"))) if other else None
     )
-    return pendulum_dt.diff_for_humans(other=pendulum_other)
+    return _pendulum_call(pendulum_dt, "diff_for_humans", other=pendulum_other)
 
 
 def _whenever_to_stdlib(obj: Any) -> datetime.datetime:
@@ -349,7 +355,9 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
 
         return _whenever_to_stdlib(zdt)
     else:
-        return DateTime.instance(dt).end_of(period)
+        return DateTime.instance(
+            _pendulum_call(DateTime.instance(dt), "end_of", period)
+        )
 
 
 def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
@@ -375,7 +383,9 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
 
         return _whenever_to_stdlib(zdt)
     else:
-        return DateTime.instance(dt).start_of("day")
+        return DateTime.instance(
+            _pendulum_call(DateTime.instance(dt), "start_of", "day")
+        )
 
 
 def earliest_possible_datetime() -> datetime.datetime:
@@ -411,7 +421,9 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
 
         return _whenever_to_stdlib(wdt)
     else:
-        return DateTime.instance(dt).in_tz(pendulum.tz.local_timezone())
+        return DateTime.instance(
+            _pendulum_call(DateTime.instance(dt), "in_tz", pendulum.tz.local_timezone())
+        )
 
 
 def to_datetime_string(dt: datetime.datetime, include_tz: bool = True) -> str:
