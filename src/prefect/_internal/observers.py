@@ -40,6 +40,11 @@ class OnCancellingCallback(Protocol):
     cancellation has completed. Raising releases the dispatch claim so a later
     observation can retry. Callbacks may raise only before accepting work; raising
     after accepting it could cause duplicate cancellation work.
+
+    Claim release does not guarantee a retry or override delivery failure
+    handling. A non-retryable exception such as `RuntimeError` during polling
+    still terminates the poller. If no functioning event consumer is available,
+    the observer reports unavailability through its existing failure policy.
     """
 
     def __call__(self, flow_run_id: uuid.UUID) -> None: ...
