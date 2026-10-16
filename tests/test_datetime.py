@@ -8,18 +8,31 @@ two backends.
 """
 
 import datetime
+import subprocess
+import sys
+from collections.abc import Callable
 from zoneinfo import ZoneInfo
 
 import pytest
 from pydantic import BaseModel
 
 from prefect.types._datetime import (
+    Date,
     DateTime,
+    Duration,
+    create_datetime_instance,
     end_of_period,
+    from_timestamp,
+    human_friendly_diff,
     in_local_tz,
     now,
+    parse_datetime,
     start_of_day,
+    travel_to,
 )
+
+if sys.version_info < (3, 13):
+    import pendulum
 
 # Saturday 2024-06-15 14:30:45 America/New_York (UTC-4, i.e. EDT)
 FIXED = datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=ZoneInfo("America/New_York"))
@@ -182,3 +195,87 @@ class TestDateTimeTypeAlias:
         result = Model(when="2024-06-15T14:30:45").when
         assert result.tzinfo is not None
         assert result.utcoffset() == datetime.timedelta(0)
+
+
+def test_pendulum_deprecation_notice_matches_python_version():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-W",
+            "always::DeprecationWarning",
+            "-c",
+            "import prefect; import prefect",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    if sys.version_info < (3, 13):
+        assert result.stderr.count("Pendulum datetime behavior") == 1
+        assert "six months and three minor" in result.stderr
+        assert "datetime" in result.stderr
+    else:
+        assert "Pendulum datetime behavior" not in result.stderr
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+class TestPendulumCompatibility:
+    @pytest.mark.parametrize(
+        "factory",
+        [
+            lambda: now("UTC"),
+            lambda: from_timestamp(0),
+            lambda: parse_datetime("2024-W24-6T14:30:45"),
+            lambda: create_datetime_instance(FIXED),
+            lambda: start_of_day(FIXED),
+            lambda: end_of_period(FIXED, "day"),
+            lambda: end_of_period(FIXED, "month"),
+            lambda: end_of_period(FIXED, "year"),
+            lambda: in_local_tz(FIXED),
+        ],
+    )
+    def test_helpers_retain_pendulum_methods(
+        self, factory: Callable[[], datetime.datetime]
+    ):
+        value = factory()
+        assert isinstance(value, pendulum.DateTime)
+        assert value.add(days=1) > value
+        assert value.in_tz("UTC").utcoffset() == datetime.timedelta(0)
+        assert isinstance(value.to_iso8601_string(), str)
+
+    def test_human_friendly_diff_preserves_pendulum_wording(self):
+        assert (
+            human_friendly_diff(FIXED, FIXED + datetime.timedelta(days=1))
+            == "1 day before"
+        )
+
+    def test_pydantic_types_preserve_calendar_duration_and_json(self):
+        class Model(BaseModel):
+            timestamp: DateTime
+            date: Date
+            duration: Duration
+
+        value = Model(
+            timestamp="2024-06-15T14:30:45Z",
+            date="2024-06-15",
+            duration="P1M2DT3H",
+        )
+
+        assert isinstance(value.timestamp, pendulum.DateTime)
+        assert value.timestamp.in_tz("America/New_York").hour == 10
+        assert isinstance(value.date, pendulum.Date)
+        assert value.date.add(days=1).day == 16
+        assert isinstance(value.duration, pendulum.Duration)
+        assert value.duration.months == 1
+        assert value.model_dump_json() == (
+            '{"timestamp":"2024-06-15T14:30:45Z","date":"2024-06-15",'
+            '"duration":"P1M2DT3H"}'
+        )
+
+    def test_direct_construction_and_frozen_pendulum_clock(self):
+        value = DateTime.instance(FIXED)
+        assert value.in_tz("UTC").hour == 18
+        assert value.naive().tzinfo is None
+        with travel_to(FIXED):
+            assert DateTime.now("UTC") == FIXED

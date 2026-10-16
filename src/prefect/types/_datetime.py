@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import sys
+import warnings
 from contextlib import contextmanager
 from typing import Annotated, Any, Union, cast
 from unittest import mock
@@ -77,6 +78,17 @@ else:
     Date: TypeAlias = PydanticDate
     Duration: TypeAlias = PydanticDuration
     Interval: TypeAlias = datetime.timedelta
+
+    warnings.warn(
+        "Pendulum datetime behavior on Python 3.11 and 3.12 is deprecated. "
+        "It will be retained for at least six months and three minor version "
+        "increases after the deprecation release, whichever is longer. "
+        "A later minor release will return standard-library datetime types. "
+        "See https://docs.prefect.io/v3/get-started/install#datetime-values "
+        "for migration guidance.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
 
 def parse_datetime(dt: str) -> datetime.datetime:

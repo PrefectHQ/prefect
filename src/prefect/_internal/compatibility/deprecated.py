@@ -96,7 +96,9 @@ def generate_deprecation_message(
                 if hasattr(PlainDateTime, "to_stdlib")
                 else PlainDateTime.from_py_datetime
             )
-            _dt = _pdt_from_dt(start_date).add(months=6)
+            # PlainDateTime requires a naive datetime; the warning only renders
+            # month and year, so any tzinfo on start_date is dropped.
+            _dt = _pdt_from_dt(start_date.replace(tzinfo=None)).add(months=6)
             end_date = (
                 _dt.to_stdlib() if hasattr(_dt, "to_stdlib") else _dt.py_datetime()
             )
