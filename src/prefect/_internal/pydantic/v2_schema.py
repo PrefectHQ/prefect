@@ -70,8 +70,19 @@ def process_v2_params(
 
     type_ = t.Any if param.annotation is inspect.Parameter.empty else param.annotation
 
-    existing_field = param.default if isinstance(param.default, FieldInfo) else None
-    default_value = existing_field.default if existing_field else param.default
+    existing_field = None
+    if param.kind == inspect.Parameter.VAR_POSITIONAL:
+        # *args: never required; typed as an array of the annotation
+        # (https://github.com/PrefectHQ/prefect/issues/23416)
+        type_ = list[type_]
+        default_value = None
+    elif param.kind == inspect.Parameter.VAR_KEYWORD:
+        # **kwargs: never required; typed as an object of the annotation
+        type_ = dict[str, type_]
+        default_value = None
+    else:
+        existing_field = param.default if isinstance(param.default, FieldInfo) else None
+        default_value = existing_field.default if existing_field else param.default
     if existing_field and existing_field.description:
         description = existing_field.description
     else:
