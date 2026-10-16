@@ -385,6 +385,8 @@ def always_fails_flow():
 Running `always_fails_flow` fails because one of the three returned futures fails.
 
 If multiple states are returned, they must be contained in a `set`, `list`, or `tuple`.
+These containers may be nested, for example, a list of the results of several `.map()`
+calls. All nested states are considered when determining the final state.
 
 ### Return a manual state
 

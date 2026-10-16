@@ -44,6 +44,10 @@ def test_is_state_iterable(iterable_type):
     assert is_state_iterable(iterable_type([Completed(), Completed()]))
 
 
+def test_is_not_state_iterable_if_nested():
+    assert not is_state_iterable([[Completed()]])
+
+
 def test_is_not_state_iterable_if_unsupported_iterable_type():
     assert not is_state_iterable({Completed(): i for i in range(3)})
 
@@ -91,6 +95,20 @@ class TestRaiseStateException:
         ]
         with pytest.raises(ValueError, match="Test"):
             await raise_state_exception(state_cls(data=inner_states))
+
+    async def test_aget_state_exception_from_nested_multistate(self, state_cls):
+        exception = ValueError("Test")
+        result = await aget_state_exception(
+            state_cls(data=[[Completed()], (Failed(data=exception),)])
+        )
+        assert result is exception
+
+    def test_get_state_exception_from_nested_multistate(self, state_cls):
+        exception = ValueError("Test")
+        result = get_state_exception(
+            state_cls(data=[[Completed()], (Failed(data=exception),)])
+        )
+        assert result is exception
 
     async def test_value_error_if_all_multistates_are_not_failed(self, state_cls):
         inner_states = [
@@ -257,6 +275,42 @@ class TestReturnValueToState:
         assert result_state.message == "2/3 states failed."
         # Aggregate type is failed
         assert result_state.is_failed()
+
+    async def test_some_nested_failed_states(self, store):
+        states = [
+            [Completed(message="hi"), Failed(message="bye")],
+            (Failed(message="err"),),
+        ]
+        result_state = await return_value_to_state(states, store)
+        assert await result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "2/3 states failed."
+        assert result_state.is_failed()
+
+    async def test_return_value_to_state_with_cyclic_container(self, store):
+        items: list = []
+        items.append(items)
+        result_state = await return_value_to_state(items, store)
+        assert result_state.is_completed()
+
+    async def test_shared_nested_container(self, store):
+        failed = [Failed(message="bye")]
+        states = [failed, failed]
+        result_state = await return_value_to_state(states, store)
+        assert result_state.message == "2/2 states failed."
+        assert result_state.is_failed()
+
+    async def test_nested_failed_state_with_empty_sibling(self, store):
+        states = [[Failed(message="bye")], []]
+        result_state = await return_value_to_state(states, store)
+        assert await result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "1/1 states failed."
+        assert result_state.is_failed()
+
+    async def test_only_empty_nested_containers_are_data(self, store):
+        states = [[], ()]
+        result_state = await return_value_to_state(states, store)
+        assert await result_state.result() == states
+        assert result_state.is_completed()
 
     async def test_some_unfinal_states(self, store):
         states = [
@@ -665,6 +719,42 @@ class TestReturnValueToStateSync:
         assert result_state.result(raise_on_failure=False) == states
         assert result_state.message == "2/3 states failed."
         assert result_state.is_failed()
+
+    def test_some_nested_failed_states(self, store):
+        states = [
+            [Completed(message="hi"), Failed(message="bye")],
+            (Failed(message="err"),),
+        ]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "2/3 states failed."
+        assert result_state.is_failed()
+
+    def test_return_value_to_state_with_cyclic_container(self, store):
+        items: list = []
+        items.append(items)
+        result_state = return_value_to_state_sync(items, store)
+        assert result_state.is_completed()
+
+    def test_shared_nested_container(self, store):
+        failed = [Failed(message="bye")]
+        states = [failed, failed]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.message == "2/2 states failed."
+        assert result_state.is_failed()
+
+    def test_nested_failed_state_with_empty_sibling(self, store):
+        states = [[Failed(message="bye")], []]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "1/1 states failed."
+        assert result_state.is_failed()
+
+    def test_only_empty_nested_containers_are_data(self, store):
+        states = [[], ()]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result() == states
+        assert result_state.is_completed()
 
     def test_some_unfinal_states(self, store):
         states = [
