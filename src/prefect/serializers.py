@@ -13,6 +13,7 @@ bytes to an object respectively.
 
 import base64
 import io
+import math
 from typing import Any, ClassVar, Generic, Optional, Union, overload
 
 from pydantic import (
@@ -56,6 +57,43 @@ def _get_importable_class(cls: type) -> type:
     return cls
 
 
+# Keys `prefect_json_object_decoder` treats as object markers. A plain dictionary
+# carrying one is not given back as a dictionary, so it cannot travel in `__exc_args__`.
+_DECODER_MARKER_KEYS = frozenset({"__class__", "__exc_type__"})
+
+
+def _is_json_native(value: Any, _parents: Optional[frozenset[int]] = None) -> bool:
+    """
+    Whether `value` survives a JSON round trip unchanged.
+
+    Stricter than "the JSON encoder accepts it": tuples come back as lists, non-finite
+    floats are either rejected or written as invalid JSON, a container that contains
+    itself has no JSON form at all, and a dictionary holding one of the decoder's
+    marker keys comes back as whatever that marker names.
+    """
+    if isinstance(value, (str, bool, type(None))):
+        return True
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, int):
+        return True
+    if isinstance(value, (list, dict)):
+        if _parents is None:
+            _parents = frozenset()
+        if id(value) in _parents:
+            return False
+        _parents = _parents | {id(value)}
+        if isinstance(value, list):
+            return all(_is_json_native(item, _parents) for item in value)
+        return all(
+            isinstance(key, str)
+            and key not in _DECODER_MARKER_KEYS
+            and _is_json_native(item, _parents)
+            for key, item in value.items()
+        )
+    return False
+
+
 def prefect_json_object_encoder(obj: Any) -> Any:
     """
     `JSONEncoder.default` for encoding objects into JSON with extended type support.
@@ -63,7 +101,14 @@ def prefect_json_object_encoder(obj: Any) -> Any:
     Raises a `TypeError` to fallback on other encoders on failure.
     """
     if isinstance(obj, BaseException):
-        return {"__exc_type__": to_qualified_name(obj.__class__), "message": str(obj)}
+        encoded: dict[str, Any] = {
+            "__exc_type__": to_qualified_name(obj.__class__),
+            "message": str(obj),
+        }
+        # Arguments that are not JSON native are dropped, so encoding cannot fail.
+        if obj.args and all(_is_json_native(arg) for arg in obj.args):
+            encoded["__exc_args__"] = list(obj.args)
+        return encoded
     elif isinstance(obj, io.IOBase):
         return {
             "__class__": to_qualified_name(obj.__class__),
@@ -101,6 +146,12 @@ def prefect_json_object_decoder(result: dict[str, Any]) -> Any:
             raise ValueError(f"Invalid exception type: {result['__exc_type__']!r}")
         if not (isinstance(exc_cls, type) and issubclass(exc_cls, BaseException)):
             raise ValueError(f"Invalid exception type: {result['__exc_type__']!r}")
+        args = result.get("__exc_args__")
+        if args:
+            try:
+                return exc_cls(*args)
+            except Exception:
+                pass
         return exc_cls(result["message"])
     else:
         return result
