@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 
 import cloudpickle
 import pytest
+from pydantic import ValidationError
 
 import prefect.settings
 from prefect import flow, task
@@ -246,6 +247,42 @@ class TestSettingsContext:
                 settings={PREFECT_API_URL: "test"},
                 source=temporary_profiles_path,
             )
+
+    def test_use_profile_skips_invalid_values_with_a_warning(
+        self, temporary_profiles_path
+    ):
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [profiles.foo]
+                PREFECT_API_URL="test"
+                PREFECT_SERVER_API_PORT="not-a-port"
+                """
+            )
+        )
+        with pytest.warns(UserWarning, match="PREFECT_SERVER_API_PORT") as record:
+            with use_profile("foo") as ctx:
+                assert prefect.settings.PREFECT_API_URL.value() == "test"
+                assert ctx.settings.server.api.port == 4200
+
+        assert all("not-a-port" not in str(warning.message) for warning in record)
+
+    def test_use_profile_raises_for_errors_no_single_value_causes(
+        self, temporary_profiles_path
+    ):
+        # Each value is valid on its own; only the combination is rejected.
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [profiles.foo]
+                PREFECT_LOGGING_TO_API_BATCH_SIZE=1000
+                PREFECT_LOGGING_TO_API_MAX_LOG_SIZE=5000
+                """
+            )
+        )
+        with pytest.raises(ValidationError):
+            with use_profile("foo"):
+                pass
 
     def test_root_settings_context_creates_home(self, tmpdir, monkeypatch):
         monkeypatch.setenv("PREFECT_HOME", str(tmpdir / "testing"))
