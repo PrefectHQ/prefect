@@ -8,6 +8,7 @@ from prefect_redis.client import (
     close_all_cached_connections,
     get_async_redis_client,
 )
+from prefect_redis.messaging import _get_publisher_settings
 from pytest_asyncio import is_async_test
 from redis.asyncio import Redis
 
@@ -60,6 +61,13 @@ def clear_redis_messaging_url_cache() -> Generator[None, None, None]:
     _get_redis_messaging_url.cache_clear()
     yield
     _get_redis_messaging_url.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def clear_redis_publisher_settings_cache() -> Generator[None, None, None]:
+    _get_publisher_settings.cache_clear()
+    yield
+    _get_publisher_settings.cache_clear()
 
 
 @pytest.fixture(autouse=True)
