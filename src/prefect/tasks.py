@@ -16,6 +16,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Concatenate,
     Coroutine,
     Generic,
     Iterable,
@@ -91,6 +92,8 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
+_Self = TypeVar("_Self")
+_BoundP = ParamSpec("_BoundP")
 
 NUM_CHARS_DYNAMIC_KEY = 8
 
@@ -644,6 +647,16 @@ class Task(Generic[P, R]):
     @property
     def isstaticmethod(self) -> bool:
         return getattr(self, "_isstaticmethod", False)
+
+    @overload
+    def __get__(self, instance: None, owner: type) -> "Task[P, R]": ...
+
+    @overload
+    def __get__(
+        self: "Task[Concatenate[_Self, _BoundP], R]",
+        instance: _Self,
+        owner: type[_Self],
+    ) -> "Task[_BoundP, R]": ...
 
     def __get__(self, instance: Any, owner: Any) -> "Task[P, R]":
         """
