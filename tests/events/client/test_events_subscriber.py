@@ -1,14 +1,17 @@
+import asyncio
 from datetime import timedelta
 from typing import Optional, Type
 from unittest.mock import AsyncMock
 
 import orjson
 import pytest
+from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
     ConnectionClosedOK,
 )
+from websockets.protocol import State as WebsocketState
 
 from prefect.events import Event, get_events_subscriber
 from prefect.events.clients import (
@@ -642,3 +645,32 @@ async def test_subscriber_resets_retry_counter_after_successful_reconnect(
 
     assert reconnect_count == 4
     assert recorder.events == [example_event_1]
+
+
+async def test_subscriber_closes_socket_when_setup_is_cancelled(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A setup abandoned mid-handshake must not leak its open socket, since a
+    context that fails to enter is never exited by its caller."""
+    puppeteer.token = token
+
+    async def never_respond(self: ClientConnection, *args: object, **kwargs: object):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(ClientConnection, "recv", never_respond)
+
+    subscriber = Subscriber(
+        filter=EventFilter(event=EventNameFilter(name=["example.event"])),
+        reconnection_attempts=0,
+    )
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.5):
+            await subscriber.__aenter__()
+
+    assert recorder.connections == 1
+    assert subscriber._connect.connection.state is WebsocketState.CLOSED
