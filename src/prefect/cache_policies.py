@@ -1,7 +1,7 @@
 import inspect
 import sys
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from logging import Logger
 from pathlib import Path
 from typing import (
@@ -255,7 +255,7 @@ class CompoundCachePolicy(CachePolicy):
 
         if inputs_policies:
             new = Inputs(exclude=[other])
-            return CompoundCachePolicy(policies=[*self.policies, new])
+            return replace(self, policies=[*self.policies, new])
         else:
             # no dependency on inputs already
             return self
@@ -404,7 +404,7 @@ class Inputs(CachePolicy):
     def __sub__(self, other: str) -> "CachePolicy":
         if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Can only subtract strings from key policies.")
-        return Inputs(exclude=self.exclude + [other])
+        return replace(self, exclude=self.exclude + [other])
 
 
 INPUTS = Inputs()

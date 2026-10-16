@@ -28,7 +28,7 @@ jobs:
         uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
-          python-version: "3.10"
+          python-version: "3.11"
           cache-dependency-glob: "pyproject.toml"
 
       - uses: actions/setup-node@v7
