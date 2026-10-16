@@ -443,11 +443,23 @@ def process_v1_params(
 
     type_ = Any if param.annotation is inspect.Parameter.empty else param.annotation
 
+    # `*args` and `**kwargs` collect any number of values (including none), so
+    # they are optional and hold a list or a mapping of the annotated type.
+    default: dict[str, Any]
+    if param.kind is inspect.Parameter.VAR_POSITIONAL:
+        type_ = list[type_]
+        default = {"default_factory": list}
+    elif param.kind is inspect.Parameter.VAR_KEYWORD:
+        type_ = dict[str, type_]
+        default = {"default_factory": dict}
+    else:
+        default = {"default": ... if param.default is param.empty else param.default}
+
     with warnings.catch_warnings():
         # Note: pydantic.v1 doesn't have the warnings module, so we can't suppress them
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         field: Any = pydantic_v1.Field(
-            default=... if param.default is param.empty else param.default,
+            **default,
             title=param.name,
             description=docstrings.get(param.name, None),
             alias=aliases.get(name),
