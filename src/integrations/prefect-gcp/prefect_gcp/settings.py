@@ -99,6 +99,16 @@ class CloudRunV2WorkerSettings(PrefectBaseSettings):
         ),
     )
 
+    execution_poll_interval_seconds: float = Field(
+        default=5.0,
+        gt=0,
+        description=(
+            "How often, in seconds, the worker checks the status of a running "
+            "Cloud Run V2 job execution. Raise this to reduce Cloud Run API "
+            "requests when many long-running flows share a project's quota."
+        ),
+    )
+
 
 class CloudRunV2Settings(PrefectBaseSettings):
     """Settings for the Cloud Run V2 integration."""

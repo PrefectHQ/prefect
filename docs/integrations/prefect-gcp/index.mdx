@@ -184,6 +184,12 @@ Prefect Cloud offers [Google Cloud Run push work pools](/v3/how-to-guides/deploy
 
 See the [Google Cloud Run Worker Guide](/integrations/prefect-gcp/gcp-worker-guide) for a walkthrough of using Google Cloud Run in a hybrid work pool.
 
+The Cloud Run V2 worker checks each running job execution every 5 seconds. With many long-running flows, those reads can add up against your project's Cloud Run API quota. To check less often, set this on the worker process:
+
+```bash
+export PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_EXECUTION_POLL_INTERVAL_SECONDS=60
+```
+
 
 ## Examples
 

@@ -1223,7 +1223,7 @@ class CloudRunWorkerV2(
         configuration: CloudRunWorkerJobV2Configuration,
         execution: ExecutionV2,
         logger: PrefectLogAdapter,
-        poll_interval: int = 5,
+        poll_interval: float | None = None,
     ) -> CloudRunWorkerV2Result:
         """
         Watch the job execution and get the result.
@@ -1235,12 +1235,17 @@ class CloudRunWorkerV2(
                 the job.
             execution (ExecutionV2): The execution to watch.
             logger (PrefectLogAdapter): The logger to use.
-            poll_interval (int): The number of seconds to wait between polls.
-                Defaults to 5 seconds.
+            poll_interval (float, optional): The number of seconds to wait between
+                polls. Defaults to the worker's `execution_poll_interval_seconds`
+                setting (`PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_EXECUTION_POLL_INTERVAL_SECONDS`),
+                which is 5 seconds unless configured.
 
         Returns:
             The result of the job.
         """
+        if poll_interval is None:
+            poll_interval = CloudRunV2WorkerSettings().execution_poll_interval_seconds
+
         try:
             execution = self._watch_job_execution(
                 cr_client=cr_client,
@@ -1305,7 +1310,7 @@ class CloudRunWorkerV2(
         cr_client: Resource,
         configuration: CloudRunWorkerJobV2Configuration,
         execution: ExecutionV2,
-        poll_interval: int,
+        poll_interval: float,
         logger: PrefectLogAdapter,
     ) -> ExecutionV2:
         """
@@ -1317,7 +1322,7 @@ class CloudRunWorkerV2(
             configuration (CloudRunWorkerJobV2Configuration): The configuration for
                 the job.
             execution (ExecutionV2): The execution to watch.
-            poll_interval (int): The number of seconds to wait between polls.
+            poll_interval (float): The number of seconds to wait between polls.
             logger: The logger to use for retry warnings.
 
         Returns:
