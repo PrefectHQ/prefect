@@ -208,7 +208,7 @@ def extract_instances(
 
     if len(types_collection) == 1:
         [type_] = types_collection
-        return ret[type_]
+        return ret.get(type_, [])
 
     return ret
 
