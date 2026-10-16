@@ -14,7 +14,6 @@ from typing import (
     Dict,
     List,
     Optional,
-    Set,
     Tuple,
 )
 from uuid import UUID
@@ -719,9 +718,9 @@ async def evaluate_periodically(periodic_granularity: timedelta) -> None:
 # account and workspace
 automations_by_id: Dict[UUID, Automation] = {}
 triggers: Dict[TriggerID, EventTrigger] = {}
-# Index from expect/after pattern → trigger IDs, so find_interested_triggers
-# checks a handful of patterns instead of scanning all triggers.
-_triggers_by_expect: Dict[str, Set[TriggerID]] = {}
+# Event pattern -> exact related name -> trigger IDs; None is the fallback.
+# covers() checks all conditions after candidate selection.
+_triggers_by_expect: dict[str, dict[str | None, set[TriggerID]]] = {}
 next_proactive_runs: Dict[TriggerID, prefect.types._datetime.DateTime] = {}
 automation_state_snapshot: Optional[AutomationStateSnapshot] = None
 
@@ -739,10 +738,15 @@ def _automations_lock() -> asyncio.Lock:
 
 
 def find_interested_triggers(event: ReceivedEvent) -> Collection[EventTrigger]:
+    related_names: set[str | None] = {None}
+    related_names.update(
+        resource.get("prefect.resource.name") for resource in event.related
+    )
     candidate_ids: set[TriggerID] = set()
-    for expect_pattern, trigger_ids in _triggers_by_expect.items():
+    for expect_pattern, name_buckets in _triggers_by_expect.items():
         if fnmatch.fnmatchcase(event.event, expect_pattern):
-            candidate_ids.update(trigger_ids)
+            for name in related_names:
+                candidate_ids.update(name_buckets.get(name, ()))
     candidates = [triggers[tid] for tid in candidate_ids if tid in triggers]
     return [trigger for trigger in candidates if trigger.covers(event)]
 
@@ -762,17 +766,45 @@ def _index_keys_for(trigger: EventTrigger) -> set[str]:
     return trigger.expect | trigger.after
 
 
+def _index_related_names_for(trigger: EventTrigger) -> set[str | None]:
+    """Use one required literal-name selector, or None for fallback matching."""
+    specifications = trigger.match_related
+    if not isinstance(specifications, list):
+        specifications = [specifications]
+    # All specifications are required; one all-literal selector is enough.
+    for specification in specifications:
+        names = specification.get("prefect.resource.name")
+        if names and all(
+            not name.startswith("!")
+            and not any(character in name for character in "*?[")
+            for name in names
+        ):
+            return set(names)
+    return {None}
+
+
 def _index_trigger(trigger: EventTrigger) -> None:
+    related_names = _index_related_names_for(trigger)
     for key in _index_keys_for(trigger):
-        _triggers_by_expect.setdefault(key, set()).add(trigger.id)
+        name_buckets = _triggers_by_expect.setdefault(key, {})
+        for name in related_names:
+            name_buckets.setdefault(name, set()).add(trigger.id)
 
 
 def _unindex_trigger(trigger: EventTrigger) -> None:
+    related_names = _index_related_names_for(trigger)
     for key in _index_keys_for(trigger):
-        if key in _triggers_by_expect:
-            _triggers_by_expect[key].discard(trigger.id)
-            if not _triggers_by_expect[key]:
-                del _triggers_by_expect[key]
+        name_buckets = _triggers_by_expect.get(key)
+        if name_buckets is None:
+            continue
+        for name in related_names:
+            trigger_ids = name_buckets.get(name)
+            if trigger_ids is not None:
+                trigger_ids.discard(trigger.id)
+                if not trigger_ids:
+                    del name_buckets[name]
+        if not name_buckets:
+            del _triggers_by_expect[key]
 
 
 def load_automation(automation: Optional[Automation]) -> None:
@@ -867,9 +899,8 @@ async def reconcile_automations(force: bool = False) -> bool:
 
             previous_automations = automations_by_id.copy()
             previous_triggers = triggers.copy()
-            previous_triggers_by_expect = {
-                k: v.copy() for k, v in _triggers_by_expect.items()
-            }
+            # Reload clears the outer index, leaving saved buckets intact.
+            previous_triggers_by_expect = _triggers_by_expect.copy()
             previous_next_proactive_runs = next_proactive_runs.copy()
 
             clear_loaded_automations()
