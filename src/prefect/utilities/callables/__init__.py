@@ -83,10 +83,19 @@ def get_call_parameters(
     # a FieldInfo object when the user writes `param: T = Field(default=..., ...)`.
     # Unwrap those to their actual default values.
     for key, value in arguments.items():
-        if isinstance(value, pydantic.fields.FieldInfo):
-            arguments[key] = value.default
+        arguments[key] = _resolve_field_info_default(value)
 
     return arguments
+
+
+def _resolve_field_info_default(value: Any) -> Any:
+    """
+    Resolve a `pydantic.Field(...)` used as a signature default to its actual
+    default value. Other values are returned unchanged.
+    """
+    if isinstance(value, pydantic.fields.FieldInfo):
+        return value.default
+    return value
 
 
 def get_parameter_defaults(
@@ -101,7 +110,7 @@ def get_parameter_defaults(
 
     for name, param in signature.parameters.items():
         if param.default is not signature.empty:
-            parameter_defaults[name] = param.default
+            parameter_defaults[name] = _resolve_field_info_default(param.default)
 
     return parameter_defaults
 

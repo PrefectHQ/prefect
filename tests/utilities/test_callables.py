@@ -800,6 +800,34 @@ class TestGetCallParameters:
         assert isinstance(result["labels"], list)
 
 
+class TestGetParameterDefaults:
+    def test_returns_signature_defaults(self):
+        def fn(a, b=1, c="x"):
+            pass
+
+        assert callables.get_parameter_defaults(fn) == {"b": 1, "c": "x"}
+
+    def test_field_defaults_are_unwrapped(self):
+        def fn(a: int, y: int = Field(default=3), tags: list[str] = Field(default=[])):
+            pass
+
+        result = callables.get_parameter_defaults(fn)
+        assert result == {"y": 3, "tags": []}
+        assert isinstance(result["y"], int)
+        assert isinstance(result["tags"], list)
+
+
+class TestExpandMappingParameters:
+    def test_field_defaults_are_unwrapped(self):
+        def fn(a: int, y: int = Field(default=3)):
+            pass
+
+        assert callables.expand_mapping_parameters(fn, {"a": [1, 2]}) == [
+            {"a": 1, "y": 3},
+            {"a": 2, "y": 3},
+        ]
+
+
 class TestExplodeVariadicParameter:
     def test_no_error_if_no_variadic_parameter(self):
         def foo(a, b):

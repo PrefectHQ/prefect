@@ -4650,6 +4650,30 @@ class TestTaskMap:
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [6, 7, 8]
 
+    async def test_with_keyword_with_field_default(self):
+        @task
+        def add_some(x: int, y: int = pydantic.Field(default=5)):
+            return x + y
+
+        @flow
+        def my_flow():
+            return add_some.map([1, 2, 3])
+
+        task_states = my_flow()
+        assert [await state.result() for state in task_states] == [6, 7, 8]
+
+    async def test_with_keyword_with_field_default_async_task(self):
+        @task
+        async def add_some(x: int, y: int = pydantic.Field(default=5)):
+            return x + y
+
+        @flow
+        def my_flow():
+            return add_some.map([1, 2, 3])
+
+        task_states = my_flow()
+        assert [await state.result() for state in task_states] == [6, 7, 8]
+
     async def test_with_keyword_with_iterable_default(self):
         @task
         def add_some(x, y=[1, 4]):
