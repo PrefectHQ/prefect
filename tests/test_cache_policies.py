@@ -19,6 +19,7 @@ from prefect.cache_policies import (
     _None,
 )
 from prefect.context import TaskRunContext
+from prefect.utilities.hashing import hash_objects
 
 
 class TestBaseClass:
@@ -393,6 +394,86 @@ class TestTaskSourcePolicy:
         assert key_a is not None
         assert key_b is not None
         assert key_a != key_b
+
+    def test_changes_in_closure_values_change_key(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23062"""
+        policy = TaskSource()
+
+        def make_scaler(factor):
+            def scale(x):
+                return x * factor
+
+            return scale
+
+        task_a = MagicMock()
+        task_a.source_code = "def scale(x):\n    return x * factor\n"
+        task_a.fn = make_scaler(2)
+        task_b = MagicMock()
+        task_b.source_code = "def scale(x):\n    return x * factor\n"
+        task_b.fn = make_scaler(3)
+
+        # The tasks share identical source text and differ only in the
+        # values they capture
+        assert task_a.source_code == task_b.source_code
+
+        key_a = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=task_a),
+            inputs=None,
+            flow_parameters=None,
+        )
+        key_b = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=task_b),
+            inputs=None,
+            flow_parameters=None,
+        )
+
+        assert key_a != key_b
+
+    def test_matching_closure_values_produce_matching_keys(self):
+        policy = TaskSource()
+
+        def make_scaler(factor):
+            def scale(x):
+                return x * factor
+
+            return scale
+
+        task_a = MagicMock()
+        task_a.source_code = "def scale(x):\n    return x * factor\n"
+        task_a.fn = make_scaler(2)
+        task_b = MagicMock()
+        task_b.source_code = "def scale(x):\n    return x * factor\n"
+        task_b.fn = make_scaler(2)
+
+        key_a = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=task_a),
+            inputs=None,
+            flow_parameters=None,
+        )
+        key_b = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=task_b),
+            inputs=None,
+            flow_parameters=None,
+        )
+
+        assert key_a == key_b
+
+    def test_task_without_closures_uses_source_code_only(self):
+        policy = TaskSource()
+
+        task = MagicMock()
+        task.source_code = "def scale(x):\n    return x * 2\n"
+        task.fn = lambda x: x * 2
+
+        key = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=task),
+            inputs=None,
+            flow_parameters=None,
+        )
+
+        # The key format for closure-less tasks is unchanged so that
+        # existing cache entries remain valid
+        assert key == hash_objects(task.source_code, raise_on_failure=True)
 
 
 class TestDefaultPolicy:
