@@ -306,6 +306,26 @@ else:
             )
         return value
 
+    # Inherited constants hold plain Pendulum values; wrap them once so their
+    # Pendulum-only methods retain the same deprecation behavior.
+    DateTime.EPOCH = _wrap_pendulum_value(DateTime.EPOCH)
+    DateTime.min = _wrap_pendulum_value(DateTime.min)
+    DateTime.max = _wrap_pendulum_value(DateTime.max)
+    # Use the exact stdlib bounds: Pendulum's component properties round up
+    # at timedelta.max, overflowing when reconstructed by the wrapper.
+    for _name in ("min", "max", "resolution"):
+        _value = getattr(datetime.timedelta, _name)
+        setattr(
+            Duration,
+            _name,
+            Duration(
+                days=_value.days,
+                seconds=_value.seconds,
+                microseconds=_value.microseconds,
+            ),
+        )
+    del _name, _value
+
     Interval: TypeAlias = datetime.timedelta
 
 

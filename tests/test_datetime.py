@@ -319,18 +319,14 @@ def test_pendulum_derived_values_retain_deprecation_notice():
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
-def test_wrapped_interval_preserves_direction():
-    """Re-wrapping an absolute `Interval` must keep its `_invert` flag —
-    otherwise future diffs render as 'ago' instead of 'from now'."""
-    assert "from now" in human_friendly_diff(now("UTC").add(minutes=20)) or (
-        "in " in human_friendly_diff(now("UTC").add(minutes=20))
-    )
-    assert "ago" in human_friendly_diff(now("UTC").subtract(minutes=20))
-
-    later = now("UTC").add(hours=1)
-    earlier = now("UTC")
-    assert (earlier - later)._invert is True
-    assert (later - earlier)._invert is False
+@pytest.mark.parametrize(
+    "minutes, expected", [(20, "in 20 minutes"), (-20, "20 minutes ago")]
+)
+def test_wrapped_interval_preserves_direction(minutes: int, expected: str):
+    with travel_to(FIXED):
+        assert (
+            human_friendly_diff(FIXED + datetime.timedelta(minutes=minutes)) == expected
+        )
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
@@ -384,6 +380,49 @@ def test_astimezone_preserves_timezone_for_pendulum_tz():
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 class TestPendulumCompatibility:
+    @pytest.mark.parametrize("name", ["EPOCH", "min", "max"])
+    def test_datetime_constants_retain_warning_behavior(self, name: str):
+        expected = getattr(pendulum.DateTime, name)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            value = getattr(DateTime, name)
+            restored = pickle.loads(pickle.dumps(value))
+            assert value == restored == expected
+            assert value.isoformat() == expected.isoformat()
+            assert value.tzinfo == restored.tzinfo == expected.tzinfo
+
+        for constant in (value, restored):
+            with pytest.warns(
+                DeprecationWarning, match="Pendulum datetime member 'add'"
+            ):
+                assert constant.add(days=0) == expected
+            assert isinstance(constant, DateTime)
+        assert not isinstance(expected, DateTime)
+
+    @pytest.mark.parametrize("name", ["min", "max", "resolution"])
+    def test_duration_constants_retain_warning_behavior(self, name: str):
+        expected = getattr(pendulum.Duration, name)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            value = getattr(Duration, name)
+            restored = pickle.loads(pickle.dumps(value))
+            assert value == restored == expected
+            assert value.total_seconds() == expected.total_seconds()
+
+        for constant in (value, restored):
+            with pytest.warns(
+                DeprecationWarning, match="Pendulum datetime member 'in_words'"
+            ):
+                assert constant.in_words() == expected.in_words()
+            assert isinstance(constant, Duration)
+        assert not isinstance(expected, Duration)
+
+    def test_stdlib_constants_remain_unchanged(self):
+        assert Date.min is datetime.date.min
+        assert Date.max is datetime.date.max
+        assert Date.resolution is datetime.date.resolution
+        assert DateTime.resolution is datetime.datetime.resolution
+
     @pytest.mark.parametrize(
         "factory, member, kwargs",
         [
