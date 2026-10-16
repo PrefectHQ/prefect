@@ -18,6 +18,7 @@ from prefect._internal.attempt_control import (
 from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._process_manager import ProcessHandle
+from prefect.states import Crashed, Running, State
 
 pytestmark = pytest.mark.clear_db
 
@@ -365,6 +366,50 @@ class TestFlowRunExecutorSubmit:
         assert result is not None
         assert result.handle is m["handle"]
         assert result.status_code == 7
+
+    async def test_submit_reports_crash_recorded_when_crashed_state_accepted(self):
+        executor, m = _make_executor(handle_returncode=1)
+        m["state_proposer"].propose_crashed = AsyncMock(return_value=Crashed())
+
+        result = await executor.submit()
+
+        assert result is not None
+        assert result.status_code == 1
+        assert result.crash_unreported is False
+
+    @pytest.mark.parametrize("proposed_state", [None, Running()])
+    async def test_submit_reports_crash_unreported_when_no_final_state_recorded(
+        self, proposed_state: State | None
+    ):
+        executor, m = _make_executor(handle_returncode=1)
+        m["state_proposer"].propose_crashed = AsyncMock(return_value=proposed_state)
+
+        result = await executor.submit()
+
+        assert result is not None
+        assert result.status_code == 1
+        assert result.crash_unreported is True
+
+    async def test_submit_does_not_report_crash_unreported_on_zero_exit(self):
+        executor, m = _make_executor(handle_returncode=0)
+
+        result = await executor.submit()
+
+        assert result is not None
+        assert result.crash_unreported is False
+
+    async def test_submit_does_not_report_crash_unreported_with_engine_receipt(self):
+        receipt = EngineOutcomeReceipt.state_reported(
+            state_id=uuid4(),
+            state_type="FAILED",
+            state_name="Failed",
+        )
+        executor, _ = _make_executor(handle_returncode=1, attempt_conclusion=receipt)
+
+        result = await executor.submit()
+
+        assert result is not None
+        assert result.crash_unreported is False
 
     async def test_submit_logs_resolution_separately(
         self, caplog: "pytest.LogCaptureFixture"

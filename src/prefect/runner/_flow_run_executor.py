@@ -51,10 +51,15 @@ class ProcessStarter(Protocol):
 
 @dataclass(frozen=True)
 class FlowRunExecutionResult:
-    """Process handle plus the infrastructure status for a completed attempt."""
+    """Process handle plus the infrastructure status for a completed attempt.
+
+    `crash_unreported` is `True` when the process exited non-zero and the
+    runner could not record a final state for the flow run in its place.
+    """
 
     handle: ProcessHandle
     status_code: int | None
+    crash_unreported: bool = False
 
 
 class FlowRunExecutor:
@@ -186,6 +191,7 @@ class FlowRunExecutor:
         # process status. Without it, preserve the exit-code fallback.
         assert handle is not None
         exit_code = handle.returncode
+        crash_unreported = False
         if attempt_conclusion is not None:
             return FlowRunExecutionResult(handle=handle, status_code=0)
         if exit_code is not None and exit_code != 0:
@@ -205,8 +211,11 @@ class FlowRunExecutor:
             # Step 8: run crashed hooks
             if crashed_state is not None:
                 await self._hook_runner.run_crashed_hooks(self._flow_run, crashed_state)
+            crash_unreported = crashed_state is None or not crashed_state.is_final()
 
-        return FlowRunExecutionResult(handle=handle, status_code=exit_code)
+        return FlowRunExecutionResult(
+            handle=handle, status_code=exit_code, crash_unreported=crash_unreported
+        )
 
     async def _start_process(
         self,
