@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import atexit
 import inspect
+import os
 import shutil
 import socket
 import warnings
@@ -118,7 +119,11 @@ def assert_does_not_warn(
 
 
 @contextmanager
-def prefect_test_harness(server_startup_timeout: int | None = 30):
+def prefect_test_harness(
+    server_startup_timeout: int | None = 30,
+    *,
+    database_directory: str | os.PathLike[str] | None = None,
+):
     """
     Temporarily run flows against a local SQLite database for testing.
 
@@ -126,6 +131,10 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         server_startup_timeout: The maximum time to wait for the server to start.
             Defaults to 30 seconds. If set to `None`, the value of
             `PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS` will be used.
+        database_directory: A directory for the test database. It is created if
+            it does not exist, and it is not deleted afterwards, so the caller
+            controls cleanup. Defaults to a new temporary directory that is
+            removed when the interpreter exits.
 
     Examples:
         ```python
@@ -140,16 +149,37 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         with prefect_test_harness():
             assert my_flow() == 'Done!' # run against temporary db
         ```
+
+        Keep the database with pytest's temporary directories, which pytest
+        retains for the last few runs and then removes:
+
+        ```python
+        import pytest
+        from prefect.testing.utilities import prefect_test_harness
+
+
+        @pytest.fixture(autouse=True, scope="session")
+        def prefect_test_fixture(tmp_path_factory):
+            with prefect_test_harness(
+                database_directory=tmp_path_factory.mktemp("prefect")
+            ):
+                yield
+        ```
     """
     from prefect.server.database.dependencies import temporary_database_interface
 
-    # create temp directory for the testing database
-    temp_dir = mkdtemp()
+    if database_directory is not None:
+        # The caller owns this directory, so it is left in place afterwards.
+        temp_dir = os.fspath(database_directory)
+        Path(temp_dir).mkdir(parents=True, exist_ok=True)
+    else:
+        # create temp directory for the testing database
+        temp_dir = mkdtemp()
 
-    def cleanup_temp_dir(temp_dir):
-        shutil.rmtree(temp_dir)
+        def cleanup_temp_dir(temp_dir):
+            shutil.rmtree(temp_dir)
 
-    atexit.register(cleanup_temp_dir, temp_dir)
+        atexit.register(cleanup_temp_dir, temp_dir)
 
     with ExitStack() as stack:
         # temporarily override any database interface components
