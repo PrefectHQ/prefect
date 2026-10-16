@@ -34,6 +34,14 @@ SUSPENSION_CONFIRMATION_MAX_INTERVAL = 10.0
 
 
 class OnCancellingCallback(Protocol):
+    """Synchronously accept cancellation work for a flow run.
+
+    Returning normally means the dispatch was accepted, not that asynchronous
+    cancellation has completed. Raising releases the dispatch claim so a later
+    observation can retry. Callbacks may raise only before accepting work; raising
+    after accepting it could cause duplicate cancellation work.
+    """
+
     def __call__(self, flow_run_id: uuid.UUID) -> None: ...
 
 
@@ -207,7 +215,8 @@ class FlowRunCancellingObserver:
         automatically.
 
         Args:
-            on_cancelling: Callback to call when a flow run is marked as cancelling.
+            on_cancelling: Callback that accepts cancellation work, following the
+                dispatch contract in `OnCancellingCallback`.
             polling_interval: Interval in seconds to poll for cancelling flow runs when websocket connection is lost.
             event_filter: Optional event filter to use for the websocket subscription.
                 If not provided, defaults to filtering for "prefect.flow-run.Cancelling" events.
@@ -255,7 +264,7 @@ class FlowRunCancellingObserver:
         flow_run_id: uuid.UUID,
         registration: _CancellationRegistration | None,
     ) -> None:
-        """Notify once per registration, ignoring stale or removed registrations."""
+        """Dispatch once per registration, releasing claims rejected by the callback."""
         if (
             self._is_shutting_down
             or registration is None
@@ -264,7 +273,11 @@ class FlowRunCancellingObserver:
         ):
             return
         registration.claimed = True
-        self.on_cancelling(flow_run_id)
+        try:
+            self.on_cancelling(flow_run_id)
+        except BaseException:
+            registration.claimed = False
+            raise
 
     def _handle_event(self, event: Event) -> None:
         try:

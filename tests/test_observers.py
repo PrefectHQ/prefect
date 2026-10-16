@@ -1530,6 +1530,36 @@ class TestCancellationDispatch:
     def case(self, api: FakeAPI) -> RecoveryCase:
         return RecoveryCase("cancelling", api)
 
+    async def test_rejected_callback_is_retried_by_polling(
+        self,
+        case: RecoveryCase,
+        stream: ScriptedEventStream,
+        api: FakeAPI,
+    ):
+        connection = ScriptedConnection()
+        stream.script = [connection]
+        flow_run_id, still_running = uuid.uuid4(), uuid.uuid4()
+        accepted: list[uuid.UUID] = []
+
+        def accept(flow_run_id: uuid.UUID) -> None:
+            if case.callback.call_count == 1:
+                raise RuntimeError("Cancellation dispatch was not accepted")
+            accepted.append(flow_run_id)
+
+        case.callback.side_effect = accept
+        case.signal_by_polling(flow_run_id)
+
+        async with case.observer:
+            case.observer.add_in_flight_flow_run_id(flow_run_id)
+            # Keep polling observable after the cancellation has been accepted.
+            case.observer.add_in_flight_flow_run_id(still_running)
+            connection.send(cancelling_event(flow_run_id))
+            await until(lambda: api.reads >= 6)
+
+            assert case.notified == [flow_run_id, flow_run_id]
+            assert accepted == [flow_run_id]
+            case.on_failure.assert_not_called()
+
     async def test_replayed_event_after_poll_notifies_once(
         self,
         case: RecoveryCase,
