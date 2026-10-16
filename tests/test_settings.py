@@ -2783,6 +2783,20 @@ class TestUpdateCurrentProfile:
             load_profiles()["foo"]
         )
 
+    def test_invalid_union_value_in_the_update_itself_still_raises(
+        self, current_profile: Profile
+    ):
+        # A union field reports one error per member type, below the field's path.
+        with pytest.raises(ProfileSettingsValidationError) as exc_info:
+            update_current_profile({"PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS": "abc"})
+
+        assert [setting.name for setting, _ in exc_info.value.errors] == [
+            "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS"
+        ]
+        assert "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS" not in self._by_name(
+            load_profiles()["foo"]
+        )
+
 
 class TestProfilesCollection:
     def test_init_stores_single_profile(self):

@@ -220,25 +220,32 @@ class Profile(BaseModel):
         try:
             Settings.model_validate(nested_settings)
         except ValidationError as e:
-            errors: list[tuple[Setting, ValidationError]] = []
+            errors_by_setting: dict[Setting, list[Any]] = {}
 
             for error in e.errors():
                 error_path = ".".join(str(loc) for loc in error["loc"])
 
                 for setting in self.settings.keys():
-                    if setting.accessor == error_path:
-                        errors.append(
-                            (
-                                setting,
-                                ValidationError.from_exception_data(
-                                    "ValidationError", [error]
-                                ),
-                            )
-                        )
+                    # A union field reports one error per member type, below
+                    # the field's own path.
+                    if error_path == setting.accessor or error_path.startswith(
+                        f"{setting.accessor}."
+                    ):
+                        errors_by_setting.setdefault(setting, []).append(error)
                         break
 
-            if errors:
-                raise ProfileSettingsValidationError(errors)
+            if errors_by_setting:
+                raise ProfileSettingsValidationError(
+                    [
+                        (
+                            setting,
+                            ValidationError.from_exception_data(
+                                "ValidationError", setting_errors
+                            ),
+                        )
+                        for setting, setting_errors in errors_by_setting.items()
+                    ]
+                )
 
 
 class ProfilesCollection:

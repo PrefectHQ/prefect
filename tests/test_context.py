@@ -267,6 +267,30 @@ class TestSettingsContext:
 
         assert all("not-a-port" not in str(warning.message) for warning in record)
 
+    def test_use_profile_skips_invalid_union_value_with_one_warning(
+        self, temporary_profiles_path
+    ):
+        # A union field reports one error per member type.
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [profiles.foo]
+                PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS="abc"
+                """
+            )
+        )
+        with pytest.warns(UserWarning) as record:
+            with use_profile("foo") as ctx:
+                assert ctx.settings.flows.default_retry_delay_seconds == 0
+
+        messages = [
+            str(warning.message)
+            for warning in record
+            if "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS" in str(warning.message)
+        ]
+        assert len(messages) == 1
+        assert "prefect --profile foo config unset" in messages[0]
+
     def test_use_profile_raises_for_errors_no_single_value_causes(
         self, temporary_profiles_path
     ):

@@ -1059,20 +1059,23 @@ def use_profile(
     except ValidationError:
         # An invalid value in the profile is reported and skipped, as the profile
         # loader does for the active profile, so switching to the profile still
-        # works. An error that no single value causes is raised again below.
+        # works. An error that no single value causes is raised as before.
         try:
             Profile(name=profile.name, settings=profile_settings).validate_settings()
         except ProfileSettingsValidationError as exc:
             for setting, error in exc.errors:
                 problems = "; ".join(item["msg"] for item in error.errors())
+                fix = f"prefect --profile {profile.name}"
                 warnings.warn(
                     f"Ignoring invalid value for setting {setting.name} in profile "
                     f"{profile.name!r}: {problems}. Fix it with "
-                    f"`prefect config set {setting.name}=<value>` or remove it with "
-                    f"`prefect config unset {setting.name}`.",
+                    f"`{fix} config set {setting.name}=<value>` or remove it with "
+                    f"`{fix} config unset {setting.name}`.",
                     stacklevel=3,
                 )
                 profile_settings.pop(setting, None)
+        else:
+            raise
         new_settings = settings.copy_with_update(updates=profile_settings)
 
     with SettingsContext(profile=profile, settings=new_settings) as ctx:
