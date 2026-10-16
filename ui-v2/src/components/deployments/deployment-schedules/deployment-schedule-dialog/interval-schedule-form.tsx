@@ -153,6 +153,10 @@ export const IntervalScheduleForm = ({
 		useCreateDeploymentSchedule();
 	const { updateDeploymentSchedule, isPending: updatePending } =
 		useUpdateDeploymentSchedule();
+	const originalInterval =
+		scheduleToEdit && "interval" in scheduleToEdit.schedule
+			? scheduleToEdit.schedule.interval
+			: undefined;
 
 	const form = useForm({
 		resolver: zodResolver(formSchema),
@@ -202,6 +206,16 @@ export const IntervalScheduleForm = ({
 		};
 
 		if (scheduleToEdit) {
+			const original = originalInterval;
+			const initial =
+				original !== undefined ? parseIntervalToTime(original) : undefined;
+			const interval =
+				typeof original === "string" &&
+				initial?.interval_value === values.schedule.interval_value &&
+				initial.interval_time === values.schedule.interval_time
+					? original
+					: values.schedule.interval_value *
+						INTERVAL_SECONDS[values.schedule.interval_time];
 			updateDeploymentSchedule(
 				{
 					deployment_id,
@@ -209,9 +223,7 @@ export const IntervalScheduleForm = ({
 					parameters: parameterOverrides?.values,
 					active: values.active,
 					schedule: {
-						interval:
-							values.schedule.interval_value *
-							INTERVAL_SECONDS[values.schedule.interval_time],
+						interval,
 						anchor_date: anchorDate,
 						timezone: values.schedule.timezone,
 					},
@@ -334,6 +346,13 @@ export const IntervalScheduleForm = ({
 							}}
 						/>
 					</div>
+
+					{typeof originalInterval === "string" && (
+						<p className="text-sm text-muted-foreground">
+							Current interval: <code>{originalInterval}</code>. Changing the
+							value or unit replaces this interval.
+						</p>
+					)}
 
 					<FormField
 						control={form.control}

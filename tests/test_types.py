@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import datetime
 import sys
-import types
 
 import pytest
 from pydantic import BaseModel
@@ -66,6 +65,7 @@ def test_seconds_timedelta_accepts_numeric_values():
     assert Model(duration="PT5S").duration == datetime.timedelta(seconds=5)
 
 
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="Whenever clock on Python 3.13+")
 def test_now_uses_to_stdlib_on_python_313_plus(monkeypatch: pytest.MonkeyPatch):
     expected = datetime.datetime(2026, 4, 9, tzinfo=datetime.timezone.utc)
 
@@ -82,16 +82,12 @@ def test_now_uses_to_stdlib_on_python_313_plus(monkeypatch: pytest.MonkeyPatch):
             assert tz == "UTC"
             return FakeZonedDateTimeResult()
 
-    monkeypatch.setattr(datetime_types.sys, "version_info", (3, 13))
-    monkeypatch.setitem(
-        sys.modules,
-        "whenever",
-        types.SimpleNamespace(ZonedDateTime=FakeZonedDateTime),
-    )
+    monkeypatch.setattr(datetime_types, "ZonedDateTime", FakeZonedDateTime)
 
     assert datetime_types.now("UTC") == expected
 
 
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="Whenever clock on Python 3.13+")
 def test_now_falls_back_to_py_datetime_without_to_stdlib(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -107,11 +103,6 @@ def test_now_falls_back_to_py_datetime_without_to_stdlib(
             assert tz == "UTC"
             return FakeZonedDateTimeResult()
 
-    monkeypatch.setattr(datetime_types.sys, "version_info", (3, 13))
-    monkeypatch.setitem(
-        sys.modules,
-        "whenever",
-        types.SimpleNamespace(ZonedDateTime=FakeZonedDateTime),
-    )
+    monkeypatch.setattr(datetime_types, "ZonedDateTime", FakeZonedDateTime)
 
     assert datetime_types.now("UTC") == expected

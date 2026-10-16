@@ -1,18 +1,49 @@
 import shutil
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 import yaml
 
 import prefect
+from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.deployments.base import (
     _deployment_already_saved_to_prefect_file,
+    _format_deployment_for_saving_to_prefect_file,
     configure_project_by_recipe,
     initialize_project,
 )
+from prefect.types._datetime import Interval, ItemizedDelta
 from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
+
+
+@pytest.mark.parametrize(
+    "interval, expected",
+    [(timedelta(days=2), 172800.0), (ItemizedDelta(months=1), "P1M")],
+)
+def test_format_interval_schedule_preserves_interval(
+    interval: Interval, expected: str | float
+):
+    anchor = datetime(2024, 1, 31, tzinfo=UTC)
+    schedule = IntervalSchedule(interval=interval, anchor_date=anchor, timezone="UTC")
+
+    config = _format_deployment_for_saving_to_prefect_file(
+        {
+            "parameter_openapi_schema": {},
+            "schedules": [{"schedule": schedule, "active": True}],
+        }
+    )
+
+    assert config["schedules"] == [
+        {
+            "interval": expected,
+            "anchor_date": anchor.isoformat(),
+            "timezone": "UTC",
+            "active": True,
+        }
+    ]
 
 
 @pytest.fixture(autouse=True)

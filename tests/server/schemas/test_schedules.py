@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import dateutil
 import pytest
 from dateutil import rrule
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 from whenever import Instant, ZonedDateTime
 
 from prefect._internal.schemas.validators import MAX_RRULE_LENGTH
@@ -18,11 +18,58 @@ from prefect.server.schemas.schedules import (
 )
 from prefect.types._datetime import now, parse_datetime
 
+if sys.version_info < (3, 13):
+    from prefect.types import DateTime
+
 dt = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
 RRDaily = "FREQ=DAILY"
 
 
+@pytest.mark.parametrize(
+    "schedule",
+    [
+        IntervalSchedule(interval=timedelta(days=1), anchor_date=dt),
+        CronSchedule(cron="0 0 * * *", timezone="UTC"),
+        RRuleSchedule(rrule="DTSTART:20200101T000000\nRRULE:FREQ=DAILY"),
+    ],
+)
+async def test_schedule_results_preserve_python_datetime_contract(schedule):
+    dates = await schedule.get_dates(n=2, start=dt)
+
+    if sys.version_info < (3, 13):
+        assert all(isinstance(value, DateTime) for value in dates)
+        # pendulum's add() returns a naive value; compare instants instead
+        assert dates[0].add(days=1).in_tz("UTC") == dates[1]
+        assert dates[0].in_tz("UTC").to_iso8601_string() == "2020-01-01T00:00:00Z"
+    else:
+        assert all(type(value) is datetime for value in dates)
+
+
 class TestCreateIntervalSchedule:
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 13), reason="Legacy server interval contract"
+    )
+    @pytest.mark.parametrize("interval", ["PT42S", "P1D", "P1M", "P1Y", "PT48H"])
+    async def test_legacy_interval_wire_round_trip(self, interval: str):
+        anchor = datetime(2024, 1, 31, tzinfo=ZoneInfo("UTC"))
+        schedule = IntervalSchedule.model_validate(
+            {"interval": interval, "anchor_date": anchor, "timezone": "UTC"}
+        )
+
+        assert isinstance(schedule.interval, timedelta)
+        assert schedule.interval == TypeAdapter(timedelta).validate_python(interval)
+        wire = schedule.model_dump(mode="json")
+        assert isinstance(wire["interval"], (int, float))
+        # Released SDKs validate intervals as timedeltas and send numeric seconds.
+        wire["interval"] = (
+            TypeAdapter(timedelta).validate_python(wire["interval"]).total_seconds()
+        )
+        restored = IntervalSchedule.model_validate(wire)
+
+        assert await restored.get_dates(n=3, start=anchor) == await schedule.get_dates(
+            n=3, start=anchor
+        )
+
     def test_interval_is_required(self):
         with pytest.raises(ValidationError):
             IntervalSchedule()
@@ -591,6 +638,13 @@ class TestIntervalScheduleDaylightSavingsTime:
 class TestIntervalScheduleDateTimeDelta:
     """Tests that ItemizedDelta intervals correctly distinguish calendar days
     from exact hours across DST boundaries — the core issue from #17749."""
+
+    @pytest.mark.parametrize("nanoseconds", [1, 999])
+    def test_interval_must_reach_datetime_precision(self, nanoseconds: int):
+        from prefect.types._datetime import ItemizedDelta
+
+        with pytest.raises(ValidationError, match="at least one microsecond"):
+            IntervalSchedule(interval=ItemizedDelta(days=0, nanoseconds=nanoseconds))
 
     async def test_hours_48_differs_from_days_2_across_spring_forward(self):
         """
