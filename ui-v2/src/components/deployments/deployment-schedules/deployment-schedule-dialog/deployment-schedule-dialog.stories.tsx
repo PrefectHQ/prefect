@@ -89,7 +89,7 @@ export const EditCalendarSchedule: Story = {
 			deployment_id: MOCK_DEPLOYMENT.id,
 			active: true,
 			schedule: {
-				interval: "P1M",
+				interval: "P1M1W",
 				anchor_date: "2024-01-31T12:00:00.000Z",
 				timezone: "UTC",
 			},

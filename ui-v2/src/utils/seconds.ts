@@ -4,13 +4,14 @@
  */
 function parseISO8601Duration(input: string): number | null {
 	const match = input.match(
-		/^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/,
+		/^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/,
 	);
 	if (!match) return null;
-	const [, years, months, days, hours, minutes, seconds] = match;
+	const [, years, months, weeks, days, hours, minutes, seconds] = match;
 	return (
 		Number(years ?? 0) * 31536000 +
 		Number(months ?? 0) * 30 * 86400 +
+		Number(weeks ?? 0) * 7 * 86400 +
 		Number(days ?? 0) * 86400 +
 		Number(hours ?? 0) * 3600 +
 		Number(minutes ?? 0) * 60 +

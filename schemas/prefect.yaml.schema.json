@@ -682,6 +682,9 @@
                             "type": "string"
                         },
                         {
+                            "type": "string"
+                        },
+                        {
                             "type": "null"
                         }
                     ],

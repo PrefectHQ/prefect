@@ -1035,7 +1035,9 @@ class TestCronScheduleDaylightSavingsTime:
     Tests that DST boundaries are respected
     """
 
-    @pytest.mark.parametrize("start_hour, start_minute", [(0, 0), (1, 45)])
+    @pytest.mark.parametrize(
+        "start_hour, start_minute", [(0, 0), (1, 45), (3, 0), (3, 15), (3, 30)]
+    )
     async def test_cron_schedule_nonexistent_time_moves_forward(
         self, start_hour: int, start_minute: int
     ):
@@ -1055,6 +1057,61 @@ class TestCronScheduleDaylightSavingsTime:
             datetime(2024, 3, 10, 7, 30, tzinfo=ZoneInfo("UTC")),
             datetime(2024, 3, 11, 6, 30, tzinfo=ZoneInfo("UTC")),
         ]
+
+    @pytest.mark.parametrize(
+        "cron, timezone, start, expected",
+        [
+            (
+                "20,40 2 * * *",
+                "Australia/Lord_Howe",
+                "2024-10-06T02:30:00+11:00",
+                [
+                    "2024-10-06T02:40:00+11:00",
+                    "2024-10-06T02:50:00+11:00",
+                    "2024-10-07T02:20:00+11:00",
+                ],
+            ),
+            (
+                "0 12 * * 5",
+                "Pacific/Apia",
+                "2011-12-31T00:00:00+14:00",
+                [
+                    "2011-12-31T12:00:00+14:00",
+                    "2012-01-06T12:00:00+14:00",
+                    "2012-01-13T12:00:00+14:00",
+                ],
+            ),
+        ],
+    )
+    async def test_cron_gap_lookback_preserves_order(
+        self, cron: str, timezone: str, start: str, expected: list[str]
+    ):
+        schedule = CronSchedule(cron=cron, timezone=timezone)
+        start_date = datetime.fromisoformat(start)
+
+        dates = await schedule.get_dates(n=3, start=start_date)
+
+        assert [value.astimezone(ZoneInfo("UTC")) for value in dates] == [
+            datetime.fromisoformat(value).astimezone(ZoneInfo("UTC"))
+            for value in expected
+        ]
+        assert await schedule.get_dates(n=1, start=start_date) == dates[:1]
+
+    @pytest.mark.parametrize("start", ["03:30:00.000001", "04:00:00"])
+    async def test_cron_gap_lookback_does_not_return_past_dates(self, start: str):
+        schedule = CronSchedule(cron="30 2 * * *", timezone="America/New_York")
+        start_date = datetime.fromisoformat(f"2024-03-10T{start}-04:00")
+
+        assert await schedule.get_dates(n=1, start=start_date) == [
+            datetime(2024, 3, 11, 6, 30, tzinfo=ZoneInfo("UTC"))
+        ]
+        assert (
+            await schedule.get_dates(
+                start=datetime.fromisoformat("2024-03-10T03:00:00-04:00"),
+                end=datetime.fromisoformat("2024-03-10T03:20:00-04:00"),
+            )
+            == []
+        )
 
     async def test_cron_schedule_hourly_daylight_savings_time_forward(self):
         """

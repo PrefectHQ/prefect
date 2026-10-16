@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from prefect._experimental.sla.objects import SlaTypes
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.client.schemas.schedules import SCHEDULE_TYPES, IntervalSchedule
+from prefect.types._datetime import Interval
 
 _ACTION_FIELDS = ("build", "push", "pull")
 
@@ -146,9 +146,7 @@ class RawScheduleConfig(BaseModel):
 
     # One-of schedule selectors
     cron: Optional[str] = None
-    interval: Optional[timedelta] = (
-        None  # accepts int/float (seconds), ISO 8601, HH:MM:SS
-    )
+    interval: Optional[Interval] = None
     rrule: Optional[str] = None
 
     # Common extras
@@ -161,6 +159,12 @@ class RawScheduleConfig(BaseModel):
 
     # Cron-specific
     day_or: Optional[Union[bool, str]] = None  # Allow string for template values
+
+    @field_validator("interval", mode="before")
+    @classmethod
+    def _validate_interval(cls, value: Any) -> Interval | None:
+        # Use the SDK's lossless parsing before YAML validation can coerce calendars.
+        return None if value is None else IntervalSchedule(interval=value).interval
 
     @model_validator(mode="after")
     def _one_of_schedule(self):

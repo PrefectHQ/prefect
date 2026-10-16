@@ -122,6 +122,8 @@ describe("IntervalScheduleForm", () => {
 		["P1M", "30"],
 		["P1Y", "365"],
 		["PT48H", "2"],
+		["P1M1W", "37"],
+		["P1Y2W", "379"],
 	])(
 		"preserves %s when saving other schedule fields",
 		async (interval, value) => {

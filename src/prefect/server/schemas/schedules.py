@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import datetime
 import sys
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
+from heapq import merge
+from itertools import takewhile
 from typing import (
     Annotated,
     Any,
@@ -537,23 +539,10 @@ class CronSchedule(PrefectBaseModel):
             # datetime resets `fold` to 0.
             start_localized = start
 
-        cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
-        dates = set()
-        counter = 0
+        start_instant = _whenever_zdt_from_py(start_localized)
 
-        while True:
-            # croniter does not handle DST properly when the start time is
-            # in and around when the actual shift occurs. To work around this,
-            # we use the naive start time to get the next cron date delta, then
-            # add that time to the original scheduling anchor.
-            next_time = cron.get_next(datetime.datetime)
-            delta = next_time - start_naive_tz
-            # Use `whenever` to handle DST correctly. The wall-clock delta is
-            # added to the localized start, then the result is disambiguated
-            # on the instant timeline: when the wall time falls in a DST fold,
-            # pick the earliest interpretation still on/after `start` so a
-            # start in the second fold yields second-fold dates.
-            next_wall = start_naive_tz + delta  # == next_time
+        def localize(next_wall: datetime.datetime) -> datetime.datetime:
+            # Pick the earliest fold still on/after the start instant.
             first = _whenever_zdt_from_py(
                 next_wall.replace(tzinfo=start_localized.tzinfo, fold=0)
             )
@@ -567,18 +556,54 @@ class CronSchedule(PrefectBaseModel):
                         next_wall.replace(tzinfo=start_localized.tzinfo, fold=1)
                     )
                 )
-            start_instant = _whenever_zdt_from_py(start_localized)
             viable = [c for c in candidates if c >= start_instant]
             _zdt = (min(viable) if viable else min(candidates)).to_tz(
                 self.timezone or "UTC"
             )
-            next_date = _whenever_to_stdlib(_zdt)
+            return _whenever_to_stdlib(_zdt)
+
+        cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
+        wall_times = iter(lambda: cron.get_next(datetime.datetime), None)
+        candidate_dates: Iterator[datetime.datetime] = map(localize, wall_times)
+
+        start_zdt = _whenever_zdt_from_py(start)
+        # Transition lookup excludes the current second, including its fractions.
+        transition = start_zdt.add(seconds=1).prev_transition()
+        if transition is not None:
+            gap = _whenever_delta_seconds(
+                transition.offset - transition.subtract(seconds=1).offset
+            )
+            if 0 <= _whenever_delta_seconds(start_zdt - transition) < gap:
+                # Recover nominal times in the gap whose shifted instants are still
+                # ahead. Merge with ordinary times for non-hour gaps like Lord Howe.
+                lookback = croniter(
+                    self.cron,
+                    start_naive_tz - datetime.timedelta(seconds=gap),
+                    day_or=self.day_or,
+                )
+                gap_end = _whenever_to_stdlib(transition).replace(tzinfo=None)
+                shifted_times = takewhile(
+                    lambda wall: wall < gap_end,
+                    iter(lambda: lookback.get_next(datetime.datetime), None),
+                )
+                candidate_dates = merge(
+                    map(localize, shifted_times),
+                    candidate_dates,
+                    key=lambda date: date.astimezone(datetime.UTC),
+                )
+
+        start_utc = start.astimezone(datetime.UTC)
+        end_utc = end.astimezone(datetime.UTC) if end else None
+        dates = set()
+        counter = 0
+        for next_date in candidate_dates:
+            next_utc = next_date.astimezone(datetime.UTC)
 
             # if the end date was exceeded, exit
-            if end and next_date > end:
+            if end_utc and next_utc > end_utc:
                 break
             # ensure no duplicates; weird things can happen with DST
-            if next_date not in dates:
+            if next_utc >= start_utc and next_date not in dates:
                 dates.add(next_date)
                 yield create_datetime_instance(next_date)
 
