@@ -1328,6 +1328,233 @@ The default limit applied to queries that can return multiple objects, such as `
 **Supported environment variables**:
 `PREFECT_SERVER_API_KEEPALIVE_TIMEOUT`
 
+### `guard_enabled`
+
+        Enables the optional fastapi-guard security middleware for the server
+        API. When enabled, the server applies IP block/allow lists, rate
+        limiting with auto-ban, user-agent blocking, and penetration-attempt
+        detection to incoming requests. Requires the fastapi-guard dependency;
+        enabling it without the dependency installed raises an error at
+        startup. Defaults to `False`.
+        
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `server.api.guard_enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_ENABLED`
+
+### `guard_rate_limit`
+Maximum requests per IP per rate limiting window when the guard middleware is enabled.
+
+**Type**: `integer`
+
+**Default**: `100`
+
+**TOML dotted key path**: `server.api.guard_rate_limit`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_RATE_LIMIT`
+
+### `guard_rate_limit_window`
+Rate limiting window in seconds when the guard middleware is enabled.
+
+**Type**: `integer`
+
+**Default**: `60`
+
+**TOML dotted key path**: `server.api.guard_rate_limit_window`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_RATE_LIMIT_WINDOW`
+
+### `guard_auto_ban_threshold`
+Number of suspicious events before an IP is banned when the guard middleware is enabled.
+
+**Type**: `integer`
+
+**Default**: `10`
+
+**TOML dotted key path**: `server.api.guard_auto_ban_threshold`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_AUTO_BAN_THRESHOLD`
+
+### `guard_auto_ban_duration`
+Duration of automatic IP bans in seconds when the guard middleware is enabled.
+
+**Type**: `integer`
+
+**Default**: `300`
+
+**TOML dotted key path**: `server.api.guard_auto_ban_duration`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_AUTO_BAN_DURATION`
+
+### `guard_passive_mode`
+
+        When `True`, the guard middleware logs violations without blocking
+        requests. Useful for observing what would be blocked before
+        enforcing.
+        
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `server.api.guard_passive_mode`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_PASSIVE_MODE`
+
+### `guard_blocked_ips`
+Comma-separated IPs or CIDR ranges to block when the guard middleware is enabled.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.guard_blocked_ips`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_BLOCKED_IPS`
+
+### `guard_allowed_ips`
+Comma-separated IPs or CIDR ranges to allow through the guard middleware; when set, all other IPs are blocked.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.guard_allowed_ips`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_ALLOWED_IPS`
+
+### `guard_blocked_user_agents`
+Comma-separated user-agent substrings to block when the guard middleware is enabled.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.guard_blocked_user_agents`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_BLOCKED_USER_AGENTS`
+
+### `guard_trusted_proxies`
+
+        Comma-separated proxy IPs or CIDR ranges trusted for
+        X-Forwarded-For resolution when the guard middleware is enabled.
+        Leave unset to keep client-supplied forwarding headers untrusted.
+        
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.guard_trusted_proxies`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_TRUSTED_PROXIES`
+
+### `guard_trusted_proxy_depth`
+Number of trusted proxies to walk in X-Forwarded-For when the guard middleware is enabled.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.api.guard_trusted_proxy_depth`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_TRUSTED_PROXY_DEPTH`
+
+### `guard_excluded_paths`
+
+        Comma-separated path prefixes excluded from guard detection checks.
+        Defaults to health, docs and OpenAPI paths. Global IP lists still
+        apply on excluded paths.
+        
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.guard_excluded_paths`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_EXCLUDED_PATHS`
+
+### `guard_blocked_countries`
+Comma-separated ISO country codes to block when the guard middleware is enabled. Requires IPINFO_TOKEN geo lookups.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.guard_blocked_countries`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_BLOCKED_COUNTRIES`
+
+### `guard_allowed_countries`
+Comma-separated ISO country codes to allow when the guard middleware is enabled. Requires IPINFO_TOKEN geo lookups.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.guard_allowed_countries`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_ALLOWED_COUNTRIES`
+
+### `guard_block_cloud_providers`
+Comma-separated cloud provider names (e.g. AWS, GCP, Azure) to block when the guard middleware is enabled. Requires IPINFO_TOKEN.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.guard_block_cloud_providers`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_BLOCK_CLOUD_PROVIDERS`
+
+### `guard_redis_url`
+
+        Redis URL for guard state shared across workers and replicas when
+        the guard middleware is enabled. Unset keeps counters and bans
+        in-memory per process.
+        
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.guard_redis_url`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_REDIS_URL`
+
+### `guard_ipinfo_token`
+IPInfo token for geo and cloud-provider lookups when the guard middleware is enabled.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.guard_ipinfo_token`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_GUARD_IPINFO_TOKEN`
+
 ### `csrf_protection_enabled`
 
         Controls the activation of CSRF protection for the Prefect server API.
