@@ -1,3 +1,4 @@
+import dataclasses
 import io
 import json
 import uuid
@@ -115,6 +116,24 @@ def clear_sets():
 class SimpleDataclass:
     x: int
     y: int
+
+
+@dataclass
+class DataclassWithNonInitField:
+    x: int
+    y: int = dataclasses.field(init=False, default=0)
+
+
+@dataclass(frozen=True)
+class FrozenDataclassWithNonInitField:
+    x: int
+    y: int = dataclasses.field(init=False, default=0)
+
+
+@dataclass(repr=False)
+class DataclassWithUnsetNonInitField:
+    x: int
+    y: int = dataclasses.field(init=False)
 
 
 class SimplePydantic(pydantic.BaseModel):
@@ -252,6 +271,41 @@ class TestVisitCollection:
         result = visit_collection(inp, visit_fn=visit_even_numbers, return_data=False)
         assert result is None
         assert EVEN == expected
+
+    @pytest.mark.parametrize(
+        "cls", [DataclassWithNonInitField, FrozenDataclassWithNonInitField]
+    )
+    def test_visit_collection_preserves_dataclass_non_init_fields(self, cls):
+        inp = cls(x=2)
+        object.__setattr__(inp, "y", 3)
+
+        result = visit_collection(inp, visit_fn=negative_even_numbers, return_data=True)
+
+        assert isinstance(result, cls)
+        assert result.x == -2
+        assert result.y == 3
+
+    @pytest.mark.parametrize(
+        "cls", [DataclassWithNonInitField, FrozenDataclassWithNonInitField]
+    )
+    def test_visit_collection_transforms_dataclass_non_init_fields(self, cls):
+        inp = cls(x=1)
+        object.__setattr__(inp, "y", 4)
+
+        result = visit_collection(inp, visit_fn=negative_even_numbers, return_data=True)
+
+        assert isinstance(result, cls)
+        assert result.x == 1
+        assert result.y == -4
+
+    def test_visit_collection_skips_unset_dataclass_non_init_fields(self):
+        inp = DataclassWithUnsetNonInitField(x=2)
+
+        result = visit_collection(inp, visit_fn=negative_even_numbers, return_data=True)
+
+        assert isinstance(result, DataclassWithUnsetNonInitField)
+        assert result.x == -2
+        assert not hasattr(result, "y")
 
     def test_visit_collection_does_not_consume_generators(self):
         def f():
