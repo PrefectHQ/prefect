@@ -443,11 +443,23 @@ def process_v1_params(
 
     type_ = Any if param.annotation is inspect.Parameter.empty else param.annotation
 
+    if param.kind == inspect.Parameter.VAR_POSITIONAL:
+        # *args: never required; typed as an array of the annotation
+        # (https://github.com/PrefectHQ/prefect/issues/23416)
+        type_ = list[type_]  # type: ignore[valid-type]
+        default: Any = None
+    elif param.kind == inspect.Parameter.VAR_KEYWORD:
+        # **kwargs: never required; typed as an object of the annotation
+        type_ = dict[str, type_]  # type: ignore[valid-type]
+        default = None
+    else:
+        default = ... if param.default is param.empty else param.default
+
     with warnings.catch_warnings():
         # Note: pydantic.v1 doesn't have the warnings module, so we can't suppress them
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         field: Any = pydantic_v1.Field(
-            default=... if param.default is param.empty else param.default,
+            default=default,
             title=param.name,
             description=docstrings.get(param.name, None),
             alias=aliases.get(name),

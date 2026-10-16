@@ -122,6 +122,23 @@ class TestFunctionToSchema:
             "definitions": {},
         }
 
+    def test_function_with_variadic_args_not_required_and_typed(self):
+        # https://github.com/PrefectHQ/prefect/issues/23416 — *args/**kwargs
+        # must not be required, and must carry collection types, otherwise
+        # deployments with enforced schemas reject valid runs.
+        def f(x: int = 1, *names: str, **options: int):
+            pass
+
+        dumped = callables.parameter_schema(f).model_dump_for_openapi()
+        assert "names" not in dumped.get("required", [])
+        assert "options" not in dumped.get("required", [])
+        assert dumped["properties"]["names"]["type"] == "array"
+        assert dumped["properties"]["names"]["items"] == {"type": "string"}
+        assert dumped["properties"]["options"]["type"] == "object"
+        assert dumped["properties"]["options"]["additionalProperties"] == {
+            "type": "integer"
+        }
+
     def test_function_with_two_arguments(self):
         def f(x: int, y: float = 5.0):
             pass
