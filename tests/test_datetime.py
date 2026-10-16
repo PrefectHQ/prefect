@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from pydantic import BaseModel
 
+from prefect.client.schemas.objects import FlowRun
 from prefect.types._datetime import (
     Date,
     DateTime,
@@ -309,28 +310,69 @@ class TestPendulumCompatibility:
             == "1 day before"
         )
 
-    def test_pydantic_types_preserve_calendar_duration_and_json(self):
+    @pytest.mark.parametrize("input_type", ["strings", "pendulum"])
+    @pytest.mark.parametrize(
+        "duration, years, months",
+        [("P1M2DT3H", 0, 1), ("P1Y2M9DT3H4M5.123456S", 1, 2)],
+    )
+    def test_pydantic_types_preserve_calendar_duration_and_json(
+        self, input_type: str, duration: str, years: int, months: int
+    ):
         class Model(BaseModel):
             timestamp: DateTime
             date: Date
             duration: Duration
 
-        value = Model(
-            timestamp="2024-06-15T14:30:45Z",
-            date="2024-06-15",
-            duration="P1M2DT3H",
+        inputs = {
+            "strings": {
+                "timestamp": "2024-06-15T14:30:45Z",
+                "date": "2024-06-15",
+                "duration": duration,
+            },
+            "pendulum": {
+                "timestamp": pendulum.datetime(2024, 6, 15, 14, 30, 45),
+                "date": pendulum.date(2024, 6, 15),
+                "duration": pendulum.parse(duration, exact=True),
+            },
+        }
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            value = Model(**inputs[input_type])
+            serialized = value.model_dump_json()
+
+        assert isinstance(value.timestamp, DateTime)
+        assert isinstance(value.timestamp, pendulum.DateTime)
+        with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'in_tz'"):
+            assert value.timestamp.in_tz("America/New_York").hour == 10
+        assert isinstance(value.date, Date)
+        assert isinstance(value.date, pendulum.Date)
+        with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'add'"):
+            assert value.date.add(days=1).day == 16
+        assert isinstance(value.duration, Duration)
+        assert isinstance(value.duration, pendulum.Duration)
+        assert value.duration.years == years
+        assert value.duration.months == months
+        with pytest.warns(
+            DeprecationWarning, match="Pendulum datetime member 'in_words'"
+        ):
+            value.duration.in_words()
+        assert serialized == (
+            '{"timestamp":"2024-06-15T14:30:45Z","date":"2024-06-15",'
+            f'"duration":"{duration}"}}'
         )
 
-        assert isinstance(value.timestamp, pendulum.DateTime)
-        assert value.timestamp.in_tz("America/New_York").hour == 10
-        assert isinstance(value.date, pendulum.Date)
-        assert value.date.add(days=1).day == 16
-        assert isinstance(value.duration, pendulum.Duration)
-        assert value.duration.months == 1
-        assert value.model_dump_json() == (
-            '{"timestamp":"2024-06-15T14:30:45Z","date":"2024-06-15",'
-            '"duration":"P1M2DT3H"}'
+    def test_api_model_timestamps_warn_on_pendulum_methods(self):
+        run = FlowRun.model_validate(
+            {
+                "flow_id": "00000000-0000-0000-0000-000000000001",
+                "created": "2024-06-15T14:30:45Z",
+            }
         )
+
+        assert isinstance(run.created, DateTime)
+        with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'add'"):
+            assert run.created.add(days=1).day == 16
 
     def test_direct_construction_and_frozen_pendulum_clock(self):
         value = DateTime.instance(FIXED)

@@ -12,11 +12,11 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 import humanize
 from dateutil.parser import parse
 from pydantic import AfterValidator
+from pydantic_core import core_schema as _core_schema
 from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
     from pydantic import GetCoreSchemaHandler
-    from pydantic_core import core_schema as _core_schema
     from whenever import DateTimeDelta
     from whenever import ZonedDateTime as _ZDTProbe
 
@@ -148,10 +148,25 @@ else:
             pendulum.DateTime, datetime.datetime
         )
 
+        @classmethod
+        def _validate(
+            cls, value: Any, handler: _core_schema.ValidatorFunctionWrapHandler
+        ) -> DateTime:
+            """Retain the warning-enabled type after upstream validation."""
+            return cls.instance(super()._validate(value, handler))
+
     class Date(_PendulumDeprecationMixin, PydanticDate):  # type: ignore[no-redef]
         """Pendulum `Date` that warns on Pendulum-only member calls."""
 
         _pendulum_only_members = _pendulum_only_members(pendulum.Date, datetime.date)
+
+        @classmethod
+        def _validate(
+            cls, value: Any, handler: _core_schema.ValidatorFunctionWrapHandler
+        ) -> Date:
+            """Retain the warning-enabled type after upstream validation."""
+            validated = super()._validate(value, handler)
+            return cls(validated.year, validated.month, validated.day)
 
     class Duration(_PendulumDeprecationMixin, PydanticDuration):  # type: ignore[no-redef]
         """Pendulum `Duration` that warns on Pendulum-only member calls."""
@@ -159,6 +174,23 @@ else:
         _pendulum_only_members = _pendulum_only_members(
             pendulum.Duration, datetime.timedelta
         )
+
+        @classmethod
+        def _validate(
+            cls, value: Any, handler: _core_schema.ValidatorFunctionWrapHandler
+        ) -> Duration:
+            """Retain the warning-enabled type and its calendar components."""
+            validated = super()._validate(value, handler)
+            return cls(
+                years=validated.years,
+                months=validated.months,
+                weeks=validated.weeks,
+                days=validated.remaining_days,
+                hours=validated.hours,
+                minutes=validated.minutes,
+                seconds=validated.remaining_seconds,
+                microseconds=validated.microseconds,
+            )
 
     Interval: TypeAlias = datetime.timedelta
 
