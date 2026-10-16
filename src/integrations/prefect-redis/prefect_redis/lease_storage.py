@@ -91,9 +91,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
               end
             end
             -- Proceed with idempotent deletes regardless
-            redis.call('DEL', KEYS[1])
+            local removed = redis.call('DEL', KEYS[1])
             redis.call('ZREM', KEYS[2], ARGV[1])
-            return 1
+            return removed
             """
             self._revoke_script = self.redis_client.register_script(revoke_script)
 
@@ -279,7 +279,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             logger.error(f"Failed to renew lease {lease_id}: {e}")
             raise
 
-    async def revoke_lease(self, lease_id: UUID) -> None:
+    async def revoke_lease(self, lease_id: UUID) -> bool:
         try:
             lease_key = self._lease_key(lease_id)
             # Use a Lua script for atomic multi-key updates with in-script read/cleanup
@@ -292,7 +292,8 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 str(lease_id),
                 self.base_prefix,
             ]
-            await self._revoke_script(keys=keys, args=args)  # type: ignore[misc]
+            removed = await self._revoke_script(keys=keys, args=args)  # type: ignore[misc]
+            return bool(removed)
         except RedisError as e:
             logger.error(f"Failed to revoke lease {lease_id}: {e}")
             raise
