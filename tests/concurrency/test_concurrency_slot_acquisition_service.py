@@ -1,11 +1,18 @@
 import asyncio
+import os
+import sys
 from unittest import mock
 
 import pytest
 from httpx import HTTPStatusError, Request, Response
 
 from prefect.client.orchestration import get_client
-from prefect.concurrency.services import ConcurrencySlotAcquisitionService
+from prefect.concurrency import services
+from prefect.concurrency.services import (
+    ConcurrencySlotAcquisitionService,
+    _notify_concurrency_slots_released,
+    _SlotReleaseWaiter,
+)
 
 pytestmark = pytest.mark.clear_db
 
@@ -70,17 +77,74 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
     limit_names = sorted(["api", "database"])
     service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
 
-    with mock.patch("asyncio.sleep") as sleep:
+    with mock.patch.object(_SlotReleaseWaiter, "wait", autospec=True) as wait:
         future = service.send((1, "concurrency", None, None))
         await service.drain()
         returned_response = await asyncio.wrap_future(future)
 
         assert returned_response == responses[1]
 
-        sleep.assert_called_once_with(
-            float(responses[0].response.headers["Retry-After"])
+        wait.assert_called_once_with(
+            mock.ANY, float(responses[0].response.headers["Retry-After"])
         )
         assert mocked_client.client.increment_concurrency_slots.call_count == 2
+
+
+async def test_local_release_wakes_waiter_before_retry_after(mocked_client):
+    responses = [
+        HTTPStatusError(
+            "Limit is locked",
+            request=Request("get", "/"),
+            response=Response(423, headers={"Retry-After": "60"}),
+        ),
+        Response(200),
+    ]
+    mocked_client.client.increment_concurrency_slots.side_effect = responses
+
+    service = ConcurrencySlotAcquisitionService.instance(frozenset(["api"]))
+    future = service.send((1, "concurrency", None, None))
+
+    while mocked_client.client.increment_concurrency_slots.call_count < 1:
+        await asyncio.sleep(0.01)
+
+    _notify_concurrency_slots_released(["api"])
+
+    returned_response = await asyncio.wait_for(asyncio.wrap_future(future), 5)
+    assert returned_response == responses[1]
+    assert mocked_client.client.increment_concurrency_slots.call_count == 2
+    await service.drain()
+
+
+async def test_release_of_unrelated_limit_does_not_wake_waiter(mocked_client):
+    mocked_client.client.increment_concurrency_slots.side_effect = [
+        HTTPStatusError(
+            "Limit is locked",
+            request=Request("get", "/"),
+            response=Response(423, headers={"Retry-After": "60"}),
+        ),
+        Response(200),
+    ]
+
+    service = ConcurrencySlotAcquisitionService.instance(frozenset(["api"]))
+    with mock.patch.object(
+        service, "_notify_slots_released", wraps=service._notify_slots_released
+    ) as notify:
+        future = service.send((1, "concurrency", None, None))
+
+        while mocked_client.client.increment_concurrency_slots.call_count < 1:
+            await asyncio.sleep(0.01)
+
+        _notify_concurrency_slots_released(["database"])
+        await asyncio.sleep(0.1)
+
+        notify.assert_not_called()
+        assert not future.done()
+        assert mocked_client.client.increment_concurrency_slots.call_count == 1
+
+        _notify_concurrency_slots_released(["api"])
+        await asyncio.wait_for(asyncio.wrap_future(future), 5)
+        notify.assert_called_once()
+    await service.drain()
 
 
 async def test_failed_call_status_code_not_retryable_returns_exception(mocked_client):
@@ -101,6 +165,22 @@ async def test_failed_call_status_code_not_retryable_returns_exception(mocked_cl
 
     assert isinstance(exception, HTTPStatusError)
     assert exception == response
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fork is POSIX-only")
+@pytest.mark.timeout(30)
+def test_notify_after_fork_does_not_block_on_inherited_lock():
+    with services._running_services_lock:
+        pid = os.fork()
+        if pid == 0:  # child
+            try:
+                _notify_concurrency_slots_released(["api"])
+                os._exit(0)
+            except BaseException:
+                os._exit(1)
+
+    _, status = os.waitpid(pid, 0)
+    assert os.waitstatus_to_exitcode(status) == 0
 
 
 async def test_basic_exception_returns_exception(mocked_client):

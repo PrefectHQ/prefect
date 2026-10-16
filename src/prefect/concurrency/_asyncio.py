@@ -27,6 +27,7 @@ from prefect.logging.loggers import get_run_logger
 from .services import (
     ConcurrencySlotAcquisitionService,
     ConcurrencySlotAcquisitionWithLeaseService,
+    _notify_concurrency_slots_released,  # pyright: ignore[reportPrivateUsage]
 )
 
 if TYPE_CHECKING:
@@ -207,14 +208,25 @@ async def arelease_concurrency_slots(
         response = await client.release_concurrency_slots(
             names=names, slots=slots, occupancy_seconds=occupancy_seconds
         )
-        return _response_to_minimal_concurrency_limit_response(response)
+    _notify_concurrency_slots_released(names)
+    return _response_to_minimal_concurrency_limit_response(response)
 
 
 async def arelease_concurrency_slots_with_lease(
     lease_id: UUID,
+    names: Optional[list[str]] = None,
 ) -> None:
+    """Release the slots held by `lease_id`.
+
+    Args:
+        lease_id: The lease whose slots should be released.
+        names: The names of the limits the lease holds slots on. When given, callers
+            in this process waiting on those limits are woken to retry immediately.
+    """
     async with get_client() as client:
         await client.release_concurrency_slots_with_lease(lease_id=lease_id)
+    if names:
+        _notify_concurrency_slots_released(names)
 
 
 def _discard_cleanup_lease(lease_id: UUID) -> None:
@@ -345,6 +357,7 @@ async def concurrency(
         try:
             await arelease_concurrency_slots_with_lease(
                 lease_id=response.lease_id,
+                names=names,
             )
         except anyio.get_cancelled_exc_class():
             # The task was cancelled before it could release the lease. Leave the
