@@ -80,6 +80,22 @@ describe("DurationInput", () => {
 		expect(unitSelect).toHaveTextContent("Hours");
 	});
 
+	it("keeps seconds available when min is below a minute", () => {
+		const onChange = vi.fn();
+		render(<DurationInput value={90} onChange={onChange} min={10} />);
+
+		expect(screen.getByLabelText("Duration quantity")).toHaveValue(90);
+		expect(screen.getByLabelText("Duration unit")).toHaveTextContent("Seconds");
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("picks the largest available unit that divides the value", () => {
+		render(<DurationInput value={120} onChange={vi.fn()} min={10} />);
+
+		expect(screen.getByLabelText("Duration quantity")).toHaveValue(2);
+		expect(screen.getByLabelText("Duration unit")).toHaveTextContent("Minutes");
+	});
+
 	it("disables inputs when disabled prop is true", () => {
 		render(<DurationInput value={30} onChange={vi.fn()} disabled />);
 

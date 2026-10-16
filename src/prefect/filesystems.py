@@ -191,13 +191,15 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             with open(from_path / Path(".prefectignore")) as f:
                 ignore_patterns = f.readlines()
             included_files = filter_files(
-                root=from_path, ignore_patterns=ignore_patterns
+                root=from_path, ignore_patterns=ignore_patterns, as_posix=True
             )
 
             def ignore_func(directory, files):
                 relative_path = Path(directory).relative_to(from_path)
                 files_to_ignore = [
-                    f for f in files if str(relative_path / f) not in included_files
+                    f
+                    for f in files
+                    if (relative_path / f).as_posix() not in included_files
                 ]
                 return files_to_ignore
         else:
@@ -210,13 +212,15 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     async def _get_ignore_func(self, local_path: str, ignore_file: str):
         with open(ignore_file) as f:
             ignore_patterns = f.readlines()
-        included_files = filter_files(root=local_path, ignore_patterns=ignore_patterns)
+        included_files = filter_files(
+            root=local_path, ignore_patterns=ignore_patterns, as_posix=True
+        )
 
         def ignore_func(directory, files):
             relative_path = Path(directory).relative_to(local_path)
 
             files_to_ignore = [
-                f for f in files if str(relative_path / f) not in included_files
+                f for f in files if (relative_path / f).as_posix() not in included_files
             ]
             return files_to_ignore
 
@@ -278,13 +282,15 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             with open(ignore_file) as f:
                 ignore_patterns = f.readlines()
             included_files = filter_files(
-                root=local_path, ignore_patterns=ignore_patterns
+                root=local_path, ignore_patterns=ignore_patterns, as_posix=True
             )
 
             def ignore_func(directory, files):
                 relative_path = Path(directory).relative_to(local_path)
                 files_to_ignore = [
-                    f for f in files if str(relative_path / f) not in included_files
+                    f
+                    for f in files
+                    if (relative_path / f).as_posix() not in included_files
                 ]
                 return files_to_ignore
         else:
@@ -539,13 +545,13 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 ignore_patterns = f.readlines()
 
             included_files = filter_files(
-                local_path, ignore_patterns, include_dirs=True
+                local_path, ignore_patterns, include_dirs=True, as_posix=True
             )
 
         counter = 0
         for f in Path(local_path).rglob("*"):
             relative_path = f.relative_to(local_path)
-            if included_files and str(relative_path) not in included_files:
+            if included_files and relative_path.as_posix() not in included_files:
                 continue
 
             if to_path.endswith("/"):
@@ -595,13 +601,13 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 ignore_patterns = f.readlines()
 
             included_files = filter_files(
-                local_path, ignore_patterns, include_dirs=True
+                local_path, ignore_patterns, include_dirs=True, as_posix=True
             )
 
         counter = 0
         for f in Path(local_path).rglob("*"):
             relative_path = f.relative_to(local_path)
-            if included_files and str(relative_path) not in included_files:
+            if included_files and relative_path.as_posix() not in included_files:
                 continue
 
             if to_path.endswith("/"):

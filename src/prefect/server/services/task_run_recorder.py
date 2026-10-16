@@ -641,7 +641,9 @@ async def consumer(
 
         try:
             await record_bulk_task_run_events([item.event for item in batch])
-        except Exception:
+        except (Exception, asyncio.CancelledError) as exc:
+            # Database drivers can surface connection failures as
+            # CancelledError, so apply the same retry accounting to it
             dropped = 0
             to_retry = 0
             for item in batch:
@@ -659,8 +661,10 @@ async def consumer(
                 exc_info=True,
             )
 
-            if dropped > 0:
+            if dropped > 0 or isinstance(exc, asyncio.CancelledError):
                 raise
+
+    stopping = False
 
     async def flush_periodically():
         while True:
@@ -669,7 +673,15 @@ async def consumer(
                 if queue.qsize():
                     await flush()
             except asyncio.CancelledError:
-                return
+                if stopping:
+                    return
+                # Not a shutdown request (e.g. a CancelledError raised by the
+                # database driver during an outage); exiting here would stop
+                # periodic flushing for the life of the service
+                logger.warning(
+                    "Periodic flush was unexpectedly cancelled; continuing",
+                    exc_info=True,
+                )
             except Exception:
                 # flush() re-raises when events are dropped; this task is never
                 # awaited, so letting that propagate would kill periodic
@@ -702,7 +714,10 @@ async def consumer(
     try:
         yield message_handler
     finally:
+        stopping = True
         periodic_flush.cancel()
+        # let an in-flight periodic flush restore its batch before the final flush
+        await asyncio.wait([periodic_flush])
 
         if queue.qsize():
             await flush()

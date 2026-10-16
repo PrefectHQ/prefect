@@ -38,12 +38,19 @@ def filter_files(
     root: str = ".",
     ignore_patterns: Optional[Iterable[AnyStr]] = None,
     include_dirs: bool = True,
+    *,
+    as_posix: bool = False,
 ) -> set[str]:
     """
     This function accepts a root directory path and a list of file patterns to ignore, and returns
-    a list of files that excludes those that should be ignored.
+    a set of paths that excludes those that should be ignored.
 
     The specification matches that of [.gitignore files](https://git-scm.com/docs/gitignore).
+
+    Returned paths are relative to `root` and use platform-native separators
+    by default. Set `as_posix=True` to return forward-slash-separated paths.
+    When `include_dirs=True`, ancestor directories of included files are also
+    included so directory traversal can reach those files.
     """
     spec = pathspec.GitIgnoreSpec.from_lines(ignore_patterns or [])
     ignored_files = {p.path for p in spec.match_tree_entries(root)}
@@ -66,6 +73,8 @@ def filter_files(
                 parent_dirs.add(parent_str)
         included_files |= parent_dirs
 
+    if as_posix:
+        return {Path(path).as_posix() for path in included_files}
     return included_files
 
 

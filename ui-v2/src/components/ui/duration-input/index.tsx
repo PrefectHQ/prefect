@@ -25,17 +25,28 @@ const DURATION_UNITS: DurationUnit[] = [
 	{ label: "Days", value: SECONDS_IN_DAY },
 ];
 
-function getDefaultUnitForValue(value: number): number {
-	if (value > 0 && value % SECONDS_IN_DAY === 0) {
-		return SECONDS_IN_DAY;
-	}
-	if (value > 0 && value % SECONDS_IN_HOUR === 0) {
-		return SECONDS_IN_HOUR;
-	}
-	if (value > 0 && value % SECONDS_IN_MINUTE === 0) {
-		return SECONDS_IN_MINUTE;
-	}
-	return 1;
+/**
+ * Units a duration of at least `min` seconds can be expressed in: every unit
+ * at least as large as `min`, plus the largest unit that fits within `min`
+ * (so a 10 second minimum still allows seconds).
+ */
+function getAvailableUnits(min: number): DurationUnit[] {
+	const largestUnitWithinMin = DURATION_UNITS.filter((u) => u.value <= min).at(
+		-1,
+	);
+	return DURATION_UNITS.filter(
+		(u) => u.value >= min || u === largestUnitWithinMin,
+	);
+}
+
+function getDefaultUnitForValue(
+	value: number,
+	availableUnits: DurationUnit[],
+): number {
+	const largestDivisor = availableUnits
+		.filter((u) => value > 0 && value % u.value === 0)
+		.at(-1);
+	return (largestDivisor ?? availableUnits[0] ?? DURATION_UNITS[0]).value;
 }
 
 export type DurationInputProps = {
@@ -55,11 +66,11 @@ export function DurationInput({
 	className,
 	disabled = false,
 }: DurationInputProps) {
-	const [unit, setUnit] = useState<number>(() => getDefaultUnitForValue(value));
+	const availableUnits = useMemo(() => getAvailableUnits(min), [min]);
 
-	const availableUnits = useMemo(() => {
-		return DURATION_UNITS.filter((u) => u.value >= min);
-	}, [min]);
+	const [unit, setUnit] = useState<number>(() =>
+		getDefaultUnitForValue(value, availableUnits),
+	);
 
 	const quantity = useMemo(() => {
 		return value / unit;
@@ -79,6 +90,9 @@ export function DurationInput({
 	const handleUnitChange = useCallback(
 		(newUnitValue: string) => {
 			const newUnit = Number(newUnitValue);
+			if (!Number.isFinite(newUnit) || newUnit <= 0) {
+				return;
+			}
 			const oldUnit = unit;
 			setUnit(newUnit);
 			let newValue = (value / oldUnit) * newUnit;

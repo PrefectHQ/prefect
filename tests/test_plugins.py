@@ -1,3 +1,4 @@
+import sys
 from importlib.metadata import EntryPoints
 from unittest.mock import Mock, patch
 
@@ -101,3 +102,114 @@ def test_load_prefect_collections_caches_result(mock_safe_load, mock_entry_point
     assert result1 == result2
     mock_entry_points.assert_called_once()
     mock_safe_load.assert_called_once()
+
+
+@patch("prefect._internal.plugins.collections.entry_points")
+@patch("prefect._internal.plugins.collections.safe_load_entrypoints")
+def test_load_prefect_collections_reload_picks_up_new_entrypoints(
+    mock_safe_load, mock_entry_points
+):
+    first = Mock()
+    first.name = "collection1"
+    second = Mock()
+    second.name = "collection2"
+    mock_entry_points.side_effect = [
+        EntryPoints([first]),
+        EntryPoints([first, second]),
+    ]
+    mock_safe_load.side_effect = [
+        {"collection1": "module1"},
+        {"collection2": "module2"},
+    ]
+
+    load_prefect_collections()
+    result = load_prefect_collections(reload=True)
+
+    assert result == {"collection1": "module1", "collection2": "module2"}
+    assert [ep.name for ep in mock_safe_load.call_args_list[1].args[0]] == [
+        "collection2"
+    ]
+
+
+@patch("prefect._internal.plugins.collections.entry_points")
+@patch("prefect._internal.plugins.collections.safe_load_entrypoints")
+def test_load_prefect_collections_reload_retries_failed_entrypoints(
+    mock_safe_load, mock_entry_points
+):
+    loaded = Mock()
+    loaded.name = "collection1"
+    broken = Mock()
+    broken.name = "collection2"
+    mock_entry_points.return_value = EntryPoints([loaded, broken])
+    mock_safe_load.side_effect = [
+        {"collection1": "module1", "collection2": ImportError("missing")},
+        {"collection2": "module2"},
+    ]
+
+    load_prefect_collections()
+    result = load_prefect_collections(reload=True)
+
+    assert result == {"collection1": "module1", "collection2": "module2"}
+    assert [ep.name for ep in mock_safe_load.call_args_list[1].args[0]] == [
+        "collection2"
+    ]
+
+
+async def test_install_package_reloads_collections_after_install():
+    from prefect.cli import _worker_utils
+
+    calls = []
+    with (
+        patch(
+            "prefect._internal.installation.ainstall_packages",
+            side_effect=lambda *args, **kwargs: calls.append("install"),
+        ),
+        patch.object(
+            _worker_utils,
+            "load_prefect_collections",
+            side_effect=lambda **kwargs: calls.append(("load", kwargs)),
+        ),
+    ):
+        await _worker_utils._install_package(Mock(), "prefect-kubernetes")
+
+    assert calls == ["install", ("load", {"reload": True})]
+
+
+async def test_worker_installed_after_first_load_is_found(tmp_path, monkeypatch):
+    from prefect.cli import _worker_utils
+    from prefect.utilities.dispatch import get_registry_for_type
+    from prefect.workers.base import BaseWorker
+
+    worker_type = "test-late-installed-worker"
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.delitem(sys.modules, "late_installed_worker", raising=False)
+
+    assert _worker_utils._load_worker_class(worker_type) is None
+
+    async def install(*args, **kwargs):
+        # What pip leaves on disk: a module and a dist-info with the entry point.
+        (tmp_path / "late_installed_worker.py").write_text(
+            "from prefect.workers.base import BaseWorker\n"
+            "\n"
+            "class LateInstalledWorker(BaseWorker):\n"
+            f"    type = {worker_type!r}\n"
+        )
+        dist_info = tmp_path / "late_installed_worker-0.1.dist-info"
+        dist_info.mkdir()
+        (dist_info / "METADATA").write_text(
+            "Metadata-Version: 2.1\nName: late-installed-worker\nVersion: 0.1\n"
+        )
+        (dist_info / "entry_points.txt").write_text(
+            "[prefect.collections]\nlate_installed_worker = late_installed_worker\n"
+        )
+
+    try:
+        with patch("prefect._internal.installation.ainstall_packages", install):
+            await _worker_utils._install_package(Mock(), "late-installed-worker")
+
+        worker_class = _worker_utils._load_worker_class(worker_type)
+        assert worker_class is not None
+        assert worker_class.__name__ == "LateInstalledWorker"
+    finally:
+        get_registry_for_type(BaseWorker).pop(worker_type, None)
+        sys.modules.pop("late_installed_worker", None)
