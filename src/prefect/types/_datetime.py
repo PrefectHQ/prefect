@@ -289,11 +289,18 @@ else:
         if isinstance(value, pendulum.Interval):
             if isinstance(value, _Interval):
                 return value
-            return _Interval(
-                start=_datetime_instance(value.start),
-                end=_datetime_instance(value.end),
+            # Absolute intervals store their endpoints already swapped
+            # (start <= end) with `_invert` recording the original
+            # direction; re-constructing without it would flip "from now"
+            # into "ago". Date differences produce Date endpoints, which
+            # must not be coerced to DateTime.
+            wrapped = _Interval(
+                start=_wrap_pendulum_value(value.start),
+                end=_wrap_pendulum_value(value.end),
                 absolute=value._absolute,
             )
+            wrapped._invert = value._invert
+            return wrapped
         if isinstance(value, pendulum.Duration):
             if isinstance(value, Duration):
                 return value

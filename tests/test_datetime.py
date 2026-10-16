@@ -317,6 +317,37 @@ def test_pendulum_derived_values_retain_deprecation_notice():
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+def test_wrapped_interval_preserves_direction():
+    """Re-wrapping an absolute `Interval` must keep its `_invert` flag —
+    otherwise future diffs render as 'ago' instead of 'from now'."""
+    assert "from now" in human_friendly_diff(now("UTC").add(minutes=20)) or (
+        "in " in human_friendly_diff(now("UTC").add(minutes=20))
+    )
+    assert "ago" in human_friendly_diff(now("UTC").subtract(minutes=20))
+
+    later = now("UTC").add(hours=1)
+    earlier = now("UTC")
+    assert (earlier - later)._invert is True
+    assert (later - earlier)._invert is False
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+def test_date_subtraction_returns_interval():
+    """`Date - Date` and `Date.diff` produce date-endpoint intervals; the
+    wrap must not coerce endpoints to `DateTime`."""
+    with pytest.warns(DeprecationWarning):
+        interval = Date(2024, 1, 2).diff(Date(2024, 1, 1))
+    assert isinstance(interval, pendulum.Interval)
+    with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'in_days'"):
+        assert interval.in_days() == 1
+
+    subtracted = Date(2024, 1, 2) - Date(2024, 1, 1)
+    assert isinstance(subtracted, pendulum.Interval)
+    with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'in_days'"):
+        assert subtracted.in_days() == 1
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 def test_parse_datetime_non_datetime_results():
     """`pendulum.parse` may yield non-DateTime results; they are wrapped in
     the warning-enabled types rather than raising AttributeError."""
