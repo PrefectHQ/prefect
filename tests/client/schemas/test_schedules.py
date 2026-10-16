@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 import dateutil.rrule
 import dateutil.tz
 import pytest
+import pytz
 from pydantic import ValidationError
 
 from prefect.client.schemas.actions import (
@@ -16,6 +17,7 @@ from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
+    _iana_timezone_name,
     construct_schedule,
 )
 from prefect.types import DateTime
@@ -326,6 +328,11 @@ class TestRRuleScheduleFromRRule:
                 "America/New_York",
                 id="dateutil",
             ),
+            pytest.param(
+                lambda: pytz.timezone("America/New_York"),
+                "America/New_York",
+                id="pytz",
+            ),
         ],
     )
     def test_single_rrule_preserves_iana_timezone(
@@ -352,6 +359,11 @@ class TestRRuleScheduleFromRRule:
                 "America/New_York",
                 id="dateutil",
             ),
+            pytest.param(
+                lambda: pytz.timezone("America/New_York"),
+                "America/New_York",
+                id="pytz",
+            ),
         ],
     )
     def test_rruleset_preserves_iana_timezone(
@@ -366,6 +378,39 @@ class TestRRuleScheduleFromRRule:
         rset.rrule(rule)
         schedule = RRuleSchedule.from_rrule(rset)
         self._assert_daily_9am_across_dst(schedule, tz_name)
+
+    def test_single_rrule_preserves_pytz_localized_timezone(self) -> None:
+        tz = pytz.timezone("America/New_York")
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=tz.localize(self._DTSTART_BEFORE_DST),
+        )
+        schedule = RRuleSchedule.from_rrule(rule)
+        self._assert_daily_9am_across_dst(schedule, "America/New_York")
+
+    def test_rruleset_preserves_pytz_localized_timezone(self) -> None:
+        tz = pytz.timezone("America/New_York")
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=tz.localize(self._DTSTART_BEFORE_DST),
+        )
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(rule)
+        schedule = RRuleSchedule.from_rrule(rset)
+        self._assert_daily_9am_across_dst(schedule, "America/New_York")
+
+    @pytest.mark.parametrize(
+        "tzinfo,expected",
+        [
+            pytest.param(pytz.timezone("Europe/London"), "Europe/London", id="named"),
+            pytest.param(pytz.utc, "UTC", id="utc"),
+            pytest.param(pytz.FixedOffset(-300), "UTC", id="fixed-offset"),
+        ],
+    )
+    def test_iana_timezone_name_pytz(
+        self, tzinfo: datetime.tzinfo, expected: str
+    ) -> None:
+        assert _iana_timezone_name(tzinfo) == expected
 
     def test_single_rrule_preserves_name_bearing_tzinfo(self) -> None:
         """Regression: tzinfo with a public .name attribute (e.g. pendulum)."""
