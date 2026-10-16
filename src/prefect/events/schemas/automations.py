@@ -28,7 +28,7 @@ from pydantic import (
 from typing_extensions import Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.events.actions import ActionTypes, RunDeployment
+from prefect.events.actions import ActionTypes, ActionTypesOrUnknown, RunDeployment
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -96,7 +96,7 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-a
             description=getattr(self, "description", ""),
             enabled=getattr(self, "enabled", True),
             trigger=trigger,
-            actions=self.actions(),
+            actions=list(self.actions()),
             owner_resource=self.owner_resource(),
         )
 
@@ -486,17 +486,17 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg
         ),
     )
 
-    actions: List[ActionTypes] = Field(
+    actions: List[ActionTypesOrUnknown] = Field(
         default=...,
         description="The actions to perform when this Automation triggers",
     )
 
-    actions_on_trigger: List[ActionTypes] = Field(
+    actions_on_trigger: List[ActionTypesOrUnknown] = Field(
         default_factory=list,
         description="The actions to perform when an Automation goes into a triggered state",
     )
 
-    actions_on_resolve: List[ActionTypes] = Field(
+    actions_on_resolve: List[ActionTypesOrUnknown] = Field(
         default_factory=list,
         description="The actions to perform when an Automation goes into a resolving state",
     )
