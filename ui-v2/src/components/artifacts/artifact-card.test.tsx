@@ -147,6 +147,24 @@ describe("Artifacts Card", () => {
 		expect(link?.getAttribute("href")).toContain("/artifacts/key/my-key");
 	});
 
+	it("links to artifact detail page for an individual artifact with a key", async () => {
+		const artifact = createFakeArtifact({
+			id: "keyed-artifact-id",
+			key: "my-key",
+		});
+		const { container } = await waitFor(() =>
+			render(<ArtifactsCardRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
+		const link = container.querySelector("a");
+		expect(link).toBeTruthy();
+		expect(link?.getAttribute("href")).toContain(
+			"/artifacts/artifact/keyed-artifact-id",
+		);
+		expect(link?.getAttribute("href")).not.toContain("/artifacts/key/");
+	});
+
 	it("links to artifact detail page via latest_id for null-key collection", async () => {
 		const artifact = createFakeArtifactCollection({
 			latest_id: "collection-latest-id",

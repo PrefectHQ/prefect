@@ -26,7 +26,7 @@ or other resource-constrained environments.
 
 ## Getting started
 
-`prefect-client` shares the same installation requirements as prefect. To install, make sure you are on Python 3.10 or
+`prefect-client` shares the same installation requirements as prefect. To install, make sure you are on Python 3.11 or
 later and run the following command:
 
 ```bash

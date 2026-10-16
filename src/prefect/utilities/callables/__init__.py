@@ -492,7 +492,7 @@ def parameter_schema(fn: Callable[..., Any]) -> ParameterSchema:
     try:
         signature = inspect.signature(fn, eval_str=True)  # novm
     except (NameError, TypeError):
-        # `eval_str` is not available in Python < 3.10
+        # Some annotations can't be resolved (e.g. defined under TYPE_CHECKING)
         signature = inspect.signature(fn)
 
     docstrings = parameter_docstrings(inspect.getdoc(fn))

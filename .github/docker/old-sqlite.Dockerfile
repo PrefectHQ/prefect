@@ -43,7 +43,7 @@ COPY ./ui-v2 .
 RUN npm run build
 
 # Build the Python distributable
-FROM python:3.10-slim AS python-builder
+FROM python:3.11-slim AS python-builder
 
 WORKDIR /opt/prefect
 
@@ -71,7 +71,7 @@ RUN PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1 uv build --sdist --wheel --out-dir dis
     mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 # Final image
-FROM python:3.10-slim
+FROM python:3.11-slim
 COPY --from=python-builder /bin/uv /bin/uv
 
 # Accept SQLite version as build argument
@@ -89,7 +89,8 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
 RUN wget https://www.sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_VERSION}.tar.gz \
     && tar xvfz sqlite-autoconf-${SQLITE_VERSION}.tar.gz \
     && cd sqlite-autoconf-${SQLITE_VERSION} \
-    && ./configure \
+    # Enable deserialize to match distro-built libsqlite3 that Python 3.11+ expects
+    && CFLAGS="-DSQLITE_ENABLE_DESERIALIZE" ./configure \
     && make \
     && make install \
     && cd .. \
