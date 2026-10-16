@@ -65,6 +65,7 @@ else:
     _WHENEVER_NEW_API = False
     import pendulum
     import pendulum.tz
+    import pydantic_extra_types
     from pydantic_extra_types.pendulum_dt import (
         Date as PydanticDate,
     )
@@ -76,6 +77,13 @@ else:
     )
 
     _PENDULUM_PACKAGE_DIR = os.path.dirname(pendulum.__file__) + os.sep
+    # Library internals that may call Pendulum-only members without warning:
+    # Pendulum delegates between its own methods, and pydantic_extra_types
+    # invokes `to_iso8601_string` from its serializers.
+    _WARNING_EXEMPT_DIRS = (
+        _PENDULUM_PACKAGE_DIR,
+        os.path.dirname(pydantic_extra_types.__file__) + os.sep,
+    )
 
     def _warn_pendulum_member(name: str) -> None:
         warnings.warn(
@@ -113,14 +121,17 @@ else:
             self._name = name
             self._member = member
             self.__name__ = name
+            self.__qualname__ = (
+                f"{getattr(obj, '__qualname__', type(obj).__qualname__)}.{name}"
+            )
             self.__doc__ = getattr(member, "__doc__", None)
             self.__wrapped__ = member
 
         def __call__(self, *args: Any, **kwargs: Any) -> Any:
             caller_file = sys._getframe(1).f_code.co_filename
-            if not caller_file.startswith(_PENDULUM_PACKAGE_DIR):
+            if not caller_file.startswith(_WARNING_EXEMPT_DIRS):
                 _warn_pendulum_member(self._name)
-            return self._member(*args, **kwargs)
+            return _wrap_pendulum_value(self._member(*args, **kwargs))
 
         def __reduce__(self) -> Any:
             return (getattr, (self._obj, self._name))
@@ -141,11 +152,36 @@ else:
                 return _DeprecatedMemberCall(self, name, attr)
             return attr
 
-    class DateTime(_PendulumDeprecationMixin, PydanticDateTime):  # type: ignore[no-redef]
+    def _deprecation_meta(base: type) -> type:
+        """Metaclass that warns on Pendulum-only class-level member calls.
+
+        Public members are proxied so `DateTime.instance(...)` and friends
+        warn like instance-level calls. Private names are left alone so
+        Pydantic internals (e.g. `_validate`) stay silent.
+        """
+
+        class Meta(type(base)):
+            def __getattribute__(cls, name: str) -> Any:
+                attr = super().__getattribute__(name)
+                if (
+                    not name.startswith("_")
+                    and callable(attr)
+                    and name in cls._pendulum_only_members
+                ):
+                    return _DeprecatedMemberCall(cls, name, attr)
+                return attr
+
+        return Meta
+
+    class DateTime(  # type: ignore[no-redef]
+        _PendulumDeprecationMixin,
+        PydanticDateTime,
+        metaclass=_deprecation_meta(PydanticDateTime),
+    ):
         """Pendulum `DateTime` that warns on Pendulum-only member calls."""
 
         _pendulum_only_members = _pendulum_only_members(
-            pendulum.DateTime, datetime.datetime
+            PydanticDateTime, datetime.datetime
         )
 
         @classmethod
@@ -153,12 +189,27 @@ else:
             cls, value: Any, handler: _core_schema.ValidatorFunctionWrapHandler
         ) -> DateTime:
             """Retain the warning-enabled type after upstream validation."""
-            return cls.instance(super()._validate(value, handler))
+            return _PDT_INSTANCE(cls, super()._validate(value, handler))
 
-    class Date(_PendulumDeprecationMixin, PydanticDate):  # type: ignore[no-redef]
+        def date(self) -> Date:
+            """Return the date portion, preserving the deprecation notice."""
+            return _wrap_pendulum_value(super().date())
+
+        # Note: `__sub__`/`__add__`/`__rsub__`/`__radd__` are deliberately
+        # not overridden. Defining them changes the C-level numeric slots
+        # and breaks `datetime.astimezone` for Pendulum-timezone values
+        # (intermediate results lose their timezone). Subtraction still
+        # produces a wrapped `_Interval` via the proxied `diff` call
+        # inside `pendulum.DateTime.__sub__`.
+
+    class Date(  # type: ignore[no-redef]
+        _PendulumDeprecationMixin,
+        PydanticDate,
+        metaclass=_deprecation_meta(PydanticDate),
+    ):
         """Pendulum `Date` that warns on Pendulum-only member calls."""
 
-        _pendulum_only_members = _pendulum_only_members(pendulum.Date, datetime.date)
+        _pendulum_only_members = _pendulum_only_members(PydanticDate, datetime.date)
 
         @classmethod
         def _validate(
@@ -168,11 +219,15 @@ else:
             validated = super()._validate(value, handler)
             return cls(validated.year, validated.month, validated.day)
 
-    class Duration(_PendulumDeprecationMixin, PydanticDuration):  # type: ignore[no-redef]
+    class Duration(  # type: ignore[no-redef]
+        _PendulumDeprecationMixin,
+        PydanticDuration,
+        metaclass=_deprecation_meta(PydanticDuration),
+    ):
         """Pendulum `Duration` that warns on Pendulum-only member calls."""
 
         _pendulum_only_members = _pendulum_only_members(
-            pendulum.Duration, datetime.timedelta
+            PydanticDuration, datetime.timedelta
         )
 
         @classmethod
@@ -191,6 +246,68 @@ else:
                 seconds=validated.remaining_seconds,
                 microseconds=validated.microseconds,
             )
+
+    class _Interval(  # type: ignore[no-redef]
+        _PendulumDeprecationMixin,
+        pendulum.Interval,
+        metaclass=_deprecation_meta(pendulum.Interval),
+    ):
+        """Pendulum `Interval` that warns on Pendulum-only member calls.
+
+        Produced by `DateTime` subtraction and `diff()` so derived values
+        keep the deprecation notice.
+        """
+
+        _pendulum_only_members = _pendulum_only_members(
+            pendulum.Interval, datetime.timedelta
+        )
+
+    _PDT_INSTANCE = PydanticDateTime.instance.__func__
+
+    def _datetime_instance(value: datetime.datetime) -> DateTime:
+        """Wrap a datetime in the warning-enabled `DateTime`.
+
+        Bypasses the class-level deprecation proxy for Prefect's own calls.
+        """
+        return _PDT_INSTANCE(DateTime, value)
+
+    def _wrap_pendulum_value(value: Any) -> Any:
+        """Re-wrap a Pendulum result in its warning-enabled Prefect type.
+
+        Derived values (e.g. `date()`, subtraction, `diff()`) come back as
+        plain Pendulum objects; converting them keeps the deprecation notice
+        on their Pendulum-only members too.
+        """
+        if isinstance(value, pendulum.DateTime):
+            if isinstance(value, DateTime):
+                return value
+            return _datetime_instance(value)
+        if isinstance(value, pendulum.Date):
+            if isinstance(value, Date):
+                return value
+            return Date(value.year, value.month, value.day)
+        if isinstance(value, pendulum.Interval):
+            if isinstance(value, _Interval):
+                return value
+            return _Interval(
+                start=_datetime_instance(value.start),
+                end=_datetime_instance(value.end),
+                absolute=value._absolute,
+            )
+        if isinstance(value, pendulum.Duration):
+            if isinstance(value, Duration):
+                return value
+            return Duration(
+                years=value.years,
+                months=value.months,
+                weeks=value.weeks,
+                days=value.remaining_days,
+                hours=value.hours,
+                minutes=value.minutes,
+                seconds=value.remaining_seconds,
+                microseconds=value.microseconds,
+            )
+        return value
 
     Interval: TypeAlias = datetime.timedelta
 
@@ -214,7 +331,7 @@ def parse_datetime(dt: str) -> datetime.datetime:
         else:
             return parsed_dt
     else:
-        return cast(datetime.datetime, DateTime.instance(pendulum.parse(dt)))
+        return cast(datetime.datetime, _wrap_pendulum_value(pendulum.parse(dt)))
 
 
 def get_timezones() -> tuple[str, ...]:
@@ -229,7 +346,7 @@ def create_datetime_instance(v: datetime.datetime) -> datetime.datetime:
         else:
             return v
 
-    return DateTime.instance(v)
+    return _datetime_instance(v)
 
 
 def from_timestamp(ts: float, tz: str | Any = "UTC") -> datetime.datetime:
@@ -239,7 +356,7 @@ def from_timestamp(ts: float, tz: str | Any = "UTC") -> datetime.datetime:
             tz = tz.name
         return datetime.datetime.fromtimestamp(ts, ZoneInfo(tz))
 
-    return DateTime.instance(pendulum.from_timestamp(ts, tz))
+    return _datetime_instance(pendulum.from_timestamp(ts, tz))
 
 
 def human_friendly_diff(
@@ -275,9 +392,9 @@ def human_friendly_diff(
         return humanize.naturaltime(dt, when=other)
 
     # Ensure consistency for pendulum path by using UTC
-    pendulum_dt = DateTime.instance(dt.astimezone(ZoneInfo("UTC")))
+    pendulum_dt = _datetime_instance(dt.astimezone(ZoneInfo("UTC")))
     pendulum_other = (
-        DateTime.instance(other.astimezone(ZoneInfo("UTC"))) if other else None
+        _datetime_instance(other.astimezone(ZoneInfo("UTC"))) if other else None
     )
     return _pendulum_call(pendulum_dt, "diff_for_humans", other=pendulum_other)
 
@@ -331,7 +448,7 @@ def now(
 
         return _whenever_to_stdlib(ZonedDateTime.now(tz))
     else:
-        return DateTime.instance(pendulum.now(tz))
+        return _datetime_instance(pendulum.now(tz))
 
 
 def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
@@ -387,8 +504,8 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
 
         return _whenever_to_stdlib(zdt)
     else:
-        return DateTime.instance(
-            _pendulum_call(DateTime.instance(dt), "end_of", period)
+        return _datetime_instance(
+            _pendulum_call(_datetime_instance(dt), "end_of", period)
         )
 
 
@@ -415,8 +532,8 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
 
         return _whenever_to_stdlib(zdt)
     else:
-        return DateTime.instance(
-            _pendulum_call(DateTime.instance(dt), "start_of", "day")
+        return _datetime_instance(
+            _pendulum_call(_datetime_instance(dt), "start_of", "day")
         )
 
 
@@ -453,8 +570,10 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
 
         return _whenever_to_stdlib(wdt)
     else:
-        return DateTime.instance(
-            _pendulum_call(DateTime.instance(dt), "in_tz", pendulum.tz.local_timezone())
+        return _datetime_instance(
+            _pendulum_call(
+                _datetime_instance(dt), "in_tz", pendulum.tz.local_timezone()
+            )
         )
 
 
