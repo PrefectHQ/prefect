@@ -220,25 +220,32 @@ class Profile(BaseModel):
         try:
             Settings.model_validate(nested_settings)
         except ValidationError as e:
-            errors: list[tuple[Setting, ValidationError]] = []
+            errors_by_setting: dict[Setting, list[Any]] = {}
 
             for error in e.errors():
                 error_path = ".".join(str(loc) for loc in error["loc"])
 
                 for setting in self.settings.keys():
-                    if setting.accessor == error_path:
-                        errors.append(
-                            (
-                                setting,
-                                ValidationError.from_exception_data(
-                                    "ValidationError", [error]
-                                ),
-                            )
-                        )
+                    # A union field reports one error per member type, below
+                    # the field's own path.
+                    if error_path == setting.accessor or error_path.startswith(
+                        f"{setting.accessor}."
+                    ):
+                        errors_by_setting.setdefault(setting, []).append(error)
                         break
 
-            if errors:
-                raise ProfileSettingsValidationError(errors)
+            if errors_by_setting:
+                raise ProfileSettingsValidationError(
+                    [
+                        (
+                            setting,
+                            ValidationError.from_exception_data(
+                                "ValidationError", setting_errors
+                            ),
+                        )
+                        for setting, setting_errors in errors_by_setting.items()
+                    ]
+                )
 
 
 class ProfilesCollection:
@@ -536,11 +543,30 @@ def update_current_profile(
     # Ensure the current profile's settings are present
     profiles.update_profile(current_profile.name, current_profile.settings)
     # Then merge the new settings in
-    new_profile = profiles.update_profile(
-        current_profile.name, _cast_settings(settings)
-    )
+    new_settings = _cast_settings(settings)
+    new_profile = profiles.update_profile(current_profile.name, new_settings)
 
-    new_profile.validate_settings()
+    try:
+        new_profile.validate_settings()
+    except ProfileSettingsValidationError as exc:
+        # Only the settings being written can block the update. A value that
+        # was already invalid before this call is reported and left as it is,
+        # so an unrelated command (for example `prefect cloud login`) can still
+        # save its own settings.
+        blocking = [
+            (setting, error) for setting, error in exc.errors if setting in new_settings
+        ]
+        if blocking:
+            raise ProfileSettingsValidationError(blocking) from None
+        for setting, error in exc.errors:
+            problems = "; ".join(item["msg"] for item in error.errors())
+            warnings.warn(
+                f"Profile {new_profile.name!r} has an invalid value for "
+                f"{setting.name}: {problems}. It was left unchanged; fix it with "
+                f"`prefect config set {setting.name}=<value>` or remove it with "
+                f"`prefect config unset {setting.name}`.",
+                stacklevel=2,
+            )
 
     save_profiles(profiles)
 

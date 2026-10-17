@@ -191,6 +191,28 @@ def test_set_with_invalid_value_type():
     )
 
 
+def test_set_with_invalid_value_for_union_type():
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    result = invoke_and_assert(
+        [
+            "--profile",
+            "foo",
+            "config",
+            "set",
+            "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS=HELLO",
+        ],
+        expected_output_contains="Input should be a valid number",
+        expected_code=1,
+    )
+
+    # One heading for the setting, with an error for each member of the union.
+    assert result.stdout.count("Validation error(s) for setting") == 1
+    assert "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS" not in {
+        setting.name for setting in load_profiles()["foo"].settings
+    }
+
+
 def test_set_with_unparsable_setting():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
 

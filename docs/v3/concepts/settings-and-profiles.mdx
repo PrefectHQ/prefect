@@ -176,6 +176,8 @@ The `prefect profile` CLI commands enable you to create, review, and manage prof
 vim ~/.prefect/profiles.toml
 ```
 
+If a value in the active profile is invalid, Prefect prints a warning that names the setting and ignores that value, so the setting falls back to its default until you fix it with `prefect config set` or remove it with `prefect config unset`.
+
 #### Configure settings for the active profile
 
 The `prefect config` CLI commands enable you to manage the settings within the currently active profile.
