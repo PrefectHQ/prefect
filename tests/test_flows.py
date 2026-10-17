@@ -1897,7 +1897,7 @@ class TestFlowParameterTypes:
 
         assert my_flow(keys="hello") == "hello"
 
-    @pytest.mark.parametrize("value", [None, 0, False])
+    @pytest.mark.parametrize("value", [None, 0, False, "ab", {"b": 2}])
     def test_invalid_var_positional_values_are_rejected(self, value):
         @flow
         def my_flow(x: int = 1, *args: int):

@@ -7,7 +7,7 @@ import importlib.util
 import inspect
 import warnings
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from functools import partial
 from logging import Logger
 from pathlib import Path
@@ -303,28 +303,37 @@ def parameters_to_args_kwargs(
         # Values for `*args` can only be passed positionally, so every positional
         # parameter before it must be bound too, otherwise `*args` is passed as a
         # keyword. Drop an empty `*args` and fill omitted parameters with their
-        # defaults otherwise. Other values are left for validation to reject.
+        # defaults otherwise. Other values, such as `None`, strings, or mappings,
+        # are left for validation to reject.
         var_positional_value = parameters.get(var_positional.name)
-        if isinstance(var_positional_value, (list, tuple)) and not var_positional_value:
-            parameters = {
-                k: v for k, v in parameters.items() if k != var_positional.name
-            }
-        elif isinstance(var_positional_value, (list, tuple)):
-            parameters = {
-                p.name: (
-                    p.default.get_default(call_default_factory=True)
-                    if isinstance(p.default, pydantic.fields.FieldInfo)
-                    else p.default
+        if isiterable(var_positional_value) and not isinstance(
+            var_positional_value, Mapping
+        ):
+            var_positional_values = tuple(cast(Iterable[Any], var_positional_value))
+            if not var_positional_values:
+                parameters = {
+                    k: v for k, v in parameters.items() if k != var_positional.name
+                }
+            else:
+                parameters = (
+                    {
+                        p.name: (
+                            p.default.get_default(call_default_factory=True)
+                            if isinstance(p.default, pydantic.fields.FieldInfo)
+                            else p.default
+                        )
+                        for p in sig.parameters.values()
+                        if p.kind
+                        in (
+                            inspect.Parameter.POSITIONAL_ONLY,
+                            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        )
+                        and p.default is not p.empty
+                        and p.name not in parameters
+                    }
+                    | parameters
+                    | {var_positional.name: var_positional_values}
                 )
-                for p in sig.parameters.values()
-                if p.kind
-                in (
-                    inspect.Parameter.POSITIONAL_ONLY,
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                )
-                and p.default is not p.empty
-                and p.name not in parameters
-            } | parameters
     elif hasattr(fn, "__wrapped__") or (
         isinstance(fn, partial) and hasattr(fn.func, "__wrapped__")
     ):
