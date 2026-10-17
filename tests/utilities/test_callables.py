@@ -2101,3 +2101,31 @@ class TestEntrypointToSchema:
             "required": ["x"],
             "definitions": {},
         }
+
+    def test_function_with_positional_only_args_and_mixed_defaults(
+        self, tmp_path: Path
+    ):
+        # Defaults apply to the trailing positional parameters, which span both
+        # positional-only and positional-or-keyword args. A required
+        # positional-only arg followed by defaulted args must not shift the
+        # defaults onto the wrong parameters.
+        source_code = dedent(
+            """
+        def f(a, b=5, /, c=10):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "properties": {
+                "a": {"title": "a", "position": 0},
+                "b": {"title": "b", "position": 1, "default": 5},
+                "c": {"title": "c", "position": 2, "default": 10},
+            },
+            "title": "Parameters",
+            "type": "object",
+            "required": ["a"],
+            "definitions": {},
+        }
