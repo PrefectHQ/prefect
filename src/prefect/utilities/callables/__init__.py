@@ -303,12 +303,13 @@ def parameters_to_args_kwargs(
         # Values for `*args` can only be passed positionally, so every positional
         # parameter before it must be bound too, otherwise `*args` is passed as a
         # keyword. Drop an empty `*args` and fill omitted parameters with their
-        # defaults otherwise.
-        if var_positional.name in parameters and not parameters[var_positional.name]:
+        # defaults otherwise. Other values are left for validation to reject.
+        var_positional_value = parameters.get(var_positional.name)
+        if isinstance(var_positional_value, (list, tuple)) and not var_positional_value:
             parameters = {
                 k: v for k, v in parameters.items() if k != var_positional.name
             }
-        elif var_positional.name in parameters:
+        elif isinstance(var_positional_value, (list, tuple)):
             parameters = {
                 p.name: (
                     p.default.get_default(call_default_factory=True)

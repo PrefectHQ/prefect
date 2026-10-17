@@ -1057,6 +1057,14 @@ class TestParametersToArgsKwargs:
         args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": []})
         assert fn(*args, **kwargs) == (1, ())
 
+    @pytest.mark.parametrize("value", [None, 0, False])
+    def test_non_sequence_var_positional_is_not_dropped(self, value):
+        def fn(a=1, *args):
+            return a, args
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": value})
+        assert (args, kwargs) == ((), {"args": value})
+
     def test_var_positional_with_omitted_field_defaulted_param(self):
         def fn(a: int = Field(default=1), *args):
             return a, args

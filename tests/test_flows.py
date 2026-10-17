@@ -1897,6 +1897,15 @@ class TestFlowParameterTypes:
 
         assert my_flow(keys="hello") == "hello"
 
+    @pytest.mark.parametrize("value", [None, 0, False])
+    def test_invalid_var_positional_values_are_rejected(self, value):
+        @flow
+        def my_flow(x: int = 1, *args: int):
+            return x, args
+
+        with pytest.raises(ParameterTypeError):
+            my_flow.validate_parameters({"args": value})
+
 
 class TestSubflowTaskInputs:
     async def test_subflow_with_one_upstream_task_future(self, prefect_client):
