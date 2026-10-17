@@ -722,7 +722,7 @@ class TestReadFlowRuns:
         assert parse_obj_as(List[schemas.responses.FlowRunResponse], response.json())
 
     async def test_read_flow_runs_with_parameter_beyond_64_bit_range(
-        self, flow, session, client
+        self, flow: Flow, session: AsyncSession, client: AsyncClient
     ):
         # orjson only supports integers in the 64-bit range, but flow run
         # parameters are arbitrary user data
@@ -740,6 +740,11 @@ class TestReadFlowRuns:
         (result,) = response.json()
         assert result["id"] == str(flow_run.id)
         assert result["parameters"] == {"x": big_int}
+
+        # the single-run route doesn't use orjson, make sure it stays working
+        response = await client.get(f"/flow_runs/{flow_run.id}")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["parameters"] == {"x": big_int}
 
     async def test_read_flow_runs_work_pool_fields(
         self,
@@ -3069,7 +3074,7 @@ class TestPaginateFlowRuns:
         assert parse_obj_as(List[schemas.responses.FlowRunResponse], json["results"])
 
     async def test_read_flow_runs_with_parameter_beyond_64_bit_range(
-        self, flow, session, client
+        self, flow: Flow, session: AsyncSession, client: AsyncClient
     ):
         # orjson only supports integers in the 64-bit range, but flow run
         # parameters are arbitrary user data
