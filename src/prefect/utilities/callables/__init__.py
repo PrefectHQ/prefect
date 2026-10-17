@@ -686,11 +686,14 @@ def _generate_signature_from_source(
         )
         parameters.append(param)
 
-    # Handle default values for args e.g. def func(a=1, b="hello", c=3.14)
+    # Handle default values for positional args e.g. def func(a=1, b="hello", c=3.14)
+    # `args.defaults` applies to the trailing positional parameters, which include
+    # both positional-only and positional-or-keyword args, so align against both.
+    num_positional = len(func_def.args.posonlyargs) + len(func_def.args.args)
     defaults = [None] * (
-        len(func_def.args.args) - len(func_def.args.defaults)
+        num_positional - len(func_def.args.defaults)
     ) + func_def.args.defaults
-    for param, default in zip(parameters, defaults):
+    for param, default in zip(parameters[:num_positional], defaults):
         if default is not None:
             try:
                 def_code = compile(ast.Expression(default), "<string>", "eval")
