@@ -1,5 +1,6 @@
 import datetime
 import sys
+from collections import deque
 from datetime import timezone
 from enum import Enum
 from pathlib import Path
@@ -1058,7 +1059,7 @@ class TestParametersToArgsKwargs:
         assert fn(*args, **kwargs) == (1, ())
 
     @pytest.mark.parametrize(
-        "value", [range(2, 4), (i for i in [2, 3]), {2, 3}, iter([2, 3])]
+        "value", [range(2, 4), (i for i in [2, 3]), deque([2, 3]), iter([2, 3])]
     )
     def test_iterable_var_positional_with_omitted_defaulted_param(self, value):
         def fn(a=1, *args):
