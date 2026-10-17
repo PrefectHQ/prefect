@@ -1,5 +1,6 @@
 import datetime
 import sys
+from collections import deque
 from datetime import timezone
 from enum import Enum
 from pathlib import Path
@@ -519,6 +520,99 @@ class TestFunctionToSchema:
             "definitions": {},
         }
 
+    def test_function_with_variadic_arguments(self):
+        def f(x: int, *args, **kwargs):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {"title": "x", "type": "integer", "position": 0},
+                "args": {
+                    "title": "args",
+                    "type": "array",
+                    "items": {},
+                    "default": [],
+                    "position": 1,
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "type": "object",
+                    "additionalProperties": True,
+                    "default": {},
+                    "position": 2,
+                },
+            },
+            "required": ["x"],
+            "definitions": {},
+        }
+
+    def test_function_with_annotated_variadic_arguments(self):
+        def f(*args: int, **kwargs: str):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "args": {
+                    "title": "args",
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "default": [],
+                    "position": 0,
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "default": {},
+                    "position": 1,
+                },
+            },
+            "definitions": {},
+        }
+
+    def test_function_with_annotated_variadic_arguments_and_v1_types(self):
+        import pydantic.v1 as pydantic
+
+        def f(x: pydantic.SecretStr, *args: int, **kwargs: str):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "title": "x",
+                    "position": 0,
+                    "type": "string",
+                    "writeOnly": True,
+                    "format": "password",
+                },
+                "args": {
+                    "title": "args",
+                    "position": 1,
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "default": [],
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "position": 2,
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "default": {},
+                },
+            },
+            "required": ["x"],
+            "definitions": {},
+        }
+
 
 class TestMethodToSchema:
     def test_methods_with_no_arguments(self):
@@ -947,6 +1041,47 @@ class TestParametersToArgsKwargs:
         args, kwargs = callables.parameters_to_args_kwargs(fn, {"a": 1, "args": (2, 3)})
         assert args == (1, 2, 3)
         assert kwargs == {}
+
+    def test_var_positional_with_omitted_defaulted_param(self):
+        def fn(a=1, *args, **kwargs):
+            return a, args, kwargs
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            fn, {"args": [2, 3], "kwargs": {"b": 4}}
+        )
+        assert fn(*args, **kwargs) == (1, (2, 3), {"b": 4})
+
+    def test_empty_var_positional_with_omitted_defaulted_param(self):
+        def fn(a=1, *args):
+            return a, args
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": []})
+        assert fn(*args, **kwargs) == (1, ())
+
+    @pytest.mark.parametrize(
+        "value", [range(2, 4), (i for i in [2, 3]), deque([2, 3]), iter([2, 3])]
+    )
+    def test_iterable_var_positional_with_omitted_defaulted_param(self, value):
+        def fn(a=1, *args):
+            return a, args
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": value})
+        assert fn(*args, **kwargs) == (1, (2, 3))
+
+    @pytest.mark.parametrize("value", [None, 0, False, "ab", {"b": 2}])
+    def test_non_iterable_var_positional_is_not_dropped(self, value):
+        def fn(a=1, *args):
+            return a, args
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": value})
+        assert (args, kwargs) == ((), {"args": value})
+
+    def test_var_positional_with_omitted_field_defaulted_param(self):
+        def fn(a: int = Field(default=1), *args):
+            return a, args
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": [2]})
+        assert fn(*args, **kwargs) == (1, (2,))
 
     def test_wraps_with_fewer_positional_params_routes_rest_via_kwargs(self):
         """When the wrapper accepts fewer positional params than the wrapped
@@ -1902,5 +2037,39 @@ class TestEntrypointToSchema:
             },
             "title": "Parameters",
             "type": "object",
+            "definitions": {},
+        }
+
+    def test_function_with_annotated_variadic_arguments(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        def f(x: int, *args: int, **kwargs: str):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "properties": {
+                "x": {"title": "x", "position": 0, "type": "integer"},
+                "args": {
+                    "title": "args",
+                    "position": 1,
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "default": [],
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "position": 2,
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "default": {},
+                },
+            },
+            "title": "Parameters",
+            "type": "object",
+            "required": ["x"],
             "definitions": {},
         }
