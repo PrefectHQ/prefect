@@ -13,7 +13,6 @@ from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.client.schemas.schedules import IntervalSchedule
-from prefect.client.schemas.sorting import DeploymentSort
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     temporary_settings,
@@ -1458,15 +1457,19 @@ class TestDeploymentDelete:
 
     @pytest.fixture
     def small_unstable_pages(self, monkeypatch: pytest.MonkeyPatch):
-        """Serve deployments two at a time, flipping the sort order on every
+        """Serve deployments two at a time, rotating the full ordering on every
         request to mimic a server whose ordering of tied names is unstable."""
         original_read_deployments = PrefectClient.read_deployments
-        sorts = itertools.cycle([DeploymentSort.NAME_ASC, DeploymentSort.NAME_DESC])
+        calls = itertools.count()
 
-        async def read_deployments(self: PrefectClient, **kwargs: Any):
-            kwargs["limit"] = 2
-            kwargs["sort"] = next(sorts)
-            return await original_read_deployments(self, **kwargs)
+        async def read_deployments(
+            self: PrefectClient, *, offset: int = 0, **kwargs: Any
+        ):
+            rows = await original_read_deployments(self, **kwargs)
+            if rows:
+                shift = next(calls) % len(rows)
+                rows = rows[shift:] + rows[:shift]
+            return rows[offset : offset + 2]
 
         monkeypatch.setattr(PrefectClient, "read_deployments", read_deployments)
 
