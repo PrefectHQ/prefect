@@ -30,6 +30,7 @@ from prefect.server.events.pipeline import EventsPipeline
 from prefect.states import Completed, Failed, Suspended
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.task_runners import ThreadPoolTaskRunner
+from prefect.utilities.timeout import timeout as timeout_context
 
 
 class MockFuture(PrefectWrappedFuture[Any, Future[Any]]):
@@ -1045,6 +1046,31 @@ class TestPrefectFutureList:
         with pytest.raises(
             TimeoutError,
             match="Timed out waiting for all futures to complete within 0 seconds",
+        ):
+            futures.result(timeout=0)
+
+    @pytest.mark.timeout(method="thread")
+    def test_result_with_zero_timeout_preserves_enclosing_timeout(self):
+        """An enclosing timeout firing during retrieval is not claimed as this
+        list's timeout when `timeout=0` arms no local scope."""
+
+        class EnclosingTimeout(TimeoutError):
+            pass
+
+        class SlowResultFuture(MockFuture):
+            def result(
+                self,
+                timeout: Optional[float] = None,
+                raise_on_failure: bool = True,
+            ) -> Any:
+                time.sleep(1)
+                return 42
+
+        futures = PrefectFutureList([SlowResultFuture()])
+
+        with (
+            pytest.raises(EnclosingTimeout),
+            timeout_context(0.1, timeout_exc_type=EnclosingTimeout),
         ):
             futures.result(timeout=0)
 

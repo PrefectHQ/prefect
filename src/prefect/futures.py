@@ -584,7 +584,7 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
         timeout_message = (
             f"Timed out waiting for all futures to complete within {timeout} seconds"
         )
-        deadline = time.monotonic() + timeout if timeout is not None else None
+        deadline = time.monotonic() + timeout if timeout else None
 
         try:
             # `as_completed` de-duplicates internally; each unique future is
@@ -597,11 +597,7 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
                     results[i] = result
                 # Retrieval can overrun the deadline without cancellation
                 # arriving, e.g. on Windows where no sync cancel scope arms.
-                if (
-                    deadline is not None
-                    and timeout != 0
-                    and time.monotonic() >= deadline
-                ):
+                if deadline is not None and time.monotonic() >= deadline:
                     raise TimeoutError(timeout_message)
         # A `TimeoutError` from inside a task is not a `_WaitTimeoutError` and
         # propagates unchanged.
