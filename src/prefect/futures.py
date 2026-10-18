@@ -638,7 +638,6 @@ def as_completed(
     pending = unique_futures
     deadline: float | None = None
     try:
-
         with timeout_context(timeout or None, timeout_exc_type=_WaitTimeoutError):
             done = {f for f in unique_futures if f._final_state}  # type: ignore[privateUsage]
             pending = unique_futures - done

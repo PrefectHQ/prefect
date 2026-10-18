@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import threading
 import time
 import uuid
@@ -1049,6 +1050,9 @@ class TestPrefectFutureList:
         ):
             futures.result(timeout=0)
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="sync cancellation is not supported on Windows"
+    )
     @pytest.mark.timeout(method="thread")
     def test_result_with_zero_timeout_preserves_enclosing_timeout(self):
         """An enclosing timeout firing during retrieval is not claimed as this
