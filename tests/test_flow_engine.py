@@ -68,7 +68,7 @@ from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
-from prefect.results import get_result_store
+from prefect.results import ResultStore, get_result_store
 from prefect.runtime import flow_run as runtime_flow_run
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
@@ -1053,6 +1053,51 @@ async def test_completion_save_failure_does_not_trigger_failure_hook(
         assert saved_run.state.is_running()
         assert len(completion_attempts) == 1
         assert not hook_states
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+async def test_result_storage_failure_does_not_trigger_failure_hook(
+    async_flow: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    hook_states: list[states.State[Any]] = []
+
+    def on_failure(
+        flow: Flow[Any, Any], flow_run: Any, state: states.State[Any]
+    ) -> None:
+        hook_states.append(state)
+
+    def body() -> int:
+        return 42
+
+    async def async_body() -> int:
+        return body()
+
+    test_flow = flow(
+        async_body if async_flow else body,
+        persist_result=True,
+        on_failure=[on_failure],
+    )
+    flow_run = await prefect_client.create_flow_run(test_flow)
+    persist_result = AsyncMock(side_effect=OSError("result storage unavailable"))
+    monkeypatch.setattr(ResultStore, "apersist_result_record", persist_result)
+
+    if async_flow:
+        result = await run_flow_async(test_flow, flow_run=flow_run)
+    else:
+        result = run_flow_sync(test_flow, flow_run=flow_run)
+
+    assert result == 42
+    persist_result.assert_awaited_once()
+    assert persist_result.call_args.args[0].result == 42
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    assert saved_run.state.is_completed()
+    assert not hook_states
+    assert "Encountered an error while persisting result" in caplog.text
+    assert "result storage unavailable" in caplog.text
 
 
 class TestFlowRunsAsync:
