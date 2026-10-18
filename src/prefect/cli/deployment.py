@@ -647,7 +647,14 @@ async def delete(
                 exit_with_error(
                     "Cannot provide a deployment name or id when deleting all deployments."
                 )
-            deployments = await client.read_deployments()
+            # Each request returns at most one page of deployments, so keep
+            # reading until a page comes back empty.
+            deployments: list[DeploymentResponse] = []
+            while True:
+                page = await client.read_deployments(offset=len(deployments))
+                if not page:
+                    break
+                deployments.extend(page)
             if len(deployments) == 0:
                 exit_with_success("No deployments found.")
             if _cli.is_interactive() and not confirm(

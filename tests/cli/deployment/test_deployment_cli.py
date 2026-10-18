@@ -1454,6 +1454,33 @@ class TestDeploymentDelete:
         deployments = await prefect_client.read_deployments()
         assert len(deployments) == 0
 
+    @pytest.mark.usefixtures("setup_many_deployments")
+    async def test_delete_all_deployments_beyond_one_page(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        original_read_deployments = PrefectClient.read_deployments
+
+        async def read_deployments_in_pages_of_two(self, *args: Any, **kwargs: Any):
+            # Simulate a server whose page size is smaller than the number of
+            # deployments
+            kwargs["limit"] = 2
+            return await original_read_deployments(self, *args, **kwargs)
+
+        monkeypatch.setattr(
+            PrefectClient, "read_deployments", read_deployments_in_pages_of_two
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["deployment", "delete", "--all"],
+            expected_code=0,
+            expected_output_contains="Deleted 4 deployments.",
+        )
+
+        monkeypatch.undo()
+        deployments = await prefect_client.read_deployments()
+        assert len(deployments) == 0
+
     @pytest.mark.usefixtures("setup_many_deployments", "interactive_console")
     def test_delete_all_deployments_needs_confirmation_with_interactive_console(
         self,
