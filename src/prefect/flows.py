@@ -595,7 +595,7 @@ class Flow(Generic[P, R]):
 
         Resolve saved block references by UUID or by a dictionary containing
         `block_document_id` or `block_document_slug`. Other `$ref` values, such as
-        JSON Schema references, are preserved as parameter data.
+        JSON Schema references (including UUID URNs), are preserved as parameter data.
 
         Returns:
             A new dict of parameters that have been cast to the appropriate types
@@ -610,6 +610,8 @@ class Flow(Generic[P, R]):
 
             ref = data["$ref"]
             if isinstance(ref, str):
+                if ":" in ref:
+                    return data
                 try:
                     UUID(ref)
                 except ValueError:
