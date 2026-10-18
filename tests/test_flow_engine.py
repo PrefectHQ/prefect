@@ -3731,7 +3731,9 @@ class TestPauseFlowRun:
         )
         assert schema is not None
 
-    async def test_repeated_pause_with_same_key_returns_input(self, prefect_client):
+    async def test_repeated_pause_with_same_key_returns_input(
+        self, prefect_client: PrefectClient
+    ):
         flow_run_id = None
 
         class FlowInput(RunInput):
