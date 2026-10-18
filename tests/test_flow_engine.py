@@ -3731,6 +3731,53 @@ class TestPauseFlowRun:
         )
         assert schema is not None
 
+    async def test_repeated_pause_with_same_key_returns_input(self, prefect_client):
+        flow_run_id = None
+
+        class FlowInput(RunInput):
+            x: int
+
+        @flow(persist_result=False)
+        async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+
+            first = await pause_flow_run(
+                timeout=10, poll_interval=2, wait_for_input=FlowInput, key="approval"
+            )
+            second = await pause_flow_run(
+                timeout=10, poll_interval=2, wait_for_input=FlowInput, key="approval"
+            )
+            return first, second
+
+        async def flow_resumer():
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
+
+            await resume_flow_run(flow_run_id, run_input={"x": 42})
+
+        flow_run_state, _ = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        first, second = await flow_run_state.result()
+        assert isinstance(first, FlowInput)
+        assert first.x == 42
+        assert isinstance(second, FlowInput)
+        assert second.x == 42
+
     async def test_paused_flows_can_receive_automatic_input(
         self, prefect_client: PrefectClient
     ):
