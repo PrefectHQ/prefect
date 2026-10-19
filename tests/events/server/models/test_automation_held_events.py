@@ -11,6 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automation_held_events
+from prefect.server.events.models.automation_held_events import (
+    HELD_EXPECT_EVENTS_RETENTION,
+)
 from prefect.server.events.models.automations import create_automation
 from prefect.server.events.ordering import PRECEDING_EVENT_LOOKBACK
 from prefect.server.events.schemas.automations import (
@@ -33,7 +36,14 @@ def threshold() -> int:
 
 
 @pytest.fixture
-async def trigger(automations_session: AsyncSession, threshold: int) -> EventTrigger:
+def within() -> timedelta:
+    return WITHIN
+
+
+@pytest.fixture
+async def trigger(
+    automations_session: AsyncSession, threshold: int, within: timedelta
+) -> EventTrigger:
     automation = await create_automation(
         automations_session,
         Automation(
@@ -44,7 +54,7 @@ async def trigger(automations_session: AsyncSession, threshold: int) -> EventTri
                 for_each={"prefect.resource.id"},
                 posture=Posture.Proactive,
                 threshold=threshold,
-                within=WITHIN,
+                within=within,
             ),
             actions=[actions.DoNothing()],
         ),
@@ -126,8 +136,8 @@ async def test_a_slot_keeps_its_first_and_last_events_up_to_the_threshold(
     threshold: int,
     evaluation_order: Callable[[list[datetime]], Iterable[datetime]],
 ):
-    """A slot that takes more than twice the threshold keeps its `threshold`
-    earliest and `threshold` latest events, in any evaluation order."""
+    """Of the ten events held in one slot, whatever order they arrive in, the slot
+    keeps the first and the last `threshold` of them."""
     occurrences = [slot_start + timedelta(seconds=i) for i in range(10)]
     await hold_all(automations_session, trigger, evaluation_order(occurrences))
 
@@ -143,8 +153,8 @@ async def test_events_at_the_same_instant_are_kept_by_event_id(
     trigger: EventTrigger,
     slot_start: datetime,
 ):
-    """Events that occurred at the same instant are ordered by event id, so the
-    lowest and the highest id stay."""
+    """Among events that occurred at the same instant, the slot keeps the lowest and
+    the highest event ids."""
     events = [walked(slot_start) for _ in range(5)]
     for event in events:
         await automation_held_events.hold_event(
@@ -169,15 +179,15 @@ async def test_events_at_the_same_instant_are_kept_by_event_id(
         pytest.param(timedelta(seconds=119), id="one-event-at-the-start"),
     ],
 )
-async def test_a_window_across_two_slots_counts_up_to_the_threshold(
+async def test_any_window_counts_held_events_up_to_the_threshold(
     automations_session: AsyncSession,
     trigger: EventTrigger,
     slot_start: datetime,
     threshold: int,
     window_offset: timedelta,
 ):
-    """Wherever a window starts, it counts the events that occurred inside it, up
-    to the threshold, from two slots of one event per second."""
+    """Sixty events are held in each of two slots. A window opened anywhere over
+    them counts at least as many as it covers, up to the threshold."""
     occurrences = [slot_start + timedelta(seconds=i) for i in range(120)]
     await hold_all(automations_session, trigger, occurrences)
 
@@ -194,7 +204,7 @@ async def test_a_window_across_two_slots_counts_up_to_the_threshold(
         pytest.param(WITHIN, timedelta(0), id="crowd-in-the-previous-slot"),
     ],
 )
-async def test_trimming_a_slot_keeps_the_events_of_other_slots(
+async def test_holding_an_event_trims_only_its_own_slot(
     db: PrefectDBInterface,
     automations_session: AsyncSession,
     trigger: EventTrigger,
@@ -202,8 +212,8 @@ async def test_trimming_a_slot_keeps_the_events_of_other_slots(
     lone_offset: timedelta,
     crowd_offset: timedelta,
 ):
-    """An event alone in its slot stays, however many events a neighboring slot
-    takes after it."""
+    """An event alone in its slot stays, however many events are held in a
+    neighboring slot after it."""
     lone = slot_start + lone_offset + timedelta(seconds=30)
     crowd = [
         slot_start + crowd_offset + timedelta(milliseconds=100 * i) for i in range(110)
@@ -230,7 +240,7 @@ async def test_trimming_a_slot_keeps_the_events_of_other_slots(
         ),
     ],
 )
-async def test_holding_an_event_drops_held_events_older_than_two_lookbacks(
+async def test_held_events_older_than_two_lookbacks_are_dropped(
     db: PrefectDBInterface,
     automations_session: AsyncSession,
     trigger: EventTrigger,
@@ -238,8 +248,9 @@ async def test_holding_an_event_drops_held_events_older_than_two_lookbacks(
     age: timedelta,
     kept: bool,
 ):
-    """Holding an event drops a held event that occurred more than two lookbacks
-    before it, and keeps one that occurred less than two lookbacks before it."""
+    """An event that occurred more than two lookbacks before a newer one leaves the
+    held set. One lookback is not enough to drop it, because a lost follower can
+    still open a window over it."""
     newer = frozen_time + age
     await automation_held_events.hold_event(
         automations_session, trigger, KEY, walked(frozen_time)
@@ -251,39 +262,125 @@ async def test_holding_an_event_drops_held_events_older_than_two_lookbacks(
     assert (frozen_time in await held_occurrences(db, automations_session)) is kept
 
 
-async def test_held_events_are_swept_after_two_lookbacks(
+@pytest.mark.parametrize(
+    "swept_after, kept",
+    [
+        pytest.param(
+            PRECEDING_EVENT_LOOKBACK + timedelta(seconds=1), True, id="one-lookback"
+        ),
+        pytest.param(
+            2 * PRECEDING_EVENT_LOOKBACK + timedelta(seconds=1),
+            False,
+            id="two-lookbacks",
+        ),
+    ],
+)
+async def test_held_events_outlast_one_lookback(
     db: PrefectDBInterface,
     automations_session: AsyncSession,
     trigger: EventTrigger,
+    swept_after: timedelta,
+    kept: bool,
 ):
-    """Held events leave on their own, without another event for their key."""
+    """Causal ordering holds a lost follower for up to the lookback before it is
+    evaluated, so a held event lives past one lookback after it is held, and is
+    swept on its own within two."""
     await automation_held_events.hold_event(
         automations_session, trigger, KEY, walked(now("UTC"))
     )
     await automations_session.commit()
 
-    await triggers.periodic_evaluation(
-        now("UTC") + 2 * PRECEDING_EVENT_LOOKBACK + timedelta(seconds=1)
-    )
-    assert await held_occurrences(db, automations_session) == []
+    await triggers.periodic_evaluation(now("UTC") + swept_after)
+    assert bool(await held_occurrences(db, automations_session)) is kept
 
 
-async def test_held_events_outlast_the_lookback_for_lost_followers(
+@pytest.mark.parametrize(
+    "bucketing_key, swept_after, kept",
+    [
+        pytest.param(KEY, timedelta(hours=1), True, id="its-bucket-is-open"),
+        pytest.param(KEY, timedelta(hours=3), False, id="its-bucket-has-ended"),
+        pytest.param(
+            ("groundhog",), timedelta(hours=1), False, id="another-key-is-open"
+        ),
+    ],
+)
+async def test_held_events_outlast_the_retention_while_their_bucket_is_open(
     db: PrefectDBInterface,
     automations_session: AsyncSession,
     trigger: EventTrigger,
+    bucketing_key: tuple[str, ...],
+    swept_after: timedelta,
+    kept: bool,
 ):
-    """An `after` event that waited the full lookback for its predecessor still
-    finds the `expect` events held for its window."""
+    """A window that is open longer than the retention can still roll back over
+    an event held for its key, so the sweep keeps that event until the window
+    ends."""
+    held_at = now("UTC")
     await automation_held_events.hold_event(
-        automations_session, trigger, KEY, walked(now("UTC"))
+        automations_session, trigger, KEY, walked(held_at)
+    )
+    await triggers.ensure_bucket(
+        automations_session,
+        trigger,
+        bucketing_key,
+        start=held_at,
+        end=held_at + timedelta(hours=2),
+        last_event=None,
     )
     await automations_session.commit()
 
-    await triggers.periodic_evaluation(
-        now("UTC") + PRECEDING_EVENT_LOOKBACK + timedelta(seconds=1)
+    await triggers.periodic_evaluation(held_at + swept_after)
+    assert bool(await held_occurrences(db, automations_session)) is kept
+
+
+LONG_WITHIN = timedelta(hours=1)
+
+
+@pytest.mark.parametrize("within", [LONG_WITHIN])
+@pytest.mark.parametrize("threshold", [2])
+async def test_events_one_window_apart_are_both_kept_past_the_retention(
+    automations_session: AsyncSession,
+    trigger: EventTrigger,
+    slot_start: datetime,
+):
+    """Two events occurred more than the retention apart but less than `within`
+    apart, so one window can cover both. Both stay held, and a window that opens over
+    them counts both."""
+    first = slot_start + timedelta(minutes=1)
+    await hold_all(
+        automations_session,
+        trigger,
+        [first, first + HELD_EXPECT_EVENTS_RETENTION + WITHIN],
     )
-    assert await held_occurrences(db, automations_session) != []
+
+    opened = await triggers.ensure_bucket(
+        automations_session,
+        trigger,
+        KEY,
+        start=first,
+        end=first + LONG_WITHIN,
+        last_event=None,
+    )
+
+    assert opened.count == 2
+
+
+async def test_holding_events_newest_first_keeps_the_held_set_bounded(
+    db: PrefectDBInterface,
+    automations_session: AsyncSession,
+    trigger: EventTrigger,
+    slot_start: datetime,
+):
+    """One event in each of 120 slots is held newest first, as a backfill would
+    hold them. Only the events within the retention of the newest one stay."""
+    occurrences = [slot_start + k * WITHIN + timedelta(seconds=30) for k in range(120)]
+    await hold_all(automations_session, trigger, reversed(occurrences))
+
+    within_the_retention = HELD_EXPECT_EVENTS_RETENTION // WITHIN + 1
+    assert (
+        await held_occurrences(db, automations_session)
+        == occurrences[-within_the_retention:]
+    )
 
 
 async def test_event_is_held_whether_or_not_a_bucket_exists(
@@ -324,7 +421,7 @@ async def test_held_event_evaluated_again_gives_nothing_to_count(
     trigger: EventTrigger,
     frozen_time: DateTime,
 ):
-    """A held event was already counted by the bucket that opened over it, so a
+    """A held event was already counted by the window that opened over it, so a
     second evaluation of it returns no bucket."""
     event = walked(frozen_time)
     await triggers.hold_expect_event(automations_session, trigger, KEY, event)

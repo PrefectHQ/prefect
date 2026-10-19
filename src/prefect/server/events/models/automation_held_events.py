@@ -134,11 +134,20 @@ async def hold_event(
     )
 
     for_key = _for_key(db, trigger, bucketing_key)
+
+    # The horizon is measured from the newest held event, not from this one.
+    # Otherwise events held newest first, as in a backfill, each measure an older
+    # horizon, never drop the newer events, and grow the key without bound until
+    # the sweep.  A window `within` wide that rolls back over the newest event can
+    # reach events up to `within` before it, so the horizon is never shorter.
+    newest = await session.scalar(
+        sa.select(sa.func.max(db.AutomationHeldEvent.occurred)).where(*for_key)
+    )
+    horizon = max(HELD_EXPECT_EVENTS_RETENTION, trigger.within)
     await session.execute(
         sa.delete(db.AutomationHeldEvent).where(
             *for_key,
-            db.AutomationHeldEvent.occurred
-            < event.occurred - HELD_EXPECT_EVENTS_RETENTION,
+            db.AutomationHeldEvent.occurred < (newest or event.occurred) - horizon,
         )
     )
 
@@ -207,11 +216,22 @@ def held_events_in_window(
 async def sweep_held_events(
     db: PrefectDBInterface,
     session: AsyncSession,
-    older_than: datetime,
+    now: datetime,
 ) -> None:
-    """Delete every held event that was held before `older_than`"""
+    """Delete every held event that was held more than `HELD_EXPECT_EVENTS_RETENTION`
+    before `now`, unless a bucket for its key has not ended by `now`"""
+    # `within` has no upper bound, so a bucket can stay open longer than the
+    # retention, and an `after` event that occurred inside it can still roll it
+    # back over its held events.
+    open_bucket = sa.exists().where(
+        db.AutomationBucket.automation_id == db.AutomationHeldEvent.automation_id,
+        db.AutomationBucket.trigger_id == db.AutomationHeldEvent.trigger_id,
+        db.AutomationBucket.bucketing_key == db.AutomationHeldEvent.bucketing_key,
+        db.AutomationBucket.end > now,
+    )
     await session.execute(
         sa.delete(db.AutomationHeldEvent).where(
-            db.AutomationHeldEvent.updated < older_than
+            db.AutomationHeldEvent.updated < now - HELD_EXPECT_EVENTS_RETENTION,
+            ~open_bucket,
         )
     )

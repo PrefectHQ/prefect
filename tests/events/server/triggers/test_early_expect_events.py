@@ -17,7 +17,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automations
-from prefect.server.events.ordering import PRECEDING_EVENT_LOOKBACK
+from prefect.server.events.models.automation_held_events import (
+    HELD_EXPECT_EVENTS_RETENTION,
+)
+from prefect.server.events.ordering import PRECEDING_EVENT_LOOKBACK, EventArrivedEarly
 from prefect.server.events.schemas.automations import (
     Automation,
     EventTrigger,
@@ -74,13 +77,19 @@ def make_trigger(
     return make
 
 
-async def receive(event: str, occurred: DateTime, id: UUID | None = None) -> None:
+async def receive(
+    event: str,
+    occurred: DateTime,
+    id: UUID | None = None,
+    follows: UUID | None = None,
+) -> None:
     await triggers.reactive_evaluation(
         Event(
             occurred=occurred,
             event=event,
             resource={"prefect.resource.id": RESOURCE},
             id=id or uuid4(),
+            follows=follows,
         ).receive()
     )
 
@@ -319,9 +328,9 @@ async def test_expect_event_after_an_expired_window_counts_in_the_next_one(
     make_trigger: MakeTrigger,
     expect: set[str],
 ):
-    """B is evaluated while the window of the first A is still open in storage, but
-    B occurred after that window ended. The first window fires empty, and the window
-    of the later A that contains B counts it."""
+    """B is evaluated while the window of the first A still exists, but B occurred
+    after that window ended. The first window fires empty, and the window of the
+    later A that contains B counts it."""
     trigger = await make_trigger(expect)
 
     await receive("A", frozen_time)
@@ -350,14 +359,16 @@ async def test_a_high_threshold_counts_every_held_event(
     act.assert_not_awaited()
 
 
+@pytest.mark.parametrize("expect", EXPECT_SHAPES)
 async def test_many_later_expect_events_do_not_crowd_out_an_earlier_one(
     act: mock.AsyncMock,
     frozen_time: DateTime,
     make_trigger: MakeTrigger,
+    expect: set[str],
 ):
     """B at t=1 and a hundred Bs at t=61 are all evaluated before the A at t=0. The
     later Bs fall outside A's window, and the B at t=1 still satisfies it."""
-    trigger = await make_trigger({"B"})
+    trigger = await make_trigger(expect)
 
     await receive("B", frozen_time + timedelta(seconds=1))
     for _ in range(100):
@@ -383,4 +394,62 @@ async def test_later_expect_event_keeps_an_earlier_one_held_for_a_lost_follower(
     await receive("A", frozen_time)
 
     await triggers.proactive_evaluation(trigger, frozen_time + WITHIN * 2)
+    act.assert_not_awaited()
+
+
+Advance = Callable[[timedelta], DateTime]
+
+
+async def test_expect_event_is_still_held_when_a_lost_follower_is_evaluated(
+    act: mock.AsyncMock,
+    advance_time: Advance,
+    make_trigger: MakeTrigger,
+    automations_session: AsyncSession,
+):
+    """A follows an event that never arrives, so it waits a full lookback and is
+    evaluated as a lost follower by the periodic evaluation, which also sweeps held
+    events. Its window still counts the B that was held before it."""
+    within = 2 * PRECEDING_EVENT_LOOKBACK
+    trigger = await make_trigger({"B"}, within=within)
+    start = advance_time(timedelta(0))
+
+    await receive("B", start + timedelta(seconds=1))
+    with pytest.raises(EventArrivedEarly):
+        await receive("A", start, follows=uuid4())
+
+    later = advance_time(PRECEDING_EVENT_LOOKBACK + timedelta(minutes=1))
+    await triggers.periodic_evaluation(later)
+    # The periodic evaluation can reload the automations, which replaces the trigger.
+    trigger = triggers.triggers[trigger.id]
+
+    bucket = await triggers.read_bucket(automations_session, trigger, (RESOURCE,))
+    assert bucket is not None
+    assert bucket.count == 1
+
+    await triggers.proactive_evaluation(trigger, start + within * 2)
+    act.assert_not_awaited()
+
+
+async def test_expect_event_carries_into_a_late_roll_of_a_window_longer_than_the_retention(
+    act: mock.AsyncMock,
+    advance_time: Advance,
+    make_trigger: MakeTrigger,
+):
+    """B counts in A's hour-long window. The periodic evaluation runs while that
+    window is still open, more than the retention after B was held. A later A at
+    t=30s then rolls the window, and the new window still counts B."""
+    within = timedelta(hours=1)
+    trigger = await make_trigger({"A", "B"}, within=within)
+    start = advance_time(timedelta(0))
+
+    await receive("A", start)
+    await receive("B", start + timedelta(minutes=1))
+
+    later = advance_time(HELD_EXPECT_EVENTS_RETENTION + timedelta(minutes=1))
+    await triggers.periodic_evaluation(later)
+    # The periodic evaluation can reload the automations, which replaces the trigger.
+    trigger = triggers.triggers[trigger.id]
+    await receive("A", start + timedelta(seconds=30))
+
+    await triggers.proactive_evaluation(trigger, start + within * 2)
     act.assert_not_awaited()

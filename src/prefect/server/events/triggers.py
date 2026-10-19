@@ -720,9 +720,7 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     # must not skip it.
     try:
         async with automations_session() as session:
-            await automation_held_events.sweep_held_events(
-                session, now - automation_held_events.HELD_EXPECT_EVENTS_RETENTION
-            )
+            await automation_held_events.sweep_held_events(session, now)
             await session.commit()
     except Exception:
         logger.exception("Error sweeping held events")
