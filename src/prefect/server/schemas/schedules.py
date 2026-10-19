@@ -551,7 +551,10 @@ def _localize_rdate(
     """
     Read back an RDATE or EXDATE written by `_format_rdate`.
     """
-    if dt.tzinfo is None or isinstance(dt.tzinfo, dateutil.tz.tzutc):
+    # A value ending in `Z` parses as `tzutc()`, or as `tzlocal()` when the
+    # local timezone is UTC. `_format_rdate` never writes a zero offset, so
+    # check the offset rather than the tzinfo type.
+    if dt.tzinfo is None or not dt.utcoffset():
         return dt.replace(tzinfo=timezone)
     # A value with a UTC offset is already an exact instant. Keep its offset:
     # datetimes that share a tzinfo compare by wall-clock time and ignore `fold`.
@@ -772,9 +775,11 @@ class RRuleSchedule(PrefectBaseModel):
             if end and next_date > end:
                 break
 
-            # ensure no duplicates; weird things can happen with DST
-            if next_date not in dates:
-                dates.add(next_date)
+            # ensure no duplicates; weird things can happen with DST. Compare
+            # instants: datetimes in the same timezone compare by wall-clock
+            # time, so both 01:30s of a fall-back day would count as one.
+            if next_date.timestamp() not in dates:
+                dates.add(next_date.timestamp())
                 yield next_date
 
             # if enough dates have been collected or enough attempts were made, exit
