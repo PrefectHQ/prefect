@@ -611,14 +611,22 @@ class TestDateFunctions:
         value = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
             seconds=17
         )
-        result: Optional[float] = await session.scalar(
-            sa.select(sa.func.date_diff_seconds(value))
-        )
+        # Compare against the database's own "now" from the same statement rather
+        # than Python's clock, since the time between creating `value` and the
+        # database evaluating "now" is unbounded on a loaded CI runner.
+        row = (
+            await session.execute(
+                sa.select(
+                    sa.func.date_diff_seconds(value),
+                    sa.func.now(type_=Timestamp()),
+                )
+            )
+        ).one()
+        result: Optional[float] = row[0]
+        db_now: datetime.datetime = row[1]
         assert result is not None
-        # Use pytest.approx with tolerance to account for clock precision differences
-        # between Python's datetime.now() and the database's "now", as well as
-        # database round-trip time
-        assert result == pytest.approx(17, abs=0.2)
+        assert result == pytest.approx((db_now - value).total_seconds(), abs=0.01)
+        assert result >= 17
 
     async def test_date_diff_seconds_from_now_column(self, session: AsyncSession):
         value = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
@@ -628,16 +636,23 @@ class TestDateFunctions:
         session.add(model)
         await session.commit()
 
-        result: Optional[float] = await session.scalar(
-            sa.select(sa.func.date_diff_seconds(SQLTimestampModel.ts_1)).where(
-                SQLTimestampModel.id == model.id
+        # Compare against the database's own "now" from the same statement rather
+        # than Python's clock, since the time between creating `value` and the
+        # database evaluating "now" (including the commit) is unbounded on a
+        # loaded CI runner.
+        row = (
+            await session.execute(
+                sa.select(
+                    sa.func.date_diff_seconds(SQLTimestampModel.ts_1),
+                    sa.func.now(type_=Timestamp()),
+                ).where(SQLTimestampModel.id == model.id)
             )
-        )
+        ).one()
+        result: Optional[float] = row[0]
+        db_now: datetime.datetime = row[1]
         assert result is not None
-        # Use pytest.approx with tolerance to account for clock precision differences
-        # between Python's datetime.now() and the database's "now", as well as
-        # database round-trip time
-        assert result == pytest.approx(17, abs=0.2)
+        assert result == pytest.approx((db_now - value).total_seconds(), abs=0.01)
+        assert result >= 17
 
 
 async def test_error_thrown_if_sqlite_version_is_below_minimum():
