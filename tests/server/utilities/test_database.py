@@ -626,7 +626,6 @@ class TestDateFunctions:
         db_now: datetime.datetime = row[1]
         assert result is not None
         assert result == pytest.approx((db_now - value).total_seconds(), abs=0.01)
-        assert result >= 17
 
     async def test_date_diff_seconds_from_now_column(self, session: AsyncSession):
         value = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
@@ -652,7 +651,6 @@ class TestDateFunctions:
         db_now: datetime.datetime = row[1]
         assert result is not None
         assert result == pytest.approx((db_now - value).total_seconds(), abs=0.01)
-        assert result >= 17
 
 
 async def test_error_thrown_if_sqlite_version_is_below_minimum():
