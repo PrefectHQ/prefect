@@ -130,14 +130,15 @@ async def test_held_events_are_swept_after_the_lookback(
     assert await held_occurrences(db, automations_session) == []
 
 
-async def test_event_is_held_only_when_no_bucket_exists(
+async def test_event_is_held_whether_or_not_a_bucket_exists(
     db: PrefectDBInterface,
     automations_session: AsyncSession,
     trigger: EventTrigger,
     frozen_time: DateTime,
 ):
-    """With no bucket, the event is held. With a bucket, the caller gets the bucket
-    to count the event in, and the event is not held."""
+    """With no bucket, the event is held and the caller gets nothing to count it in.
+    With a bucket, the event is held too, and the caller gets the bucket to count
+    the event in."""
     early = walked(frozen_time)
     assert (
         await triggers.hold_expect_event(automations_session, trigger, KEY, early)
@@ -152,13 +153,14 @@ async def test_event_is_held_only_when_no_bucket_exists(
         end=frozen_time + trigger.within,
         last_event=None,
     )
+    later = frozen_time + timedelta(seconds=1)
     found = await triggers.hold_expect_event(
-        automations_session, trigger, KEY, walked(frozen_time)
+        automations_session, trigger, KEY, walked(later)
     )
 
     assert found is not None
     assert found.id == opened.id
-    assert await held_occurrences(db, automations_session) == [frozen_time]
+    assert await held_occurrences(db, automations_session) == [frozen_time, later]
 
 
 async def test_held_event_evaluated_again_gives_nothing_to_count(

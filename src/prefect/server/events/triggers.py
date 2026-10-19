@@ -156,7 +156,7 @@ async def evaluate(
         return bucket
 
     # increment_bucket replaces the bucket's last_event, and the proactive same-event
-    # reset below may need to carry the one it replaced into the next window.
+    # reset below may keep the one it replaced as the next window's firing context.
     previous_last_event = bucket.last_event
 
     if count and (trigger.immediate or bucket.start <= now < bucket.end):
@@ -237,10 +237,10 @@ async def evaluate(
         # If we've already reached the proactive threshold, we need to remove the
         # current bucket and start a new one for the latest event.
         #
-        # An `expect`-only event that occurred at or after the new window's start,
-        # such as a terminal flow run state that races the final heartbeat, belongs
-        # to the new window.  Carry it forward, or the new window opens empty and
-        # fires even though the flow run finished.
+        # The new window counts its `expect`-only events, such as a terminal flow
+        # run state that races the final heartbeat, from the held events, because
+        # every one of them is held whatever order they were evaluated in.  The
+        # count in the current bucket cannot be split by when each event occurred.
         if (
             triggering_event
             and trigger.posture == Posture.Proactive
@@ -250,16 +250,14 @@ async def evaluate(
         ):
             await remove_bucket(session, bucket)
 
-            carried_count = 0
-            carried_last_event = triggering_event
+            last_event = triggering_event
             if (
                 previous_last_event
                 and trigger.expects(previous_last_event.event)
                 and not trigger.starts_after(previous_last_event.event)
                 and previous_last_event.occurred >= triggering_event.occurred
             ):
-                carried_count = 1
-                carried_last_event = previous_last_event
+                last_event = previous_last_event
 
             return await start_new_bucket(
                 session,
@@ -267,8 +265,8 @@ async def evaluate(
                 bucketing_key=bucket.bucketing_key,
                 start=triggering_event.occurred,
                 end=triggering_event.occurred + trigger.within,
-                count=carried_count,
-                last_event=carried_last_event,
+                count=0,
+                last_event=last_event,
             )
 
         return bucket
@@ -683,9 +681,8 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
 
                     if not bucket:
                         if automation_held_events.holds_expect_events(trigger):
-                            # Only an `expect`-only event reaches this point.  If
-                            # its bucket has not opened yet, it is held for that
-                            # bucket to count when it opens.
+                            # Only an `expect`-only event reaches this point.  It
+                            # is held for any bucket that opens later over it.
                             bucket = await hold_expect_event(
                                 session, trigger, bucketing_key, event
                             )
@@ -1029,31 +1026,20 @@ async def hold_expect_event(
     bucketing_key: Tuple[str, ...],
     event: ReceivedEvent,
 ) -> "ORMAutomationBucket | None":
-    """Returns this key's current bucket for the caller to evaluate the event against.
-    Holds the event for a bucket that opens later when no bucket exists, or when the
-    event occurred after the current bucket ended.  Returns None when the caller has
-    nothing to evaluate: no bucket exists, or an earlier evaluation of the same event
-    held it."""
-    # A held event was already counted by the bucket that opened over it, or it
-    # occurred outside that bucket's window.  Either way, counting it again would be
-    # wrong.
+    """Holds the event for every bucket that opens later over it, and returns this
+    key's current bucket for the caller to evaluate the event against.  Returns None
+    when the caller has nothing to evaluate: no bucket exists, or an earlier
+    evaluation of the same event held it."""
+    # A held event was already counted by the bucket it was evaluated against or by
+    # a bucket that opened over it, so evaluating it again would count it twice.
     if await automation_held_events.is_held(session, trigger, bucketing_key, event):
         return None
 
-    bucket = await read_bucket(session, trigger, bucketing_key)
-    if bucket:
-        # Evaluation does not count an event that occurred after the bucket ended,
-        # and it removes that bucket, so without the hold the next window that
-        # contains the event would open without it.  The caller still evaluates
-        # the bucket so that it fires or expires.
-        if event.occurred >= bucket.end and not trigger.immediate:
-            await automation_held_events.hold_event(
-                session, trigger, bucketing_key, event
-            )
-        return bucket
-
+    # A bucket that opens later counts the held events in its window, and a bucket
+    # that exists now counts this event only through the caller's evaluation, so
+    # no bucket counts it twice.
     await automation_held_events.hold_event(session, trigger, bucketing_key, event)
-    return None
+    return await read_bucket(session, trigger, bucketing_key)
 
 
 @db_injector
@@ -1222,8 +1208,9 @@ async def ensure_bucket(
             ],
             set_=dict(
                 # no-op, but this counts as an update so the query returns a row.
-                # The existing last_event stays, because evaluation may need to
-                # carry an `expect`-only event that already counted in this bucket.
+                # The existing last_event stays, because evaluation may keep an
+                # `expect`-only event that counted in this bucket as the firing
+                # context of the next window.
                 count=db.AutomationBucket.count,
             ),
         )

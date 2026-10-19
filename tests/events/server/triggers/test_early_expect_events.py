@@ -196,6 +196,41 @@ async def test_expect_event_counted_in_a_window_carries_into_a_late_roll(
     act.assert_not_awaited()
 
 
+async def test_expect_event_counted_in_a_window_carries_into_a_late_roll_in_any_order(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    make_trigger: MakeTrigger,
+):
+    """B at t=10 and B at t=5 both count in A's open window. A later A at t=9 rolls
+    the window, and the new window still counts the B at t=10, although the B at t=5
+    was evaluated last."""
+    trigger = await make_trigger({"A", "B"})
+
+    for offset, event in ((0, "A"), (10, "B"), (5, "B"), (9, "A")):
+        await receive(event, frozen_time + timedelta(seconds=offset))
+
+    await triggers.proactive_evaluation(trigger, frozen_time + WITHIN * 2)
+    act.assert_not_awaited()
+
+
+async def test_every_expect_event_counted_in_a_window_carries_into_a_late_roll(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    make_trigger: MakeTrigger,
+):
+    """Two Bs count in A's open window. A later A that occurred just before both
+    rolls the window, and the new window counts both, which meets a threshold of
+    two."""
+    within = timedelta(minutes=10)
+    trigger = await make_trigger({"A", "B"}, threshold=2, within=within)
+
+    for offset, event in ((0, "A"), (61, "B"), (62, "B"), (60, "A")):
+        await receive(event, frozen_time + timedelta(seconds=offset))
+
+    await triggers.proactive_evaluation(trigger, frozen_time + within * 2)
+    act.assert_not_awaited()
+
+
 async def test_rolled_window_fires_with_the_carried_expect_event(
     act: mock.AsyncMock,
     frozen_time: DateTime,
@@ -230,6 +265,26 @@ async def test_one_expect_event_evaluated_twice_counts_once(
     b_id = uuid4()
     await receive("B", frozen_time + timedelta(seconds=1), id=b_id)
     await receive("A", frozen_time)
+    await receive("B", frozen_time + timedelta(seconds=1), id=b_id)
+
+    await triggers.proactive_evaluation(trigger, frozen_time + WITHIN * 2)
+    act.assert_awaited_once()
+
+
+@pytest.mark.parametrize("expect", EXPECT_SHAPES)
+async def test_one_expect_event_evaluated_twice_in_an_open_window_counts_once(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    make_trigger: MakeTrigger,
+    expect: set[str],
+):
+    """A redelivered B, evaluated twice after A's window opens, is still one event,
+    so a threshold of two is not met."""
+    trigger = await make_trigger(expect, threshold=2)
+
+    b_id = uuid4()
+    await receive("A", frozen_time)
+    await receive("B", frozen_time + timedelta(seconds=1), id=b_id)
     await receive("B", frozen_time + timedelta(seconds=1), id=b_id)
 
     await triggers.proactive_evaluation(trigger, frozen_time + WITHIN * 2)

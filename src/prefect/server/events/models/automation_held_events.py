@@ -2,9 +2,9 @@
 Held `expect` events for proactive triggers with `after`.
 
 Events for one bucketing key can be evaluated in any order, so an `expect` event can be
-evaluated before the `after` event that opens its bucket. Such an event is held here,
-and each bucket that opens or rolls counts the held events that occurred inside its
-window.
+evaluated before the `after` event that opens its window, or counted in one window
+before a later `after` event rolls it. Every `expect`-only event is held here, and each
+bucket that opens or rolls counts the held events that occurred inside its window.
 """
 
 import hashlib
@@ -26,7 +26,8 @@ HELD_EXPECT_EVENTS_LIMIT = 100
 
 
 def holds_expect_events(trigger: EventTrigger) -> bool:
-    """Whether the trigger holds `expect` events that arrive before their bucket"""
+    """Whether the trigger holds its `expect`-only events for the buckets that open
+    later"""
     return trigger.posture == Posture.Proactive and bool(trigger.after)
 
 
@@ -95,7 +96,7 @@ async def hold_event(
     bucketing_key: Sequence[str],
     event: ReceivedEvent,
 ) -> None:
-    """Hold the event for a bucket that opens later, and drop held events for the
+    """Hold the event for the buckets that open later, and drop held events for the
     same key that are too old or beyond the limit"""
     await session.execute(
         db.queries.insert(db.AutomationHeldEvent)
