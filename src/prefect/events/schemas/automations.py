@@ -22,6 +22,8 @@ from pydantic import (
     Field,
     PrivateAttr,
     Tag,
+    TypeAdapter,
+    ValidationError,
     field_validator,
     model_validator,
 )
@@ -32,6 +34,8 @@ from prefect.events.actions import ActionTypes, RunDeployment
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
+
+_timedelta_adapter: TypeAdapter[timedelta] = TypeAdapter(timedelta)
 
 # Dict form accepted by ResourceSpecification via Pydantic coercion
 ResourceSpecificationDict: TypeAlias = Dict[str, Union[str, List[str]]]
@@ -220,8 +224,15 @@ class EventTrigger(ResourceTrigger):
         posture: Optional[Posture] = data.get("posture")
         within: Optional[timedelta] = data.get("within")
 
-        if isinstance(within, (int, float)):
-            within = timedelta(seconds=within)
+        if within is not None and not isinstance(within, timedelta):
+            # Parse the raw value the same way the field would, so that every
+            # form pydantic accepts for a timedelta reaches the comparisons
+            # below as a timedelta.
+            try:
+                within = _timedelta_adapter.validate_python(within)
+            except ValidationError:
+                # The field validation reports the unparsable value.
+                return data
 
         if posture == Posture.Proactive:
             if not within or within == timedelta(0):
