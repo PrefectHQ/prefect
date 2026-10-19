@@ -161,6 +161,12 @@ class TestApplyValues:
         values = {"first_name": "Alice", "last_name": "Smith", "age": 30}
         assert apply_values(template, values) == {"name": "Alice Smith", "age": 30}
 
+    @pytest.mark.parametrize("key", ["2026", "01"])
+    def test_apply_values_dictionary_with_numeric_string_key(self, key: str):
+        template = {"year": f"{{{{ years.{key} }}}}"}
+        values = {"years": {key: 42}}
+        assert apply_values(template, values) == {"year": 42}
+
     def test_apply_values_dictionary_with_unset_value(self):
         template = {"last_name": "{{last_name}}", "age": "{{age}}"}
         values = {"first_name": "Alice", "age": 30}

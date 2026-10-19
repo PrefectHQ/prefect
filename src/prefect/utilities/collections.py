@@ -640,6 +640,9 @@ def get_from_dict(
     of keys. If a requested key does not exist, the function returns the
     provided default value.
 
+    Dictionary keys are looked up as provided before falling back to integer
+    keys or sequence indices.
+
     Args:
         dct: The nested dictionary or list from which to fetch the value.
         keys: The sequence of keys to use for access. Can be a
@@ -666,13 +669,14 @@ def get_from_dict(
     try:
         for key in keys:
             try:
-                # Try to cast to int to handle list indices
-                key = int(key)
-            except ValueError:
-                # If it's not an int, use the key as-is
-                # for dict lookup
-                pass
-            value = value[key]  # type: ignore
+                value = value[key]  # type: ignore
+            except (TypeError, KeyError):
+                # Fall back to integer dictionary keys and sequence indices.
+                try:
+                    key = int(key)
+                except ValueError:
+                    return default
+                value = value[key]  # type: ignore
         return cast(VT, value)
     except (TypeError, KeyError, IndexError):
         return default
