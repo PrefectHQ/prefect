@@ -7,8 +7,10 @@ assertions pass across the CI matrix we have behavioral parity between the
 two backends.
 """
 
+import base64
 import datetime
 import gc
+import io
 import pickle
 import subprocess
 import sys
@@ -20,11 +22,13 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, GetCoreSchemaHandler, TypeAdapter
+from pydantic_core import core_schema
 
 from prefect import task
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import TaskRunContext
+from prefect.serializers import PickleSerializer
 from prefect.tasks import task_input_hash
 from prefect.types._datetime import (
     Date,
@@ -43,6 +47,9 @@ from prefect.types._datetime import (
 
 if sys.version_info < (3, 13):
     import pendulum
+    from pydantic_extra_types.pendulum_dt import Date as PydanticDate
+    from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
+    from pydantic_extra_types.pendulum_dt import Duration as PydanticDuration
 
 # Saturday 2024-06-15 14:30:45 America/New_York (UTC-4, i.e. EDT)
 FIXED = datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=ZoneInfo("America/New_York"))
@@ -385,6 +392,114 @@ def test_astimezone_preserves_timezone_for_pendulum_tz():
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 class TestPendulumCompatibility:
+    def test_duration_schema_without_upstream_iso_serializer(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        def legacy_schema(
+            cls: type[PydanticDuration], source: Any, handler: GetCoreSchemaHandler
+        ) -> core_schema.CoreSchema:
+            return core_schema.no_info_wrap_validator_function(
+                cls._validate, core_schema.timedelta_schema()
+            )
+
+        monkeypatch.delattr(PydanticDuration, "to_iso8601_string", raising=False)
+        monkeypatch.setattr(
+            PydanticDuration, "__get_pydantic_core_schema__", classmethod(legacy_schema)
+        )
+
+        class Model(BaseModel):
+            duration: Duration
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            value = Model(duration="P1D")
+            assert value.duration == datetime.timedelta(days=1)
+            assert value.model_dump_json() == '{"duration":"P1D"}'
+        assert isinstance(value.duration, Duration)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            datetime.timedelta.max,
+            datetime.timedelta.min,
+            datetime.timedelta(days=100000, microseconds=1),
+            datetime.timedelta(days=-100000, microseconds=-1),
+        ],
+    )
+    def test_duration_validation_preserves_exact_timedelta(
+        self, value: datetime.timedelta
+    ):
+        result = TypeAdapter(Duration).validate_python(value)
+        assert isinstance(result, Duration)
+        assert result == value
+
+    @pytest.mark.parametrize("text", ["P100000DT0.000001S", "P1Y2M100000DT0.000001S"])
+    def test_parsed_duration_preserves_exact_value_and_calendar_units(self, text: str):
+        expected = pendulum.parse(text)
+        value = parse_datetime(text)
+        assert isinstance(value, Duration)
+        assert value == expected
+        assert value.years == expected.years
+        assert value.months == expected.months
+
+    @pytest.mark.parametrize("picklelib", ["pickle", "cloudpickle"])
+    @pytest.mark.parametrize("kind", ["datetime", "naive_datetime", "date"])
+    @pytest.mark.parametrize("days", [-2, 0, 2])
+    @pytest.mark.parametrize("absolute", [False, True])
+    def test_interval_pickle_supports_legacy_readers(
+        self, picklelib: str, kind: str, days: int, absolute: bool
+    ):
+        # Before this deprecation, the public names were Pydantic aliases and
+        # the private _Interval class did not exist.
+        legacy_types = {
+            "DateTime": PydanticDateTime,
+            "Date": PydanticDate,
+            "Duration": PydanticDuration,
+        }
+
+        class LegacyDatetimeReader(pickle.Unpickler):
+            def find_class(self, module: str, name: str) -> Any:
+                if module == "prefect.types._datetime":
+                    if name not in legacy_types:
+                        raise AttributeError(f"Legacy datetime module has no {name!r}")
+                    return legacy_types[name]
+                return super().find_class(module, name)
+
+        start = (
+            create_datetime_instance(
+                datetime.datetime(2024, 3, 9, 12, tzinfo=ZoneInfo("America/New_York"))
+            )
+            if kind != "date"
+            else Date(2024, 3, 9)
+        )
+        if kind == "naive_datetime":
+            start = start.replace(tzinfo=None)
+        end = start + datetime.timedelta(days=days)
+        expected = pendulum.interval(start, end, absolute=absolute)
+        with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'diff'"):
+            interval = start.diff(end, abs=absolute)
+
+        serializer = PickleSerializer(picklelib=picklelib)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            serialized = serializer.dumps(interval)
+            restored = serializer.loads(serialized)
+            legacy = LegacyDatetimeReader(
+                io.BytesIO(base64.decodebytes(serialized))
+            ).load()
+
+        for result in (restored, legacy):
+            assert result == expected
+            assert result.start == expected.start
+            assert result.end == expected.end
+            assert result.invert == expected.invert
+            assert result.total_seconds() == expected.total_seconds()
+        assert type(legacy) is pendulum.Interval
+        with pytest.warns(
+            DeprecationWarning, match="Pendulum datetime member 'in_words'"
+        ):
+            assert restored.in_words(locale="en") == expected.in_words(locale="en")
+
     @pytest.mark.parametrize(
         "factory, member, kwargs, expected",
         [

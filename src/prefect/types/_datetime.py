@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import datetime
 import inspect
+import operator
 import os
 import sys
 import warnings
 from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
-from typing import Annotated, Any, TypeVar, Union, cast
+from typing import Annotated, Any, SupportsIndex, TypeVar, Union, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
@@ -182,10 +183,20 @@ else:
             cls, source_type: Any, handler: GetCoreSchemaHandler
         ) -> _core_schema.CoreSchema:
             schema = super().__get_pydantic_core_schema__(source_type, handler)
-            schema["serialization"] = _core_schema.plain_serializer_function_ser_schema(
-                PydanticDuration.to_iso8601_string, when_used="json-unless-none"
-            )
+            serializer = getattr(PydanticDuration, "to_iso8601_string", None)
+            if serializer is not None:
+                schema["serialization"] = (
+                    _core_schema.plain_serializer_function_ser_schema(
+                        serializer, when_used="json-unless-none"
+                    )
+                )
             return schema
+
+        @classmethod
+        def _from_pendulum(cls, value: pendulum.Duration) -> Duration:
+            # Component properties use floats; the constructor signature retains
+            # exact inputs, including calendar units and timedelta.max.
+            return cls(**getattr(value, "_signature"))
 
         @classmethod
         def _validate(
@@ -193,16 +204,7 @@ else:
         ) -> Duration:
             """Retain the warning-enabled type and its calendar components."""
             validated = super()._validate(value, handler)
-            return cls(
-                years=validated.years,
-                months=validated.months,
-                weeks=validated.weeks,
-                days=validated.remaining_days,
-                hours=validated.hours,
-                minutes=validated.minutes,
-                seconds=validated.remaining_seconds,
-                microseconds=validated.microseconds,
-            )
+            return cls._from_pendulum(validated)
 
     @_deprecated_pendulum_members(datetime.timedelta)
     class _Interval(pendulum.Interval):  # type: ignore[no-redef]
@@ -211,6 +213,14 @@ else:
         Produced by `DateTime` subtraction and `diff()` so derived values
         keep the deprecation notice.
         """
+
+        def __reduce_ex__(self, protocol: SupportsIndex) -> Any:
+            # Older Prefect versions can reconstruct intervals through standard
+            # arithmetic without importing this new private class.
+            start, end, absolute = pendulum.Interval._getstate(self, protocol)
+            if absolute:
+                return abs, (type(self)(start, end),)
+            return operator.sub, (end, start)
 
     _PDT_INSTANCE = PydanticDateTime.instance.__func__
 
@@ -249,16 +259,7 @@ else:
         if isinstance(value, pendulum.Duration):
             if isinstance(value, Duration):
                 return value
-            return Duration(
-                years=value.years,
-                months=value.months,
-                weeks=value.weeks,
-                days=value.remaining_days,
-                hours=value.hours,
-                minutes=value.minutes,
-                seconds=value.remaining_seconds,
-                microseconds=value.microseconds,
-            )
+            return Duration._from_pendulum(value)
         return value
 
     # Inherited constants hold plain Pendulum values; wrap them once so their
