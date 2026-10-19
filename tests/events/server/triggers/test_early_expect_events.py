@@ -17,9 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automations
-from prefect.server.events.models.automation_held_events import (
-    HELD_EXPECT_EVENTS_LIMIT,
-)
 from prefect.server.events.schemas.automations import (
     Automation,
     EventTrigger,
@@ -334,14 +331,13 @@ async def test_expect_event_after_an_expired_window_counts_in_the_next_one(
     act.assert_awaited_once()
 
 
-async def test_threshold_above_the_held_limit_counts_every_held_event(
+async def test_a_high_threshold_counts_every_held_event(
     act: mock.AsyncMock,
     frozen_time: DateTime,
     make_trigger: MakeTrigger,
 ):
-    """A trigger whose threshold is above the held-event limit keeps enough held
-    events to meet it."""
-    threshold = HELD_EXPECT_EVENTS_LIMIT + 1
+    """A trigger with a high threshold keeps enough held events to meet it."""
+    threshold = 150
     within = timedelta(seconds=threshold + 1)
     trigger = await make_trigger({"B"}, threshold=threshold, within=within)
 
@@ -350,4 +346,22 @@ async def test_threshold_above_the_held_limit_counts_every_held_event(
     await receive("A", frozen_time)
 
     await triggers.proactive_evaluation(trigger, frozen_time + within * 2)
+    act.assert_not_awaited()
+
+
+async def test_many_later_expect_events_do_not_crowd_out_an_earlier_one(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    make_trigger: MakeTrigger,
+):
+    """B at t=1 and a hundred Bs at t=61 are all evaluated before the A at t=0. The
+    later Bs fall outside A's window, and the B at t=1 still satisfies it."""
+    trigger = await make_trigger({"B"})
+
+    await receive("B", frozen_time + timedelta(seconds=1))
+    for _ in range(100):
+        await receive("B", frozen_time + timedelta(seconds=61))
+    await receive("A", frozen_time)
+
+    await triggers.proactive_evaluation(trigger, frozen_time + WITHIN * 2)
     act.assert_not_awaited()

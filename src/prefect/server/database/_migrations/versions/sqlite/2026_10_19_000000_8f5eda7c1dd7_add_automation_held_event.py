@@ -76,6 +76,11 @@ def upgrade():
             unique=True,
         )
         batch_op.create_index(
+            "ix_automation_held_event__trigger_key_occurred",
+            ["automation_id", "trigger_id", "bucketing_key", "occurred", "event_id"],
+            unique=False,
+        )
+        batch_op.create_index(
             batch_op.f("ix_automation_held_event__updated"),
             ["updated"],
             unique=False,
@@ -85,6 +90,7 @@ def upgrade():
 def downgrade():
     with op.batch_alter_table("automation_held_event", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_automation_held_event__updated"))
+        batch_op.drop_index("ix_automation_held_event__trigger_key_occurred")
         batch_op.drop_index("uq_automation_held_event__trigger_key_event")
 
     op.drop_table("automation_held_event")

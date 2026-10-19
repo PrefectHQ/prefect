@@ -1354,6 +1354,14 @@ class AutomationHeldEvent(Base):
             "event_id",
             unique=True,
         ),
+        sa.Index(
+            "ix_automation_held_event__trigger_key_occurred",
+            "automation_id",
+            "trigger_id",
+            "bucketing_key",
+            "occurred",
+            "event_id",
+        ),
     )
 
     automation_id: Mapped[uuid.UUID] = mapped_column(

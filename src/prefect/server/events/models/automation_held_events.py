@@ -7,8 +7,9 @@ before a later `after` event rolls it. Every `expect`-only event is held here, a
 bucket that opens or rolls counts the held events that occurred inside its window.
 """
 
+import calendar
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Sequence
 
 import sqlalchemy as sa
@@ -19,10 +20,20 @@ from prefect.server.events.ordering import PRECEDING_EVENT_LOOKBACK
 from prefect.server.events.schemas.automations import EventTrigger, Posture
 from prefect.server.events.schemas.events import ReceivedEvent
 
-# Bounds the rows for a key that takes many `expect` events within the lookback. Past
-# it, a late bucket counts only the newest held events.  A trigger whose threshold is
-# higher keeps that many instead, or a window it opens late could never meet it.
-HELD_EXPECT_EVENTS_LIMIT = 100
+EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def slot_start(occurred: datetime, width: timedelta) -> datetime:
+    """The start of the slot that contains `occurred`, where slots are `width` wide
+    and aligned to the epoch"""
+    # The offset from the epoch is built from plain `datetime` parts, because
+    # subtracting a `datetime` from a pendulum `DateTime` gives a duration that
+    # cannot be divided by a `timedelta`.
+    since_epoch = timedelta(
+        seconds=calendar.timegm(occurred.utctimetuple()),
+        microseconds=occurred.microsecond,
+    )
+    return EPOCH + since_epoch // width * width
 
 
 def holds_expect_events(trigger: EventTrigger) -> bool:
@@ -97,7 +108,7 @@ async def hold_event(
     event: ReceivedEvent,
 ) -> None:
     """Hold the event for the buckets that open later, and drop held events for the
-    same key that are too old or beyond the limit"""
+    same key that are too old or that no window needs to meet its threshold"""
     await session.execute(
         db.queries.insert(db.AutomationHeldEvent)
         .values(
@@ -124,15 +135,43 @@ async def hold_event(
             db.AutomationHeldEvent.occurred < event.occurred - PRECEDING_EVENT_LOOKBACK,
         )
     )
-    newest = (
+
+    # Time is divided into slots `within` wide, aligned to the epoch, and each slot
+    # keeps its first and last `threshold` events.  A window covers the end of one
+    # slot and the start of the next, so it counts at least the smaller of the
+    # threshold and the number of events that occurred inside it.  A count at the
+    # threshold already stops a proactive trigger from firing, so the dropped
+    # events change no outcome.  Only the new event's slot has changed, so only
+    # that slot is trimmed.
+    start = slot_start(event.occurred, trigger.within)
+    in_slot = [
+        *for_key,
+        db.AutomationHeldEvent.occurred >= start,
+        db.AutomationHeldEvent.occurred < start + trigger.within,
+    ]
+    first = (
         sa.select(db.AutomationHeldEvent.id)
-        .where(*for_key)
-        .order_by(db.AutomationHeldEvent.occurred.desc())
-        .limit(max(HELD_EXPECT_EVENTS_LIMIT, trigger.threshold))
+        .where(*in_slot)
+        .order_by(
+            db.AutomationHeldEvent.occurred.asc(),
+            db.AutomationHeldEvent.event_id.asc(),
+        )
+        .limit(trigger.threshold)
+    )
+    last = (
+        sa.select(db.AutomationHeldEvent.id)
+        .where(*in_slot)
+        .order_by(
+            db.AutomationHeldEvent.occurred.desc(),
+            db.AutomationHeldEvent.event_id.desc(),
+        )
+        .limit(trigger.threshold)
     )
     await session.execute(
         sa.delete(db.AutomationHeldEvent).where(
-            *for_key, db.AutomationHeldEvent.id.not_in(newest)
+            *in_slot,
+            db.AutomationHeldEvent.id.not_in(first),
+            db.AutomationHeldEvent.id.not_in(last),
         )
     )
 

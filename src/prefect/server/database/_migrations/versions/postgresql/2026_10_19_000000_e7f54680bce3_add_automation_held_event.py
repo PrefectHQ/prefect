@@ -74,6 +74,12 @@ def upgrade():
         unique=True,
     )
     op.create_index(
+        "ix_automation_held_event__trigger_key_occurred",
+        "automation_held_event",
+        ["automation_id", "trigger_id", "bucketing_key", "occurred", "event_id"],
+        unique=False,
+    )
+    op.create_index(
         op.f("ix_automation_held_event__updated"),
         "automation_held_event",
         ["updated"],
@@ -84,6 +90,10 @@ def upgrade():
 def downgrade():
     op.drop_index(
         op.f("ix_automation_held_event__updated"), table_name="automation_held_event"
+    )
+    op.drop_index(
+        "ix_automation_held_event__trigger_key_occurred",
+        table_name="automation_held_event",
     )
     op.drop_index(
         "uq_automation_held_event__trigger_key_event",

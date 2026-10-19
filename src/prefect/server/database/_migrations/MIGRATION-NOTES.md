@@ -12,9 +12,9 @@ This gives us a history of changes and will create merge conflicts if two migrat
 SQLite: `8f5eda7c1dd7`
 Postgres: `e7f54680bce3`
 
-Holds `expect` events of proactive triggers with `after` that are evaluated
-before any bucket exists for their key, so the bucket that opens later counts
-them. Rows are short-lived: the triggers service deletes them after the
+Holds the `expect`-only events of proactive triggers with `after`, so each
+bucket that opens or rolls counts the held events that occurred inside its
+window. Rows are short-lived: the triggers service deletes them after twice the
 preceding-event lookback. Downgrading drops the table, and held events are lost.
 
 # Add `flow_run(state_type, coalesce(start_time, expected_start_time))` index
