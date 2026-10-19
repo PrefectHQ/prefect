@@ -449,6 +449,25 @@ class TestFlowRunExecutorSubmit:
         assert message.startswith(expected_message)
         m["process_manager"].remove.assert_awaited_once_with(m["flow_run"].id)
 
+    async def test_submit_leaves_live_process_registered_when_starter_fails(self):
+        executor, m = _make_executor()
+        m["handle"].returncode = None
+        m["process_manager"].get.return_value = m["handle"]
+
+        async def _start_then_fail(fr, task_status=anyio.TASK_STATUS_IGNORED):
+            task_status.started(m["handle"])
+            await anyio.lowlevel.checkpoint()
+            raise OSError("join failed")
+
+        m["starter"].start = AsyncMock(side_effect=_start_then_fail)
+
+        result = await executor.submit()
+
+        assert result is None
+        message = m["state_proposer"].propose_crashed.await_args.kwargs["message"]
+        assert message.startswith("Flow run could not start:")
+        m["process_manager"].remove.assert_not_awaited()
+
     async def test_submit_returns_none_when_process_could_not_start(self):
         executor, m = _make_executor()
         m["starter"].start = AsyncMock(side_effect=OSError("no such file"))

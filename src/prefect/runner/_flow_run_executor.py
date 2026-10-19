@@ -172,10 +172,11 @@ class FlowRunExecutor:
             handle = await self._start_process(task_status)
 
         except Exception as exc:
-            # A failure after the process started (e.g. its output stream broke)
-            # still leaves a process whose exit has to be accounted for.
-            handle = self._process_manager.get(self._flow_run.id)
-            if handle is None:
+            # A failure after the process exited (e.g. its output stream broke)
+            # still leaves an exit to account for. A live process stays
+            # registered so the process manager can still stop it.
+            started_handle = self._process_manager.get(self._flow_run.id)
+            if started_handle is None or started_handle.returncode is None:
                 self._logger.exception(
                     "Flow run '%s' could not start: %s",
                     self._flow_run.id,
@@ -189,6 +190,7 @@ class FlowRunExecutor:
             self._logger.exception(
                 "Flow run '%s' process failed: %s", self._flow_run.id, exc
             )
+            handle = started_handle
             process_error = exc
         finally:
             # Step 6: snapshot terminal evidence before process cleanup unregisters
