@@ -8,7 +8,7 @@ import sys
 import warnings
 from collections.abc import Callable
 from contextlib import contextmanager
-from functools import wraps
+from functools import partial, wraps
 from typing import Annotated, Any, SupportsIndex, TypeVar, Union, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
@@ -81,26 +81,47 @@ else:
     _PENDULUM_PACKAGE_DIR = os.path.dirname(pendulum.__file__) + os.sep
     _PendulumType = TypeVar("_PendulumType")
 
-    def _warn_pendulum_member(name: str) -> None:
+    def _warn_pendulum_member(name: str, *, timezone_argument: bool = False) -> None:
+        qualifier = (
+            " with a Pendulum-only timezone argument" if timezone_argument else ""
+        )
         warnings.warn(
-            f"Pendulum datetime member {name!r} is deprecated. Pendulum "
+            f"Pendulum datetime member {name!r}{qualifier} is deprecated. Pendulum "
             "datetime behavior on Python 3.11 and 3.12 will be retained for "
             "at least six months and three minor version increases after the "
             "deprecation release, whichever is longer; a later minor release "
             "will return standard-library datetime types without "
-            "Pendulum-specific members.",
+            "Pendulum-specific behavior.",
             DeprecationWarning,
             stacklevel=3,
         )
 
-    def _deprecated_pendulum_method(member: Callable[..., Any]) -> Callable[..., Any]:
+    def _deprecated_pendulum_method(
+        member: Callable[..., Any], timezone_parameter: str | None = None
+    ) -> Callable[..., Any]:
         """Add a call-time warning while retaining ordinary method binding."""
+        timezone_index = (
+            tuple(inspect.signature(member).parameters).index(timezone_parameter)
+            if timezone_parameter is not None
+            else 0
+        )
 
         @wraps(member)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             caller_file = sys._getframe(1).f_code.co_filename
-            if not caller_file.startswith(_PENDULUM_PACKAGE_DIR):
-                _warn_pendulum_member(member.__name__)
+            timezone = None
+            if timezone_parameter is not None:
+                timezone = kwargs.get(
+                    timezone_parameter,
+                    args[timezone_index] if len(args) > timezone_index else None,
+                )
+            if not caller_file.startswith(_PENDULUM_PACKAGE_DIR) and (
+                timezone_parameter is None
+                or (timezone is not None and not isinstance(timezone, datetime.tzinfo))
+            ):
+                _warn_pendulum_member(
+                    member.__name__, timezone_argument=timezone_parameter is not None
+                )
             return _wrap_pendulum_value(member(*args, **kwargs))
 
         # Task keys and input hashes retain the original method's code.
@@ -114,8 +135,21 @@ else:
 
         def decorate(cls: type[_PendulumType]) -> type[_PendulumType]:
             decorated: dict[Callable[..., Any], Callable[..., Any]] = {}
+            timezone_parameters = (
+                {
+                    "now": "tz",
+                    "fromtimestamp": "tz",
+                    "combine": "tzinfo",
+                    "replace": "tzinfo",
+                }
+                if stdlib in (datetime.datetime, datetime.time)
+                else {}
+            )
             for name in dir(cls):
-                if name.startswith("_") or name in dir(stdlib):
+                timezone_parameter = timezone_parameters.get(name)
+                if name.startswith("_") or (
+                    name in dir(stdlib) and timezone_parameter is None
+                ):
                     continue
                 member = inspect.getattr_static(cls, name)
                 function = (
@@ -125,7 +159,7 @@ else:
                     continue
                 # Aliases share one function so equality and pickle lookup agree.
                 if function not in decorated:
-                    wrapped = _deprecated_pendulum_method(function)
+                    wrapped = _deprecated_pendulum_method(function, timezone_parameter)
                     # Pickle must find the decorator on the Prefect subclass.
                     wrapped.__name__ = name
                     wrapped.__qualname__ = f"{cls.__qualname__}.{name}"
@@ -158,6 +192,13 @@ else:
             """Return the date portion, preserving the deprecation notice."""
             return _wrap_pendulum_value(super().date())
 
+        def time(self) -> _Time:
+            """Return the time portion, preserving the deprecation notice."""
+            return _wrap_pendulum_value(super().time())
+
+        setattr(time, "__wrapped__", PydanticDateTime.time)
+        setattr(time, "__prefect_task_source__", PydanticDateTime.time)
+
         def __sub__(self, other: datetime.datetime | datetime.timedelta) -> Any:
             """Retain warnings when subtracting a plain naive datetime."""
             return _wrap_pendulum_value(super().__sub__(other))
@@ -173,6 +214,22 @@ else:
             """Retain the warning-enabled type after upstream validation."""
             validated = super()._validate(value, handler)
             return cls(validated.year, validated.month, validated.day)
+
+    @_deprecated_pendulum_members(datetime.time)
+    class _Time(pendulum.Time):
+        """Pendulum `Time` that warns on Pendulum-only member calls."""
+
+        def __reduce_ex__(self, protocol: SupportsIndex) -> Any:
+            # The public DateTime.time method also exists on older readers.
+            if self.tzinfo is not None or self.fold:
+                return partial(
+                    datetime.time.replace, tzinfo=self.tzinfo, fold=self.fold
+                ), (_Time(self.hour, self.minute, self.second, self.microsecond),)
+            return DateTime.time, (
+                DateTime(
+                    1970, 1, 1, self.hour, self.minute, self.second, self.microsecond
+                ),
+            )
 
     @_deprecated_pendulum_members(datetime.timedelta)
     class Duration(PydanticDuration):  # type: ignore[no-redef]
@@ -246,6 +303,17 @@ else:
             if isinstance(value, Date):
                 return value
             return Date(value.year, value.month, value.day)
+        if isinstance(value, pendulum.Time):
+            if isinstance(value, _Time):
+                return value
+            return _Time(
+                value.hour,
+                value.minute,
+                value.second,
+                value.microsecond,
+                tzinfo=value.tzinfo,
+                fold=value.fold,
+            )
         if isinstance(value, pendulum.Interval):
             if isinstance(value, _Interval):
                 return value
@@ -267,6 +335,9 @@ else:
     DateTime.EPOCH = _wrap_pendulum_value(DateTime.EPOCH)
     DateTime.min = _wrap_pendulum_value(DateTime.min)
     DateTime.max = _wrap_pendulum_value(DateTime.max)
+    _Time.min = _wrap_pendulum_value(_Time.min)
+    _Time.max = _wrap_pendulum_value(_Time.max)
+    _Time.resolution = _wrap_pendulum_value(_Time.resolution)
     # Use the exact stdlib bounds: Pendulum's component properties round up
     # at timedelta.max, overflowing when reconstructed by the wrapper.
     for _name in ("min", "max", "resolution"):

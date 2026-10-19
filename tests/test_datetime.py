@@ -30,6 +30,7 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.context import TaskRunContext
 from prefect.serializers import PickleSerializer
 from prefect.tasks import task_input_hash
+from prefect.types import _datetime as datetime_module
 from prefect.types._datetime import (
     Date,
     DateTime,
@@ -392,6 +393,109 @@ def test_astimezone_preserves_timezone_for_pendulum_tz():
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 class TestPendulumCompatibility:
+    @pytest.mark.parametrize("member", ["now", "fromtimestamp", "combine", "replace"])
+    @pytest.mark.parametrize("positional", [False, True])
+    @pytest.mark.parametrize(
+        "zone, should_warn",
+        [
+            ("UTC", True),
+            (5.5, True),
+            (None, False),
+            (datetime.timezone.utc, False),
+            (ZoneInfo("America/New_York"), False),
+        ],
+    )
+    def test_overlapping_methods_warn_only_for_pendulum_timezone_arguments(
+        self, member: str, positional: bool, zone: Any, should_warn: bool
+    ):
+        arguments = {
+            "now": [],
+            "fromtimestamp": [0],
+            "combine": [datetime.date(2024, 6, 15), datetime.time(14, 30)],
+            "replace": [None] * 7 if positional else [],
+        }[member]
+        parameter = "tzinfo" if member in ("combine", "replace") else "tz"
+        kwargs = {} if positional else {parameter: zone}
+        if positional:
+            arguments.append(zone)
+        target = create_datetime_instance(FIXED) if member == "replace" else DateTime
+        native = pendulum.instance(FIXED) if member == "replace" else pendulum.DateTime
+        with travel_to(FIXED):
+            expected = getattr(native, member)(*arguments, **kwargs)
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", DeprecationWarning)
+                actual = getattr(target, member)(*arguments, **kwargs)
+
+        assert len(caught) == int(should_warn)
+        if should_warn:
+            assert f"Pendulum datetime member '{member}'" in str(caught[0].message)
+            assert caught[0].filename == __file__
+        assert isinstance(actual, DateTime)
+        assert actual == expected
+        assert actual.tzinfo == expected.tzinfo
+        assert actual.fold == expected.fold
+
+    def test_derived_times_keep_warning_behavior_and_stdlib_operations(self):
+        value = create_datetime_instance(FIXED).time()
+        expected = pendulum.instance(FIXED).time()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            assert value == expected
+            assert value.isoformat() == expected.isoformat()
+            assert value.replace(minute=1) == expected.replace(minute=1)
+            assert value.tzinfo is None
+        with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'add'"):
+            later = value.add(hours=1)
+        assert later == expected.add(hours=1)
+        with pytest.warns(
+            DeprecationWarning, match="Pendulum datetime member 'subtract'"
+        ):
+            assert later.subtract(hours=1) == expected
+
+    @pytest.mark.parametrize("time_only", [False, True])
+    def test_explicit_pendulum_timezone_sentinel_warns(self, time_only: bool):
+        value = create_datetime_instance(FIXED)
+        if time_only:
+            value = value.time()
+        with pytest.warns(
+            DeprecationWarning, match="Pendulum datetime member 'replace'"
+        ):
+            replaced = value.replace(tzinfo=True)
+        assert replaced == value
+        assert replaced.tzinfo == value.tzinfo
+
+    @pytest.mark.parametrize("picklelib", ["pickle", "cloudpickle"])
+    @pytest.mark.parametrize("zone", [None, datetime.timezone.utc])
+    @pytest.mark.parametrize("fold", [0, 1])
+    def test_derived_time_pickle_supports_legacy_readers(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        picklelib: str,
+        zone: datetime.tzinfo | None,
+        fold: int,
+    ):
+        value = datetime.time.replace(
+            create_datetime_instance(FIXED).time(), tzinfo=zone, fold=fold
+        )
+        serializer = PickleSerializer(picklelib=picklelib)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            serialized = serializer.dumps(value)
+            restored = serializer.loads(serialized)
+            with monkeypatch.context() as legacy:
+                legacy.setattr(datetime_module, "DateTime", PydanticDateTime)
+                legacy.delattr(datetime_module, "_Time", raising=False)
+                old = serializer.loads(serialized)
+        for result in (restored, old):
+            assert result == value
+            assert result.tzinfo == zone
+            assert result.fold == fold
+        assert type(old) is pendulum.Time
+        with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'add'"):
+            assert restored.add(hours=1) == pendulum.Time(
+                value.hour, value.minute, value.second, value.microsecond, tzinfo=zone
+            ).add(hours=1)
+
     def test_duration_schema_without_upstream_iso_serializer(
         self, monkeypatch: pytest.MonkeyPatch
     ):
@@ -645,6 +749,14 @@ class TestPendulumCompatibility:
         "factory, member, kwargs",
         [
             (lambda: create_datetime_instance(FIXED).date(), "add", {"days": 1}),
+            (lambda: create_datetime_instance(FIXED).time(), "add", {"hours": 1}),
+            (lambda: create_datetime_instance(FIXED).time().min, "add", {"hours": 1}),
+            (
+                lambda: create_datetime_instance(FIXED).time().max,
+                "subtract",
+                {"hours": 1},
+            ),
+            (lambda: create_datetime_instance(FIXED).time().resolution, "in_words", {}),
             (
                 lambda: (
                     create_datetime_instance(FIXED)
@@ -770,6 +882,12 @@ class TestPendulumCompatibility:
             Duration(days=1).in_words,
             DateTime.instance,
             DateTime.create,
+            DateTime.now,
+            DateTime.fromtimestamp,
+            DateTime.combine,
+            dt.replace,
+            dt.time,
+            dt.time().add,
         ]
         tasks = [task(method) for method in methods]
         assert len({wrapped.task_key for wrapped in tasks}) == len(tasks)
