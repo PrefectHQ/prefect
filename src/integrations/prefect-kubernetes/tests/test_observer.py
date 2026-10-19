@@ -2509,7 +2509,12 @@ class TestMarkFlowRunAsCrashed:
             **{**base_kwargs, "event": {"type": "DELETED"}, "status": {}}
         )
 
-        mock_read_job.assert_awaited_once_with(name="test-job", namespace="default")
+        # A bounded request timeout lets a hung lookup fail and be retried.
+        mock_read_job.assert_awaited_once_with(
+            name="test-job",
+            namespace="default",
+            _request_timeout=observer._JOB_LOOKUP_REQUEST_TIMEOUT,
+        )
         mock_propose.assert_called_once()
         assert (
             mock_propose.call_args.kwargs["state"].message
@@ -2611,9 +2616,16 @@ class TestMarkFlowRunAsCrashed:
             ApiException(status=403),
             ApiException(status=401),
             ApiException(status=422),
+            ApiException(status=501),
             ValueError("bad kubeconfig"),
         ],
-        ids=["forbidden", "unauthorized", "unprocessable", "unexpected-error"],
+        ids=[
+            "forbidden",
+            "unauthorized",
+            "unprocessable",
+            "not-implemented",
+            "unexpected-error",
+        ],
     )
     async def test_does_not_crash_run_when_deletion_cannot_be_confirmed(
         self,
@@ -2652,10 +2664,17 @@ class TestMarkFlowRunAsCrashed:
         [
             ApiException(status=503),
             ApiException(status=429),
+            ApiException(status=520),
             TimeoutError(),
             aiohttp.ClientConnectionError("connection reset"),
         ],
-        ids=["unavailable", "throttled", "timeout", "connection-error"],
+        ids=[
+            "unavailable",
+            "throttled",
+            "unlisted-5xx",
+            "timeout",
+            "connection-error",
+        ],
     )
     async def test_retries_transient_lookup_failure_then_crashes_deleted_job(
         self,
@@ -2691,6 +2710,44 @@ class TestMarkFlowRunAsCrashed:
             mock_propose.call_args.kwargs["state"].message
             == "Kubernetes job was deleted"
         )
+
+    async def test_same_name_replacement_job_prevents_crash(
+        self,
+        mock_orchestration_client: AsyncMock,
+        flow_run_id,
+        base_kwargs,
+        monkeypatch,
+        mock_read_job: AsyncMock,
+    ):
+        """A job recreated under the same name is a replacement, not the deleted job."""
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        replacement_job = V1Job(
+            metadata=V1ObjectMeta(name="test-job", uid="new-uid"),
+            status=V1JobStatus(active=1),
+        )
+        mock_read_job.return_value = replacement_job
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_k8s_jobs",
+            AsyncMock(return_value=[replacement_job]),
+        )
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        await _mark_flow_run_as_crashed(
+            **{
+                **base_kwargs,
+                "event": {"type": "DELETED"},
+                "status": {},
+                "uid": "old-uid",
+            }
+        )
+
+        mock_propose.assert_not_called()
 
     async def test_keeps_retrying_lookup_through_extended_outage(
         self,

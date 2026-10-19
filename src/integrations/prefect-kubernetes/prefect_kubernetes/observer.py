@@ -944,13 +944,14 @@ async def _get_k8s_jobs(
             await client.close()  # type: ignore
 
 
-_TRANSIENT_JOB_LOOKUP_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
+_JOB_LOOKUP_REQUEST_TIMEOUT = 30
 _JOB_LOOKUP_RETRY_WAIT = wait_exponential_jitter(initial=1, max=60)
 
 
 def _is_transient_job_lookup_error(exc: BaseException) -> bool:
     if isinstance(exc, ApiException):
-        return exc.status in _TRANSIENT_JOB_LOOKUP_STATUSES
+        status = exc.status or 0
+        return status in (408, 429) or (500 <= status < 600 and status != 501)
     return isinstance(exc, (aiohttp.ClientError, TimeoutError, ConnectionError))
 
 
@@ -959,7 +960,9 @@ async def _read_job_uid(name: str, namespace: str) -> str | None:
     client = await _get_kubernetes_client()
     try:
         job = await BatchV1Api(client).read_namespaced_job(  # type: ignore
-            name=name, namespace=namespace
+            name=name,
+            namespace=namespace,
+            _request_timeout=_JOB_LOOKUP_REQUEST_TIMEOUT,
         )
     except ApiException as e:
         if e.status == 404:
@@ -1074,10 +1077,9 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
         logger.debug(f"Flow run {flow_run_id} is in {flow_run.state.name!r}, skipping")
         return
 
+    uid = kwargs.get("uid")
     if event["type"] == "DELETED":
-        job_exists = await _job_still_exists(
-            name, kwargs["namespace"], kwargs.get("uid"), logger
-        )
+        job_exists = await _job_still_exists(name, kwargs["namespace"], uid, logger)
         if job_exists is not False:
             if job_exists:
                 logger.debug(f"Job {name} still exists, skipping DELETED event")
@@ -1127,8 +1129,13 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
                 flow_run_id, namespace=kwargs["namespace"], logger=logger
             )
 
-            # Filter out the current job from the list
-            other_jobs = [job for job in k8s_jobs if job.metadata.name != name]  # type: ignore
+            # Filter out the current job from the list. Compare by UID when
+            # available, since a replacement job can reuse the same name.
+            other_jobs = [
+                job
+                for job in k8s_jobs
+                if (job.metadata.uid != uid if uid else job.metadata.name != name)  # type: ignore
+            ]
 
             # Check if any other job is completed or running
             has_other_active_job = any(
