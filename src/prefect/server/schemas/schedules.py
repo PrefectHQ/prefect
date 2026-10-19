@@ -527,11 +527,35 @@ DEFAULT_ANCHOR_DATE = datetime.date(2020, 1, 1)
 def _format_rdate(dt: datetime.datetime, timezone: str) -> str:
     """
     Format an RDATE or EXDATE as wall-clock time in the schedule's timezone,
-    which is how `RRuleSchedule.to_rrule()` reads it back.
+    which is how `RRuleSchedule.to_rrule()` reads a value ending in `Z` back.
+
+    The second occurrence of a repeated hour has the same wall-clock time as
+    the first, so it is written with its UTC offset instead.
     """
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(dateutil.tz.gettz(timezone))
-    return dt.strftime("%Y%m%dT%H%M%SZ")
+    if dt.tzinfo is None:
+        return dt.strftime("%Y%m%dT%H%M%SZ")
+    local = dt.astimezone(dateutil.tz.gettz(timezone))
+    if not (local.fold and dateutil.tz.datetime_ambiguous(local)):
+        return local.strftime("%Y%m%dT%H%M%SZ")
+    if not local.utcoffset():
+        # the parser reads a zero offset as `Z`, so use the first occurrence's
+        first_offset = dateutil.tz.enfold(local, fold=0).utcoffset()
+        assert first_offset is not None
+        local = dt.astimezone(datetime.timezone(first_offset))
+    return local.strftime("%Y%m%dT%H%M%S%z")
+
+
+def _localize_rdate(
+    dt: datetime.datetime, timezone: Optional[datetime.tzinfo]
+) -> datetime.datetime:
+    """
+    Read back an RDATE or EXDATE written by `_format_rdate`.
+    """
+    if dt.tzinfo is None or isinstance(dt.tzinfo, dateutil.tz.tzutc):
+        return dt.replace(tzinfo=timezone)
+    # A value with a UTC offset is already an exact instant. Keep its offset:
+    # datetimes that share a tzinfo compare by wall-clock time and ignore `fold`.
+    return dt
 
 
 class RRuleSchedule(PrefectBaseModel):
@@ -666,13 +690,13 @@ class RRuleSchedule(PrefectBaseModel):
             # update rdates
             localized_rdates = []
             for rd in rrule._rdate:
-                localized_rdates.append(rd.replace(tzinfo=timezone))
+                localized_rdates.append(_localize_rdate(rd, timezone))
             rrule._rdate = localized_rdates
 
             # update exdates
             localized_exdates = []
             for exd in rrule._exdate:
-                localized_exdates.append(exd.replace(tzinfo=timezone))
+                localized_exdates.append(_localize_rdate(exd, timezone))
             rrule._exdate = localized_exdates
 
             return rrule

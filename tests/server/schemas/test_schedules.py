@@ -1173,6 +1173,30 @@ class TestRRuleSchedule:
 
         assert list(roundtrip_rruleset) == list(rrset)
 
+    @pytest.mark.parametrize("method", ["rdate", "exdate"])
+    async def test_serialization_keeps_second_occurrence_of_repeated_hour(self, method):
+        utc = ZoneInfo("UTC")
+        # the first 01:30 in New York on 2024-11-03
+        first = datetime(2024, 11, 3, 5, 30, tzinfo=utc)
+        # the second 01:30, after falling back from EDT to EST
+        second = datetime(2024, 11, 3, 6, 30, tzinfo=utc)
+        rrset = rrule.rruleset(cache=True)
+        rrset.rrule(
+            rrule.rrule(
+                rrule.DAILY,
+                count=1,
+                dtstart=first.astimezone(ZoneInfo("America/New_York")),
+            )
+        )
+        getattr(rrset, method)(second)
+
+        schedule = RRuleSchedule.from_rrule(rrset)
+        dates = await schedule.get_dates(n=5, start=datetime(2024, 11, 1, tzinfo=utc))
+
+        expected = [first, second] if method == "rdate" else [first]
+        assert [dt.astimezone(utc) for dt in schedule.to_rrule()] == expected
+        assert [dt.astimezone(utc) for dt in dates] == expected
+
     @pytest.mark.xfail(
         reason="we currently cannot roundtrip RRuleSchedule objects for all timezones"
     )

@@ -414,3 +414,47 @@ class TestRRuleScheduleFromRRule:
         schedule = RRuleSchedule.from_rrule(rset)
 
         assert list(schedule.to_rrule()) == list(rset)
+
+    @pytest.mark.parametrize("method", ["rdate", "exdate"])
+    @pytest.mark.parametrize(
+        "timezone, first, second",
+        [
+            # New York falls back from -04:00 to -05:00
+            (
+                "America/New_York",
+                datetime.datetime(2024, 11, 3, 5, 30, tzinfo=ZoneInfo("UTC")),
+                datetime.datetime(2024, 11, 3, 6, 30, tzinfo=ZoneInfo("UTC")),
+            ),
+            # London falls back from +01:00 to +00:00
+            (
+                "Europe/London",
+                datetime.datetime(2024, 10, 27, 0, 30, tzinfo=ZoneInfo("UTC")),
+                datetime.datetime(2024, 10, 27, 1, 30, tzinfo=ZoneInfo("UTC")),
+            ),
+        ],
+    )
+    def test_rruleset_keeps_second_occurrence_of_repeated_hour(
+        self,
+        method: str,
+        timezone: str,
+        first: datetime.datetime,
+        second: datetime.datetime,
+    ) -> None:
+        """Regression: an RDATE or EXDATE in the second 01:30 of a fall-back day
+        must not turn into the first 01:30."""
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(
+            dateutil.rrule.rrule(
+                freq=dateutil.rrule.DAILY,
+                count=1,
+                dtstart=first.astimezone(ZoneInfo(timezone)),
+            )
+        )
+        getattr(rset, method)(second)
+
+        schedule = RRuleSchedule.from_rrule(rset)
+
+        expected = [first, second] if method == "rdate" else [first]
+        assert [dt.astimezone(ZoneInfo("UTC")) for dt in schedule.to_rrule()] == (
+            expected
+        )
