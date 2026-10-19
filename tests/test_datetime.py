@@ -450,6 +450,79 @@ class TestPendulumCompatibility:
         assert actual.tzinfo == expected.tzinfo
         assert actual.fold == expected.fold
 
+    @pytest.mark.parametrize("pendulum_time", [False, True])
+    @pytest.mark.parametrize("zone", [None, datetime.UTC, ZoneInfo("America/New_York")])
+    @pytest.mark.parametrize(
+        "arguments", ["omitted", "positional", "keyword", "all_keywords"]
+    )
+    def test_combine_warns_for_explicit_none_with_aware_time(
+        self, pendulum_time: bool, zone: datetime.tzinfo | None, arguments: str
+    ):
+        date = datetime.date(2024, 6, 15)
+        time_type = pendulum.Time if pendulum_time else datetime.time
+        time = time_type(14, 30, tzinfo=zone)
+        args: list[Any] = [date, time]
+        kwargs: dict[str, Any] = {}
+        if arguments == "positional":
+            args.append(None)
+        elif arguments == "keyword":
+            kwargs["tzinfo"] = None
+        elif arguments == "all_keywords":
+            args = []
+            kwargs = {"date": date, "time": time, "tzinfo": None}
+
+        expected = pendulum.DateTime.combine(*args, **kwargs)
+        stdlib = datetime.datetime.combine(*args, **kwargs)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", DeprecationWarning)
+            actual = DateTime.combine(*args, **kwargs)
+
+        should_warn = arguments != "omitted" and zone is not None
+        assert len(caught) == int(should_warn)
+        if should_warn:
+            assert "Pendulum datetime member 'combine'" in str(caught[0].message)
+            assert caught[0].filename == __file__
+            assert stdlib.tzinfo is None
+            assert actual.tzinfo is not None
+        else:
+            assert actual == stdlib
+        assert isinstance(actual, DateTime)
+        assert actual == expected
+        assert actual.tzinfo == expected.tzinfo
+        assert actual.fold == expected.fold
+
+    @pytest.mark.parametrize("positional", [False, True])
+    @pytest.mark.parametrize(
+        "zone, should_warn",
+        [
+            (datetime.UTC, False),
+            (datetime.timezone(datetime.timedelta(hours=2)), True),
+        ],
+    )
+    def test_combine_warns_when_aware_time_ignores_timezone_override(
+        self, positional: bool, zone: datetime.tzinfo, should_warn: bool
+    ):
+        args: list[Any] = [
+            datetime.date(2024, 6, 15),
+            datetime.time(14, 30, tzinfo=datetime.UTC),
+        ]
+        kwargs = {} if positional else {"tzinfo": zone}
+        if positional:
+            args.append(zone)
+        expected = pendulum.DateTime.combine(*args, **kwargs)
+        stdlib = datetime.datetime.combine(*args, **kwargs)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", DeprecationWarning)
+            actual = DateTime.combine(*args, **kwargs)
+
+        assert len(caught) == int(should_warn)
+        if should_warn:
+            assert "Pendulum datetime member 'combine'" in str(caught[0].message)
+            assert caught[0].filename == __file__
+        assert actual == expected
+        assert actual.tzinfo == expected.tzinfo
+        assert (actual != stdlib) == should_warn
+
     @pytest.mark.parametrize("member", ["now", "fromtimestamp"])
     def test_constructor_default_timezone_warns(self, member: str):
         args = (0,) if member == "fromtimestamp" else ()

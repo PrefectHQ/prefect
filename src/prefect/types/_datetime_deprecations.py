@@ -74,6 +74,16 @@ def _deprecated_pendulum_method(
             should_warn = not isinstance(timezone, datetime.tzinfo) and (
                 timezone is not None or member.__name__ in ("now", "fromtimestamp")
             )
+            if member.__name__ == "combine" and (
+                timezone_parameter in kwargs or len(args) > timezone_index
+            ):
+                time = kwargs.get("time", args[2] if len(args) > 2 else None)
+                # Pendulum retains an aware time's zone despite an explicit override.
+                should_warn = should_warn or (
+                    isinstance(time, datetime.time)
+                    and time.tzinfo is not None
+                    and time.tzinfo != timezone
+                )
         if strptime_signature is not None:
             bound = strptime_signature.bind(*args, **kwargs)
             # Parse with the stdlib to distinguish naive formats from aware ones.
