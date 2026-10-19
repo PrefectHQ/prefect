@@ -152,12 +152,12 @@ class _PodLifecycleStates:
 
 
 _pod_lifecycle_states = _PodLifecycleStates()
-_POD_LIST_PAGE_SIZE = 500
+_LIST_PAGE_SIZE = 500
 _POD_LIFECYCLE_RECONCILIATION_INTERVAL_SECONDS = 5 * 60
 
 
-def _pod_label_filters() -> dict[str, Any]:
-    """Return the label filters shared by pod watching and reconciliation."""
+def _observed_label_filters() -> dict[str, Any]:
+    """Return the label filters shared by pod/job watching and reconciliation."""
     additional_label_filters = cast(
         dict[str, str], settings.observer.additional_label_filters
     )
@@ -167,11 +167,11 @@ def _pod_label_filters() -> dict[str, Any]:
     }
 
 
-def _pod_label_selector() -> str:
-    """Render the pod observer's label filters for Kubernetes list calls."""
+def _observed_label_selector() -> str:
+    """Render the observer's label filters as a Kubernetes label selector."""
     return ",".join(
         key if value is kopf.PRESENT else f"{key}={value}"
-        for key, value in sorted(_pod_label_filters().items())
+        for key, value in sorted(_observed_label_filters().items())
     )
 
 
@@ -195,8 +195,8 @@ async def _reconcile_pod_lifecycle_states(logger: kopf.Logger) -> None:
                 continue_token: str | None = None
                 while True:
                     list_kwargs: dict[str, Any] = {
-                        "label_selector": _pod_label_selector(),
-                        "limit": _POD_LIST_PAGE_SIZE,
+                        "label_selector": _observed_label_selector(),
+                        "limit": _LIST_PAGE_SIZE,
                     }
                     if continue_token:
                         list_kwargs["_continue"] = continue_token
@@ -327,6 +327,12 @@ _pod_lifecycle_reconciliation_task: asyncio.Task[None] | None = None
 @kopf.on.startup()
 def configure(settings: kopf.OperatorSettings, **_):
     settings.scanning.disabled = True
+    # Filter server-side so Kubernetes never sends unrelated pods or jobs, and
+    # page the initial LIST so large clusters don't produce one huge response.
+    label_selector = _observed_label_selector()
+    settings.watching.label_selectors["v1", "pods"] = label_selector
+    settings.watching.label_selectors["batch", "v1", "jobs"] = label_selector
+    settings.watching.chunk_size = _LIST_PAGE_SIZE
 
 
 @kopf.on.startup()
@@ -645,7 +651,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
 if settings.observer.replicate_pod_events:
     kopf.on.event(
         "pods",
-        labels=_pod_label_filters(),
+        labels=_observed_label_filters(),
     )(_replicate_pod_event)  # type: ignore
 
 
@@ -934,10 +940,7 @@ async def _get_k8s_jobs(
     "batch",
     "v1",
     "jobs",
-    labels={
-        "prefect.io/flow-run-id": kopf.PRESENT,
-        **settings.observer.additional_label_filters,
-    },
+    labels=_observed_label_filters(),
 )  # type: ignore
 async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
     event: kopf.RawEvent,

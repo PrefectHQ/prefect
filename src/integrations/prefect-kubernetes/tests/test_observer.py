@@ -1,14 +1,22 @@
 import asyncio
+import json
 import logging
 import uuid
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from io import StringIO
 from time import sleep
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import anyio
+import kopf
 import pytest
+from aiohttp import web
+from kopf._cogs.clients import auth as kopf_auth
+from kopf._cogs.clients import fetching as kopf_fetching
+from kopf._cogs.clients import watching as kopf_watching
+from kopf._cogs.structs import credentials as kopf_credentials
 from prefect_kubernetes import observer
 from prefect_kubernetes._logging import KopfObjectJsonFormatter
 from prefect_kubernetes.diagnostics import diagnose_k8s_pod
@@ -3583,3 +3591,178 @@ class TestLoggingConfiguration:
         finally:
             stop_observer()
             monkeypatch.delenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER")
+
+
+_POD_RESOURCE = kopf.Resource("", "v1", "pods", namespaced=True, preferred=True)
+_JOB_RESOURCE = kopf.Resource("batch", "v1", "jobs", namespaced=True, preferred=True)
+_NAMESPACE_RESOURCE = kopf.Resource(
+    "", "v1", "namespaces", namespaced=False, preferred=True
+)
+_CRD_RESOURCE = kopf.Resource(
+    "apiextensions.k8s.io",
+    "v1",
+    "customresourcedefinitions",
+    namespaced=False,
+    preferred=True,
+)
+
+
+def _configured_operator_settings() -> kopf.OperatorSettings:
+    settings = kopf.OperatorSettings()
+    observer.configure(settings)
+    return settings
+
+
+@asynccontextmanager
+async def _fake_kubernetes_api(
+    requests: list[tuple[str, dict[str, str]]],
+) -> AsyncIterator[None]:
+    """Serve two-page LISTs and a one-event WATCH, recording every request."""
+
+    async def handler(request: web.Request) -> web.StreamResponse:
+        query = dict(request.query)
+        requests.append((request.path, query))
+        kind = "Pod" if request.path.endswith("/pods") else "Job"
+        if query.get("watch") == "true":
+            event = {
+                "type": "ADDED",
+                "object": {"kind": kind, "metadata": {"name": "watched"}},
+            }
+            return web.Response(text=json.dumps(event) + "\n")
+        page = 2 if "continue" in query else 1
+        return web.json_response(
+            {
+                "kind": f"{kind}List",
+                "apiVersion": "v1",
+                "metadata": {
+                    "resourceVersion": "100",
+                    "continue": "next-page" if page == 1 else "",
+                },
+                "items": [{"metadata": {"name": f"{kind.lower()}-{page}"}}],
+            }
+        )
+
+    app = web.Application()
+    app.router.add_get("/{tail:.*}", handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = cast(Any, site)._server.sockets[0].getsockname()[1]
+
+    vault = kopf_credentials.Vault()
+    await vault.populate(
+        {"fake": kopf_credentials.ConnectionInfo(server=f"http://127.0.0.1:{port}")}
+    )
+    token = kopf_auth.vault_var.set(vault)
+    try:
+        yield
+    finally:
+        kopf_auth.vault_var.reset(token)
+        await vault.close()
+        await runner.cleanup()
+
+
+class TestServerSideFiltering:
+    @pytest.mark.parametrize(
+        ("additional_label_filters", "expected_selector"),
+        [
+            ({}, "prefect.io/flow-run-id"),
+            (
+                {"team": "data", "empty": ""},
+                "empty=,prefect.io/flow-run-id,team=data",
+            ),
+            ({"prefect.io/flow-run-id": "abc"}, "prefect.io/flow-run-id=abc"),
+        ],
+    )
+    def test_configure_sets_label_selectors_for_pods_and_jobs_only(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        additional_label_filters: dict[str, str],
+        expected_selector: str,
+    ):
+        monkeypatch.setattr(
+            observer.settings.observer,
+            "additional_label_filters",
+            additional_label_filters,
+        )
+
+        settings = _configured_operator_settings()
+
+        selectors = settings.watching.label_selectors
+        assert selectors.collect(_POD_RESOURCE) == [expected_selector]
+        assert selectors.collect(_JOB_RESOURCE) == [expected_selector]
+        assert selectors.collect(_NAMESPACE_RESOURCE) == []
+        assert selectors.collect(_CRD_RESOURCE) == []
+
+    def test_configure_pages_initial_lists_without_field_selectors(self):
+        settings = _configured_operator_settings()
+
+        assert settings.scanning.disabled is True
+        assert settings.watching.chunk_size == 500
+        assert settings.watching.initial_streaming is False
+        for resource in (_POD_RESOURCE, _JOB_RESOURCE):
+            assert settings.watching.field_selectors.collect(resource) == []
+
+    @pytest.mark.parametrize(
+        ("namespace", "path_prefix"),
+        [("prefect", "/api/v1/namespaces/prefect"), (None, "/api/v1")],
+    )
+    @pytest.mark.parametrize("resource", [_POD_RESOURCE, _JOB_RESOURCE])
+    async def test_list_and_watch_requests_carry_selector_and_page_size(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        resource: kopf.Resource,
+        namespace: str | None,
+        path_prefix: str,
+    ):
+        monkeypatch.setattr(
+            observer.settings.observer, "additional_label_filters", {"team": "data"}
+        )
+        settings = _configured_operator_settings()
+        if resource.group:
+            path_prefix = path_prefix.replace("/api/v1", "/apis/batch/v1")
+        expected_path = f"{path_prefix}/{resource.plural}"
+        requests: list[tuple[str, dict[str, str]]] = []
+
+        async with _fake_kubernetes_api(requests):
+            listed = [
+                item["metadata"]["name"]
+                async for chunk, _ in kopf_fetching.fetch_objs(
+                    settings=settings,
+                    resource=resource,
+                    namespace=namespace,
+                    logger=logging.getLogger(__name__),
+                )
+                for item in chunk
+            ]
+            watched = [
+                raw_event
+                async for raw_event in kopf_watching.watch_objs(
+                    settings=settings,
+                    resource=resource,
+                    namespace=namespace,
+                    since="100",
+                    operator_pause_waiter=asyncio.get_running_loop().create_future(),
+                )
+            ]
+
+        assert len(listed) == 2
+        assert len(watched) == 1
+        selector = "prefect.io/flow-run-id,team=data"
+        assert requests == [
+            (expected_path, {"limit": "500", "labelSelector": selector}),
+            (
+                expected_path,
+                {"limit": "500", "labelSelector": selector, "continue": "next-page"},
+            ),
+            (
+                expected_path,
+                {
+                    "watch": "true",
+                    "allowWatchBookmarks": "true",
+                    "labelSelector": selector,
+                    "resourceVersion": "100",
+                },
+            ),
+        ]
