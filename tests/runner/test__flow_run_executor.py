@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import anyio.lowlevel
 import pytest
 
 from prefect._internal.attempt_control import (
@@ -410,6 +411,54 @@ class TestFlowRunExecutorSubmit:
 
         assert result is not None
         assert result.crash_unreported is False
+
+    @pytest.mark.parametrize(
+        ("returncode", "expected_message"),
+        [(1, "Process exited with status code: 1."), (0, "Flow run process failed:")],
+    )
+    @pytest.mark.parametrize(
+        ("proposed_state", "expected_unreported"), [(Crashed(), False), (None, True)]
+    )
+    async def test_submit_accounts_for_process_that_fails_after_starting(
+        self,
+        returncode: int,
+        expected_message: str,
+        proposed_state: State | None,
+        expected_unreported: bool,
+    ):
+        """A starter error after handoff (e.g. a broken output stream) still
+        reports the started process's exit instead of returning nothing."""
+        executor, m = _make_executor(handle_returncode=returncode)
+        m["process_manager"].get.return_value = m["handle"]
+
+        async def _start_then_fail(fr, task_status=anyio.TASK_STATUS_IGNORED):
+            task_status.started(m["handle"])
+            await anyio.lowlevel.checkpoint()
+            raise OSError("output stream closed")
+
+        m["starter"].start = AsyncMock(side_effect=_start_then_fail)
+        m["state_proposer"].propose_crashed = AsyncMock(return_value=proposed_state)
+
+        result = await executor.submit()
+
+        assert result is not None
+        assert result.handle is m["handle"]
+        assert result.status_code == returncode
+        assert result.crash_unreported is expected_unreported
+        message = m["state_proposer"].propose_crashed.await_args.kwargs["message"]
+        assert message.startswith(expected_message)
+        m["process_manager"].remove.assert_awaited_once_with(m["flow_run"].id)
+
+    async def test_submit_returns_none_when_process_could_not_start(self):
+        executor, m = _make_executor()
+        m["starter"].start = AsyncMock(side_effect=OSError("no such file"))
+
+        result = await executor.submit()
+
+        assert result is None
+        message = m["state_proposer"].propose_crashed.await_args.kwargs["message"]
+        assert message.startswith("Flow run could not start:")
+        m["process_manager"].remove.assert_not_awaited()
 
     async def test_submit_logs_resolution_separately(
         self, caplog: "pytest.LogCaptureFixture"

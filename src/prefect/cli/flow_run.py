@@ -879,13 +879,15 @@ async def execute(
         # Non-zero so the terminating infrastructure retries this attempt.
         exit_with_error("Flow run relinquished to infrastructure retry.")
 
-    if result is not None and result.crash_unreported and result.status_code:
+    if result is not None and result.crash_unreported:
         # Surface the crash through the exit code so infrastructure-level crash
         # detection can record it instead. Negative codes are signals; report them
         # the way a shell would.
         status_code = result.status_code
         exit_with_error(
-            f"Flow run process exited with status code {status_code} and its crash"
+            f"Flow run process crashed (status code {status_code}) and its crash"
             " could not be reported.",
-            code=128 - status_code if status_code < 0 else status_code,
+            code=(128 - status_code if status_code < 0 else status_code)
+            if status_code
+            else 1,
         )

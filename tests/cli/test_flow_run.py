@@ -1950,6 +1950,33 @@ class TestFlowRunExecute:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert not flow_run.state.is_final()
 
+    async def test_execute_exits_nonzero_when_output_stream_fails_and_crash_cannot_be_reported(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        deployment_id = await (await crashing_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        monkeypatch.setattr(
+            "prefect.utilities.processutils.consume_process_output",
+            AsyncMock(side_effect=OSError("output stream closed")),
+        )
+        monkeypatch.setattr(
+            "prefect.runner._state_proposer.propose_state",
+            AsyncMock(side_effect=httpx.ConnectError("API unreachable")),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="could not be reported",
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert not flow_run.state.is_final()
+
     @pytest.mark.parametrize(
         ("status_code", "expected_exit_code"), [(1, 1), (7, 7), (-9, 137)]
     )

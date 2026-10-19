@@ -53,8 +53,9 @@ class ProcessStarter(Protocol):
 class FlowRunExecutionResult:
     """Process handle plus the infrastructure status for a completed attempt.
 
-    `crash_unreported` is `True` when the process exited non-zero and the
-    runner could not record a final state for the flow run in its place.
+    `crash_unreported` is `True` when the process exited non-zero or failed
+    after starting, and the runner could not record a final state for the flow
+    run in its place.
     """
 
     handle: ProcessHandle
@@ -129,6 +130,7 @@ class FlowRunExecutor:
         """
         handle: ProcessHandle | None = None
         attempt_conclusion: AttemptConclusion | None = None
+        process_error: Exception | None = None
         try:
             # Step 1a: already-cancelling precheck (runs regardless of propose_submitting)
             if self._flow_run.state and self._flow_run.state.is_cancelling():
@@ -170,16 +172,24 @@ class FlowRunExecutor:
             handle = await self._start_process(task_status)
 
         except Exception as exc:
+            # A failure after the process started (e.g. its output stream broke)
+            # still leaves a process whose exit has to be accounted for.
+            handle = self._process_manager.get(self._flow_run.id)
+            if handle is None:
+                self._logger.exception(
+                    "Flow run '%s' could not start: %s",
+                    self._flow_run.id,
+                    exc,
+                )
+                await self._state_proposer.propose_crashed(
+                    self._flow_run,
+                    message=f"Flow run could not start: {exc}",
+                )
+                return
             self._logger.exception(
-                "Flow run '%s' could not start: %s",
-                self._flow_run.id,
-                exc,
+                "Flow run '%s' process failed: %s", self._flow_run.id, exc
             )
-            await self._state_proposer.propose_crashed(
-                self._flow_run,
-                message=f"Flow run could not start: {exc}",
-            )
-            return
+            process_error = exc
         finally:
             # Step 6: snapshot terminal evidence before process cleanup unregisters
             # the attempt control session, then remove the process handle.
@@ -191,7 +201,6 @@ class FlowRunExecutor:
         # process status. Without it, preserve the exit-code fallback.
         assert handle is not None
         exit_code = handle.returncode
-        crash_unreported = False
         if attempt_conclusion is not None:
             return FlowRunExecutionResult(handle=handle, status_code=0)
         if exit_code is not None and exit_code != 0:
@@ -205,16 +214,22 @@ class FlowRunExecutor:
                     info.resolution,
                     extra={"flow_run_id": self._flow_run.id},
                 )
-            crashed_state = await self._state_proposer.propose_crashed(
-                self._flow_run, message=msg
-            )
-            # Step 8: run crashed hooks
-            if crashed_state is not None:
-                await self._hook_runner.run_crashed_hooks(self._flow_run, crashed_state)
-            crash_unreported = crashed_state is None or not crashed_state.is_final()
+        elif process_error is not None:
+            msg = f"Flow run process failed: {process_error}"
+        else:
+            return FlowRunExecutionResult(handle=handle, status_code=exit_code)
+
+        crashed_state = await self._state_proposer.propose_crashed(
+            self._flow_run, message=msg
+        )
+        # Step 8: run crashed hooks
+        if crashed_state is not None:
+            await self._hook_runner.run_crashed_hooks(self._flow_run, crashed_state)
 
         return FlowRunExecutionResult(
-            handle=handle, status_code=exit_code, crash_unreported=crash_unreported
+            handle=handle,
+            status_code=exit_code,
+            crash_unreported=crashed_state is None or not crashed_state.is_final(),
         )
 
     async def _start_process(
