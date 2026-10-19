@@ -3292,6 +3292,25 @@ class TestDumpSecrets:
             "secret_dict": {"shoooOOOooo!": "bih! bih! bih! bih!"},
         }
 
+    def test_dump_python_secrets_in_list_of_models(self):
+        class Credential(BaseModel):
+            username: str
+            password: SecretStr
+
+        class CredentialList(Block):
+            credentials: list[Credential]
+
+        block = CredentialList(
+            credentials=[
+                Credential(username=f"user{i}", password=f"password{i}")
+                for i in range(20)
+            ]
+        )
+
+        assert block.model_dump(context={"include_secrets": True})["credentials"] == [
+            {"username": f"user{i}", "password": f"password{i}"} for i in range(20)
+        ]
+
     def test_dump_jsonable_secrets(self, secret_data):
         block = FunSecretModel.model_validate_json(secret_data)
         assert block.model_dump(context={"include_secrets": True}, mode="json") == {
