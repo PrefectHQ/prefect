@@ -17,6 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automations
+from prefect.server.events.models.automation_held_events import (
+    HELD_EXPECT_EVENTS_LIMIT,
+)
 from prefect.server.events.schemas.automations import (
     Automation,
     EventTrigger,
@@ -253,4 +256,43 @@ async def test_expect_event_at_the_same_instant_as_after_counts_in_either_order(
         await receive(event, frozen_time)
 
     await triggers.proactive_evaluation(trigger, frozen_time + WITHIN * 2)
+    act.assert_not_awaited()
+
+
+@pytest.mark.parametrize("expect", EXPECT_SHAPES)
+async def test_expect_event_after_an_expired_window_counts_in_the_next_one(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    make_trigger: MakeTrigger,
+    expect: set[str],
+):
+    """B is evaluated while the window of the first A is still open in storage, but
+    B occurred after that window ended. The first window fires empty, and the window
+    of the later A that contains B counts it."""
+    trigger = await make_trigger(expect)
+
+    await receive("A", frozen_time)
+    await receive("B", frozen_time + timedelta(seconds=70))
+    await receive("A", frozen_time + timedelta(seconds=65))
+
+    await triggers.proactive_evaluation(trigger, frozen_time + WITHIN * 3)
+    act.assert_awaited_once()
+
+
+async def test_threshold_above_the_held_limit_counts_every_held_event(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    make_trigger: MakeTrigger,
+):
+    """A trigger whose threshold is above the held-event limit keeps enough held
+    events to meet it."""
+    threshold = HELD_EXPECT_EVENTS_LIMIT + 1
+    within = timedelta(seconds=threshold + 1)
+    trigger = await make_trigger({"B"}, threshold=threshold, within=within)
+
+    for i in range(threshold):
+        await receive("B", frozen_time + timedelta(seconds=1 + i))
+    await receive("A", frozen_time)
+
+    await triggers.proactive_evaluation(trigger, frozen_time + within * 2)
     act.assert_not_awaited()

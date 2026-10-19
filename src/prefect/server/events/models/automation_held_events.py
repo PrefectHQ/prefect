@@ -20,7 +20,8 @@ from prefect.server.events.schemas.automations import EventTrigger, Posture
 from prefect.server.events.schemas.events import ReceivedEvent
 
 # Bounds the rows for a key that takes many `expect` events within the lookback. Past
-# it, a late bucket counts only the newest held events.
+# it, a late bucket counts only the newest held events.  A trigger whose threshold is
+# higher keeps that many instead, or a window it opens late could never meet it.
 HELD_EXPECT_EVENTS_LIMIT = 100
 
 
@@ -126,7 +127,7 @@ async def hold_event(
         sa.select(db.AutomationHeldEvent.id)
         .where(*for_key)
         .order_by(db.AutomationHeldEvent.occurred.desc())
-        .limit(HELD_EXPECT_EVENTS_LIMIT)
+        .limit(max(HELD_EXPECT_EVENTS_LIMIT, trigger.threshold))
     )
     await session.execute(
         sa.delete(db.AutomationHeldEvent).where(

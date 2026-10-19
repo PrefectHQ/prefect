@@ -1029,10 +1029,11 @@ async def hold_expect_event(
     bucketing_key: Tuple[str, ...],
     event: ReceivedEvent,
 ) -> "ORMAutomationBucket | None":
-    """Returns this key's current bucket for the caller to count the event in.  When
-    no bucket exists, holds the event for a bucket that opens later.  Returns None
-    when the caller has nothing to count: the event was held now, or an earlier
-    evaluation of the same event held it."""
+    """Returns this key's current bucket for the caller to evaluate the event against.
+    Holds the event for a bucket that opens later when no bucket exists, or when the
+    event occurred after the current bucket ended.  Returns None when the caller has
+    nothing to evaluate: no bucket exists, or an earlier evaluation of the same event
+    held it."""
     # A held event was already counted by the bucket that opened over it, or it
     # occurred outside that bucket's window.  Either way, counting it again would be
     # wrong.
@@ -1041,6 +1042,14 @@ async def hold_expect_event(
 
     bucket = await read_bucket(session, trigger, bucketing_key)
     if bucket:
+        # Evaluation does not count an event that occurred after the bucket ended,
+        # and it removes that bucket, so without the hold the next window that
+        # contains the event would open without it.  The caller still evaluates
+        # the bucket so that it fires or expires.
+        if event.occurred >= bucket.end and not trigger.immediate:
+            await automation_held_events.hold_event(
+                session, trigger, bucketing_key, event
+            )
         return bucket
 
     await automation_held_events.hold_event(session, trigger, bucketing_key, event)
@@ -1418,6 +1427,10 @@ async def proactive_evaluation(
     async with automations_session() as session:
         try:
             if not trigger.for_each:
+                if automation_held_events.holds_expect_events(trigger):
+                    await automation_held_events.acquire_bucketing_key_lock(
+                        session, trigger, tuple()
+                    )
                 await ensure_bucket(
                     session,
                     trigger,
