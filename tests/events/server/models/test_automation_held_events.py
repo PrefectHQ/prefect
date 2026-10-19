@@ -110,7 +110,7 @@ async def test_held_events_older_than_the_lookback_are_dropped(
     assert await held_occurrences(db, automations_session) == [newer]
 
 
-async def test_held_events_are_swept_after_the_lookback(
+async def test_held_events_are_swept_after_two_lookbacks(
     db: PrefectDBInterface,
     automations_session: AsyncSession,
     trigger: EventTrigger,
@@ -121,13 +121,28 @@ async def test_held_events_are_swept_after_the_lookback(
     )
     await automations_session.commit()
 
-    await triggers.periodic_evaluation(now("UTC"))
-    assert await held_occurrences(db, automations_session) != []
+    await triggers.periodic_evaluation(
+        now("UTC") + 2 * PRECEDING_EVENT_LOOKBACK + timedelta(seconds=1)
+    )
+    assert await held_occurrences(db, automations_session) == []
+
+
+async def test_held_events_outlast_the_lookback_for_lost_followers(
+    db: PrefectDBInterface,
+    automations_session: AsyncSession,
+    trigger: EventTrigger,
+):
+    """An `after` event that waited the full lookback for its predecessor still
+    finds the `expect` events held for its window."""
+    await automation_held_events.hold_event(
+        automations_session, trigger, KEY, walked(now("UTC"))
+    )
+    await automations_session.commit()
 
     await triggers.periodic_evaluation(
         now("UTC") + PRECEDING_EVENT_LOOKBACK + timedelta(seconds=1)
     )
-    assert await held_occurrences(db, automations_session) == []
+    assert await held_occurrences(db, automations_session) != []
 
 
 async def test_event_is_held_whether_or_not_a_bucket_exists(

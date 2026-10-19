@@ -717,11 +717,13 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     logger.debug("Running periodic evaluation as of %s (offset %ss)", as_of, offset)
 
     # Held events are bounded only by this sweep, so a failure in the steps below
-    # must not skip it.
+    # must not skip it.  A lost follower waits up to the lookback before it is
+    # evaluated below, and an `after` event among them can open a window over events
+    # held just as long, so held events are kept for twice the lookback.
     try:
         async with automations_session() as session:
             await automation_held_events.sweep_held_events(
-                session, now - PRECEDING_EVENT_LOOKBACK
+                session, now - 2 * PRECEDING_EVENT_LOOKBACK
             )
             await session.commit()
     except Exception:
