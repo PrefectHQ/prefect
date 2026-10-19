@@ -338,7 +338,9 @@ class UnknownAction(Action):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
 
-    type: str
+    type: str = Field(
+        json_schema_extra={"not": {"enum": sorted(_KNOWN_ACTION_TYPES)}},
+    )
 
     @field_validator("type")
     @classmethod
