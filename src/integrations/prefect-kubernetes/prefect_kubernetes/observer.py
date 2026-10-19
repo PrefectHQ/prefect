@@ -13,12 +13,19 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, cast
 
+import aiohttp
 import anyio
 import kopf
 from cachetools import TTLCache
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job
 from kubernetes_asyncio.client.exceptions import ApiException
+from tenacity import (
+    AsyncRetrying,
+    RetryCallState,
+    retry_if_exception,
+    wait_exponential_jitter,
+)
 
 from prefect import __version__, get_client
 from prefect.client.orchestration import PrefectClient
@@ -937,33 +944,77 @@ async def _get_k8s_jobs(
             await client.close()  # type: ignore
 
 
-async def _job_still_exists(
-    name: str, namespace: str, uid: str | None, logger: kopf.Logger
-) -> bool:
-    """Return whether the job behind a DELETED watch event still exists.
+_TRANSIENT_JOB_LOOKUP_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
+_JOB_LOOKUP_RETRY_WAIT = wait_exponential_jitter(initial=1, max=60)
 
-    A server-side label selector reports a job whose labels stop matching as
-    DELETED even though the job still exists. Only a missing job, or a new job
-    with the same name, confirms the deletion; lookup failures don't.
-    """
-    client: ApiClient | None = None
+
+def _is_transient_job_lookup_error(exc: BaseException) -> bool:
+    if isinstance(exc, ApiException):
+        return exc.status in _TRANSIENT_JOB_LOOKUP_STATUSES
+    return isinstance(exc, (aiohttp.ClientError, TimeoutError, ConnectionError))
+
+
+async def _read_job_uid(name: str, namespace: str) -> str | None:
+    """Return the UID of the named job, or `None` if it doesn't exist."""
+    client = await _get_kubernetes_client()
     try:
-        client = await _get_kubernetes_client()
         job = await BatchV1Api(client).read_namespaced_job(  # type: ignore
             name=name, namespace=namespace
         )
     except ApiException as e:
         if e.status == 404:
-            return False
-        logger.warning(f"Failed to confirm deletion of job {name}: {e}")
-        return True
+            return None
+        raise
+    finally:
+        await client.close()  # type: ignore
+    return job.metadata.uid  # type: ignore
+
+
+async def _job_still_exists(
+    name: str, namespace: str, uid: str | None, logger: kopf.Logger
+) -> bool | None:
+    """Return whether the job behind a DELETED watch event still exists.
+
+    A server-side label selector reports a job whose labels stop matching as
+    DELETED even though the job still exists. Only a missing job, or a new job
+    with the same name, confirms the deletion. Kopf doesn't retry raw event
+    handlers, so transient lookup failures are retried here until the lookup
+    succeeds or the handler is cancelled. Returns `None` if the lookup fails
+    permanently, since that proves neither existence nor absence.
+    """
+
+    def log_retry(retry_state: RetryCallState) -> None:
+        assert retry_state.outcome is not None
+        assert retry_state.next_action is not None
+        logger.warning(
+            f"Failed to confirm deletion of job {name} (attempt"
+            f" {retry_state.attempt_number}): {retry_state.outcome.exception()}."
+            f" Retrying in {retry_state.next_action.sleep:.0f}s."
+        )
+
+    try:
+        async for attempt in AsyncRetrying(
+            retry=retry_if_exception(_is_transient_job_lookup_error),
+            wait=_JOB_LOOKUP_RETRY_WAIT,
+            before_sleep=log_retry,
+            reraise=True,
+        ):
+            with attempt:
+                current_uid = await _read_job_uid(name, namespace)
     except Exception as e:
         logger.warning(f"Failed to confirm deletion of job {name}: {e}")
-        return True
-    finally:
-        if client is not None:
-            await client.close()  # type: ignore
-    return job.metadata.uid == uid  # type: ignore
+        return None
+    return current_uid is not None and current_uid == uid
+
+
+def _flow_run_state_is_settled(state: State) -> bool:
+    """Return whether the observer should leave a flow run in `state` alone."""
+    return (
+        state.is_final()
+        or state.is_scheduled()
+        or state.is_paused()
+        or state.is_cancelling()
+    )
 
 
 @kopf.on.event(
@@ -1019,20 +1070,33 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
 
     assert flow_run.state is not None, "Expected flow run state to be set"
 
-    if (
-        flow_run.state.is_final()
-        or flow_run.state.is_scheduled()
-        or flow_run.state.is_paused()
-        or flow_run.state.is_cancelling()
-    ):
+    if _flow_run_state_is_settled(flow_run.state):
         logger.debug(f"Flow run {flow_run_id} is in {flow_run.state.name!r}, skipping")
         return
 
-    if event["type"] == "DELETED" and await _job_still_exists(
-        name, kwargs["namespace"], kwargs.get("uid"), logger
-    ):
-        logger.debug(f"Job {name} still exists, skipping DELETED event")
-        return
+    if event["type"] == "DELETED":
+        job_exists = await _job_still_exists(
+            name, kwargs["namespace"], kwargs.get("uid"), logger
+        )
+        if job_exists is not False:
+            if job_exists:
+                logger.debug(f"Job {name} still exists, skipping DELETED event")
+            return
+
+        # Lookup retries may have taken a while, so re-check the flow run.
+        try:
+            flow_run = await orchestration_client.read_flow_run(
+                flow_run_id=uuid.UUID(flow_run_id)
+            )
+        except ObjectNotFound:
+            logger.debug(f"Flow run {flow_run_id} not found, skipping")
+            return
+        assert flow_run.state is not None, "Expected flow run state to be set"
+        if _flow_run_state_is_settled(flow_run.state):
+            logger.debug(
+                f"Flow run {flow_run_id} is in {flow_run.state.name!r}, skipping"
+            )
+            return
 
     # Eagerly fetch pod logs while the flow run is still in a pre-connectivity
     # state (Pending / InfrastructurePending).  We capture them *before* the
