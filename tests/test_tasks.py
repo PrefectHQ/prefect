@@ -10,7 +10,7 @@ import threading
 import time
 import weakref
 from asyncio import Event, sleep
-from functools import partial
+from functools import partial, wraps
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import ANY, MagicMock, call
@@ -139,6 +139,16 @@ class TestTaskName:
 
 
 class TestTaskKey:
+    def test_user_decorator_keeps_its_own_task_key(self):
+        def original(value: int) -> int:
+            return value
+
+        @wraps(original)
+        def decorated(value: int) -> int:
+            return original(value) + 1
+
+        assert task(decorated).task_key != task(original).task_key
+
     def test_task_key_typical_case(self):
         @task
         def my_task():

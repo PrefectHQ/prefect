@@ -8,11 +8,14 @@ two backends.
 """
 
 import datetime
+import gc
 import pickle
 import subprocess
 import sys
 import warnings
+import weakref
 from collections.abc import Callable
+from functools import wraps
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -21,6 +24,8 @@ from pydantic import BaseModel
 
 from prefect import task
 from prefect.client.schemas.objects import FlowRun
+from prefect.context import TaskRunContext
+from prefect.tasks import task_input_hash
 from prefect.types._datetime import (
     Date,
     DateTime,
@@ -290,8 +295,8 @@ def test_pendulum_only_classmembers_warn():
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
-def test_pendulum_proxy_qualnames_are_unique():
-    """Proxied members carry distinct `__qualname__` values so callers that
+def test_pendulum_method_qualnames_are_unique():
+    """Decorated members carry distinct `__qualname__` values so callers that
     key on them (e.g. `task()` task keys) don't collide."""
     dt = now("UTC")
     assert dt.add.__qualname__ != dt.subtract.__qualname__
@@ -380,6 +385,104 @@ def test_astimezone_preserves_timezone_for_pendulum_tz():
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 class TestPendulumCompatibility:
+    @pytest.mark.parametrize(
+        "factory, member, kwargs, expected",
+        [
+            (
+                lambda: create_datetime_instance(FIXED),
+                "add",
+                {"days": 1},
+                FIXED + datetime.timedelta(days=1),
+            ),
+            (
+                lambda: Date(2024, 6, 15),
+                "add",
+                {"days": 1},
+                datetime.date(2024, 6, 16),
+            ),
+            (lambda: Duration(days=1), "in_words", {}, "1 day"),
+            (
+                lambda: DateTime(2024, 6, 15) - DateTime(2024, 6, 14),
+                "in_words",
+                {},
+                "1 day",
+            ),
+            (lambda: DateTime, "instance", {"dt": FIXED}, FIXED),
+        ],
+    )
+    def test_pendulum_methods_support_callback_registries(
+        self,
+        factory: Callable[[], Any],
+        member: str,
+        kwargs: dict[str, Any],
+        expected: Any,
+    ):
+        value = factory()
+        callback = getattr(value, member)
+        repeated = getattr(value, member)
+        assert callback == repeated
+        assert len({callback, repeated}) == 1
+        callbacks = [callback]
+        callbacks.remove(repeated)
+        assert callbacks == []
+        assert callback.__self__ is value
+        assert callback.__func__ is repeated.__func__
+
+        callback_ref = weakref.WeakMethod(callback)
+        del callback, repeated
+        gc.collect()
+        restored = callback_ref()
+        assert restored == getattr(value, member)
+        with pytest.warns(
+            DeprecationWarning, match=f"Pendulum datetime member '{member}'"
+        ):
+            assert restored(**kwargs) == expected
+
+    def test_pendulum_method_weak_reference_does_not_retain_receiver(self):
+        value = create_datetime_instance(FIXED)
+        callback_ref = weakref.WeakMethod(value.add)
+        gc.collect()
+        assert callback_ref() is not None
+
+        del value
+        gc.collect()
+        assert callback_ref() is None
+
+    @pytest.mark.parametrize(
+        "cls, native",
+        [(DateTime, lambda: pendulum.DateTime), (Date, lambda: pendulum.Date)],
+    )
+    def test_pendulum_method_aliases_keep_equality_and_pickling(
+        self, cls: type, native: Callable[[], type]
+    ):
+        value = cls(2024, 6, 15)
+        expected = native()(2024, 6, 15)
+        assert (value.is_birthday == value.is_anniversary) == (
+            expected.is_birthday == expected.is_anniversary
+        )
+        restored = pickle.loads(pickle.dumps(value.is_birthday))
+        assert restored.__func__ is value.is_birthday.__func__
+        with pytest.warns(
+            DeprecationWarning, match="Pendulum datetime member 'is_anniversary'"
+        ):
+            assert restored(datetime.date(2020, 6, 15))
+
+    def test_pendulum_method_can_be_called_unbound(self):
+        value = create_datetime_instance(FIXED)
+        restored = pickle.loads(pickle.dumps(DateTime.add))
+        assert restored is DateTime.add
+        with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'add'"):
+            assert restored(value, days=1) == FIXED + datetime.timedelta(days=1)
+
+    def test_user_decorator_around_pendulum_method_keeps_its_own_task_key(self):
+        method = create_datetime_instance(FIXED).add
+
+        @wraps(method)
+        def decorated(**kwargs: Any) -> datetime.datetime:
+            return method(**kwargs)
+
+        assert task(decorated).task_key != task(method).task_key
+
     @pytest.mark.parametrize("name", ["EPOCH", "min", "max"])
     def test_datetime_constants_retain_warning_behavior(self, name: str):
         expected = getattr(pendulum.DateTime, name)
@@ -544,11 +647,26 @@ class TestPendulumCompatibility:
 
     def test_pendulum_method_task_keys_preserve_method_identity(self):
         dt = create_datetime_instance(FIXED)
-        methods = [dt.add, dt.subtract, Date(2024, 6, 15).add]
+        methods = [
+            dt.add,
+            dt.subtract,
+            dt.in_tz,
+            Date(2024, 6, 15).add,
+            Duration(days=1).in_words,
+            DateTime.instance,
+            DateTime.create,
+        ]
         tasks = [task(method) for method in methods]
         assert len({wrapped.task_key for wrapped in tasks}) == len(tasks)
         for wrapped, method in zip(tasks, methods):
-            assert wrapped.task_key == task(method.__wrapped__).task_key
+            original = task(method.__wrapped__)
+            assert wrapped.task_key == original.task_key
+            assert wrapped.source_code == original.source_code
+            assert task_input_hash(
+                TaskRunContext.model_construct(task=wrapped), {"days": 1}
+            ) == task_input_hash(
+                TaskRunContext.model_construct(task=original), {"days": 1}
+            )
 
     @pytest.mark.parametrize(
         "factory",

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import datetime
+import inspect
 import os
 import sys
 import warnings
+from collections.abc import Callable
 from contextlib import contextmanager
-from functools import update_wrapper
-from typing import Annotated, Any, ClassVar, Union, cast
+from functools import wraps
+from typing import Annotated, Any, TypeVar, Union, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
@@ -76,6 +78,7 @@ else:
     )
 
     _PENDULUM_PACKAGE_DIR = os.path.dirname(pendulum.__file__) + os.sep
+    _PendulumType = TypeVar("_PendulumType")
 
     def _warn_pendulum_member(name: str) -> None:
         warnings.warn(
@@ -89,88 +92,59 @@ else:
             stacklevel=3,
         )
 
-    def _pendulum_only_members(native: type, stdlib: type) -> frozenset[str]:
-        """Members Pendulum provides beyond the equivalent stdlib type."""
-        return frozenset(
-            name
-            for name in dir(native)
-            if not name.startswith("_") and name not in dir(stdlib)
-        )
+    def _deprecated_pendulum_method(member: Callable[..., Any]) -> Callable[..., Any]:
+        """Add a call-time warning while retaining ordinary method binding."""
 
-    class _DeprecatedMemberCall:
-        """Callable proxy for a Pendulum-only member that warns when called.
-
-        Calls originating inside the `pendulum` package are Pendulum methods
-        delegating to each other and do not warn; every other caller —
-        including Prefect code invoking a user-supplied bound method — warns.
-        Prefect's own internal calls go through `_pendulum_call` instead. The
-        proxy pickles back to a plain attribute lookup so Pendulum-only
-        bound methods remain serializable across process boundaries.
-        """
-
-        def __init__(self, obj: Any, name: str, member: Any) -> None:
-            self._obj = obj
-            self._name = name
-            self._member = member
-            update_wrapper(self, member, updated=())
-            self.__code__ = getattr(member, "__code__", None)
-
-        def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        @wraps(member)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             caller_file = sys._getframe(1).f_code.co_filename
             if not caller_file.startswith(_PENDULUM_PACKAGE_DIR):
-                _warn_pendulum_member(self._name)
-            return _wrap_pendulum_value(self._member(*args, **kwargs))
+                _warn_pendulum_member(member.__name__)
+            return _wrap_pendulum_value(member(*args, **kwargs))
 
-        def __reduce__(self) -> Any:
-            return (getattr, (self._obj, self._name))
+        # Task keys and input hashes retain the original method's code.
+        setattr(wrapper, "__prefect_task_source__", member)
+        return wrapper
 
-    class _PendulumDeprecationMixin:
-        """Warns when a Pendulum-only member is called.
+    def _deprecated_pendulum_members(
+        stdlib: type,
+    ) -> Callable[[type[_PendulumType]], type[_PendulumType]]:
+        """Decorate Pendulum-only methods on Prefect's subclasses once."""
 
-        Only callable members that have no standard-library counterpart
-        (e.g. `in_tz`, `add`, `diff`, `start_of`) warn; plain attribute
-        access and methods shared with `datetime` stay quiet.
-        """
+        def decorate(cls: type[_PendulumType]) -> type[_PendulumType]:
+            decorated: dict[Callable[..., Any], Callable[..., Any]] = {}
+            for name in dir(cls):
+                if name.startswith("_") or name in dir(stdlib):
+                    continue
+                member = inspect.getattr_static(cls, name)
+                function = (
+                    member.__func__ if isinstance(member, classmethod) else member
+                )
+                if not callable(function):
+                    continue
+                # Aliases share one function so equality and pickle lookup agree.
+                if function not in decorated:
+                    wrapped = _deprecated_pendulum_method(function)
+                    # Pickle must find the decorator on the Prefect subclass.
+                    wrapped.__name__ = name
+                    wrapped.__qualname__ = f"{cls.__qualname__}.{name}"
+                    wrapped.__module__ = cls.__module__
+                    decorated[function] = wrapped
+                wrapped = decorated[function]
+                setattr(
+                    cls,
+                    name,
+                    classmethod(wrapped)
+                    if isinstance(member, classmethod)
+                    else wrapped,
+                )
+            return cls
 
-        _pendulum_only_members: ClassVar[frozenset[str]]
+        return decorate
 
-        def __getattribute__(self, name: str) -> Any:
-            attr = super().__getattribute__(name)
-            if callable(attr) and name in type(self)._pendulum_only_members:
-                return _DeprecatedMemberCall(self, name, attr)
-            return attr
-
-    def _deprecation_meta(base: type) -> type:
-        """Metaclass that warns on Pendulum-only class-level member calls.
-
-        Public members are proxied so `DateTime.instance(...)` and friends
-        warn like instance-level calls. Private names are left alone so
-        Pydantic internals (e.g. `_validate`) stay silent.
-        """
-
-        class Meta(type(base)):
-            def __getattribute__(cls, name: str) -> Any:
-                attr = super().__getattribute__(name)
-                if (
-                    not name.startswith("_")
-                    and callable(attr)
-                    and name in cls._pendulum_only_members
-                ):
-                    return _DeprecatedMemberCall(cls, name, attr)
-                return attr
-
-        return Meta
-
-    class DateTime(  # type: ignore[no-redef]
-        _PendulumDeprecationMixin,
-        PydanticDateTime,
-        metaclass=_deprecation_meta(PydanticDateTime),
-    ):
+    @_deprecated_pendulum_members(datetime.datetime)
+    class DateTime(PydanticDateTime):  # type: ignore[no-redef]
         """Pendulum `DateTime` that warns on Pendulum-only member calls."""
-
-        _pendulum_only_members = _pendulum_only_members(
-            PydanticDateTime, datetime.datetime
-        )
 
         @classmethod
         def _validate(
@@ -187,14 +161,9 @@ else:
             """Retain warnings when subtracting a plain naive datetime."""
             return _wrap_pendulum_value(super().__sub__(other))
 
-    class Date(  # type: ignore[no-redef]
-        _PendulumDeprecationMixin,
-        PydanticDate,
-        metaclass=_deprecation_meta(PydanticDate),
-    ):
+    @_deprecated_pendulum_members(datetime.date)
+    class Date(PydanticDate):  # type: ignore[no-redef]
         """Pendulum `Date` that warns on Pendulum-only member calls."""
-
-        _pendulum_only_members = _pendulum_only_members(PydanticDate, datetime.date)
 
         @classmethod
         def _validate(
@@ -204,16 +173,9 @@ else:
             validated = super()._validate(value, handler)
             return cls(validated.year, validated.month, validated.day)
 
-    class Duration(  # type: ignore[no-redef]
-        _PendulumDeprecationMixin,
-        PydanticDuration,
-        metaclass=_deprecation_meta(PydanticDuration),
-    ):
+    @_deprecated_pendulum_members(datetime.timedelta)
+    class Duration(PydanticDuration):  # type: ignore[no-redef]
         """Pendulum `Duration` that warns on Pendulum-only member calls."""
-
-        _pendulum_only_members = _pendulum_only_members(
-            PydanticDuration, datetime.timedelta
-        )
 
         @classmethod
         def __get_pydantic_core_schema__(
@@ -242,27 +204,20 @@ else:
                 microseconds=validated.microseconds,
             )
 
-    class _Interval(  # type: ignore[no-redef]
-        _PendulumDeprecationMixin,
-        pendulum.Interval,
-        metaclass=_deprecation_meta(pendulum.Interval),
-    ):
+    @_deprecated_pendulum_members(datetime.timedelta)
+    class _Interval(pendulum.Interval):  # type: ignore[no-redef]
         """Pendulum `Interval` that warns on Pendulum-only member calls.
 
         Produced by `DateTime` subtraction and `diff()` so derived values
         keep the deprecation notice.
         """
 
-        _pendulum_only_members = _pendulum_only_members(
-            pendulum.Interval, datetime.timedelta
-        )
-
     _PDT_INSTANCE = PydanticDateTime.instance.__func__
 
     def _datetime_instance(value: datetime.datetime) -> DateTime:
         """Wrap a datetime in the warning-enabled `DateTime`.
 
-        Bypasses the class-level deprecation proxy for Prefect's own calls.
+        Bypasses the class-level deprecation decorator for Prefect's own calls.
         """
         return _PDT_INSTANCE(DateTime, value)
 
@@ -332,11 +287,15 @@ else:
 def _pendulum_call(obj: Any, name: str, *args: Any, **kwargs: Any) -> Any:
     """Invoke a Pendulum-only member without the deprecation warning.
 
-    For internal Prefect use: bypasses the `_PendulumDeprecationMixin`
-    proxy so Prefect's own machinery can keep using Pendulum behavior
+    For internal Prefect use: bypasses the deprecation decorator
+    so Prefect's own machinery can keep using Pendulum behavior
     silently. `obj` may be any Pendulum value.
     """
-    return object.__getattribute__(obj, name)(*args, **kwargs)
+    member = getattr(obj, name)
+    original = getattr(member, "__prefect_task_source__", None)
+    if original is not None and original is getattr(member, "__wrapped__", None):
+        return original(member.__self__, *args, **kwargs)
+    return member(*args, **kwargs)
 
 
 def parse_datetime(dt: str) -> datetime.datetime:
