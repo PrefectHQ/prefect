@@ -163,8 +163,7 @@ def _encode_temporal(value: Any) -> Any:
         # traversal encode them
         fields = {
             name: getattr(value, name)
-            for name in type(value).model_fields
-            | type(value).model_computed_fields
+            for name in type(value).model_fields | type(value).model_computed_fields
         }
         fields.update(value.__pydantic_extra__ or {})
         return fields
