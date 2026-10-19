@@ -136,9 +136,8 @@ def _encode_temporal(value: Any) -> Any:
     # times as epoch floats; pydantic 2.14 narrowed it to timedeltas only, so
     # reproduce the epoch encoding ourselves to keep the API contract
     if isinstance(value, datetime):
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=UTC)
-        return value.timestamp()
+        # pydantic 2.13 treated the wall time as UTC even for aware datetimes
+        return value.replace(tzinfo=UTC).timestamp()
     if isinstance(value, date):
         return datetime(value.year, value.month, value.day, tzinfo=UTC).timestamp()
     if isinstance(value, time):
@@ -148,6 +147,9 @@ def _encode_temporal(value: Any) -> Any:
             + value.second
             + value.microsecond / 1e6
         )
+    if isinstance(value, BaseModel):
+        # keep models opaque so their own field serializers handle temporals
+        raise StopVisiting()
     return value
 
 

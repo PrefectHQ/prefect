@@ -339,7 +339,7 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
+    within: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=0),
         ge=timedelta(seconds=0),
         description=(

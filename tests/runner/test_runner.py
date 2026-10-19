@@ -3708,17 +3708,31 @@ class TestRunnerDeployment:
             2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
         )
         delay = datetime.timedelta(seconds=90)
+        run_on = datetime.date(2024, 1, 2)
+        at_time = datetime.time(3, 4, 5)
+        offset_at = datetime.datetime(
+            2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))
+        )
 
         @flow
         def flow_with_temporal_parameters(
             scheduled_at: str | datetime.datetime,
             delay: datetime.timedelta,
+            run_on: datetime.date,
+            at_time: datetime.time,
+            offset_at: str | datetime.datetime,
         ) -> None:
             pass
 
         deployment = await flow_with_temporal_parameters.ato_deployment(
             name="temporal-parameters",
-            parameters={"scheduled_at": scheduled_at, "delay": delay},
+            parameters={
+                "scheduled_at": scheduled_at,
+                "delay": delay,
+                "run_on": run_on,
+                "at_time": at_time,
+                "offset_at": offset_at,
+            },
             enforce_parameter_schema=False,
         )
 
@@ -3728,6 +3742,13 @@ class TestRunnerDeployment:
         assert stored_deployment.parameters == {
             "scheduled_at": scheduled_at.timestamp(),
             "delay": delay.total_seconds(),
+            "run_on": datetime.datetime(
+                run_on.year, run_on.month, run_on.day, tzinfo=datetime.UTC
+            ).timestamp(),
+            "at_time": 3 * 3600 + 4 * 60 + 5,
+            # aware datetimes serialize their wall time as UTC, matching the
+            # historical `ser_json_timedelta="float"` encoding
+            "offset_at": scheduled_at.timestamp(),
         }
         validated_parameters = flow_with_temporal_parameters.validate_parameters(
             stored_deployment.parameters
@@ -3735,6 +3756,12 @@ class TestRunnerDeployment:
         assert validated_parameters == {
             "scheduled_at": scheduled_at,
             "delay": delay,
+            "run_on": run_on,
+            # time parses back as UTC since the epoch encoding is naive
+            "at_time": datetime.time(3, 4, 5, tzinfo=datetime.UTC),
+            # the epoch encoding loses the UTC offset; it parses back as the
+            # wall time in UTC
+            "offset_at": scheduled_at,
         }
 
     async def test_applied_deployment_stores_and_resolves_saved_block_parameter(
