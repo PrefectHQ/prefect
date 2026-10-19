@@ -25,7 +25,7 @@ import httpx
 import pytest
 import respx
 import uv
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, RootModel, computed_field, field_serializer
 from starlette import status
 
 import prefect.runner
@@ -3735,6 +3735,14 @@ class TestRunnerDeployment:
             child: JsonOnlyChild
             when: datetime.datetime
 
+        class WithComputedField(BaseModel):
+            when: datetime.datetime
+
+            @computed_field
+            @property
+            def doubled(self) -> float:
+                return self.when.timestamp() * 2
+
         @flow
         def flow_with_temporal_parameters(
             scheduled_at: str | datetime.datetime,
@@ -3745,6 +3753,8 @@ class TestRunnerDeployment:
             options: dict[str, float],
             custom_model: dict[str, str],
             wrapper: dict[str, Any],
+            root: list[int],
+            computed: dict[str, Any],
         ) -> None:
             pass
 
@@ -3761,6 +3771,8 @@ class TestRunnerDeployment:
                 "wrapper": WrapperModel(
                     child=JsonOnlyChild(starts_at=scheduled_at), when=scheduled_at
                 ),
+                "root": RootModel[list[int]]([1, 2]),
+                "computed": WithComputedField(when=scheduled_at),
             },
             enforce_parameter_schema=False,
         )
@@ -3788,6 +3800,13 @@ class TestRunnerDeployment:
                 "child": {"starts_at": "custom"},
                 "when": scheduled_at.timestamp(),
             },
+            # root models store their root value
+            "root": [1, 2],
+            # computed fields are included like `model_dump` output
+            "computed": {
+                "when": scheduled_at.timestamp(),
+                "doubled": scheduled_at.timestamp() * 2,
+            },
         }
         validated_parameters = flow_with_temporal_parameters.validate_parameters(
             stored_deployment.parameters
@@ -3806,6 +3825,11 @@ class TestRunnerDeployment:
             "wrapper": {
                 "child": {"starts_at": "custom"},
                 "when": scheduled_at.timestamp(),
+            },
+            "root": [1, 2],
+            "computed": {
+                "when": scheduled_at.timestamp(),
+                "doubled": scheduled_at.timestamp() * 2,
             },
         }
 

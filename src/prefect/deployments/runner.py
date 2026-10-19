@@ -53,6 +53,7 @@ from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
+    RootModel,
     TypeAdapter,
     field_serializer,
     field_validator,
@@ -153,11 +154,18 @@ def _encode_temporal(value: Any) -> Any:
             # keep models with custom serializers opaque so they handle
             # their own temporal fields
             raise StopVisiting()
+        if isinstance(value, RootModel):
+            # root models serialize to their root value, not {"root": ...}
+            return value.root
         # ordinary models were previously stored with temporal fields encoded
         # as epoch numbers; dump the field values (without recursing into
         # nested models, which get their own serializer check) and let
         # traversal encode them
-        fields = {name: getattr(value, name) for name in type(value).model_fields}
+        fields = {
+            name: getattr(value, name)
+            for name in type(value).model_fields
+            | type(value).model_computed_fields
+        }
         fields.update(value.__pydantic_extra__ or {})
         return fields
     return value
