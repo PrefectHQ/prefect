@@ -30,6 +30,7 @@ from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events import messaging
 from prefect.server.events.actions import ServerActionTypes
+from prefect.server.events.models import automation_held_events
 from prefect.server.events.models.automations import (
     AUTOMATION_CHANGES_CHANNEL,
     AutomationChangeEvent,
@@ -154,6 +155,10 @@ async def evaluate(
         )
         return bucket
 
+    # increment_bucket replaces the bucket's last_event, and the proactive same-event
+    # reset below may need to carry the one it replaced into the next window.
+    previous_last_event = bucket.last_event
+
     if count and (trigger.immediate or bucket.start <= now < bucket.end):
         # we are still within the automation time period, so spend the count in the
         # current bucket
@@ -231,6 +236,11 @@ async def evaluate(
         #
         # If we've already reached the proactive threshold, we need to remove the
         # current bucket and start a new one for the latest event.
+        #
+        # An `expect`-only event that occurred at or after the new window's start,
+        # such as a terminal flow run state that races the final heartbeat, belongs
+        # to the new window.  Carry it forward, or the new window opens empty and
+        # fires even though the flow run finished.
         if (
             triggering_event
             and trigger.posture == Posture.Proactive
@@ -239,14 +249,26 @@ async def evaluate(
             and trigger.expects(triggering_event.event)
         ):
             await remove_bucket(session, bucket)
+
+            carried_count = 0
+            carried_last_event = triggering_event
+            if (
+                previous_last_event
+                and trigger.expects(previous_last_event.event)
+                and not trigger.starts_after(previous_last_event.event)
+                and previous_last_event.occurred >= triggering_event.occurred
+            ):
+                carried_count = 1
+                carried_last_event = previous_last_event
+
             return await start_new_bucket(
                 session,
                 trigger,
                 bucketing_key=bucket.bucketing_key,
                 start=triggering_event.occurred,
                 end=triggering_event.occurred + trigger.within,
-                count=0,
-                last_event=triggering_event,
+                count=carried_count,
+                last_event=carried_last_event,
             )
 
         return bucket
@@ -599,6 +621,11 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
                 try:
                     bucket: Optional["ORMAutomationBucket"] = None
 
+                    if automation_held_events.holds_expect_events(trigger):
+                        await automation_held_events.acquire_bucketing_key_lock(
+                            session, trigger, bucketing_key
+                        )
+
                     if trigger.after and trigger.starts_after(event.event):
                         # When an event matches both the after and expect, each event
                         # can both start a new bucket and increment the bucket that was
@@ -655,7 +682,15 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
                         continue
 
                     if not bucket:
-                        bucket = await read_bucket(session, trigger, bucketing_key)
+                        if automation_held_events.holds_expect_events(trigger):
+                            # Only an `expect`-only event reaches this point.  If
+                            # its bucket has not opened yet, it is held for that
+                            # bucket to count when it opens.
+                            bucket = await hold_expect_event(
+                                session, trigger, bucketing_key, event
+                            )
+                        else:
+                            bucket = await read_bucket(session, trigger, bucketing_key)
                         if not bucket:
                             continue
 
@@ -696,6 +731,9 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
         await sweep_closed_buckets(
             session,
             as_of - PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER.value(),
+        )
+        await automation_held_events.sweep_held_events(
+            session, now - PRECEDING_EVENT_LOOKBACK
         )
         await session.commit()
 
@@ -977,6 +1015,30 @@ async def read_bucket_by_trigger_id(
     return bucket
 
 
+async def hold_expect_event(
+    session: AsyncSession,
+    trigger: EventTrigger,
+    bucketing_key: Tuple[str, ...],
+    event: ReceivedEvent,
+) -> "ORMAutomationBucket | None":
+    """Returns this key's current bucket for the caller to count the event in.  When
+    no bucket exists, holds the event for a bucket that opens later.  Returns None
+    when the caller has nothing to count: the event was held now, or an earlier
+    evaluation of the same event held it."""
+    # A held event was already counted by the bucket that opened over it, or it
+    # occurred outside that bucket's window.  Either way, counting it again would be
+    # wrong.
+    if await automation_held_events.is_held(session, trigger, bucketing_key, event):
+        return None
+
+    bucket = await read_bucket(session, trigger, bucketing_key)
+    if bucket:
+        return bucket
+
+    await automation_held_events.hold_event(session, trigger, bucketing_key, event)
+    return None
+
+
 @db_injector
 async def increment_bucket(
     db: PrefectDBInterface,
@@ -1040,9 +1102,15 @@ async def start_new_bucket(
     triggered_at: Optional[prefect.types._datetime.DateTime] = None,
     last_event: Optional[ReceivedEvent] = None,
 ) -> "ORMAutomationBucket":
-    """Ensures that a bucket with the given start and end exists with the given count,
-    returning the new bucket"""
+    """Ensures that a bucket with the given start and end exists with the given count
+    plus any held `expect` events that occurred inside its window, returning the new
+    bucket"""
     automation = trigger.automation
+
+    if automation_held_events.holds_expect_events(trigger):
+        count += await automation_held_events.count_held_events(
+            session, trigger, bucketing_key, start, end
+        )
 
     await session.execute(
         db.queries.insert(db.AutomationBucket)
@@ -1100,11 +1168,16 @@ async def ensure_bucket(
     initial_count: int = 0,
 ) -> "ORMAutomationBucket":
     """Ensures that a bucket has been started for the given automation and key,
-    returning the current bucket.  Will not modify the existing bucket."""
+    returning the current bucket.  Will not modify the existing bucket.  A new bucket
+    starts at `initial_count` plus any held `expect` events that occurred inside its
+    window."""
     automation = trigger.automation
-    additional_updates: dict[str, ReceivedEvent] = (
-        {"last_event": last_event} if last_event else {}
-    )
+
+    if automation_held_events.holds_expect_events(trigger):
+        initial_count += await automation_held_events.count_held_events(
+            session, trigger, bucketing_key, start, end
+        )
+
     await session.execute(
         db.queries.insert(db.AutomationBucket)
         .values(
@@ -1124,9 +1197,10 @@ async def ensure_bucket(
                 db.AutomationBucket.bucketing_key,
             ],
             set_=dict(
-                # no-op, but this counts as an update so the query returns a row
+                # no-op, but this counts as an update so the query returns a row.
+                # The existing last_event stays, because evaluation may need to
+                # carry an `expect`-only event that already counted in this bucket.
                 count=db.AutomationBucket.count,
-                **additional_updates,
             ),
         )
     )
