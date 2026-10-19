@@ -215,15 +215,32 @@ async def test_trimming_a_slot_keeps_the_events_of_other_slots(
     )
 
 
-async def test_held_events_older_than_the_lookback_are_dropped(
+@pytest.mark.parametrize(
+    "age, kept",
+    [
+        pytest.param(
+            PRECEDING_EVENT_LOOKBACK + timedelta(seconds=90),
+            True,
+            id="between-one-and-two-lookbacks",
+        ),
+        pytest.param(
+            2 * PRECEDING_EVENT_LOOKBACK + timedelta(seconds=90),
+            False,
+            id="older-than-two-lookbacks",
+        ),
+    ],
+)
+async def test_holding_an_event_drops_held_events_older_than_two_lookbacks(
     db: PrefectDBInterface,
     automations_session: AsyncSession,
     trigger: EventTrigger,
     frozen_time: DateTime,
+    age: timedelta,
+    kept: bool,
 ):
-    """An event that occurred more than the lookback before the newest one leaves
-    the held events."""
-    newer = frozen_time + PRECEDING_EVENT_LOOKBACK + timedelta(seconds=1)
+    """Holding an event drops a held event that occurred more than two lookbacks
+    before it, and keeps one that occurred less than two lookbacks before it."""
+    newer = frozen_time + age
     await automation_held_events.hold_event(
         automations_session, trigger, KEY, walked(frozen_time)
     )
@@ -231,7 +248,7 @@ async def test_held_events_older_than_the_lookback_are_dropped(
         automations_session, trigger, KEY, walked(newer)
     )
 
-    assert await held_occurrences(db, automations_session) == [newer]
+    assert (frozen_time in await held_occurrences(db, automations_session)) is kept
 
 
 async def test_held_events_are_swept_after_two_lookbacks(

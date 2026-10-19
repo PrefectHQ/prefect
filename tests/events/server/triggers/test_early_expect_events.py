@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automations
+from prefect.server.events.ordering import PRECEDING_EVENT_LOOKBACK
 from prefect.server.events.schemas.automations import (
     Automation,
     EventTrigger,
@@ -361,6 +362,24 @@ async def test_many_later_expect_events_do_not_crowd_out_an_earlier_one(
     await receive("B", frozen_time + timedelta(seconds=1))
     for _ in range(100):
         await receive("B", frozen_time + timedelta(seconds=61))
+    await receive("A", frozen_time)
+
+    await triggers.proactive_evaluation(trigger, frozen_time + WITHIN * 2)
+    act.assert_not_awaited()
+
+
+async def test_later_expect_event_keeps_an_earlier_one_held_for_a_lost_follower(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    make_trigger: MakeTrigger,
+):
+    """B1 is held, then B2, which occurred more than one lookback after B1, is held
+    too. An A that was a lost follower is evaluated a lookback late and opens a
+    window over B1, and that window still counts B1."""
+    trigger = await make_trigger({"B"})
+
+    await receive("B", frozen_time + timedelta(seconds=1))
+    await receive("B", frozen_time + PRECEDING_EVENT_LOOKBACK + timedelta(seconds=90))
     await receive("A", frozen_time)
 
     await triggers.proactive_evaluation(trigger, frozen_time + WITHIN * 2)

@@ -22,6 +22,11 @@ from prefect.server.events.schemas.events import ReceivedEvent
 
 EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
+# A lost follower waits up to the lookback before it is evaluated, and an `after`
+# event among them can open a window over events that occurred up to one lookback
+# before it.  A held event must outlast both, so it is kept for twice the lookback.
+HELD_EXPECT_EVENTS_RETENTION = 2 * PRECEDING_EVENT_LOOKBACK
+
 
 def slot_start(occurred: datetime, width: timedelta) -> datetime:
     """The start of the slot that contains `occurred`, where slots are `width` wide
@@ -132,7 +137,8 @@ async def hold_event(
     await session.execute(
         sa.delete(db.AutomationHeldEvent).where(
             *for_key,
-            db.AutomationHeldEvent.occurred < event.occurred - PRECEDING_EVENT_LOOKBACK,
+            db.AutomationHeldEvent.occurred
+            < event.occurred - HELD_EXPECT_EVENTS_RETENTION,
         )
     )
 
