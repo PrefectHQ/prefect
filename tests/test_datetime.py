@@ -393,7 +393,15 @@ def test_astimezone_preserves_timezone_for_pendulum_tz():
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 class TestPendulumCompatibility:
-    @pytest.mark.parametrize("member", ["now", "fromtimestamp", "combine", "replace"])
+    @pytest.mark.parametrize(
+        "member, default_warns",
+        [
+            ("now", True),
+            ("fromtimestamp", True),
+            ("combine", False),
+            ("replace", False),
+        ],
+    )
     @pytest.mark.parametrize("positional", [False, True])
     @pytest.mark.parametrize(
         "zone, should_warn",
@@ -406,7 +414,12 @@ class TestPendulumCompatibility:
         ],
     )
     def test_overlapping_methods_warn_only_for_pendulum_timezone_arguments(
-        self, member: str, positional: bool, zone: Any, should_warn: bool
+        self,
+        member: str,
+        default_warns: bool,
+        positional: bool,
+        zone: Any,
+        should_warn: bool,
     ):
         arguments = {
             "now": [],
@@ -426,6 +439,8 @@ class TestPendulumCompatibility:
                 warnings.simplefilter("always", DeprecationWarning)
                 actual = getattr(target, member)(*arguments, **kwargs)
 
+        if zone is None:
+            should_warn = default_warns
         assert len(caught) == int(should_warn)
         if should_warn:
             assert f"Pendulum datetime member '{member}'" in str(caught[0].message)
@@ -434,6 +449,92 @@ class TestPendulumCompatibility:
         assert actual == expected
         assert actual.tzinfo == expected.tzinfo
         assert actual.fold == expected.fold
+
+    @pytest.mark.parametrize("member", ["now", "fromtimestamp"])
+    def test_constructor_default_timezone_warns(self, member: str):
+        args = (0,) if member == "fromtimestamp" else ()
+        with travel_to(FIXED):
+            expected = getattr(pendulum.DateTime, member)(*args)
+            with pytest.warns(
+                DeprecationWarning, match=f"Pendulum datetime member '{member}'"
+            ) as caught:
+                actual = getattr(DateTime, member)(*args)
+        assert caught[0].filename == __file__
+        assert actual == expected
+        assert actual.tzinfo == expected.tzinfo
+        assert actual.tzinfo is not None
+
+    @pytest.mark.parametrize(
+        "member, args, should_warn",
+        [
+            ("today", (), True),
+            ("utcnow", (), True),
+            ("strptime", ("2024-06-15", "%Y-%m-%d"), True),
+            ("strptime", ("2024-06-15+0000", "%Y-%m-%d%z"), False),
+            ("fromordinal", (datetime.date(2024, 6, 15).toordinal(),), False),
+            ("utcfromtimestamp", (0,), False),
+        ],
+    )
+    def test_related_constructor_timezone_behavior(
+        self, member: str, args: tuple[Any, ...], should_warn: bool
+    ):
+        with travel_to(FIXED), warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            expected = getattr(pendulum.DateTime, member)(*args)
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", DeprecationWarning)
+                actual = getattr(DateTime, member)(*args)
+        notices = [
+            warning
+            for warning in caught
+            if str(warning.message).startswith("Pendulum datetime member")
+        ]
+        assert len(notices) == int(should_warn)
+        if should_warn:
+            assert notices[0].filename == __file__
+        assert actual == expected
+        assert actual.tzinfo == expected.tzinfo
+
+    @pytest.mark.parametrize("member", ["date", "time", "__sub__"])
+    def test_overridden_stdlib_methods_keep_legacy_task_identity(self, member: str):
+        value = create_datetime_instance(FIXED)
+        legacy = PydanticDateTime.instance(FIXED)
+        actual = task(getattr(value, member))
+        expected = task(getattr(legacy, member))
+        assert actual.task_key == expected.task_key
+        assert actual.source_code == expected.source_code
+        assert task_input_hash(
+            TaskRunContext.model_construct(task=actual), {}
+        ) == task_input_hash(TaskRunContext.model_construct(task=expected), {})
+
+    @pytest.mark.parametrize("picklelib", ["pickle", "cloudpickle"])
+    @pytest.mark.parametrize(
+        "member, args, kwargs",
+        [
+            ("now", (), {"tz": datetime.timezone.utc}),
+            ("today", (), {}),
+            ("strptime", ("2024-06-15", "%Y-%m-%d"), {}),
+            ("instance", (), {"dt": FIXED}),
+        ],
+    )
+    def test_class_method_pickles_keep_existing_import_paths(
+        self, picklelib: str, member: str, args: tuple[Any, ...], kwargs: dict[str, Any]
+    ):
+        class ExistingModuleReader(pickle.Unpickler):
+            def find_class(self, module: str, name: str) -> Any:
+                if module == "prefect.types._datetime_deprecations":
+                    raise ImportError("Older readers do not have this module")
+                return super().find_class(module, name)
+
+        serializer = PickleSerializer(picklelib=picklelib)
+        method = getattr(DateTime, member)
+        serialized = serializer.dumps(method)
+        restored = ExistingModuleReader(
+            io.BytesIO(base64.decodebytes(serialized))
+        ).load()
+        with travel_to(FIXED), warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            assert restored(*args, **kwargs) == method(*args, **kwargs)
 
     def test_derived_times_keep_warning_behavior_and_stdlib_operations(self):
         value = create_datetime_instance(FIXED).time()
