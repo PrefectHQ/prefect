@@ -17,6 +17,8 @@ from kopf._cogs.clients import auth as kopf_auth
 from kopf._cogs.clients import fetching as kopf_fetching
 from kopf._cogs.clients import watching as kopf_watching
 from kopf._cogs.structs import credentials as kopf_credentials
+from kubernetes_asyncio.client import V1Job, V1JobStatus, V1ObjectMeta
+from kubernetes_asyncio.client.exceptions import ApiException
 from prefect_kubernetes import observer
 from prefect_kubernetes._logging import KopfObjectJsonFormatter
 from prefect_kubernetes.diagnostics import diagnose_k8s_pod
@@ -2402,6 +2404,21 @@ class TestMarkFlowRunAsCrashed:
             "namespace": "default",
         }
 
+    @pytest.fixture
+    def mock_read_job(self, monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+        """Stub the Kubernetes direct job lookup used to confirm deletions."""
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=AsyncMock()),
+        )
+        batch_client = MagicMock()
+        batch_client.read_namespaced_job = AsyncMock()
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.BatchV1Api",
+            MagicMock(return_value=batch_client),
+        )
+        return batch_client.read_namespaced_job
+
     async def test_skips_paused_states(
         self, mock_orchestration_client: AsyncMock, flow_run_id, base_kwargs
     ):
@@ -2459,6 +2476,7 @@ class TestMarkFlowRunAsCrashed:
         flow_run_id,
         base_kwargs,
         monkeypatch,
+        mock_read_job: AsyncMock,
     ):
         """A deleted job never retries, so nothing else would finalize the run."""
         mock_orchestration_client.read_flow_run.return_value = FlowRun(
@@ -2470,6 +2488,41 @@ class TestMarkFlowRunAsCrashed:
         monkeypatch.setattr(
             "prefect_kubernetes.observer._get_k8s_jobs", AsyncMock(return_value=[])
         )
+        mock_read_job.side_effect = ApiException(status=404)
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        await _mark_flow_run_as_crashed(
+            **{**base_kwargs, "event": {"type": "DELETED"}, "status": {}}
+        )
+
+        mock_read_job.assert_awaited_once_with(name="test-job", namespace="default")
+        mock_propose.assert_called_once()
+        assert (
+            mock_propose.call_args.kwargs["state"].message
+            == "Kubernetes job was deleted"
+        )
+
+    async def test_marks_run_crashed_when_job_recreated_with_same_name(
+        self,
+        mock_orchestration_client: AsyncMock,
+        flow_run_id,
+        base_kwargs,
+        monkeypatch,
+        mock_read_job: AsyncMock,
+    ):
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_k8s_jobs", AsyncMock(return_value=[])
+        )
+        mock_read_job.return_value = V1Job(
+            metadata=V1ObjectMeta(name="test-job", uid="replacement-uid")
+        )
         mock_propose = AsyncMock()
         monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
 
@@ -2478,10 +2531,99 @@ class TestMarkFlowRunAsCrashed:
         )
 
         mock_propose.assert_called_once()
-        assert (
-            mock_propose.call_args.kwargs["state"].message
-            == "Kubernetes job was deleted"
+
+    @pytest.mark.parametrize(
+        ("keeps_flow_run_label", "current_team"),
+        [
+            pytest.param(True, "other", id="equality-filter-changed"),
+            pytest.param(False, "data", id="flow-run-label-removed"),
+        ],
+    )
+    async def test_ignores_deleted_event_when_job_left_selector(
+        self,
+        mock_orchestration_client: AsyncMock,
+        flow_run_id,
+        base_kwargs,
+        monkeypatch,
+        mock_read_job: AsyncMock,
+        keeps_flow_run_label: bool,
+        current_team: str,
+    ):
+        """A label change that drops a job out of the server-side selector is
+        reported as DELETED with the old labels, but the job still exists."""
+        monkeypatch.setattr(
+            observer.settings.observer, "additional_label_filters", {"team": "data"}
         )
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        current_job_labels = {"team": current_team}
+        if keeps_flow_run_label:
+            current_job_labels["prefect.io/flow-run-id"] = str(flow_run_id)
+        still_active_job = V1Job(
+            metadata=V1ObjectMeta(
+                name="test-job", uid="job-uid", labels=current_job_labels
+            ),
+            status=V1JobStatus(active=1),
+        )
+        mock_read_job.return_value = still_active_job
+        # Mirrors the flow-run-labeled LIST: it can't see a job whose flow run
+        # label was removed, so it must not be used as proof of deletion.
+        listed_jobs = [still_active_job] if keeps_flow_run_label else []
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_k8s_jobs",
+            AsyncMock(return_value=listed_jobs),
+        )
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        await _mark_flow_run_as_crashed(
+            **{
+                **base_kwargs,
+                "event": {"type": "DELETED"},
+                "labels": {"prefect.io/flow-run-id": str(flow_run_id), "team": "data"},
+                "status": {"active": 1},
+                "uid": "job-uid",
+            }
+        )
+
+        mock_propose.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "lookup_error",
+        [ApiException(status=403), ApiException(status=500), TimeoutError()],
+        ids=["forbidden", "server-error", "timeout"],
+    )
+    async def test_does_not_crash_run_when_deletion_cannot_be_confirmed(
+        self,
+        mock_orchestration_client: AsyncMock,
+        flow_run_id,
+        base_kwargs,
+        monkeypatch,
+        mock_read_job: AsyncMock,
+        lookup_error: Exception,
+    ):
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_k8s_jobs", AsyncMock(return_value=[])
+        )
+        mock_read_job.side_effect = lookup_error
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        await _mark_flow_run_as_crashed(
+            **{**base_kwargs, "event": {"type": "DELETED"}, "status": {}}
+        )
+
+        mock_propose.assert_not_called()
 
     async def test_skips_cancelling_run_when_job_deleted(
         self,

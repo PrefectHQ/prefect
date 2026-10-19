@@ -18,6 +18,7 @@ import kopf
 from cachetools import TTLCache
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job
+from kubernetes_asyncio.client.exceptions import ApiException
 
 from prefect import __version__, get_client
 from prefect.client.orchestration import PrefectClient
@@ -936,6 +937,35 @@ async def _get_k8s_jobs(
             await client.close()  # type: ignore
 
 
+async def _job_still_exists(
+    name: str, namespace: str, uid: str | None, logger: kopf.Logger
+) -> bool:
+    """Return whether the job behind a DELETED watch event still exists.
+
+    A server-side label selector reports a job whose labels stop matching as
+    DELETED even though the job still exists. Only a missing job, or a new job
+    with the same name, confirms the deletion; lookup failures don't.
+    """
+    client: ApiClient | None = None
+    try:
+        client = await _get_kubernetes_client()
+        job = await BatchV1Api(client).read_namespaced_job(  # type: ignore
+            name=name, namespace=namespace
+        )
+    except ApiException as e:
+        if e.status == 404:
+            return False
+        logger.warning(f"Failed to confirm deletion of job {name}: {e}")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to confirm deletion of job {name}: {e}")
+        return True
+    finally:
+        if client is not None:
+            await client.close()  # type: ignore
+    return job.metadata.uid == uid  # type: ignore
+
+
 @kopf.on.event(
     "batch",
     "v1",
@@ -996,6 +1026,12 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
         or flow_run.state.is_cancelling()
     ):
         logger.debug(f"Flow run {flow_run_id} is in {flow_run.state.name!r}, skipping")
+        return
+
+    if event["type"] == "DELETED" and await _job_still_exists(
+        name, kwargs["namespace"], kwargs.get("uid"), logger
+    ):
+        logger.debug(f"Job {name} still exists, skipping DELETED event")
         return
 
     # Eagerly fetch pod logs while the flow run is still in a pre-connectivity
