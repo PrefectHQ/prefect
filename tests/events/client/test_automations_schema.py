@@ -1,7 +1,9 @@
 """Tests for client-side automation schema validation and deserialization."""
 
 import uuid
+from typing import Any
 
+import jsonschema
 import pytest
 from pydantic import ValidationError
 
@@ -178,3 +180,60 @@ class TestUnknownActions:
     def test_unknown_action_rejects_a_known_type(self):
         with pytest.raises(ValidationError, match="known action type"):
             UnknownAction(type="run-deployment")
+
+
+ACTION_LISTS = ("actions", "actions_on_trigger", "actions_on_resolve")
+
+
+class TestActionJSONSchema:
+    """The generated JSON schema must accept the same actions as runtime parsing"""
+
+    @staticmethod
+    def automation_data(action_list: str, action: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "name": "example",
+            "trigger": {"type": "event", "posture": "Reactive"},
+            "actions": [],
+            action_list: [action],
+        }
+
+    @staticmethod
+    def schema_errors(data: dict[str, Any]) -> list[jsonschema.ValidationError]:
+        validator = jsonschema.Draft202012Validator(AutomationCore.model_json_schema())
+        return list(validator.iter_errors(data))
+
+    @pytest.mark.parametrize("action_list", ACTION_LISTS)
+    @pytest.mark.parametrize(
+        "action",
+        [
+            {"type": "do-nothing"},
+            {"type": "run-deployment", "source": "inferred"},
+            {
+                "type": "send-email-notification",
+                "emails": ["ops@example.com"],
+                "nested": {"key": ["value"]},
+            },
+        ],
+        ids=["do-nothing", "run-deployment", "unknown"],
+    )
+    def test_valid_actions_match_the_schema(
+        self, action_list: str, action: dict[str, Any]
+    ):
+        data = self.automation_data(action_list, action)
+
+        core = AutomationCore.model_validate(data)
+
+        assert self.schema_errors(data) == []
+        assert self.schema_errors(core.model_dump(mode="json")) == []
+
+    @pytest.mark.parametrize("action_list", ACTION_LISTS)
+    def test_known_type_with_invalid_fields_does_not_match_the_schema(
+        self, action_list: str
+    ):
+        data = self.automation_data(
+            action_list, {"type": "change-flow-run-state", "state": 123}
+        )
+
+        with pytest.raises(ValidationError):
+            AutomationCore.model_validate(data)
+        assert self.schema_errors(data) != []
