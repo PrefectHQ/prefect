@@ -136,24 +136,24 @@ async def hold_event(
 
 
 @db_injector
-async def count_held_events(
+def held_events_in_window(
     db: PrefectDBInterface,
-    session: AsyncSession,
     trigger: EventTrigger,
     bucketing_key: Sequence[str],
     start: datetime,
     end: datetime,
-) -> int:
-    """Count the events held for this trigger and key that occurred in the window
-    from `start` (inclusive) to `end` (exclusive)"""
-    result = await session.execute(
-        sa.select(sa.func.count()).where(
+) -> sa.ScalarSelect[int]:
+    """A scalar subquery counting the events held for this trigger and key that
+    occurred in the window from `start` (inclusive) to `end` (exclusive)"""
+    return (
+        sa.select(sa.func.count())
+        .where(
             *_for_key(db, trigger, bucketing_key),
             db.AutomationHeldEvent.occurred >= start,
             db.AutomationHeldEvent.occurred < end,
         )
+        .scalar_subquery()
     )
-    return result.scalar_one()
 
 
 @db_injector

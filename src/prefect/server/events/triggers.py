@@ -719,6 +719,17 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
 
     logger.debug("Running periodic evaluation as of %s (offset %ss)", as_of, offset)
 
+    # Held events are bounded only by this sweep, so a failure in the steps below
+    # must not skip it.
+    try:
+        async with automations_session() as session:
+            await automation_held_events.sweep_held_events(
+                session, now - PRECEDING_EVENT_LOOKBACK
+            )
+            await session.commit()
+    except Exception:
+        logger.exception("Error sweeping held events")
+
     await reconcile_automations()
 
     # Any followers that have been sitting around longer than our lookback are never
@@ -731,9 +742,6 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
         await sweep_closed_buckets(
             session,
             as_of - PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER.value(),
-        )
-        await automation_held_events.sweep_held_events(
-            session, now - PRECEDING_EVENT_LOOKBACK
         )
         await session.commit()
 
@@ -1107,9 +1115,12 @@ async def start_new_bucket(
     bucket"""
     automation = trigger.automation
 
+    # The held events are counted inside the upsert rather than in a query of their
+    # own, because this runs on every window roll of a heartbeat-style trigger.
+    new_count: int | sa.ColumnElement[int] = count
     if automation_held_events.holds_expect_events(trigger):
-        count += await automation_held_events.count_held_events(
-            session, trigger, bucketing_key, start, end
+        new_count = count + automation_held_events.held_events_in_window(
+            trigger, bucketing_key, start, end
         )
 
     await session.execute(
@@ -1120,7 +1131,7 @@ async def start_new_bucket(
             bucketing_key=bucketing_key,
             start=start,
             end=end,
-            count=count,
+            count=new_count,
             last_operation="start_new_bucket[insert]",
             triggered_at=triggered_at,
             last_event=last_event,
@@ -1134,7 +1145,7 @@ async def start_new_bucket(
             set_=dict(
                 start=start,
                 end=end,
-                count=count,
+                count=new_count,
                 last_operation="start_new_bucket[update]",
                 updated=prefect.types._datetime.now("UTC"),
                 triggered_at=triggered_at,
@@ -1173,9 +1184,13 @@ async def ensure_bucket(
     window."""
     automation = trigger.automation
 
+    # The held events are counted inside the upsert rather than in a query of their
+    # own, because this runs on every `after` event, and the count only matters when
+    # the bucket is new.
+    new_count: int | sa.ColumnElement[int] = initial_count
     if automation_held_events.holds_expect_events(trigger):
-        initial_count += await automation_held_events.count_held_events(
-            session, trigger, bucketing_key, start, end
+        new_count = initial_count + automation_held_events.held_events_in_window(
+            trigger, bucketing_key, start, end
         )
 
     await session.execute(
@@ -1187,7 +1202,7 @@ async def ensure_bucket(
             last_event=last_event,
             start=start,
             end=end,
-            count=initial_count,
+            count=new_count,
             last_operation="ensure_bucket[insert]",
         )
         .on_conflict_do_update(
