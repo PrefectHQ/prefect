@@ -40,7 +40,7 @@ from prefect.server.events.schemas.events import (
 )
 from prefect.server.schemas.actions import ActionBaseModel
 from prefect.server.utilities.schemas import ORMBaseModel, PrefectBaseModel
-from prefect.types import DateTime
+from prefect.types import DateTime, DurationOrSecondsTimeDelta
 from prefect.utilities.collections import AutoEnum
 
 # Dict form accepted by ResourceSpecification via Pydantic coercion
@@ -123,7 +123,7 @@ class CompositeTrigger(Trigger, abc.ABC):
 
     type: Literal["compound", "sequence"]
     triggers: List["ServerTriggerTypes"]
-    within: Optional[timedelta]
+    within: Optional[DurationOrSecondsTimeDelta]
 
     def create_automation_state_change_event(
         self, firing: Firing, trigger_state: TriggerState

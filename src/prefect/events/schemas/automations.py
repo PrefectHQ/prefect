@@ -29,6 +29,7 @@ from typing_extensions import Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.events.actions import ActionTypes, ActionTypesOrUnknown, RunDeployment
+from prefect.types import DurationOrSecondsTimeDelta
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -196,7 +197,7 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
+    within: DurationOrSecondsTimeDelta = Field(
         default=timedelta(seconds=0),
         ge=timedelta(seconds=0),
         description=(
@@ -294,7 +295,7 @@ class MetricTriggerQuery(PrefectBaseModel):
             "the query result against the threshold value."
         ),
     )
-    range: timedelta = Field(
+    range: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
         description=(
             "The lookback duration (seconds) for a metric query. This duration is "
@@ -302,7 +303,7 @@ class MetricTriggerQuery(PrefectBaseModel):
             "The minimum value is 300 seconds (5 minutes)."
         ),
     )
-    firing_for: timedelta = Field(
+    firing_for: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
         description=(
             "The duration (seconds) for which the metric query must breach "
@@ -356,7 +357,7 @@ class CompositeTrigger(Trigger, abc.ABC):
 
     type: Literal["compound", "sequence"]
     triggers: List["TriggerTypes"]
-    within: Optional[timedelta] = Field(
+    within: Optional[DurationOrSecondsTimeDelta] = Field(
         None,
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
