@@ -87,9 +87,13 @@ class APILogWorker(BatchedQueueService[bytes]):
         sent.
         """
         if isinstance(item, dict):
-            item = orjson.dumps(
+            payload = orjson.dumps(
                 {key: value for key, value in item.items() if key != "__payload_size__"}
             )
+            # orjson output can take far more memory than its length, about 1 KiB
+            # for a short log. Copy it so a backlog of queued logs holds only the
+            # JSON.
+            item = memoryview(payload).tobytes()
         super().send(item)
 
     async def _handle_batch(self, items: list[bytes]):
