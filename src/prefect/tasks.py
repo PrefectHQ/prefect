@@ -791,7 +791,7 @@ class Task(Generic[P, R]):
             fn=self.fn,
             name=name or self.name,
             description=description or self.description,
-            tags=tags or copy(self.tags),
+            tags=tags if tags is not None else copy(self.tags),
             version=self.version,
             cache_policy=cache_policy
             if cache_policy is not NotSet
