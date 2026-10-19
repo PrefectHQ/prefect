@@ -587,6 +587,69 @@ class TestReadFlowRuns:
         )
         assert len(result) == 0
 
+    async def test_read_flow_runs_filters_by_states_any_and_not_any(
+        self, flow, session
+    ):
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(name="My Running State"),
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Completed(name="My Completed State"),
+            ),
+        )
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Failed(name="RIP")
+            ),
+        )
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                state=dict(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=["RUNNING", "COMPLETED"], not_any_=["COMPLETED"]
+                    )
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                state=dict(
+                    name=schemas.filters.FlowRunFilterStateName(
+                        any_=["My Running State", "My Completed State"],
+                        not_any_=["My Completed State"],
+                    )
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                state=dict(
+                    operator="or_",
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=["RUNNING", "COMPLETED"], not_any_=["COMPLETED"]
+                    ),
+                    name=schemas.filters.FlowRunFilterStateName(any_=["RIP"]),
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id, flow_run_3.id}
+
     async def test_read_flow_runs_filters_by_flow_versions_any(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
