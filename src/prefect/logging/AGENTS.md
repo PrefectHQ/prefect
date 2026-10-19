@@ -42,6 +42,7 @@ Key invariants:
 `APILogWorker` is a **singleton per unique settings tuple** `(BATCH_SIZE, API_URL, MAX_LOG_SIZE)`. A new settings combination creates a new worker instance.
 
 - `max_batch_size = max(BATCH_SIZE - MAX_LOG_SIZE, MAX_LOG_SIZE)` — defensive: ensures a single max-size log can always fit
+- `APILogWorker.send()` serializes each log dict to compact JSON (orjson) right away, dropping the `__payload_size__` key that `prepare()` adds. The queue holds only those bytes, and `_handle_batch` posts them joined, without serializing again. Changes to a dict after `send()` are not sent. Process-pool workers still forward dicts through `_api_log_sink`; the parent serializes them when it calls `send()`.
 - `APILogHandler.prepare()` truncates oversized logs with a buffer; `WorkerAPILogHandler.prepare()` raises `ValueError` instead (no truncation)
 
 **Flush deadlock guard:** `APILogHandler.flush()` detects if called from within an event loop and avoids blocking via `from_sync.call_soon_in_new_thread()`. Do not call `flush()` synchronously from async code without this guard.

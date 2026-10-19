@@ -15,9 +15,11 @@ from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generator
 from unittest import mock
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
+import httpx
 import pytest
+import respx
 from rich.color import Color, ColorType
 from rich.console import Console
 from rich.highlighter import NullHighlighter, ReprHighlighter
@@ -936,6 +938,40 @@ class TestAPILogHandler:
         assert sent_log["message"].endswith("... [truncated]")
         assert "ValueError" not in output.err
 
+    @pytest.mark.parametrize(
+        "character", ["X", "é", "🦆"], ids=["one-byte", "two-byte", "four-byte"]
+    )
+    async def test_oversized_logs_are_truncated_to_fit_max_log_size(
+        self,
+        logger: logging.Logger,
+        handler: APILogHandler,
+        flow_run: "FlowRun",
+        respx_mock: respx.MockRouter,
+        character: str,
+    ):
+        create_logs = respx_mock.post(path__regex=r"/logs/$").pass_through()
+        respx_mock.route().pass_through()
+        max_log_size = 1_000
+
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: max_log_size}
+        ):
+            logger.info(character * max_log_size, extra={"flow_run_id": flow_run.id})
+            await handler.aflush()
+
+        sent_logs = [
+            log
+            for call in create_logs.calls
+            for log in json.loads(call.request.content)
+            if log["flow_run_id"] == str(flow_run.id)
+        ]
+        assert len(sent_logs) == 1
+        assert sent_logs[0]["message"].endswith("... [truncated]")
+        sent_size = len(
+            json.dumps(sent_logs[0], separators=(",", ":"), ensure_ascii=False).encode()
+        )
+        assert sent_size <= max_log_size
+
     def test_handler_knows_how_large_logs_are(self):
         dict_log = {
             "name": "prefect.flow_runs",
@@ -946,8 +982,9 @@ class TestAPILogHandler:
             "task_run_id": None,
         }
 
-        log_size = len(json.dumps(dict_log))
-        assert log_size == 211
+        # Logs are sent to the API as compact JSON
+        log_size = len(json.dumps(dict_log, separators=(",", ":")).encode())
+        assert log_size == 200
         handler = APILogHandler()
         assert handler._get_payload_size(dict_log) == log_size  # type: ignore[reportPrivateUsage]
 
@@ -1202,44 +1239,55 @@ class TestAPILogWorker:
         self,
         log_dict: dict[str, Any],
         capsys: pytest.CaptureFixture[str],
-        monkeypatch: pytest.MonkeyPatch,
+        respx_mock: respx.MockRouter,
         worker: APILogWorker,
     ):
-        monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectClient.create_logs",
-            MagicMock(side_effect=ValueError("Test")),
+        respx_mock.post(path__regex=r"/logs/$").mock(
+            return_value=httpx.Response(400, json={"detail": "Test"})
         )
+        respx_mock.route().pass_through()
 
         worker.send(log_dict)
         await worker.drain()
 
         err = capsys.readouterr().err
         assert "--- Error logging to API ---" in err
-        assert "ValueError: Test" in err
+        assert "400 Bad Request" in err
 
     async def test_send_logs_batches_by_size(
-        self, log_dict: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+        self,
+        log_dict: dict[str, Any],
+        respx_mock: respx.MockRouter,
+        prefect_client: PrefectClient,
     ):
-        mock_create_logs = AsyncMock()
-        monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectClient.create_logs", mock_create_logs
-        )
+        create_logs = respx_mock.post(path__regex=r"/logs/$").pass_through()
+        respx_mock.route().pass_through()
 
-        log_size = APILogHandler()._get_payload_size(log_dict)
+        logs_to_send = [{**log_dict, "message": str(i)} for i in range(5)]
+        log_size = len(json.dumps(logs_to_send[0], separators=(",", ":")).encode())
+        # Room for two logs per request, after leaving room for a maximum size log
+        batch_size = 3 * (log_size + 1)
 
         with temporary_settings(
             updates={
-                PREFECT_LOGGING_TO_API_BATCH_SIZE: log_size + 1,
-                PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: log_size,
+                PREFECT_LOGGING_TO_API_BATCH_SIZE: batch_size,
+                PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: log_size + 1,
             }
         ):
             worker = APILogWorker.instance()
-            worker.send(log_dict)
-            worker.send(log_dict)
-            worker.send(log_dict)
+            for log in logs_to_send:
+                worker.send(log)
             await worker.drain()
 
-        assert mock_create_logs.call_count == 3
+        bodies = [call.request.content for call in create_logs.calls]
+        assert [len(json.loads(body)) for body in bodies] == [2, 2, 1]
+        assert all(len(body) <= batch_size for body in bodies)
+
+        log_filter = LogFilter(
+            flow_run_id=LogFilterFlowRunId(any_=[uuid.UUID(log_dict["flow_run_id"])])
+        )
+        logs = await prefect_client.read_logs(log_filter=log_filter)
+        assert sorted(log.message for log in logs) == ["0", "1", "2", "3", "4"]
 
     async def test_logs_are_sent_immediately_when_stopped(
         self, log_dict: dict[str, Any], prefect_client: PrefectClient
@@ -1286,20 +1334,45 @@ class TestAPILogWorker:
         assert len(logs) == 2
 
     async def test_logs_include_worker_id_if_available(
-        self, worker: APILogWorker, log_dict: dict[str, Any]
+        self,
+        worker: APILogWorker,
+        log_dict: dict[str, Any],
+        respx_mock: respx.MockRouter,
     ):
         worker_id = str(uuid.uuid4())
         log_dict["worker_id"] = worker_id
+        # Open source servers do not accept worker logs
+        create_logs = respx_mock.post(path__regex=r"/logs/$").mock(
+            return_value=httpx.Response(201)
+        )
+        respx_mock.route().pass_through()
 
-        with mock.patch(
-            "prefect.client.orchestration.PrefectClient.create_logs", autospec=True
-        ) as mock_create_logs:
-            worker.send(log_dict)
-            await worker.drain()
-            assert mock_create_logs.call_count == 1
-            logs = mock_create_logs.call_args.args[1]
-            assert len(logs) == 1
-            assert logs[0]["worker_id"] == worker_id
+        worker.send(log_dict)
+        await worker.drain()
+
+        assert create_logs.call_count == 1
+        logs = json.loads(create_logs.calls.last.request.content)
+        assert len(logs) == 1
+        assert logs[0]["worker_id"] == worker_id
+
+    async def test_send_does_not_send_payload_size(
+        self,
+        worker: APILogWorker,
+        log_dict: dict[str, Any],
+        prefect_client: PrefectClient,
+    ):
+        log_dict["__payload_size__"] = 100
+
+        # The API rejects unknown fields, so the log is stored only if the size
+        # recorded by `APILogHandler.prepare` is left out
+        worker.send(log_dict)
+        await worker.drain()
+
+        log_filter = LogFilter(
+            flow_run_id=LogFilterFlowRunId(any_=[uuid.UUID(log_dict["flow_run_id"])])
+        )
+        logs = await prefect_client.read_logs(log_filter=log_filter)
+        assert len(logs) == 1
 
 
 def test_flow_run_logger(flow_run: "FlowRun"):
