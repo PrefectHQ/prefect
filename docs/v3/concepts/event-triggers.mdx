@@ -378,10 +378,14 @@ started this trigger with its `prefect.flow-run.Running` event could satisfy the
 ### Event ordering and `after`
 
 A trigger with an `after` clause starts watching for its `expect` events only once one of
-its `after` events has arrived. An `expect` event that arrives at the system before the
-trigger's `after` event does not count, even when the two events were emitted in the
-correct order. For a Reactive trigger this can mean a missed firing; for a Proactive
-trigger it can mean a spurious one.
+its `after` events has arrived. For a Reactive trigger, an `expect` event that arrives at
+the system before the trigger's `after` event does not count, even when the two events
+were emitted in the correct order. This can mean a missed firing.
+
+A Proactive trigger with `after` holds each `expect` event it sees, and the window that a
+later `after` event opens counts the held events that occurred inside that window. An
+`expect` event that occurred after the `after` event still counts when it arrives first,
+so the arrival order of the two events doesn't cause a spurious firing.
 
 Prefect does not guarantee the order that unrelated events arrive at the system: events
 that occur within a second or two of each other may arrive in either order. When your
