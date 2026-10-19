@@ -3724,6 +3724,17 @@ class TestRunnerDeployment:
             def serialize_starts_at(self, value: datetime.datetime) -> str:
                 return "custom"
 
+        class JsonOnlyChild(BaseModel):
+            starts_at: datetime.datetime
+
+            @field_serializer("starts_at", when_used="json")
+            def serialize_starts_at(self, value: datetime.datetime) -> str:
+                return "custom"
+
+        class WrapperModel(BaseModel):
+            child: JsonOnlyChild
+            when: datetime.datetime
+
         @flow
         def flow_with_temporal_parameters(
             scheduled_at: str | datetime.datetime,
@@ -3733,6 +3744,7 @@ class TestRunnerDeployment:
             offset_at: str | datetime.datetime,
             options: dict[str, float],
             custom_model: dict[str, str],
+            wrapper: dict[str, Any],
         ) -> None:
             pass
 
@@ -3746,6 +3758,9 @@ class TestRunnerDeployment:
                 "offset_at": offset_at,
                 "options": Options(starts_at=scheduled_at),
                 "custom_model": CustomTemporalModel(starts_at=scheduled_at),
+                "wrapper": WrapperModel(
+                    child=JsonOnlyChild(starts_at=scheduled_at), when=scheduled_at
+                ),
             },
             enforce_parameter_schema=False,
         )
@@ -3768,6 +3783,11 @@ class TestRunnerDeployment:
             "options": {"starts_at": scheduled_at.timestamp()},
             # models with custom serializers are left to their own serializers
             "custom_model": {"starts_at": "custom"},
+            # nested models keep their instances so JSON-only serializers run
+            "wrapper": {
+                "child": {"starts_at": "custom"},
+                "when": scheduled_at.timestamp(),
+            },
         }
         validated_parameters = flow_with_temporal_parameters.validate_parameters(
             stored_deployment.parameters
@@ -3783,6 +3803,10 @@ class TestRunnerDeployment:
             "offset_at": scheduled_at,
             "options": {"starts_at": scheduled_at.timestamp()},
             "custom_model": {"starts_at": "custom"},
+            "wrapper": {
+                "child": {"starts_at": "custom"},
+                "when": scheduled_at.timestamp(),
+            },
         }
 
     async def test_applied_deployment_stores_and_resolves_saved_block_parameter(

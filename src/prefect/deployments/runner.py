@@ -154,8 +154,12 @@ def _encode_temporal(value: Any) -> Any:
             # their own temporal fields
             raise StopVisiting()
         # ordinary models were previously stored with temporal fields encoded
-        # as epoch numbers; dump to a plain dict and let traversal encode them
-        return value.model_dump()
+        # as epoch numbers; dump the field values (without recursing into
+        # nested models, which get their own serializer check) and let
+        # traversal encode them
+        fields = {name: getattr(value, name) for name in type(value).model_fields}
+        fields.update(value.__pydantic_extra__ or {})
+        return fields
     return value
 
 
