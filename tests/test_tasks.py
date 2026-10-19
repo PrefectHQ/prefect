@@ -4195,6 +4195,16 @@ class TestTaskWithOptions:
         assert task_with_options.retries == 0
         assert task_with_options.retry_delay_seconds == 0
 
+    @pytest.mark.parametrize("empty_tags", [[], set(), ()])
+    def test_with_options_can_clear_tags_with_empty_collection(self, empty_tags):
+        @task(tags=["original"])
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options(tags=empty_tags)
+        assert task_with_options.tags == set()
+        assert initial_task.tags == {"original"}
+
     async def test_with_options_refresh_cache(
         self,
     ):
