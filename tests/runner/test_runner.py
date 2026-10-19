@@ -25,7 +25,7 @@ import httpx
 import pytest
 import respx
 import uv
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from starlette import status
 
 import prefect.runner
@@ -3714,6 +3714,16 @@ class TestRunnerDeployment:
             2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))
         )
 
+        class Options(BaseModel):
+            starts_at: datetime.datetime
+
+        class CustomTemporalModel(BaseModel):
+            starts_at: datetime.datetime
+
+            @field_serializer("starts_at")
+            def serialize_starts_at(self, value: datetime.datetime) -> str:
+                return "custom"
+
         @flow
         def flow_with_temporal_parameters(
             scheduled_at: str | datetime.datetime,
@@ -3721,6 +3731,8 @@ class TestRunnerDeployment:
             run_on: datetime.date,
             at_time: datetime.time,
             offset_at: str | datetime.datetime,
+            options: dict[str, float],
+            custom_model: dict[str, str],
         ) -> None:
             pass
 
@@ -3732,6 +3744,8 @@ class TestRunnerDeployment:
                 "run_on": run_on,
                 "at_time": at_time,
                 "offset_at": offset_at,
+                "options": Options(starts_at=scheduled_at),
+                "custom_model": CustomTemporalModel(starts_at=scheduled_at),
             },
             enforce_parameter_schema=False,
         )
@@ -3749,6 +3763,11 @@ class TestRunnerDeployment:
             # aware datetimes serialize their wall time as UTC, matching the
             # historical `ser_json_timedelta="float"` encoding
             "offset_at": scheduled_at.timestamp(),
+            # temporal fields inside ordinary nested models keep the epoch
+            # encoding
+            "options": {"starts_at": scheduled_at.timestamp()},
+            # models with custom serializers are left to their own serializers
+            "custom_model": {"starts_at": "custom"},
         }
         validated_parameters = flow_with_temporal_parameters.validate_parameters(
             stored_deployment.parameters
@@ -3762,6 +3781,8 @@ class TestRunnerDeployment:
             # the epoch encoding loses the UTC offset; it parses back as the
             # wall time in UTC
             "offset_at": scheduled_at,
+            "options": {"starts_at": scheduled_at.timestamp()},
+            "custom_model": {"starts_at": "custom"},
         }
 
     async def test_applied_deployment_stores_and_resolves_saved_block_parameter(

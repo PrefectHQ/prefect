@@ -148,8 +148,14 @@ def _encode_temporal(value: Any) -> Any:
             + value.microsecond / 1e6
         )
     if isinstance(value, BaseModel):
-        # keep models opaque so their own field serializers handle temporals
-        raise StopVisiting()
+        decorators = value.__pydantic_decorators__
+        if decorators.field_serializers or decorators.model_serializers:
+            # keep models with custom serializers opaque so they handle
+            # their own temporal fields
+            raise StopVisiting()
+        # ordinary models were previously stored with temporal fields encoded
+        # as epoch numbers; dump to a plain dict and let traversal encode them
+        return value.model_dump()
     return value
 
 
