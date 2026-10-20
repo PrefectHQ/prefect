@@ -148,7 +148,9 @@ def apply_values(
 
     If a template contains text before or after a placeholder or there are
     multiple placeholders, the placeholders will be replaced with the
-    corresponding variable values.
+    corresponding variable values. Placeholder text inside a replacement value
+    is preserved for a subsequent call, rather than substituted again in the
+    same pass.
 
     If a template contains a placeholder that is not in `values`, NotSet will
     be returned to signify that no placeholder replacement occurred. If
@@ -201,6 +203,7 @@ def apply_values(
                 )
             return value
         else:
+            replacements: dict[str, str] = {}
             for full_match, name, placeholder_type in placeholders:
                 if placeholder_type is PlaceholderType.STANDARD:
                     value = get_from_dict(values, name, NotSet)
@@ -217,11 +220,13 @@ def apply_values(
                             "the placeholder is spelled correctly and that the corresponding value is provided.",
                         )
                     if remove_notset:
-                        template = template.replace(full_match, "")
+                        replacements[full_match] = ""
                 else:
-                    template = template.replace(full_match, str(value))
+                    replacements[full_match] = str(value)
 
-            return template
+            return PLACEHOLDER_CAPTURE_REGEX.sub(
+                lambda match: replacements.get(match.group(0), match.group(0)), template
+            )
     elif isinstance(template, dict):
         updated_template: dict[str, Any] = {}
         for key, value in template.items():

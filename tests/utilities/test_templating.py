@@ -144,6 +144,23 @@ class TestFindPlaceholders:
 
 
 class TestApplyValues:
+    def test_replacement_text_is_not_interpreted_as_another_placeholder(self):
+        values = {"first": "{{ second }}", "second": "{{ first }}"}
+        assert apply_values("prefix {{ first }} / {{ second }}", values) == (
+            "prefix {{ second }} / {{ first }}"
+        )
+
+    def test_environment_replacement_text_is_not_interpreted_again(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("FIRST", "{{ second }}")
+        assert (
+            apply_values(
+                "prefix {{ $FIRST }} / {{ second }}", {"second": "{{ $FIRST }}"}
+            )
+            == "prefix {{ second }} / {{ $FIRST }}"
+        )
+
     def test_apply_values_simple_string_with_one_placeholder(self):
         assert apply_values("Hello, {{name}}!", {"name": "Alice"}) == "Hello, Alice!"
 
