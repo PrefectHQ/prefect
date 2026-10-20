@@ -10,6 +10,7 @@ two backends.
 import base64
 import datetime
 import gc
+import inspect
 import io
 import pickle
 import subprocess
@@ -282,16 +283,27 @@ def test_prefect_helpers_do_not_emit_pendulum_warnings():
         end_of_period(FIXED, "day")
         in_local_tz(FIXED)
         human_friendly_diff(FIXED)
+        value = create_datetime_instance(FIXED)
+        start_of_day(value)
+        end_of_period(value, "day")
+        in_local_tz(value)
+        human_friendly_diff(value)
+        TypeAdapter(DateTime).dump_json(TypeAdapter(DateTime).validate_python(value))
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
-def test_pendulum_method_invoked_through_prefect_machinery_warns():
-    """A user-supplied Pendulum-only bound method invoked via Prefect (e.g.
+@pytest.mark.parametrize(
+    "member, kwargs", [("add", {"days": 1}), ("replace", {"year": 2025})]
+)
+def test_pendulum_method_invoked_through_prefect_machinery_warns(
+    member: str, kwargs: dict[str, int]
+):
+    """A user-supplied bound method invoked via Prefect (e.g.
     the task engine's `call_with_parameters`) still warns."""
     from prefect.utilities.callables import call_with_parameters
 
-    with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'add'"):
-        call_with_parameters(now("UTC").add, {"days": 1})
+    with pytest.warns(DeprecationWarning, match=f"Pendulum datetime member '{member}'"):
+        call_with_parameters(getattr(now("UTC"), member), kwargs)
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
@@ -394,32 +406,24 @@ def test_astimezone_preserves_timezone_for_pendulum_tz():
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 class TestPendulumCompatibility:
     @pytest.mark.parametrize(
-        "member, default_warns",
-        [
-            ("now", True),
-            ("fromtimestamp", True),
-            ("combine", False),
-            ("replace", False),
-        ],
+        "action, count", [("ignore", 0), ("default", 1), ("always", 2)]
     )
+    def test_method_warnings_respect_python_filters(self, action: str, count: int):
+        value = create_datetime_instance(FIXED)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter(action, DeprecationWarning)
+            for _ in range(2):
+                value.replace(year=2025)
+        assert len(caught) == count
+        assert all(notice.category is DeprecationWarning for notice in caught)
+
+    @pytest.mark.parametrize("member", ["now", "fromtimestamp", "combine", "replace"])
     @pytest.mark.parametrize("positional", [False, True])
     @pytest.mark.parametrize(
-        "zone, should_warn",
-        [
-            ("UTC", True),
-            (5.5, True),
-            (None, False),
-            (datetime.timezone.utc, False),
-            (ZoneInfo("America/New_York"), False),
-        ],
+        "zone", ["UTC", 5.5, None, datetime.UTC, ZoneInfo("America/New_York")]
     )
-    def test_overlapping_methods_warn_only_for_pendulum_timezone_arguments(
-        self,
-        member: str,
-        default_warns: bool,
-        positional: bool,
-        zone: Any,
-        should_warn: bool,
+    def test_shared_methods_warn_for_every_timezone_argument(
+        self, member: str, positional: bool, zone: Any
     ):
         arguments = {
             "now": [],
@@ -439,12 +443,9 @@ class TestPendulumCompatibility:
                 warnings.simplefilter("always", DeprecationWarning)
                 actual = getattr(target, member)(*arguments, **kwargs)
 
-        if zone is None:
-            should_warn = default_warns
-        assert len(caught) == int(should_warn)
-        if should_warn:
-            assert f"Pendulum datetime member '{member}'" in str(caught[0].message)
-            assert caught[0].filename == __file__
+        assert len(caught) == 1
+        assert f"Pendulum datetime member '{member}'" in str(caught[0].message)
+        assert caught[0].filename == __file__
         assert isinstance(actual, DateTime)
         assert actual == expected
         assert actual.tzinfo == expected.tzinfo
@@ -455,7 +456,7 @@ class TestPendulumCompatibility:
     @pytest.mark.parametrize(
         "arguments", ["omitted", "positional", "keyword", "all_keywords"]
     )
-    def test_combine_warns_for_explicit_none_with_aware_time(
+    def test_combine_always_warns_and_retains_pendulum_semantics(
         self, pendulum_time: bool, zone: datetime.tzinfo | None, arguments: str
     ):
         date = datetime.date(2024, 6, 15)
@@ -472,20 +473,13 @@ class TestPendulumCompatibility:
             kwargs = {"date": date, "time": time, "tzinfo": None}
 
         expected = pendulum.DateTime.combine(*args, **kwargs)
-        stdlib = datetime.datetime.combine(*args, **kwargs)
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always", DeprecationWarning)
             actual = DateTime.combine(*args, **kwargs)
 
-        should_warn = arguments != "omitted" and zone is not None
-        assert len(caught) == int(should_warn)
-        if should_warn:
-            assert "Pendulum datetime member 'combine'" in str(caught[0].message)
-            assert caught[0].filename == __file__
-            assert stdlib.tzinfo is None
-            assert actual.tzinfo is not None
-        else:
-            assert actual == stdlib
+        assert len(caught) == 1
+        assert "Pendulum datetime member 'combine'" in str(caught[0].message)
+        assert caught[0].filename == __file__
         assert isinstance(actual, DateTime)
         assert actual == expected
         assert actual.tzinfo == expected.tzinfo
@@ -493,14 +487,10 @@ class TestPendulumCompatibility:
 
     @pytest.mark.parametrize("positional", [False, True])
     @pytest.mark.parametrize(
-        "zone, should_warn",
-        [
-            (datetime.UTC, False),
-            (datetime.timezone(datetime.timedelta(hours=2)), True),
-        ],
+        "zone", [datetime.UTC, datetime.timezone(datetime.timedelta(hours=2))]
     )
-    def test_combine_warns_when_aware_time_ignores_timezone_override(
-        self, positional: bool, zone: datetime.tzinfo, should_warn: bool
+    def test_combine_warns_for_compatible_and_incompatible_timezone_overrides(
+        self, positional: bool, zone: datetime.tzinfo
     ):
         args: list[Any] = [
             datetime.date(2024, 6, 15),
@@ -510,18 +500,125 @@ class TestPendulumCompatibility:
         if positional:
             args.append(zone)
         expected = pendulum.DateTime.combine(*args, **kwargs)
-        stdlib = datetime.datetime.combine(*args, **kwargs)
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always", DeprecationWarning)
             actual = DateTime.combine(*args, **kwargs)
 
-        assert len(caught) == int(should_warn)
-        if should_warn:
-            assert "Pendulum datetime member 'combine'" in str(caught[0].message)
-            assert caught[0].filename == __file__
+        assert len(caught) == 1
+        assert "Pendulum datetime member 'combine'" in str(caught[0].message)
+        assert caught[0].filename == __file__
         assert actual == expected
         assert actual.tzinfo == expected.tzinfo
-        assert (actual != stdlib) == should_warn
+
+    @pytest.mark.parametrize("replacement", [None, 1])
+    @pytest.mark.parametrize(
+        "kind, field",
+        [
+            ("datetime", field)
+            for field in (
+                "year",
+                "month",
+                "day",
+                "hour",
+                "minute",
+                "second",
+                "microsecond",
+                "fold",
+            )
+        ]
+        + [("date", field) for field in ("year", "month", "day")]
+        + [("time", field) for field in ("hour", "minute", "second", "microsecond")],
+    )
+    def test_replace_warns_for_none_and_stdlib_compatible_components(
+        self, kind: str, field: str, replacement: int | None
+    ):
+        actual_value = create_datetime_instance(FIXED)
+        native_value = pendulum.instance(FIXED)
+        if kind != "datetime":
+            actual_value = getattr(actual_value, kind)()
+            native_value = getattr(native_value, kind)()
+        expected = native_value.replace(**{field: replacement})
+        with pytest.warns(
+            DeprecationWarning, match="Pendulum datetime member 'replace'"
+        ) as caught:
+            actual = actual_value.replace(**{field: replacement})
+        assert len(caught) == 1
+        assert caught[0].filename == __file__
+        assert actual == expected
+        if kind != "date":
+            assert actual.tzinfo == expected.tzinfo
+            assert actual.fold == expected.fold
+
+    @pytest.mark.parametrize(
+        "kind", ["datetime", "date", "time", "duration", "interval"]
+    )
+    def test_audited_shared_methods_warn_or_remain_quiet(self, kind: str):
+        value = create_datetime_instance(FIXED)
+        native = pendulum.instance(FIXED)
+        date = datetime.date(2024, 6, 15)
+        if kind == "datetime":
+            stdlib = datetime.datetime
+            cases = {
+                "astimezone": ((datetime.UTC,), False),
+                "combine": ((date, datetime.time(14, 30)), True),
+                "date": ((), False),
+                "fromordinal": ((date.toordinal(),), False),
+                "fromtimestamp": ((0,), True),
+                "now": ((), True),
+                "replace": ((), True),
+                "strptime": (("2024-06-15+0000", "%Y-%m-%d%z"), True),
+                "time": ((), False),
+                "today": ((), True),
+                "utcfromtimestamp": ((0,), False),
+                "utcnow": ((), True),
+            }
+        elif kind == "date":
+            stdlib = datetime.date
+            value, native = value.date(), native.date()
+            cases = {
+                "fromordinal": ((date.toordinal(),), False),
+                "fromtimestamp": ((0,), False),
+                "replace": ((), True),
+                "today": ((), False),
+            }
+        elif kind == "time":
+            stdlib = datetime.time
+            value, native = value.time(), native.time()
+            cases = {"replace": ((), True)}
+        else:
+            stdlib = datetime.timedelta
+            if kind == "duration":
+                value, native = Duration(days=1), pendulum.duration(days=1)
+            else:
+                value = value - create_datetime_instance(FIXED)
+                native = native - pendulum.instance(FIXED)
+            cases = {}
+
+        # Require an explicit decision for every shared Python implementation.
+        shared_overrides = set()
+        for name in dir(stdlib):
+            if name.startswith("_"):
+                continue
+            member = inspect.getattr_static(type(value), name)
+            function = member.__func__ if isinstance(member, classmethod) else member
+            if inspect.isfunction(function):
+                shared_overrides.add(name)
+        assert set(cases) == shared_overrides
+
+        for member, (args, should_warn) in cases.items():
+            with travel_to(FIXED), warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                expected = getattr(native, member)(*args)
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.filterwarnings(
+                        "always", "Pendulum datetime member", DeprecationWarning
+                    )
+                    actual = getattr(value, member)(*args)
+            assert len(caught) == int(should_warn), member
+            assert actual == expected, member
+            if should_warn:
+                assert f"Pendulum datetime member '{member}'" in str(caught[0].message)
+                assert caught[0].filename == __file__
 
     @pytest.mark.parametrize("member", ["now", "fromtimestamp"])
     def test_constructor_default_timezone_warns(self, member: str):
@@ -543,7 +640,7 @@ class TestPendulumCompatibility:
             ("today", (), True),
             ("utcnow", (), True),
             ("strptime", ("2024-06-15", "%Y-%m-%d"), True),
-            ("strptime", ("2024-06-15+0000", "%Y-%m-%d%z"), False),
+            ("strptime", ("2024-06-15+0000", "%Y-%m-%d%z"), True),
             ("fromordinal", (datetime.date(2024, 6, 15).toordinal(),), False),
             ("utcfromtimestamp", (0,), False),
         ],
@@ -616,8 +713,11 @@ class TestPendulumCompatibility:
             warnings.simplefilter("error", DeprecationWarning)
             assert value == expected
             assert value.isoformat() == expected.isoformat()
-            assert value.replace(minute=1) == expected.replace(minute=1)
             assert value.tzinfo is None
+        with pytest.warns(
+            DeprecationWarning, match="Pendulum datetime member 'replace'"
+        ):
+            assert value.replace(minute=1) == expected.replace(minute=1)
         with pytest.warns(DeprecationWarning, match="Pendulum datetime member 'add'"):
             later = value.add(hours=1)
         assert later == expected.add(hours=1)
@@ -1053,6 +1153,7 @@ class TestPendulumCompatibility:
             dt.subtract,
             dt.in_tz,
             Date(2024, 6, 15).add,
+            Date(2024, 6, 15).replace,
             Duration(days=1).in_words,
             DateTime.instance,
             DateTime.create,
@@ -1062,6 +1163,7 @@ class TestPendulumCompatibility:
             dt.replace,
             dt.time,
             dt.time().add,
+            dt.time().replace,
         ]
         tasks = [task(method) for method in methods]
         assert len({wrapped.task_key for wrapped in tasks}) == len(tasks)

@@ -2,6 +2,11 @@
 
 Remove this module when those versions switch to stdlib datetime behavior.
 Pickle paths remain in `prefect.types._datetime` for compatibility.
+
+Warnings apply to whole methods, including stdlib-compatible calls to shared
+methods with Pendulum-specific defaults or accepted arguments. Formatting,
+extraction, conversion, and arithmetic remain quiet. This is a targeted migration
+notice, not an exhaustive detector of every difference between the libraries.
 """
 
 from __future__ import annotations
@@ -34,11 +39,31 @@ _PENDULUM_PACKAGE_DIR = os.path.dirname(pendulum.__file__) + os.sep
 _PICKLE_MODULE = "prefect.types._datetime"
 _PendulumType = TypeVar("_PendulumType")
 
+# Shared methods with Pendulum-specific timezone defaults or accepted arguments.
+# Date's other constructors delegate to stdlib; datetime's fromordinal and
+# utcfromtimestamp explicitly preserve naive results. Extraction and astimezone
+# retain their existing behavior without adding warnings.
+_SHARED_METHODS_TO_WARN = {
+    datetime.datetime: {
+        "now",
+        "fromtimestamp",
+        "today",
+        "utcnow",
+        "strptime",
+        "combine",
+        "replace",
+    },
+    datetime.date: {"replace"},
+    datetime.time: {"replace"},
+}
+
 
 def _warn_pendulum_member(name: str, *, timezone_argument: bool = False) -> None:
-    qualifier = " with Pendulum-specific timezone behavior" if timezone_argument else ""
+    # Keep the keyword accepted by previously serialized method wrappers.
     warnings.warn(
-        f"Pendulum datetime member {name!r}{qualifier} is deprecated. Pendulum "
+        f"Pendulum datetime member {name!r} has deprecated Pendulum-specific "
+        "behavior. Some calls are also compatible with standard-library datetime "
+        "types. Pendulum "
         "datetime behavior on Python 3.11 and 3.12 will be retained for "
         "at least six months and three minor version increases after the "
         "deprecation release, whichever is longer; a later minor release "
@@ -49,56 +74,14 @@ def _warn_pendulum_member(name: str, *, timezone_argument: bool = False) -> None
     )
 
 
-def _deprecated_pendulum_method(
-    member: Callable[..., Any], timezone_parameter: str | None = None
-) -> Callable[..., Any]:
+def _deprecated_pendulum_method(member: Callable[..., Any]) -> Callable[..., Any]:
     """Add a call-time warning while retaining ordinary method binding."""
-    timezone_index = (
-        tuple(inspect.signature(member).parameters).index(timezone_parameter)
-        if timezone_parameter is not None
-        else 0
-    )
-    strptime_signature = (
-        inspect.signature(member) if member.__name__ == "strptime" else None
-    )
 
     @wraps(member)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         caller_file = sys._getframe(1).f_code.co_filename
-        should_warn = timezone_parameter is None
-        if timezone_parameter is not None:
-            timezone = kwargs.get(
-                timezone_parameter,
-                args[timezone_index] if len(args) > timezone_index else None,
-            )
-            should_warn = not isinstance(timezone, datetime.tzinfo) and (
-                timezone is not None or member.__name__ in ("now", "fromtimestamp")
-            )
-            if member.__name__ == "combine" and (
-                timezone_parameter in kwargs or len(args) > timezone_index
-            ):
-                time = kwargs.get("time", args[2] if len(args) > 2 else None)
-                # Pendulum retains an aware time's zone despite an explicit override.
-                should_warn = should_warn or (
-                    isinstance(time, datetime.time)
-                    and time.tzinfo is not None
-                    and time.tzinfo != timezone
-                )
-        if strptime_signature is not None:
-            bound = strptime_signature.bind(*args, **kwargs)
-            # Parse with the stdlib to distinguish naive formats from aware ones.
-            should_warn = (
-                datetime.datetime.strptime(
-                    bound.arguments["time"], bound.arguments["fmt"]
-                ).tzinfo
-                is None
-            )
-        if not caller_file.startswith(_PENDULUM_PACKAGE_DIR) and should_warn:
-            _warn_pendulum_member(
-                member.__name__,
-                timezone_argument=timezone_parameter is not None
-                or strptime_signature is not None,
-            )
+        if not caller_file.startswith(_PENDULUM_PACKAGE_DIR):
+            _warn_pendulum_member(member.__name__)
         return _wrap_pendulum_value(member(*args, **kwargs))
 
     # Task keys and input hashes retain the original method's code.
@@ -109,7 +92,7 @@ def _deprecated_pendulum_method(
 def _deprecated_pendulum_members(
     stdlib: type,
 ) -> Callable[[type[_PendulumType]], type[_PendulumType]]:
-    """Decorate Pendulum-only methods on Prefect's subclasses once."""
+    """Decorate extensions and audited shared methods once per subclass."""
 
     def decorate(cls: type[_PendulumType]) -> type[_PendulumType]:
         # Moving this implementation must not change class or method pickle paths.
@@ -119,25 +102,10 @@ def _deprecated_pendulum_members(
             if inspect.isfunction(function):
                 function.__module__ = cls.__module__
         decorated: dict[Callable[..., Any], Callable[..., Any]] = {}
-        timezone_parameters = (
-            {
-                "now": "tz",
-                "fromtimestamp": "tz",
-                "combine": "tzinfo",
-                "replace": "tzinfo",
-            }
-            if stdlib in (datetime.datetime, datetime.time)
-            else {}
-        )
+        shared_methods = _SHARED_METHODS_TO_WARN.get(stdlib, set())
         for name in dir(cls):
-            timezone_parameter = timezone_parameters.get(name)
             if name.startswith("_") or (
-                name in dir(stdlib)
-                and timezone_parameter is None
-                and not (
-                    stdlib is datetime.datetime
-                    and name in ("today", "utcnow", "strptime")
-                )
+                name in dir(stdlib) and name not in shared_methods
             ):
                 continue
             member = inspect.getattr_static(cls, name)
@@ -146,7 +114,7 @@ def _deprecated_pendulum_members(
                 continue
             # Aliases share one function so equality and pickle lookup agree.
             if function not in decorated:
-                wrapped = _deprecated_pendulum_method(function, timezone_parameter)
+                wrapped = _deprecated_pendulum_method(function)
                 # Pickle must find the decorator on the Prefect subclass.
                 wrapped.__name__ = name
                 wrapped.__qualname__ = f"{cls.__qualname__}.{name}"
@@ -165,7 +133,7 @@ def _deprecated_pendulum_members(
 
 @_deprecated_pendulum_members(datetime.datetime)
 class DateTime(PydanticDateTime):
-    """Pendulum `DateTime` that warns on Pendulum-only member calls."""
+    """Pendulum `DateTime` that warns on deprecated method calls."""
 
     @classmethod
     def _validate(
@@ -198,7 +166,7 @@ class DateTime(PydanticDateTime):
 
 @_deprecated_pendulum_members(datetime.date)
 class Date(PydanticDate):
-    """Pendulum `Date` that warns on Pendulum-only member calls."""
+    """Pendulum `Date` that warns on deprecated method calls."""
 
     @classmethod
     def _validate(
@@ -211,7 +179,7 @@ class Date(PydanticDate):
 
 @_deprecated_pendulum_members(datetime.time)
 class _Time(pendulum.Time):
-    """Pendulum `Time` that warns on Pendulum-only member calls."""
+    """Pendulum `Time` that warns on deprecated method calls."""
 
     def __reduce_ex__(self, protocol: SupportsIndex) -> Any:
         # The public DateTime.time method also exists on older readers.
