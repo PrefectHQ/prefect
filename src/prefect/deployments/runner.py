@@ -37,8 +37,7 @@ import sys
 import tempfile
 import warnings
 from contextlib import suppress
-from dataclasses import fields, is_dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -61,7 +60,6 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic.dataclasses import is_pydantic_dataclass
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
@@ -151,42 +149,8 @@ def _should_clear_empty_schedules() -> bool:
 
 _DEPLOYMENT_PARAMETER_SERIALIZER = TypeAdapter(
     dict[str, Any],
-    config=ConfigDict(ser_json_timedelta="float", ser_json_temporal="seconds"),
+    config=ConfigDict(ser_json_timedelta="float"),
 )
-
-
-def _normalize_parameter_datetime(value: Any, *, as_key: bool = False) -> Any:
-    if isinstance(value, BaseModel) or is_pydantic_dataclass(type(value)):
-        # Models own their serialization, including temporal fields and blocks.
-        return value
-    if (
-        isinstance(value, datetime)
-        and "ser_json_temporal" in ConfigDict.__annotations__
-    ):
-        # Preserve pydantic 2.12-2.13's wall-time-as-UTC encoding outside models.
-        return value.replace(tzinfo=UTC)
-    if as_key:
-        if isinstance(value, tuple):
-            return tuple(
-                _normalize_parameter_datetime(item, as_key=True) for item in value
-            )
-        # Pydantic stringifies dataclass keys using their original representation.
-        return value
-    if isinstance(value, dict):
-        return {
-            _normalize_parameter_datetime(
-                key, as_key=True
-            ): _normalize_parameter_datetime(item)
-            for key, item in value.items()
-        }
-    if isinstance(value, (list, tuple, set, frozenset)):
-        return [_normalize_parameter_datetime(item) for item in value]
-    if is_dataclass(value) and not isinstance(value, type):
-        return {
-            field.name: _normalize_parameter_datetime(getattr(value, field.name))
-            for field in fields(value)
-        }
-    return value
 
 
 def _extract_concurrency_options(
@@ -386,7 +350,7 @@ class RunnerDeployment(BaseModel):
     @field_serializer("parameters", when_used="json")
     def serialize_block_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
         return _DEPLOYMENT_PARAMETER_SERIALIZER.dump_python(
-            _normalize_parameter_datetime(parameters),
+            parameters,
             mode="json",
             context={"serialize_blocks_as_references": True},
         )
