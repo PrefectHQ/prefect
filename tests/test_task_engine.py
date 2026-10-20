@@ -2,14 +2,18 @@ import asyncio
 import concurrent.futures
 import contextvars
 import logging
+import math
 import os
 import random
+import signal
 import sys
 import threading
 import time
+import warnings
+from collections.abc import Callable, Generator
 from datetime import timedelta
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
@@ -17,6 +21,7 @@ from uuid import UUID, uuid4
 import anyio
 import pytest
 
+import prefect.task_engine
 from prefect import Task, flow, tags, task
 from prefect.cache_policies import FLOW_PARAMETERS, INPUTS, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
@@ -37,6 +42,7 @@ from prefect.flow_engine import run_flow_async, run_flow_sync
 from prefect.flow_runs import suspend_flow_run
 from prefect.futures import PrefectConcurrentFuture
 from prefect.logging import get_run_logger
+from prefect.logging.handlers import APILogWorker
 from prefect.results import ResultRecord, ResultStore
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import PREFECT_TASK_DEFAULT_RETRIES, temporary_settings
@@ -50,9 +56,10 @@ from prefect.states import (
     Suspended,
 )
 from prefect.task_engine import (
-    _TIMEOUT_WATCHDOG_GRACE_SECONDS,
+    _TIMEOUT_WATCHDOG_MIN_COMPACT_SIZE,
     AsyncTaskRunEngine,
     SyncTaskRunEngine,
+    _reset_timeout_watchdog_after_fork_in_child,
     _TimeoutWatchdog,
     run_task_async,
     run_task_sync,
@@ -2163,43 +2170,176 @@ class TestTaskTimeoutWatchdog:
         watchdog = _TimeoutWatchdog()
         fired = threading.Event()
 
-        watchdog.arm(0.05, fired.set)
+        watchdog.arm(0, fired.set)
 
-        assert fired.wait(timeout=5)
+        assert fired.wait(timeout=10)
 
     def test_disarmed_deadline_does_not_fire(self):
         watchdog = _TimeoutWatchdog()
         disarmed_fired = threading.Event()
         later_fired = threading.Event()
 
-        handle = watchdog.arm(0.05, disarmed_fired.set)
-        watchdog.disarm(handle)
+        # Holding the lock keeps the thread from reaching the deadline before it is
+        # disarmed, however long this thread takes to get there
+        with watchdog._lock:
+            handle = watchdog.arm(0, disarmed_fired.set)
+            watchdog.disarm(handle)
         # Deadlines fire in order, so once the later one has fired the disarmed one
         # has had its chance
-        watchdog.arm(0.1, later_fired.set)
+        watchdog.arm(0, later_fired.set)
 
-        assert later_fired.wait(timeout=5)
+        assert later_fired.wait(timeout=10)
         assert not disarmed_fired.is_set()
+
+    def test_disarm_waits_for_a_callback_that_has_started(self):
+        """Test that nothing is reported once `disarm` has returned.
+
+        A run that finishes just as its deadline fires must not be warned about
+        after it has moved on.
+        """
+        watchdog = _TimeoutWatchdog()
+        started = threading.Event()
+        finished = threading.Event()
+
+        def slow_callback() -> None:
+            started.set()
+            time.sleep(0.2)
+            finished.set()
+
+        handle = watchdog.arm(0, slow_callback)
+        assert started.wait(timeout=10)
+        watchdog.disarm(handle)
+
+        assert finished.is_set()
+
+    def test_disarm_stops_waiting_for_a_callback_that_does_not_finish(self):
+        """Test that a callback stuck on something cannot hang the run disarming it.
+
+        A log handler in the callback could block on something the disarming thread
+        holds, so the wait for the callback is bounded.
+        """
+        watchdog = _TimeoutWatchdog()
+        started = threading.Event()
+        release = threading.Event()
+
+        def stuck_callback() -> None:
+            started.set()
+            release.wait(timeout=30)
+
+        handle = watchdog.arm(0, stuck_callback)
+        try:
+            assert started.wait(timeout=10)
+            watchdog.disarm(handle)
+
+            # `disarm` returned while the callback was still running
+            assert handle in watchdog._firing
+        finally:
+            release.set()
+
+    def test_disarm_from_its_own_callback_does_not_wait_for_itself(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that disarming on the watchdog thread returns straight away.
+
+        Garbage collection on the watchdog thread can finalize a run while that run's
+        callback is running, and the run then disarms its deadline there.
+        """
+        # Long enough that waiting at all would fail the test
+        monkeypatch.setattr(
+            "prefect.task_engine._TIMEOUT_WATCHDOG_DISARM_WAIT_SECONDS", 60
+        )
+        watchdog = _TimeoutWatchdog()
+        handles: list[int] = []
+        disarmed = threading.Event()
+
+        def disarm_own_deadline() -> None:
+            watchdog.disarm(handles[0])
+            disarmed.set()
+
+        # Hold the thread off until the handle is recorded for the callback to use
+        with watchdog._lock:
+            handles.append(watchdog.arm(0, disarm_own_deadline))
+
+        assert disarmed.wait(timeout=10)
+
+    def test_deadline_beyond_the_longest_wait_does_not_stop_the_thread(self):
+        """Test that an infinite or very long timeout leaves the thread running.
+
+        `Condition.wait` raises for a timeout above `threading.TIMEOUT_MAX`, which is
+        under 50 days on Windows.
+        """
+        watchdog = _TimeoutWatchdog()
+        handle = watchdog.arm(math.inf, lambda: None)
+        thread = watchdog._thread
+        assert thread is not None
+
+        try:
+            # The thread waits on the deadline as soon as it starts, so it would
+            # have died by the time this gives up
+            thread.join(timeout=0.5)
+            assert thread.is_alive()
+        finally:
+            watchdog.disarm(handle)
+
+    def test_disarmed_deadlines_do_not_pile_up(self):
+        """Test that disarmed deadlines are dropped before they would have expired.
+
+        Otherwise a long timeout keeps the deadline of every run that finished early
+        until that timeout passes.
+        """
+        watchdog = _TimeoutWatchdog()
+        fired = threading.Event()
+
+        # Hold the thread off so that only disarming removes deadlines
+        with watchdog._lock:
+            watchdog.arm(0, fired.set)
+            handles = [watchdog.arm(3600, lambda: None) for _ in range(1000)]
+            for handle in handles:
+                watchdog.disarm(handle)
+
+            assert len(watchdog._deadlines) <= _TIMEOUT_WATCHDOG_MIN_COMPACT_SIZE
+
+        # Dropping the disarmed deadlines must keep the armed one
+        assert fired.wait(timeout=10)
 
     def test_one_thread_serves_every_deadline(self):
         """Test that a wide fan-out of timed runs costs one thread, not one each."""
-
-        def watchdog_threads() -> int:
-            return sum(
-                1
-                for thread in threading.enumerate()
-                if thread.name == "TaskRunTimeoutWatchdog"
-            )
-
         watchdog = _TimeoutWatchdog()
-        before = watchdog_threads()
+        threads: set[threading.Thread | None] = set()
+        handles: list[int] = []
 
-        handles = [watchdog.arm(60, lambda: None) for _ in range(100)]
         try:
-            assert watchdog_threads() - before == 1
+            for _ in range(100):
+                handles.append(watchdog.arm(60, lambda: None))
+                threads.add(watchdog._thread)
         finally:
             for handle in handles:
                 watchdog.disarm(handle)
+
+        assert len(threads) == 1
+
+    def test_replaced_thread_stops_serving_deadlines(self):
+        """Test that a thread wrongly reported dead hands over rather than doubles up.
+
+        An exception raised into `Thread.is_alive` can make it report a live thread
+        as dead, and the next arm then starts another one.
+        """
+        watchdog = _TimeoutWatchdog()
+        fired = threading.Event()
+        watchdog.arm(0, lambda: None)
+        replaced = watchdog._thread
+        assert replaced is not None
+
+        replaced.is_alive = lambda: False
+        try:
+            watchdog.arm(0, fired.set)
+            assert fired.wait(timeout=10)
+        finally:
+            del replaced.is_alive
+
+        assert watchdog._thread is not replaced
+        replaced.join(timeout=10)
+        assert not replaced.is_alive()
 
     def test_callback_runs_in_the_arming_context(self):
         """Test that the callback sees the context it was armed from.
@@ -2218,24 +2358,30 @@ class TestTaskTimeoutWatchdog:
 
         token = var.set("arming context")
         try:
-            watchdog.arm(0.05, callback)
+            watchdog.arm(0, callback)
         finally:
             var.reset(token)
 
-        assert fired.wait(timeout=5)
+        assert fired.wait(timeout=10)
         assert seen == ["arming context"]
 
-    def test_failing_callback_does_not_stop_later_deadlines(self):
+    def test_failing_callback_does_not_stop_later_deadlines(
+        self, caplog: pytest.LogCaptureFixture
+    ):
         watchdog = _TimeoutWatchdog()
         later_fired = threading.Event()
 
         def fail() -> None:
             raise RuntimeError("boom")
 
-        watchdog.arm(0.05, fail)
-        watchdog.arm(0.1, later_fired.set)
+        with caplog.at_level(logging.DEBUG, logger="prefect.engine"):
+            watchdog.arm(0, fail)
+            watchdog.arm(0, later_fired.set)
 
-        assert later_fired.wait(timeout=5)
+            assert later_fired.wait(timeout=10)
+
+        # The failure is swallowed, but leaves a trace for debugging a missing warning
+        assert "RuntimeError: boom" in caplog.text
 
     def test_run_survives_a_watchdog_that_cannot_start(self):
         """Test that a run completes when the watchdog thread cannot be started.
@@ -2253,7 +2399,9 @@ class TestTaskTimeoutWatchdog:
         ):
             assert run_task_sync(timed_task) == "result"
 
-    def test_warning_names_the_configured_timeout(self, caplog):
+    def test_warning_names_the_configured_timeout(
+        self, caplog: pytest.LogCaptureFixture
+    ):
         """Test that the warning reports the timeout the task was given."""
 
         @task(timeout_seconds=30)
@@ -2269,16 +2417,135 @@ class TestTaskTimeoutWatchdog:
             "exceeded its timeout of 30.0 second(s) but is still running" in caplog.text
         )
 
+    def test_reset_after_fork_replaces_the_watchdog(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that the fork handler leaves the child a fresh, working watchdog."""
+        inherited = prefect.task_engine._task_run_timeout_watchdog
+        # Restores the parent's watchdog once the test is done
+        monkeypatch.setattr(
+            prefect.task_engine, "_task_run_timeout_watchdog", inherited
+        )
+        fired = threading.Event()
+
+        _reset_timeout_watchdog_after_fork_in_child()
+
+        replacement = prefect.task_engine._task_run_timeout_watchdog
+        assert replacement is not inherited
+        replacement.arm(0, fired.set)
+        assert fired.wait(timeout=10)
+
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Requires `os.fork`")
+    def test_child_forked_while_the_lock_is_held_can_still_arm(self):
+        """Test that a forked child does not inherit a watchdog it cannot use.
+
+        A child forked while another thread holds the watchdog's lock inherits it
+        held by a thread that does not exist there, so it must get a fresh one.
+        """
+        watchdog = prefect.task_engine._task_run_timeout_watchdog
+        held = threading.Event()
+        release = threading.Event()
+
+        def hold_lock() -> None:
+            with watchdog._lock:
+                held.set()
+                release.wait(timeout=30)
+
+        holder = threading.Thread(target=hold_lock)
+        holder.start()
+        try:
+            assert held.wait(timeout=10)
+            with warnings.catch_warnings():
+                # Python 3.12+ warns about forking while other threads are running
+                warnings.simplefilter("ignore", DeprecationWarning)
+                pid = os.fork()
+
+            if pid == 0:
+                exit_code = 1
+                try:
+                    child_watchdog = prefect.task_engine._task_run_timeout_watchdog
+                    fired = threading.Event()
+                    child_watchdog.arm(0, fired.set)
+                    if child_watchdog is not watchdog and fired.wait(timeout=10):
+                        exit_code = 0
+                finally:
+                    os._exit(exit_code)
+        finally:
+            release.set()
+            holder.join()
+
+        # A child stuck on the inherited lock never exits, so poll rather than block
+        deadline = time.monotonic() + 30
+        while (result := os.waitpid(pid, os.WNOHANG))[0] == 0:
+            if time.monotonic() > deadline:
+                os.kill(pid, signal.SIGKILL)
+                os.waitpid(pid, 0)
+                pytest.fail("The forked child hung arming the watchdog")
+            time.sleep(0.05)
+
+        assert os.waitstatus_to_exitcode(result[1]) == 0
+
 
 class TestTaskTimeoutExceededWarning:
     """Tests for the warning reaching a run that actually outlives its timeout."""
 
-    def test_warning_emitted_when_run_outlives_its_timeout(self, caplog):
+    @pytest.fixture
+    def held_until_warned(self) -> Generator[threading.Lock, None, None]:
+        """
+        A lock that is held until a run is warned that it has outlived its timeout.
+
+        Acquiring it blocks in a single call that a timeout cannot interrupt, like
+        `time.sleep()`, but only until the warning is logged rather than for a fixed
+        time.
+        """
+        lock = threading.Lock()
+        lock.acquire()
+
+        class ReleaseOnWarning(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                if "but is still running" in record.getMessage() and lock.locked():
+                    lock.release()
+
+        handler = ReleaseOnWarning()
+        run_logger = logging.getLogger("prefect.task_runs")
+        run_logger.addHandler(handler)
+        try:
+            yield lock
+        finally:
+            run_logger.removeHandler(handler)
+
+    @pytest.fixture
+    def watchdog_calls(self) -> Generator[dict[str, list[int]], None, None]:
+        """Records the handles that runs arm and disarm on the shared watchdog."""
+        watchdog = prefect.task_engine._task_run_timeout_watchdog
+        arm, disarm = watchdog.arm, watchdog.disarm
+        calls: dict[str, list[int]] = {"armed": [], "disarmed": []}
+
+        def recording_arm(seconds: float, callback: Callable[[], None]) -> int:
+            handle = arm(seconds, callback)
+            calls["armed"].append(handle)
+            return handle
+
+        def recording_disarm(handle: int) -> None:
+            calls["disarmed"].append(handle)
+            disarm(handle)
+
+        # Unlike `monkeypatch`, removes the instance attributes again afterwards
+        with (
+            mock.patch.object(watchdog, "arm", recording_arm),
+            mock.patch.object(watchdog, "disarm", recording_disarm),
+        ):
+            yield calls
+
+    def test_warning_emitted_when_run_outlives_its_timeout(
+        self, caplog: pytest.LogCaptureFixture, held_until_warned: threading.Lock
+    ):
         """Test that a warning is emitted while the run is still overrunning."""
 
-        @task(timeout_seconds=0.1)
+        # Long enough that the run is blocking well before its timeout passes
+        @task(timeout_seconds=1)
         def blocking_task():
-            time.sleep(_TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
+            held_until_warned.acquire(timeout=30)
             return "result"
 
         @flow
@@ -2291,20 +2558,20 @@ class TestTaskTimeoutExceededWarning:
             my_flow()
 
         assert any(
-            "exceeded its timeout of 0.1 second(s) but is still running"
+            "exceeded its timeout of 1.0 second(s) but is still running"
             in record.message
             for record in caplog.records
         )
 
     async def test_warning_emitted_for_async_run_that_blocks_past_its_timeout(
-        self, caplog
+        self, caplog: pytest.LogCaptureFixture, held_until_warned: threading.Lock
     ):
         """Test that an async run blocking the event loop is warned about too."""
 
-        @task(timeout_seconds=0.1)
+        @task(timeout_seconds=1)
         async def blocking_async_task():
             # Blocks the event loop, so there is no await point to cancel at
-            time.sleep(_TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
+            held_until_warned.acquire(timeout=30)
             return "result"
 
         @flow
@@ -2315,12 +2582,14 @@ class TestTaskTimeoutExceededWarning:
             await my_flow()
 
         assert any(
-            "exceeded its timeout of 0.1 second(s) but is still running"
+            "exceeded its timeout of 1.0 second(s) but is still running"
             in record.message
             for record in caplog.records
         )
 
-    def test_no_warning_when_run_finishes_within_its_timeout(self, caplog):
+    def test_no_warning_when_run_finishes_within_its_timeout(
+        self, caplog: pytest.LogCaptureFixture, watchdog_calls: dict[str, list[int]]
+    ):
         """Test that no warning is emitted when the run stays inside its timeout."""
 
         @task(timeout_seconds=30)
@@ -2338,8 +2607,13 @@ class TestTaskTimeoutExceededWarning:
             "but is still running" in record.message for record in caplog.records
         )
         assert result == "result"
+        # A deadline left armed would only warn after the test has finished
+        assert watchdog_calls["armed"]
+        assert set(watchdog_calls["armed"]) <= set(watchdog_calls["disarmed"])
 
-    def test_watchdog_does_not_alter_an_ordinary_failure(self):
+    def test_watchdog_does_not_alter_an_ordinary_failure(
+        self, watchdog_calls: dict[str, list[int]]
+    ):
         """Test that a run failing for its own reasons resolves with a watchdog armed."""
 
         @task(timeout_seconds=30)
@@ -2356,17 +2630,153 @@ class TestTaskTimeoutExceededWarning:
 
         assert is_failed
         assert state_name == "Failed"
+        # The run's deadline is disarmed on the way out of a failure too
+        assert watchdog_calls["armed"]
+        assert set(watchdog_calls["armed"]) <= set(watchdog_calls["disarmed"])
+
+    def test_each_retry_attempt_is_watched(self, watchdog_calls: dict[str, list[int]]):
+        """Test that every attempt of a retried run gets its own deadline."""
+        attempts: list[int] = []
+
+        @task(timeout_seconds=30, retries=1)
+        def flaky_task():
+            attempts.append(len(attempts))
+            if len(attempts) == 1:
+                raise ValueError("first attempt fails")
+            return "result"
+
+        assert run_task_sync(flaky_task) == "result"
+
+        assert len(attempts) == 2
+        assert len(watchdog_calls["armed"]) == 2
+        assert set(watchdog_calls["armed"]) <= set(watchdog_calls["disarmed"])
+
+    @pytest.mark.enable_api_log_handler
+    def test_api_log_worker_is_started_before_the_run_can_block(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """Test that a timed run starts the API log worker before its body runs.
+
+        The warning never starts a worker itself, since that waits on the global
+        event loop, which the run may be blocking. Starting one beforehand is what
+        lets the warning reach the API.
+        """
+
+        def api_log_worker_running() -> bool:
+            return any(
+                isinstance(instance, APILogWorker)
+                for instance in list(APILogWorker._instances.values())
+            )
+
+        for instance in list(APILogWorker._instances.values()):
+            if isinstance(instance, APILogWorker):
+                instance.drain()
+        assert not api_log_worker_running()
+        running_in_body: list[bool] = []
+
+        @task(timeout_seconds=30)
+        def timed_task():
+            running_in_body.append(api_log_worker_running())
+
+        # The engine's own debug logs would otherwise start the worker first, which
+        # they do not do at the default level
+        with caplog.at_level(logging.WARNING, logger="prefect.task_runs"):
+            run_task_sync(timed_task)
+
+        assert running_in_body == [True]
+
+    @pytest.mark.enable_api_log_handler
+    def test_warning_never_starts_an_api_log_worker(
+        self, caplog: pytest.LogCaptureFixture, held_until_warned: threading.Lock
+    ):
+        """Test that the warning goes without the API rather than start a log worker.
+
+        Task workers run async tasks on the global event loop, which starting a worker
+        waits on. The worker started before the run can be gone by the time the
+        warning fires, drained by a log flush or at exit, and starting another from
+        the watchdog thread would then wait on the loop the run is blocking, while
+        holding a lock the loop needs next.
+        """
+        started_on: list[str] = []
+        new_instance = APILogWorker._new_instance
+
+        def recording_new_instance(*args: Any) -> APILogWorker:
+            started_on.append(threading.current_thread().name)
+            return new_instance(*args)
+
+        @task(timeout_seconds=2)
+        def blocking_task():
+            # Gone by the time the warning fires, as after a log flush
+            for instance in list(APILogWorker._instances.values()):
+                if isinstance(instance, APILogWorker):
+                    instance.drain()
+            held_until_warned.acquire(timeout=30)
+
+        @flow
+        def my_flow():
+            blocking_task.submit().wait()
+
+        with (
+            mock.patch.object(
+                APILogWorker, "_new_instance", staticmethod(recording_new_instance)
+            ),
+            # The engine's own logs would otherwise start another worker after the
+            # drain
+            caplog.at_level(logging.WARNING, logger="prefect.flow_runs"),
+            caplog.at_level(logging.WARNING, logger="prefect.task_runs"),
+        ):
+            my_flow()
+
+        assert any(
+            "but is still running" in record.message for record in caplog.records
+        )
+        assert "TaskRunTimeoutWatchdog" not in started_on
+
+    def test_no_warning_for_a_run_that_has_exited(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """Test that a run is not warned about once it has left its timeout scope.
+
+        An exception raised into the run's thread by an enclosing timeout can
+        interrupt arming or disarming, leaving the deadline armed after the run
+        has gone.
+        """
+        watchdog = prefect.task_engine._task_run_timeout_watchdog
+        arm = watchdog.arm
+        callbacks: list[Callable[[], None]] = []
+
+        def recording_arm(seconds: float, callback: Callable[[], None]) -> int:
+            callbacks.append(callback)
+            return arm(seconds, callback)
+
+        @task(timeout_seconds=30)
+        def quick_task():
+            return "result"
+
+        with mock.patch.object(watchdog, "arm", recording_arm):
+            assert run_task_sync(quick_task) == "result"
+
+        # As if the deadline had fired after all
+        with caplog.at_level(logging.WARNING):
+            callbacks[0]()
+
+        assert not any(
+            "but is still running" in record.message for record in caplog.records
+        )
 
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="Timeouts are not enforced on Windows, so the run never reaches TimedOut",
     )
-    def test_warning_does_not_change_terminal_state(self, caplog):
+    def test_warning_does_not_change_terminal_state(
+        self, caplog: pytest.LogCaptureFixture, held_until_warned: threading.Lock
+    ):
         """Test that the watchdog reports without altering how the run resolves."""
 
-        @task(timeout_seconds=0.1)
+        # Long enough that the run is blocking well before its timeout passes
+        @task(timeout_seconds=1)
         def blocking_task():
-            time.sleep(_TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
+            held_until_warned.acquire(timeout=30)
             return "result"
 
         @flow
@@ -2381,6 +2791,9 @@ class TestTaskTimeoutExceededWarning:
         with caplog.at_level(logging.WARNING):
             state_name, is_failed = my_flow()
 
+        assert any(
+            "but is still running" in record.message for record in caplog.records
+        )
         assert is_failed
         assert state_name == "TimedOut"
 

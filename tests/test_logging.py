@@ -48,6 +48,7 @@ from prefect.logging.handlers import (
     APILogWorker,
     PrefectConsoleHandler,
     WorkerAPILogHandler,
+    _only_running_api_log_worker,
     _SafeStreamHandler,
     emit_api_log,
     set_api_log_sink,
@@ -571,6 +572,43 @@ class TestAPILogHandler:
         set_api_log_sink(None)
         payload = {"message": "test-api-log"}
 
+        emit_api_log(payload)
+
+        mock_log_worker.instance().send.assert_called_once_with(payload)
+
+    def test_emit_api_log_only_sends_to_a_running_worker_when_told_to(
+        self, mock_log_worker: MagicMock
+    ):
+        set_api_log_sink(None)
+        payload = {"message": "test-api-log"}
+
+        with _only_running_api_log_worker():
+            emit_api_log(payload)
+
+        mock_log_worker.instance.assert_not_called()
+        mock_log_worker._existing_instance.return_value.send.assert_called_once_with(
+            payload
+        )
+
+    def test_emit_api_log_drops_logs_without_a_running_worker_when_told_to(
+        self, mock_log_worker: MagicMock
+    ):
+        set_api_log_sink(None)
+        mock_log_worker._existing_instance.return_value = None
+
+        with _only_running_api_log_worker():
+            emit_api_log({"message": "test-api-log"})
+
+        mock_log_worker.instance.assert_not_called()
+
+    def test_emit_api_log_may_start_a_worker_again_after_the_context(
+        self, mock_log_worker: MagicMock
+    ):
+        set_api_log_sink(None)
+        payload = {"message": "test-api-log"}
+
+        with _only_running_api_log_worker():
+            pass
         emit_api_log(payload)
 
         mock_log_worker.instance().send.assert_called_once_with(payload)
@@ -1142,6 +1180,21 @@ class TestAPILogWorker:
     @pytest.fixture
     async def worker(self):
         return APILogWorker.instance()
+
+    def test_existing_instance_does_not_start_a_worker(self):
+        for instance in list(APILogWorker._instances.values()):
+            if isinstance(instance, APILogWorker):
+                instance.drain()
+
+        assert APILogWorker._existing_instance() is None
+        assert not any(
+            isinstance(instance, APILogWorker)
+            for instance in APILogWorker._instances.values()
+        )
+
+        worker = APILogWorker.instance()
+
+        assert APILogWorker._existing_instance() is worker
 
     @pytest.fixture
     def log_dict(self):

@@ -8,7 +8,9 @@ import time
 import traceback
 import uuid
 import warnings
-from contextlib import asynccontextmanager
+from collections.abc import Generator
+from contextlib import asynccontextmanager, contextmanager
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Callable, Dict, TextIO, Type, cast
 
 from rich.console import Console
@@ -56,12 +58,54 @@ def set_api_log_sink(sink: Callable[[Dict[str, Any]], None] | None) -> None:
     _api_log_sink = sink
 
 
+# Whether `emit_api_log` may start an `APILogWorker` that is not running yet
+_may_start_api_log_worker: ContextVar[bool] = ContextVar(
+    "_may_start_api_log_worker", default=True
+)
+
+
 def emit_api_log(log: Dict[str, Any]) -> None:
     if _api_log_sink is not None:
         _api_log_sink(log)
         return
 
-    APILogWorker.instance().send(log)
+    if _may_start_api_log_worker.get():
+        APILogWorker.instance().send(log)
+    elif (worker := APILogWorker._existing_instance()) is not None:
+        worker.send(log)
+
+
+@contextmanager
+def _only_running_api_log_worker() -> Generator[None, None, None]:
+    """
+    Send API logs emitted within this context only to an `APILogWorker` that is
+    already running, and drop them from the API otherwise.
+
+    Starting a worker waits on the global event loop, so code that logs from another
+    thread while that loop may be blocked uses this rather than wait on it.
+    """
+    token = _may_start_api_log_worker.set(False)
+    try:
+        yield
+    finally:
+        _may_start_api_log_worker.reset(token)
+
+
+def _ensure_api_log_worker() -> None:
+    """
+    Start the `APILogWorker` that `emit_api_log` would send to, without sending a log.
+
+    Starting the worker waits on the global event loop. Code that may log from another
+    thread while the global loop is blocked calls this first, from a thread that can
+    wait on that loop, so that logging later does not have to.
+    """
+    if _api_log_sink is not None:
+        return
+
+    from prefect.context import get_settings_context
+
+    if get_settings_context().settings.logging.to_api.enabled:
+        APILogWorker.instance()
 
 
 class APILogWorker(BatchedQueueService[Dict[str, Any]]):
@@ -97,14 +141,20 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
 
     @classmethod
     def instance(cls: Type[Self], *args: Any) -> Self:
-        settings = (
+        # Ensure a unique worker is retrieved per relevant logging settings
+        return super().instance(*cls._settings_key(), *args)
+
+    @classmethod
+    def _existing_instance(cls: Type[Self], *args: Any) -> Self | None:
+        return super()._existing_instance(*cls._settings_key(), *args)
+
+    @staticmethod
+    def _settings_key() -> tuple[Any, ...]:
+        return (
             PREFECT_LOGGING_TO_API_BATCH_SIZE.value(),
             PREFECT_API_URL.value(),
             PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
         )
-
-        # Ensure a unique worker is retrieved per relevant logging settings
-        return super().instance(*settings, *args)
 
     def _get_size(self, item: Dict[str, Any]) -> int:
         return item.pop("__payload_size__", None) or len(json.dumps(item).encode())

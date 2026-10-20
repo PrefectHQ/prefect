@@ -317,6 +317,17 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
 
             return cls._instances[key]
 
+    @classmethod
+    def _existing_instance(cls, *args: Hashable) -> Self | None:
+        """
+        Get the instance `instance` would return for these arguments, if it exists.
+
+        Unlike `instance`, this never creates one and never waits on
+        `_instance_lock`, which a thread holds while it waits on the global loop
+        to start a new instance.
+        """
+        return cls._instances.get(hash((cls, *args)))
+
     def _remove_instance(self):
         self._instances.pop(self._key, None)
 
