@@ -611,6 +611,16 @@ describe("trigger-utils", () => {
 				expect(isFlowRunStateTrigger(trigger)).toBe(false);
 			});
 
+			it("accepts custom state names", () => {
+				expect(
+					isFlowRunStateTrigger(
+						createFlowRunStateTrigger({
+							expect: ["prefect.flow-run.Baseline NOT Met"],
+						}),
+					),
+				).toBe(true);
+			});
+
 			it("should return false when expect events are flow run events but not state names", () => {
 				const trigger = createFlowRunStateTrigger({
 					expect: ["prefect.flow-run.heartbeat"],

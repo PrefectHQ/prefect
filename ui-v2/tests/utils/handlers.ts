@@ -412,6 +412,7 @@ const workPoolQueuesHandlers = [
 ];
 
 export const handlers = [
+	http.get(buildApiUrl("/observed-states"), () => HttpResponse.json([])),
 	...uiSettingsHandlers,
 	...csrfTokenHandlers,
 	...artifactsHandlers,

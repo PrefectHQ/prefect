@@ -1,4 +1,3 @@
-import { STATE_NAMES } from "@/api/flow-runs/constants";
 import type { components } from "@/api/prefect";
 
 // Type aliases for OpenAPI schema types
@@ -175,7 +174,7 @@ const FLOW_RUN_WILDCARD_EVENT = `${FLOW_RUN_EVENT_PREFIX}*`;
 
 /**
  * A flow run event that the flow-run-state form can represent: either the
- * wildcard or a known state name. Other flow run events (e.g.
+ * wildcard or an exact built-in or custom state name. Heartbeat events (e.g.
  * `prefect.flow-run.heartbeat`) are only editable as a custom trigger.
  */
 function isFlowRunStateEvent(event: string): boolean {
@@ -185,9 +184,8 @@ function isFlowRunStateEvent(event: string): boolean {
 	if (!event.startsWith(FLOW_RUN_EVENT_PREFIX)) {
 		return false;
 	}
-	return (STATE_NAMES as readonly string[]).includes(
-		event.slice(FLOW_RUN_EVENT_PREFIX.length),
-	);
+	const name = event.slice(FLOW_RUN_EVENT_PREFIX.length);
+	return name.length > 0 && name !== "heartbeat";
 }
 
 function isDeploymentStatusEvent(event: string): boolean {
@@ -326,8 +324,8 @@ function isFlowRunStateTriggerMatchRelated(trigger: EventTrigger): boolean {
  * - Is an event trigger
  * - match['prefect.resource.id'] starts with 'prefect.flow-run'
  * - for_each contains 'prefect.resource.id'
- * - after events are flow run state events (wildcard or known state name)
- * - expect events are flow run state events (wildcard or known state name)
+ * - after events are flow run state events (wildcard or custom state name)
+ * - expect events are flow run state events (wildcard or custom state name)
  * - matchRelated can be represented by the flow/tag/deployment form without
  *   changing the meaning of separate related-resource conditions
  * - threshold === 1

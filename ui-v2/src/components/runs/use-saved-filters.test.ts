@@ -14,6 +14,19 @@ import {
 } from "./use-saved-filters";
 
 describe("areFiltersEqual", () => {
+	it("keeps custom names exact and compares types independently", () => {
+		const filters: SavedFilterValues = {
+			state: ["Baseline, NOT Met"],
+			stateTypes: ["FAILED"],
+		};
+		expect(areFiltersEqual(filters, { ...filters })).toBe(true);
+		expect(
+			areFiltersEqual(filters, { ...filters, stateTypes: ["RUNNING"] }),
+		).toBe(false);
+		expect(
+			areFiltersEqual(filters, { ...filters, state: ["baseline, NOT Met"] }),
+		).toBe(false);
+	});
 	it("returns true for identical empty filters", () => {
 		const filterA: SavedFilterValues = {};
 		const filterB: SavedFilterValues = {};

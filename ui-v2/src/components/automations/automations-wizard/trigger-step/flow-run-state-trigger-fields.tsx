@@ -1,6 +1,8 @@
 import { useFormContext, useWatch } from "react-hook-form";
-import { STATE_NAMES, type StateName } from "@/api/flow-runs/constants";
+import type { StateType } from "@/api/flow-runs/constants";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import { STATE_TYPES } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
+import { StateTypeFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-type-filter";
 import { FlowMultiSelect } from "@/components/flows/flow-multi-select";
 import { DurationInput } from "@/components/ui/duration-input";
 import {
@@ -24,21 +26,17 @@ const DEPLOYMENT_RESOURCE_PREFIX = "prefect.deployment.";
 
 // Convert state names to event strings (e.g., "Completed" -> "prefect.flow-run.Completed")
 // When no states selected, returns wildcard ["prefect.flow-run.*"] (Vue behavior)
-function toStateNameEvents(stateNames: StateName[]): string[] {
+function toStateNameEvents(stateNames: string[]): string[] {
 	if (stateNames.length === 0) {
 		return ["prefect.flow-run.*"];
 	}
 	return stateNames.map((name) => `prefect.flow-run.${name}`);
 }
 
-function isStateName(value: string): value is StateName {
-	return (STATE_NAMES as readonly string[]).includes(value);
-}
-
 // Convert event strings back to state names (e.g., "prefect.flow-run.Completed" -> "Completed")
 // Wildcard "prefect.flow-run.*" returns empty array (means "any state")
-// Events that are not known state names (e.g. "prefect.flow-run.heartbeat") are ignored
-function fromStateNameEvents(events: string[] | undefined): StateName[] {
+// Heartbeats are not state transitions. Preserve arbitrary custom state names.
+function fromStateNameEvents(events: string[] | undefined): string[] {
 	if (!events || events.length === 0) {
 		return [];
 	}
@@ -48,7 +46,7 @@ function fromStateNameEvents(events: string[] | undefined): StateName[] {
 	return events
 		.filter((event) => event.startsWith("prefect.flow-run."))
 		.map((event) => event.replace("prefect.flow-run.", ""))
-		.filter(isStateName);
+		.filter((name) => name !== "heartbeat");
 }
 
 function matchRelatedAsArray(
@@ -150,6 +148,26 @@ export const FlowRunStateTriggerFields = () => {
 		name: "trigger.match_related",
 	}) as MatchRelated;
 
+	const match =
+		useWatch({ control: form.control, name: "trigger.match" }) ?? {};
+	const typeValue = match["prefect.state-type"];
+	const selectedStateTypes = new Set(
+		(Array.isArray(typeValue)
+			? typeValue
+			: typeValue
+				? [typeValue]
+				: []
+		).filter((value): value is StateType =>
+			STATE_TYPES.includes(value as StateType),
+		),
+	);
+	const onStateTypesChange = (types: Set<StateType>) => {
+		const next = { ...match };
+		if (types.size) next["prefect.state-type"] = [...types];
+		else delete next["prefect.state-type"];
+		form.setValue("trigger.match", next, { shouldDirty: true });
+	};
+
 	const selectedFlowIds = extractFlowIdsFromMatchRelated(matchRelated);
 	const selectedTags = extractTagsFromMatchRelated(matchRelated);
 	const selectedDeploymentIds =
@@ -219,6 +237,10 @@ export const FlowRunStateTriggerFields = () => {
 
 			<FormItem>
 				<FormLabel>Flow Run</FormLabel>
+				<StateTypeFilter
+					selectedFilters={selectedStateTypes}
+					onSelectFilter={onStateTypesChange}
+				/>
 				<div className="grid grid-cols-[10rem_1fr] gap-2">
 					<PostureSelect />
 					<FormField

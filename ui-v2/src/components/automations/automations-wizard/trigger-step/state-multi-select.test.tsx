@@ -1,6 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { render as renderComponent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createWrapper } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
+import type { ReactElement } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
 	STATE_NAME_TO_TYPE,
@@ -9,7 +11,24 @@ import {
 } from "@/api/flow-runs/constants";
 import { StateMultiSelect } from "./state-multi-select";
 
+const render = (ui: ReactElement) =>
+	renderComponent(ui, { wrapper: createWrapper() });
+
 describe("StateMultiSelect", () => {
+	it("preserves an unobserved custom name exactly", async () => {
+		const user = userEvent.setup();
+		const onStateChange = vi.fn();
+		render(
+			<StateMultiSelect
+				selectedStates={["Baseline NOT Met", "baseline NOT Met"]}
+				onStateChange={onStateChange}
+			/>,
+		);
+		expect(screen.getByText("Baseline NOT Met")).toBeVisible();
+		await user.click(screen.getByRole("button"));
+		await user.click(screen.getByRole("option", { name: "Baseline NOT Met" }));
+		expect(onStateChange).toHaveBeenCalledWith(["baseline NOT Met"]);
+	});
 	beforeAll(() => {
 		mockPointerEvents();
 	});

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Form } from "@/components/ui/form";
@@ -19,12 +19,14 @@ const FlowRunStateTriggerFieldsContainer = ({
 	defaultWithin = 0,
 	defaultAfter,
 	defaultExpect,
+	defaultMatch,
 }: {
 	defaultPosture?: "Reactive" | "Proactive";
 	defaultMatchRelated?: MatchRelated;
 	defaultWithin?: number;
 	defaultAfter?: string[];
 	defaultExpect?: string[];
+	defaultMatch?: ResourceSpecification;
 }) => {
 	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
@@ -36,22 +38,52 @@ const FlowRunStateTriggerFieldsContainer = ({
 				threshold: 1,
 				within: defaultWithin,
 				match_related: defaultMatchRelated,
+				match: defaultMatch,
 				after: defaultAfter,
 				expect: defaultExpect,
 			},
 		},
 	});
 
+	const trigger = useWatch({ control: form.control, name: "trigger" });
 	return (
 		<Form {...form}>
 			<form>
 				<FlowRunStateTriggerFields />
+				<output data-testid="trigger-value">{JSON.stringify(trigger)}</output>
 			</form>
 		</Form>
 	);
 };
 
 describe("FlowRunStateTriggerFields", () => {
+	it("edits custom states and types without dropping existing match conditions", async () => {
+		const user = userEvent.setup();
+		render(
+			<FlowRunStateTriggerFieldsContainer
+				defaultExpect={["prefect.flow-run.Baseline NOT Met"]}
+				defaultMatch={{
+					"prefect.resource.id": "prefect.flow-run.*",
+					"custom.label": "keep",
+				}}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		expect(screen.getByText("Baseline NOT Met")).toBeVisible();
+		await user.click(screen.getByRole("button", { name: "State types" }));
+		await user.click(screen.getByRole("menuitem", { name: "Failed" }));
+		const trigger: unknown = JSON.parse(
+			screen.getByTestId("trigger-value").textContent ?? "{}",
+		);
+		expect(trigger).toMatchObject({
+			expect: ["prefect.flow-run.Baseline NOT Met"],
+			match: {
+				"prefect.resource.id": "prefect.flow-run.*",
+				"custom.label": "keep",
+				"prefect.state-type": ["FAILED"],
+			},
+		});
+	});
 	beforeAll(() => {
 		mockPointerEvents();
 	});

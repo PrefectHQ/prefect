@@ -1,12 +1,10 @@
 import { useCallback, useMemo } from "react";
+import type { StateType } from "@/api/flow-runs/constants";
 import type {
 	DateRangePreset,
 	DateRangeUrlState,
 } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/date-range-url-state";
-import {
-	FLOW_RUN_STATES_WITHOUT_SCHEDULED,
-	type FlowRunState,
-} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import { FLOW_RUN_STATES_WITHOUT_SCHEDULED } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 
 /**
@@ -87,7 +85,8 @@ export const SYSTEM_DEFAULT_FILTER = SYSTEM_FILTERS[0];
  * - useRunsFilters uses comma-separated strings in URL params; this uses arrays for storage
  */
 export type SavedFilterValues = {
-	state?: FlowRunState[];
+	state?: string[];
+	stateTypes?: StateType[];
 	flows?: string[];
 	deployments?: string[];
 	workPools?: string[];
@@ -131,6 +130,7 @@ export type SavedFilterCreate = {
  */
 export const URL_PARAM_TO_FILTER_KEY_MAP = {
 	state: "state",
+	"state-types": "stateTypes",
 	flows: "flows",
 	deployments: "deployments",
 	"work-pools": "workPools",
@@ -142,6 +142,7 @@ export const URL_PARAM_TO_FILTER_KEY_MAP = {
 
 export const FILTER_KEY_TO_URL_PARAM_MAP = {
 	state: "state",
+	stateTypes: "state-types",
 	flows: "flows",
 	deployments: "deployments",
 	workPools: "work-pools",
@@ -185,6 +186,7 @@ export function areFiltersEqual(
 
 	return (
 		sortedArrayEqual(filterA.state, filterB.state) &&
+		sortedArrayEqual(filterA.stateTypes, filterB.stateTypes) &&
 		sortedArrayEqual(filterA.flows, filterB.flows) &&
 		sortedArrayEqual(filterA.deployments, filterB.deployments) &&
 		sortedArrayEqual(filterA.workPools, filterB.workPools) &&

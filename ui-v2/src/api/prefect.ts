@@ -812,6 +812,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/observed-states": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Observed States
+         * @description Discover exact state names and types from retained run transitions.
+         *
+         *     Search by case-insensitive name or type prefix. Timestamps describe retained
+         *     history; deleting runs can change them or remove a state from the results.
+         */
+        get: operations["read_observed_states_observed_states_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deployments/": {
         parameters: {
             query?: never;
@@ -6639,6 +6662,12 @@ export interface components {
          */
         DeploymentsSettings: {
             /**
+             * Clear Schedules On Empty
+             * @description Clear existing schedules when an empty schedules list is passed to RunnerDeployment.apply or aapply, including via prefect deploy. This opt-in setting will be removed when clearing becomes the default, after a deprecation period of at least six months or three minor releases, whichever is longer.
+             * @default false
+             */
+            clear_schedules_on_empty: boolean;
+            /**
              * Default Work Pool Name
              * @description The default work pool to use when creating deployments.
              */
@@ -8832,6 +8861,40 @@ export interface components {
             /** Artifacts */
             artifacts: components["schemas"]["GraphArtifact"][];
         };
+        /**
+         * ObservedState
+         * @description An exact state type/name pair and the bounds of its retained transitions.
+         */
+        ObservedState: {
+            /**
+             * State Type
+             * @description The state type.
+             */
+            state_type: string;
+            /**
+             * State Name
+             * @description The exact state name.
+             */
+            state_name: string;
+            /**
+             * First Seen
+             * Format: date-time
+             * @description Earliest retained transition timestamp.
+             */
+            first_seen: string;
+            /**
+             * Last Seen
+             * Format: date-time
+             * @description Latest retained transition timestamp.
+             */
+            last_seen: string;
+        };
+        /**
+         * ObservedStateSort
+         * @description Supported ordering for observed state discovery.
+         * @enum {string}
+         */
+        ObservedStateSort: "NAME_ASC" | "LAST_SEEN_DESC";
         /**
          * Operator
          * @description Operators for combining filter criteria.
@@ -14404,6 +14467,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["State"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_observed_states_observed_states_get: {
+        parameters: {
+            query?: {
+                query?: string | null;
+                order_by?: components["schemas"]["ObservedStateSort"];
+                limit?: number;
+            };
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservedState"][];
                 };
             };
             /** @description Validation Error */

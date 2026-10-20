@@ -1,9 +1,10 @@
+import type { StateType } from "@/api/flow-runs/constants";
 import { SearchInput } from "@/components/ui/input";
 import { DeploymentFilter } from "./flow-runs-filters/deployment-filter";
 import { SortFilter } from "./flow-runs-filters/sort-filter";
 import type { SortFilters } from "./flow-runs-filters/sort-filter.constants";
 import { StateFilter } from "./flow-runs-filters/state-filter";
-import type { FlowRunState } from "./flow-runs-filters/state-filters.constants";
+import { StateTypeFilter } from "./flow-runs-filters/state-type-filter";
 import { WorkPoolFilter } from "./flow-runs-filters/work-pool-filter";
 
 export type FlowRunsFiltersProps = {
@@ -12,8 +13,12 @@ export type FlowRunsFiltersProps = {
 		value: string;
 	};
 	stateFilter: {
-		value: Set<FlowRunState>;
-		onSelect: (filters: Set<FlowRunState>) => void;
+		value: Set<string>;
+		onSelect: (filters: Set<string>) => void;
+	};
+	stateTypeFilter?: {
+		value: Set<StateType>;
+		onSelect: (types: Set<StateType>) => void;
 	};
 	deploymentFilter?: {
 		value: Set<string>;
@@ -33,6 +38,7 @@ export const FlowRunsFilters = ({
 	search,
 	sort,
 	stateFilter,
+	stateTypeFilter,
 	deploymentFilter,
 	workPoolFilter,
 }: FlowRunsFiltersProps) => {
@@ -47,6 +53,14 @@ export const FlowRunsFilters = ({
 						onChange={(e) => search.onChange(e.target.value)}
 					/>
 				</div>
+				{stateTypeFilter && (
+					<div className="w-56 max-w-full">
+						<StateTypeFilter
+							selectedFilters={stateTypeFilter.value}
+							onSelectFilter={stateTypeFilter.onSelect}
+						/>
+					</div>
+				)}
 				<div className="w-56 max-w-full">
 					<StateFilter
 						selectedFilters={stateFilter.value}
