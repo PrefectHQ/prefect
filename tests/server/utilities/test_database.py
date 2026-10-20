@@ -641,11 +641,11 @@ class TestDateFunctions:
 
 
 async def test_error_thrown_if_sqlite_version_is_below_minimum():
-    with mock.patch.object(sqlite3, "sqlite_version_info", (3, 23, 9)):
-        with mock.patch.object(sqlite3, "sqlite_version", "3.23.9"):
+    with mock.patch.object(sqlite3, "sqlite_version_info", (3, 24, 9)):
+        with mock.patch.object(sqlite3, "sqlite_version", "3.24.9"):
             with pytest.raises(
                 RuntimeError,
-                match="Prefect requires sqlite >= 3.24.0 but we found version 3.23.9",
+                match="Prefect requires sqlite >= 3.25.0 but we found version 3.24.9",
             ):
                 db = PrefectDBInterface(
                     database_config=AioSqliteConfiguration(

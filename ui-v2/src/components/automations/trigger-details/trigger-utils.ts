@@ -1,3 +1,4 @@
+import { STATE_NAMES } from "@/api/flow-runs/constants";
 import type { components } from "@/api/prefect";
 
 // Type aliases for OpenAPI schema types
@@ -167,7 +168,28 @@ export function isExpectResource(
 	return false;
 }
 
+const FLOW_RUN_EVENT_PREFIX = "prefect.flow-run.";
+const FLOW_RUN_WILDCARD_EVENT = `${FLOW_RUN_EVENT_PREFIX}*`;
+
 // Event type checkers
+
+/**
+ * A flow run event that the flow-run-state form can represent: either the
+ * wildcard or a known state name. Other flow run events (e.g.
+ * `prefect.flow-run.heartbeat`) are only editable as a custom trigger.
+ */
+function isFlowRunStateEvent(event: string): boolean {
+	if (event === FLOW_RUN_WILDCARD_EVENT) {
+		return true;
+	}
+	if (!event.startsWith(FLOW_RUN_EVENT_PREFIX)) {
+		return false;
+	}
+	return (STATE_NAMES as readonly string[]).includes(
+		event.slice(FLOW_RUN_EVENT_PREFIX.length),
+	);
+}
+
 function isDeploymentStatusEvent(event: string): boolean {
 	return (DEPLOYMENT_STATUS_EVENTS as readonly string[]).includes(event);
 }
@@ -304,8 +326,8 @@ function isFlowRunStateTriggerMatchRelated(trigger: EventTrigger): boolean {
  * - Is an event trigger
  * - match['prefect.resource.id'] starts with 'prefect.flow-run'
  * - for_each contains 'prefect.resource.id'
- * - after events start with 'prefect.flow-run'
- * - expect events start with 'prefect.flow-run'
+ * - after events are flow run state events (wildcard or known state name)
+ * - expect events are flow run state events (wildcard or known state name)
  * - matchRelated can be represented by the flow/tag/deployment form without
  *   changing the meaning of separate related-resource conditions
  * - threshold === 1
@@ -318,10 +340,10 @@ export function isFlowRunStateTrigger(trigger: unknown): boolean {
 		) &&
 		isForEachResource(trigger, "prefect.resource.id") &&
 		isAfterResource(trigger, (triggerAfters) =>
-			triggerAfters.every((after) => after.startsWith("prefect.flow-run")),
+			triggerAfters.every((after) => isFlowRunStateEvent(after)),
 		) &&
 		isExpectResource(trigger, (triggerExpects) =>
-			triggerExpects.every((expect) => expect.startsWith("prefect.flow-run")),
+			triggerExpects.every((expect) => isFlowRunStateEvent(expect)),
 		) &&
 		isFlowRunStateTriggerMatchRelated(trigger) &&
 		trigger.threshold === DEFAULT_EVENT_TRIGGER_THRESHOLD

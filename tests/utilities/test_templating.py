@@ -215,6 +215,18 @@ class TestApplyValues:
             }
         ]
 
+    def test_apply_values_list_with_missing_value_removed(self):
+        template = ["{{ missing }}", "{{ name }}"]
+        values = {"name": "Alice"}
+        assert apply_values(template, values) == ["Alice"]
+
+    def test_apply_values_list_with_missing_value_not_removed(self):
+        template = {"tags": ["{{ missing }}", "{{ name }}", NotSet]}
+        values = {"name": "Alice"}
+        assert apply_values(template, values, remove_notset=False) == {
+            "tags": ["{{ missing }}", "Alice", NotSet]
+        }
+
     def test_apply_values_list_with_placeholders(self):
         template = [
             "Hello, {{first_name}} {{last_name}}!",
@@ -554,6 +566,31 @@ class TestResolveBlockDocumentReferences:
         )
 
         assert result == {"key": "my-private-repo.com/my-image-name"}
+
+    async def test_resolve_block_document_references_system_block_key_starting_with_value(
+        self, prefect_client: PrefectClient
+    ):
+        secret_name = f"secret-block-{uuid.uuid4().hex[:8]}"
+        await Secret(
+            value={"values": [1, 2], "value_type": "int", "region": "us"}
+        ).save(name=secret_name, overwrite=True)
+
+        template = {
+            "values": f"{{{{ prefect.blocks.secret.{secret_name}.values }}}}",
+            "value_type": f"{{{{ prefect.blocks.secret.{secret_name}.value_type }}}}",
+            "region": f"{{{{ prefect.blocks.secret.{secret_name}.region }}}}",
+            "explicit": f"{{{{ prefect.blocks.secret.{secret_name}.value.values }}}}",
+        }
+        result = await resolve_block_document_references(
+            template, client=prefect_client
+        )
+
+        assert result == {
+            "values": [1, 2],
+            "value_type": "int",
+            "region": "us",
+            "explicit": [1, 2],
+        }
 
     async def test_resolve_block_document_references_allows_mixed_placeholders_in_string(
         self, prefect_client, block_document_id

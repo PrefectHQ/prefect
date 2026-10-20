@@ -12,8 +12,9 @@ import time
 import warnings
 from collections.abc import Callable, Generator
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
-from typing import Any, List, Literal, Optional
+from typing import Any, Awaitable, List, Literal, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
@@ -27,7 +28,7 @@ from prefect.cache_policies import FLOW_PARAMETERS, INPUTS, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import StateDetails
 from prefect.client.schemas.filters import TaskRunFilter, TaskRunFilterName
-from prefect.client.schemas.objects import FlowRun, StateType
+from prefect.client.schemas.objects import FlowRun, StateType, TaskRun
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
 from prefect.context import (
@@ -1254,6 +1255,180 @@ class TestTaskRetries:
             "Retrying",
             "Completed",
         ]
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("async_condition", [False, True])
+    async def test_retry_condition_receives_custom_failed_state(
+        self, async_task: bool, async_condition: bool
+    ):
+        failure = Failed(
+            name="RateLimited",
+            message="Try again",
+            state_details=StateDetails(retriable=True),
+        )
+        expected_state_details = failure.state_details.model_copy(deep=True)
+        received_states: list[State] = []
+        attempts = 0
+
+        def retry_condition(task: Task, task_run: TaskRun, state: State) -> bool:
+            received_states.append(state.model_copy(deep=True))
+            return state.name == "RateLimited"
+
+        async def async_retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> bool:
+            return retry_condition(task, task_run, state)
+
+        def flaky_function() -> State | str:
+            nonlocal attempts
+            attempts += 1
+            return failure if attempts == 1 else "success"
+
+        async def async_flaky_function() -> State | str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=(
+                async_retry_condition if async_condition else retry_condition
+            ),
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert len(received_states) == 1
+        assert received_states[0].name == "RateLimited"
+        assert received_states[0].message == "Try again"
+        assert received_states[0].state_details == expected_state_details
+        assert attempts == 2
+        assert final_state.is_completed()
+        assert await final_state.result() == "success"
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("async_predicate", [False, True])
+    @pytest.mark.parametrize("should_retry", [False, True])
+    @pytest.mark.parametrize(
+        "predicate_type", ["function", "method", "partial", "instance"]
+    )
+    async def test_retry_condition_accepts_callable_types(
+        self,
+        async_task: bool,
+        async_predicate: bool,
+        should_retry: bool,
+        predicate_type: Literal["function", "method", "partial", "instance"],
+    ):
+        attempts = 0
+        predicate_calls = 0
+
+        def retry_condition(task: Task, task_run: TaskRun, state: State) -> bool:
+            nonlocal predicate_calls
+            predicate_calls += 1
+            assert state.is_failed()
+            return should_retry
+
+        async def async_retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> bool:
+            return retry_condition(task, task_run, state)
+
+        class RetryPolicy:
+            def should_retry(self, task: Task, task_run: TaskRun, state: State) -> bool:
+                return retry_condition(task, task_run, state)
+
+            __call__ = should_retry
+
+        class AsyncRetryPolicy:
+            async def should_retry(
+                self, task: Task, task_run: TaskRun, state: State
+            ) -> bool:
+                return await async_retry_condition(task, task_run, state)
+
+            __call__ = should_retry
+
+        policy = AsyncRetryPolicy() if async_predicate else RetryPolicy()
+        predicate = async_retry_condition if async_predicate else retry_condition
+        predicates = {
+            "function": predicate,
+            "method": policy.should_retry,
+            "partial": partial(predicate),
+            "instance": policy,
+        }
+
+        def flaky_function() -> str:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise ValueError("Temporary failure")
+            return "success"
+
+        async def async_flaky_function() -> str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=predicates[predicate_type],
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert predicate_calls == 1
+        assert attempts == (2 if should_retry else 1)
+        assert final_state.is_completed() == should_retry
+        assert final_state.is_failed() == (not should_retry)
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("should_retry", [False, True])
+    async def test_retry_condition_returns_custom_awaitable(
+        self, async_task: bool, should_retry: bool
+    ):
+        attempts = 0
+        predicate_calls = 0
+
+        class RetryDecision(Awaitable[bool]):
+            def __await__(self) -> Generator[Any, None, bool]:
+                async def resolve() -> bool:
+                    nonlocal predicate_calls
+                    predicate_calls += 1
+                    return should_retry
+
+                return resolve().__await__()
+
+        def retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> Awaitable[bool]:
+            assert state.is_failed()
+            return RetryDecision()
+
+        def flaky_function() -> str:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise ValueError("Temporary failure")
+            return "success"
+
+        async def async_flaky_function() -> str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=retry_condition,
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert predicate_calls == 1
+        assert attempts == (2 if should_retry else 1)
+        assert final_state.is_completed() == should_retry
+        assert final_state.is_failed() == (not should_retry)
 
     async def test_task_retries_receive_latest_task_run_in_context(self):
         state_names: List[str] = []

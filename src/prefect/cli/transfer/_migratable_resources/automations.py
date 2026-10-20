@@ -24,6 +24,7 @@ from prefect.events.actions import (
     CallWebhook,
     DeploymentAction,
     SendNotification,
+    UnknownAction,
     WorkPoolAction,
     WorkQueueAction,
 )
@@ -202,6 +203,24 @@ class MigratableAutomation(MigratableResource[Automation]):
                 self.destination_automation = automations[0]
                 raise TransferSkipped("Already exists")
             else:
+                unknown_action_types = sorted(
+                    {
+                        action.type
+                        for action in (
+                            *self.source_automation.actions,
+                            *self.source_automation.actions_on_trigger,
+                            *self.source_automation.actions_on_resolve,
+                        )
+                        if isinstance(action, UnknownAction)
+                    }
+                )
+                if unknown_action_types:
+                    # The IDs these actions refer to can't be mapped to the
+                    # destination, so copying them could act on the wrong objects
+                    raise TransferSkipped(
+                        "Uses action types this version of Prefect does not "
+                        f"recognize: {', '.join(unknown_action_types)}"
+                    )
                 automation_copy = AutomationCore.model_validate(
                     self.source_automation.model_dump(mode="json")
                 )
