@@ -1,4 +1,5 @@
 from typing import List
+from uuid import uuid4
 
 import pytest
 from starlette import status
@@ -112,3 +113,21 @@ class TestFlowRunsCountTaskRuns:
         assert response.json() == {
             str(flow_run.id): task_runs_count,
         }
+
+    async def test_count_task_runs_accepts_200_ids(self, client):
+        response = await client.post(
+            "ui/flow_runs/count-task-runs",
+            json={"flow_run_ids": [str(uuid4()) for _ in range(200)]},
+        )
+        assert response.status_code == 200
+
+    async def test_count_task_runs_rejects_more_than_200_ids(self, client):
+        response = await client.post(
+            "ui/flow_runs/count-task-runs",
+            json={"flow_run_ids": [str(uuid4()) for _ in range(201)]},
+        )
+        assert response.status_code == 422
+        errors = response.json()["exception_detail"]
+        assert [(error["loc"], error["type"]) for error in errors] == [
+            (["body", "flow_run_ids"], "too_long")
+        ]
