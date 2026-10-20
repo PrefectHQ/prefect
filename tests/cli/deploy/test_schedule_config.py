@@ -1,10 +1,16 @@
 """Tests for schedule configuration in deployment YAML."""
 
-import pytest
+from pathlib import Path
 
+import pytest
+import yaml
+from rich.console import Console
+
+from prefect.cli.deploy._config import _load_deploy_configs_and_actions
 from prefect.cli.deploy._models import RawScheduleConfig
 from prefect.cli.deploy._schedules import _schedule_config_to_deployment_schedule
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
+from prefect.deployments.base import _format_deployment_for_saving_to_prefect_file
 
 
 def test_cron_schedule_with_day_or_and_active():
@@ -42,6 +48,33 @@ def test_cron_schedule_with_day_or_and_active():
 
 class TestIntervalScheduleFormats:
     """Test various interval formats accepted in prefect.yaml."""
+
+    @pytest.mark.parametrize(
+        "interval", ["P1M", "P1Y", "PT48H", "P1M1W", "PT0.0000015S", "P1D", "PT42S"]
+    )
+    def test_saved_interval_survives_yaml_reload(self, tmp_path: Path, interval: str):
+        schedule = IntervalSchedule(
+            interval=interval, anchor_date="2024-01-31T12:00:00Z", timezone="UTC"
+        )
+        saved = _format_deployment_for_saving_to_prefect_file(
+            {
+                "name": "calendar",
+                "parameter_openapi_schema": {},
+                "schedules": [{"schedule": schedule, "active": True}],
+            }
+        )
+        prefect_file = tmp_path / "prefect.yaml"
+        prefect_file.write_text(yaml.safe_dump({"deployments": [saved]}))
+
+        configs, _ = _load_deploy_configs_and_actions(
+            prefect_file=prefect_file, console=Console()
+        )
+        restored = _schedule_config_to_deployment_schedule(configs[0]["schedules"][0])
+
+        assert restored["active"] is True
+        assert restored["schedule"].model_dump(mode="json") == schedule.model_dump(
+            mode="json"
+        )
 
     @pytest.mark.parametrize(
         "interval_value,expected_seconds",

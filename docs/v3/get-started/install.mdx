@@ -115,6 +115,46 @@ pip install -U prefect-client
 Prefect Cloud is compatible with all client versions. If you self-host a Prefect server, keep your client version compatible with the server (generally, client version less than or equal to server version). See [Versioning and compatibility](/v3/release-notes/versioning) for the rules.
 </Note>
 
+## Datetime values
+
+On Python 3.13 and 3.14, Prefect uses `whenever` for scheduling calculations and
+returns standard-library datetime types. On Python 3.11 and 3.12, Prefect continues
+to use Pendulum and returns Pendulum datetime, date, and duration values,
+including Pendulum-only methods such as `.add()`, `.in_tz()`, and
+`.to_iso8601_string()`. This behavior is deprecated. Prefect emits a deprecation
+notice when its datetime module loads on these Python versions.
+
+These values and the Pendulum dependency will remain available for at least six
+months and three minor version increases after the release announcing the
+deprecation, whichever is longer. A later minor release will switch to Python's
+standard datetime types. See [Versioning and compatibility](/v3/release-notes/versioning#deprecation).
+
+During this window, servers running Python 3.11 and 3.12 also retain their
+`timedelta` interval validation and numeric serialization. Calendar intervals
+such as `P1M` and the distinction between `PT48H` and two calendar days remain
+features of servers running Python 3.13 and 3.14.
+
+To prepare for the transition, use standard datetime operations such as
+`timedelta` arithmetic, `.astimezone()`, and `.isoformat()` where appropriate:
+
+```python
+from datetime import UTC, datetime, timedelta
+
+timestamp = datetime(2024, 6, 15, 14, 30, tzinfo=UTC)
+tomorrow = timestamp + timedelta(days=1)
+utc_timestamp = timestamp.astimezone(UTC)
+serialized = timestamp.isoformat()
+```
+
+For calendar arithmetic involving months, years, or daylight saving transitions,
+use a timezone-aware library such as `whenever`; `timedelta` arithmetic is not a
+general replacement for Pendulum's `.add()`.
+
+Pydantic fields annotated with `prefect.types.DateTime` continue to interpret naive
+inputs as UTC and serialize timestamps as ISO 8601 strings throughout the transition.
+If your code imports Pendulum directly, declare it in your own dependencies so it
+will remain available after Prefect removes the dependency.
+
 ## Next steps
 
 You also need an API server, either:

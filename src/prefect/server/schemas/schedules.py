@@ -53,12 +53,19 @@ if sys.version_info >= (3, 13):
         _WHENEVER_DELTA_TYPES = (DateTimeDelta,)
 
     AnchorDate: TypeAlias = datetime.datetime
+    # Servers on Python 3.13+ accept and emit calendar intervals (ItemizedDelta)
+    _ScheduleInterval: TypeAlias = PositiveInterval
 else:
     from pydantic import AfterValidator
 
     from prefect._internal.schemas.validators import default_anchor_date
 
     AnchorDate: TypeAlias = Annotated[DateTime, AfterValidator(default_anchor_date)]
+    # Python 3.11-3.12 servers keep legacy timedelta-only validation during the
+    # pendulum deprecation window; calendar intervals stay a 3.13+ feature.
+    _ScheduleInterval: TypeAlias = Annotated[
+        datetime.timedelta, Field(gt=datetime.timedelta(0))
+    ]
 
 
 def _prepare_scheduling_start_and_end(
@@ -114,7 +121,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
-    interval: PositiveInterval = Field()
+    interval: _ScheduleInterval = Field()
     anchor_date: AnchorDate = Field(
         default_factory=lambda: now("UTC"),
         examples=["2020-01-01T00:00:00Z"],

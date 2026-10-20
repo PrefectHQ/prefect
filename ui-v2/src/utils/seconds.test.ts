@@ -1,5 +1,18 @@
 import { expect, test } from "vitest";
-import { secondsToApproximateString, secondsToString } from "./seconds";
+import {
+	intervalToSeconds,
+	secondsToApproximateString,
+	secondsToString,
+} from "./seconds";
+
+test.each([
+	["P1W", 7 * 86400],
+	["P1M1W", 37 * 86400],
+	["P1Y2W", 379 * 86400],
+	["P1W2DT3H4M5.5S", 9 * 86400 + 3 * 3600 + 4 * 60 + 5.5],
+])("includes week components when displaying %s", (interval, expected) => {
+	expect(intervalToSeconds(interval)).toBe(expected);
+});
 
 // Regression tests for https://github.com/PrefectHQ/prefect/issues/17039
 // Fractional seconds were rounded up without carrying into the next unit,
