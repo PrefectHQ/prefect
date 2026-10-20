@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from pydantic import BaseModel
 
+import prefect.types._datetime
 from prefect.types._datetime import (
     DateTime,
     end_of_period,
@@ -182,3 +183,19 @@ class TestDateTimeTypeAlias:
         result = Model(when="2024-06-15T14:30:45").when
         assert result.tzinfo is not None
         assert result.utcoffset() == datetime.timedelta(0)
+
+
+class TestPatchedClock:
+    @pytest.mark.parametrize("clock_fixture", ["frozen_time", "advance_time"])
+    def test_patched_now_stays_aware_under_arithmetic(
+        self, request: pytest.FixtureRequest, clock_fixture: str
+    ):
+        request.getfixturevalue(clock_fixture)
+        current = prefect.types._datetime.now("UTC")
+
+        earlier = current - datetime.timedelta(minutes=1)
+
+        assert earlier.tzinfo is not None
+        assert earlier == datetime.datetime.fromtimestamp(
+            current.timestamp(), datetime.timezone.utc
+        ) - datetime.timedelta(minutes=1)
