@@ -428,11 +428,11 @@ class FlowRunFilterState(PrefectOperatorFilterBaseModel):
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.type is not None:
             filter = self.type.as_sql_filter()
-            if isinstance(filter, sa.BinaryExpression):
+            if filter is not sa.true():
                 filters.append(filter)
         if self.name is not None:
             filter = self.name.as_sql_filter()
-            if isinstance(filter, sa.BinaryExpression):
+            if filter is not sa.true():
                 filters.append(filter)
         return filters
 
