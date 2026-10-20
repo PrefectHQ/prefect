@@ -615,7 +615,13 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
 
             bucketing_key = trigger.bucketing_key(event)
 
-            async with automations_session(begin_transaction=True) as session:
+            # `with_for_update=True` makes SQLite start with `BEGIN IMMEDIATE` so the
+            # write lock is held before the bucket is read; a deferred transaction
+            # that reads first cannot be upgraded to a write if another connection
+            # commits in between and fails immediately with "database is locked".
+            async with automations_session(
+                begin_transaction=True, with_for_update=True
+            ) as session:
                 try:
                     bucket: Optional["ORMAutomationBucket"] = None
 
