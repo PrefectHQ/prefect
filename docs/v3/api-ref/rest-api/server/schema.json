@@ -12789,8 +12789,8 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "title": "Names",
-                        "min_items": 1
+                        "minItems": 1,
+                        "title": "Names"
                     },
                     "occupancy_seconds": {
                         "anyOf": [
@@ -12919,8 +12919,8 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "title": "Names",
-                        "min_items": 1
+                        "minItems": 1,
+                        "title": "Names"
                     },
                     "mode": {
                         "type": "string",
@@ -12963,8 +12963,8 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "title": "Names",
-                        "min_items": 1
+                        "minItems": 1,
+                        "title": "Names"
                     },
                     "mode": {
                         "type": "string",
@@ -13143,8 +13143,8 @@
                             "format": "uuid"
                         },
                         "type": "array",
-                        "title": "Flow Ids",
-                        "max_items": 200
+                        "maxItems": 200,
+                        "title": "Flow Ids"
                     }
                 },
                 "type": "object",
@@ -13335,8 +13335,8 @@
                             "format": "uuid"
                         },
                         "type": "array",
-                        "title": "Flow Run Ids",
-                        "max_items": 200
+                        "maxItems": 200,
+                        "title": "Flow Run Ids"
                     }
                 },
                 "type": "object",
@@ -13662,8 +13662,8 @@
                             "format": "uuid"
                         },
                         "type": "array",
-                        "title": "Flow Ids",
-                        "max_items": 200
+                        "maxItems": 200,
+                        "title": "Flow Ids"
                     }
                 },
                 "type": "object",
