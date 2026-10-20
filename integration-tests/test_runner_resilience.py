@@ -76,6 +76,9 @@ async def test_runner_resilience_with_missing_file(tmp_path: Path):
             runner_crashed = True
             raise
 
+        async with get_client() as client:
+            flow_run = await client.read_flow_run(flow_run.id)
+
     except Exception as e:
         if not runner_crashed:  # Only if the crash wasn't already reported
             print(f"\n❌ Runner crashed with: {type(e).__name__}: {e}")
@@ -86,10 +89,10 @@ async def test_runner_resilience_with_missing_file(tmp_path: Path):
         if tmp_path.exists():
             shutil.rmtree(tmp_path, ignore_errors=True)
 
-    if not runner_crashed:
-        print("\n✅ Runner survived missing flow file!")
-        print("This shows the fix is working - runners are resilient to missing files")
-        return True
-    else:
-        print("\nRunner crashed - this demonstrates the bug")
-        return False
+    assert not runner_crashed, "Runner raised while the flow file was missing"
+    # A final state shows the runner picked up and finished the run, rather than
+    # exiting without submitting it.
+    assert flow_run.state is not None and flow_run.state.is_final(), (
+        f"Expected the flow run to finish, but its state is {flow_run.state!r}"
+    )
+    print(f"\n✅ Runner survived missing flow file! Final state: {flow_run.state.name}")

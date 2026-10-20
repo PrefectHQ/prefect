@@ -63,8 +63,9 @@ from prefect.flow_engine import (
 )
 from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
+from prefect.runner._process_manager import ProcessHandle
 from prefect.runner.runner import Runner
-from prefect.runner.server import perform_health_check
+from prefect.runner.server import perform_health_check, run_count
 from prefect.schedules import Cron, Interval
 from prefect.settings import (
     PREFECT_CLIENT_MAX_RETRIES,
@@ -2984,6 +2985,20 @@ class TestServer:
 
         runner.last_polled = now("UTC")
         assert health_check().status_code == status.HTTP_200_OK
+
+    async def test_run_count_reports_tracked_flow_runs(self):
+        runner = Runner()
+        get_run_count = run_count(runner)
+        assert get_run_count() == 0
+
+        flow_run_ids = [uuid.uuid4(), uuid.uuid4()]
+        for flow_run_id in flow_run_ids:
+            await runner._process_manager.add(flow_run_id, ProcessHandle(MagicMock()))
+        assert get_run_count() == 2
+
+        for flow_run_id in flow_run_ids:
+            await runner._process_manager.remove(flow_run_id)
+        assert get_run_count() == 0
 
     @pytest.mark.skip("This test is flaky and needs to be fixed")
     @pytest.mark.parametrize("enabled", [True, False])
