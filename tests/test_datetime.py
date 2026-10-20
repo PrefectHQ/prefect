@@ -293,6 +293,40 @@ def test_prefect_helpers_do_not_emit_pendulum_warnings():
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+async def test_prefect_call_sites_do_not_emit_pendulum_warnings():
+    """Pendulum-only calls outside `types/_datetime.py` must go through
+    `_pendulum_call`. The pytest config ignores these warnings globally, so
+    this test re-enables them for representative internal call sites."""
+    from prefect._internal.compatibility.deprecated import (
+        generate_deprecation_message,
+    )
+    from prefect.runtime.flow_run import _parse_datetime_UTC
+    from prefect.server.schemas.schedules import CronSchedule, IntervalSchedule
+
+    start = create_datetime_instance(FIXED)
+    end = start + datetime.timedelta(days=2)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "error", message="Pendulum datetime member", category=DeprecationWarning
+        )
+        await IntervalSchedule(
+            interval=datetime.timedelta(hours=1),
+            anchor_date=start,
+            timezone="America/New_York",
+        ).get_dates(n=3, start=start, end=end)
+        await IntervalSchedule(
+            interval=datetime.timedelta(days=1),
+            anchor_date=start,
+            timezone="America/New_York",
+        ).get_dates(n=3, start=start, end=end)
+        await CronSchedule(cron="0 * * * *", timezone="America/New_York").get_dates(
+            n=3, start=start, end=end
+        )
+        _parse_datetime_UTC("2024-06-15T14:30:45")
+        generate_deprecation_message("thing", start_date=start)
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 @pytest.mark.parametrize(
     "member, kwargs", [("add", {"days": 1}), ("replace", {"year": 2025})]
 )

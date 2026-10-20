@@ -98,6 +98,10 @@ def _pendulum_call(obj: Any, name: str, *args: Any, **kwargs: Any) -> Any:
     For internal Prefect use: bypasses the deprecation decorator
     so Prefect's own machinery can keep using Pendulum behavior
     silently. `obj` may be any Pendulum value.
+
+    Prefect code must call Pendulum-only members through this helper on
+    Python 3.11 and 3.12. The pytest config ignores these warnings, so
+    direct calls are caught only by the guards in `tests/test_datetime.py`.
     """
     member = getattr(obj, name)
     original = getattr(member, "__prefect_task_source__", None)
