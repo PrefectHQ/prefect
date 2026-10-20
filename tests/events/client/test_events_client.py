@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import contextlib
 import logging
 import ssl
 from typing import Type
@@ -48,6 +49,17 @@ def assert_recorded_events_in_order(recorder: Recorder, events: list[Event]):
             unique_events.append(event)
 
     assert unique_events == events
+
+
+async def wait_for_events_to_be_confirmed(
+    client: PrefectEventsClient, timeout: float = 5
+) -> None:
+    """Wait until the client holds no unconfirmed events, or until `timeout`
+    seconds pass, so the caller's own assertion reports a failure."""
+    with contextlib.suppress(TimeoutError):
+        async with asyncio.timeout(timeout):
+            while client._unconfirmed_events:
+                await asyncio.sleep(0.01)
 
 
 @pytest.mark.usefixtures("ephemeral_settings")
@@ -789,8 +801,7 @@ async def test_background_checkpoint_clears_unconfirmed_events(
         await client.emit(example_event_2)
         assert len(client._unconfirmed_events) == 2
 
-        # Wait for background checkpoint to fire
-        await asyncio.sleep(0.2)
+        await wait_for_events_to_be_confirmed(client)
         assert len(client._unconfirmed_events) == 0
 
     assert recorder.events == [example_event_1, example_event_2]
@@ -849,7 +860,7 @@ async def test_background_checkpoint_reconnects_after_connection_loss(
 
         # Wait for the background checkpoint to notice the dead connection,
         # reconnect, resend, and confirm
-        await asyncio.sleep(0.5)
+        await wait_for_events_to_be_confirmed(client)
         assert len(client._unconfirmed_events) == 0
 
     # The event was received once before the disconnect and once as a resend
@@ -881,7 +892,7 @@ async def test_background_checkpoint_retries_reconnect_until_server_available(
         assert client._unconfirmed_events == [example_event_1]
 
         puppeteer.refuse_any_further_connections = False
-        await asyncio.sleep(0.5)
+        await wait_for_events_to_be_confirmed(client)
         assert len(client._unconfirmed_events) == 0
 
     assert recorder.events[-1] == example_event_1
