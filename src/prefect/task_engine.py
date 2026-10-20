@@ -16,6 +16,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    Awaitable,
     Callable,
     Coroutine,
     Generator,
@@ -459,12 +460,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     message=f"Task run encountered unexpected exception: {repr(exc_or_state)}",
                 )
             )
-            if inspect.iscoroutinefunction(retry_condition):
-                should_retry = run_coro_as_sync(
-                    retry_condition(self.task, self.task_run, state)
-                )
-            elif inspect.isfunction(retry_condition):
+            if callable(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
+                if inspect.isawaitable(should_retry):
+
+                    async def await_retry_condition(result: Awaitable[bool]) -> bool:
+                        return await result
+
+                    should_retry = run_coro_as_sync(await_retry_condition(should_retry))
             else:
                 should_retry = not retry_condition
             return should_retry
@@ -1077,10 +1080,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     message=f"Task run encountered unexpected exception: {repr(exc_or_state)}",
                 )
             )
-            if inspect.iscoroutinefunction(retry_condition):
-                should_retry = await retry_condition(self.task, self.task_run, state)
-            elif inspect.isfunction(retry_condition):
+            if callable(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
+                if inspect.isawaitable(should_retry):
+                    should_retry = await should_retry
             else:
                 should_retry = not retry_condition
             return should_retry

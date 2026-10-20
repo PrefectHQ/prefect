@@ -222,9 +222,19 @@ class PrefectLogsSubscriber:
         # likely a permission or configuration issue that should propagate
         try:
             await self._reconnect()
+        except BaseException:
+            # Callers do not exit a context that failed to enter, so close any
+            # socket left open by a partial (failed or cancelled) setup here.
+            await self._close_partial_connection()
+            raise
         finally:
             LOG_WEBSOCKET_CONNECTIONS.labels(self.client_name, "out", "initial").inc()
         return self
+
+    async def _close_partial_connection(self) -> None:
+        if self._websocket:
+            self._websocket = None
+            await self._connect.__aexit__(None, None, None)
 
     async def _reconnect(self) -> None:
         logger.debug("Reconnecting...")

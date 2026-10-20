@@ -511,6 +511,32 @@ class TestFlowWithOptions:
         assert flow_with_options.cache_result_in_memory is False
         assert flow_with_options.log_prints is False
 
+    @pytest.mark.parametrize(
+        "hook_name",
+        ["on_completion", "on_failure", "on_cancellation", "on_crashed", "on_running"],
+    )
+    def test_hooks_are_copied_from_original_flow(self, hook_name: str):
+        "Ensure hooks added to the new flow don't affect the original flow"
+
+        def original_hook(flow, flow_run, state):
+            pass
+
+        def added_hook(flow, flow_run, state):
+            pass
+
+        @flow(**{hook_name: [original_hook]})
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(name="With options flow")
+        getattr(flow_with_options, hook_name)(added_hook)
+
+        assert getattr(initial_flow, f"{hook_name}_hooks") == [original_hook]
+        assert getattr(flow_with_options, f"{hook_name}_hooks") == [
+            original_hook,
+            added_hook,
+        ]
+
     def test_with_options_can_unset_timeout_seconds_with_zero(self):
         @flow(timeout_seconds=1)
         def initial_flow():
@@ -1896,6 +1922,15 @@ class TestFlowParameterTypes:
             return keys
 
         assert my_flow(keys="hello") == "hello"
+
+    @pytest.mark.parametrize("value", [None, 0, False, "ab", {"b": 2}])
+    def test_invalid_var_positional_values_are_rejected(self, value):
+        @flow
+        def my_flow(x: int = 1, *args: int):
+            return x, args
+
+        with pytest.raises(ParameterTypeError):
+            my_flow.validate_parameters({"args": value})
 
 
 class TestSubflowTaskInputs:

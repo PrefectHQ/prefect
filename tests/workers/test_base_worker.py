@@ -30,6 +30,7 @@ import prefect
 import prefect.client.schemas as schemas
 import prefect.types._datetime
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.observers import FlowRunCancellingObserver
 from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
 from prefect._internal.server_maintenance import (
     record_maintenance_backoff,
@@ -61,6 +62,7 @@ from prefect.client.schemas.worker_channel import (
     WorkPoolSnapshotPayload,
 )
 from prefect.context import FlowRunContext, TagsContext
+from prefect.events import Event
 from prefect.exceptions import (
     CrashedRun,
     ObjectAlreadyExists,
@@ -5515,6 +5517,35 @@ class TestBackwardsCompatibility:
                 )
 
 
+class _IdleEventsSubscriber:
+    """An events stream that connects and stays quiet until closed."""
+
+    def __init__(self) -> None:
+        self.consuming = asyncio.Event()
+        self.exited = False
+
+    async def __aenter__(self) -> "_IdleEventsSubscriber":
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        self.exited = True
+
+    def __aiter__(self) -> "_IdleEventsSubscriber":
+        return self
+
+    async def __anext__(self) -> Event:
+        self.consuming.set()
+        await asyncio.Event().wait()
+        raise StopAsyncIteration
+
+
+class _FailingEventsSubscriber(_IdleEventsSubscriber):
+    """An events stream that cannot connect."""
+
+    async def __aenter__(self) -> "_FailingEventsSubscriber":
+        raise ConnectionError("websocket unavailable")
+
+
 class TestWorkerCancellationHandling:
     """Tests for worker-side flow run cancellation handling."""
 
@@ -5685,8 +5716,15 @@ class TestWorkerCancellationHandling:
                 # doesn't support killing infrastructure
                 mock_mark.assert_not_called()
 
-    async def test_teardown_cancellation_handling_cleans_up(self):
-        """Test that teardown properly cleans up cancellation resources."""
+    async def test_teardown_cancellation_handling_cleans_up(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that teardown closes the cancellation observer's events stream."""
+        subscriber = _IdleEventsSubscriber()
+        monkeypatch.setattr(
+            "prefect._internal.observers.get_events_subscriber",
+            lambda **kwargs: subscriber,
+        )
         with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
             worker = WorkerTestImpl(
                 work_pool_name="test-pool",
@@ -5695,10 +5733,10 @@ class TestWorkerCancellationHandling:
 
             async with worker:
                 assert worker._cancelling_observer is not None
-                consumer_task = worker._cancelling_observer._consumer_task
+                await asyncio.wait_for(subscriber.consuming.wait(), timeout=10)
+                assert not subscriber.exited
 
-            # After exit, task should be cancelled or done
-            assert consumer_task.cancelled() or consumer_task.done()
+            assert subscriber.exited
 
     async def test_base_worker_kill_infrastructure_raises_not_implemented(self):
         """Test that base worker kill_infrastructure raises NotImplementedError."""
@@ -5715,36 +5753,28 @@ class TestWorkerCancellationHandling:
             )
 
     async def test_websocket_failure_falls_back_to_polling(
-        self,
-        prefect_client: PrefectClient,
+        self, monkeypatch: pytest.MonkeyPatch
     ):
-        """Test that when the WebSocket consumer fails, we fall back to polling."""
+        """Test that when the WebSocket is unavailable, we fall back to polling."""
+        polled = asyncio.Event()
+
+        async def record_poll(self: FlowRunCancellingObserver) -> None:
+            polled.set()
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.get_events_subscriber",
+            lambda **kwargs: _FailingEventsSubscriber(),
+        )
+        monkeypatch.setattr(
+            FlowRunCancellingObserver, "_check_for_cancelled_flow_runs", record_poll
+        )
         with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
             async with WorkerTestImpl(
                 work_pool_name="test-pool",
                 name="test-worker",
             ) as worker:
-                observer = worker._cancelling_observer
-                assert observer is not None
-                assert observer._consumer_task is not None
-                assert observer._polling_task is None
-
-                # Simulate WebSocket consumer task failing
-                observer._consumer_task.cancel()
-                try:
-                    await observer._consumer_task
-                except asyncio.CancelledError:
-                    pass
-
-                # Manually trigger the done callback with an exception
-                failed_task = MagicMock()
-                failed_task.cancelled.return_value = False
-                failed_task.exception.return_value = RuntimeError("WebSocket failed")
-
-                observer._start_polling_task(failed_task)
-
-                # Should have started the polling task
-                assert observer._polling_task is not None
+                assert worker._cancelling_observer is not None
+                await asyncio.wait_for(polled.wait(), timeout=10)
 
     async def test_flow_run_ids_registered_with_observer(
         self,

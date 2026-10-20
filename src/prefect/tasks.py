@@ -791,7 +791,7 @@ class Task(Generic[P, R]):
             fn=self.fn,
             name=name or self.name,
             description=description or self.description,
-            tags=tags or copy(self.tags),
+            tags=tags if tags is not None else copy(self.tags),
             version=self.version,
             cache_policy=cache_policy
             if cache_policy is not NotSet
@@ -842,9 +842,9 @@ class Task(Generic[P, R]):
             refresh_cache=(
                 refresh_cache if refresh_cache is not NotSet else self.refresh_cache
             ),
-            on_completion=on_completion or self.on_completion_hooks,
-            on_failure=on_failure or self.on_failure_hooks,
-            on_running=on_running or self.on_running_hooks,
+            on_completion=on_completion or copy(self.on_completion_hooks),
+            on_failure=on_failure or copy(self.on_failure_hooks),
+            on_running=on_running or copy(self.on_running_hooks),
             on_rollback=copy(self.on_rollback_hooks),
             on_commit=copy(self.on_commit_hooks),
             retry_condition_fn=retry_condition_fn or self.retry_condition_fn,
@@ -2258,9 +2258,10 @@ class MaterializingTask(Task[P, R]):
                 continue
 
             attr_name = param_to_attr.get(param_name, param_name)
-            init_kwargs[param_name] = task_kwargs.get(
-                param_name, getattr(self, attr_name)
-            )
+            value = getattr(self, attr_name)
+            if attr_name.endswith("_hooks"):
+                value = copy(value)
+            init_kwargs[param_name] = task_kwargs.get(param_name, value)
 
         return MaterializingTask(
             fn=self.fn,
