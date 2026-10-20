@@ -299,6 +299,7 @@ class TestDateTimeTypeAlias:
         result = Model(when="2024-06-15T14:30:45").when
         assert result.tzinfo is not None
         assert result.utcoffset() == datetime.timedelta(0)
+
     @pytest.mark.parametrize(
         "value, serialized",
         [
