@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import contextvars
 import copy
 from base64 import b64encode
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager, nullcontext
 from datetime import datetime, timedelta, timezone
 from typing import (
     TYPE_CHECKING,
@@ -26,6 +27,7 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    TypeVar,
     Union,
     cast,
 )
@@ -83,6 +85,7 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
+from prefect.settings import get_current_settings
 from prefect.types import DateTime, NonNegativeTimeDelta, StrictVariableValue
 from prefect.types._datetime import now, parse_datetime
 from prefect.utilities.schema_tools.hydration import (
@@ -353,34 +356,66 @@ class EmitEventAction(Action):
         """Create an event from the TriggeredAction"""
 
 
+_ScopedClient = TypeVar("_ScopedClient")
+
+_consumer_orchestration_client: contextvars.ContextVar[
+    Optional["OrchestrationClient"]
+] = contextvars.ContextVar("_consumer_orchestration_client", default=None)
+_consumer_events_api_client: contextvars.ContextVar[
+    Optional["PrefectServerEventsAPIClient"]
+] = contextvars.ContextVar("_consumer_events_api_client", default=None)
+
+
+@asynccontextmanager
+async def _scoped_client(
+    shared: Optional[_ScopedClient],
+    build: Callable[[], AbstractAsyncContextManager[_ScopedClient]],
+    headers: Dict[str, str],
+) -> AsyncGenerator[_ScopedClient, None]:
+    """Yield `shared`, or a short-lived client from `build`, sending `headers`."""
+    from prefect.server.api.clients import scoped_headers
+
+    if shared is not None:
+        async with scoped_headers(headers):
+            yield shared
+    else:
+        async with build() as client, scoped_headers(headers):
+            yield client
+
+
 class ExternalDataAction(Action):
     """Base class for Actions that require data from an external source such as
     the Orchestration API"""
 
+    @staticmethod
+    def _automation_request_headers(
+        triggered_action: "TriggeredAction",
+    ) -> Dict[str, str]:
+        return {
+            "Prefect-Automation-ID": str(triggered_action.automation.id),
+            "Prefect-Automation-Name": (
+                b64encode(triggered_action.automation.name.encode()).decode()
+            ),
+        }
+
     async def orchestration_client(
         self, triggered_action: "TriggeredAction"
-    ) -> "OrchestrationClient":
+    ) -> AbstractAsyncContextManager["OrchestrationClient"]:
         from prefect.server.api.clients import OrchestrationClient
 
-        return OrchestrationClient(
-            additional_headers={
-                "Prefect-Automation-ID": str(triggered_action.automation.id),
-                "Prefect-Automation-Name": (
-                    b64encode(triggered_action.automation.name.encode()).decode()
-                ),
-            },
+        return _scoped_client(
+            _consumer_orchestration_client.get(),
+            OrchestrationClient,
+            self._automation_request_headers(triggered_action),
         )
 
     async def events_api_client(
         self, triggered_action: "TriggeredAction"
-    ) -> PrefectServerEventsAPIClient:
-        return PrefectServerEventsAPIClient(
-            additional_headers={
-                "Prefect-Automation-ID": str(triggered_action.automation.id),
-                "Prefect-Automation-Name": (
-                    b64encode(triggered_action.automation.name.encode()).decode()
-                ),
-            },
+    ) -> AbstractAsyncContextManager[PrefectServerEventsAPIClient]:
+        return _scoped_client(
+            _consumer_events_api_client.get(),
+            PrefectServerEventsAPIClient,
+            self._automation_request_headers(triggered_action),
         )
 
     def reason_from_response(self, response: Response) -> str:
@@ -1856,33 +1891,57 @@ async def action_has_already_happened(id: UUID) -> bool:
 
 @asynccontextmanager
 async def consumer() -> AsyncGenerator[MessageHandler, None]:
+    from prefect.server.api.clients import OrchestrationClient
     from prefect.server.events.schemas.automations import TriggeredAction
 
-    async def message_handler(message: Message):
-        if not message.data:
-            return
+    # Concurrent actions sharing one client would race on its CSRF token refreshes,
+    # so each action builds its own orchestration client when CSRF is enabled.
+    shared_orchestration_client: AbstractAsyncContextManager[
+        Optional[OrchestrationClient]
+    ] = (
+        nullcontext()
+        if get_current_settings().server.api.csrf_protection_enabled
+        else OrchestrationClient()
+    )
 
-        triggered_action = TriggeredAction.model_validate_json(message.data)
-        action = triggered_action.action
+    async with (
+        shared_orchestration_client as orchestration_client,
+        PrefectServerEventsAPIClient() as events_api_client,
+    ):
 
-        if await action_has_already_happened(triggered_action.id):
-            logger.info(
-                "Action %s has already been executed, skipping",
-                triggered_action.id,
+        async def message_handler(message: Message):
+            if not message.data:
+                return
+
+            triggered_action = TriggeredAction.model_validate_json(message.data)
+            action = triggered_action.action
+
+            if await action_has_already_happened(triggered_action.id):
+                logger.info(
+                    "Action %s has already been executed, skipping",
+                    triggered_action.id,
+                )
+                return
+
+            # Set per message: `ContextVar.reset` must run in the setting context.
+            orchestration_token = _consumer_orchestration_client.set(
+                orchestration_client
             )
-            return
+            events_token = _consumer_events_api_client.set(events_api_client)
+            try:
+                await action.act(triggered_action)
+            except ActionFailed as e:
+                # ActionFailed errors are expected errors and will not be retried
+                await action.fail(triggered_action, e.reason)
+            else:
+                await action.succeed(triggered_action)
+                await record_action_happening(triggered_action.id)
+            finally:
+                _consumer_events_api_client.reset(events_token)
+                _consumer_orchestration_client.reset(orchestration_token)
 
-        try:
-            await action.act(triggered_action)
-        except ActionFailed as e:
-            # ActionFailed errors are expected errors and will not be retried
-            await action.fail(triggered_action, e.reason)
-        else:
-            await action.succeed(triggered_action)
-            await record_action_happening(triggered_action.id)
-
-    logger.info("Starting action message handler")
-    yield message_handler
+        logger.info("Starting action message handler")
+        yield message_handler
 
 
 async def _load_block_from_block_document(
