@@ -34,10 +34,9 @@ from prefect.states import (
     Crashed,
     Failed,
     StateGroup,
+    _flatten_nested_states,
     format_exception,
-    is_state_iterable,
 )
-from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
     import logging
@@ -239,8 +238,8 @@ def return_value_to_state_sync(
         return state
 
     # Determine a new state from the aggregate of contained states
-    if isinstance(retval, State) or is_state_iterable(retval):
-        states = StateGroup(ensure_iterable(retval))
+    if contained_states := _flatten_nested_states(retval):
+        states = StateGroup(contained_states)
 
         # Determine the new state type
         if states.all_completed():
