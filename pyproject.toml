@@ -44,6 +44,7 @@ dependencies = [
     "anyio>=4.4.0,<5.0.0",
     "asgi-lifespan>=1.0,<3.0",
     "cachetools>=5.3,<8.0",
+    "certifi>=2026.10.19",
     "cloudpickle>=2.0,<4.0",
     "coolname>=1.0.4,<6.0.0",
     "exceptiongroup>=1.0.0",
@@ -102,7 +103,7 @@ otel = [
 ]
 
 # bundles extra for bundle features (requires uv)
-bundles = ["uv>=0.6.0"]
+bundles = ["uv>=0.13.4"]
 
 # Infrastructure extras
 aws = ["prefect-aws>=0.5.8"]
@@ -160,7 +161,7 @@ dev = [
     "pyyaml>=6.0.1",
     "redis>=5.2.1",
     "setuptools>=65.6.3",
-    "uv>=0.5.30",
+    "uv>=0.13.4",
     "vale>=3.9.5",
     "virtualenv>=20.29.2",
     "watchfiles>=1.0.4",
@@ -397,4 +398,4 @@ check-hidden = true
 
 
 [tool.uv]
-required-version = ">=0.6.15" # make sure upload_time is included to avoid churn (see https://github.com/dependabot/dependabot-core/issues/12127)
+required-version = ">=0.13.4" # Includes updated Mozilla root certificates.
