@@ -503,8 +503,8 @@ def url_for(
         url = url_format.format(
             obj_id=obj_id,
             **{
-                key: _quote_path_segment(value)
-                for key, value in additional_format_kwargs.items()
+                key: _quote_path_segment(additional_format_kwargs[key])
+                for key in obj_keys
             },
         )
 
