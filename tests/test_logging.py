@@ -1289,6 +1289,38 @@ class TestAPILogWorker:
         logs = await prefect_client.read_logs(log_filter=log_filter)
         assert sorted(log.message for log in logs) == ["0", "1", "2", "3", "4"]
 
+    async def test_batch_ending_in_max_size_log_fits_in_batch_size(
+        self, respx_mock: respx.MockRouter
+    ):
+        create_logs = respx_mock.post(path__regex=r"/logs/$").mock(
+            return_value=httpx.Response(201)
+        )
+        respx_mock.route().pass_through()
+        max_log_size = 100
+        batch_size = 3 * max_log_size
+
+        def serialized_log(size: int) -> bytes:
+            # A JSON string of exactly `size` bytes
+            return b'"' + b"x" * (size - 2) + b'"'
+
+        with temporary_settings(
+            updates={
+                PREFECT_LOGGING_TO_API_BATCH_SIZE: batch_size,
+                PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: max_log_size,
+            }
+        ):
+            # Fill a batch to each size near the point where it stops taking logs,
+            # then send a maximum size log
+            for last_filler_size in range(90, max_log_size + 1):
+                worker = APILogWorker.instance()
+                worker.send(serialized_log(98))
+                worker.send(serialized_log(last_filler_size))
+                worker.send(serialized_log(max_log_size))
+                await worker.drain()
+
+        body_sizes = [len(call.request.content) for call in create_logs.calls]
+        assert max(body_sizes) <= batch_size
+
     async def test_logs_are_sent_immediately_when_stopped(
         self, log_dict: dict[str, Any], prefect_client: PrefectClient
     ):
