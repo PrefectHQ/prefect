@@ -312,7 +312,7 @@ class TaskSource(CachePolicy):
             lines = inspect.getsource(task_ctx.task.fn.__class__)
         except OSError as exc:
             if "source code" in str(exc):
-                lines = task_ctx.task.fn.__code__.co_code
+                return hash_objects(task_ctx.task.fn.__code__, raise_on_failure=True)
             else:
                 raise
 
