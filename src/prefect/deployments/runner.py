@@ -37,6 +37,7 @@ import sys
 import tempfile
 import warnings
 from contextlib import suppress
+from dataclasses import fields, is_dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import (
@@ -158,6 +159,11 @@ def _normalize_parameter_datetime(value: Any) -> Any:
     if isinstance(value, BaseModel) or is_pydantic_dataclass(type(value)):
         # Models own their serialization, including temporal fields and blocks.
         raise StopVisiting()
+    # Traverse plain containers without invoking user-defined constructors.
+    if is_dataclass(value) and not isinstance(value, type):
+        return {field.name: getattr(value, field.name) for field in fields(value)}
+    if isinstance(value, dict) and type(value) is not dict:
+        return dict(value)
     if (
         isinstance(value, datetime)
         and "ser_json_temporal" in ConfigDict.__annotations__

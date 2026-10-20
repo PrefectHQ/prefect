@@ -12,6 +12,8 @@ import tempfile
 import time
 import uuid
 import warnings
+from collections import defaultdict
+from dataclasses import dataclass, field
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
@@ -3960,6 +3962,64 @@ class TestRunnerDeployment:
                     )
                 ],
             )
+
+    def test_datetime_parameter_in_dataclass_with_non_init_field(self):
+        @dataclass
+        class Options:
+            starts_at: datetime.datetime
+            calculated: int = field(init=False, default=5)
+
+        starts_at = datetime.datetime(
+            2024,
+            1,
+            2,
+            3,
+            4,
+            5,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=-5)),
+        )
+        options = Options(starts_at)
+        deployment = RunnerDeployment(
+            name="dataclass-parameter",
+            flow_name="flow",
+            parameters={"options": options},
+        )
+
+        expected: float | str = starts_at.replace(tzinfo=datetime.UTC).timestamp()
+        if Version(PYDANTIC_VERSION) < Version("2.12"):
+            expected = starts_at.isoformat()
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": {"starts_at": expected, "calculated": 5}
+        }
+        assert deployment.parameters["options"] is options
+        assert options.starts_at is starts_at
+
+    def test_datetime_parameter_in_defaultdict(self):
+        starts_at = datetime.datetime(
+            2024,
+            1,
+            2,
+            3,
+            4,
+            5,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=-5)),
+        )
+        options = defaultdict(list, starts_at=[starts_at])
+        deployment = RunnerDeployment(
+            name="defaultdict-parameter",
+            flow_name="flow",
+            parameters={"options": options},
+        )
+
+        expected: float | str = starts_at.replace(tzinfo=datetime.UTC).timestamp()
+        if Version(PYDANTIC_VERSION) < Version("2.12"):
+            expected = starts_at.isoformat()
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": {"starts_at": [expected]}
+        }
+        assert deployment.parameters["options"] is options
+        assert options.default_factory is list
+        assert options["starts_at"][0] is starts_at
 
     async def test_applied_deployment_preserves_temporal_parameter_encoding(
         self, prefect_client: PrefectClient
