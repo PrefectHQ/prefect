@@ -753,6 +753,138 @@ def test_write_path_in_sync_context(s3_bucket):
     assert content == b"hello"
 
 
+@pytest.mark.parametrize(
+    "bucket_folder, path, expected_key, object_path",
+    [
+        ("", "/reports/file.txt", "/reports/file.txt", "/reports/file.txt"),
+        ("prefix", "/reports/file.txt", "prefix/reports/file.txt", "reports/file.txt"),
+        ("prefix/", "/reports/file.txt", "prefix/reports/file.txt", "reports/file.txt"),
+        (
+            "/prefix",
+            "/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "/prefix/",
+            "/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "prefix",
+            "/prefix/reports/file.txt",
+            "prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "prefix/",
+            "/prefix/reports/file.txt",
+            "prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "/prefix/",
+            "/prefix/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        ("prefix/", "", "prefix", ""),
+        ("/prefix/", "", "/prefix", ""),
+        ("/", "", "/", ""),
+        (
+            "prefix",
+            "/prefix-other/file.txt",
+            "prefix/prefix-other/file.txt",
+            "prefix-other/file.txt",
+        ),
+    ],
+)
+def test_write_path_resolves_bucket_folder(
+    s3_bucket, s3, tmp_path, bucket_folder, path, expected_key, object_path
+):
+    s3_bucket.bucket_folder = bucket_folder
+
+    key = s3_bucket.write_path(path, content=b"hello")
+
+    assert key == expected_key
+    assert [
+        obj["Key"] for obj in s3.list_objects_v2(Bucket=BUCKET_NAME)["Contents"]
+    ] == [expected_key]
+    assert s3_bucket.read_path(path) == b"hello"
+    assert s3_bucket.read_path(key) == b"hello"
+    downloaded = s3_bucket.download_object_to_path(
+        object_path, tmp_path / "download.txt"
+    )
+    assert downloaded.read_bytes() == b"hello"
+
+
+@pytest.mark.parametrize(
+    "bucket_folder, path, expected_key, object_path",
+    [
+        ("", "/reports/file.txt", "/reports/file.txt", "/reports/file.txt"),
+        ("prefix", "/reports/file.txt", "prefix/reports/file.txt", "reports/file.txt"),
+        ("prefix/", "/reports/file.txt", "prefix/reports/file.txt", "reports/file.txt"),
+        (
+            "/prefix",
+            "/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "/prefix/",
+            "/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "prefix",
+            "/prefix/reports/file.txt",
+            "prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "prefix/",
+            "/prefix/reports/file.txt",
+            "prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        (
+            "/prefix/",
+            "/prefix/reports/file.txt",
+            "/prefix/reports/file.txt",
+            "reports/file.txt",
+        ),
+        ("prefix/", "", "prefix", ""),
+        ("/prefix/", "", "/prefix", ""),
+        ("/", "", "/", ""),
+        (
+            "prefix",
+            "/prefix-other/file.txt",
+            "prefix/prefix-other/file.txt",
+            "prefix-other/file.txt",
+        ),
+    ],
+)
+async def test_awrite_path_resolves_bucket_folder(
+    s3_bucket, s3, tmp_path, bucket_folder, path, expected_key, object_path
+):
+    s3_bucket.bucket_folder = bucket_folder
+
+    key = await s3_bucket.awrite_path(path, content=b"hello")
+
+    assert key == expected_key
+    assert [
+        obj["Key"] for obj in s3.list_objects_v2(Bucket=BUCKET_NAME)["Contents"]
+    ] == [expected_key]
+    assert await s3_bucket.aread_path(path) == b"hello"
+    assert await s3_bucket.aread_path(key) == b"hello"
+    downloaded = await s3_bucket.adownload_object_to_path(
+        object_path, tmp_path / "download.txt"
+    )
+    assert downloaded.read_bytes() == b"hello"
+
+
 def test_resolve_path(s3_bucket):
     assert s3_bucket._resolve_path("") == ""
 
