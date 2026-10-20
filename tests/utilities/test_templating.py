@@ -215,6 +215,18 @@ class TestApplyValues:
             }
         ]
 
+    def test_apply_values_list_with_missing_value_removed(self):
+        template = ["{{ missing }}", "{{ name }}"]
+        values = {"name": "Alice"}
+        assert apply_values(template, values) == ["Alice"]
+
+    def test_apply_values_list_with_missing_value_not_removed(self):
+        template = {"tags": ["{{ missing }}", "{{ name }}", NotSet]}
+        values = {"name": "Alice"}
+        assert apply_values(template, values, remove_notset=False) == {
+            "tags": ["{{ missing }}", "Alice", NotSet]
+        }
+
     def test_apply_values_list_with_placeholders(self):
         template = [
             "Hello, {{first_name}} {{last_name}}!",

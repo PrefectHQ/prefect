@@ -2,6 +2,29 @@
 title: prefect-kubernetes
 ---
 
+## 0.8.0
+
+_Released on October 19, 2026_
+
+**Breaking Changes**
+
+- Drop Python 3.10 support [#23324](https://github.com/PrefectHQ/prefect/pull/23324) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Features**
+
+- Filter Kubernetes observer LIST/WATCH server-side and page initial lists [#23457](https://github.com/PrefectHQ/prefect/pull/23457) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Bug Fixes**
+
+- Fix `UnboundLocalError` in observer `_get_k8s_jobs` when the Kubernetes client can't be created [#23220](https://github.com/PrefectHQ/prefect/pull/23220) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Maintenance**
+
+- Update classifiers and add Python 3.14 to integration tests [#23273](https://github.com/PrefectHQ/prefect/pull/23273) by [@vyagubov](https://github.com/vyagubov)
+- Replace Sanity-hosted logo URLs [#23235](https://github.com/PrefectHQ/prefect/pull/23235) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+---
+
 ## 0.7.13
 
 _Released on September 08, 2026_

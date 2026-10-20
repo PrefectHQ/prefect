@@ -152,13 +152,14 @@ def apply_values(
 
     If a template contains a placeholder that is not in `values`, NotSet will
     be returned to signify that no placeholder replacement occurred. If
-    `template` is a dictionary that contains a key with a value of NotSet,
-    the key will be removed in the return value unless `remove_notset` is set to False.
+    `template` is a dictionary or list that contains a value of NotSet, the
+    key or item will be removed in the return value unless `remove_notset` is
+    set to False, in which case the original value is kept.
 
     Args:
         template: template to discover and replace values in
         values: The values to apply to placeholders in the template
-        remove_notset: If True, remove keys with an unset value
+        remove_notset: If True, remove keys and list items with an unset value
         warn_on_notset: If True, warn when a placeholder is not found in `values`
         skip_prefixes: If provided, placeholders whose names start with any of
             these prefixes will be left untouched in the template.
@@ -249,6 +250,8 @@ def apply_values(
             )
             if updated_value is not NotSet:
                 updated_list.append(updated_value)
+            elif not remove_notset:
+                updated_list.append(value)
         return cast(T, updated_list)
     else:
         raise ValueError(f"Unexpected template type {type(template).__name__!r}")

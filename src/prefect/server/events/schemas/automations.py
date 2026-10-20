@@ -23,6 +23,8 @@ from uuid import UUID, uuid4
 from pydantic import (
     Field,
     PrivateAttr,
+    TypeAdapter,
+    ValidationError,
     field_validator,
     model_validator,
 )
@@ -50,6 +52,8 @@ if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger(__name__)
+
+_timedelta_adapter: TypeAdapter[timedelta] = TypeAdapter(timedelta)
 
 
 class Posture(AutoEnum):
@@ -363,8 +367,16 @@ class EventTrigger(ResourceTrigger):
         posture: Optional[Posture] = data.get("posture")
         within: Optional[timedelta] = data.get("within")
 
-        if isinstance(within, (int, float)):
-            data["within"] = within = timedelta(seconds=within)
+        if within is not None and not isinstance(within, timedelta):
+            # Parse the raw value the same way the field would, so that every
+            # form pydantic accepts for a timedelta reaches the comparisons
+            # below as a timedelta.
+            try:
+                within = _timedelta_adapter.validate_python(within)
+            except ValidationError:
+                # The field validation reports the unparsable value.
+                return data
+            data["within"] = within
 
         if posture == Posture.Proactive:
             if not within or within == timedelta(0):
