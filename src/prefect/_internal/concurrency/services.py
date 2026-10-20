@@ -27,6 +27,11 @@ R = TypeVar("R", infer_variance=True)
 # Track all active services for fork handling
 _active_services: weakref.WeakSet[_QueueServiceBase[Any]] = weakref.WeakSet()
 
+# Services take items that are already queued without leaving the event loop.
+# Other services share the global loop, so a service working through a backlog
+# yields to them after this many items in a row.
+_READY_ITEMS_PER_YIELD = 256
+
 
 def _reset_services_after_fork():
     """
@@ -73,6 +78,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         self._started: bool = False
         self._key = hash((self.__class__, *args))
         self._lock = threading.Lock()
+        self._ready_items_since_yield = 0
         self._queue_get_thread = WorkerThread(
             # TODO: This thread should not need to be a daemon but when it is not, it
             #       can prevent the interpreter from exiting.
@@ -184,14 +190,37 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
             assert self._done_event is not None
             self._done_event.set()
 
+    async def _get_item(self, timeout: Optional[float] = None) -> Optional[T]:
+        """
+        Take the next item from the queue.
+
+        An item that is already queued is taken on the event loop. Only an empty
+        queue waits on the queue thread, which raises `queue.Empty` if `timeout`
+        passes first.
+        """
+        if self._ready_items_since_yield >= _READY_ITEMS_PER_YIELD:
+            self._ready_items_since_yield = 0
+            await asyncio.sleep(0)
+
+        try:
+            item = self._queue.get_nowait()
+        except queue.Empty:
+            pass
+        else:
+            self._ready_items_since_yield += 1
+            return item
+
+        self._ready_items_since_yield = 0
+        return await self._queue_get_thread.submit(
+            create_call(self._queue.get, timeout=timeout)
+        ).aresult()
+
     async def _main_loop(self) -> None:
         last_log_time = 0
         log_interval = 4  # log every 4 seconds
 
         while True:
-            item: Optional[T] = await self._queue_get_thread.submit(
-                create_call(self._queue.get)
-            ).aresult()
+            item: Optional[T] = await self._get_item()
 
             if self._stopped:
                 current_time = asyncio.get_event_loop().time()
@@ -500,9 +529,7 @@ class BatchedQueueService(QueueService[T]):
             deadline = get_deadline(self.min_interval)
             while batch_size < self.max_batch_size:
                 try:
-                    item = await self._queue_get_thread.submit(
-                        create_call(self._queue.get, timeout=get_timeout(deadline))
-                    ).aresult()
+                    item = await self._get_item(timeout=get_timeout(deadline))
 
                     if item is None:
                         done = True

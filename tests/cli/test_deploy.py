@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import warnings
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -3380,6 +3381,101 @@ class TestSchedules:
         assert actual_slug_active == expected_slug_active
 
     @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.parametrize("clear_schedules", [False, True])
+    @pytest.mark.parametrize("slug", [None, "daily"])
+    @pytest.mark.parametrize(
+        "schedule_config, clears_schedules, interactive",
+        [
+            pytest.param({}, False, False, id="omitted"),
+            pytest.param({"schedules": None}, False, False, id="null"),
+            pytest.param({"schedules": []}, True, False, id="empty"),
+            pytest.param({}, False, True, id="prompt-declined"),
+        ],
+    )
+    async def test_redeploy_existing_schedules(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        schedule_config: dict[str, Any],
+        clears_schedules: bool,
+        interactive: bool,
+        slug: str | None,
+        clear_schedules: bool,
+        request: pytest.FixtureRequest,
+    ):
+        if interactive:
+            request.getfixturevalue("interactive_console")
+
+        config = {
+            "build": [],
+            "push": [],
+            "pull": [],
+            "deployments": [
+                {
+                    "name": "test-name",
+                    "entrypoint": "flows/hello.py:my_flow",
+                    "work_pool": {"name": work_pool.name},
+                    "schedules": [{"cron": "0 4 * * *", "slug": slug}],
+                }
+            ],
+        }
+        prefect_file = Path("prefect.yaml")
+        prefect_file.write_text(yaml.safe_dump(config))
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            user_input="n\n" if interactive else None,
+        )
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].active is True
+        deployment_id = deployment.id
+        existing_schedule = deployment.schedules[0]
+
+        config["deployments"][0].pop("schedules")
+        config["deployments"][0].update(schedule_config)
+        config["deployments"][0]["description"] = "Updated description"
+        prefect_file.write_text(yaml.safe_dump(config))
+
+        with temporary_settings(
+            {"deployments.clear_schedules_on_empty": clear_schedules}
+        ):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", FutureWarning)
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command="deploy --all",
+                    expected_code=0,
+                    # Decline configuring schedules when prompted.
+                    user_input="n\n" if interactive else None,
+                )
+        deprecations = [w for w in caught if issubclass(w.category, FutureWarning)]
+        if clears_schedules and not clear_schedules:
+            assert len(deprecations) == 1
+            assert "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true" in str(
+                deprecations[0].message
+            )
+        else:
+            assert deprecations == []
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.id == deployment_id
+        assert deployment.description == "Updated description"
+        assert deployment.paused is False
+        if clears_schedules and clear_schedules:
+            assert deployment.schedules == []
+        else:
+            assert len(deployment.schedules) == 1
+            assert deployment.schedules[0].id == existing_schedule.id
+            assert deployment.schedules[0].schedule == existing_schedule.schedule
+            assert deployment.schedules[0].active is True
+
+    @pytest.mark.usefixtures("project_dir")
     async def test_yaml_null_schedules(
         self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
@@ -5326,7 +5422,7 @@ class TestSaveUserInputs:
         assert len(config["deployments"]) == 1
         assert config["deployments"][0]["name"] == "default"
         assert config["deployments"][0]["entrypoint"] == "flows/hello.py:my_flow"
-        assert config["deployments"][0]["schedules"] == []
+        assert config["deployments"][0]["schedules"] is None
         assert config["deployments"][0]["work_pool"]["name"] == "inflatable"
 
     def test_save_user_inputs_existing_prefect_file(self):
