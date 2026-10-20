@@ -4021,6 +4021,64 @@ class TestRunnerDeployment:
         assert options.default_factory is list
         assert options["starts_at"][0] is starts_at
 
+    @pytest.mark.parametrize("temporal", [False, True])
+    @pytest.mark.parametrize("container", [set, frozenset])
+    def test_dataclass_set_parameters(self, temporal: bool, container: type):
+        @dataclass(frozen=True)
+        class Options:
+            value: int | datetime.datetime
+
+        value = (
+            datetime.datetime.fromisoformat("2024-01-02T03:04:05-05:00")
+            if temporal
+            else 1
+        )
+        options = Options(value)
+        deployment = RunnerDeployment(
+            name="dataclass-set-parameter",
+            flow_name="flow",
+            parameters={"options": container([options])},
+        )
+
+        expected: int | float | str
+        if isinstance(value, datetime.datetime):
+            expected = value.isoformat()
+            if Version(PYDANTIC_VERSION) >= Version("2.12"):
+                expected = value.replace(tzinfo=datetime.UTC).timestamp()
+        else:
+            expected = value
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": [{"value": expected}]
+        }
+        assert deployment.parameters["options"] == {options}
+        assert options.value is value
+
+    @pytest.mark.parametrize("temporal", [False, True])
+    @pytest.mark.parametrize("tuple_key", [False, True])
+    def test_dataclass_dictionary_key_parameters(self, temporal: bool, tuple_key: bool):
+        @dataclass(frozen=True)
+        class Options:
+            value: int | datetime.datetime
+
+        value = (
+            datetime.datetime.fromisoformat("2024-01-02T03:04:05-05:00")
+            if temporal
+            else 1
+        )
+        options = Options(value)
+        key = (options,) if tuple_key else options
+        deployment = RunnerDeployment(
+            name="dataclass-key-parameter",
+            flow_name="flow",
+            parameters={"options": {key: "value"}},
+        )
+
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": {str(options): "value"}
+        }
+        assert next(iter(deployment.parameters["options"])) is key
+        assert options.value is value
+
     async def test_applied_deployment_preserves_temporal_parameter_encoding(
         self, prefect_client: PrefectClient
     ):

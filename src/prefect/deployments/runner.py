@@ -155,21 +155,37 @@ _DEPLOYMENT_PARAMETER_SERIALIZER = TypeAdapter(
 )
 
 
-def _normalize_parameter_datetime(value: Any) -> Any:
+def _normalize_parameter_datetime(value: Any, *, as_key: bool = False) -> Any:
     if isinstance(value, BaseModel) or is_pydantic_dataclass(type(value)):
         # Models own their serialization, including temporal fields and blocks.
-        raise StopVisiting()
-    # Traverse plain containers without invoking user-defined constructors.
-    if is_dataclass(value) and not isinstance(value, type):
-        return {field.name: getattr(value, field.name) for field in fields(value)}
-    if isinstance(value, dict) and type(value) is not dict:
-        return dict(value)
+        return value
     if (
         isinstance(value, datetime)
         and "ser_json_temporal" in ConfigDict.__annotations__
     ):
         # Preserve pydantic 2.12-2.13's wall-time-as-UTC encoding outside models.
         return value.replace(tzinfo=UTC)
+    if as_key:
+        if isinstance(value, tuple):
+            return tuple(
+                _normalize_parameter_datetime(item, as_key=True) for item in value
+            )
+        # Pydantic stringifies dataclass keys using their original representation.
+        return value
+    if isinstance(value, dict):
+        return {
+            _normalize_parameter_datetime(
+                key, as_key=True
+            ): _normalize_parameter_datetime(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_normalize_parameter_datetime(item) for item in value]
+    if is_dataclass(value) and not isinstance(value, type):
+        return {
+            field.name: _normalize_parameter_datetime(getattr(value, field.name))
+            for field in fields(value)
+        }
     return value
 
 
@@ -370,9 +386,7 @@ class RunnerDeployment(BaseModel):
     @field_serializer("parameters", when_used="json")
     def serialize_block_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
         return _DEPLOYMENT_PARAMETER_SERIALIZER.dump_python(
-            visit_collection(
-                parameters, _normalize_parameter_datetime, return_data=True
-            ),
+            _normalize_parameter_datetime(parameters),
             mode="json",
             context={"serialize_blocks_as_references": True},
         )
