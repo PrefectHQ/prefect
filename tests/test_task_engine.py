@@ -2179,13 +2179,11 @@ class TestTaskTimeoutWatchdog:
         disarmed_fired = threading.Event()
         later_fired = threading.Event()
 
-        # Holding the lock keeps the thread from reaching the deadline before it is
-        # disarmed, however long this thread takes to get there
+        # Keeps the thread from reaching the deadline before it is disarmed
         with watchdog._lock:
             handle = watchdog.arm(0, disarmed_fired.set)
             watchdog.disarm(handle)
-        # Deadlines fire in order, so once the later one has fired the disarmed one
-        # has had its chance
+        # Deadlines fire in order, so this fires after the disarmed one would have
         watchdog.arm(0, later_fired.set)
 
         assert later_fired.wait(timeout=10)
@@ -2256,7 +2254,7 @@ class TestTaskTimeoutWatchdog:
             watchdog.disarm(handles[0])
             disarmed.set()
 
-        # Hold the thread off until the handle is recorded for the callback to use
+        # Hold the thread off until the callback can read its handle
         with watchdog._lock:
             handles.append(watchdog.arm(0, disarm_own_deadline))
 
@@ -2274,8 +2272,7 @@ class TestTaskTimeoutWatchdog:
         assert thread is not None
 
         try:
-            # The thread waits on the deadline as soon as it starts, so it would
-            # have died by the time this gives up
+            # A thread that cannot wait on the deadline dies straight away
             thread.join(timeout=0.5)
             assert thread.is_alive()
         finally:
@@ -2380,7 +2377,6 @@ class TestTaskTimeoutWatchdog:
 
             assert later_fired.wait(timeout=10)
 
-        # The failure is swallowed, but leaves a trace for debugging a missing warning
         assert "RuntimeError: boom" in caplog.text
 
     def test_run_survives_a_watchdog_that_cannot_start(self):
@@ -2630,7 +2626,6 @@ class TestTaskTimeoutExceededWarning:
 
         assert is_failed
         assert state_name == "Failed"
-        # The run's deadline is disarmed on the way out of a failure too
         assert watchdog_calls["armed"]
         assert set(watchdog_calls["armed"]) <= set(watchdog_calls["disarmed"])
 
@@ -2678,8 +2673,7 @@ class TestTaskTimeoutExceededWarning:
         def timed_task():
             running_in_body.append(api_log_worker_running())
 
-        # The engine's own debug logs would otherwise start the worker first, which
-        # they do not do at the default level
+        # Engine debug logs, off at the default level, would start the worker first
         with caplog.at_level(logging.WARNING, logger="prefect.task_runs"):
             run_task_sync(timed_task)
 
@@ -2720,8 +2714,7 @@ class TestTaskTimeoutExceededWarning:
             mock.patch.object(
                 APILogWorker, "_new_instance", staticmethod(recording_new_instance)
             ),
-            # The engine's own logs would otherwise start another worker after the
-            # drain
+            # Engine logs would otherwise start another worker after the drain
             caplog.at_level(logging.WARNING, logger="prefect.flow_runs"),
             caplog.at_level(logging.WARNING, logger="prefect.task_runs"),
         ):
