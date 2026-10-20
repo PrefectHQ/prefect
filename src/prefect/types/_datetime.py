@@ -153,14 +153,16 @@ def human_friendly_diff(
         """Return *ts* with a valid ZoneInfo; fall back to UTC if needed."""
         if ts.tzinfo is None:
             local_tz = datetime.datetime.now().astimezone().tzinfo
-            return ts.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
+            return _pendulum_call(ts, "replace", tzinfo=local_tz).astimezone(
+                ZoneInfo("UTC")
+            )
 
         if isinstance(ts.tzinfo, ZoneInfo):
             return ts  # already valid
 
         if tz_name := getattr(ts.tzinfo, "name", None):
             try:
-                return ts.replace(tzinfo=ZoneInfo(tz_name))
+                return _pendulum_call(ts, "replace", tzinfo=ZoneInfo(tz_name))
             except ZoneInfoNotFoundError:
                 pass
 
