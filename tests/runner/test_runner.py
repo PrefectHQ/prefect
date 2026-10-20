@@ -25,7 +25,10 @@ import httpx
 import pytest
 import respx
 import uv
-from pydantic import BaseModel, RootModel, computed_field, field_serializer
+from packaging.version import Version
+from pydantic import BaseModel, Field, RootModel, computed_field, field_serializer
+from pydantic.dataclasses import dataclass as pydantic_dataclass
+from pydantic.version import VERSION as PYDANTIC_VERSION
 from starlette import status
 
 import prefect.runner
@@ -3973,6 +3976,11 @@ class TestRunnerDeployment:
 
         class Options(BaseModel):
             starts_at: datetime.datetime
+            hidden: str = Field(default="secret", exclude=True)
+
+        @pydantic_dataclass
+        class DataclassOptions:
+            starts_at: datetime.datetime
 
         class CustomTemporalModel(BaseModel):
             starts_at: datetime.datetime
@@ -4007,7 +4015,8 @@ class TestRunnerDeployment:
             run_on: datetime.date,
             at_time: datetime.time,
             offset_at: str | datetime.datetime,
-            options: dict[str, float],
+            options: dict[str, str],
+            dataclass_options: dict[str, str],
             custom_model: dict[str, str],
             wrapper: dict[str, Any],
             root: list[int],
@@ -4023,7 +4032,8 @@ class TestRunnerDeployment:
                 "run_on": run_on,
                 "at_time": at_time,
                 "offset_at": offset_at,
-                "options": Options(starts_at=scheduled_at),
+                "options": Options(starts_at=offset_at),
+                "dataclass_options": DataclassOptions(starts_at=offset_at),
                 "custom_model": CustomTemporalModel(starts_at=scheduled_at),
                 "wrapper": WrapperModel(
                     child=JsonOnlyChild(starts_at=scheduled_at), when=scheduled_at
@@ -4037,7 +4047,7 @@ class TestRunnerDeployment:
         deployment_id = await deployment.apply()
         stored_deployment = await prefect_client.read_deployment(deployment_id)
 
-        assert stored_deployment.parameters == {
+        expected_parameters = {
             "scheduled_at": scheduled_at.timestamp(),
             "delay": delay.total_seconds(),
             "run_on": datetime.datetime(
@@ -4047,28 +4057,39 @@ class TestRunnerDeployment:
             # aware datetimes serialize their wall time as UTC, matching the
             # historical `ser_json_timedelta="float"` encoding
             "offset_at": scheduled_at.timestamp(),
-            # temporal fields inside ordinary nested models keep the epoch
-            # encoding
-            "options": {"starts_at": scheduled_at.timestamp()},
+            # nested models retain their own serialization, including offsets
+            # and excluded fields
+            "options": {"starts_at": "2024-01-02T03:04:05-05:00"},
+            "dataclass_options": {"starts_at": "2024-01-02T03:04:05-05:00"},
             # models with custom serializers are left to their own serializers
             "custom_model": {"starts_at": "custom"},
             # nested models keep their instances so JSON-only serializers run
             "wrapper": {
                 "child": {"starts_at": "custom"},
-                "when": scheduled_at.timestamp(),
+                "when": "2024-01-02T03:04:05Z",
             },
             # root models store their root value
             "root": [1, 2],
             # computed fields are included like `model_dump` output
             "computed": {
-                "when": scheduled_at.timestamp(),
+                "when": "2024-01-02T03:04:05Z",
                 "doubled": scheduled_at.timestamp() * 2,
             },
         }
+        legacy_temporal_serialization = Version(PYDANTIC_VERSION) < Version("2.12")
+        if legacy_temporal_serialization:
+            # Before 2.12, only timedeltas were encoded as numbers.
+            expected_parameters.update(
+                scheduled_at="2024-01-02T03:04:05Z",
+                run_on="2024-01-02",
+                at_time="03:04:05",
+                offset_at="2024-01-02T03:04:05-05:00",
+            )
+        assert stored_deployment.parameters == expected_parameters
         validated_parameters = flow_with_temporal_parameters.validate_parameters(
             stored_deployment.parameters
         )
-        assert validated_parameters == {
+        expected_validated_parameters = expected_parameters | {
             "scheduled_at": scheduled_at,
             "delay": delay,
             "run_on": run_on,
@@ -4077,18 +4098,14 @@ class TestRunnerDeployment:
             # the epoch encoding loses the UTC offset; it parses back as the
             # wall time in UTC
             "offset_at": scheduled_at,
-            "options": {"starts_at": scheduled_at.timestamp()},
-            "custom_model": {"starts_at": "custom"},
-            "wrapper": {
-                "child": {"starts_at": "custom"},
-                "when": scheduled_at.timestamp(),
-            },
-            "root": [1, 2],
-            "computed": {
-                "when": scheduled_at.timestamp(),
-                "doubled": scheduled_at.timestamp() * 2,
-            },
         }
+        if legacy_temporal_serialization:
+            expected_validated_parameters.update(
+                scheduled_at=expected_parameters["scheduled_at"],
+                at_time=at_time,
+                offset_at=expected_parameters["offset_at"],
+            )
+        assert validated_parameters == expected_validated_parameters
 
     async def test_applied_deployment_stores_and_resolves_saved_block_parameter(
         self,

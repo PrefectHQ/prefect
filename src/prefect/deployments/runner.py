@@ -37,7 +37,7 @@ import sys
 import tempfile
 import warnings
 from contextlib import suppress
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -55,12 +55,12 @@ from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
-    RootModel,
     TypeAdapter,
     field_serializer,
     field_validator,
     model_validator,
 )
+from pydantic.dataclasses import is_pydantic_dataclass
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
@@ -150,50 +150,21 @@ def _should_clear_empty_schedules() -> bool:
 
 _DEPLOYMENT_PARAMETER_SERIALIZER = TypeAdapter(
     dict[str, Any],
-    config=ConfigDict(ser_json_timedelta="float"),
+    config=ConfigDict(ser_json_timedelta="float", ser_json_temporal="seconds"),
 )
 
 
-def _encode_temporal(value: Any) -> Any:
-    # `ser_json_timedelta="float"` also used to encode datetimes, dates, and
-    # times as epoch floats; pydantic 2.14 narrowed it to timedeltas only, so
-    # reproduce the epoch encoding ourselves to keep the API contract
-    if isinstance(value, datetime):
-        # pydantic 2.13 treated the wall time as UTC even for aware datetimes
-        return value.replace(tzinfo=UTC).timestamp()
-    if isinstance(value, date):
-        return datetime(value.year, value.month, value.day, tzinfo=UTC).timestamp()
-    if isinstance(value, time):
-        return (
-            value.hour * 3600
-            + value.minute * 60
-            + value.second
-            + value.microsecond / 1e6
-        )
-    if isinstance(value, BaseModel):
-        decorators = value.__pydantic_decorators__
-        if decorators.field_serializers or decorators.model_serializers:
-            # keep models with custom serializers opaque so they handle
-            # their own temporal fields
-            raise StopVisiting()
-        if isinstance(value, RootModel):
-            # root models serialize to their root value, not {"root": ...}
-            return value.root
-        # ordinary models were previously stored with temporal fields encoded
-        # as epoch numbers; dump the field values (without recursing into
-        # nested models, which get their own serializer check) and let
-        # traversal encode them
-        fields = {
-            name: getattr(value, name)
-            for name in type(value).model_fields | type(value).model_computed_fields
-        }
-        fields.update(value.__pydantic_extra__ or {})
-        return fields
+def _normalize_parameter_datetime(value: Any) -> Any:
+    if isinstance(value, BaseModel) or is_pydantic_dataclass(type(value)):
+        # Models own their serialization, including temporal fields and blocks.
+        raise StopVisiting()
+    if (
+        isinstance(value, datetime)
+        and "ser_json_temporal" in ConfigDict.__annotations__
+    ):
+        # Preserve pydantic 2.12-2.13's wall-time-as-UTC encoding outside models.
+        return value.replace(tzinfo=UTC)
     return value
-
-
-def _encode_temporal_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
-    return visit_collection(parameters, _encode_temporal, return_data=True)
 
 
 def _extract_concurrency_options(
@@ -393,7 +364,9 @@ class RunnerDeployment(BaseModel):
     @field_serializer("parameters", when_used="json")
     def serialize_block_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
         return _DEPLOYMENT_PARAMETER_SERIALIZER.dump_python(
-            _encode_temporal_parameters(parameters),
+            visit_collection(
+                parameters, _normalize_parameter_datetime, return_data=True
+            ),
             mode="json",
             context={"serialize_blocks_as_references": True},
         )
