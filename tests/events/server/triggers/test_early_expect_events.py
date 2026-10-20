@@ -15,7 +15,6 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import prefect.types._datetime
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automations
 from prefect.server.events.models.automation_held_events import (
@@ -28,7 +27,7 @@ from prefect.server.events.schemas.automations import (
     Posture,
 )
 from prefect.server.events.schemas.events import Event
-from prefect.types._datetime import DateTime, now
+from prefect.types._datetime import DateTime
 
 pytestmark = pytest.mark.clear_db
 
@@ -403,25 +402,22 @@ Advance = Callable[[timedelta], DateTime]
 
 async def test_expect_event_is_still_held_when_a_lost_follower_is_evaluated(
     act: mock.AsyncMock,
+    advance_time: Advance,
     make_trigger: MakeTrigger,
     automations_session: AsyncSession,
-    monkeypatch: pytest.MonkeyPatch,
 ):
     """A follows an event that never arrives, so it waits a full lookback and is
     evaluated as a lost follower by the periodic evaluation, which also sweeps held
     events. Its window still counts the B that was held before it."""
     within = 2 * PRECEDING_EVENT_LOOKBACK
     trigger = await make_trigger({"B"}, within=within)
-    start = now("UTC")
+    start = advance_time(timedelta(0))
 
     await receive("B", start + timedelta(seconds=1))
     with pytest.raises(EventArrivedEarly):
         await receive("A", start, follows=uuid4())
 
-    # The causal ordering finds lost followers by the current time, so the clock
-    # moves past the lookback for the periodic evaluation.
-    later = start + PRECEDING_EVENT_LOOKBACK + timedelta(minutes=1)
-    monkeypatch.setattr(prefect.types._datetime, "now", lambda tz=None: later)
+    later = advance_time(PRECEDING_EVENT_LOOKBACK + timedelta(minutes=1))
     await triggers.periodic_evaluation(later)
     # The periodic evaluation can reload the automations, which replaces the trigger.
     trigger = triggers.triggers[trigger.id]
