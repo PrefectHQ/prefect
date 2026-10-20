@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import warnings
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -3351,6 +3352,7 @@ class TestSchedules:
         assert actual_slug_active == expected_slug_active
 
     @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.parametrize("clear_schedules", [False, True])
     @pytest.mark.parametrize("slug", [None, "daily"])
     @pytest.mark.parametrize(
         "schedule_config, clears_schedules, interactive",
@@ -3369,6 +3371,7 @@ class TestSchedules:
         clears_schedules: bool,
         interactive: bool,
         slug: str | None,
+        clear_schedules: bool,
         request: pytest.FixtureRequest,
     ):
         if interactive:
@@ -3409,20 +3412,33 @@ class TestSchedules:
         config["deployments"][0]["description"] = "Updated description"
         prefect_file.write_text(yaml.safe_dump(config))
 
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy --all",
-            expected_code=0,
-            # Decline configuring schedules when prompted.
-            user_input="n\n" if interactive else None,
-        )
+        with temporary_settings(
+            {"deployments.clear_schedules_on_empty": clear_schedules}
+        ):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", FutureWarning)
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command="deploy --all",
+                    expected_code=0,
+                    # Decline configuring schedules when prompted.
+                    user_input="n\n" if interactive else None,
+                )
+        deprecations = [w for w in caught if issubclass(w.category, FutureWarning)]
+        if clears_schedules and not clear_schedules:
+            assert len(deprecations) == 1
+            assert "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true" in str(
+                deprecations[0].message
+            )
+        else:
+            assert deprecations == []
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
         assert deployment.id == deployment_id
         assert deployment.description == "Updated description"
         assert deployment.paused is False
-        if clears_schedules and slug is None:
+        if clears_schedules and clear_schedules:
             assert deployment.schedules == []
         else:
             assert len(deployment.schedules) == 1

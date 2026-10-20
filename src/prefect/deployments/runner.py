@@ -35,6 +35,8 @@ import importlib
 import os
 import sys
 import tempfile
+import warnings
+from contextlib import suppress
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
@@ -103,6 +105,7 @@ from prefect.schedules import Schedule
 from prefect.settings import (
     PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
+    get_current_settings,
 )
 from prefect.types import ListOfNonEmptyStrings
 from prefect.types.entrypoint import EntrypointType
@@ -124,6 +127,25 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
 
 __all__ = ["RunnerDeployment"]
+
+
+def _should_clear_empty_schedules() -> bool:
+    if get_current_settings().deployments.clear_schedules_on_empty:
+        return True
+
+    warnings.warn(
+        "Preserving existing schedules when an empty schedules list is provided "
+        "on redeployment is deprecated. A future release will clear schedules "
+        "by default after at least six months or three minor releases, whichever "
+        "is longer. The opt-in setting and this warning will then be removed. "
+        "Set PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true to opt in now. "
+        "To preserve existing schedules, omit schedules or use schedules=None "
+        "(schedules: null in prefect.yaml).",
+        FutureWarning,
+        stacklevel=3,
+    )
+    return False
+
 
 _DEPLOYMENT_PARAMETER_SERIALIZER = TypeAdapter(
     dict[str, Any],
@@ -756,6 +778,9 @@ class RunnerDeployment(BaseModel):
         Registers this deployment with the API and returns the deployment's ID.
 
         Args:
+            schedules: Override the schedules for this deployment. On redeployment,
+                an empty list preserves schedules by default and emits a warning.
+                Set `PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true` to clear them.
             work_pool_name: The name of the work pool to use for this
                 deployment.
             image: The registry, name, and tag of the Docker image to
@@ -784,11 +809,24 @@ class RunnerDeployment(BaseModel):
                     self.job_variables["image"] = image
                 if work_pool_name:
                     self.work_pool_name = work_pool_name
-                if schedules is not None:
+                clear_schedules = schedules == [] and _should_clear_empty_schedules()
+                if schedules or clear_schedules:
                     self.schedules = [
-                        DeploymentScheduleUpdate(**schedule) for schedule in schedules
+                        DeploymentScheduleUpdate(**schedule)
+                        for schedule in schedules or []
                     ]
-                return await self._update(deployment.id, client, version_info)
+                await self._update(deployment.id, client, version_info)
+                # The update API preserves empty-list updates when all existing
+                # schedules have slugs. Clear those explicitly after a successful update.
+                if clear_schedules and all(
+                    schedule.slug is not None for schedule in deployment.schedules
+                ):
+                    for schedule in deployment.schedules:
+                        with suppress(ObjectNotFound):
+                            await client.delete_deployment_schedule(
+                                deployment.id, schedule.id
+                            )
+                return deployment.id
 
     @async_dispatch(aapply)
     def apply(
@@ -802,6 +840,9 @@ class RunnerDeployment(BaseModel):
         Registers this deployment with the API and returns the deployment's ID.
 
         Args:
+            schedules: Override the schedules for this deployment. On redeployment,
+                an empty list preserves schedules by default and emits a warning.
+                Set `PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true` to clear them.
             work_pool_name: The name of the work pool to use for this
                 deployment.
             image: The registry, name, and tag of the Docker image to
@@ -829,11 +870,23 @@ class RunnerDeployment(BaseModel):
                     self.job_variables["image"] = image
                 if work_pool_name:
                     self.work_pool_name = work_pool_name
-                if schedules is not None:
+                clear_schedules = schedules == [] and _should_clear_empty_schedules()
+                if schedules or clear_schedules:
                     self.schedules = [
-                        DeploymentScheduleUpdate(**schedule) for schedule in schedules
+                        DeploymentScheduleUpdate(**schedule)
+                        for schedule in schedules or []
                     ]
-                return self._update_sync(deployment.id, client, version_info)
+                self._update_sync(deployment.id, client, version_info)
+                # Keep explicit clearing in sync with aapply above.
+                if clear_schedules and all(
+                    schedule.slug is not None for schedule in deployment.schedules
+                ):
+                    for schedule in deployment.schedules:
+                        with suppress(ObjectNotFound):
+                            client.delete_deployment_schedule(
+                                deployment.id, schedule.id
+                            )
+                return deployment.id
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
         if not isinstance(self._sla, list):

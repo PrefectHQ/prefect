@@ -92,6 +92,7 @@ from prefect.states import Cancelling, Crashed
 from prefect.types._datetime import now
 from prefect.utilities import processutils
 from prefect.utilities.annotations import freeze
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import command_to_string
@@ -3629,6 +3630,8 @@ class TestRunnerDeployment:
         assert deployment.paused is False
         assert deployment.global_concurrency_limit is None
 
+    @pytest.mark.parametrize("clear_schedules", [False, True])
+    @pytest.mark.parametrize("slug", [None, "daily"])
     @pytest.mark.parametrize(
         "apply_kwargs, expected_cron",
         [
@@ -3647,11 +3650,17 @@ class TestRunnerDeployment:
         prefect_client: PrefectClient,
         apply_kwargs: dict[str, Any],
         expected_cron: str | None,
+        clear_schedules: bool,
+        slug: str | None,
     ):
         original = RunnerDeployment.from_flow(
             dummy_flow_1,
             name="schedule-update",
-            cron="0 4 * * *",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="0 4 * * *"), slug=slug
+                )
+            ],
             version_type=VersionType.SIMPLE,
         )
         deployment_id = await original.aapply()
@@ -3664,7 +3673,27 @@ class TestRunnerDeployment:
             flow_name=original.flow_name,
             version_type=VersionType.SIMPLE,
         )
-        updated_id = await deployment.aapply(**apply_kwargs)
+        if apply_kwargs.get("schedules"):
+            apply_kwargs = {
+                "schedules": [{**apply_kwargs["schedules"][0], "slug": slug}]
+            }
+        with temporary_settings(
+            {"deployments.clear_schedules_on_empty": clear_schedules}
+        ):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", FutureWarning)
+                updated_id = await deployment.aapply(**apply_kwargs)
+
+        deprecations = [w for w in caught if issubclass(w.category, FutureWarning)]
+        if apply_kwargs.get("schedules") == [] and not clear_schedules:
+            assert len(deprecations) == 1
+            message = str(deprecations[0].message)
+            assert "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true" in message
+            assert "six months or three minor releases, whichever is longer" in message
+            assert "schedules=None" in message
+            expected_cron = "0 4 * * *"
+        else:
+            assert deprecations == []
 
         assert updated_id == deployment_id
         updated = await prefect_client.read_deployment(deployment_id)
@@ -3674,6 +3703,101 @@ class TestRunnerDeployment:
         else:
             assert len(updated.schedules) == 1
             assert updated.schedules[0].schedule == CronSchedule(cron=expected_cron)
+            assert updated.schedules[0].active is True
+            if expected_cron == "0 4 * * *":
+                assert updated.schedules[0].id == before.schedules[0].id
+
+    @pytest.mark.parametrize("sync", [False, True])
+    @pytest.mark.parametrize(
+        "slugs", [[], [None, None], [None, "daily"], ["daily", "nightly"]]
+    )
+    async def test_opt_in_clears_all_schedules(
+        self, prefect_client: PrefectClient, sync: bool, slugs: list[str | None]
+    ):
+        original = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            name="clear-all-schedules",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron=f"0 {hour} * * *"), slug=slug
+                )
+                for hour, slug in enumerate(slugs)
+            ],
+            version_type=VersionType.SIMPLE,
+        )
+        deployment_id = await original.aapply()
+        deployment = RunnerDeployment(
+            name=original.name,
+            flow_name=original.flow_name,
+            version_type=VersionType.SIMPLE,
+        )
+        with temporary_settings({"deployments.clear_schedules_on_empty": True}):
+            # Clearing an already empty deployment must also succeed.
+            for _ in range(2):
+                if sync:
+                    updated_id = await run_sync_in_worker_thread(
+                        deployment.apply, schedules=[], _sync=True
+                    )
+                else:
+                    updated_id = await deployment.aapply(schedules=[])
+                assert updated_id == deployment_id
+                assert (
+                    await prefect_client.read_deployment(deployment_id)
+                ).schedules == []
+
+    @pytest.mark.parametrize("sync", [False, True])
+    @pytest.mark.parametrize("clear_schedules", [False, True])
+    async def test_new_deployment_with_empty_schedules_does_not_warn(
+        self, prefect_client: PrefectClient, sync: bool, clear_schedules: bool
+    ):
+        deployment = RunnerDeployment(
+            name="new-empty-schedules",
+            flow_name="empty-schedules",
+            version_type=VersionType.SIMPLE,
+        )
+        with temporary_settings(
+            {"deployments.clear_schedules_on_empty": clear_schedules}
+        ):
+            # Warnings are errors under the test suite's default filter.
+            if sync:
+                deployment_id = await run_sync_in_worker_thread(
+                    deployment.apply, schedules=[], _sync=True
+                )
+            else:
+                deployment_id = await deployment.aapply(schedules=[])
+        assert (await prefect_client.read_deployment(deployment_id)).schedules == []
+
+    @pytest.mark.parametrize("sync", [False, True])
+    async def test_failed_update_does_not_clear_slugged_schedules(
+        self, prefect_client: PrefectClient, sync: bool
+    ):
+        @flow
+        def parameterized(value: int = 1):
+            pass
+
+        deployment = RunnerDeployment.from_flow(
+            parameterized,
+            name="invalid-update",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="0 4 * * *"), slug="daily"
+                )
+            ],
+            version_type=VersionType.SIMPLE,
+        )
+        deployment_id = await deployment.aapply()
+        before = await prefect_client.read_deployment(deployment_id)
+        deployment.parameters = {"value": "invalid integer"}
+        with temporary_settings({"deployments.clear_schedules_on_empty": True}):
+            with pytest.raises(PrefectHTTPStatusError, match="409"):
+                if sync:
+                    await run_sync_in_worker_thread(
+                        deployment.apply, schedules=[], _sync=True
+                    )
+                else:
+                    await deployment.aapply(schedules=[])
+        after = await prefect_client.read_deployment(deployment_id)
+        assert after.schedules == before.schedules
 
     async def test_saved_block_parameters_are_converted_to_references(
         self, saved_secret_block: tuple[Secret[Any], uuid.UUID]
@@ -5609,6 +5733,8 @@ class TestAsyncDispatch:
         result = sync_prefect_client.read_deployment(deployment_id)
         assert result.name == "test_runner"
 
+    @pytest.mark.parametrize("clear_schedules", [False, True])
+    @pytest.mark.parametrize("slug", [None, "daily"])
     @pytest.mark.parametrize(
         "apply_kwargs, expected_cron",
         [
@@ -5627,11 +5753,17 @@ class TestAsyncDispatch:
         sync_prefect_client: SyncPrefectClient,
         apply_kwargs: dict[str, Any],
         expected_cron: str | None,
+        clear_schedules: bool,
+        slug: str | None,
     ):
         original = RunnerDeployment.from_flow(
             dummy_flow_1,
             name="schedule-update",
-            cron="0 4 * * *",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="0 4 * * *"), slug=slug
+                )
+            ],
             version_type=VersionType.SIMPLE,
         )
         deployment_id = original.apply()
@@ -5644,7 +5776,27 @@ class TestAsyncDispatch:
             flow_name=original.flow_name,
             version_type=VersionType.SIMPLE,
         )
-        updated_id = deployment.apply(**apply_kwargs)
+        if apply_kwargs.get("schedules"):
+            apply_kwargs = {
+                "schedules": [{**apply_kwargs["schedules"][0], "slug": slug}]
+            }
+        with temporary_settings(
+            {"deployments.clear_schedules_on_empty": clear_schedules}
+        ):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", FutureWarning)
+                updated_id = deployment.apply(**apply_kwargs)
+
+        deprecations = [w for w in caught if issubclass(w.category, FutureWarning)]
+        if apply_kwargs.get("schedules") == [] and not clear_schedules:
+            assert len(deprecations) == 1
+            message = str(deprecations[0].message)
+            assert "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true" in message
+            assert "six months or three minor releases, whichever is longer" in message
+            assert "schedules=None" in message
+            expected_cron = "0 4 * * *"
+        else:
+            assert deprecations == []
 
         assert updated_id == deployment_id
         updated = sync_prefect_client.read_deployment(deployment_id)
@@ -5654,6 +5806,9 @@ class TestAsyncDispatch:
         else:
             assert len(updated.schedules) == 1
             assert updated.schedules[0].schedule == CronSchedule(cron=expected_cron)
+            assert updated.schedules[0].active is True
+            if expected_cron == "0 4 * * *":
+                assert updated.schedules[0].id == before.schedules[0].id
 
     def test_apply_saved_block_parameter_in_sync_context(
         self, sync_prefect_client: SyncPrefectClient
