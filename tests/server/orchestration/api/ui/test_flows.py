@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
+from httpx import AsyncClient
 
 from prefect.server import models, schemas
 from prefect.server.api.ui.flows import SimpleNextFlowRun
@@ -217,7 +218,9 @@ class TestNextRunsByFlow:
 
 
 @pytest.mark.parametrize("endpoint", ["count-deployments", "next-runs"])
-async def test_flow_id_bulk_endpoints_accept_200_ids(endpoint: str, client):
+async def test_flow_id_bulk_endpoints_accept_200_ids(
+    endpoint: str, client: AsyncClient
+):
     response = await client.post(
         f"/ui/flows/{endpoint}",
         json={"flow_ids": [str(uuid4()) for _ in range(200)]},
@@ -226,7 +229,9 @@ async def test_flow_id_bulk_endpoints_accept_200_ids(endpoint: str, client):
 
 
 @pytest.mark.parametrize("endpoint", ["count-deployments", "next-runs"])
-async def test_flow_id_bulk_endpoints_reject_more_than_200_ids(endpoint: str, client):
+async def test_flow_id_bulk_endpoints_reject_more_than_200_ids(
+    endpoint: str, client: AsyncClient
+):
     response = await client.post(
         f"/ui/flows/{endpoint}",
         json={"flow_ids": [str(uuid4()) for _ in range(201)]},
