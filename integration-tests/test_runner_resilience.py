@@ -8,11 +8,15 @@ import shutil
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
+
 from prefect import flow
 from prefect.runner import Runner
 
 
-async def test_runner_resilience_with_missing_file(tmp_path: Path):
+async def test_runner_resilience_with_missing_file(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+):
     """Test that runners handle missing flow files gracefully"""
 
     flow_file = tmp_path / "my_flow.py"
@@ -90,9 +94,12 @@ async def test_runner_resilience_with_missing_file(tmp_path: Path):
             shutil.rmtree(tmp_path, ignore_errors=True)
 
     assert not runner_crashed, "Runner raised while the flow file was missing"
-    # A final state shows the runner picked up and finished the run, rather than
-    # exiting without submitting it.
-    assert flow_run.state is not None and flow_run.state.is_final(), (
-        f"Expected the flow run to finish, but its state is {flow_run.state!r}"
+    # The engine cannot load the deleted file, so the runner reports the run as
+    # crashed and then fails to load the flow for its on_crashed hooks.
+    assert flow_run.state is not None and flow_run.state.is_crashed(), (
+        f"Expected the flow run to crash, but its state is {flow_run.state!r}"
     )
-    print(f"\n✅ Runner survived missing flow file! Final state: {flow_run.state.name}")
+    assert (
+        "Runner failed to retrieve flow to execute on_crashed hooks" in caplog.text
+    ), "The runner did not reach its on_crashed hook handling"
+    print("\n✅ Runner survived missing flow file!")
