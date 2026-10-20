@@ -366,6 +366,33 @@ class TestTaskSourcePolicy:
         assert keys[0] == keys[2]
         assert keys[0] != keys[1]
 
+    @pytest.mark.parametrize("expression", ["x + 1", "(lambda: x + 1)()"])
+    @pytest.mark.parametrize(
+        "filename, prefix, indent",
+        [("job-2", "", "    "), ("job-1", "\n\n", "    "), ("job-2", "\n", "        ")],
+    )
+    def test_code_without_source_ignores_compilation_location(
+        self, expression: str, filename: str, prefix: str, indent: str
+    ):
+        policy = TaskSource()
+        keys = []
+        for name, padding, spacing in [
+            ("job-1", "", "    "),
+            (filename, prefix, indent),
+        ]:
+            namespace: dict[str, Any] = {}
+            code = compile(
+                f"{padding}def dynamic(x):\n{spacing}return {expression}", name, "exec"
+            )
+            exec(code, namespace)  # noqa: S102
+            dynamic_task = task(namespace["dynamic"])
+            assert dynamic_task.source_code is None
+            ctx = TaskRunContext.model_construct(task=dynamic_task)
+            keys.append(policy.compute_key(ctx, inputs=None, flow_parameters=None))
+
+        assert keys[0] is not None
+        assert keys[0] == keys[1]
+
     def test_changes_in_def_change_key(self):
         policy = TaskSource()
 
