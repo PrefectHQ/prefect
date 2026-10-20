@@ -70,7 +70,7 @@ def perform_health_check(
 
 def run_count(runner: "Runner") -> Callable[..., int]:
     def _run_count() -> int:
-        run_count = len(runner._flow_run_process_map)  # pyright: ignore[reportPrivateUsage]
+        run_count = len(runner._process_manager.flow_run_ids())  # pyright: ignore[reportPrivateUsage]
         return run_count
 
     return _run_count
