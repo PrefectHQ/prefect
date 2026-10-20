@@ -1196,6 +1196,15 @@ class TestAPILogWorker:
 
         assert APILogWorker._existing_instance() is worker
 
+    def test_existing_instance_skips_a_stopped_worker(self):
+        worker = APILogWorker.instance()
+        # As while it is stopping, before it evicts itself
+        worker._stopped = True
+        try:
+            assert APILogWorker._existing_instance() is None
+        finally:
+            worker._stopped = False
+
     @pytest.fixture
     def log_dict(self):
         return LogCreate(

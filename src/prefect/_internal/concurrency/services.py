@@ -333,7 +333,11 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         `_instance_lock`, which a thread holds while it waits on the global loop
         to start a new instance.
         """
-        return cls._instances.get(hash((cls, *args)))
+        with cls._instance_cache_lock:
+            instance = cls._instances.get(hash((cls, *args)))
+        if instance is None or instance._stopped:
+            return None
+        return instance
 
     def _remove_instance(self):
         # Only evict this instance; a newer instance may already be cached under
