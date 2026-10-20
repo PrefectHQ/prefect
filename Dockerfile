@@ -36,9 +36,13 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     chromium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies separately so they cache
+# Install dependencies separately so they cache.
+# npm silently skips optional dependencies that fail to download, which can drop the
+# platform-specific native bindings the Vite build needs; reinstall once if they're missing.
 COPY ./ui/package*.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps && \
+    (node -e "require('lightningcss'); require('rolldown')" || npm ci --legacy-peer-deps) && \
+    node -e "require('lightningcss'); require('rolldown')"
 
 # Build static UI files
 COPY ./ui .
@@ -61,9 +65,13 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     chromium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies separately so they cache
+# Install dependencies separately so they cache.
+# npm silently skips optional dependencies that fail to download, which can drop the
+# platform-specific native bindings the Vite build needs; reinstall once if they're missing.
 COPY ./ui-v2/package*.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps && \
+    (node -e "require('lightningcss'); require('rolldown')" || npm ci --legacy-peer-deps) && \
+    node -e "require('lightningcss'); require('rolldown')"
 
 # Build static UI files
 COPY ./ui-v2 .
