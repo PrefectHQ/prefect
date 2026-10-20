@@ -639,15 +639,21 @@ class RunnerDeployment(BaseModel):
         deployment_id: UUID,
         client: PrefectClient,
         version_info: VersionInfo | None,
+        *,
+        preserve_schedules: bool = False,
     ):
         parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
             exclude_unset=True
         )
 
+        exclude = {"storage", "name", "flow_name", "triggers", "version_type"}
+        if preserve_schedules:
+            # Explicitly set schedules survive exclude_unset, even when empty.
+            exclude.add("schedules")
         update_payload = self.model_dump(
             mode="json",
             exclude_unset=True,
-            exclude={"storage", "name", "flow_name", "triggers", "version_type"},
+            exclude=exclude,
         )
 
         if self.storage:
@@ -658,7 +664,7 @@ class RunnerDeployment(BaseModel):
         else:
             update_payload["pull_steps"] = None
 
-        if self.schedules:
+        if self.schedules and not preserve_schedules:
             update_payload["schedules"] = [
                 schedule.model_dump(mode="json", exclude_unset=True)
                 for schedule in self._schedules_with_serialized_block_parameters() or []
@@ -691,15 +697,21 @@ class RunnerDeployment(BaseModel):
         deployment_id: UUID,
         client: SyncPrefectClient,
         version_info: VersionInfo | None,
+        *,
+        preserve_schedules: bool = False,
     ):
         parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
             exclude_unset=True
         )
 
+        exclude = {"storage", "name", "flow_name", "triggers", "version_type"}
+        if preserve_schedules:
+            # Keep schedule exclusion in sync with _update above.
+            exclude.add("schedules")
         update_payload = self.model_dump(
             mode="json",
             exclude_unset=True,
-            exclude={"storage", "name", "flow_name", "triggers", "version_type"},
+            exclude=exclude,
         )
 
         if self.storage:
@@ -710,7 +722,7 @@ class RunnerDeployment(BaseModel):
         else:
             update_payload["pull_steps"] = None
 
-        if self.schedules:
+        if self.schedules and not preserve_schedules:
             update_payload["schedules"] = [
                 schedule.model_dump(mode="json", exclude_unset=True)
                 for schedule in self._schedules_with_serialized_block_parameters() or []
@@ -815,7 +827,12 @@ class RunnerDeployment(BaseModel):
                         DeploymentScheduleUpdate(**schedule)
                         for schedule in schedules or []
                     ]
-                await self._update(deployment.id, client, version_info)
+                await self._update(
+                    deployment.id,
+                    client,
+                    version_info,
+                    preserve_schedules=schedules == [] and not clear_schedules,
+                )
                 # The update API preserves empty-list updates when all existing
                 # schedules have slugs. Clear those explicitly after a successful update.
                 if clear_schedules and all(
@@ -876,7 +893,12 @@ class RunnerDeployment(BaseModel):
                         DeploymentScheduleUpdate(**schedule)
                         for schedule in schedules or []
                     ]
-                self._update_sync(deployment.id, client, version_info)
+                self._update_sync(
+                    deployment.id,
+                    client,
+                    version_info,
+                    preserve_schedules=schedules == [] and not clear_schedules,
+                )
                 # Keep explicit clearing in sync with aapply above.
                 if clear_schedules and all(
                     schedule.slug is not None for schedule in deployment.schedules

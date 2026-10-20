@@ -3708,6 +3708,93 @@ class TestRunnerDeployment:
                 assert updated.schedules[0].id == before.schedules[0].id
 
     @pytest.mark.parametrize("sync", [False, True])
+    @pytest.mark.parametrize("clear_schedules", [False, True])
+    @pytest.mark.parametrize("slug", [None, "daily"])
+    @pytest.mark.parametrize("preset", ["empty", "populated", "previously-cleared"])
+    async def test_empty_schedule_override_with_preset_schedules(
+        self,
+        prefect_client: PrefectClient,
+        sync: bool,
+        clear_schedules: bool,
+        slug: str | None,
+        preset: str,
+    ):
+        original = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            name="preset-schedules",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="0 4 * * *"), slug=slug
+                )
+            ],
+            version_type=VersionType.SIMPLE,
+        )
+        deployment_id = await original.aapply()
+        if preset == "previously-cleared":
+            deployment = original
+            with temporary_settings({"deployments.clear_schedules_on_empty": True}):
+                if sync:
+                    await run_sync_in_worker_thread(
+                        deployment.apply, schedules=[], _sync=True
+                    )
+                else:
+                    await deployment.aapply(schedules=[])
+            # Restore a server-side schedule, then reuse the cleared object.
+            await prefect_client.create_deployment_schedules(
+                deployment_id,
+                [
+                    DeploymentScheduleCreate(
+                        schedule=CronSchedule(cron="0 4 * * *"), slug=slug
+                    )
+                ],
+            )
+        else:
+            deployment = RunnerDeployment.from_flow(
+                dummy_flow_1,
+                name=original.name,
+                schedules=(
+                    [
+                        DeploymentScheduleCreate(
+                            schedule=CronSchedule(cron="0 5 * * *"), slug=slug
+                        )
+                    ]
+                    if preset == "populated"
+                    else []
+                ),
+                version_type=VersionType.SIMPLE,
+            )
+
+        before = await prefect_client.read_deployment(deployment_id)
+        assert len(before.schedules) == 1
+        preset_schedules = list(deployment.schedules)
+        deployment.description = "Updated without replacing preserved schedules"
+        with (
+            temporary_settings(
+                {"deployments.clear_schedules_on_empty": clear_schedules}
+            ),
+            warnings.catch_warnings(record=True) as caught,
+        ):
+            warnings.simplefilter("always", FutureWarning)
+            if sync:
+                updated_id = await run_sync_in_worker_thread(
+                    deployment.apply, schedules=[], _sync=True
+                )
+            else:
+                updated_id = await deployment.aapply(schedules=[])
+
+        deprecations = [w for w in caught if issubclass(w.category, FutureWarning)]
+        assert len(deprecations) == (0 if clear_schedules else 1)
+        assert updated_id == deployment_id
+        after = await prefect_client.read_deployment(deployment_id)
+        assert after.description == deployment.description
+        assert after.paused == before.paused
+        if clear_schedules:
+            assert after.schedules == []
+        else:
+            assert after.schedules == before.schedules
+            assert deployment.schedules == preset_schedules
+
+    @pytest.mark.parametrize("sync", [False, True])
     @pytest.mark.parametrize(
         "slugs", [[], [None, None], [None, "daily"], ["daily", "nightly"]]
     )
