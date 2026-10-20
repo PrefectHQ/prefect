@@ -825,8 +825,8 @@ async def test_reconnect_only_resends_events_after_interval_checkpoint(
         await client.emit(example_event_1)
         await client.emit(example_event_2)
 
-        # Wait for background checkpoint to confirm events 1 and 2
-        await asyncio.sleep(0.2)
+        await wait_for_events_to_be_confirmed(client)
+        assert len(client._unconfirmed_events) == 0
 
         # Now disconnect — only event_3 (emitted after checkpoint) should be resent
         puppeteer.hard_disconnect_after = example_event_3.id
