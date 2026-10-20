@@ -122,7 +122,17 @@ class TestFlowWithBlockParam:
         return OtherParamBlock
 
     @pytest.mark.parametrize(
-        "reference_type", ["uuid", "uuid_string", "id", "id_string", "id_urn", "slug"]
+        "reference_type",
+        [
+            "uuid",
+            "uuid_string",
+            "uuid_urn",
+            "uuid_uri",
+            "id",
+            "id_string",
+            "id_urn",
+            "slug",
+        ],
     )
     def test_flow_with_block_params(self, ParamBlock: type[Block], reference_type: str):
         ref_block = ParamBlock(a=10, b="foo")
@@ -131,6 +141,8 @@ class TestFlowWithBlockParam:
         references = {
             "uuid": ref_block._block_document_id,
             "uuid_string": str(ref_block._block_document_id),
+            "uuid_urn": ref_block._block_document_id.urn,
+            "uuid_uri": f"uuid:{ref_block._block_document_id}",
             "id": {"block_document_id": ref_block._block_document_id},
             "id_string": {"block_document_id": str(ref_block._block_document_id)},
             "id_urn": {"block_document_id": ref_block._block_document_id.urn},
@@ -249,8 +261,7 @@ class TestFlowWithSchemaParam:
             "#/$defs/Item",
             "https://example.com/schema.json",
             "schema.json#/$defs/Item",
-            "urn:uuid:12345678-1234-1234-1234-123456789abc",
-            "uuid:12345678-1234-1234-1234-123456789abc",
+            "urn:example:schema:Item",
         ],
     )
     def test_flow_preserves_schema_references(self, reference: str):
