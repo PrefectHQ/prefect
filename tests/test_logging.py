@@ -1289,15 +1289,19 @@ class TestAPILogWorker:
         logs = await prefect_client.read_logs(log_filter=log_filter)
         assert sorted(log.message for log in logs) == ["0", "1", "2", "3", "4"]
 
+    @pytest.mark.parametrize(
+        "batch_size",
+        [300, 200, 102],
+        ids=["three-max-logs", "two-max-logs", "one-max-log-and-brackets"],
+    )
     async def test_batch_ending_in_max_size_log_fits_in_batch_size(
-        self, respx_mock: respx.MockRouter
+        self, respx_mock: respx.MockRouter, batch_size: int
     ):
         create_logs = respx_mock.post(path__regex=r"/logs/$").mock(
             return_value=httpx.Response(201)
         )
         respx_mock.route().pass_through()
         max_log_size = 100
-        batch_size = 3 * max_log_size
 
         def serialized_log(size: int) -> bytes:
             # A JSON string of exactly `size` bytes

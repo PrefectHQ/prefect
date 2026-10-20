@@ -67,13 +67,15 @@ def emit_api_log(log: Dict[str, Any]) -> None:
 class APILogWorker(BatchedQueueService[bytes]):
     @property
     def max_batch_size(self) -> int:
-        # Leave room for one more maximum size log and for the opening bracket of
-        # the request body, so a full batch fits in the configured batch size
+        # A batch takes logs until it reaches this size, and the last log it takes
+        # can be a maximum size log. Leave room for that log and for the opening
+        # bracket of the request body, so the request fits in the configured
+        # batch size. A batch always takes at least one log.
         return max(
             PREFECT_LOGGING_TO_API_BATCH_SIZE.value()
             - PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()
             - 1,
-            PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
+            1,
         )
 
     @property
