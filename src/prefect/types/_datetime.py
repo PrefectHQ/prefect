@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import humanize
 from dateutil.parser import parse
-from pydantic import AfterValidator
+from pydantic import AfterValidator, WithJsonSchema
 from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
@@ -348,4 +348,17 @@ def _validate_positive_interval(v: Interval) -> Interval:
     return v
 
 
-PositiveInterval = Annotated[Interval, AfterValidator(_validate_positive_interval)]
+PositiveInterval = Annotated[
+    Interval,
+    AfterValidator(_validate_positive_interval),
+    # Pydantic's duration validation schema omits accepted numeric seconds.
+    WithJsonSchema(
+        {
+            "anyOf": [
+                {"type": "number", "exclusiveMinimum": 0},
+                {"type": "string"},
+            ]
+        },
+        mode="validation",
+    ),
+]
