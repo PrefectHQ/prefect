@@ -31,7 +31,12 @@ from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
-from prefect.types._datetime import DateTime, now, parse_datetime
+from prefect.types._datetime import (
+    DateTime,
+    _pendulum_call,
+    now,
+    parse_datetime,
+)
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun, TaskRun
@@ -58,7 +63,7 @@ def _parse_datetime_UTC(dt: str) -> datetime:
     parsed_dt = parse_datetime(dt)
     if parsed_dt.tzinfo is None:
         # if the datetime is naive, assume it is UTCff
-        return parsed_dt.replace(tzinfo=ZoneInfo("UTC"))
+        return _pendulum_call(parsed_dt, "replace", tzinfo=ZoneInfo("UTC"))
     else:
         # if the datetime is timezone-aware, convert to UTC
         return parsed_dt.astimezone(ZoneInfo("UTC"))

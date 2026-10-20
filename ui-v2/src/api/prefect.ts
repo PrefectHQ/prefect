@@ -6639,6 +6639,12 @@ export interface components {
          */
         DeploymentsSettings: {
             /**
+             * Clear Schedules On Empty
+             * @description Clear existing schedules when an empty schedules list is passed to RunnerDeployment.apply or aapply, including via prefect deploy. This opt-in setting will be removed when clearing becomes the default, after a deprecation period of at least six months or three minor releases, whichever is longer.
+             * @default false
+             */
+            clear_schedules_on_empty: boolean;
+            /**
              * Default Work Pool Name
              * @description The default work pool to use when creating deployments.
              */
