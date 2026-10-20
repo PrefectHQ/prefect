@@ -816,7 +816,7 @@ async def test_reconnect_only_resends_events_after_interval_checkpoint(
     puppeteer: Puppeteer,
 ):
     """After a background checkpoint clears confirmed events, a reconnect should
-    only resend events emitted after the checkpoint — not the full history."""
+    only resend events emitted after the checkpoint, not the full history."""
     client = Client(
         checkpoint_every=1000,
         checkpoint_interval=0.1,
@@ -828,14 +828,26 @@ async def test_reconnect_only_resends_events_after_interval_checkpoint(
         await wait_for_events_to_be_confirmed(client)
         assert len(client._unconfirmed_events) == 0
 
-        # Now disconnect — only event_3 (emitted after checkpoint) should be resent
+        # Now disconnect; only event_3 (emitted after the checkpoint) should be resent
         puppeteer.hard_disconnect_after = example_event_3.id
         await client.emit(example_event_3)
+
+        # The background checkpoint pings the dead connection, reconnects, and
+        # resends the events still unconfirmed
+        await wait_for_events_to_be_confirmed(client)
+        assert len(client._unconfirmed_events) == 0
 
     assert_recorded_events_in_order(
         recorder,
         [example_event_1, example_event_2, example_event_3],
     )
+    assert recorder.events == [
+        example_event_1,
+        example_event_2,
+        example_event_3,
+        example_event_3,
+    ]
+    assert recorder.connections == 2
 
 
 async def test_background_checkpoint_reconnects_after_connection_loss(
