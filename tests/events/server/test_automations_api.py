@@ -233,6 +233,36 @@ def test_minimum_proactive_within_is_required_but_defaulted():
     assert trigger.within == timedelta(seconds=10)
 
 
+@pytest.mark.parametrize(
+    "within, expected",
+    [
+        ("PT0S", timedelta(seconds=10)),
+        ("PT30S", timedelta(seconds=30)),
+        ("00:00:30", timedelta(seconds=30)),
+    ],
+)
+def test_proactive_within_accepts_duration_strings(within: str, expected: timedelta):
+    trigger = EventTrigger.model_validate(
+        {"posture": Posture.Proactive, "threshold": 1, "within": within}
+    )
+    assert trigger.within == expected
+
+
+@pytest.mark.parametrize(
+    "within, message",
+    [
+        ("PT5S", "greater than or equal to 10 seconds"),
+        ("30", "should be a valid timedelta"),
+        ("not a duration", "should be a valid timedelta"),
+    ],
+)
+def test_proactive_within_rejects_invalid_strings(within: str, message: str):
+    with pytest.raises(pydantic.ValidationError, match=message):
+        EventTrigger.model_validate(
+            {"posture": Posture.Proactive, "threshold": 1, "within": within}
+        )
+
+
 async def test_create_automation_allows_specifying_just_owner_resource(
     client: AsyncClient,
     automations_session: AsyncSession,

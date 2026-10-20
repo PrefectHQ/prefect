@@ -26,6 +26,7 @@ import pytest
 from pydantic import BaseModel, GetCoreSchemaHandler, TypeAdapter
 from pydantic_core import core_schema
 
+import prefect.types._datetime
 from prefect import task
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import TaskRunContext
@@ -1276,3 +1277,19 @@ class TestPendulumCompatibility:
         assert value.naive().tzinfo is None
         with travel_to(FIXED):
             assert DateTime.now("UTC") == FIXED
+
+
+class TestPatchedClock:
+    @pytest.mark.parametrize("clock_fixture", ["frozen_time", "advance_time"])
+    def test_patched_now_stays_aware_under_arithmetic(
+        self, request: pytest.FixtureRequest, clock_fixture: str
+    ):
+        request.getfixturevalue(clock_fixture)
+        current = prefect.types._datetime.now("UTC")
+
+        earlier = current - datetime.timedelta(minutes=1)
+
+        assert earlier.tzinfo is not None
+        assert earlier == datetime.datetime.fromtimestamp(
+            current.timestamp(), datetime.timezone.utc
+        ) - datetime.timedelta(minutes=1)

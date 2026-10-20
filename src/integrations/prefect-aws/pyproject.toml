@@ -45,7 +45,7 @@ dev = [
     "mkdocs-gen-files",
     "mkdocs-material",
     "mkdocstrings-python-legacy",
-    "moto[cloudformation]>=5",
+    "moto[cloudformation]>=5.2.4",
     "mypy",
     "pillow",
     "pytest >= 8.3",

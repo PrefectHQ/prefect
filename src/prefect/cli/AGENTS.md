@@ -6,6 +6,7 @@ Prefect command-line interface, powered by **cyclopts**.
 
 - **Use `rich` for all output.** Console output via `rich.console`, tables via `rich.table`, progress bars via `rich.progress`. Always use `exit_with_error` for error exits.
 - **Support JSON output whenever possible.** Commands should have a `--json` flag or equivalent for machine-readable output. Any diagnostic or informational `print()` calls must be suppressed when JSON output is active — mixing human-readable text with the JSON payload breaks machine consumers.
+- **Page through "all records" reads.** Client `read_*` list calls without `limit` return at most `PREFECT_SERVER_API_DEFAULT_LIMIT` (200) rows (server `LimitBody`), so `--all`/bulk commands must loop on `offset`. When deleting while paging, re-read from offset 0 each pass — advancing `offset` skips rows that shifted into earlier pages.
 - **Excluded from `prefect-client`** — the entire `cli/` directory is stripped during the client package build.
 
 ## Structure

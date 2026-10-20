@@ -1,3 +1,4 @@
+import itertools
 import json
 import sys
 from datetime import timedelta
@@ -1453,6 +1454,61 @@ class TestDeploymentDelete:
         )
         deployments = await prefect_client.read_deployments()
         assert len(deployments) == 0
+
+    @pytest.fixture
+    def small_unstable_pages(self, monkeypatch: pytest.MonkeyPatch):
+        """Serve deployments two at a time, rotating the full ordering on every
+        request to mimic a server whose ordering of tied names is unstable."""
+        original_read_deployments = PrefectClient.read_deployments
+        calls = itertools.count()
+
+        async def read_deployments(
+            self: PrefectClient, *, offset: int = 0, **kwargs: Any
+        ):
+            rows = await original_read_deployments(self, **kwargs)
+            if rows:
+                shift = next(calls) % len(rows)
+                rows = rows[shift:] + rows[:shift]
+            return rows[offset : offset + 2]
+
+        monkeypatch.setattr(PrefectClient, "read_deployments", read_deployments)
+
+    @pytest.fixture
+    async def setup_tied_name_deployments(self, prefect_client: PrefectClient):
+        for i in range(5):
+
+            @flow(name=f"tied-flow-{i}")
+            def tied_flow():
+                pass
+
+            flow_id = await prefect_client.create_flow(tied_flow)
+            await prefect_client.create_deployment(flow_id=flow_id, name="daily")
+
+    @pytest.mark.usefixtures("setup_tied_name_deployments", "small_unstable_pages")
+    async def test_delete_all_deployments_across_pages(
+        self, prefect_client: PrefectClient
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["deployment", "delete", "--all"],
+            expected_code=0,
+            expected_output_contains="Deleted 5 deployments.",
+        )
+        assert await prefect_client.read_deployments() == []
+
+    @pytest.mark.usefixtures(
+        "setup_tied_name_deployments", "small_unstable_pages", "interactive_console"
+    )
+    def test_delete_all_deployments_confirmation_counts_all_pages(self):
+        invoke_and_assert(
+            ["deployment", "delete", "--all"],
+            expected_code=0,
+            user_input="y",
+            expected_output_contains=[
+                "Are you sure you want to delete all 5 deployments?",
+                "Deleted 5 deployments.",
+            ],
+        )
 
     @pytest.mark.usefixtures("setup_many_deployments", "interactive_console")
     def test_delete_all_deployments_needs_confirmation_with_interactive_console(
