@@ -390,9 +390,7 @@ async def test_increment_concurrency_limit_slots_gt_zero_422(
     assert response.status_code == 422
 
 
-@pytest.mark.parametrize(
-    "endpoint", ["increment", "increment-with-lease", "decrement"]
-)
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease", "decrement"])
 async def test_bulk_slot_endpoints_reject_empty_names_422(
     endpoint: str,
     client: AsyncClient,
