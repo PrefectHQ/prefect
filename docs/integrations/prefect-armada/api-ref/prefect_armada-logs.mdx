@@ -1,0 +1,57 @@
+---
+title: logs
+sidebarTitle: logs
+---
+
+# `prefect_armada.logs`
+
+
+Module to define tasks for reading logs from Armada jobs.
+
+## Functions
+
+### `read_job_log_lines` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/logs.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_job_log_lines(armada_credentials: ArmadaCredentials, job_id: str, namespace: str | None = 'default', pod_number: int = 0, since_time: str = '') -> list[LogLine]
+```
+
+
+Task for reading the log lines of an Armada job.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `job_id`: The ID of the job to read logs from.
+- `namespace`: The Kubernetes namespace the job's pod runs in.
+- `pod_number`: The zero-indexed pod number to read logs from.
+- `since_time`: If provided, only logs emitted since this RFC 3339 timestamp
+are returned.
+
+**Returns:**
+- A list of `LogLine` objects, each with a `line` and a `timestamp`.
+
+
+### `read_job_log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/logs.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_job_log(armada_credentials: ArmadaCredentials, job_id: str, namespace: str | None = 'default', pod_number: int = 0, since_time: str = '', print_func: Callable | None = None) -> str
+```
+
+
+Task for reading the logs of an Armada job.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `job_id`: The ID of the job to read logs from.
+- `namespace`: The Kubernetes namespace the job's pod runs in.
+- `pod_number`: The zero-indexed pod number to read logs from.
+- `since_time`: If provided, only logs emitted since this RFC 3339 timestamp
+are returned.
+- `print_func`: If provided, it will be called once for every log line in
+addition to the logs being returned.
+
+**Returns:**
+- A string containing the job's logs.
+

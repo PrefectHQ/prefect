@@ -2,6 +2,8 @@ import pytest
 import respx
 from httpx import Response
 
+from prefect.server.api import collections
+
 pytestmark = pytest.mark.clear_db
 
 
@@ -161,3 +163,59 @@ class TestReadCollectionViews:
 
         assert res.status_code == 200
         assert "prefect-agent" not in res.json()["prefect"]
+
+    async def test_locally_installed_workers_added_to_worker_metadata(
+        self, client, mock_get_view, monkeypatch
+    ):
+        """Workers installed alongside the server but absent from the registry
+        (an unreleased or private collection) are still offered to the UI."""
+        monkeypatch.setattr(
+            collections,
+            "get_locally_installed_worker_metadata",
+            lambda: {
+                "prefect-armada": {
+                    "armada": {
+                        "type": "armada",
+                        "display_name": "Armada",
+                        "description": "Execute flow runs within Armada jobs.",
+                        "logo_url": "",
+                        "documentation_url": "",
+                        "install_command": "pip install prefect-armada",
+                        "default_base_job_configuration": {},
+                        "is_beta": False,
+                    }
+                }
+            },
+        )
+
+        res = await client.get("/collections/views/aggregate-worker-metadata")
+
+        assert res.status_code == 200
+        assert res.json()["prefect-armada"]["armada"]["display_name"] == "Armada"
+
+    async def test_registry_worker_metadata_wins_over_local(
+        self, client, mock_get_view, monkeypatch
+    ):
+        monkeypatch.setattr(
+            collections,
+            "get_locally_installed_worker_metadata",
+            lambda: {"prefect": {"process": {"type": "process", "local": True}}},
+        )
+
+        res = await client.get("/collections/views/aggregate-worker-metadata")
+
+        assert res.status_code == 200
+        assert res.json()["prefect"]["process"] == {}
+
+    async def test_worker_metadata_survives_local_registry_failure(
+        self, client, mock_get_view, monkeypatch
+    ):
+        def boom():
+            raise RuntimeError("could not load collections")
+
+        monkeypatch.setattr(collections, "get_locally_installed_worker_metadata", boom)
+
+        res = await client.get("/collections/views/aggregate-worker-metadata")
+
+        assert res.status_code == 200
+        assert isinstance(res.json()["prefect"], dict)

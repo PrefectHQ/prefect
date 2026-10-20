@@ -7,13 +7,29 @@ sidebarTitle: utilities
 
 ## Functions
 
-### `get_available_work_pool_types` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/utilities.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_locally_installed_worker_metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/utilities.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_locally_installed_worker_metadata() -> Dict[str, Dict[str, Dict[str, Any]]]
+```
+
+
+Builds worker metadata for every worker type installed in this environment.
+
+The result mirrors the shape of the collections registry's
+`aggregate-worker-metadata` view — collection name, then worker type, then
+metadata — so locally installed workers can be merged into that view. Workers
+from integrations that are not published to the registry (a private or
+in-development collection) are only discoverable this way.
+
+
+### `get_available_work_pool_types` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/utilities.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_available_work_pool_types() -> List[str]
 ```
 
-### `get_default_base_job_template_for_infrastructure_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/utilities.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_default_base_job_template_for_infrastructure_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/utilities.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_default_base_job_template_for_infrastructure_type(infra_type: str) -> Optional[Dict[str, Any]]

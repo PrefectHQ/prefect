@@ -38,6 +38,18 @@ const mockWorkersResponse = {
 			is_beta: true,
 		},
 	},
+	"prefect-armada": {
+		armada: {
+			type: "armada",
+			display_name: "Armada",
+			description:
+				"Execute flow runs within jobs scheduled on an Armada cluster",
+			logo_url:
+				"https://raw.githubusercontent.com/armadaproject/armada/master/logo.svg",
+			documentation_url: "https://docs.prefect.io/integrations/prefect-armada",
+			is_beta: false,
+		},
+	},
 	"prefect-gcp": {
 		"cloud-run": {
 			type: "cloud-run",
@@ -173,6 +185,53 @@ export const MinimalOptions: Story = {
 			queryClient.setQueryData(
 				["collections", "work-pool-types"],
 				minimalResponse,
+			);
+
+			const FormWrapper = () => {
+				const form = useForm<{ type: string }>({
+					defaultValues: {
+						type: "",
+					},
+				});
+
+				return (
+					<FormProvider {...form}>
+						<Story />
+					</FormProvider>
+				);
+			};
+
+			return (
+				<QueryClientProvider client={queryClient}>
+					<div className="max-w-2xl">
+						<FormWrapper />
+					</div>
+				</QueryClientProvider>
+			);
+		},
+	],
+	args: {},
+};
+
+/**
+ * A worker contributed by the server from a locally installed collection the
+ * registry does not publish, carrying nothing but its type.
+ */
+export const WithoutOptionalMetadata: Story = {
+	decorators: [
+		(Story) => {
+			const queryClient = new QueryClient({
+				defaultOptions: {
+					queries: {
+						retry: false,
+						staleTime: Number.POSITIVE_INFINITY,
+					},
+				},
+			});
+
+			queryClient.setQueryData(
+				["collections", "work-pool-types"],
+				mockWorkersResponse,
 			);
 
 			const FormWrapper = () => {

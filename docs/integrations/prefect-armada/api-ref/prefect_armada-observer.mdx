@@ -1,0 +1,68 @@
+---
+title: observer
+sidebarTitle: observer
+---
+
+# `prefect_armada.observer`
+
+
+
+Module containing the Armada observer, which watches Armada job set events on
+behalf of Prefect.
+
+Armada is asynchronous: a worker submits a job and Armada schedules it onto one
+of its Kubernetes clusters at some later point. The observer keeps Prefect in
+sync with what Armada does with those jobs by
+
+- replicating Armada job events into Prefect's event system, where they can be
+  used by Automations, and
+- marking a flow run as `Crashed` when its Armada job fails before the flow run
+  is able to report its own state (for example a bad image or a missing
+  dependency).
+
+Armada only exposes events per job set, so the observer watches the job sets that
+this process submits to. Additional job sets can be watched by setting
+`PREFECT_INTEGRATIONS_ARMADA_OBSERVER_JOB_SETS` to a comma-separated list of
+`<queue>/<job_set_id>` entries.
+
+
+## Functions
+
+### `observe_job_set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/observer.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+observe_job_set(credentials: ArmadaCredentials, queue: str, job_set_id: str) -> None
+```
+
+
+Registers an Armada job set to be watched by the observer.
+
+Safe to call from any thread and safe to call repeatedly for the same job
+set; a job set that is already being watched is only re-watched if its
+current watch has already finished.
+
+**Args:**
+- `credentials`: The credentials used to connect to Armada.
+- `queue`: The name of the Armada queue the job set was submitted to.
+- `job_set_id`: The name of the Armada job set to watch.
+
+
+### `start_observer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/observer.py#L677" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start_observer() -> None
+```
+
+
+Start the observer in a separate thread.
+
+
+### `stop_observer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/observer.py#L706" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop_observer() -> None
+```
+
+
+Stop the observer thread.
+

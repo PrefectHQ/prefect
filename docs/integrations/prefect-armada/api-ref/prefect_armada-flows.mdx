@@ -1,0 +1,80 @@
+---
+title: flows
+sidebarTitle: flows
+---
+
+# `prefect_armada.flows`
+
+
+A module to define flows interacting with Armada resources.
+
+## Functions
+
+### `run_armada_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/flows.py#L12" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_armada_job(armada_job: ArmadaJob, print_func: Callable | None = None) -> dict[str, Any]
+```
+
+
+Flow for running an Armada job.
+
+**Args:**
+- `armada_job`: The `ArmadaJob` block that specifies the job to run.
+- `print_func`: A function to print the logs from the job.
+
+**Returns:**
+- A dict of logs from the job, for example `{'job_id': 'job_log_str'}`.
+
+**Raises:**
+- `ArmadaJobFailedError`: If the submitted Armada job does not succeed.
+
+Example:
+
+    ```python
+    from prefect_armada import ArmadaJob, run_armada_job
+    from prefect_armada.credentials import ArmadaCredentials
+
+    run_armada_job(
+        armada_job=ArmadaJob.from_yaml_file(
+            credentials=ArmadaCredentials.load("armada-creds"),
+            manifest_path="path/to/job.yaml",
+        )
+    )
+    ```
+
+
+### `run_armada_job_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/flows.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_armada_job_async(armada_job: ArmadaJob, print_func: Callable | None = None) -> dict[str, Any]
+```
+
+
+Flow for running an Armada job.
+
+**Args:**
+- `armada_job`: The `ArmadaJob` block that specifies the job to run.
+- `print_func`: A function to print the logs from the job.
+
+**Returns:**
+- A dict of logs from the job, for example `{'job_id': 'job_log_str'}`.
+
+**Raises:**
+- `ArmadaJobFailedError`: If the submitted Armada job does not succeed.
+
+Example:
+
+    ```python
+    from prefect_armada import ArmadaJob
+    from prefect_armada.credentials import ArmadaCredentials
+    from prefect_armada.flows import run_armada_job_async
+
+    await run_armada_job_async(
+        armada_job=ArmadaJob.from_yaml_file(
+            credentials=ArmadaCredentials.load("armada-creds"),
+            manifest_path="path/to/job.yaml",
+        )
+    )
+    ```
+

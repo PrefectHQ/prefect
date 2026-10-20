@@ -1,0 +1,294 @@
+---
+title: jobs
+sidebarTitle: jobs
+---
+
+# `prefect_armada.jobs`
+
+
+Module to define tasks for interacting with Armada jobs.
+
+## Functions
+
+### `submit_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+submit_job(armada_credentials: ArmadaCredentials, job_request: ArmadaJobRequest | list[ArmadaJobRequest], queue: str, job_set_id: str) -> submit_pb2.JobSubmitResponse
+```
+
+
+Task for submitting one or more jobs to an Armada queue.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `job_request`: An Armada job request, or a list of job requests. Each job
+request may be a dictionary (for example one produced by
+`yaml.safe_load`) or an Armada `JobSubmitRequestItem`.
+- `queue`: The name of the Armada queue to submit to.
+- `job_set_id`: The name of the Armada job set to submit to.
+
+**Returns:**
+- An Armada `JobSubmitResponse` object.
+
+
+### `cancel_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cancel_job(armada_credentials: ArmadaCredentials, queue: str, job_set_id: str, job_id: str) -> submit_pb2.CancellationResult
+```
+
+
+Task for cancelling an Armada job.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `queue`: The name of the Armada queue the job was submitted to.
+- `job_set_id`: The name of the Armada job set the job belongs to.
+- `job_id`: The ID of the job to cancel.
+
+**Returns:**
+- An Armada `CancellationResult` object.
+
+
+### `preempt_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+preempt_job(armada_credentials: ArmadaCredentials, queue: str, job_set_id: str, job_id: str) -> Any
+```
+
+
+Task for preempting a running Armada job.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `queue`: The name of the Armada queue the job was submitted to.
+- `job_set_id`: The name of the Armada job set the job belongs to.
+- `job_id`: The ID of the job to preempt.
+
+**Returns:**
+- An empty response.
+
+
+### `reprioritize_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reprioritize_job(armada_credentials: ArmadaCredentials, queue: str, job_set_id: str, new_priority: float, job_ids: list[str] | None = None) -> submit_pb2.JobReprioritizeResponse
+```
+
+
+Task for changing the priority of Armada jobs.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `queue`: The name of the Armada queue the jobs were submitted to.
+- `job_set_id`: The name of the Armada job set the jobs belong to.
+- `new_priority`: The new priority for the jobs.
+- `job_ids`: The IDs of the jobs to reprioritize. If not provided, every job
+in the job set is reprioritized.
+
+**Returns:**
+- An Armada `JobReprioritizeResponse` object.
+
+
+### `get_job_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_job_status(armada_credentials: ArmadaCredentials, job_ids: list[str]) -> job_pb2.JobStatusResponse
+```
+
+
+Task for fetching the status of Armada jobs.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `job_ids`: The IDs of the jobs to fetch status for.
+
+**Returns:**
+- An Armada `JobStatusResponse` object, whose `job_states` map holds a
+- state for each requested job ID.
+
+
+### `get_job_details` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L276" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_job_details(armada_credentials: ArmadaCredentials, job_ids: list[str]) -> job_pb2.JobDetailsResponse
+```
+
+
+Task for fetching the details of Armada jobs.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `job_ids`: The IDs of the jobs to fetch details for.
+
+**Returns:**
+- An Armada `JobDetailsResponse` object.
+
+
+### `get_job_errors` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L310" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_job_errors(armada_credentials: ArmadaCredentials, job_ids: list[str]) -> job_pb2.JobErrorsResponse
+```
+
+
+Task for fetching the termination reasons of Armada jobs.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `job_ids`: The IDs of the jobs to fetch errors for.
+
+**Returns:**
+- An Armada `JobErrorsResponse` object, whose `job_errors` map holds an
+- error message for each requested job ID.
+
+
+### `get_job_run_details` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_job_run_details(armada_credentials: ArmadaCredentials, run_ids: list[str]) -> job_pb2.JobRunDetailsResponse
+```
+
+
+Task for fetching the details of Armada job runs.
+
+**Args:**
+- `armada_credentials`: `ArmadaCredentials` block holding authentication
+needed to generate the required API client.
+- `run_ids`: The IDs of the job runs to fetch details for.
+
+**Returns:**
+- An Armada `JobRunDetailsResponse` object.
+
+
+## Classes
+
+### `ArmadaJobRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L378" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A container representing a run of an Armada job.
+
+
+**Methods:**
+
+#### `afetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+afetch_result(self) -> dict[str, Any]
+```
+
+Async implementation: fetch the results of the job.
+
+**Returns:**
+- The logs from the job, keyed by job ID.
+
+**Raises:**
+- `ValueError`: If this method is called when the job has
+a non-terminal state.
+
+
+#### `await_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L450" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+await_for_completion(self, print_func: Callable | None = None)
+```
+
+Async implementation: waits for the job to complete.
+
+If the job has `cancel_on_timeout` set to `True`, the job will be
+cancelled if it does not complete within `timeout_seconds`.
+
+**Raises:**
+- `ArmadaJobFailedError`: If the Armada job does not succeed.
+- `ArmadaJobTimeoutError`: If the Armada job times out.
+
+
+#### `fetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L541" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+fetch_result(self) -> dict[str, Any]
+```
+
+Fetch the results of the job.
+
+**Returns:**
+- The logs from the job, keyed by job ID.
+
+**Raises:**
+- `ValueError`: If this method is called when the job has
+a non-terminal state.
+
+
+#### `job_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L397" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+job_state(self) -> JobState | None
+```
+
+The last observed state of the Armada job.
+
+
+#### `wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wait_for_completion(self, print_func: Callable | None = None)
+```
+
+Waits for the job to complete.
+
+If the job has `cancel_on_timeout` set to `True`, the job will be
+cancelled if it does not complete within `timeout_seconds`.
+
+**Raises:**
+- `ArmadaJobFailedError`: If the Armada job does not succeed.
+- `ArmadaJobTimeoutError`: If the Armada job times out.
+
+
+### `ArmadaJob` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L556" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A block representing an Armada job configuration.
+
+
+**Methods:**
+
+#### `atrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L613" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+atrigger(self) -> ArmadaJobRun
+```
+
+Async implementation: submit an Armada job and return an
+`ArmadaJobRun` object.
+
+
+#### `from_yaml_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L658" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+from_yaml_file(cls: type[Self], manifest_path: Path | str, **kwargs) -> Self
+```
+
+Create an `ArmadaJob` from a YAML file.
+
+**Args:**
+- `manifest_path`: The YAML file to create the `ArmadaJob` from.
+
+**Returns:**
+- An ArmadaJob object.
+
+
+#### `trigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/jobs.py#L653" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+trigger(self) -> ArmadaJobRun
+```
+
+Submit an Armada job and return an `ArmadaJobRun` object.
+
