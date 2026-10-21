@@ -1,5 +1,7 @@
 import asyncio
+import datetime
 import signal
+import sys
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -10,8 +12,10 @@ import pytest
 from pydantic import BaseModel
 
 from prefect import flow, task
+from prefect.client.orchestration import PrefectClient
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
+from prefect.server.events.pipeline import EventsPipeline
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_UI_URL,
@@ -19,6 +23,7 @@ from prefect.settings import (
 )
 from prefect.task_worker import TaskWorker, serve
 from prefect.tasks import task_input_hash
+from prefect.types._datetime import create_datetime_instance
 
 pytestmark = pytest.mark.usefixtures("use_hosted_api_server")
 
@@ -312,6 +317,27 @@ class TestTaskWorkerTaskRunRetries:
 
 
 class TestTaskWorkerTaskResults:
+    @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+    async def test_pendulum_methods_dispatch_to_the_correct_task(
+        self, prefect_client: PrefectClient, events_pipeline: EventsPipeline
+    ):
+        start = create_datetime_instance(
+            datetime.datetime(2024, 1, 15, tzinfo=datetime.UTC)
+        )
+        add = task(start.add)
+        subtract = task(start.subtract)
+        worker = TaskWorker(add, subtract)
+        future = subtract.apply_async(kwargs={"days": 1})
+        run = await prefect_client.read_task_run(future.task_run_id)
+
+        with pytest.warns(
+            DeprecationWarning, match="Pendulum datetime member 'subtract'"
+        ):
+            await worker.execute_task_run(run)
+        await events_pipeline.process_events()
+
+        assert future.result() == start - datetime.timedelta(days=1)
+
     async def test_task_run_via_task_worker_persists_result(
         self, prefect_client, events_pipeline
     ):

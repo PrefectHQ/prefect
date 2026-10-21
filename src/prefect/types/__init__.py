@@ -27,6 +27,7 @@ from pydantic import (
     StrictInt,
     StrictStr,
     TypeAdapter,
+    WithJsonSchema,
 )
 from zoneinfo import available_timezones
 
@@ -46,8 +47,27 @@ def _validate_non_negative_timedelta(v: timedelta) -> timedelta:
     return v
 
 
+# Models serialize timedeltas as seconds via `ser_json_timedelta="float"`, but
+# pydantic 2.14+ leaves the JSON Schema as `{"format": "duration"}`, so declare
+# both accepted input representations explicitly. Serialization stays numeric.
+# These fields are non-negative, so the number branch carries that bound.
+DurationOrSecondsTimeDelta = Annotated[
+    timedelta,
+    WithJsonSchema(
+        {
+            "anyOf": [
+                {"type": "number", "minimum": 0},
+                {"type": "string", "format": "duration"},
+            ]
+        },
+        mode="validation",
+    ),
+    WithJsonSchema({"type": "number", "minimum": 0}, mode="serialization"),
+]
+
 NonNegativeTimeDelta = Annotated[
-    timedelta, AfterValidator(_validate_non_negative_timedelta)
+    DurationOrSecondsTimeDelta,
+    AfterValidator(_validate_non_negative_timedelta),
 ]
 
 
@@ -274,6 +294,7 @@ __all__ = [
     "ClientRetryExtraCodes",
     "Date",
     "DateTime",
+    "DurationOrSecondsTimeDelta",
     "JsonStringOrDict",
     "LogLevel",
     "KeyValueLabelsField",

@@ -9,12 +9,11 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import humanize
 from dateutil.parser import parse
-from pydantic import AfterValidator
+from pydantic import AfterValidator, GetCoreSchemaHandler, WithJsonSchema
+from pydantic_core import core_schema as _core_schema
 from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
-    from pydantic import GetCoreSchemaHandler
-    from pydantic_core import core_schema as _core_schema
     from whenever import DateTimeDelta
     from whenever import ZonedDateTime as _ZDTProbe
 
@@ -63,20 +62,52 @@ else:
     _WHENEVER_NEW_API = False
     import pendulum
     import pendulum.tz
-    from pydantic_extra_types.pendulum_dt import (
-        Date as PydanticDate,
+
+    # Retain existing import and pickle paths for the temporary implementation.
+    from prefect.types._datetime_deprecations import (
+        Date as Date,
     )
-    from pydantic_extra_types.pendulum_dt import (
-        DateTime as PydanticDateTime,
+    from prefect.types._datetime_deprecations import (
+        DateTime as DateTime,
     )
-    from pydantic_extra_types.pendulum_dt import (
-        Duration as PydanticDuration,
+    from prefect.types._datetime_deprecations import (
+        Duration as Duration,
+    )
+    from prefect.types._datetime_deprecations import (
+        _datetime_instance,
+        _wrap_pendulum_value,
+    )
+    from prefect.types._datetime_deprecations import (
+        _deprecated_pendulum_members as _deprecated_pendulum_members,
+    )
+    from prefect.types._datetime_deprecations import (
+        _deprecated_pendulum_method as _deprecated_pendulum_method,
+    )
+    from prefect.types._datetime_deprecations import _Interval as _Interval
+    from prefect.types._datetime_deprecations import _Time as _Time
+    from prefect.types._datetime_deprecations import (
+        _warn_pendulum_member as _warn_pendulum_member,
     )
 
-    DateTime: TypeAlias = PydanticDateTime
-    Date: TypeAlias = PydanticDate
-    Duration: TypeAlias = PydanticDuration
     Interval: TypeAlias = datetime.timedelta
+
+
+def _pendulum_call(obj: Any, name: str, *args: Any, **kwargs: Any) -> Any:
+    """Invoke a Pendulum-only member without the deprecation warning.
+
+    For internal Prefect use: bypasses the deprecation decorator
+    so Prefect's own machinery can keep using Pendulum behavior
+    silently. `obj` may be any Pendulum value.
+
+    Prefect code must call Pendulum-only members through this helper on
+    Python 3.11 and 3.12. The pytest config ignores these warnings, so
+    direct calls are caught only by the guards in `tests/test_datetime.py`.
+    """
+    member = getattr(obj, name)
+    original = getattr(member, "__prefect_task_source__", None)
+    if original is not None and original is getattr(member, "__wrapped__", None):
+        return original(member.__self__, *args, **kwargs)
+    return member(*args, **kwargs)
 
 
 def parse_datetime(dt: str) -> datetime.datetime:
@@ -88,7 +119,7 @@ def parse_datetime(dt: str) -> datetime.datetime:
         else:
             return parsed_dt
     else:
-        return cast(datetime.datetime, pendulum.parse(dt))
+        return cast(datetime.datetime, _wrap_pendulum_value(pendulum.parse(dt)))
 
 
 def get_timezones() -> tuple[str, ...]:
@@ -103,7 +134,7 @@ def create_datetime_instance(v: datetime.datetime) -> datetime.datetime:
         else:
             return v
 
-    return DateTime.instance(v)
+    return _datetime_instance(v)
 
 
 def from_timestamp(ts: float, tz: str | Any = "UTC") -> datetime.datetime:
@@ -113,7 +144,7 @@ def from_timestamp(ts: float, tz: str | Any = "UTC") -> datetime.datetime:
             tz = tz.name
         return datetime.datetime.fromtimestamp(ts, ZoneInfo(tz))
 
-    return pendulum.from_timestamp(ts, tz)
+    return _datetime_instance(pendulum.from_timestamp(ts, tz))
 
 
 def human_friendly_diff(
@@ -126,14 +157,16 @@ def human_friendly_diff(
         """Return *ts* with a valid ZoneInfo; fall back to UTC if needed."""
         if ts.tzinfo is None:
             local_tz = datetime.datetime.now().astimezone().tzinfo
-            return ts.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
+            return _pendulum_call(ts, "replace", tzinfo=local_tz).astimezone(
+                ZoneInfo("UTC")
+            )
 
         if isinstance(ts.tzinfo, ZoneInfo):
             return ts  # already valid
 
         if tz_name := getattr(ts.tzinfo, "name", None):
             try:
-                return ts.replace(tzinfo=ZoneInfo(tz_name))
+                return _pendulum_call(ts, "replace", tzinfo=ZoneInfo(tz_name))
             except ZoneInfoNotFoundError:
                 pass
 
@@ -149,11 +182,11 @@ def human_friendly_diff(
         return humanize.naturaltime(dt, when=other)
 
     # Ensure consistency for pendulum path by using UTC
-    pendulum_dt = DateTime.instance(dt.astimezone(ZoneInfo("UTC")))
+    pendulum_dt = _datetime_instance(dt.astimezone(ZoneInfo("UTC")))
     pendulum_other = (
-        DateTime.instance(other.astimezone(ZoneInfo("UTC"))) if other else None
+        _datetime_instance(other.astimezone(ZoneInfo("UTC"))) if other else None
     )
-    return pendulum_dt.diff_for_humans(other=pendulum_other)
+    return _pendulum_call(pendulum_dt, "diff_for_humans", other=pendulum_other)
 
 
 def _whenever_to_stdlib(obj: Any) -> datetime.datetime:
@@ -205,7 +238,7 @@ def now(
 
         return _whenever_to_stdlib(ZonedDateTime.now(tz))
     else:
-        return pendulum.now(tz)
+        return _datetime_instance(pendulum.now(tz))
 
 
 def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
@@ -243,9 +276,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
                 Weekday.SUNDAY.value - zdt.date().day_of_week().value
             )
             if _WHENEVER_NEW_API:
-                from whenever import ItemizedDateDelta
-
-                zdt = zdt + ItemizedDateDelta(days=days_till_end_of_week)
+                zdt = zdt.add(days=days_till_end_of_week)
             else:
                 from whenever import days
 
@@ -261,7 +292,9 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
 
         return _whenever_to_stdlib(zdt)
     else:
-        return DateTime.instance(dt).end_of(period)
+        return _datetime_instance(
+            _pendulum_call(_datetime_instance(dt), "end_of", period)
+        )
 
 
 def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
@@ -287,7 +320,9 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
 
         return _whenever_to_stdlib(zdt)
     else:
-        return DateTime.instance(dt).start_of("day")
+        return _datetime_instance(
+            _pendulum_call(_datetime_instance(dt), "start_of", "day")
+        )
 
 
 def earliest_possible_datetime() -> datetime.datetime:
@@ -323,7 +358,11 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
 
         return _whenever_to_stdlib(wdt)
     else:
-        return DateTime.instance(dt).in_tz(pendulum.tz.local_timezone())
+        return _datetime_instance(
+            _pendulum_call(
+                _datetime_instance(dt), "in_tz", pendulum.tz.local_timezone()
+            )
+        )
 
 
 def to_datetime_string(dt: datetime.datetime, include_tz: bool = True) -> str:
@@ -350,4 +389,17 @@ def _validate_positive_interval(v: Interval) -> Interval:
     return v
 
 
-PositiveInterval = Annotated[Interval, AfterValidator(_validate_positive_interval)]
+PositiveInterval = Annotated[
+    Interval,
+    AfterValidator(_validate_positive_interval),
+    # Pydantic's duration validation schema omits accepted numeric seconds.
+    WithJsonSchema(
+        {
+            "anyOf": [
+                {"type": "number", "exclusiveMinimum": 0},
+                {"type": "string"},
+            ]
+        },
+        mode="validation",
+    ),
+]

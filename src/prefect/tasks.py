@@ -162,6 +162,15 @@ class TaskOptions(TypedDict, total=False):
     asset_deps: Optional[list[Union[Asset, str]]]
 
 
+def _get_task_source(fn: Callable[..., Any]) -> Callable[..., Any]:
+    # Compatibility decorators can preserve code identity without unwrapping
+    # user decorators, including those that copy this attribute with wraps().
+    source = getattr(fn, "__prefect_task_source__", None)
+    if source is not None and source is getattr(fn, "__wrapped__", None):
+        return source
+    return fn
+
+
 def task_input_hash(
     context: "TaskRunContext", arguments: dict[str, Any]
 ) -> Optional[str]:
@@ -183,7 +192,7 @@ def task_input_hash(
         # task functions `co_code` bytes to avoid caching when the underlying function
         # changes
         context.task.task_key,
-        context.task.fn.__code__.co_code.hex(),
+        _get_task_source(context.task.fn).__code__.co_code.hex(),
         arguments,
     )
 
@@ -283,6 +292,7 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
     Args:
         fn: The function to generate a task key for.
     """
+    fn = _get_task_source(fn)
     if not hasattr(fn, "__qualname__"):
         return to_qualified_name(type(fn))
 
