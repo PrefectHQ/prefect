@@ -27,7 +27,7 @@ def raise_on_name_alphanumeric_dashes_only(
     value: str | None, field_name: str = "value"
 ) -> str | None:
     if value is not None and not bool(
-        re.match(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX, value)
+        re.fullmatch(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX, value)
     ):
         raise ValueError(
             f"{field_name} must only contain lowercase letters, numbers, and dashes."
@@ -50,7 +50,7 @@ def raise_on_name_alphanumeric_underscores_only(
 def raise_on_name_alphanumeric_underscores_only(
     value: str | None, field_name: str = "value"
 ) -> str | None:
-    if value is not None and not re.match(
+    if value is not None and not re.fullmatch(
         LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX, value
     ):
         raise ValueError(
@@ -63,7 +63,9 @@ def raise_on_name_alphanumeric_underscores_only(
 def raise_on_name_alphanumeric_dashes_underscores_only(
     value: str, field_name: str = "value"
 ) -> str:
-    if not re.match(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_OR_UNDERSCORES_REGEX, value):
+    if not re.fullmatch(
+        LOWERCASE_LETTERS_NUMBERS_AND_DASHES_OR_UNDERSCORES_REGEX, value
+    ):
         raise ValueError(
             f"{field_name} must only contain lowercase letters, numbers, and"
             " dashes or underscores."
