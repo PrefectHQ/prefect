@@ -7,7 +7,7 @@ import traceback
 import uuid
 from collections import Counter
 from types import GeneratorType, TracebackType
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, Optional, Type
 
 import anyio
 import httpx
@@ -675,9 +675,14 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
         return False
 
 
-def _flatten_nested_states(
-    obj: Any, _seen: set[int] | None = None
-) -> list[State] | None:
+# Maximum nesting depth `_flatten_nested_states` will descend into a value
+# before giving up and treating it as plain data. Legitimate nesting (e.g.
+# the results of several `.map()` calls) is only a few levels deep; the cap
+# exists so adversarially deep inputs cannot exhaust the call stack.
+_MAX_NESTED_STATES_DEPTH = 1000
+
+
+def _flatten_nested_states(obj: Any) -> list[State] | None:
     """
     Flatten a state, or a collection of states that may be nested inside
     `list`, `set`, and `tuple` containers, into a list of states.
@@ -689,6 +694,10 @@ def _flatten_nested_states(
     nested collections of states, or if the collections form a reference
     cycle. Empty collections contain no states and contribute nothing, so
     a value made up only of empty collections returns an empty list.
+
+    The traversal is iterative, so inputs nested deeper than
+    `_MAX_NESTED_STATES_DEPTH` cannot raise `RecursionError`; they are
+    treated as plain data and `None` is returned instead.
     """
     if isinstance(obj, State):
         return [obj]
@@ -696,24 +705,39 @@ def _flatten_nested_states(
     if isinstance(obj, BaseAnnotation) or not isinstance(obj, (list, set, tuple)):
         return None
 
-    if _seen is None:
-        _seen = set()
-    if id(obj) in _seen:
-        # A collection that (transitively) contains itself cannot be a
-        # collection of states; treat it as plain data.
-        return None
-
-    _seen.add(id(obj))
-    try:
-        states: list[State] = []
-        for item in obj:
-            item_states = _flatten_nested_states(item, _seen)
-            if item_states is None:
+    states: list[State] = []
+    # Ids of the collections on the current path, for reference-cycle detection.
+    on_path: set[int] = {id(obj)}
+    # Explicit stack of (iterator, container, depth); avoids recursion so
+    # adversarially deep inputs cannot exhaust the interpreter's call stack.
+    stack: list[tuple[Iterator[Any], Any, int]] = []
+    container: Any = obj
+    iterator: Iterator[Any] = iter(obj)
+    depth = 1
+    while True:
+        for item in iterator:
+            if isinstance(item, State):
+                states.append(item)
+            elif (
+                isinstance(item, BaseAnnotation)
+                or not isinstance(item, (list, set, tuple))
+                or id(item) in on_path
+                or depth >= _MAX_NESTED_STATES_DEPTH
+            ):
+                # Anything other than states and nested collections, a
+                # reference cycle, or nesting beyond the depth cap means the
+                # value is plain data rather than states.
                 return None
-            states.extend(item_states)
-        return states
-    finally:
-        _seen.discard(id(obj))
+            else:
+                stack.append((iterator, container, depth))
+                on_path.add(id(item))
+                container, iterator, depth = item, iter(item), depth + 1
+                break
+        else:
+            on_path.discard(id(container))
+            if not stack:
+                return states
+            iterator, container, depth = stack.pop()
 
 
 class StateGroup:
