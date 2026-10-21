@@ -32,16 +32,20 @@ async def test_runner_resilience_with_missing_file(
     monkeypatch.setattr(HookRunner, "run_crashed_hooks", record_crashed_hooks)
 
     flow_file = tmp_path / "my_flow.py"
+    # Outside `tmp_path`, which the test deletes before its assertions.
+    hook_marker = tmp_path.parent / f"{tmp_path.name}-hook-ran"
 
     print(f"Working in: {tmp_path}")
 
-    # Create a flow file with on_crashed hook
-    flow_content = dedent("""
+    # Create a flow file with an on_crashed hook that records whether it ran
+    flow_content = dedent(f"""
+        from pathlib import Path
+
         from prefect import flow
-        
+
         def my_hook(flow, flow_run, state):
-            print("This hook won't run because the file will be missing!")
-        
+            Path({str(hook_marker)!r}).write_text("ran")
+
         @flow(on_crashed=[my_hook])
         def my_flow():
             print("Flow executing...")
@@ -113,5 +117,8 @@ async def test_runner_resilience_with_missing_file(
     )
     assert crashed_hook_flow_run_ids == [flow_run.id], (
         "The runner did not reach its on_crashed hook handling"
+    )
+    assert not hook_marker.exists(), (
+        "The on_crashed hook ran, so the runner loaded the deleted flow file"
     )
     print("\n✅ Runner survived missing flow file!")
