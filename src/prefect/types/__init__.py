@@ -50,9 +50,23 @@ def _validate_non_negative_timedelta(v: timedelta) -> timedelta:
 # Models serialize timedeltas as seconds via `ser_json_timedelta="float"`, but
 # pydantic 2.14+ leaves the JSON Schema as `{"format": "duration"}`, so declare
 # both accepted input representations explicitly. Serialization stays numeric.
-# These fields are non-negative, so the number branch carries that bound.
+# Some fields accept negative durations, so this schema has no lower bound.
+# Pydantic leaves a timedelta field's `ge` out of the JSON Schema, so a field
+# that rejects negative durations must publish `minimum` itself.
 DurationOrSecondsTimeDelta = Annotated[
     timedelta,
+    WithJsonSchema(
+        {"anyOf": [{"type": "number"}, {"type": "string", "format": "duration"}]},
+        mode="validation",
+    ),
+    WithJsonSchema({"type": "number"}, mode="serialization"),
+]
+
+# These `WithJsonSchema` annotations replace the ones on
+# `DurationOrSecondsTimeDelta` and add the bound that the validator enforces.
+NonNegativeTimeDelta = Annotated[
+    DurationOrSecondsTimeDelta,
+    AfterValidator(_validate_non_negative_timedelta),
     WithJsonSchema(
         {
             "anyOf": [
@@ -63,11 +77,6 @@ DurationOrSecondsTimeDelta = Annotated[
         mode="validation",
     ),
     WithJsonSchema({"type": "number", "minimum": 0}, mode="serialization"),
-]
-
-NonNegativeTimeDelta = Annotated[
-    DurationOrSecondsTimeDelta,
-    AfterValidator(_validate_non_negative_timedelta),
 ]
 
 

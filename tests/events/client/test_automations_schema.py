@@ -1,6 +1,7 @@
 """Tests for client-side automation schema validation and deserialization."""
 
 import uuid
+from datetime import timedelta
 from typing import Any
 
 import jsonschema
@@ -11,6 +12,8 @@ from prefect.events.actions import RunDeployment, UnknownAction
 from prefect.events.schemas.automations import (
     Automation,
     AutomationCore,
+    CompoundTrigger,
+    EventTrigger,
     MetricTrigger,
     MetricTriggerQuery,
     Posture,
@@ -237,3 +240,29 @@ class TestActionJSONSchema:
         with pytest.raises(ValidationError):
             AutomationCore.model_validate(data)
         assert self.schema_errors(data) != []
+
+
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+def test_event_trigger_within_schema_publishes_its_lower_bound(mode: str):
+    within = EventTrigger.model_json_schema(mode=mode)["properties"]["within"]
+    validator = jsonschema.Draft202012Validator(within)
+
+    assert not validator.is_valid(-5)
+    assert validator.is_valid(0)
+
+
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+def test_compound_trigger_within_schema_allows_negative_seconds(mode: str):
+    trigger = CompoundTrigger.model_validate(
+        {
+            "triggers": [{"type": "event", "posture": "Reactive"}],
+            "require": "all",
+            "within": -5,
+        }
+    )
+    assert trigger.within == timedelta(seconds=-5)
+
+    schema = CompoundTrigger.model_json_schema(mode=mode)
+    within = schema["$defs"]["CompoundTrigger"]["properties"]["within"]
+    assert {"type": "number"} in within["anyOf"]
+    assert "minimum" not in within
