@@ -28,7 +28,14 @@ from prefect.events.actions import (
     WorkPoolAction,
     WorkQueueAction,
 )
-from prefect.events.schemas.automations import Automation, AutomationCore
+from prefect.events.schemas.automations import (
+    Automation,
+    AutomationCore,
+    CompositeTrigger,
+    MetricTrigger,
+    PrefectMetric,
+    TriggerTypes,
+)
 from prefect.exceptions import ObjectNotFound
 from prefect.logging import get_logger
 
@@ -221,6 +228,16 @@ class MigratableAutomation(MigratableResource[Automation]):
                         "Uses action types this version of Prefect does not "
                         f"recognize: {', '.join(unknown_action_types)}"
                     )
+                unknown_metric_names = sorted(
+                    _unknown_metric_names(self.source_automation.trigger)
+                )
+                if unknown_metric_names:
+                    # The destination may not support these metrics, and this
+                    # version can't check whether it does
+                    raise TransferSkipped(
+                        "Uses metrics this version of Prefect does not "
+                        f"recognize: {', '.join(unknown_metric_names)}"
+                    )
                 automation_copy = AutomationCore.model_validate(
                     self.source_automation.model_dump(mode="json")
                 )
@@ -274,3 +291,15 @@ class MigratableAutomation(MigratableResource[Automation]):
                 self.destination_automation = await client.read_automation(
                     automation_id=automation_id
                 )
+
+
+def _unknown_metric_names(trigger: TriggerTypes) -> set[str]:
+    """The metric names in `trigger`, or in any trigger nested in it, that are not
+    `PrefectMetric` members."""
+    if isinstance(trigger, CompositeTrigger):
+        return set().union(*(_unknown_metric_names(t) for t in trigger.triggers))
+    if isinstance(trigger, MetricTrigger) and not isinstance(
+        trigger.metric.name, PrefectMetric
+    ):
+        return {trigger.metric.name}
+    return set()
