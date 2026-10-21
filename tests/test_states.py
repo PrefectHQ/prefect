@@ -104,7 +104,9 @@ class TestRaiseStateException:
         ):
             await raise_state_exception(state_cls(data=inner_states))
 
-    async def test_raises_first_doubly_nested_multistate_exception(self, state_cls):
+    async def test_raises_first_doubly_nested_multistate_exception(
+        self, state_cls: type[State]
+    ):
         inner_states = [
             [Completed(data="test"), Failed(data=ValueError("Test"))],
             [Failed(data=ValueError("Should not be raised"))],
@@ -113,7 +115,7 @@ class TestRaiseStateException:
             await raise_state_exception(state_cls(data=inner_states))
 
     async def test_value_error_if_all_doubly_nested_multistates_are_not_failed(
-        self, state_cls
+        self, state_cls: type[State]
     ):
         inner_states = [
             [Completed(), Completed()],
@@ -293,7 +295,7 @@ class TestReturnValueToState:
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_nested_states_with_failure(self, store):
+    async def test_nested_states_with_failure(self, store: ResultStore):
         states = [
             [Completed(message="hi"), Failed(message="err")],
             [Completed(message="bye")],
@@ -306,14 +308,14 @@ class TestReturnValueToState:
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_nested_states_all_completed(self, store):
+    async def test_nested_states_all_completed(self, store: ResultStore):
         states = [[Completed(message="hi")], [Completed(message="bye")]]
         result_state = await return_value_to_state(states, store)
         assert await result_state.result() == states
         assert result_state.message == "All states completed."
         assert result_state.is_completed()
 
-    async def test_nested_states_with_empty_collections(self, store):
+    async def test_nested_states_with_empty_collections(self, store: ResultStore):
         states = [[Failed(message="err")], []]
         result_state = await return_value_to_state(states, store)
         assert await result_state.result(raise_on_failure=False) == states
@@ -321,20 +323,20 @@ class TestReturnValueToState:
         assert result_state.message == "1/1 states failed."
         assert result_state.is_failed()
 
-    async def test_nested_tuple_and_set_states(self, store):
+    async def test_nested_tuple_and_set_states(self, store: ResultStore):
         states = ([Completed(message="hi")], {Failed(message="err")})
         result_state = await return_value_to_state(states, store)
         assert result_state.message == "1/2 states failed."
         assert result_state.is_failed()
 
-    async def test_mixed_nested_content_is_data(self, store):
+    async def test_mixed_nested_content_is_data(self, store: ResultStore):
         value = [[Completed(message="hi")], [1, 2, 3]]
         result_state = await return_value_to_state(value, store)
         # Not exclusively states, so the value is treated as plain data
         assert result_state.is_completed()
         assert await result_state.result() == value
 
-    async def test_self_referencing_collection_is_data(self, store):
+    async def test_self_referencing_collection_is_data(self, store: ResultStore):
         value = []
         value.append(value)
         result_state = await return_value_to_state(value, store)
@@ -747,7 +749,7 @@ class TestReturnValueToStateSync:
         assert result_state.message == "2/3 states are not final."
         assert result_state.is_failed()
 
-    def test_nested_states_with_failure(self, store):
+    def test_nested_states_with_failure(self, store: ResultStore):
         states = [
             [Completed(message="hi"), Failed(message="err")],
             [Completed(message="bye")],
@@ -757,14 +759,14 @@ class TestReturnValueToStateSync:
         assert result_state.message == "1/3 states failed."
         assert result_state.is_failed()
 
-    def test_nested_states_all_completed(self, store):
+    def test_nested_states_all_completed(self, store: ResultStore):
         states = [[Completed(message="hi")], [Completed(message="bye")]]
         result_state = return_value_to_state_sync(states, store)
         assert result_state.result() == states
         assert result_state.message == "All states completed."
         assert result_state.is_completed()
 
-    def test_mixed_nested_content_is_data(self, store):
+    def test_mixed_nested_content_is_data(self, store: ResultStore):
         value = [[Completed(message="hi")], [1, 2, 3]]
         result_state = return_value_to_state_sync(value, store)
         # Not exclusively states, so the value is treated as plain data
