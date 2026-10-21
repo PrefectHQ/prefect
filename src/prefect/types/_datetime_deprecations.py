@@ -7,6 +7,9 @@ Warnings apply to whole methods, including stdlib-compatible calls to shared
 methods with Pendulum-specific defaults or accepted arguments. Formatting,
 extraction, conversion, and arithmetic remain quiet. This is a targeted migration
 notice, not an exhaustive detector of every difference between the libraries.
+
+Prefect's own code must invoke warned members via `_datetime._pendulum_call`
+so users only see warnings for calls they make themselves.
 """
 
 from __future__ import annotations

@@ -18,7 +18,7 @@ export function generateRandomCronSchedule(): components["schemas"]["CronSchedul
 	};
 }
 
-export function generateRandomIntervalSchedule(): components["schemas"]["IntervalSchedule"] {
+export function generateRandomIntervalSchedule(): components["schemas"]["IntervalSchedule-Output"] {
 	return {
 		interval: randNumber({ min: 1, max: 100_000 }),
 		anchor_date: randRecentDate().toISOString(),

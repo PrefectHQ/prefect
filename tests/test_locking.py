@@ -237,6 +237,11 @@ class TestMemoryLockManager:
             )
             future.result()
 
+    @pytest.mark.filterwarnings(
+        # Python 3.15 warns when a multi-threaded process calls fork();
+        # the test deliberately exercises the fork start method
+        "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning"
+    )
     def test_manager_has_lock_information_when_deserialized_in_new_process_with_fork(
         self,
     ):

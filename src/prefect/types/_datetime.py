@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import humanize
 from dateutil.parser import parse
-from pydantic import AfterValidator, GetCoreSchemaHandler
+from pydantic import AfterValidator, GetCoreSchemaHandler, WithJsonSchema
 from pydantic_core import core_schema as _core_schema
 from typing_extensions import TypeAlias
 
@@ -98,6 +98,10 @@ def _pendulum_call(obj: Any, name: str, *args: Any, **kwargs: Any) -> Any:
     For internal Prefect use: bypasses the deprecation decorator
     so Prefect's own machinery can keep using Pendulum behavior
     silently. `obj` may be any Pendulum value.
+
+    Prefect code must call Pendulum-only members through this helper on
+    Python 3.11 and 3.12. The pytest config ignores these warnings, so
+    direct calls are caught only by the guards in `tests/test_datetime.py`.
     """
     member = getattr(obj, name)
     original = getattr(member, "__prefect_task_source__", None)
@@ -272,9 +276,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
                 Weekday.SUNDAY.value - zdt.date().day_of_week().value
             )
             if _WHENEVER_NEW_API:
-                from whenever import ItemizedDateDelta
-
-                zdt = zdt + ItemizedDateDelta(days=days_till_end_of_week)
+                zdt = zdt.add(days=days_till_end_of_week)
             else:
                 from whenever import days
 
@@ -387,4 +389,17 @@ def _validate_positive_interval(v: Interval) -> Interval:
     return v
 
 
-PositiveInterval = Annotated[Interval, AfterValidator(_validate_positive_interval)]
+PositiveInterval = Annotated[
+    Interval,
+    AfterValidator(_validate_positive_interval),
+    # Pydantic's duration validation schema omits accepted numeric seconds.
+    WithJsonSchema(
+        {
+            "anyOf": [
+                {"type": "number", "exclusiveMinimum": 0},
+                {"type": "string"},
+            ]
+        },
+        mode="validation",
+    ),
+]

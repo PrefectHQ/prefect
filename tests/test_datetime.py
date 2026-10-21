@@ -26,17 +26,21 @@ import pytest
 from pydantic import BaseModel, GetCoreSchemaHandler, TypeAdapter
 from pydantic_core import core_schema
 
+import prefect.runtime.flow_run as runtime_flow_run
 import prefect.types._datetime
 from prefect import task
+from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import TaskRunContext
 from prefect.serializers import PickleSerializer
+from prefect.server.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.tasks import task_input_hash
 from prefect.types import _datetime as datetime_module
 from prefect.types._datetime import (
     Date,
     DateTime,
     Duration,
+    _pendulum_call,
     create_datetime_instance,
     end_of_period,
     from_timestamp,
@@ -290,6 +294,39 @@ def test_prefect_helpers_do_not_emit_pendulum_warnings():
         in_local_tz(value)
         human_friendly_diff(value)
         TypeAdapter(DateTime).dump_json(TypeAdapter(DateTime).validate_python(value))
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
+async def test_prefect_call_sites_do_not_emit_pendulum_warnings(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Pendulum-only calls outside `types/_datetime.py` must go through
+    `_pendulum_call`. The pytest config ignores these warnings globally, so
+    this test re-enables them for representative internal call sites."""
+    start = create_datetime_instance(FIXED)
+    naive = _pendulum_call(start, "naive")
+    monkeypatch.setattr(runtime_flow_run, "parse_datetime", lambda _: naive)
+    end = start + datetime.timedelta(days=2)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "error", message="Pendulum datetime member", category=DeprecationWarning
+        )
+        await IntervalSchedule(
+            interval=datetime.timedelta(hours=1),
+            anchor_date=start,
+            timezone="America/New_York",
+        ).get_dates(n=3, start=start, end=end)
+        await IntervalSchedule(
+            interval=datetime.timedelta(days=1),
+            anchor_date=start,
+            timezone="America/New_York",
+        ).get_dates(n=3, start=start, end=end)
+        await CronSchedule(cron="0 * * * *", timezone="America/New_York").get_dates(
+            n=3, start=start, end=end
+        )
+        # Covers the naive-input branch, which real ISO strings never reach.
+        runtime_flow_run._parse_datetime_UTC("2024-06-15T14:30:45")
+        generate_deprecation_message("thing", start_date=start)
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
