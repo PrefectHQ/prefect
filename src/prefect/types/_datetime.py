@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import humanize
 from dateutil.parser import parse
-from pydantic import AfterValidator, GetCoreSchemaHandler
+from pydantic import AfterValidator, GetCoreSchemaHandler, WithJsonSchema
 from pydantic_core import core_schema as _core_schema
 from typing_extensions import TypeAlias
 
@@ -272,9 +272,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
                 Weekday.SUNDAY.value - zdt.date().day_of_week().value
             )
             if _WHENEVER_NEW_API:
-                from whenever import ItemizedDateDelta
-
-                zdt = zdt + ItemizedDateDelta(days=days_till_end_of_week)
+                zdt = zdt.add(days=days_till_end_of_week)
             else:
                 from whenever import days
 
@@ -387,4 +385,17 @@ def _validate_positive_interval(v: Interval) -> Interval:
     return v
 
 
-PositiveInterval = Annotated[Interval, AfterValidator(_validate_positive_interval)]
+PositiveInterval = Annotated[
+    Interval,
+    AfterValidator(_validate_positive_interval),
+    # Pydantic's duration validation schema omits accepted numeric seconds.
+    WithJsonSchema(
+        {
+            "anyOf": [
+                {"type": "number", "exclusiveMinimum": 0},
+                {"type": "string"},
+            ]
+        },
+        mode="validation",
+    ),
+]

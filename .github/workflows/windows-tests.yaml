@@ -47,7 +47,7 @@ jobs:
         python-version:
           - "3.11"
           - "3.12"
-          # Python 3.14 is excluded because asyncpg doesn't compile on Windows
+          - "3.15"
 
       fail-fast: true
 

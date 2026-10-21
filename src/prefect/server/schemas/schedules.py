@@ -242,7 +242,7 @@ class IntervalSchedule(PrefectBaseModel):
                     )
 
                 def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
-                    return zdt + interval
+                    return zdt.add(interval)
             else:
                 approx_total_seconds = interval.total_seconds()
                 # break the interval into `days` and `seconds` because

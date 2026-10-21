@@ -12,6 +12,8 @@ import tempfile
 import time
 import uuid
 import warnings
+from collections import defaultdict
+from dataclasses import dataclass, field
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
@@ -25,7 +27,9 @@ import httpx
 import pytest
 import respx
 import uv
+from packaging.version import Version
 from pydantic import BaseModel
+from pydantic.version import VERSION as PYDANTIC_VERSION
 from starlette import status
 
 import prefect.runner
@@ -99,6 +103,10 @@ from prefect.utilities.processutils import command_to_string
 from prefect.utilities.slugify import slugify
 
 pytestmark = pytest.mark.clear_db
+
+PYDANTIC_TEMPORAL_SECONDS = (
+    Version("2.12") <= Version(PYDANTIC_VERSION) < Version("2.14")
+)
 
 
 @pytest.fixture(autouse=True)
@@ -3958,41 +3966,191 @@ class TestRunnerDeployment:
                 ],
             )
 
-    async def test_applied_deployment_preserves_temporal_parameter_encoding(
+    def test_datetime_parameter_in_dataclass_with_non_init_field(self):
+        @dataclass
+        class Options:
+            starts_at: datetime.datetime
+            calculated: int = field(init=False, default=5)
+
+        starts_at = datetime.datetime(
+            2024,
+            1,
+            2,
+            3,
+            4,
+            5,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=-5)),
+        )
+        options = Options(starts_at)
+        deployment = RunnerDeployment(
+            name="dataclass-parameter",
+            flow_name="flow",
+            parameters={"options": options},
+        )
+
+        expected: float | str = starts_at.isoformat()
+        if PYDANTIC_TEMPORAL_SECONDS:
+            expected = starts_at.replace(tzinfo=datetime.UTC).timestamp()
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": {"starts_at": expected, "calculated": 5}
+        }
+        assert deployment.parameters["options"] is options
+        assert options.starts_at is starts_at
+
+    def test_datetime_parameter_in_defaultdict(self):
+        starts_at = datetime.datetime(
+            2024,
+            1,
+            2,
+            3,
+            4,
+            5,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=-5)),
+        )
+        options = defaultdict(list, starts_at=[starts_at])
+        deployment = RunnerDeployment(
+            name="defaultdict-parameter",
+            flow_name="flow",
+            parameters={"options": options},
+        )
+
+        expected: float | str = starts_at.isoformat()
+        if PYDANTIC_TEMPORAL_SECONDS:
+            expected = starts_at.replace(tzinfo=datetime.UTC).timestamp()
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": {"starts_at": [expected]}
+        }
+        assert deployment.parameters["options"] is options
+        assert options.default_factory is list
+        assert options["starts_at"][0] is starts_at
+
+    @pytest.mark.parametrize("temporal", [False, True])
+    @pytest.mark.parametrize("container", [set, frozenset])
+    def test_dataclass_set_parameters(self, temporal: bool, container: type):
+        @dataclass(frozen=True)
+        class Options:
+            value: int | datetime.datetime
+
+        value = (
+            datetime.datetime.fromisoformat("2024-01-02T03:04:05-05:00")
+            if temporal
+            else 1
+        )
+        options = Options(value)
+        deployment = RunnerDeployment(
+            name="dataclass-set-parameter",
+            flow_name="flow",
+            parameters={"options": container([options])},
+        )
+
+        expected: int | float | str
+        if isinstance(value, datetime.datetime):
+            expected = value.isoformat()
+            if PYDANTIC_TEMPORAL_SECONDS:
+                expected = value.replace(tzinfo=datetime.UTC).timestamp()
+        else:
+            expected = value
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": [{"value": expected}]
+        }
+        assert deployment.parameters["options"] == {options}
+        assert options.value is value
+
+    @pytest.mark.parametrize("temporal", [False, True])
+    @pytest.mark.parametrize("tuple_key", [False, True])
+    def test_dataclass_dictionary_key_parameters(self, temporal: bool, tuple_key: bool):
+        @dataclass(frozen=True)
+        class Options:
+            value: int | datetime.datetime
+
+        value = (
+            datetime.datetime.fromisoformat("2024-01-02T03:04:05-05:00")
+            if temporal
+            else 1
+        )
+        options = Options(value)
+        key = (options,) if tuple_key else options
+        deployment = RunnerDeployment(
+            name="dataclass-key-parameter",
+            flow_name="flow",
+            parameters={"options": {key: "value"}},
+        )
+
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": {str(options): "value"}
+        }
+        assert next(iter(deployment.parameters["options"])) is key
+        assert options.value is value
+
+    async def test_applied_deployment_uses_pydantic_temporal_serialization(
         self, prefect_client: PrefectClient
     ):
         scheduled_at = datetime.datetime(
             2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
         )
         delay = datetime.timedelta(seconds=90)
+        run_on = datetime.date(2024, 1, 2)
+        at_time = datetime.time(3, 4, 5)
+        offset_at = datetime.datetime(
+            2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))
+        )
 
         @flow
         def flow_with_temporal_parameters(
             scheduled_at: str | datetime.datetime,
             delay: datetime.timedelta,
+            run_on: datetime.date,
+            at_time: datetime.time,
+            offset_at: str | datetime.datetime,
         ) -> None:
             pass
 
         deployment = await flow_with_temporal_parameters.ato_deployment(
             name="temporal-parameters",
-            parameters={"scheduled_at": scheduled_at, "delay": delay},
+            parameters={
+                "scheduled_at": scheduled_at,
+                "delay": delay,
+                "run_on": run_on,
+                "at_time": at_time,
+                "offset_at": offset_at,
+            },
             enforce_parameter_schema=False,
         )
 
         deployment_id = await deployment.apply()
         stored_deployment = await prefect_client.read_deployment(deployment_id)
 
-        assert stored_deployment.parameters == {
-            "scheduled_at": scheduled_at.timestamp(),
+        expected_parameters = {
+            "scheduled_at": "2024-01-02T03:04:05Z",
             "delay": delay.total_seconds(),
+            "run_on": "2024-01-02",
+            "at_time": "03:04:05",
+            "offset_at": "2024-01-02T03:04:05-05:00",
         }
+        if PYDANTIC_TEMPORAL_SECONDS:
+            # Pydantic 2.12-2.13 also applies ser_json_timedelta to dates and times.
+            expected_parameters.update(
+                scheduled_at=scheduled_at.timestamp(),
+                run_on=datetime.datetime(2024, 1, 2, tzinfo=datetime.UTC).timestamp(),
+                at_time=3 * 3600 + 4 * 60 + 5,
+                offset_at=scheduled_at.timestamp(),
+            )
+        assert stored_deployment.parameters == expected_parameters
         validated_parameters = flow_with_temporal_parameters.validate_parameters(
             stored_deployment.parameters
         )
-        assert validated_parameters == {
-            "scheduled_at": scheduled_at,
+        expected_validated_parameters = expected_parameters | {
             "delay": delay,
+            "run_on": run_on,
+            "at_time": at_time,
         }
+        if PYDANTIC_TEMPORAL_SECONDS:
+            expected_validated_parameters.update(
+                scheduled_at=scheduled_at,
+                at_time=datetime.time(3, 4, 5, tzinfo=datetime.UTC),
+                offset_at=scheduled_at,
+            )
+        assert validated_parameters == expected_validated_parameters
 
     async def test_applied_deployment_stores_and_resolves_saved_block_parameter(
         self,
