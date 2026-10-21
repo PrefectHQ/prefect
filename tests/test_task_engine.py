@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
 
 import anyio
+import pydantic
 import pytest
 
 from prefect import Task, flow, tags, task
@@ -57,7 +58,7 @@ from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
 from prefect.transactions import transaction
 from prefect.types._datetime import now
-from prefect.utilities.annotations import opaque
+from prefect.utilities.annotations import opaque, quote
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 from prefect.utilities.math import clamped_poisson_interval
@@ -4039,6 +4040,36 @@ class TestWaitUntilReadySync:
 
             # State should now be Retrying (not Running)
             assert engine.state.name == "Retrying"
+
+
+class TestPydanticTaskArgumentWithUnsetPrivateAttributes:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/23514"""
+
+    class Document(pydantic.BaseModel):
+        text: Any
+        _cache: dict[str, Any] = pydantic.PrivateAttr()
+
+    def test_sync_task(self):
+        @task
+        def read(document: Any) -> tuple[str, bool]:
+            return document.text, hasattr(document, "_cache")
+
+        @flow
+        def my_flow() -> tuple[str, bool]:
+            return read(self.Document(text=quote("parsed text")))
+
+        assert my_flow() == ("parsed text", False)
+
+    async def test_async_task(self):
+        @task
+        async def read(document: Any) -> tuple[str, bool]:
+            return document.text, hasattr(document, "_cache")
+
+        @flow
+        async def my_flow() -> tuple[str, bool]:
+            return await read(self.Document(text=quote("parsed text")))
+
+        assert await my_flow() == ("parsed text", False)
 
 
 class TestRunSchemaObjectAsTaskArgument:

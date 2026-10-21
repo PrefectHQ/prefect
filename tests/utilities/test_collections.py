@@ -394,6 +394,30 @@ class TestVisitCollection:
                 f"The field '{field}' should be set in the result"
             )
 
+    @pytest.mark.parametrize("immutable", [True, False])
+    @pytest.mark.parametrize(
+        "private_values", [{}, {"_y": 3}, {"_z": 4}], ids=["none", "_y", "_z"]
+    )
+    def test_visit_collection_mutation_with_unset_private_pydantic_attributes(
+        self, immutable: bool, private_values: dict[str, int]
+    ):
+        model = ImmutablePrivatePydantic if immutable else PrivatePydantic
+        model_instance = model(x=2)
+        for name, value in private_values.items():
+            setattr(model_instance, name, value)
+
+        result = visit_collection(
+            model_instance, visit_fn=negative_even_numbers, return_data=True
+        )
+
+        assert isinstance(result, model)
+        assert result.x == -2
+        for name in ("_y", "_z"):
+            if name in private_values:
+                assert getattr(result, name) == private_values[name]
+            else:
+                assert not hasattr(result, name)
+
     def test_visit_collection_recursive_1(self):
         obj = dict()
         obj["a"] = obj
