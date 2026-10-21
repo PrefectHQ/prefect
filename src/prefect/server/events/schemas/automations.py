@@ -346,6 +346,7 @@ class EventTrigger(ResourceTrigger):
     within: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=0),
         ge=timedelta(seconds=0),
+        json_schema_extra={"minimum": 0},
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "

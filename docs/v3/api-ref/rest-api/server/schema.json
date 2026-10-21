@@ -15475,8 +15475,7 @@
                     "within": {
                         "anyOf": [
                             {
-                                "type": "number",
-                                "minimum": 0.0
+                                "type": "number"
                             },
                             {
                                 "type": "string",
@@ -15547,8 +15546,7 @@
                     "within": {
                         "anyOf": [
                             {
-                                "type": "number",
-                                "minimum": 0.0
+                                "type": "number"
                             },
                             {
                                 "type": "null"
@@ -18779,14 +18777,14 @@
                     "within": {
                         "anyOf": [
                             {
-                                "type": "number",
-                                "minimum": 0.0
+                                "type": "number"
                             },
                             {
                                 "type": "string",
                                 "format": "duration"
                             }
                         ],
+                        "minimum": 0.0,
                         "title": "Within",
                         "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
                         "default": "PT0S"
@@ -24360,8 +24358,7 @@
                     "within": {
                         "anyOf": [
                             {
-                                "type": "number",
-                                "minimum": 0.0
+                                "type": "number"
                             },
                             {
                                 "type": "string",
@@ -24416,8 +24413,7 @@
                     "within": {
                         "anyOf": [
                             {
-                                "type": "number",
-                                "minimum": 0.0
+                                "type": "number"
                             },
                             {
                                 "type": "null"

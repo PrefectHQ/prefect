@@ -204,6 +204,7 @@ class EventTrigger(ResourceTrigger):
     within: DurationOrSecondsTimeDelta = Field(
         default=timedelta(seconds=0),
         ge=timedelta(seconds=0),
+        json_schema_extra={"minimum": 0},
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
@@ -308,6 +309,7 @@ class MetricTriggerQuery(PrefectBaseModel):
     )
     range: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
+        json_schema_extra={"minimum": 300},
         description=(
             "The lookback duration (seconds) for a metric query. This duration is "
             "used to determine the time range over which the query will be executed. "
@@ -316,6 +318,7 @@ class MetricTriggerQuery(PrefectBaseModel):
     )
     firing_for: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
+        json_schema_extra={"minimum": 300},
         description=(
             "The duration (seconds) for which the metric query must breach "
             "or resolve continuously before the state is updated and the "
