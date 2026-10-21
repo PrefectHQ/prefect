@@ -544,7 +544,11 @@ def visit_collection(
                     _fields_set=expr.model_fields_set, **updated_data
                 )
                 for private_attr in expr.__private_attributes__:
-                    setattr(model_instance, private_attr, getattr(expr, private_attr))
+                    # Private attributes without defaults may not have a value.
+                    if hasattr(expr, private_attr):
+                        setattr(
+                            model_instance, private_attr, getattr(expr, private_attr)
+                        )
                 result = model_instance
 
     # Update the cache with the final transformed result
