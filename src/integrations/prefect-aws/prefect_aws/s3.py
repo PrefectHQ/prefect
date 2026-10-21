@@ -818,7 +818,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
             for reading and writing objects.
     """
 
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/aws.png"  # noqa
     _block_type_name = "S3 Bucket"
     _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # noqa
 
@@ -898,13 +898,17 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
                 bucket has a unique key (or key name).
 
         """
+        if not self.bucket_folder:
+            return path
+
+        if not self.bucket_folder.startswith("/"):
+            path = path.lstrip("/")
+
         # Avoid double prefix when path already contains bucket_folder (e.g. when
         # Prefect ResultStore pre-resolves paths for blocks without block_document_id).
         # See https://github.com/PrefectHQ/prefect-aws/issues/141 and GCS equivalent.
-        if self.bucket_folder and (
-            path == self.bucket_folder
-            or path.startswith(self.bucket_folder.rstrip("/") + "/")
-        ):
+        bucket_folder = self.bucket_folder.rstrip("/")
+        if path and (path == bucket_folder or path.startswith(bucket_folder + "/")):
             return path
 
         # If bucket_folder provided, it means we won't write to the root dir of
@@ -912,9 +916,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         #
         # AWS object key naming guidelines require '/' for bucket folders.
         # Get POSIX path to prevent `pathlib` from inferring '\' on Windows OS
-        path = (
-            (Path(self.bucket_folder) / path).as_posix() if self.bucket_folder else path
-        )
+        path = (Path(self.bucket_folder) / path.lstrip("/")).as_posix()
 
         return path
 
@@ -1139,7 +1141,8 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         Provide the entire path to the key in S3.
 
         Args:
-            path: Entire path to (and including) the key.
+            path: Entire path to (and including) the key. A leading slash
+                does not bypass a configured `bucket_folder`.
 
         Example:
             Read "subfolder/file1" contents from an S3 bucket named "bucket":
@@ -1171,7 +1174,8 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         path to the key in S3.
 
         Args:
-            path: Entire path to (and including) the key.
+            path: Entire path to (and including) the key. A leading slash
+                does not bypass a configured `bucket_folder`.
 
         Example:
             Read "subfolder/file1" contents from an S3 bucket named "bucket":
@@ -1215,7 +1219,8 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         Args:
 
             path: The key name. Each object in your bucket has a unique
-                key (or key name).
+                key (or key name). A leading slash does not bypass a
+                configured `bucket_folder`.
             content: What you are uploading to S3.
 
         Example:
@@ -1254,7 +1259,8 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         Args:
 
             path: The key name. Each object in your bucket has a unique
-                key (or key name).
+                key (or key name). A leading slash does not bypass a
+                configured `bucket_folder`.
             content: What you are uploading to S3.
 
         Example:

@@ -33,7 +33,7 @@ A worker developer defines their worker's configuration to function with a class
 | `labels` | The labels assigned to the created execution environment for metadata purposes. |
 | `command` | The command to use when starting a flow run. |
 
-Prefect sets values for each attribute before giving the configuration to the worker. If you want to customize the values of these attributes, use the [`prepare_for_flow_run`](/v3/api-ref/python/prefect-workers-base#prepare-for-flow-run) method.
+Prefect sets values for each attribute before giving the configuration to the worker. If you want to customize the values of these attributes, use the [`prepare_for_flow_run`](/v3/api-ref/python/prefect-workers-base#prepare_for_flow_run) method.
 
 Here's an example `prepare_for_flow_run` method that adds a label to the execution environment:
 

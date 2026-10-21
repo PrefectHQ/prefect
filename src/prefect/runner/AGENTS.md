@@ -35,17 +35,11 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - Cancellation -> CancellationManager
 - Hooks -> HookRunner
 
-**Legacy methods on Runner exist only for backward compatibility.** Do not add new behavior to:
-- `_submit_run_and_capture_errors()` -- replaced by FlowRunExecutor.submit()
-- `_run_process()` -- replaced by ProcessStarter implementations
-- `_flow_run_process_map` dict -- replaced by ProcessManager
-- `_kill_process()` -- replaced by ProcessManager.kill()
-- `_run_on_crashed_hooks()` / `_run_on_cancellation_hooks()` -- replaced by HookRunner
-- `execute_flow_run()` -- deprecated (Mar 2026); use `FlowRunExecutorContext` + `WorkspaceResolvingEngineCommandStarter`
-- `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
-- `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
+**Runner has no execution path of its own.** Served runs go through `ScheduledRunPoller` -> `FlowRunExecutor`; one-shot callers (workers, `prefect flow-run execute`, `prefect.bundles.execute`) use `FlowRunExecutorContext` with a `ProcessStarter`. `Runner.execute_flow_run()`, `Runner.execute_bundle()` and `Runner.reschedule_current_flow_runs()` were removed after their deprecation period, along with the facade's own process map and kill/hook helpers. Do not reintroduce a second execution or process-tracking path on Runner: `Runner._cancel_run()` only delegates to `CancellationManager` for runs tracked by `ProcessManager`.
 
-These will be removed once internal callers are migrated. Direct ProcessWorker flow runs already use `FlowRunExecutorContext`; generated commands use `WorkspaceResolvingEngineCommandStarter`, while explicitly configured commands use `EngineCommandStarter`. Only the ad hoc bundle path still calls deprecated `Runner.execute_bundle()`. Keep lifecycle behavior in the extracted classes and do not route direct worker execution back through Runner.
+## Webserver Health Check
+
+The health check must not count a maintenance wait as a missed poll. Requests answered with `Prefect-Maintenance: true` retry indefinitely, so a poll can block for an entire Cloud maintenance window. `perform_health_check()` in `server.py` measures from `polling_window_start()` (`prefect._internal.server_maintenance`), the same rule the worker health check uses. `last_polled` is `None` until the first poll completes, so the health check measures from its own creation until then.
 
 ## EventEmitter WebSocket Degradation
 
@@ -99,8 +93,9 @@ Each execution mode has a ProcessStarter implementation. To add a new execution 
 
 `ScheduledRunPoller` now calls `propose_pending` (Scheduled → Pending) before handing off to `FlowRunExecutor`. `FlowRunExecutor` then calls `propose_submitting` (Pending → Submitting sub-state) as step 1 of its lifecycle **when `propose_submitting=True` (the default)**. These are two separate transitions — do not collapse them. The split exists so automations listening for the Pending state fire correctly before the executor begins.
 
-**Three callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — all have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
+**Four callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — all have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
 - direct `ProcessWorker.run()` execution (`BaseWorker` already proposed Submitting)
+- ad hoc `ProcessWorker._submit_adhoc_run()` execution (the worker created or reset the run as Pending)
 - `prefect flow-run execute` CLI path (invoked by a worker)
 - `execute_bundle()` in `prefect.bundles.execute` (invoked by bundle dispatch)
 
@@ -108,7 +103,7 @@ The cancelling precheck (step 1a) still runs unconditionally even when `propose_
 
 ## ProcessWorker Execution Paths
 
-Direct ProcessWorker runs use `FlowRunExecutorContext` with `propose_submitting=False`. Generated commands use `WorkspaceResolvingEngineCommandStarter` so command selection follows workspace preparation; explicitly configured commands use `EngineCommandStarter` and retain their own pull-step semantics. The executor owns process tracking, cancellation, Attempt Control Session evidence, crash inference, and normalized infrastructure status. Ad hoc ProcessWorker submissions still call deprecated `Runner.execute_bundle()` and remain a migration target.
+Direct ProcessWorker runs use `FlowRunExecutorContext` with `propose_submitting=False`. Generated commands use `WorkspaceResolvingEngineCommandStarter` so command selection follows workspace preparation; explicitly configured commands use `EngineCommandStarter` and retain their own pull-step semantics. Ad hoc submissions (`_submit_adhoc_run`, used by `InfrastructureBoundFlow`) open their own `FlowRunExecutorContext` with `BundleExecutionStarter` and `propose_submitting=False`, passing the job configuration's `working_dir` and `env`. The executor owns process tracking, cancellation, Attempt Control Session evidence, crash inference, and normalized infrastructure status in every path.
 
 ## BlockStorageAdapter Pull Behavior
 

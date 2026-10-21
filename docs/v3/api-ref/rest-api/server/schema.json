@@ -999,7 +999,7 @@
                             "type": "string",
                             "format": "date-time",
                             "description": "Only include runs that start or end after this time.",
-                            "default": "0001-01-01T00:00:00+00:00",
+                            "default": "0001-01-01T00:00:00Z",
                             "title": "Since"
                         },
                         "description": "Only include runs that start or end after this time."
@@ -10808,7 +10808,7 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/EventTrigger"
+                                "$ref": "#/components/schemas/EventTrigger-Output"
                             },
                             {
                                 "$ref": "#/components/schemas/CompoundTrigger-Output"
@@ -10827,7 +10827,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Output"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -10887,7 +10887,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Output"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -10947,7 +10947,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Output"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11071,7 +11071,7 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/EventTrigger"
+                                "$ref": "#/components/schemas/EventTrigger-Input"
                             },
                             {
                                 "$ref": "#/components/schemas/CompoundTrigger-Input"
@@ -11090,7 +11090,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11150,7 +11150,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11210,7 +11210,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11530,7 +11530,7 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/EventTrigger"
+                                "$ref": "#/components/schemas/EventTrigger-Input"
                             },
                             {
                                 "$ref": "#/components/schemas/CompoundTrigger-Input"
@@ -11549,7 +11549,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11609,7 +11609,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11669,7 +11669,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -12789,8 +12789,8 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "title": "Names",
-                        "min_items": 1
+                        "minItems": 1,
+                        "title": "Names"
                     },
                     "occupancy_seconds": {
                         "anyOf": [
@@ -12919,8 +12919,8 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "title": "Names",
-                        "min_items": 1
+                        "minItems": 1,
+                        "title": "Names"
                     },
                     "mode": {
                         "type": "string",
@@ -12963,8 +12963,8 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "title": "Names",
-                        "min_items": 1
+                        "minItems": 1,
+                        "title": "Names"
                     },
                     "mode": {
                         "type": "string",
@@ -13143,8 +13143,8 @@
                             "format": "uuid"
                         },
                         "type": "array",
-                        "title": "Flow Ids",
-                        "max_items": 200
+                        "maxItems": 200,
+                        "title": "Flow Ids"
                     }
                 },
                 "type": "object",
@@ -13335,8 +13335,8 @@
                             "format": "uuid"
                         },
                         "type": "array",
-                        "title": "Flow Run Ids",
-                        "max_items": 200
+                        "maxItems": 200,
+                        "title": "Flow Run Ids"
                     }
                 },
                 "type": "object",
@@ -13662,8 +13662,8 @@
                             "format": "uuid"
                         },
                         "type": "array",
-                        "title": "Flow Ids",
-                        "max_items": 200
+                        "maxItems": 200,
+                        "title": "Flow Ids"
                     }
                 },
                 "type": "object",
@@ -15459,7 +15459,7 @@
                         "items": {
                             "anyOf": [
                                 {
-                                    "$ref": "#/components/schemas/EventTrigger"
+                                    "$ref": "#/components/schemas/EventTrigger-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/CompoundTrigger-Input"
@@ -15476,6 +15476,10 @@
                         "anyOf": [
                             {
                                 "type": "number"
+                            },
+                            {
+                                "type": "string",
+                                "format": "duration"
                             },
                             {
                                 "type": "null"
@@ -15526,7 +15530,7 @@
                         "items": {
                             "anyOf": [
                                 {
-                                    "$ref": "#/components/schemas/EventTrigger"
+                                    "$ref": "#/components/schemas/EventTrigger-Output"
                                 },
                                 {
                                     "$ref": "#/components/schemas/CompoundTrigger-Output"
@@ -17537,7 +17541,7 @@
                     "schedule": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/IntervalSchedule"
+                                "$ref": "#/components/schemas/IntervalSchedule-Output"
                             },
                             {
                                 "$ref": "#/components/schemas/CronSchedule"
@@ -17607,7 +17611,7 @@
                     "schedule": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/IntervalSchedule"
+                                "$ref": "#/components/schemas/IntervalSchedule-Input"
                             },
                             {
                                 "$ref": "#/components/schemas/CronSchedule"
@@ -17687,7 +17691,7 @@
                     "schedule": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/IntervalSchedule"
+                                "$ref": "#/components/schemas/IntervalSchedule-Input"
                             },
                             {
                                 "$ref": "#/components/schemas/CronSchedule"
@@ -18016,6 +18020,15 @@
             },
             "DeploymentsSettings": {
                 "properties": {
+                    "clear_schedules_on_empty": {
+                        "type": "boolean",
+                        "title": "Clear Schedules On Empty",
+                        "description": "Clear existing schedules when an empty schedules list is passed to RunnerDeployment.apply or aapply, including via prefect deploy. This opt-in setting will be removed when clearing becomes the default, after a deprecation period of at least six months or three minor releases, whichever is longer.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY"
+                        ]
+                    },
                     "default_work_pool_name": {
                         "anyOf": [
                             {
@@ -18629,7 +18642,162 @@
                 "title": "EventTextFilter",
                 "description": "Filter by text search across event content."
             },
-            "EventTrigger": {
+            "EventTrigger-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "const": "event",
+                        "title": "Type",
+                        "default": "event"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "match": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "title": "Match",
+                        "description": "Labels for resources which this trigger will match."
+                    },
+                    "match_related": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ResourceSpecification"
+                                        },
+                                        {
+                                            "additionalProperties": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "string"
+                                                    },
+                                                    {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    }
+                                                ]
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "title": "Match Related",
+                        "description": "Labels for related resources which this trigger will match."
+                    },
+                    "after": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "After",
+                        "description": "The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`"
+                    },
+                    "expect": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "Expect",
+                        "description": "The event(s) this trigger is expecting to see.  If empty, this trigger will match any event.  Events may include trailing wildcards, like `prefect.flow-run.*`"
+                    },
+                    "for_each": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "For Each",
+                        "description": "Evaluate the trigger separately for each distinct value of these labels on the resource.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`.  This will use the value of that label for the first related resource in that role.  For example, `\"for_each\": [\"related:flow:prefect.resource.id\"]` would evaluate the trigger for each flow."
+                    },
+                    "posture": {
+                        "type": "string",
+                        "enum": [
+                            "Reactive",
+                            "Proactive"
+                        ],
+                        "title": "Posture",
+                        "description": "The posture of this trigger, either Reactive or Proactive.  Reactive triggers respond to the _presence_ of the expected events, while Proactive triggers respond to the _absence_ of those expected events."
+                    },
+                    "threshold": {
+                        "type": "integer",
+                        "title": "Threshold",
+                        "description": "The number of events required for this trigger to fire (for Reactive triggers), or the number of events expected (for Proactive triggers)",
+                        "default": 1
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "string",
+                                "format": "duration"
+                            }
+                        ],
+                        "minimum": 0.0,
+                        "title": "Within",
+                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
+                        "default": "PT0S"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "posture"
+                ],
+                "title": "EventTrigger",
+                "description": "A trigger that fires based on the presence or absence of events within a given\nperiod of time."
+            },
+            "EventTrigger-Output": {
                 "properties": {
                     "type": {
                         "type": "string",
@@ -18763,6 +18931,7 @@
                     },
                     "within": {
                         "type": "number",
+                        "minimum": 0.0,
                         "title": "Within",
                         "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
                         "default": 0.0
@@ -22070,7 +22239,52 @@
                 "type": "object",
                 "title": "InternalSettings"
             },
-            "IntervalSchedule": {
+            "IntervalSchedule-Input": {
+                "properties": {
+                    "interval": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "exclusiveMinimum": 0.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Interval"
+                    },
+                    "anchor_date": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Anchor Date",
+                        "examples": [
+                            "2020-01-01T00:00:00Z"
+                        ]
+                    },
+                    "timezone": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Timezone",
+                        "examples": [
+                            "America/New_York"
+                        ]
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "interval"
+                ],
+                "title": "IntervalSchedule",
+                "description": "A schedule formed by adding `interval` increments to an `anchor_date`. If no\n`anchor_date` is supplied, the current UTC time is used.  If a\ntimezone-naive datetime is provided for `anchor_date`, it is assumed to be\nin the schedule's timezone (or UTC). Even if supplied with an IANA timezone,\nanchor dates are always stored as UTC offsets, so a `timezone` can be\nprovided to determine localization behaviors like DST boundary handling. If\nnone is provided it will be inferred from the anchor date.\n\nNOTE: If the `IntervalSchedule` `anchor_date` or `timezone` is provided in a\nDST-observing timezone, then the schedule will adjust itself appropriately.\nIntervals greater than 24 hours will follow DST conventions, while intervals\nof less than 24 hours will follow UTC intervals. For example, an hourly\nschedule will fire every UTC hour, even across DST boundaries. When clocks\nare set back, this will result in two runs that *appear* to both be\nscheduled for 1am local time, even though they are an hour apart in UTC\ntime. For longer intervals, like a daily schedule, the interval schedule\nwill adjust for DST boundaries so that the clock-hour remains constant. This\nmeans that a daily schedule that always fires at 9am will observe DST and\ncontinue to fire at 9am in the local time zone.\n\nArgs:\n    interval (datetime.timedelta): an interval to schedule on.\n    anchor_date (DateTime, optional): an anchor date to schedule increments against;\n        if not provided, the current timestamp will be used.\n    timezone (str, optional): a valid timezone string."
+            },
+            "IntervalSchedule-Output": {
                 "properties": {
                     "interval": {
                         "type": "number",
@@ -23418,7 +23632,83 @@
                 "title": "ResumeWorkQueue",
                 "description": "Resumes a Work Queue"
             },
-            "RunDeployment": {
+            "RunDeployment-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "const": "run-deployment",
+                        "title": "Type",
+                        "default": "run-deployment"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "selected",
+                            "inferred"
+                        ],
+                        "title": "Source",
+                        "description": "Whether this Action applies to a specific selected deployment (given by `deployment_id`), or to a deployment that is inferred from the triggering event.  If the source is 'inferred', the `deployment_id` may not be set.  If the source is 'selected', the `deployment_id` must be set.",
+                        "default": "selected"
+                    },
+                    "deployment_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Deployment Id",
+                        "description": "The identifier of the deployment"
+                    },
+                    "parameters": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Parameters",
+                        "description": "The parameters to pass to the deployment, or None to use the deployment's default parameters"
+                    },
+                    "job_variables": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Job Variables",
+                        "description": "The job variables to pass to the created flow run, or None to use the deployment's default job variables"
+                    },
+                    "schedule_after": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "string",
+                                "format": "duration"
+                            }
+                        ],
+                        "title": "Schedule After",
+                        "description": "The amount of time to wait before running the deployment. Defaults to running the deployment immediately."
+                    }
+                },
+                "type": "object",
+                "title": "RunDeployment",
+                "description": "Runs the given deployment with the given parameters"
+            },
+            "RunDeployment-Output": {
                 "properties": {
                     "type": {
                         "type": "string",
@@ -23477,6 +23767,7 @@
                     },
                     "schedule_after": {
                         "type": "number",
+                        "minimum": 0.0,
                         "title": "Schedule After",
                         "description": "The amount of time to wait before running the deployment. Defaults to running the deployment immediately."
                     }
@@ -24051,7 +24342,7 @@
                         "items": {
                             "anyOf": [
                                 {
-                                    "$ref": "#/components/schemas/EventTrigger"
+                                    "$ref": "#/components/schemas/EventTrigger-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/CompoundTrigger-Input"
@@ -24068,6 +24359,10 @@
                         "anyOf": [
                             {
                                 "type": "number"
+                            },
+                            {
+                                "type": "string",
+                                "format": "duration"
                             },
                             {
                                 "type": "null"
@@ -24102,7 +24397,7 @@
                         "items": {
                             "anyOf": [
                                 {
-                                    "$ref": "#/components/schemas/EventTrigger"
+                                    "$ref": "#/components/schemas/EventTrigger-Output"
                                 },
                                 {
                                     "$ref": "#/components/schemas/CompoundTrigger-Output"
@@ -24598,7 +24893,7 @@
                     "url": {
                         "type": "string",
                         "title": "Url",
-                        "description": "The URL of the Redis server to use for Docket.",
+                        "description": "The URL of the Redis server to use for Docket. Supports the memory:// (single-server only), redis://, rediss://, redis+sentinel:// and rediss+sentinel:// schemes; the Sentinel schemes discover the current master through the listed Sentinel daemons and follow failover automatically (requires pydocket>=0.23.1).",
                         "default": "memory://",
                         "supported_environment_variables": [
                             "PREFECT_SERVER_DOCKET_URL"

@@ -34,6 +34,7 @@ from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime, TimeZone
 from prefect.types._datetime import (
     PositiveInterval,
+    _pendulum_call,
     create_datetime_instance,
     now,
 )
@@ -71,13 +72,13 @@ def _prepare_scheduling_start_and_end(
         if sys.version_info >= (3, 13):
             start = create_datetime_instance(start).astimezone(ZoneInfo(timezone))
         else:
-            start = create_datetime_instance(start).in_tz(timezone)
+            start = _pendulum_call(create_datetime_instance(start), "in_tz", timezone)
 
     if end is not None:
         if sys.version_info >= (3, 13):
             end = create_datetime_instance(end).astimezone(ZoneInfo(timezone))
         else:
-            end = create_datetime_instance(end).in_tz(timezone)
+            end = _pendulum_call(create_datetime_instance(end), "in_tz", timezone)
 
     return start, end
 
@@ -241,7 +242,7 @@ class IntervalSchedule(PrefectBaseModel):
                     )
 
                 def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
-                    return zdt + interval
+                    return zdt.add(interval)
 
                 if _months or _days:
                     # Calendar intervals must advance from the anchor in calendar
@@ -262,7 +263,7 @@ class IntervalSchedule(PrefectBaseModel):
                                 zdt = _advance(zdt)
                         else:
                             for _ in range(count - 2, 0):
-                                zdt = zdt - interval
+                                zdt = zdt.subtract(interval)
                         return zdt
 
                 else:
@@ -343,7 +344,7 @@ class IntervalSchedule(PrefectBaseModel):
         else:
             if start is None:
                 start = now("UTC")
-            anchor_tz = self.anchor_date.in_tz(self.timezone)
+            anchor_tz = _pendulum_call(self.anchor_date, "in_tz", self.timezone)
             start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
 
             # break the interval into `days` and `seconds` because the datetime
@@ -372,7 +373,9 @@ class IntervalSchedule(PrefectBaseModel):
             # daylight saving time boundaries can create a situation where the next date is
             # before the start date, so we advance it if necessary
             while next_date < start:
-                next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+                next_date = _pendulum_call(
+                    next_date, "add", days=interval_days, seconds=interval_seconds
+                )
 
             counter = 0
             dates = set()
@@ -393,7 +396,9 @@ class IntervalSchedule(PrefectBaseModel):
 
                 counter += 1
 
-                next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+                next_date = _pendulum_call(
+                    next_date, "add", days=interval_days, seconds=interval_seconds
+                )
 
 
 class CronSchedule(PrefectBaseModel):
@@ -502,7 +507,7 @@ class CronSchedule(PrefectBaseModel):
             if sys.version_info >= (3, 13):
                 start = start.astimezone(ZoneInfo(self.timezone or "UTC"))
             else:
-                start = start.in_tz(self.timezone)
+                start = _pendulum_call(start, "in_tz", self.timezone)
 
         # subtract one second from the start date, so that croniter returns it
         # as an event (if it meets the cron criteria)
@@ -528,7 +533,7 @@ class CronSchedule(PrefectBaseModel):
                     microsecond=start.microsecond,
                 )
             )
-            start_naive_tz = start.naive()
+            start_naive_tz = _pendulum_call(start, "naive")
 
         cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
         dates = set()

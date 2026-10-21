@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import dateutil
+import jsonschema
 import pytest
 from dateutil import rrule
 from pydantic import ValidationError
@@ -23,6 +24,26 @@ RRDaily = "FREQ=DAILY"
 
 
 class TestCreateIntervalSchedule:
+    @pytest.mark.parametrize("interval", [60, 0.5, "PT1M"])
+    def test_interval_schema_accepts_supported_inputs(
+        self, interval: int | float | str
+    ):
+        schedule = IntervalSchedule.model_validate({"interval": interval})
+        jsonschema.validate(
+            {"interval": interval}, IntervalSchedule.model_json_schema()
+        )
+        jsonschema.validate(
+            schedule.model_dump(mode="json"),
+            IntervalSchedule.model_json_schema(mode="serialization"),
+        )
+
+    @pytest.mark.parametrize("interval", [0, -60])
+    def test_interval_schema_rejects_nonpositive_seconds(self, interval: int):
+        validator = jsonschema.Draft202012Validator(
+            IntervalSchedule.model_json_schema()
+        )
+        assert not validator.is_valid({"interval": interval})
+
     def test_interval_is_required(self):
         with pytest.raises(ValidationError):
             IntervalSchedule()
