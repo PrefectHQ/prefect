@@ -1,6 +1,7 @@
+import itertools
 import sys
 from datetime import timedelta
-from typing import TYPE_CHECKING, Generator, List
+from typing import TYPE_CHECKING, Any, Generator, List
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -928,12 +929,40 @@ def test_creating_multiple_automations_with_partial_failure(
     assert create_automation.await_count == 2
 
 
-def test_deleting_all_automations(
+@pytest.fixture
+def paged_automation_store(
     delete_automation: mock.AsyncMock,
     read_automations: mock.AsyncMock,
-    various_automations: List[Automation],
+    various_automations: list[Automation],
+) -> list[Automation]:
+    """Serve `various_automations` two per page, rotating the ordering on every
+    read, and remove automations from the store as they are deleted."""
+    store = list(various_automations)
+    reads = itertools.count()
+
+    async def read_page(
+        self: "PrefectClient", *, offset: int = 0, **kwargs: Any
+    ) -> list[Automation]:
+        rows = list(store)
+        if rows:
+            shift = next(reads) % len(rows)
+            rows = rows[shift:] + rows[:shift]
+        return rows[offset : offset + 2]
+
+    async def delete(self: "PrefectClient", automation_id: UUID) -> None:
+        store.remove(next(a for a in store if a.id == automation_id))
+
+    read_automations.side_effect = read_page
+    delete_automation.side_effect = delete
+    return store
+
+
+def test_deleting_all_automations(
+    delete_automation: mock.AsyncMock,
+    various_automations: list[Automation],
+    paged_automation_store: list[Automation],
 ):
-    read_automations.return_value = various_automations
+    assert len(various_automations) > 2
     invoke_and_assert(
         ["automations", "delete", "--all"],
         prompts_and_responses=[
@@ -947,14 +976,14 @@ def test_deleting_all_automations(
     )
 
     assert delete_automation.await_count == len(various_automations)
+    assert paged_automation_store == []
 
 
 def test_deleting_all_automations_aborted(
     delete_automation: mock.AsyncMock,
-    read_automations: mock.AsyncMock,
-    various_automations: List[Automation],
+    various_automations: list[Automation],
+    paged_automation_store: list[Automation],
 ):
-    read_automations.return_value = various_automations
     invoke_and_assert(
         ["automations", "delete", "--all"],
         prompts_and_responses=[
