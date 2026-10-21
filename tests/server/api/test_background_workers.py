@@ -17,17 +17,25 @@ async def test_background_worker_shuts_down_when_worker_cancellation_is_lost(
     completes.
     """
     original_run_forever = Worker.run_forever
+    worker_started = asyncio.Event()
+    cancellation_ignored = asyncio.Event()
 
     async def run_forever_ignoring_cancellation(self: Worker) -> None:
-        inner = asyncio.ensure_future(original_run_forever(self))
+        async def run() -> None:
+            worker_started.set()
+            await original_run_forever(self)
+
+        inner = asyncio.ensure_future(run())
         while True:
             try:
                 return await asyncio.shield(inner)
             except asyncio.CancelledError:
-                continue
+                cancellation_ignored.set()
 
     monkeypatch.setattr(Worker, "run_forever", run_forever_ignoring_cancellation)
 
     docket = Docket(name=f"test-docket-{uuid4().hex[:8]}", url="memory://")
     async with docket, background_worker(docket, ephemeral=True):
-        await asyncio.sleep(0.2)
+        await worker_started.wait()
+
+    assert cancellation_ignored.is_set()
