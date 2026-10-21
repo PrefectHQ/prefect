@@ -2513,6 +2513,22 @@ class TestTaskTimeoutWatchdog:
         replaced.join(timeout=10)
         assert not replaced.is_alive()
 
+    def test_replacement_that_never_starts_does_not_strand_deadlines(self):
+        """Test that a thread keeps serving until its replacement is running.
+
+        A racing arm can publish a replacement whose start then fails, and the
+        thread it replaced must not hand over to it.
+        """
+        watchdog = _TimeoutWatchdog()
+        fired = threading.Event()
+
+        # Keeps the started thread from serving until the replacement is published
+        with watchdog._lock:
+            watchdog.arm(0, fired.set)
+            watchdog._thread = threading.Thread(target=lambda: None)
+
+        assert fired.wait(timeout=10)
+
     def test_callback_runs_in_the_arming_context(self):
         """Test that the callback sees the context it was armed from.
 

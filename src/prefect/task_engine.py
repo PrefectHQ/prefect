@@ -173,7 +173,7 @@ class _TimeoutWatchdog:
         self._deadlines: list[tuple[float, int]] = []
         self._armed: dict[int, Callable[[], None]] = {}
         self._firing: set[int] = set()
-        # Any watchdog thread other than this one exits
+        # Once running, any other watchdog thread hands over to it and exits
         self._thread: threading.Thread | None = None
 
     def arm(self, seconds: float, callback: Callable[[], None]) -> int:
@@ -195,9 +195,10 @@ class _TimeoutWatchdog:
             thread = threading.Thread(
                 target=self._run, name="TaskRunTimeoutWatchdog", daemon=True
             )
-            # Published before starting, so racing starts leave one serving thread
+            # Published before starting, so racing starts leave one serving thread.
+            # The thread it replaces keeps serving until it runs, in case its start
+            # fails.
             self._thread = thread
-            self._condition.notify_all()
         # Outside the lock, so a start that stalls cannot hold up other runs
         thread.start()
 
@@ -232,17 +233,29 @@ class _TimeoutWatchdog:
 
     def _run(self) -> None:
         _in_timeout_watchdog_thread.active = True
+        with self._lock:
+            # Lets a thread this one replaces hand over now rather than on its
+            # next deadline
+            self._condition.notify_all()
         while (claimed := self._wait_for_next_deadline()) is not None:
             self._fire(*claimed)
+
+    def _replaced(self) -> bool:
+        thread = self._thread
+        return (
+            thread is not None
+            and thread is not threading.current_thread()
+            and thread.is_alive()
+        )
 
     def _wait_for_next_deadline(self) -> tuple[int, Callable[[], None]] | None:
         """
         Wait until an armed deadline passes, then claim it.
 
-        Returns `None` once this thread is no longer the one serving deadlines.
+        Returns `None` once another watchdog thread is running in this one's place.
         """
         with self._lock:
-            while self._thread is threading.current_thread():
+            while not self._replaced():
                 while self._deadlines and self._deadlines[0][1] not in self._armed:
                     heapq.heappop(self._deadlines)
                 if not self._deadlines:
