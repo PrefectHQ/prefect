@@ -361,13 +361,17 @@ class IntervalSchedule(PrefectBaseModel):
             # does not drift by an hour per DST change crossed (#23204)
             offset = (start - anchor_tz).total_seconds() / self.interval.total_seconds()
             if interval_days:
-                next_date = anchor_tz.add(
+                next_date = _pendulum_call(
+                    anchor_tz,
+                    "add",
                     days=interval_days * int(offset),
                     seconds=interval_seconds * int(offset),
                 )
             else:
-                next_date = anchor_tz.add(
-                    seconds=self.interval.total_seconds() * int(offset)
+                next_date = _pendulum_call(
+                    anchor_tz,
+                    "add",
+                    seconds=self.interval.total_seconds() * int(offset),
                 )
 
             # daylight saving time boundaries can create a situation where the next date is
