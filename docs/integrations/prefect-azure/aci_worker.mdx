@@ -104,6 +104,13 @@ az role definition create --role-definition '{
 }'
 ```
 
+If your flow run containers will use an Azure virtual network, also add
+`Microsoft.Network/virtualNetworks/subnets/join/action` to the role's `Actions`
+list. The worker identity needs this permission on the target subnet. The role
+assignment in the next section covers subnets in `$RG_NAME`; if your subnet is in
+another resource group, grant the identity subnet join access at that subnet's
+scope as well.
+
 ### 2. Create an identity
 
 Create a user-managed identity with the following command, replacing `<identity-name>` with the name you'd like to use for the identity:
@@ -224,6 +231,30 @@ Both the subscription ID and resource group name can be found in the `RG_SCOPE` 
 ```
 
 ![Configuring an ACI work pool.](/images/integrations/aci-worker-subscription.png)
+
+### Subnet IDs (optional)
+
+To run flow containers in a virtual network, set **Subnet IDs** (`subnet_ids`) to
+a JSON array containing your existing subnet's resource ID:
+
+```json
+["/subscriptions/<subscription-id>/resourceGroups/<network-resource-group>/providers/Microsoft.Network/virtualNetworks/<vnet-name>/subnets/<subnet-name>"]
+```
+
+Use a subnet delegated to `Microsoft.ContainerInstance/containerGroups` in the
+same subscription as the container group. Ensure the worker identity has the
+subnet join permission described in Step 2. The worker adds these IDs to the
+container group's `properties.subnetIds`; you do not need to edit the ARM template.
+
+Configure outbound connectivity so the flow containers can reach Prefect and pull
+their image. Azure requires a NAT gateway for outbound connectivity from ACI
+container groups in a virtual network. See Microsoft's
+[ACI virtual network requirements](https://learn.microsoft.com/en-us/azure/container-instances/container-instances-virtual-network-concepts)
+and [deployment guide](https://learn.microsoft.com/en-us/azure/container-instances/container-instances-vnet).
+
+This setting controls the flow run containers. To place the worker container from
+Step 3 in a virtual network too, configure its networking separately with
+`az container create`.
 
 Then click Save.
 
