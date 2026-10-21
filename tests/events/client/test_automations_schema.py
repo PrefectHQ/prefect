@@ -107,6 +107,18 @@ def test_trigger_type_discrimination_with_metric():
     assert automation.trigger.type == "metric"
 
 
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+@pytest.mark.parametrize("field", ["range", "firing_for"])
+def test_metric_trigger_query_duration_schemas_publish_their_lower_bound(
+    field: str, mode: str
+):
+    schema = MetricTriggerQuery.model_json_schema(mode=mode)["properties"][field]
+    validator = jsonschema.Draft202012Validator(schema)
+
+    assert not validator.is_valid(299)
+    assert validator.is_valid(300)
+
+
 class TestUnknownActions:
     """Prefect Cloud can return action types that this version does not know
     about, such as ones added to Cloud after this release"""

@@ -309,6 +309,7 @@ class MetricTriggerQuery(PrefectBaseModel):
     )
     range: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
+        json_schema_extra={"minimum": 300},
         description=(
             "The lookback duration (seconds) for a metric query. This duration is "
             "used to determine the time range over which the query will be executed. "
@@ -317,6 +318,7 @@ class MetricTriggerQuery(PrefectBaseModel):
     )
     firing_for: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
+        json_schema_extra={"minimum": 300},
         description=(
             "The duration (seconds) for which the metric query must breach "
             "or resolve continuously before the state is updated and the "
