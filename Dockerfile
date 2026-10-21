@@ -11,7 +11,7 @@ ARG BUILD_PYTHON_VERSION=3.11
 # The version used to build the V1 UI distributable.
 ARG NODE_VERSION=22.23.4
 # The version used to build the V2 UI distributable (requires Node 22+).
-ARG NODE_V2_VERSION=22.23.2
+ARG NODE_V2_VERSION=22.23.4
 # SQLite version — must match the tag published to prefecthq/prefect-sqlite on DockerHub
 # See Dockerfile.sqlite-builder and .github/workflows/sqlite-builder.yaml
 ARG SQLITE_VERSION=3.50.4
