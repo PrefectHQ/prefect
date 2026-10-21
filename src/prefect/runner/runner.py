@@ -43,6 +43,7 @@ import sys
 import tempfile
 import threading
 import uuid
+import warnings
 from contextlib import AsyncExitStack
 from copy import deepcopy
 from functools import partial
@@ -54,6 +55,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    TypedDict,
     Union,
 )
 from uuid import UUID, uuid4
@@ -63,6 +65,10 @@ import anyio.abc
 from typing_extensions import Self
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.deprecated import (
+    PrefectDeprecationWarning,
+    generate_deprecation_message,
+)
 from prefect._internal.concurrency.api import (
     create_call,
     from_sync,
@@ -113,6 +119,29 @@ if TYPE_CHECKING:
 
 
 __all__ = ["Runner"]
+
+
+class _ProcessMapEntry(TypedDict):
+    flow_run: "FlowRun"
+    pid: int
+
+
+def __getattr__(name: str) -> Any:
+    # `ProcessMapEntry` described entries in the process map that the removed
+    # `Runner.execute_flow_run` path kept. It stays importable for one
+    # deprecation period.
+    if name == "ProcessMapEntry":
+        warnings.warn(
+            generate_deprecation_message(
+                name="prefect.runner.runner.ProcessMapEntry",
+                start_date="Oct 2026",
+                help="`Runner` no longer keeps a process map of these entries.",
+            ),
+            PrefectDeprecationWarning,
+            stacklevel=2,
+        )
+        return _ProcessMapEntry
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class Runner:

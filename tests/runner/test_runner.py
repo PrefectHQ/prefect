@@ -298,6 +298,13 @@ def in_temporary_runner_directory(tmp_path: Path):
         yield
 
 
+def test_process_map_entry_is_deprecated():
+    with pytest.warns(PrefectDeprecationWarning, match="ProcessMapEntry"):
+        from prefect.runner.runner import ProcessMapEntry
+
+    assert set(ProcessMapEntry.__annotations__) == {"flow_run", "pid"}
+
+
 class TestInit:
     async def test_runner_respects_limit_setting(self):
         runner = Runner()
