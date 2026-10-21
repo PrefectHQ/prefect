@@ -9,7 +9,9 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.schemas.observed_states import ObservedState, ObservedStateSort
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/observed-states", tags=["Observed States"])
+router: PrefectRouter = PrefectRouter(
+    prefix="/observed-states", tags=["Observed States"]
+)
 
 
 @router.get("")

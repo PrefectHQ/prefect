@@ -1,4 +1,4 @@
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
-from prefect.types._datetime import DateTime
 
 pytestmark = pytest.mark.clear_db
 
@@ -53,7 +52,7 @@ async def observations(
     flow_run: orm_models.FlowRun,
     task_run: orm_models.TaskRun,
 ) -> list[dict[str, str]]:
-    start = DateTime(2020, 1, 1, tzinfo=UTC)
+    start = datetime(2020, 1, 1, tzinfo=UTC)
     transitions = [
         (schemas.states.Scheduled(name="custom schedule"), 0, False),
         (schemas.states.Failed(name="Baseline NOT Met"), 1, False),
@@ -135,13 +134,28 @@ async def test_prefix_search(
 
 
 async def test_name_order_and_limit(
-    client: httpx.AsyncClient, observations: list[dict[str, str]]
+    client: httpx.AsyncClient,
+    session: AsyncSession,
+    flow_run: orm_models.FlowRun,
 ):
+    for name in ("ordering c", "ordering a", "ordering b"):
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=schemas.states.Failed(name=name),
+            force=True,
+        )
+    await session.commit()
+
     response = await client.get(
-        "/observed-states", params={"query": "base", "order_by": "NAME_ASC", "limit": 2}
+        "/observed-states",
+        params={"query": "ordering", "order_by": "NAME_ASC", "limit": 2},
     )
     assert response.status_code == 200
-    assert response.json() == [observations[1], observations[0]]
+    assert [row["state_name"] for row in response.json()] == [
+        "ordering a",
+        "ordering b",
+    ]
 
 
 async def test_deleted_runs_remove_observations(
