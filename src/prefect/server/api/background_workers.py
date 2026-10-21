@@ -81,7 +81,12 @@ async def background_worker(
         finally:
             if worker_task:
                 worker_task.cancel()
-                try:
-                    await worker_task
-                except asyncio.CancelledError:
-                    pass
+
+    # Exiting the `Worker` context above signals the worker loop to stop and waits
+    # for it, so shutdown completes even if the cancellation was lost (e.g.
+    # `asyncio.wait_for` on Python 3.11 can swallow a cancellation).
+    if worker_task:
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            pass
