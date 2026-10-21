@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 import contextvars
+import heapq
 import logging
 import math
 import os
@@ -14,6 +15,7 @@ from collections.abc import Callable, Generator
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Awaitable, List, Literal, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
@@ -2338,6 +2340,16 @@ class TestSyncTaskTimeoutWarning:
         assert result == "result"
 
 
+def _watchdog_threads_started_since(
+    before: set[threading.Thread],
+) -> list[threading.Thread]:
+    return [
+        thread
+        for thread in threading.enumerate()
+        if thread not in before and thread.name == "TaskRunTimeoutWatchdog"
+    ]
+
+
 class TestTaskTimeoutWatchdog:
     """Tests for the shared watchdog that reports runs outliving their timeout."""
 
@@ -2442,9 +2454,9 @@ class TestTaskTimeoutWatchdog:
         under 50 days on Windows.
         """
         watchdog = _TimeoutWatchdog()
+        before = set(threading.enumerate())
         handle = watchdog.arm(math.inf, lambda: None)
-        thread = watchdog._thread
-        assert thread is not None
+        [thread] = _watchdog_threads_started_since(before)
 
         try:
             # A thread that cannot wait on the deadline dies straight away
@@ -2477,18 +2489,14 @@ class TestTaskTimeoutWatchdog:
     def test_one_thread_serves_every_deadline(self):
         """Test that a wide fan-out of timed runs costs one thread, not one each."""
         watchdog = _TimeoutWatchdog()
-        threads: set[threading.Thread | None] = set()
-        handles: list[int] = []
+        before = set(threading.enumerate())
+        handles = [watchdog.arm(60, lambda: None) for _ in range(100)]
 
         try:
-            for _ in range(100):
-                handles.append(watchdog.arm(60, lambda: None))
-                threads.add(watchdog._thread)
+            assert len(_watchdog_threads_started_since(before)) == 1
         finally:
             for handle in handles:
                 watchdog.disarm(handle)
-
-        assert len(threads) == 1
 
     def test_replaced_thread_stops_serving_deadlines(self):
         """Test that a thread wrongly reported dead hands over rather than doubles up.
@@ -2497,8 +2505,11 @@ class TestTaskTimeoutWatchdog:
         as dead, and the next arm then starts another one.
         """
         watchdog = _TimeoutWatchdog()
+        first_fired = threading.Event()
         fired = threading.Event()
-        watchdog.arm(0, lambda: None)
+        watchdog.arm(0, first_fired.set)
+        # By the time it fires, the thread serving it has taken over
+        assert first_fired.wait(timeout=10)
         replaced = watchdog._thread
         assert replaced is not None
 
@@ -2509,23 +2520,106 @@ class TestTaskTimeoutWatchdog:
         finally:
             del replaced.is_alive
 
-        assert watchdog._thread is not replaced
+        # It exits only once its replacement has taken over
         replaced.join(timeout=10)
         assert not replaced.is_alive()
+        assert watchdog._thread is not replaced
 
-    def test_replacement_that_never_starts_does_not_strand_deadlines(self):
-        """Test that a thread keeps serving until its replacement is running.
-
-        A racing arm can publish a replacement whose start then fails, and the
-        thread it replaced must not hand over to it.
-        """
+    def test_failed_start_does_not_strand_deadlines(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that a thread start that fails leaves earlier deadlines served."""
         watchdog = _TimeoutWatchdog()
         fired = threading.Event()
 
-        # Keeps the started thread from serving until the replacement is published
+        class FailingThread(threading.Thread):
+            def start(self) -> None:
+                raise RuntimeError("can't start new thread")
+
+        failing_threading = SimpleNamespace(**vars(threading))
+        failing_threading.Thread = FailingThread
+
+        # Keeps the started thread from taking over until the failed start is done
         with watchdog._lock:
             watchdog.arm(0, fired.set)
-            watchdog._thread = threading.Thread(target=lambda: None)
+            # As if the first start were over, so the next arm starts a thread
+            watchdog._start_began = None
+            with monkeypatch.context() as patch:
+                patch.setattr(prefect.task_engine, "threading", failing_threading)
+                with pytest.raises(RuntimeError, match="can't start new thread"):
+                    watchdog.arm(60, lambda: None)
+
+        assert fired.wait(timeout=10)
+
+    def test_racing_starts_settle_on_one_thread(self):
+        """Test that threads started by racing arms leave one serving thread."""
+        watchdog = _TimeoutWatchdog()
+        before = set(threading.enumerate())
+
+        # Keeps either thread from taking over until both have started
+        with watchdog._lock:
+            watchdog._start_thread_if_needed()
+            # As if the first start were over, so the next arm starts a thread
+            watchdog._start_began = None
+            watchdog._start_thread_if_needed()
+        started = _watchdog_threads_started_since(before)
+        assert len(started) == 2
+
+        deadline = time.monotonic() + 10
+        while sum(thread.is_alive() for thread in started) > 1:
+            assert time.monotonic() < deadline, "Both watchdog threads kept running"
+            time.sleep(0.01)
+        assert [thread for thread in started if thread.is_alive()] == [watchdog._thread]
+
+    def test_arms_during_a_start_wait_for_it(self):
+        """Test that arms made while a thread is starting do not start more threads."""
+        watchdog = _TimeoutWatchdog()
+        before = set(threading.enumerate())
+
+        # The first thread can only take over while the later arms wait for it
+        with watchdog._lock:
+            handles = [watchdog.arm(60, lambda: None) for _ in range(10)]
+
+        try:
+            assert len(_watchdog_threads_started_since(before)) == 1
+        finally:
+            for handle in handles:
+                watchdog.disarm(handle)
+
+    def test_start_that_never_finishes_does_not_strand_deadlines(self):
+        """Test that an arm stops waiting on a start that never finishes.
+
+        An exception raised into the arming thread can leave a start recorded that
+        never finishes or fails.
+        """
+        watchdog = _TimeoutWatchdog()
+        fired = threading.Event()
+        watchdog._start_began = time.monotonic()
+
+        watchdog.arm(0, fired.set)
+
+        assert fired.wait(timeout=10)
+
+    def test_lost_wake_up_only_delays_a_deadline(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that the thread finds a deadline that was armed without waking it.
+
+        An exception raised into the arming thread can skip the wake-up that arm
+        gives an idle thread.
+        """
+        monkeypatch.setattr(
+            "prefect.task_engine._TIMEOUT_WATCHDOG_MAX_WAIT_SECONDS", 0.1
+        )
+        watchdog = _TimeoutWatchdog()
+        idle = threading.Event()
+        fired = threading.Event()
+        watchdog.arm(0, idle.set)
+        assert idle.wait(timeout=10)
+
+        # Armed the way `arm` does, but without the wake-up
+        with watchdog._lock:
+            handle = next(prefect.task_engine._timeout_watchdog_handles)
+            heapq.heappush(watchdog._deadlines, (time.monotonic(), handle))
+            watchdog._armed[handle] = fired.set
 
         assert fired.wait(timeout=10)
 

@@ -152,6 +152,14 @@ _timeout_watchdog_handles = itertools.count()
 # log handler could block on something the disarming thread holds
 _TIMEOUT_WATCHDOG_DISARM_WAIT_SECONDS = 1.0
 
+# Bounds how long an arm waits for a thread another arm is starting, before it
+# treats that start as failed and starts its own
+_TIMEOUT_WATCHDOG_START_SECONDS = 1.0
+
+# Caps each sleep of the watchdog thread, so a wake-up lost when an enclosing
+# timeout interrupts an arm delays a warning rather than losing it
+_TIMEOUT_WATCHDOG_MAX_WAIT_SECONDS = 5.0
+
 _in_timeout_watchdog_thread = threading.local()
 
 
@@ -173,8 +181,10 @@ class _TimeoutWatchdog:
         self._deadlines: list[tuple[float, int]] = []
         self._armed: dict[int, Callable[[], None]] = {}
         self._firing: set[int] = set()
-        # Once running, any other watchdog thread hands over to it and exits
+        # The thread serving deadlines. Each new watchdog thread takes over once it
+        # runs, and the one it replaces exits.
         self._thread: threading.Thread | None = None
+        self._start_began: float | None = None
 
     def arm(self, seconds: float, callback: Callable[[], None]) -> int:
         # A plain thread would not see the run's context variables
@@ -182,25 +192,47 @@ class _TimeoutWatchdog:
         self._start_thread_if_needed()
         with self._lock:
             handle = next(_timeout_watchdog_handles)
-            self._armed[handle] = run_in_context
+            # Pushed before the callback is stored, since an interruption between
+            # the two then leaves only a deadline that is skipped
             heapq.heappush(self._deadlines, (time.monotonic() + seconds, handle))
+            self._armed[handle] = run_in_context
             if self._deadlines[0][1] == handle:
                 self._condition.notify_all()
         return handle
 
+    def _start_in_progress(self) -> bool:
+        # A start interrupted before it could finish or fail counts as over once it
+        # is this old
+        return (
+            self._start_began is not None
+            and time.monotonic() - self._start_began < _TIMEOUT_WATCHDOG_START_SECONDS
+        )
+
     def _start_thread_if_needed(self) -> None:
         with self._lock:
+            # A thread another arm is starting serves this deadline too, unless its
+            # start fails, so wait to see rather than start another
+            self._condition.wait_for(
+                lambda: not self._start_in_progress(),
+                timeout=_TIMEOUT_WATCHDOG_START_SECONDS,
+            )
             if self._thread is not None and self._thread.is_alive():
                 return
-            thread = threading.Thread(
+            if self._start_in_progress():
+                # Another arm that waited too has just started one
+                return
+            self._start_began = time.monotonic()
+        try:
+            # Outside the lock, so a start that stalls cannot hold up other runs. A
+            # start that fails changes nothing for a thread already serving.
+            threading.Thread(
                 target=self._run, name="TaskRunTimeoutWatchdog", daemon=True
-            )
-            # Published before starting, so racing starts leave one serving thread.
-            # The thread it replaces keeps serving until it runs, in case its start
-            # fails.
-            self._thread = thread
-        # Outside the lock, so a start that stalls cannot hold up other runs
-        thread.start()
+            ).start()
+        except BaseException:
+            with self._lock:
+                self._start_began = None
+                self._condition.notify_all()
+            raise
 
     def disarm(self, handle: int) -> None:
         """
@@ -234,38 +266,33 @@ class _TimeoutWatchdog:
     def _run(self) -> None:
         _in_timeout_watchdog_thread.active = True
         with self._lock:
-            # Lets a thread this one replaces hand over now rather than on its
-            # next deadline
+            self._thread = threading.current_thread()
+            self._start_began = None
+            # Wakes the thread this one replaces so that it exits now
             self._condition.notify_all()
         while (claimed := self._wait_for_next_deadline()) is not None:
             self._fire(*claimed)
-
-    def _replaced(self) -> bool:
-        thread = self._thread
-        return (
-            thread is not None
-            and thread is not threading.current_thread()
-            and thread.is_alive()
-        )
 
     def _wait_for_next_deadline(self) -> tuple[int, Callable[[], None]] | None:
         """
         Wait until an armed deadline passes, then claim it.
 
-        Returns `None` once another watchdog thread is running in this one's place.
+        Returns `None` once another watchdog thread has taken over.
         """
         with self._lock:
-            while not self._replaced():
+            while self._thread is threading.current_thread():
                 while self._deadlines and self._deadlines[0][1] not in self._armed:
                     heapq.heappop(self._deadlines)
                 if not self._deadlines:
-                    self._condition.wait()
+                    self._condition.wait(_TIMEOUT_WATCHDOG_MAX_WAIT_SECONDS)
                     continue
                 deadline, handle = self._deadlines[0]
                 remaining = deadline - time.monotonic()
                 if remaining > 0:
-                    # `wait` rejects timeouts above `TIMEOUT_MAX`, e.g. infinite ones
-                    self._condition.wait(min(remaining, threading.TIMEOUT_MAX))
+                    # Also keeps an infinite timeout under `threading.TIMEOUT_MAX`
+                    self._condition.wait(
+                        min(remaining, _TIMEOUT_WATCHDOG_MAX_WAIT_SECONDS)
+                    )
                     continue
                 heapq.heappop(self._deadlines)
                 self._firing.add(handle)
