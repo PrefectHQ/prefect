@@ -47,6 +47,7 @@ from prefect.states import (
     Running,
     State,
     Suspended,
+    to_state_create,
 )
 from prefect.task_engine import (
     AsyncTaskRunEngine,
@@ -2437,6 +2438,56 @@ class TestCachePolicy:
         failure = record.result[0].data if aggregate else record.result
         assert isinstance(failure, ValueError)
         assert str(failure) == "temporary"
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("persist_result", [False, True])
+    @pytest.mark.parametrize("data_type", ["metadata", "record"])
+    async def test_returned_failure_preserves_persisted_result(
+        self, tmp_path: Path, is_async: bool, persist_result: bool, data_type: str
+    ):
+        store = ResultStore(result_storage=LocalFileSystem(basepath=tmp_path))
+        record = store.create_result_record(ValueError("temporary"), key="failure")
+        await store.apersist_result_record(record)
+        data = record.metadata if data_type == "metadata" else record
+        attempts = 0
+
+        def flaky(order_id: int) -> State | str:
+            nonlocal attempts
+            attempts += 1
+            return Failed(data=data) if attempts == 1 else "recovered"
+
+        async def async_flaky(order_id: int) -> State | str:
+            return flaky(order_id)
+
+        flaky_task = task(
+            async_flaky if is_async else flaky,
+            cache_policy=INPUTS,
+            persist_result=persist_result,
+            result_storage=tmp_path,
+        )
+        run = run_task_async if is_async else run_task_sync
+        first = run(flaky_task, parameters={"order_id": 42}, return_type="state")
+        if is_async:
+            first = await first
+        assert first.is_failed()
+        assert first.data is data
+        assert attempts == 1
+        assert list(tmp_path.iterdir()) == [tmp_path / "failure"]
+        with pytest.raises(ValueError, match="temporary"):
+            await first.result()
+        if data_type == "record":
+            assert first.data.is_persisted
+            assert to_state_create(first).data == record.metadata
+
+        second = run(flaky_task, parameters={"order_id": 42}, return_type="state")
+        if is_async:
+            second = await second
+        assert second.name == "Completed"
+        assert await second.result() == "recovered"
+        assert attempts == 2
+        stored = await store.aread(record.metadata.storage_key)
+        assert isinstance(stored.result, ValueError)
+        assert str(stored.result) == "temporary"
 
     @pytest.mark.parametrize("is_async", [False, True])
     @pytest.mark.parametrize("outcome", ["commit", "rollback", "off"])

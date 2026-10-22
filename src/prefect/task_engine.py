@@ -647,20 +647,24 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
 
         on_commit_hooks = self.task.on_commit_hooks.copy()
-        if terminal_state.is_failed() and isinstance(terminal_state.data, ResultRecord):
-            # Match raised failures: retain the result without populating the cache key.
-            result_store = get_result_store()
-            failure_record = result_store.create_result_record(
-                terminal_state.data.result, key=str(uuid4()), expiration=expiration
-            )
-            terminal_state.data = failure_record
-            if transaction.write_on_commit:
-                # A hook also supports tasks whose cache policy produces no key.
-                def persist_failure(_: Transaction) -> None:
-                    result_store.persist_result_record(failure_record)
+        if terminal_state.is_failed():
+            if (
+                isinstance(terminal_state.data, ResultRecord)
+                and not terminal_state.data.is_persisted
+            ):
+                # Match raised failures: retain the result without populating the cache key.
+                result_store = get_result_store()
+                failure_record = result_store.create_result_record(
+                    terminal_state.data.result, key=str(uuid4()), expiration=expiration
+                )
+                terminal_state.data = failure_record
+                if transaction.write_on_commit:
+                    # A hook also supports tasks whose cache policy produces no key.
+                    def persist_failure(_: Transaction) -> None:
+                        result_store.persist_result_record(failure_record)
 
-                persist_failure.log_on_run = False
-                on_commit_hooks.append(persist_failure)
+                    persist_failure.log_on_run = False
+                    on_commit_hooks.append(persist_failure)
             transaction.write_on_commit = False
 
         # Avoid logging when running this rollback hook since it is not user-defined
@@ -1296,20 +1300,24 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
 
         on_commit_hooks = self.task.on_commit_hooks.copy()
-        if terminal_state.is_failed() and isinstance(terminal_state.data, ResultRecord):
-            # Match raised failures: retain the result without populating the cache key.
-            result_store = get_result_store()
-            failure_record = result_store.create_result_record(
-                terminal_state.data.result, key=str(uuid4()), expiration=expiration
-            )
-            terminal_state.data = failure_record
-            if transaction.write_on_commit:
-                # A hook also supports tasks whose cache policy produces no key.
-                async def persist_failure(_: AsyncTransaction) -> None:
-                    await result_store.apersist_result_record(failure_record)
+        if terminal_state.is_failed():
+            if (
+                isinstance(terminal_state.data, ResultRecord)
+                and not terminal_state.data.is_persisted
+            ):
+                # Match raised failures: retain the result without populating the cache key.
+                result_store = get_result_store()
+                failure_record = result_store.create_result_record(
+                    terminal_state.data.result, key=str(uuid4()), expiration=expiration
+                )
+                terminal_state.data = failure_record
+                if transaction.write_on_commit:
+                    # A hook also supports tasks whose cache policy produces no key.
+                    async def persist_failure(_: AsyncTransaction) -> None:
+                        await result_store.apersist_result_record(failure_record)
 
-                persist_failure.log_on_run = False
-                on_commit_hooks.append(persist_failure)
+                    persist_failure.log_on_run = False
+                    on_commit_hooks.append(persist_failure)
             transaction.write_on_commit = False
 
         # Avoid logging when running this rollback hook since it is not user-defined
