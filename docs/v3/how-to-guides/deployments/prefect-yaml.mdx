@@ -831,9 +831,21 @@ These are fields you can add to each entry in a deployment declaration's `schedu
 <Note>
 **Removing schedules from a deployment**
 
-Removing the `schedules` key from your `prefect.yaml` file, or setting `schedules: null` or `schedules: []`, does **not** remove existing schedules from a deployment when you run `prefect deploy`. Prefect treats the absence of schedule configuration as "no change" rather than "delete all schedules."
+By default, `schedules: []` preserves existing schedules when you redeploy and emits a deprecation warning.
+To opt in to removing all existing schedules, including schedules with slugs, set `schedules: []` and enable the setting when you deploy:
 
-To explicitly remove schedules from an existing deployment, use the CLI:
+```bash
+PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true prefect deploy --all
+```
+
+Clearing schedules will become the default in a future release.
+The current behavior is retained for at least six months or three minor releases, whichever is longer, under the [deprecation policy](/v3/release-notes/versioning#deprecation).
+After that period, a later release will remove the setting and warning.
+
+Omitting the `schedules` key or setting `schedules: null` preserves existing schedules.
+Declining the interactive prompt to configure schedules also preserves them.
+
+To remove schedules directly, use the CLI:
 
 ```bash
 # Remove all schedules from a deployment
@@ -869,7 +881,7 @@ When using the detailed form, these are the available fields:
 | Property                                   | Description                                                                                                                                                                                                            |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `limit`                                    | The maximum number of concurrent flow runs for the deployment.                                                                                                                                                 |
-| `collision_strategy`                       | Configure the behavior for runs once the concurrency limit is reached. Options are `ENQUEUE` and `CANCEL_NEW`. Defaults to `ENQUEUE`.                                                                                 |
+| `collision_strategy`                       | Configure the behavior for runs once the [concurrency limit](/v3/concepts/deployments#concurrency-limiting) is reached. Options are `ENQUEUE` and `CANCEL_NEW`. Defaults to `ENQUEUE`.                               |
 | `grace_period_seconds`                     | The time in seconds to allow infrastructure to start before the concurrency slot is released. Must be between 60 and 86400 seconds. If not set, falls back to the server setting (default 300 seconds / 5 minutes). |
 
 

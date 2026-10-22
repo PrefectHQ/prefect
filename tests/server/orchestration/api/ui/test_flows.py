@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import pytest
+from httpx import AsyncClient
 
 from prefect.server import models, schemas
 from prefect.server.api.ui.flows import SimpleNextFlowRun
@@ -213,3 +215,29 @@ class TestNextRunsByFlow:
             str(flow_2.id): expected_next_run_workspace1_flow2,
             str(flow_3.id): None,
         }
+
+
+@pytest.mark.parametrize("endpoint", ["count-deployments", "next-runs"])
+async def test_flow_id_bulk_endpoints_accept_200_ids(
+    endpoint: str, client: AsyncClient
+):
+    response = await client.post(
+        f"/ui/flows/{endpoint}",
+        json={"flow_ids": [str(uuid4()) for _ in range(200)]},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("endpoint", ["count-deployments", "next-runs"])
+async def test_flow_id_bulk_endpoints_reject_more_than_200_ids(
+    endpoint: str, client: AsyncClient
+):
+    response = await client.post(
+        f"/ui/flows/{endpoint}",
+        json={"flow_ids": [str(uuid4()) for _ in range(201)]},
+    )
+    assert response.status_code == 422
+    errors = response.json()["exception_detail"]
+    assert [(error["loc"], error["type"]) for error in errors] == [
+        (["body", "flow_ids"], "too_long")
+    ]

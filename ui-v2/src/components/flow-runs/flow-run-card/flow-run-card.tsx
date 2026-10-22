@@ -2,12 +2,15 @@ import { cva } from "class-variance-authority";
 import { Suspense } from "react";
 import type { Deployment } from "@/api/deployments";
 import type { FlowRun } from "@/api/flow-runs";
+import { isTerminalState } from "@/api/flow-runs/state-utilities";
 import type { Flow } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
+import { WorkPoolLink } from "@/components/work-pools/work-pool-link";
+import { WorkQueueIconText } from "@/components/work-pools/work-queue-icon-text";
 import { FlowRunDeployment } from "./card-properties/flow-run-deployment";
 import { FlowRunDuration } from "./card-properties/flow-run-duration";
 import { FlowRunName } from "./card-properties/flow-run-name";
@@ -31,6 +34,10 @@ type FlowRunCardProps =
 	  };
 
 export const FlowRunCard = ({ flowRun, ...props }: FlowRunCardProps) => {
+	const hasRelationships = Boolean(
+		flowRun.deployment || flowRun.work_pool_name,
+	);
+
 	return (
 		<Card className={stateCardVariants({ state: flowRun.state?.type })}>
 			{/** First Row */}
@@ -44,7 +51,7 @@ export const FlowRunCard = ({ flowRun, ...props }: FlowRunCardProps) => {
 					)}
 					<FlowRunName flowRun={flowRun} />
 				</div>
-				<div>
+				<div className="flex-1 min-w-12 flex justify-end">
 					<TagBadgeGroup tags={flowRun.tags} />
 				</div>
 			</div>
@@ -64,12 +71,25 @@ export const FlowRunCard = ({ flowRun, ...props }: FlowRunCardProps) => {
 					</>
 				)}
 			</div>
-			{/** Third Row Row */}
-			<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-				{flowRun.deployment && (
-					<FlowRunDeployment deployment={flowRun.deployment} />
-				)}
-			</div>
+			{/** Third Row */}
+			{hasRelationships && (
+				<div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+					{flowRun.deployment && (
+						<FlowRunDeployment deployment={flowRun.deployment} />
+					)}
+					{flowRun.work_pool_name && (
+						<WorkPoolLink workPoolName={flowRun.work_pool_name} />
+					)}
+					{flowRun.work_pool_name && flowRun.work_queue_name && (
+						<WorkQueueIconText
+							workPoolName={flowRun.work_pool_name}
+							workQueueName={flowRun.work_queue_name}
+							showLabel
+							showStatus={!isTerminalState(flowRun.state?.type)}
+						/>
+					)}
+				</div>
+			)}
 		</Card>
 	);
 };

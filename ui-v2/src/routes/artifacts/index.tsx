@@ -14,6 +14,7 @@ import type { filterType } from "@/components/artifacts/types";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Schema for validating URL search parameters for the artifacts page.
@@ -64,6 +65,7 @@ const buildFilterBody = (
 export const Route = createFileRoute("/artifacts/")({
 	validateSearch: searchParams,
 	component: function RouteComponent() {
+		usePageTitle("Artifacts");
 		const search = Route.useSearch();
 		const { filters, onFilterChange } = useFilter();
 

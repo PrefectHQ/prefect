@@ -56,6 +56,50 @@ class MockBatchedService(BatchedQueueService[int]):
         print(f"Handled batch for {self}")
 
 
+class _BacklogMixin:
+    """
+    Holds items in the queue until `release` is set, so a backlog builds up, then
+    handles them without suspending.
+    """
+
+    release: threading.Event
+    handled: List[int]
+    # The queue size when other work on the event loop first got to run
+    queue_sizes_seen_by_other_work: List[int]
+
+    @contextlib.asynccontextmanager
+    async def _lifespan(self):
+        await asyncio.to_thread(self.release.wait)
+        # Runs the first time the service lets the event loop do other work
+        asyncio.get_running_loop().call_soon(
+            lambda: self.queue_sizes_seen_by_other_work.append(self._queue.qsize())
+        )
+        yield
+
+
+class BacklogService(_BacklogMixin, QueueService[int]):
+    async def _handle(self, item: int):
+        self.handled.append(item)
+
+
+class BatchedBacklogService(_BacklogMixin, BatchedQueueService[int]):
+    _max_batch_size = 10_000
+
+    async def _handle_batch(self, items: List[int]):
+        self.handled.extend(items)
+
+
+@pytest.fixture(params=[BacklogService, BatchedBacklogService])
+def backlog_service_type(request: pytest.FixtureRequest):
+    service_type = request.param
+    service_type.release = threading.Event()
+    service_type.handled = []
+    service_type.queue_sizes_seen_by_other_work = []
+    yield service_type
+    service_type.release.set()
+    service_type.drain_all()
+
+
 @pytest.fixture(autouse=True)
 def reset_mock_services():
     yield
@@ -154,6 +198,130 @@ def test_instance_returns_new_instance_after_base_exception():
     new_instance.send(2)
     new_instance.drain()
     new_instance.mock.assert_called_once_with(new_instance, 2)
+
+
+def test_instance_returns_new_instance_when_cached_instance_is_stopped():
+    failures = iter([True])
+
+    class FailingLifespanService(MockService):
+        @contextlib.asynccontextmanager
+        async def _lifespan(self):
+            if next(failures, False):
+                raise ValueError("Oh no")
+            yield
+
+    # A lifespan that fails as soon as the service starts stops it while
+    # `instance()` is still creating it; it must not remain cached
+    instance = FailingLifespanService.instance()
+    instance.drain()
+    assert instance._stopped
+    assert QueueService._instances.get(instance._key) is not instance
+
+    # Even if a stopped instance is cached, it must not be returned
+    QueueService._instances[instance._key] = instance
+    new_instance = FailingLifespanService.instance()
+    assert new_instance is not instance
+    assert not new_instance._stopped
+
+    new_instance.send(1)
+    new_instance.drain()
+    new_instance.mock.assert_called_once_with(new_instance, 1)
+
+
+def test_stopped_instance_does_not_evict_newer_instance_with_same_key():
+    instance = MockService.instance()
+    instance._stop()
+    new_instance = MockService.instance()
+    assert new_instance is not instance
+
+    instance._remove_instance()
+
+    assert MockService.instance() is new_instance
+
+
+def test_concurrent_cleanup_does_not_evict_replacement(monkeypatch: pytest.MonkeyPatch):
+    instance = MockService.instance()
+    checked = threading.Event()
+    advanced = threading.Event()
+    cleanup_thread_id: int | None = None
+    lock = threading.Lock()
+
+    class CacheLock:
+        def __enter__(self) -> None:
+            # Let the paused cleanup continue once its competitor either blocks
+            # on this lock (fixed) or publishes a replacement (broken).
+            if not lock.acquire(blocking=False):
+                advanced.set()
+                lock.acquire()
+
+        def __exit__(self, *args: object) -> None:
+            lock.release()
+
+    class PausingInstances(dict[int, MockService]):
+        def get(
+            self, key: int, default: MockService | None = None
+        ) -> MockService | None:
+            cached = super().get(key, default)
+            if threading.get_ident() == cleanup_thread_id and cached is instance:
+                checked.set()
+                assert advanced.wait(5)
+            return cached
+
+    # Pause cleanup after it reads the old instance, while another thread drains
+    # that instance and requests its replacement.
+    monkeypatch.setattr(
+        MockService, "_instances", PausingInstances(MockService._instances)
+    )
+    monkeypatch.setattr(MockService, "_instance_cache_lock", CacheLock(), raising=False)
+
+    def cleanup() -> None:
+        nonlocal cleanup_thread_id
+        cleanup_thread_id = threading.get_ident()
+        instance._remove_instance()
+
+    def replace() -> MockService:
+        try:
+            instance.drain()
+            return MockService.instance()
+        finally:
+            advanced.set()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        cleanup_future = executor.submit(cleanup)
+        try:
+            assert checked.wait(5)
+            replacement_future = executor.submit(replace)
+            replacement = replacement_future.result(timeout=10)
+            cleanup_future.result(timeout=10)
+        finally:
+            advanced.set()
+
+    current = MockService.instance()
+    try:
+        assert current is replacement
+        replacement.send(1)
+        replacement.drain()
+        replacement.mock.assert_called_once_with(replacement, 1)
+    finally:
+        replacement.drain()
+        current.drain()
+
+
+def test_instance_cache_lock_is_reset_after_fork(monkeypatch: pytest.MonkeyPatch):
+    class ForkedService(MockService):
+        _instance_cache_lock = threading.Lock()
+
+    monkeypatch.setattr(ForkedService, "_instances", {})
+    # A child process can inherit the cache lock while another thread holds it.
+    with ForkedService._instance_cache_lock:
+        ForkedService.reset_instances_for_fork()
+        assert ForkedService._instance_cache_lock.acquire(blocking=False)
+        ForkedService._instance_cache_lock.release()
+        instance = ForkedService.instance()
+
+    instance.send(1)
+    instance.drain()
+    instance.mock.assert_called_once_with(instance, 1)
 
 
 def test_send_one():
@@ -427,6 +595,40 @@ def test_batched_queue_service_min_interval():
     IntervalMockBatchedService.mock.assert_has_calls(
         [call(instance, [1]), call(instance, [2])]
     )
+
+
+def test_queued_items_are_taken_without_waiting_on_queue_thread(
+    backlog_service_type: type[BacklogService] | type[BatchedBacklogService],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    instance = backlog_service_type.instance()
+    queue_thread_submit = MagicMock(wraps=instance._queue_get_thread.submit)
+    monkeypatch.setattr(instance._queue_get_thread, "submit", queue_thread_submit)
+
+    for i in range(1000):
+        instance.send(i)
+    backlog_service_type.release.set()
+    instance.drain()
+
+    assert backlog_service_type.handled == list(range(1000))
+    # At most one wait for the stop signal, if it arrived after the backlog was
+    # taken
+    assert queue_thread_submit.call_count <= 1
+
+
+def test_service_working_through_backlog_lets_other_work_run(
+    backlog_service_type: type[BacklogService] | type[BatchedBacklogService],
+):
+    instance = backlog_service_type.instance()
+
+    for i in range(5000):
+        instance.send(i)
+    backlog_service_type.release.set()
+    instance.drain()
+
+    assert backlog_service_type.handled == list(range(5000))
+    # Other work on the global loop ran while most of the backlog was still queued
+    assert backlog_service_type.queue_sizes_seen_by_other_work[0] > 4000
 
 
 def test_on_item_dropped_called_when_queue_full():

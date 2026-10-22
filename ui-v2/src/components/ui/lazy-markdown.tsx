@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Components, Options } from "react-markdown";
+import type { Components, Options, UrlTransform } from "react-markdown";
 import { MermaidDiagram } from "@/components/ui/mermaid-diagram";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -11,9 +11,19 @@ type LazyMarkdownProps = Omit<Options, "children"> & {
 
 type MarkdownModules = {
 	Markdown: React.ComponentType<Options>;
+	urlTransform: UrlTransform;
 	remarkPlugins: Pluggable[];
 	rehypePlugins: Pluggable[];
 };
+
+const IMAGE_DATA_URL = /^data:image\//;
+
+function buildUrlTransform(defaultUrlTransform: UrlTransform): UrlTransform {
+	return (url, key, node) =>
+		node.tagName === "img" && key === "src" && IMAGE_DATA_URL.test(url)
+			? url
+			: defaultUrlTransform(url, key, node);
+}
 
 function reactNodeToString(node: React.ReactNode): string {
 	if (node == null || typeof node === "boolean") return "";
@@ -61,6 +71,9 @@ export function LazyMarkdown({
 		]).then(([md, gfm, raw, sanitize]) => {
 			setModules({
 				Markdown: md.default,
+				// Inline `data:image/*` sources are kept for `<img>` so base64-encoded
+				// figures render; every other URL goes through the default transform.
+				urlTransform: buildUrlTransform(md.defaultUrlTransform),
 				remarkPlugins: [gfm.default],
 				// `rehype-raw` parses HTML embedded in the markdown so it renders as
 				// markup instead of text; `rehype-sanitize` runs after it to drop
@@ -75,6 +88,10 @@ export function LazyMarkdown({
 							// footnotes. Prefixing them again here would leave the footnote
 							// links pointing at ids that no longer exist.
 							clobberPrefix: "",
+							protocols: {
+								...sanitize.defaultSchema.protocols,
+								src: [...(sanitize.defaultSchema.protocols?.src ?? []), "data"],
+							},
 						},
 					],
 				],
@@ -101,10 +118,11 @@ export function LazyMarkdown({
 		return <Skeleton className="min-h-[100px]" />;
 	}
 
-	const { Markdown } = modules;
+	const { Markdown, urlTransform } = modules;
 
 	return (
 		<Markdown
+			urlTransform={urlTransform}
 			remarkPlugins={mergedRemarkPlugins}
 			rehypePlugins={mergedRehypePlugins}
 			components={mergedComponents}

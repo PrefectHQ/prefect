@@ -1,6 +1,8 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { buildGetEventQuery } from "@/api/events";
 import { Card, CardContent } from "@/components/ui/card";
+import { usePageTitle } from "@/hooks/use-page-title";
+import { formatEventLabel } from "../events-timeline";
 import { EventActionMenu } from "./event-action-menu";
 import { EventDetailsHeader } from "./event-details-header";
 import { EventDetailsTabs } from "./event-details-tabs";
@@ -21,6 +23,7 @@ export function EventDetailsPage({
 	const { data: event } = useSuspenseQuery(
 		buildGetEventQuery(eventId, eventDate),
 	);
+	usePageTitle(`Event: ${formatEventLabel(event.event)}`);
 
 	return (
 		<div className="flex flex-col gap-6">

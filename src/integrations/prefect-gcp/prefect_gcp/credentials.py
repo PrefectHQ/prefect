@@ -122,7 +122,7 @@ class GcpCredentials(CredentialsBlock):
         ```
     """  # noqa
 
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/googlecloud.png"  # noqa
     _block_type_name = "GCP Credentials"
     _documentation_url = "https://docs.prefect.io/integrations/prefect-gcp"  # noqa: E501
 
