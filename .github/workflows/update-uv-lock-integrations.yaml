@@ -1,0 +1,92 @@
+# Refresh the released integration's pin in uv.lock.
+#
+# The production Dockerfile installs extras with `--constraint` from
+# `uv export --frozen --all-extras`, so published images ship whatever
+# version of each integration uv.lock pins. Without this, images can lag
+# behind (or downgrade vs) the latest released integration
+# (see https://github.com/PrefectHQ/prefect/issues/23524).
+#
+# Fires on the same integration release tags as
+# integration-package-release.yaml and opens a PR bumping the pin.
+
+name: Update uv.lock integration pin
+
+on:
+  push:
+    tags:
+      - "prefect-\\w+-[0-9]+.*"
+
+permissions: {}
+
+jobs:
+  update-uv-lock:
+    name: Bump released integration in uv.lock
+    runs-on: ubuntu-latest
+    permissions:
+      # required to push the bump branch
+      contents: write
+      # required for `gh pr create`
+      pull-requests: write
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Resolve package from tag
+        id: package
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          PACKAGE_NAME="${TAG%-*}"
+          PACKAGE_VERSION="${TAG##*-}"
+          echo "name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${PACKAGE_VERSION}" >> "$GITHUB_OUTPUT"
+          if grep -q "name = \"${PACKAGE_NAME}\"" uv.lock; then
+            echo "in-lock=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "in-lock=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up uv
+        if: steps.package.outputs.in-lock == 'true'
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: latest
+
+      - name: Update lock
+        if: steps.package.outputs.in-lock == 'true'
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+        run: uv lock --upgrade-package "${PACKAGE_NAME}"
+
+      - name: Commit and open pull request
+        if: steps.package.outputs.in-lock == 'true'
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+          TAG: ${{ github.ref_name }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet uv.lock; then
+            echo "uv.lock already pins ${PACKAGE_NAME} to the released version; nothing to do"
+            exit 0
+          fi
+
+          BRANCH="automation/uv-lock-${PACKAGE_NAME}-${PACKAGE_VERSION}"
+          if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null; then
+            echo "Branch ${BRANCH} already exists; skipping"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${BRANCH}"
+          git add uv.lock
+          git commit -m "Bump ${PACKAGE_NAME} to ${PACKAGE_VERSION} in uv.lock"
+          git push --set-upstream origin "${BRANCH}"
+          gh pr create \
+            --base main \
+            --title "Bump ${PACKAGE_NAME} to ${PACKAGE_VERSION} in uv.lock" \
+            --body "Docker images install extras constrained to versions pinned in uv.lock (\`uv export --frozen --all-extras\`). This bumps ${PACKAGE_NAME} to ${PACKAGE_VERSION}, released via tag ${TAG}, so published images ship the latest release."
