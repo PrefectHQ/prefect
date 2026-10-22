@@ -1,16 +1,15 @@
+import itertools
 import sys
 from datetime import timedelta
-from typing import TYPE_CHECKING, Generator, List
+from typing import Any, Generator, List
 from unittest import mock
 from uuid import UUID, uuid4
-
-if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient
 
 import orjson
 import pytest
 import yaml
 
+from prefect.client.orchestration import PrefectClient
 from prefect.events.actions import CancelFlowRun, DoNothing, PauseAutomation
 from prefect.events.schemas.automations import (
     Automation,
@@ -22,6 +21,7 @@ from prefect.events.schemas.automations import (
     Posture,
     PrefectMetric,
 )
+from prefect.settings import PREFECT_SERVER_API_DEFAULT_LIMIT
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -46,10 +46,37 @@ def interactive_console(monkeypatch):
 
 
 @pytest.fixture
-def read_automations() -> Generator[mock.AsyncMock, None, None]:
+def deleted_automation_ids() -> set[UUID]:
+    """Ids of the automations the mocked API has been asked to delete."""
+    return set()
+
+
+@pytest.fixture
+def read_automations(
+    deleted_automation_ids: set[UUID],
+) -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
         "prefect.client.orchestration.PrefectClient.read_automations", autospec=True
     ) as m:
+
+        async def read_automations_page(
+            self,
+            *,
+            automations=None,
+            sort=None,
+            limit=None,
+            offset=0,
+        ) -> List[Automation]:
+            rows = m.return_value
+            if not isinstance(rows, list):
+                return []
+            # Deleted automations are no longer returned by the server.
+            rows = [row for row in rows if row.id not in deleted_automation_ids]
+            # The server returns at most `PREFECT_SERVER_API_DEFAULT_LIMIT` rows.
+            limit = PREFECT_SERVER_API_DEFAULT_LIMIT.value() if limit is None else limit
+            return rows[offset : offset + limit]
+
+        m.side_effect = read_automations_page
         yield m
 
 
@@ -452,10 +479,17 @@ def test_resuming_by_id_not_found(
 
 
 @pytest.fixture
-def delete_automation() -> Generator[mock.AsyncMock, None, None]:
+def delete_automation(
+    deleted_automation_ids: set[UUID],
+) -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
         "prefect.client.orchestration.PrefectClient.delete_automation", autospec=True
     ) as m:
+
+        async def delete_automation(self, automation_id: UUID) -> None:
+            deleted_automation_ids.add(automation_id)
+
+        m.side_effect = delete_automation
         yield m
 
 
@@ -982,6 +1016,106 @@ def test_deleting_all_automations_when_none_exist(
     )
 
     delete_automation.assert_not_called()
+
+
+@pytest.fixture
+def more_automations_than_one_page(
+    read_automations: mock.AsyncMock,
+) -> List[Automation]:
+    """More automations than the server returns in a single response."""
+    automations = [
+        Automation(
+            id=uuid4(),
+            name=f"automation-{index}",
+            description="This one reacts to things!",
+            trigger=EventTrigger(
+                posture=Posture.Reactive, expect={"event.one"}, threshold=1
+            ),
+            actions=[DoNothing()],
+        )
+        for index in range(PREFECT_SERVER_API_DEFAULT_LIMIT.value() + 1)
+    ]
+    read_automations.return_value = automations
+    return automations
+
+
+def test_deleting_all_automations_across_pages(
+    delete_automation: mock.AsyncMock,
+    more_automations_than_one_page: List[Automation],
+):
+    """`delete --all` deletes every automation, not just the first page."""
+    invoke_and_assert(
+        ["automations", "delete", "--all"],
+        prompts_and_responses=[
+            (
+                f"Are you sure you want to delete all {len(more_automations_than_one_page)} automations?",
+                "y",
+            )
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            f"Deleted {len(more_automations_than_one_page)} automations."
+        ],
+    )
+
+    assert delete_automation.await_count == len(more_automations_than_one_page)
+
+
+@pytest.fixture
+def small_unstable_pages(monkeypatch: pytest.MonkeyPatch):
+    """Serve automations two at a time, rotating the full ordering on every
+    request to mimic a server whose ordering of tied names is unstable."""
+    original_read_automations = PrefectClient.read_automations
+    calls = itertools.count()
+
+    async def read_automations(self: PrefectClient, *, offset: int = 0, **kwargs: Any):
+        rows = await original_read_automations(self, **kwargs)
+        if rows:
+            shift = next(calls) % len(rows)
+            rows = rows[shift:] + rows[:shift]
+        return rows[offset : offset + 2]
+
+    monkeypatch.setattr(PrefectClient, "read_automations", read_automations)
+
+
+@pytest.fixture
+async def setup_tied_name_automations(prefect_client: "PrefectClient"):
+    """Create automations that all share a name.
+
+    Automations are sorted by name and names are not unique, so the order of
+    same-named automations is not stable across requests.
+    """
+    for _ in range(5):
+        automation = AutomationCore(
+            name="daily",
+            enabled=True,
+            trigger=EventTrigger(
+                posture=Posture.Reactive,
+                expect={"event.original"},
+                threshold=1,
+            ),
+            actions=[DoNothing()],
+        )
+        await prefect_client.create_automation(automation)
+
+
+@pytest.mark.usefixtures("setup_tied_name_automations", "small_unstable_pages")
+async def test_deleting_all_automations_across_unstable_pages(
+    prefect_client: "PrefectClient",
+):
+    """Every automation is deleted exactly once, even when the server's order
+    of same-named automations changes between requests."""
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        ["automations", "delete", "--all"],
+        prompts_and_responses=[
+            ("Are you sure you want to delete all 5 automations?", "y"),
+        ],
+        expected_code=0,
+        expected_output_contains=["Deleted 5 automations."],
+    )
+
+    assert await prefect_client.read_automations() == []
 
 
 def test_deleting_all_automations_with_name_errors(
