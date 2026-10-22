@@ -7,7 +7,6 @@ from __future__ import annotations
 import datetime
 from typing import (
     TYPE_CHECKING,
-    Annotated,
     Any,
     ClassVar,
     Dict,
@@ -19,7 +18,6 @@ from typing import (
 from uuid import UUID
 
 from pydantic import (
-    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
@@ -64,7 +62,7 @@ from prefect.types import (
     StrictVariableValue,
 )
 from prefect.types._datetime import now
-from prefect.types.names import raise_on_name_alphanumeric_dashes_only
+from prefect.types.names import StoredFlowRunInputKey
 from prefect.utilities.collections import (
     AutoEnum,
     dict_to_flatdict,
@@ -1320,9 +1318,7 @@ class Variable(ORMBaseModel):
 
 class FlowRunInput(ORMBaseModel):
     flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
-    key: Annotated[str, AfterValidator(raise_on_name_alphanumeric_dashes_only)] = Field(
-        description="The key of the input."
-    )
+    key: StoredFlowRunInputKey = Field(description="The key of the input.")
     value: str = Field(description="The value of the input.")
     sender: Optional[str] = Field(default=None, description="The sender of the input.")
 

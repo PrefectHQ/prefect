@@ -111,6 +111,12 @@ class TestCreateFlowRunInput:
                 key="invalid key *@&*$&", value="value", flow_run_id=flow_run.id
             )
 
+    async def test_rejects_key_with_trailing_newline(self, flow_run):
+        with pytest.raises(ValidationError):
+            await create_flow_run_input(
+                key="key\n", value="value", flow_run_id=flow_run.id
+            )
+
     def test_can_be_used_sync(self):
         @flow(name=f"test_can_be_used_sync_{uuid.uuid4()}")
         def test_flow():

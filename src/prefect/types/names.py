@@ -13,21 +13,24 @@ LOWERCASE_LETTERS_NUMBERS_AND_DASHES_OR_UNDERSCORES_REGEX = "^[a-z0-9-_]*$"
 
 @overload
 def raise_on_name_alphanumeric_dashes_only(
-    value: str, field_name: str = ...
+    value: str, field_name: str = ..., allow_trailing_newline: bool = ...
 ) -> str: ...
 
 
 @overload
 def raise_on_name_alphanumeric_dashes_only(
-    value: None, field_name: str = ...
+    value: None, field_name: str = ..., allow_trailing_newline: bool = ...
 ) -> None: ...
 
 
 def raise_on_name_alphanumeric_dashes_only(
-    value: str | None, field_name: str = "value"
+    value: str | None, field_name: str = "value", allow_trailing_newline: bool = False
 ) -> str | None:
+    # `re.match` lets `$` match before a trailing newline. Names stored before
+    # that was rejected must stay readable, so read models opt back into it.
+    match = re.match if allow_trailing_newline else re.fullmatch
     if value is not None and not bool(
-        re.fullmatch(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX, value)
+        match(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX, value)
     ):
         raise ValueError(
             f"{field_name} must only contain lowercase letters, numbers, and dashes."
@@ -103,6 +106,39 @@ BlockDocumentName = Annotated[
     AfterValidator(
         partial(
             raise_on_name_alphanumeric_dashes_only, field_name="Block document name"
+        )
+    ),
+]
+
+
+# For reading block documents stored before trailing newlines were rejected.
+StoredBlockDocumentName = Annotated[
+    Name,
+    AfterValidator(
+        partial(
+            raise_on_name_alphanumeric_dashes_only,
+            field_name="Block document name",
+            allow_trailing_newline=True,
+        )
+    ),
+]
+
+
+FlowRunInputKey = Annotated[
+    str,
+    AfterValidator(
+        partial(raise_on_name_alphanumeric_dashes_only, field_name="Flow run input key")
+    ),
+]
+
+# For reading flow run inputs stored before trailing newlines were rejected.
+StoredFlowRunInputKey = Annotated[
+    str,
+    AfterValidator(
+        partial(
+            raise_on_name_alphanumeric_dashes_only,
+            field_name="Flow run input key",
+            allow_trailing_newline=True,
         )
     ),
 ]

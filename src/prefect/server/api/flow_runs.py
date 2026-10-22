@@ -60,6 +60,7 @@ from prefect.server.services.cancellation_cleanup import (
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.types._datetime import earliest_possible_datetime, now
+from prefect.types.names import FlowRunInputKey
 from prefect.utilities import schema_tools
 
 if TYPE_CHECKING:
@@ -881,7 +882,7 @@ async def set_flow_run_state(
 @router.post("/{id:uuid}/input", status_code=status.HTTP_201_CREATED)
 async def create_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
-    key: str = Body(..., description="The input key"),
+    key: FlowRunInputKey = Body(..., description="The input key"),
     value: bytes = Body(..., description="The value of the input"),
     sender: Optional[str] = Body(None, description="The sender of the input"),
     db: PrefectDBInterface = Depends(provide_database_interface),

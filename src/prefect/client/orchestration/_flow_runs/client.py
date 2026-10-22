@@ -485,10 +485,12 @@ class FlowRunClient(BaseClient):
             value: The input value.
             sender: The sender of the input.
         """
-        from prefect.client.schemas.objects import FlowRunInput
+        from pydantic import TypeAdapter
 
-        # Initialize the input to ensure that the key is valid.
-        FlowRunInput(flow_run_id=flow_run_id, key=key, value=value)
+        from prefect.types.names import FlowRunInputKey
+
+        # Validate the key before sending it.
+        TypeAdapter(FlowRunInputKey).validate_python(key)
 
         response = self.request(
             "POST",
@@ -1014,10 +1016,12 @@ class FlowRunAsyncClient(BaseAsyncClient):
             sender: The sender of the input.
         """
 
-        # Initialize the input to ensure that the key is valid.
-        from prefect.client.schemas.objects import FlowRunInput
+        from pydantic import TypeAdapter
 
-        FlowRunInput(flow_run_id=flow_run_id, key=key, value=value)
+        from prefect.types.names import FlowRunInputKey
+
+        # Validate the key before sending it.
+        TypeAdapter(FlowRunInputKey).validate_python(key)
 
         response = await self.request(
             "POST",

@@ -2819,6 +2819,21 @@ class TestFlowRunInput:
         assert flow_run_input.key == "structured-key-1"
         assert flow_run_input.value == "really important stuff"
 
+    async def test_create_flow_run_input_rejects_trailing_newline_key(
+        self, flow_run, client: AsyncClient, session: AsyncSession
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/input",
+            json=dict(key="structured-key-1\n", value="really important stuff"),
+        )
+
+        assert response.status_code == 422, response.text
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session, flow_run_id=flow_run.id, key="structured-key-1\n"
+        )
+        assert flow_run_input is None
+
     async def test_404_non_existent_flow_run(
         self, client: AsyncClient, session: AsyncSession
     ):

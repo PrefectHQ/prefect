@@ -19,7 +19,6 @@ from uuid import UUID
 
 import orjson
 from pydantic import (
-    AfterValidator,
     ConfigDict,
     Discriminator,
     Field,
@@ -66,8 +65,8 @@ from prefect.types import (
 )
 from prefect.types._datetime import DateTime, now
 from prefect.types.names import (
-    BlockDocumentName,
-    raise_on_name_alphanumeric_dashes_only,
+    StoredBlockDocumentName,
+    StoredFlowRunInputKey,
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum, visit_collection
@@ -1078,7 +1077,7 @@ class BlockSchema(ObjectBaseModel):
 class BlockDocument(ObjectBaseModel):
     """An ORM representation of a block document."""
 
-    name: Optional[BlockDocumentName] = Field(
+    name: Optional[StoredBlockDocumentName] = Field(
         default=None,
         description=(
             "The block document's name. Not required for anonymous block documents."
@@ -1754,9 +1753,7 @@ class Variable(ObjectBaseModel):
 
 class FlowRunInput(ObjectBaseModel):
     flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
-    key: Annotated[str, AfterValidator(raise_on_name_alphanumeric_dashes_only)] = Field(
-        description="The key of the input."
-    )
+    key: StoredFlowRunInputKey = Field(description="The key of the input.")
     value: str = Field(description="The value of the input.")
     sender: Optional[str] = Field(default=None, description="The sender of the input.")
 

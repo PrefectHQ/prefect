@@ -3,10 +3,15 @@ from __future__ import annotations
 import datetime
 import sys
 import types
+from uuid import uuid4
 
 import pytest
 from pydantic import BaseModel
 
+from prefect.client.schemas import actions as client_actions
+from prefect.client.schemas import objects as client_objects
+from prefect.server.schemas import actions as server_actions
+from prefect.server.schemas import core as server_core
 from prefect.types import KeyValueLabelsField, SecondsTimeDelta
 from prefect.types import _datetime as datetime_types
 from prefect.types._datetime import human_friendly_diff
@@ -72,7 +77,7 @@ def test_seconds_timedelta_accepts_numeric_values():
 
 
 def test_now_uses_to_stdlib_on_python_313_plus(monkeypatch: pytest.MonkeyPatch):
-    expected = datetime.datetime(2026, 4, 9, tzinfo=datetime.timezone.utc)
+    expected = datetime.datetime(2026, 4, 9, tzinfo=datetime.UTC)
 
     class FakeZonedDateTimeResult:
         def to_stdlib(self) -> datetime.datetime:
@@ -100,7 +105,7 @@ def test_now_uses_to_stdlib_on_python_313_plus(monkeypatch: pytest.MonkeyPatch):
 def test_now_falls_back_to_py_datetime_without_to_stdlib(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    expected = datetime.datetime(2026, 4, 9, tzinfo=datetime.timezone.utc)
+    expected = datetime.datetime(2026, 4, 9, tzinfo=datetime.UTC)
 
     class FakeZonedDateTimeResult:
         def py_datetime(self) -> datetime.datetime:
@@ -134,3 +139,39 @@ def test_now_falls_back_to_py_datetime_without_to_stdlib(
 def test_name_validators_reject_newlines(validator, value: str):
     with pytest.raises(ValueError, match="must only contain"):
         validator(value)
+
+
+@pytest.mark.parametrize(
+    "create_model",
+    [client_actions.BlockDocumentCreate, server_actions.BlockDocumentCreate],
+)
+def test_block_document_create_rejects_trailing_newline_name(create_model):
+    with pytest.raises(ValueError, match="must only contain"):
+        create_model(
+            name="new-block\n", data={}, block_schema_id=uuid4(), block_type_id=uuid4()
+        )
+
+
+def test_block_document_response_accepts_previously_stored_trailing_newline():
+    block_document = client_objects.BlockDocument(
+        name="legacy-block\n", data={}, block_schema_id=uuid4(), block_type_id=uuid4()
+    )
+    assert block_document.name == "legacy-block\n"
+
+
+@pytest.mark.parametrize(
+    "input_model", [client_objects.FlowRunInput, server_core.FlowRunInput]
+)
+def test_flow_run_input_response_accepts_previously_stored_trailing_newline(
+    input_model,
+):
+    flow_run_input = input_model(flow_run_id=uuid4(), key="legacy-key\n", value="value")
+    assert flow_run_input.key == "legacy-key\n"
+
+
+@pytest.mark.parametrize(
+    "input_model", [client_objects.FlowRunInput, server_core.FlowRunInput]
+)
+def test_flow_run_input_response_still_rejects_invalid_keys(input_model):
+    with pytest.raises(ValueError, match="must only contain"):
+        input_model(flow_run_id=uuid4(), key="legacy key", value="value")
