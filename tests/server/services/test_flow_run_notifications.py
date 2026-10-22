@@ -149,7 +149,7 @@ async def test_service_does_not_send_notifications_without_policy(
 
 
 async def test_service_sends_many_notifications_and_clears_queue(
-    session, db, flow_run, completed_policy, capsys, flow
+    events_disabled, session, db, flow_run, completed_policy, capsys, flow
 ):
     COUNT = 20 if os.environ.get("CI") else 200
 
