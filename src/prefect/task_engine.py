@@ -629,8 +629,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     ) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]:
         # Handle the case where the task explicitly returns a failed state, in
         # which case we should retry the task if it has retries left.
-        if isinstance(result, State) and result.is_failed():
-            if self.handle_retry(result):
+        failed_state = (
+            result if isinstance(result, State) and result.is_failed() else None
+        )
+        if failed_state is not None:
+            transaction.write_on_commit = False
+            if self.handle_retry(failed_state):
                 return None
 
         if self.task.cache_expiration is not None:
@@ -641,8 +645,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         terminal_state = return_value_to_state_sync(
             result,
             result_store=get_result_store(),
-            key=transaction.key,
+            key=str(uuid4()) if failed_state is not None else transaction.key,
             expiration=expiration,
+            write_result=failed_state is not None and should_persist_result(),
         )
 
         # Avoid logging when running this rollback hook since it is not user-defined
@@ -1260,8 +1265,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def handle_success(
         self, result: R, transaction: AsyncTransaction
     ) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]:
-        if isinstance(result, State) and result.is_failed():
-            if await self.handle_retry(result):
+        failed_state = (
+            result if isinstance(result, State) and result.is_failed() else None
+        )
+        if failed_state is not None:
+            transaction.write_on_commit = False
+            if await self.handle_retry(failed_state):
                 return None
 
         if self.task.cache_expiration is not None:
@@ -1272,8 +1281,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         terminal_state = await return_value_to_state(
             result,
             result_store=get_result_store(),
-            key=transaction.key,
+            # Persist failures separately so they cannot become cache hits.
+            key=str(uuid4()) if failed_state is not None else transaction.key,
             expiration=expiration,
+            write_result=failed_state is not None and should_persist_result(),
         )
 
         # Avoid logging when running this rollback hook since it is not user-defined

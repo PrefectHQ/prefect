@@ -2370,6 +2370,61 @@ class TestPersistence:
 
 
 class TestCachePolicy:
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("retries", [0, 1])
+    async def test_returned_failed_state_is_not_cached(
+        self, tmp_path: Path, is_async: bool, retries: int
+    ):
+        attempts = 0
+
+        def flaky(order_id: int) -> State | str:
+            nonlocal attempts
+            attempts += 1
+            if attempts <= retries + 1:
+                return Failed(data=ValueError("temporary"))
+            return "recovered"
+
+        async def async_flaky(order_id: int) -> State | str:
+            return flaky(order_id)
+
+        flaky_task = task(
+            async_flaky if is_async else flaky,
+            cache_policy=INPUTS,
+            persist_result=True,
+            result_storage=tmp_path,
+            retries=retries,
+        )
+        run = run_task_async if is_async else run_task_sync
+
+        first = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            first = await first
+        assert first.is_failed()
+        assert attempts == retries + 1
+
+        second = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            second = await second
+        assert second.is_completed()
+        assert second.name == "Completed"
+        assert await second.result() == "recovered"
+        assert attempts == retries + 2
+
+        third = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            third = await third
+        assert third.name == "Cached"
+        assert await third.result() == "recovered"
+        assert attempts == retries + 2
+
+        # The original failure must remain persisted after a successful call.
+        persisted_failure = ResultStore(
+            result_storage=LocalFileSystem(basepath=tmp_path)
+        )
+        record = await persisted_failure.aread(first.data.metadata.storage_key)
+        assert isinstance(record.result, ValueError)
+        assert str(record.result) == "temporary"
+
     async def test_result_stored_with_storage_key_if_no_policy_set(
         self, prefect_client
     ):
