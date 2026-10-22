@@ -99,7 +99,11 @@ WORKDIR /opt/prefect
 # - tini: Used in the entrypoint
 # - build-essential: Required for Python dependencies without wheels
 # - git: Required for retrieving workflows from git sources
+#
+# Upgrade first: the python 3.8-3.10 slim bases are no longer rebuilt upstream,
+# so Debian security updates (CA bundle included) only arrive through this layer.
 RUN apt-get update && \
+    apt-get upgrade --no-install-recommends -y && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
