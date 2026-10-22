@@ -629,12 +629,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     ) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]:
         # Handle the case where the task explicitly returns a failed state, in
         # which case we should retry the task if it has retries left.
-        failed_state = (
-            result if isinstance(result, State) and result.is_failed() else None
-        )
-        if failed_state is not None:
-            transaction.write_on_commit = False
-            if self.handle_retry(failed_state):
+        if isinstance(result, State) and result.is_failed():
+            if self.handle_retry(result):
+                transaction.write_on_commit = False
                 return None
 
         if self.task.cache_expiration is not None:
@@ -645,10 +642,26 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         terminal_state = return_value_to_state_sync(
             result,
             result_store=get_result_store(),
-            key=str(uuid4()) if failed_state is not None else transaction.key,
+            key=transaction.key,
             expiration=expiration,
-            write_result=failed_state is not None and should_persist_result(),
         )
+
+        on_commit_hooks = self.task.on_commit_hooks.copy()
+        if terminal_state.is_failed() and isinstance(terminal_state.data, ResultRecord):
+            # Match raised failures: retain the result without populating the cache key.
+            result_store = get_result_store()
+            failure_record = result_store.create_result_record(
+                terminal_state.data.result, key=str(uuid4()), expiration=expiration
+            )
+            terminal_state.data = failure_record
+            if transaction.write_on_commit:
+                # A hook also supports tasks whose cache policy produces no key.
+                def persist_failure(_: Transaction) -> None:
+                    result_store.persist_result_record(failure_record)
+
+                persist_failure.log_on_run = False
+                on_commit_hooks.append(persist_failure)
+            transaction.write_on_commit = False
 
         # Avoid logging when running this rollback hook since it is not user-defined
         handle_rollback = partial(self.handle_rollback)
@@ -657,7 +670,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         transaction.stage(
             terminal_state.data,
             on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
-            on_commit_hooks=self.task.on_commit_hooks,
+            on_commit_hooks=on_commit_hooks,
         )
         if transaction.is_committed():
             terminal_state.name = "Cached"
@@ -1265,12 +1278,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def handle_success(
         self, result: R, transaction: AsyncTransaction
     ) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]:
-        failed_state = (
-            result if isinstance(result, State) and result.is_failed() else None
-        )
-        if failed_state is not None:
-            transaction.write_on_commit = False
-            if await self.handle_retry(failed_state):
+        if isinstance(result, State) and result.is_failed():
+            if await self.handle_retry(result):
+                transaction.write_on_commit = False
                 return None
 
         if self.task.cache_expiration is not None:
@@ -1281,11 +1291,26 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         terminal_state = await return_value_to_state(
             result,
             result_store=get_result_store(),
-            # Persist failures separately so they cannot become cache hits.
-            key=str(uuid4()) if failed_state is not None else transaction.key,
+            key=transaction.key,
             expiration=expiration,
-            write_result=failed_state is not None and should_persist_result(),
         )
+
+        on_commit_hooks = self.task.on_commit_hooks.copy()
+        if terminal_state.is_failed() and isinstance(terminal_state.data, ResultRecord):
+            # Match raised failures: retain the result without populating the cache key.
+            result_store = get_result_store()
+            failure_record = result_store.create_result_record(
+                terminal_state.data.result, key=str(uuid4()), expiration=expiration
+            )
+            terminal_state.data = failure_record
+            if transaction.write_on_commit:
+                # A hook also supports tasks whose cache policy produces no key.
+                async def persist_failure(_: AsyncTransaction) -> None:
+                    await result_store.apersist_result_record(failure_record)
+
+                persist_failure.log_on_run = False
+                on_commit_hooks.append(persist_failure)
+            transaction.write_on_commit = False
 
         # Avoid logging when running this rollback hook since it is not user-defined
         handle_rollback = partial(self.handle_rollback)
@@ -1294,7 +1319,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         transaction.stage(
             terminal_state.data,
             on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
-            on_commit_hooks=self.task.on_commit_hooks,
+            on_commit_hooks=on_commit_hooks,
         )
         if transaction.is_committed():
             terminal_state.name = "Cached"
