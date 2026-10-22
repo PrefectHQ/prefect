@@ -429,10 +429,12 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
                 **self._kubernetes_job.api_kwargs,
             )
 
-            job_is_terminal = any(
-                condition.type in ("Complete", "Failed") and condition.status == "True"
+            true_condition_types = {
+                condition.type
                 for condition in v1_job.status.conditions or []
-            )
+                if condition.status == "True"
+            }
+            job_is_terminal = bool(true_condition_types & {"Complete", "Failed"})
 
             for pod in v1_pod_list.items:
                 pod_name = pod.metadata.name
@@ -457,33 +459,30 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
                     **self._kubernetes_job.api_kwargs,
                 )
 
-            if v1_job.status.active:
+            # Only `Complete` and `Failed` are terminal. Interim conditions such as
+            # `SuccessCriteriaMet` and `FailureTarget` (Kubernetes 1.31+) can be
+            # observed before the terminal condition is set, so keep polling.
+            if "Complete" in true_condition_types:
+                self._completed = True
+                self.logger.info(
+                    f"Job {v1_job.metadata.name!r} has "
+                    f"completed with {v1_job.status.succeeded} pods."
+                )
+            elif "Failed" in true_condition_types:
+                failed_conditions = [
+                    condition.reason
+                    for condition in v1_job.status.conditions
+                    if condition.type == "Failed"
+                ]
+                raise RuntimeError(
+                    f"Job {v1_job.metadata.name!r} failed due to "
+                    f"{failed_conditions}, check the Kubernetes pod logs "
+                    f"for more information."
+                )
+            else:
                 await sleep(self._kubernetes_job.interval_seconds)
                 if self._kubernetes_job.timeout_seconds:
                     elapsed_time += self._kubernetes_job.interval_seconds
-            elif v1_job.status.conditions:
-                final_completed_conditions = [
-                    condition.type == "Complete"
-                    for condition in v1_job.status.conditions
-                    if condition.status == "True"
-                ]
-                if final_completed_conditions and any(final_completed_conditions):
-                    self._completed = True
-                    self.logger.info(
-                        f"Job {v1_job.metadata.name!r} has "
-                        f"completed with {v1_job.status.succeeded} pods."
-                    )
-                elif final_completed_conditions:
-                    failed_conditions = [
-                        condition.reason
-                        for condition in v1_job.status.conditions
-                        if condition.type == "Failed"
-                    ]
-                    raise RuntimeError(
-                        f"Job {v1_job.metadata.name!r} failed due to "
-                        f"{failed_conditions}, check the Kubernetes pod logs "
-                        f"for more information."
-                    )
 
         if self._kubernetes_job.delete_after_completion:
             await self._cleanup()
