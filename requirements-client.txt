@@ -1,6 +1,7 @@
 anyio >= 4.4.0, < 4.14
 asgi-lifespan >= 1.0, < 3.0
 cachetools >= 5.3, < 7.0
+certifi >= 2026.10.19
 cloudpickle >= 2.0, < 4.0
 coolname >= 1.0.4, < 4.0.0
 croniter >= 1.0.12, < 7.0.0

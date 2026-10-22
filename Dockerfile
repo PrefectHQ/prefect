@@ -69,6 +69,11 @@ RUN mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
 # Setup a base final image from miniconda
 FROM continuumio/miniconda3 as prefect-conda
 
+RUN --mount=from=ghcr.io/astral-sh/uv:0.13.4,source=/uv,target=/tmp/uv \
+    /tmp/uv pip install --python /opt/conda/bin/python --upgrade \
+        "certifi>=2026.10.19" "pip>=26.2.2" && \
+    conda update --name base --yes ca-certificates
+
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
 RUN conda create \
@@ -107,11 +112,21 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
+    ca-certificates \
     git>=1:2.47.3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Pin the pip version
-RUN python -m pip install --no-cache-dir pip==23.3.1
+COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /bin/uv
+ENV UV_SYSTEM_PYTHON=1
+ENV UV_LINK_MODE=copy
+
+RUN uv pip install --upgrade \
+    "pip==23.3.1; python_version < '3.10'" \
+    "pip>=26.2.2; python_version >= '3.10'" \
+    "certifi>=2026.10.19"
+
+RUN --mount=type=bind,source=scripts/refresh_pip_ca_bundle.py,target=/tmp/refresh_pip_ca_bundle.py \
+    python /tmp/refresh_pip_ca_bundle.py
 
 # Install the base requirements separately so they cache
 COPY requirements-client.txt requirements.txt ./
@@ -128,6 +143,10 @@ ARG EXTRA_PIP_PACKAGES=${EXTRA_PIP_PACKAGES:-""}
 RUN [ -z "${EXTRA_PIP_PACKAGES}" ] || pip install --no-cache-dir "${EXTRA_PIP_PACKAGES}"
 
 # Smoke test
+RUN --mount=type=bind,source=scripts/check_image_ca_trust.py,target=/tmp/check_image_ca_trust.py \
+    python /tmp/check_image_ca_trust.py && \
+    if [ -x /opt/conda/bin/python ]; then /opt/conda/bin/python /tmp/check_image_ca_trust.py; fi
+
 RUN prefect version
 
 # Setup entrypoint
