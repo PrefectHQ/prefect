@@ -148,6 +148,24 @@ class TestGetLocallyInstalledWorkerMetadata:
             == "pip install prefect-armada"
         )
 
+    def test_a_worker_whose_metadata_fails_does_not_hide_the_others(self, monkeypatch):
+        class BrokenWorker(ProcessWorker):
+            type: str = "broken"
+
+            @classmethod
+            def get_default_base_job_template(cls):
+                raise RuntimeError("cannot build template")
+
+        workers = {"broken": BrokenWorker, "process": ProcessWorker}
+        monkeypatch.setattr(
+            BaseWorker, "get_all_available_worker_types", lambda: list(workers)
+        )
+        monkeypatch.setattr(BaseWorker, "get_worker_class_from_type", workers.get)
+
+        metadata = get_locally_installed_worker_metadata()
+
+        assert list(metadata["prefect"]) == ["process"]
+
     def test_unregistered_worker_types_are_skipped(self, monkeypatch):
         monkeypatch.setattr(
             BaseWorker, "get_all_available_worker_types", lambda: ["gone"]

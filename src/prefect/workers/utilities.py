@@ -31,25 +31,40 @@ def get_locally_installed_worker_metadata() -> Dict[str, Dict[str, Dict[str, Any
     metadata — so locally installed workers can be merged into that view. Workers
     from integrations that are not published to the registry (a private or
     in-development collection) are only discoverable this way.
+
+    A worker whose metadata cannot be built, for example because its default
+    job template raises, is logged and left out, so that it does not hide the
+    other installed workers.
     """
     metadata: Dict[str, Dict[str, Dict[str, Any]]] = {}
 
     for worker_type in BaseWorker.get_all_available_worker_types():
-        worker_cls = BaseWorker.get_worker_class_from_type(worker_type)
-        if worker_cls is None:
-            continue
+        try:
+            worker_cls = BaseWorker.get_worker_class_from_type(worker_type)
+            if worker_cls is None:
+                continue
 
-        collection_name = _collection_name_for_worker(worker_cls)
-        metadata.setdefault(collection_name, {})[worker_type] = {
-            "type": worker_type,
-            "display_name": worker_cls.get_display_name(),
-            "description": worker_cls.get_description(),
-            "documentation_url": worker_cls.get_documentation_url(),
-            "logo_url": worker_cls.get_logo_url(),
-            "install_command": f"pip install {collection_name}",
-            "default_base_job_configuration": worker_cls.get_default_base_job_template(),
-            "is_beta": False,
-        }
+            collection_name = _collection_name_for_worker(worker_cls)
+            worker_metadata = {
+                "type": worker_type,
+                "display_name": worker_cls.get_display_name(),
+                "description": worker_cls.get_description(),
+                "documentation_url": worker_cls.get_documentation_url(),
+                "logo_url": worker_cls.get_logo_url(),
+                "install_command": f"pip install {collection_name}",
+                "default_base_job_configuration": (
+                    worker_cls.get_default_base_job_template()
+                ),
+                "is_beta": False,
+            }
+        except Exception:
+            get_logger().warning(
+                "Unable to read metadata for the locally installed %r worker",
+                worker_type,
+                exc_info=True,
+            )
+            continue
+        metadata.setdefault(collection_name, {})[worker_type] = worker_metadata
 
     return metadata
 

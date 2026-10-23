@@ -436,8 +436,10 @@ def docker_default_base_job_template():
 @pytest.fixture(autouse=True)
 def cleared_collection_registry_cache():
     collections.GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
+    collections._local_worker_metadata = None
     yield
     collections.GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
+    collections._local_worker_metadata = None
 
 
 @pytest.fixture()

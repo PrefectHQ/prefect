@@ -1,3 +1,7 @@
+import threading
+import time
+
+import anyio
 import pytest
 import respx
 from httpx import Response
@@ -206,6 +210,76 @@ class TestReadCollectionViews:
 
         assert res.status_code == 200
         assert res.json()["prefect"]["process"] == {}
+
+    async def test_local_worker_metadata_is_built_once_off_the_event_loop(
+        self, client, mock_get_view, monkeypatch
+    ):
+        """
+        Building it imports every installed integration, which must not block the
+        server, and installed packages do not change while the server runs.
+        """
+        event_loop_thread = threading.get_ident()
+        build_threads = []
+
+        def build():
+            build_threads.append(threading.get_ident())
+            return {"prefect-armada": {"armada": {"type": "armada"}}}
+
+        monkeypatch.setattr(collections, "get_locally_installed_worker_metadata", build)
+
+        for _ in range(2):
+            res = await client.get("/collections/views/aggregate-worker-metadata")
+            assert res.json()["prefect-armada"]["armada"] == {"type": "armada"}
+            # The registry view's cache expires, unlike the local metadata
+            collections.GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
+
+        assert len(build_threads) == 1
+        assert build_threads[0] != event_loop_thread
+
+    async def test_concurrent_requests_share_one_build_of_local_metadata(
+        self, client, mock_get_view, monkeypatch
+    ):
+        builds = 0
+
+        def slow_build():
+            nonlocal builds
+            builds += 1
+            time.sleep(0.2)
+            return {}
+
+        monkeypatch.setattr(
+            collections, "get_locally_installed_worker_metadata", slow_build
+        )
+
+        async with anyio.create_task_group() as tg:
+            for _ in range(3):
+                tg.start_soon(
+                    client.get, "/collections/views/aggregate-worker-metadata"
+                )
+
+        assert builds == 1
+
+    async def test_a_failed_build_of_local_metadata_is_retried(
+        self, client, mock_get_view, monkeypatch
+    ):
+        results = [
+            RuntimeError("could not load collections"),
+            {"prefect-armada": {"armada": {"type": "armada"}}},
+        ]
+
+        def build():
+            result = results.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+        monkeypatch.setattr(collections, "get_locally_installed_worker_metadata", build)
+
+        await client.get("/collections/views/aggregate-worker-metadata")
+        collections.GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
+        res = await client.get("/collections/views/aggregate-worker-metadata")
+
+        assert res.json()["prefect-armada"]["armada"] == {"type": "armada"}
 
     async def test_worker_metadata_survives_local_registry_failure(
         self, client, mock_get_view, monkeypatch
