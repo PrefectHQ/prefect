@@ -272,6 +272,38 @@ class TestReadCollectionViews:
         assert local_metadata == {"prefect-armada": {"armada": {"type": "armada"}}}
         assert res.json()["prefect-armada"]["armada"] == {"type": "armada"}
 
+    async def test_registry_view_is_cached_without_local_workers(self, mock_get_view):
+        """The view cache is shared by every app in the process, so the workers
+        installed alongside one app must not be served by another."""
+        _, _, _, worker_route = mock_get_view
+        local_metadata = {"prefect-armada": {"armada": {"type": "armada"}}}
+
+        with_local = await collections.get_collection_view(
+            "aggregate-worker-metadata", local_worker_metadata=local_metadata
+        )
+        without_local = await collections.get_collection_view(
+            "aggregate-worker-metadata"
+        )
+
+        assert with_local["prefect-armada"]["armada"] == {"type": "armada"}
+        assert without_local == {"prefect": {"process": {}}}
+        worker_route.calls.assert_called_once()
+
+    async def test_local_workers_merged_into_a_registry_collection(self, mock_get_view):
+        """A local worker from a collection the registry already lists is added
+        to the served view, not to the cached one."""
+        local_metadata = {"prefect": {"local": {"type": "local"}}}
+
+        with_local = await collections.get_collection_view(
+            "aggregate-worker-metadata", local_worker_metadata=local_metadata
+        )
+        without_local = await collections.get_collection_view(
+            "aggregate-worker-metadata"
+        )
+
+        assert with_local["prefect"] == {"process": {}, "local": {"type": "local"}}
+        assert without_local["prefect"] == {"process": {}}
+
     async def test_worker_metadata_survives_local_registry_failure(
         self, started_server, mock_get_view, caplog
     ):

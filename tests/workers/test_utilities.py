@@ -2,6 +2,7 @@ import httpx
 import pytest
 import respx
 
+from prefect.utilities.dispatch import get_registry_for_type
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
 from prefect.workers.utilities import (
@@ -56,20 +57,23 @@ class TestGetAvailableWorkPoolTypes:
             "process",
         ]
 
+    @pytest.fixture
+    def only_process_worker_installed(self, monkeypatch):
+        monkeypatch.setattr(
+            BaseWorker, "get_all_available_worker_types", lambda: ["process"]
+        )
+
     @pytest.mark.usefixtures("mock_collection_registry_not_available")
     async def test_get_available_work_pool_types_without_collection_registry(
-        self, monkeypatch, in_memory_prefect_client
+        self, monkeypatch, only_process_worker_installed, in_memory_prefect_client
     ):
-        respx.routes
-
-        def available():
-            return ["process"]
-
+        # `only_process_worker_installed` comes before the client, because the
+        # client's server builds its local worker metadata when it starts.
+        # Otherwise it would also list the worker classes other tests define.
         monkeypatch.setattr(
             "prefect.client.collections.get_client",
             lambda *args, **kwargs: in_memory_prefect_client,
         )
-        monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
 
         work_pool_types = await get_available_work_pool_types()
 
@@ -105,6 +109,16 @@ class TestGetDefaultBaseJobTemplateForInfrastructureType:
 
 
 class TestGetLocallyInstalledWorkerMetadata:
+    @pytest.fixture(autouse=True)
+    def restore_worker_registry(self):
+        """Defining a worker class registers its type for the whole process, so
+        the workers these tests define are removed again afterwards."""
+        registry = get_registry_for_type(BaseWorker)
+        registered = dict(registry)
+        yield
+        registry.clear()
+        registry.update(registered)
+
     def test_metadata_is_keyed_by_collection_then_worker_type(self):
         metadata = get_locally_installed_worker_metadata()
 

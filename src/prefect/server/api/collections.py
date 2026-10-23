@@ -61,9 +61,10 @@ def _build_local_worker_metadata() -> dict[str, dict[str, dict[str, Any]]]:
     Building it imports every installed integration and renders each worker's
     default job template. Installed packages do not change while the server
     runs, so the server builds it once at startup, before it serves requests,
-    and keeps it on the API app's state rather than in the registry views'
-    expiring cache. A failure is logged, and the views then list only the
-    workers the registry knows about.
+    and keeps it on the API app's state. It is merged into the registry's view
+    on each request rather than cached with it, since the view cache is shared
+    by every app in the process. A failure is logged, and the views then list
+    only the workers the registry knows about.
     """
     try:
         return get_locally_installed_worker_metadata()
@@ -99,26 +100,48 @@ def _merge_local_worker_metadata(
             if worker_type in known_types:
                 continue
             # A copy, so that changes to a served view cannot reach the
-            # metadata built at startup, which outlives every cached view
+            # metadata built at startup, which lives as long as the server
             data.setdefault(collection_name, {})[worker_type] = deepcopy(worker)
 
 
-def _post_process_view(
+def _post_process_view(view: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Applies view-specific adjustments before a registry view is cached."""
+    if view == "aggregate-worker-metadata":
+        data.get("prefect", {}).pop("prefect-agent", None)
+    return data
+
+
+def _with_local_worker_metadata(
     view: str,
     data: dict[str, Any],
     local_worker_metadata: dict[str, dict[str, dict[str, Any]]],
 ) -> dict[str, Any]:
-    """Applies view-specific adjustments before a view is cached and served."""
-    if view == "aggregate-worker-metadata":
-        data.get("prefect", {}).pop("prefect-agent", None)
-        _merge_local_worker_metadata(data, local_worker_metadata)
-    return data
+    """Returns the view with the locally installed workers merged in.
+
+    The merge goes into a copy, leaving the cached registry view as it was.
+    """
+    if view != "aggregate-worker-metadata" or not local_worker_metadata:
+        return data
+    merged = {
+        name: dict(collection) if isinstance(collection, dict) else collection
+        for name, collection in data.items()
+    }
+    _merge_local_worker_metadata(merged, local_worker_metadata)
+    return merged
 
 
 async def get_collection_view(
     view: str,
     local_worker_metadata: dict[str, dict[str, dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
+    return _with_local_worker_metadata(
+        view, await _get_registry_view(view), local_worker_metadata or {}
+    )
+
+
+async def _get_registry_view(view: str) -> dict[str, Any]:
+    """Returns a view from the registry, or from the copy bundled with Prefect
+    when the registry cannot be reached, caching it either way."""
     try:
         return GLOBAL_COLLECTIONS_VIEW_CACHE[view]
     except KeyError:
@@ -129,7 +152,7 @@ async def get_collection_view(
             resp = await client.get(KNOWN_VIEWS[view])
             resp.raise_for_status()
 
-            data = _post_process_view(view, resp.json(), local_worker_metadata or {})
+            data = _post_process_view(view, resp.json())
 
             GLOBAL_COLLECTIONS_VIEW_CACHE[view] = data
             return data
@@ -139,9 +162,7 @@ async def get_collection_view(
         local_file = Path(__file__).parent / Path(f"collections_data/views/{view}.json")
         if await local_file.exists():
             raw_data = await local_file.read_text()
-            data = _post_process_view(
-                view, json.loads(raw_data), local_worker_metadata or {}
-            )
+            data = _post_process_view(view, json.loads(raw_data))
             GLOBAL_COLLECTIONS_VIEW_CACHE[view] = data
             return data
         else:
