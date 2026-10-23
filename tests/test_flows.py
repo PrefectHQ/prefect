@@ -75,6 +75,7 @@ from prefect.settings import (
 from prefect.states import (
     Cancelled,
     Cancelling,
+    Failed,
     Paused,
     PausedRun,
     State,
@@ -2319,6 +2320,98 @@ class TestFlowRetries:
 
         assert foo() == "hello"
         assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_state(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            return [Failed(message="boom")]
+
+        state = foo(return_state=True)
+        assert state.is_failed()
+        assert run_count == 2
+
+    async def test_async_flow_retry_with_returned_failed_state(self):
+        run_count = 0
+
+        @flow(retries=1)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            return Failed(message="boom")
+
+        state = await foo(return_state=True)
+        assert state.is_failed()
+        assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_state_then_success(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            return "hello"
+
+        assert foo() == "hello"
+        assert run_count == 2
+
+    async def test_async_flow_retry_with_returned_failed_state_then_success(self):
+        run_count = 0
+
+        @flow(retries=1)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            return "hello"
+
+        assert await foo() == "hello"
+        assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_state_then_error(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            raise ValueError("second attempt")
+
+        with pytest.raises(ValueError, match="second attempt"):
+            foo()
+        assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_task_future(self):
+        flow_run_count = 0
+        task_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+            if flow_run_count == 1:
+                raise ValueError()
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            return my_task.submit()
+
+        state = foo(return_state=True)
+        assert state.is_completed()
+        assert flow_run_count == 2
+        assert task_run_count == 2
 
     async def test_flow_retry_with_error_in_flow_and_successful_task(self):
         task_run_count = 0
