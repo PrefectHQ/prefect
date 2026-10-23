@@ -831,9 +831,21 @@ These are fields you can add to each entry in a deployment declaration's `schedu
 <Note>
 **Removing schedules from a deployment**
 
-Removing the `schedules` key from your `prefect.yaml` file, or setting `schedules: null` or `schedules: []`, does **not** remove existing schedules from a deployment when you run `prefect deploy`. Prefect treats the absence of schedule configuration as "no change" rather than "delete all schedules."
+By default, `schedules: []` preserves existing schedules when you redeploy and emits a deprecation warning.
+To opt in to removing all existing schedules, including schedules with slugs, set `schedules: []` and enable the setting when you deploy:
 
-To explicitly remove schedules from an existing deployment, use the CLI:
+```bash
+PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true prefect deploy --all
+```
+
+Clearing schedules will become the default in a future release.
+The current behavior is retained for at least six months or three minor releases, whichever is longer, under the [deprecation policy](/v3/release-notes/versioning#deprecation).
+After that period, a later release will remove the setting and warning.
+
+Omitting the `schedules` key or setting `schedules: null` preserves existing schedules.
+Declining the interactive prompt to configure schedules also preserves them.
+
+To remove schedules directly, use the CLI:
 
 ```bash
 # Remove all schedules from a deployment

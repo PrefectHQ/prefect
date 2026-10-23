@@ -147,7 +147,8 @@ def add_type_dispatch(model_cls: type[M]) -> type[M]:
         if field_type_annotation is not str and field_type_annotation is not None:
             raise TypeError(
                 f"Model class {model_cls.__name__!r} defines a 'type' field with "
-                f"type {field_type_annotation.__name__!r} but it must be 'str'."
+                f"type {getattr(field_type_annotation, '__name__', field_type_annotation)!r} "
+                "but it must be 'str'."
             )
 
         # Set the dispatch key to retrieve the value from the type field

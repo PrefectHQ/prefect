@@ -1341,6 +1341,43 @@ class AutomationBucket(Base):
     triggered_at: Mapped[Optional[DateTime]]
 
 
+class AutomationHeldEvent(Base):
+    """An `expect` event of a proactive trigger with `after` that was evaluated
+    before any bucket existed for its key, held for a bucket that opens later."""
+
+    __table_args__: Any = (
+        sa.Index(
+            "uq_automation_held_event__trigger_key_event",
+            "automation_id",
+            "trigger_id",
+            "bucketing_key",
+            "event_id",
+            unique=True,
+        ),
+        sa.Index(
+            "ix_automation_held_event__trigger_key_occurred",
+            "automation_id",
+            "trigger_id",
+            "bucketing_key",
+            "occurred",
+            "event_id",
+        ),
+    )
+
+    automation_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("automation.id", ondelete="CASCADE")
+    )
+
+    trigger_id: Mapped[uuid.UUID]
+
+    bucketing_key: Mapped[list[str]] = mapped_column(
+        JSON, server_default="[]", default=list
+    )
+
+    event_id: Mapped[uuid.UUID]
+    occurred: Mapped[DateTime]
+
+
 class AutomationRelatedResource(Base):
     __table_args__: Any = (
         sa.Index(
@@ -1520,6 +1557,7 @@ ORMFlowRunInput = FlowRunInput
 ORMCsrfToken = CsrfToken
 ORMAutomation = Automation
 ORMAutomationBucket = AutomationBucket
+ORMAutomationHeldEvent = AutomationHeldEvent
 ORMAutomationRelatedResource = AutomationRelatedResource
 ORMCompositeTriggerChildFiring = CompositeTriggerChildFiring
 ORMAutomationEventFollower = AutomationEventFollower

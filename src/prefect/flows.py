@@ -578,11 +578,11 @@ class Flow(Generic[P, R]):
                 else self.cache_result_in_memory
             ),
             log_prints=log_prints if log_prints is not NotSet else self.log_prints,
-            on_completion=on_completion or self.on_completion_hooks,
-            on_failure=on_failure or self.on_failure_hooks,
-            on_cancellation=on_cancellation or self.on_cancellation_hooks,
-            on_crashed=on_crashed or self.on_crashed_hooks,
-            on_running=on_running or self.on_running_hooks,
+            on_completion=on_completion or copy(self.on_completion_hooks),
+            on_failure=on_failure or copy(self.on_failure_hooks),
+            on_cancellation=on_cancellation or copy(self.on_cancellation_hooks),
+            on_crashed=on_crashed or copy(self.on_crashed_hooks),
+            on_running=on_running or copy(self.on_running_hooks),
         )
         new_flow._storage = self._storage
         new_flow._entrypoint = self._entrypoint

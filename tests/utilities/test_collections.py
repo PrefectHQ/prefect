@@ -15,6 +15,7 @@ from prefect.utilities.collections import (
     deep_merge,
     deep_merge_dicts,
     dict_to_flatdict,
+    extract_instances,
     flatdict_to_dict,
     get_from_dict,
     isiterable,
@@ -393,6 +394,30 @@ class TestVisitCollection:
                 f"The field '{field}' should be set in the result"
             )
 
+    @pytest.mark.parametrize("immutable", [True, False])
+    @pytest.mark.parametrize(
+        "private_values", [{}, {"_y": 3}, {"_z": 4}], ids=["none", "_y", "_z"]
+    )
+    def test_visit_collection_mutation_with_unset_private_pydantic_attributes(
+        self, immutable: bool, private_values: dict[str, int]
+    ):
+        model = ImmutablePrivatePydantic if immutable else PrivatePydantic
+        model_instance = model(x=2)
+        for name, value in private_values.items():
+            setattr(model_instance, name, value)
+
+        result = visit_collection(
+            model_instance, visit_fn=negative_even_numbers, return_data=True
+        )
+
+        assert isinstance(result, model)
+        assert result.x == -2
+        for name in ("_y", "_z"):
+            if name in private_values:
+                assert getattr(result, name) == private_values[name]
+            else:
+                assert not hasattr(result, name)
+
     def test_visit_collection_recursive_1(self):
         obj = dict()
         obj["a"] = obj
@@ -679,6 +704,28 @@ class TestVisitCollection:
         assert result["level1"]["unique"] == [5, 60, 7]
         assert result["level1"]["unique"] is result["level1"]["level2"]["also_unique"]
 
+    def test_visit_collection_new_collections_from_visitor_are_not_mixed_up(self):
+        """Collections created by the visitor must not share cached results, even
+        if one is freed and a later one is allocated at the same address."""
+
+        class Ref:
+            def __init__(self, value: int):
+                self.value = value
+
+        def _visitor(x):
+            if isinstance(x, Ref):
+                # a new list on every call, whose items are transformed below
+                return [x.value, "placeholder"]
+            if x == "placeholder":
+                return "replaced"
+            return x
+
+        result = visit_collection(
+            [Ref(i) for i in range(100)], _visitor, return_data=True
+        )
+
+        assert result == [[i, "replaced"] for i in range(100)]
+
     def test_visit_collection_circular_references(self):
         """Test that circular references are handled without infinite recursion"""
 
@@ -764,6 +811,26 @@ class TestIsIterable:
     @pytest.mark.parametrize("obj", [5, Exception(), True, "hello", bytes()])
     def test_not_iterable(self, obj):
         assert not isiterable(obj)
+
+
+class TestExtractInstances:
+    def test_extract_instances_single_type(self):
+        assert extract_instances([1, "a", 2, "b"], str) == ["a", "b"]
+
+    def test_extract_instances_single_type_no_matches_returns_empty_list(self):
+        assert extract_instances([1, 2, 3], str) == []
+
+    def test_extract_instances_single_element_tuple_no_matches_returns_empty_list(self):
+        assert extract_instances([1, 2, 3], (str,)) == []
+
+    def test_extract_instances_empty_objects_returns_empty_list(self):
+        assert extract_instances([]) == []
+
+    def test_extract_instances_multiple_types(self):
+        assert extract_instances([1, "a", 2.0], (int, str)) == {
+            int: [1],
+            str: ["a"],
+        }
 
 
 class TestGetFromDict:
