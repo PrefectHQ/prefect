@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 class BundleExecutionStarter:
     """Executes a pre-serialized bundle in a subprocess via `SpawnProcess`.
 
-    Source: runner.py lines 771-841.
     Uses module-level `execute_bundle_in_subprocess` reference -- patch the
     module to override.
 

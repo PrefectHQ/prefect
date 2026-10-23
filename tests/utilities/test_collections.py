@@ -15,6 +15,7 @@ from prefect.utilities.collections import (
     deep_merge,
     deep_merge_dicts,
     dict_to_flatdict,
+    extract_instances,
     flatdict_to_dict,
     get_from_dict,
     isiterable,
@@ -392,6 +393,30 @@ class TestVisitCollection:
             assert hasattr(result, field), (
                 f"The field '{field}' should be set in the result"
             )
+
+    @pytest.mark.parametrize("immutable", [True, False])
+    @pytest.mark.parametrize(
+        "private_values", [{}, {"_y": 3}, {"_z": 4}], ids=["none", "_y", "_z"]
+    )
+    def test_visit_collection_mutation_with_unset_private_pydantic_attributes(
+        self, immutable: bool, private_values: dict[str, int]
+    ):
+        model = ImmutablePrivatePydantic if immutable else PrivatePydantic
+        model_instance = model(x=2)
+        for name, value in private_values.items():
+            setattr(model_instance, name, value)
+
+        result = visit_collection(
+            model_instance, visit_fn=negative_even_numbers, return_data=True
+        )
+
+        assert isinstance(result, model)
+        assert result.x == -2
+        for name in ("_y", "_z"):
+            if name in private_values:
+                assert getattr(result, name) == private_values[name]
+            else:
+                assert not hasattr(result, name)
 
     def test_visit_collection_recursive_1(self):
         obj = dict()
@@ -786,6 +811,26 @@ class TestIsIterable:
     @pytest.mark.parametrize("obj", [5, Exception(), True, "hello", bytes()])
     def test_not_iterable(self, obj):
         assert not isiterable(obj)
+
+
+class TestExtractInstances:
+    def test_extract_instances_single_type(self):
+        assert extract_instances([1, "a", 2, "b"], str) == ["a", "b"]
+
+    def test_extract_instances_single_type_no_matches_returns_empty_list(self):
+        assert extract_instances([1, 2, 3], str) == []
+
+    def test_extract_instances_single_element_tuple_no_matches_returns_empty_list(self):
+        assert extract_instances([1, 2, 3], (str,)) == []
+
+    def test_extract_instances_empty_objects_returns_empty_list(self):
+        assert extract_instances([]) == []
+
+    def test_extract_instances_multiple_types(self):
+        assert extract_instances([1, "a", 2.0], (int, str)) == {
+            int: [1],
+            str: ["a"],
+        }
 
 
 class TestGetFromDict:

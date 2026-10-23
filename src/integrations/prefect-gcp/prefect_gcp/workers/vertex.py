@@ -657,7 +657,7 @@ class VertexAIWorker(
             if timeout is not None and elapsed_time > timeout:
                 raise RuntimeError(
                     f"Timed out after {elapsed_time}s while watching job for states "
-                    "{until_states!r}"
+                    f"{until_states!r}"
                 )
             await asyncio.sleep(configuration.job_watch_poll_interval)
 

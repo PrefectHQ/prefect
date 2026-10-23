@@ -208,7 +208,7 @@ def extract_instances(
 
     if len(types_collection) == 1:
         [type_] = types_collection
-        return ret[type_]
+        return ret.get(type_, [])
 
     return ret
 
@@ -543,8 +543,10 @@ def visit_collection(
                 model_instance = expr.model_construct(
                     _fields_set=expr.model_fields_set, **updated_data
                 )
-                for private_attr in expr.__private_attributes__:
-                    setattr(model_instance, private_attr, getattr(expr, private_attr))
+                # Only copy private attributes that have values; unset
+                # private attributes are absent from `__pydantic_private__`
+                for private_attr, value in (expr.__pydantic_private__ or {}).items():
+                    setattr(model_instance, private_attr, value)
                 result = model_instance
 
     # Update the cache with the final transformed result

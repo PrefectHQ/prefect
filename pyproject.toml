@@ -7,7 +7,7 @@ name = "prefect"
 dynamic = ["version"]
 description = "Workflow orchestration and management."
 readme = "README.md"
-requires-python = ">=3.15,<3.16"
+requires-python = ">=3.11,<3.16"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
@@ -20,6 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
@@ -44,10 +45,12 @@ dependencies = [
     "anyio>=4.4.0,<5.0.0",
     "asgi-lifespan>=1.0,<3.0",
     "cachetools>=5.3,<8.0",
+    "certifi>=2026.10.19",
     "cloudpickle>=2.0,<4.0",
     "coolname>=1.0.4,<6.0.0",
     "exceptiongroup>=1.0.0",
-    "fastapi>=0.139.0,<1.0.0",
+    # 0.151 rejects an explicit null for a body param with a default, and released clients send null
+    "fastapi>=0.139.0,<0.151",
     "fsspec>=2022.5.0",
     "graphviz>=0.20.1",
     "griffe>=0.49.0,<3.0.0",
@@ -71,8 +74,7 @@ dependencies = [
     "pyyaml>=5.4.1,<7.0.0",
     "rfc3339-validator>=0.1.4,<0.2.0",
     "rich>=11.0,<16.0",
-    "ruamel.yaml>=0.17.0",
-    "ruamel.yaml.clib>=0.2.8; platform_python_implementation == 'CPython'",
+    "ruamel.yaml>=0.17.0,!=0.19.0",
     "sniffio>=1.3.0,<2.0.0",
     "starlette>=1.0.1",
     "toml>=0.10.0",
@@ -101,7 +103,7 @@ otel = [
 ]
 
 # bundles extra for bundle features (requires uv)
-bundles = ["uv>=0.6.0"]
+bundles = ["uv>=0.13.4"]
 
 # Infrastructure extras
 aws = ["prefect-aws>=0.5.8"]
@@ -141,7 +143,10 @@ dev = [
     "ipython",
     "jinja2>=3.1.6",
     "moto>=5",
-    "numpy",
+    # numpy 2.5+ stubs use `type` statements mypy can't parse with
+    # python_version = "3.11"; only 2.5+ publishes cp315 wheels
+    "numpy<2.5; python_version<'3.15'",
+    "numpy>=2.5.4; python_version>='3.15'",
     "pendulum[test]>=3.1.0,<4; python_version<'3.13'",
     "pillow>=11.1.0; python_version<'3.14'",
     "pre-commit>=4.1.0",
@@ -159,7 +164,7 @@ dev = [
     "pyyaml>=6.0.1",
     "redis>=5.2.1",
     "setuptools>=65.6.3",
-    "uv>=0.5.30",
+    "uv>=0.13.4",
     "vale>=3.9.5",
     "virtualenv>=20.29.2",
     "watchfiles>=1.0.4",
@@ -175,7 +180,7 @@ dev = [
     "mkdocs-material>=9.6.4",
     "mkdocstrings[python]>=0.28.0",
     "mkdocs-gen-files>=0.5.0",
-    "whenever>=0.7.3,<1.0.0",
+    "whenever>=0.11.0,<0.12.0",
     # Need to stay in sync with otel extra
     "opentelemetry-distro>=0.48b0,<1.0.0",
     "opentelemetry-exporter-otlp>=1.27.0,<2.0.0",
@@ -296,6 +301,7 @@ asyncio_default_fixture_loop_scope = "session"
 timeout = 90
 filterwarnings = [
     "error",
+    "ignore:Pendulum datetime member:DeprecationWarning",
     "ignore::DeprecationWarning:tornado.platform.asyncio.*",
     "ignore::DeprecationWarning:tornado.ioloop",
     "ignore:Default value default=",
@@ -396,4 +402,4 @@ check-hidden = true
 
 
 [tool.uv]
-required-version = ">=0.6.15" # make sure upload_time is included to avoid churn (see https://github.com/dependabot/dependabot-core/issues/12127)
+required-version = ">=0.13.4" # Includes updated Mozilla root certificates.

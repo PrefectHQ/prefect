@@ -1,7 +1,10 @@
 """Tests for client-side automation schema validation and deserialization."""
 
 import uuid
+from datetime import timedelta
+from typing import Any
 
+import jsonschema
 import pytest
 from pydantic import ValidationError
 
@@ -9,6 +12,8 @@ from prefect.events.actions import RunDeployment, UnknownAction
 from prefect.events.schemas.automations import (
     Automation,
     AutomationCore,
+    CompoundTrigger,
+    EventTrigger,
     MetricTrigger,
     MetricTriggerQuery,
     Posture,
@@ -102,6 +107,18 @@ def test_trigger_type_discrimination_with_metric():
     assert automation.trigger.type == "metric"
 
 
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+@pytest.mark.parametrize("field", ["range", "firing_for"])
+def test_metric_trigger_query_duration_schemas_publish_their_lower_bound(
+    field: str, mode: str
+):
+    schema = MetricTriggerQuery.model_json_schema(mode=mode)["properties"][field]
+    validator = jsonschema.Draft202012Validator(schema)
+
+    assert not validator.is_valid(299)
+    assert validator.is_valid(300)
+
+
 class TestUnknownActions:
     """Prefect Cloud can return action types that this version does not know
     about, such as ones added to Cloud after this release"""
@@ -178,3 +195,86 @@ class TestUnknownActions:
     def test_unknown_action_rejects_a_known_type(self):
         with pytest.raises(ValidationError, match="known action type"):
             UnknownAction(type="run-deployment")
+
+
+ACTION_LISTS = ("actions", "actions_on_trigger", "actions_on_resolve")
+
+
+class TestActionJSONSchema:
+    """The generated JSON schema must accept the same actions as runtime parsing"""
+
+    @staticmethod
+    def automation_data(action_list: str, action: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "name": "example",
+            "trigger": {"type": "event", "posture": "Reactive"},
+            "actions": [],
+            action_list: [action],
+        }
+
+    @staticmethod
+    def schema_errors(data: dict[str, Any]) -> list[jsonschema.ValidationError]:
+        validator = jsonschema.Draft202012Validator(AutomationCore.model_json_schema())
+        return list(validator.iter_errors(data))
+
+    @pytest.mark.parametrize("action_list", ACTION_LISTS)
+    @pytest.mark.parametrize(
+        "action",
+        [
+            {"type": "do-nothing"},
+            {"type": "run-deployment", "source": "inferred"},
+            {
+                "type": "send-email-notification",
+                "emails": ["ops@example.com"],
+                "nested": {"key": ["value"]},
+            },
+        ],
+        ids=["do-nothing", "run-deployment", "unknown"],
+    )
+    def test_valid_actions_match_the_schema(
+        self, action_list: str, action: dict[str, Any]
+    ):
+        data = self.automation_data(action_list, action)
+
+        core = AutomationCore.model_validate(data)
+
+        assert self.schema_errors(data) == []
+        assert self.schema_errors(core.model_dump(mode="json")) == []
+
+    @pytest.mark.parametrize("action_list", ACTION_LISTS)
+    def test_known_type_with_invalid_fields_does_not_match_the_schema(
+        self, action_list: str
+    ):
+        data = self.automation_data(
+            action_list, {"type": "change-flow-run-state", "state": 123}
+        )
+
+        with pytest.raises(ValidationError):
+            AutomationCore.model_validate(data)
+        assert self.schema_errors(data) != []
+
+
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+def test_event_trigger_within_schema_publishes_its_lower_bound(mode: str):
+    within = EventTrigger.model_json_schema(mode=mode)["properties"]["within"]
+    validator = jsonschema.Draft202012Validator(within)
+
+    assert not validator.is_valid(-5)
+    assert validator.is_valid(0)
+
+
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+def test_compound_trigger_within_schema_allows_negative_seconds(mode: str):
+    trigger = CompoundTrigger.model_validate(
+        {
+            "triggers": [{"type": "event", "posture": "Reactive"}],
+            "require": "all",
+            "within": -5,
+        }
+    )
+    assert trigger.within == timedelta(seconds=-5)
+
+    schema = CompoundTrigger.model_json_schema(mode=mode)
+    within = schema["$defs"]["CompoundTrigger"]["properties"]["within"]
+    assert {"type": "number"} in within["anyOf"]
+    assert "minimum" not in within
