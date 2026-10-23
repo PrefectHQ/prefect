@@ -1405,10 +1405,11 @@ class AutomationRelatedResource(Base):
 class CompositeTriggerChildFiring(Base):
     __table_args__: Any = (
         sa.Index(
-            "uq_composite_trigger_child_firing__a_id__pt_id__ct__id",
+            "uq_composite_trigger_child_firing__a_id__pt_id__ct_id__bk",
             "automation_id",
             "parent_trigger_id",
             "child_trigger_id",
+            "bucketing_key",
             unique=True,
         ),
     )
@@ -1423,6 +1424,10 @@ class CompositeTriggerChildFiring(Base):
     child_firing_id: Mapped[uuid.UUID]
     child_fired_at: Mapped[Optional[DateTime]]
     child_firing: Mapped[Firing] = mapped_column(Pydantic(Firing))
+
+    bucketing_key: Mapped[list[str]] = mapped_column(
+        JSON, server_default="[]", default=list
+    )
 
 
 class AutomationEventFollower(Base):
