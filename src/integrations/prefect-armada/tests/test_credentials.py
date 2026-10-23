@@ -1,9 +1,12 @@
+import threading
+from concurrent import futures
 from pathlib import Path
 
 import grpc
 import pytest
 from armada_client.asyncio_client import ArmadaAsyncIOClient
 from armada_client.client import ArmadaClient
+from prefect_armada import credentials as credentials_module
 from prefect_armada.credentials import (
     ArmadaClusterConfig,
     ArmadaCredentials,
@@ -149,16 +152,22 @@ class TestArmadaClusterConfig:
 
 
 class TestAuthMetadataPlugins:
-    def test_bearer_auth_sends_the_token_verbatim(self):
+    @pytest.mark.parametrize(
+        "token", ["abc123", "Bearer abc123", "bearer abc123"], ids=str
+    )
+    def test_bearer_auth_sends_the_token_with_the_bearer_scheme(self, token):
+        """Armada rejects a token without the scheme, which it matches in any case."""
         captured = {}
 
         def callback(metadata, error):
             captured["metadata"] = metadata
             captured["error"] = error
 
-        _BearerAuth("Bearer abc123")(None, callback)
+        _BearerAuth(token)(None, callback)
 
-        assert captured["metadata"] == (("authorization", "Bearer abc123"),)
+        scheme, _, value = captured["metadata"][0][1].partition(" ")
+        assert captured["metadata"][0][0] == "authorization"
+        assert (scheme.lower(), value) == ("bearer", "abc123")
         assert captured["error"] is None
 
     def test_basic_auth_base64_encodes_the_credentials(self):
@@ -208,6 +217,45 @@ class TestArmadaCredentials:
             ArmadaCredentials().get_call_credentials(), grpc.CallCredentials
         )
 
+    @pytest.mark.parametrize(
+        "block, env, expected",
+        [
+            (
+                {"username": "user", "password": "pass"},
+                {"TOKEN": "env-token"},
+                "basic dXNlcjpwYXNz",
+            ),
+            (
+                {"token": "block-token"},
+                {"USERNAME": "env-user", "PASSWORD": "env-pass"},
+                "Bearer block-token",
+            ),
+            ({"username": "user"}, {"PASSWORD": "pass"}, "basic dXNlcjpwYXNz"),
+            ({}, {"TOKEN": "env-token"}, "Bearer env-token"),
+        ],
+        ids=[
+            "block-basic-over-env-token",
+            "block-token-over-env-basic",
+            "block-username-with-env-password",
+            "env-token",
+        ],
+    )
+    def test_authentication_on_the_block_takes_precedence(
+        self, monkeypatch: pytest.MonkeyPatch, block, env, expected
+    ):
+        for name, value in env.items():
+            monkeypatch.setenv(f"PREFECT_INTEGRATIONS_ARMADA_CONNECTION_{name}", value)
+        # Return the auth plugin itself so the header it sends can be inspected
+        monkeypatch.setattr(grpc, "metadata_call_credentials", lambda plugin: plugin)
+        captured = {}
+
+        def callback(metadata, error):
+            captured["metadata"] = metadata
+
+        ArmadaCredentials(**block).get_call_credentials()(None, callback)
+
+        assert captured["metadata"] == (("authorization", expected),)
+
     async def test_get_client_returns_an_async_client(self, armada_credentials):
         async with armada_credentials.get_client() as client:
             assert isinstance(client, ArmadaAsyncIOClient)
@@ -220,3 +268,44 @@ class TestArmadaCredentials:
     def test_get_binoculars_client_targets_the_log_service(self, armada_credentials):
         with armada_credentials.get_binoculars_client() as client:
             assert client.binoculars_stub is not None
+
+    def test_binoculars_calls_time_out_when_the_service_never_answers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        `BinocularsClient` sets no deadline, so a log service that accepts a call
+        but never answers would block the caller, such as the observer's job set
+        watch, forever.
+        """
+        monkeypatch.setattr(
+            credentials_module, "_BINOCULARS_DEFAULT_TIMEOUT_SECONDS", 0.5
+        )
+        release = threading.Event()
+
+        class NeverAnswers(grpc.GenericRpcHandler):
+            def service(self, handler_call_details):
+                def handle(request, context):
+                    release.wait()
+                    return b""
+
+                return grpc.unary_unary_rpc_method_handler(handle)
+
+        server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=1), handlers=[NeverAnswers()]
+        )
+        port = server.add_insecure_port("127.0.0.1:0")
+        server.start()
+        try:
+            credentials = ArmadaCredentials(
+                cluster_config=ArmadaClusterConfig(
+                    host="127.0.0.1", binoculars_port=port, disable_ssl=True
+                )
+            )
+            with credentials.get_binoculars_client() as client:
+                with pytest.raises(grpc.RpcError) as exc_info:
+                    client.logs(job_id="job-1", since_time="")
+        finally:
+            release.set()
+            server.stop(0)
+
+        assert exc_info.value.code() == grpc.StatusCode.DEADLINE_EXCEEDED

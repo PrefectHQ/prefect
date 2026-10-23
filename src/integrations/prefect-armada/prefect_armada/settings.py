@@ -93,9 +93,8 @@ class ArmadaConnectionSettings(PrefectBaseSettings):
 
     token: SecretStr | None = Field(
         default=None,
-        description="A bearer token to authenticate with Armada. The token is sent "
-        "verbatim in the `authorization` header, so it should not include the "
-        "`Bearer` prefix.",
+        description="A bearer token to authenticate with Armada, with or without "
+        "the `Bearer` prefix.",
     )
 
     username: str | None = Field(
@@ -119,7 +118,9 @@ class ArmadaWorkerSubmitJobRetrySettings(PrefectBaseSettings):
     max_retries: int = Field(
         default=3,
         ge=1,
-        description="The maximum number of attempts to submit an Armada job before giving up.",
+        description="The maximum number of attempts to submit an Armada job before "
+        "giving up. Only errors that may clear on their own, such as Armada being "
+        "temporarily unavailable, are retried.",
     )
 
     delay_seconds: int = Field(
@@ -152,12 +153,6 @@ class ArmadaWorkerSettings(PrefectBaseSettings):
         "is written into the default base job template, so a work pool keeps the "
         "value in effect where the pool was created; change the pool's `queue` "
         "variable to change it afterwards.",
-    )
-
-    add_grpc_keepalive: bool = Field(
-        default=True,
-        description="If `True`, the worker will enable gRPC keepalive pings on "
-        "channels it opens to Armada.",
     )
 
     submit_job_retry: ArmadaWorkerSubmitJobRetrySettings = Field(
@@ -216,11 +211,6 @@ class ArmadaSettings(PrefectBaseSettings):
     """Settings for `prefect-armada`."""
 
     model_config = build_settings_config(("integrations", "armada"))
-
-    cluster_uid: str | None = Field(
-        default=None,
-        description="A unique identifier for the Armada cluster being used.",
-    )
 
     connection: ArmadaConnectionSettings = Field(
         description="Settings for connecting to Armada when no credentials block is configured.",

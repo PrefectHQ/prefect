@@ -25,12 +25,83 @@ from prefect_armada.utilities import _grpc_keepalive_options
 
 ArmadaClientType = ArmadaClient | ArmadaAsyncIOClient
 
+# The deadline applied to Binoculars calls made without one. `BinocularsClient`
+# sets none, so a log service that accepts a connection but never answers would
+# otherwise block its caller forever.
+_BINOCULARS_DEFAULT_TIMEOUT_SECONDS = 30
+
+
+class _ClientCallDetails(grpc.ClientCallDetails):
+    def __init__(
+        self,
+        method: str,
+        timeout: float | None,
+        metadata: Any,
+        credentials: grpc.CallCredentials | None,
+        wait_for_ready: bool | None,
+        compression: grpc.Compression | None,
+    ) -> None:
+        self.method = method
+        self.timeout = timeout
+        self.metadata = metadata
+        self.credentials = credentials
+        self.wait_for_ready = wait_for_ready
+        self.compression = compression
+
+
+class _DefaultTimeoutInterceptor(grpc.UnaryUnaryClientInterceptor):
+    """Applies a deadline to unary gRPC calls that are made without one."""
+
+    def __init__(self, timeout: float) -> None:
+        self._timeout = timeout
+
+    def intercept_unary_unary(
+        self,
+        continuation: Any,
+        client_call_details: grpc.ClientCallDetails,
+        request: Any,
+    ) -> Any:
+        if client_call_details.timeout is None:
+            client_call_details = _ClientCallDetails(
+                method=client_call_details.method,
+                timeout=self._timeout,
+                metadata=client_call_details.metadata,
+                credentials=client_call_details.credentials,
+                wait_for_ready=client_call_details.wait_for_ready,
+                compression=client_call_details.compression,
+            )
+        return continuation(client_call_details, request)
+
+
+class _ArmadaAsyncIOClient(ArmadaAsyncIOClient):
+    """An `ArmadaAsyncIOClient` that keeps a reference to its channel.
+
+    `ArmadaAsyncIOClient` does not expose its channel, which callers need in
+    order to tell when a connection to Armada has actually been established.
+    """
+
+    def __init__(
+        self,
+        channel: grpc.aio.Channel,
+        event_timeout: timedelta = timedelta(minutes=15),
+    ) -> None:
+        super().__init__(channel=channel, event_timeout=event_timeout)
+        self.channel = channel
+
 
 class _BearerAuth(grpc.AuthMetadataPlugin):
-    """gRPC auth plugin that sends a bearer token in the `authorization` header."""
+    """gRPC auth plugin that sends a bearer token in the `authorization` header.
+
+    Armada expects `Bearer <token>`, so the prefix is added unless the token
+    already has it.
+    """
 
     def __init__(self, token: str) -> None:
-        self._token = token
+        scheme, _, credentials = token.partition(" ")
+        if scheme.lower() == "bearer" and credentials:
+            self._token = token
+        else:
+            self._token = f"Bearer {token}"
         super().__init__()
 
     def __call__(
@@ -40,6 +111,16 @@ class _BearerAuth(grpc.AuthMetadataPlugin):
     ) -> None:
         """Sends the bearer token to gRPC as request metadata."""
         callback((("authorization", self._token),), None)
+
+
+def _bearer_call_credentials(token: SecretStr) -> grpc.CallCredentials:
+    return grpc.metadata_call_credentials(_BearerAuth(token.get_secret_value()))
+
+
+def _basic_call_credentials(username: str, password: SecretStr) -> grpc.CallCredentials:
+    return grpc.metadata_call_credentials(
+        _BasicAuth(username, password.get_secret_value())
+    )
 
 
 class _BasicAuth(grpc.AuthMetadataPlugin):
@@ -277,9 +358,8 @@ class ArmadaCredentials(Block):
     token: SecretStr | None = Field(
         default=None,
         description=(
-            "A bearer token to authenticate with Armada. The token is sent verbatim "
-            "in the `authorization` header, so it should include the `Bearer` prefix "
-            "if the Armada server expects one."
+            "A bearer token to authenticate with Armada, with or without the "
+            "`Bearer` prefix."
         ),
     )
     username: str | None = Field(
@@ -306,21 +386,27 @@ class ArmadaCredentials(Block):
         """
         Returns the gRPC call credentials for this credentials block.
 
+        Authentication configured on this block takes precedence over the
+        `PREFECT_INTEGRATIONS_ARMADA_CONNECTION_*` settings, whichever kind it
+        is. A username or password missing from the block is read from the
+        settings.
+
         Returns:
             Call credentials carrying an authorization header, or `None` if no
             authentication is configured.
         """
         settings = ArmadaSettings().connection
-        token = self.token or settings.token
         username = self.username or settings.username
         password = self.password or settings.password
 
-        if token:
-            return grpc.metadata_call_credentials(_BearerAuth(token.get_secret_value()))
+        if self.token:
+            return _bearer_call_credentials(self.token)
+        if (self.username or self.password) and username and password:
+            return _basic_call_credentials(username, password)
+        if settings.token:
+            return _bearer_call_credentials(settings.token)
         if username and password:
-            return grpc.metadata_call_credentials(
-                _BasicAuth(username, password.get_secret_value())
-            )
+            return _basic_call_credentials(username, password)
         return None
 
     def _new_channel(self, target: str, asynchronous: bool) -> grpc.Channel:
@@ -354,7 +440,7 @@ class ArmadaCredentials(Block):
         cluster_config = self.get_cluster_config()
         channel = self._new_channel(cluster_config.target, asynchronous=True)
         try:
-            yield ArmadaAsyncIOClient(
+            yield _ArmadaAsyncIOClient(
                 channel=channel,
                 event_timeout=timedelta(seconds=cluster_config.event_timeout_seconds),
             )
@@ -393,7 +479,7 @@ class ArmadaCredentials(Block):
 
         Armada serves job logs from its Binoculars service, which only has a
         synchronous client. Callers in async code should run its methods in a
-        worker thread.
+        worker thread. Calls made without a deadline time out after 30 seconds.
 
         Yields:
             An authenticated `BinocularsClient`.
@@ -403,6 +489,11 @@ class ArmadaCredentials(Block):
             cluster_config.binoculars_target, asynchronous=False
         )
         try:
-            yield BinocularsClient(channel=channel)
+            yield BinocularsClient(
+                channel=grpc.intercept_channel(
+                    channel,
+                    _DefaultTimeoutInterceptor(_BINOCULARS_DEFAULT_TIMEOUT_SECONDS),
+                )
+            )
         finally:
             channel.close()

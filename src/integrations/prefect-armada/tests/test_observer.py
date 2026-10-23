@@ -15,7 +15,14 @@ from prefect_armada.exceptions import ArmadaObserverStartupError
 
 from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.states import Completed, Crashed, Pending, Running, Scheduled
+from prefect.states import (
+    Cancelling,
+    Completed,
+    Crashed,
+    Pending,
+    Running,
+    Scheduled,
+)
 
 FLOW_RUN_ID = str(uuid.uuid4())
 PREFECT_ANNOTATIONS = {
@@ -360,6 +367,29 @@ class TestHandleEvent:
         mark_crashed.assert_not_awaited()
         assert state.is_finished is True
 
+    async def test_does_not_mark_a_requeued_job_as_crashed(
+        self, mock_events_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Armada may requeue a job whose lease expired, and emits a separate `failed`
+        event when it does not.
+        """
+        mark_crashed = AsyncMock()
+        monkeypatch.setattr(observer, "_mark_flow_run_as_crashed", mark_crashed)
+        state = observer._JobSetWatchState()
+        state.annotations["job-1"] = PREFECT_ANNOTATIONS
+
+        await observer._handle_event(
+            make_event("lease_expired", job_id="job-1"),
+            "my-queue",
+            "my-job-set",
+            state,
+            ArmadaCredentials(),
+        )
+
+        mark_crashed.assert_not_awaited()
+        assert state.finished_job_ids == set()
+
     async def test_can_skip_event_replication(
         self, mock_events_client, monkeypatch: pytest.MonkeyPatch
     ):
@@ -497,6 +527,8 @@ class TestWatchJobSet:
         monkeypatch.setattr(observer, "WATCH_STABLE_CONNECTION_SECONDS", 0.01)
         mark_crashed = AsyncMock()
         monkeypatch.setattr(observer, "_mark_flow_run_as_crashed", mark_crashed)
+        # Every connection is established, then closed while idle
+        mock_armada_client.channel = MagicMock(channel_ready=AsyncMock())
 
         async def stream_closed_after_idling(events):
             for event in events:
@@ -527,6 +559,35 @@ class TestWatchJobSet:
             for record in caplog.records
             if record.levelname == "WARNING"
         ] == []
+
+    async def test_slow_connection_failures_still_count_as_failures(
+        self, mock_events_client, mock_armada_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        A connection attempt that hangs and then fails, e.g. to a blackholed host,
+        never connected, however long it took.
+        """
+        monkeypatch.setattr(observer, "WATCH_STABLE_CONNECTION_SECONDS", 0.01)
+
+        async def never_ready():
+            await anyio.sleep(3600)
+
+        mock_armada_client.channel = MagicMock(channel_ready=never_ready)
+
+        async def slow_failure():
+            await anyio.sleep(0.02)
+            raise FakeRpcError(grpc.StatusCode.UNAVAILABLE, "failed to connect")
+            yield
+
+        mock_armada_client.get_job_events_stream.side_effect = lambda **_: (
+            slow_failure()
+        )
+
+        with anyio.fail_after(5):
+            await observer._watch_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+
+        # Gave up on the never-visible job set after 3 attempts per `fast_retries`
+        assert mock_armada_client.get_job_events_stream.await_count == 3
 
     async def test_skips_an_event_that_keeps_failing(
         self, mock_events_client, mock_armada_client, monkeypatch: pytest.MonkeyPatch
@@ -793,9 +854,11 @@ class TestMarkFlowRunAsCrashed:
         assert "Armada job job-1 for this flow run failed: OOMKilled" in state.message
 
     @pytest.mark.parametrize(
-        "state", [Completed(), Scheduled()], ids=["final", "scheduled"]
+        "state",
+        [Completed(), Scheduled(), Cancelling()],
+        ids=["final", "scheduled", "cancelling"],
     )
-    async def test_leaves_final_and_scheduled_runs_alone(
+    async def test_leaves_final_scheduled_and_cancelling_runs_alone(
         self, mock_orchestration_client, propose_state, state
     ):
         mock_orchestration_client.read_flow_run.return_value = flow_run_with_state(
@@ -1135,6 +1198,47 @@ class TestObserverLifecycle:
 
         assert started == [key, key]
         assert observer._expected_job_ids == {key: {"job-1"}}
+
+    @pytest.mark.parametrize(
+        "started_first",
+        [True, False],
+        ids=["after-starting", "after-start-observer-stopped-waiting"],
+    )
+    async def test_restarts_after_a_permanent_failure_no_one_is_waiting_for(
+        self, monkeypatch: pytest.MonkeyPatch, started_first
+    ):
+        """
+        Only a waiting `start_observer` can report a startup failure, so any later
+        failure must be retried rather than silently end the observer.
+        """
+        monkeypatch.setattr(observer, "OBSERVER_RESTART_MAX_DELAY_SECONDS", 0.01)
+        monkeypatch.setattr(observer, "OBSERVER_STARTUP_TIMEOUT_SECONDS", 0.1)
+        start_observer_returned = threading.Event()
+        restarted = threading.Event()
+        calls = 0
+
+        async def fake_observer_main(stop_flag, started=None):
+            nonlocal calls
+            calls += 1
+            if calls > 1:
+                restarted.set()
+                return
+            if started_first:
+                if started is not None:
+                    started.set()
+                observer._startup_flag.set()
+            start_observer_returned.wait(timeout=5)
+            # Not one of the transient failures the observer expects
+            raise RuntimeError("Permanent failure")
+
+        monkeypatch.setattr(observer, "_observer_main", fake_observer_main)
+
+        observer.start_observer()
+        try:
+            start_observer_returned.set()
+            assert await anyio.to_thread.run_sync(restarted.wait, 5)
+        finally:
+            observer.stop_observer()
 
     async def test_stops_while_waiting_to_restart(
         self, monkeypatch: pytest.MonkeyPatch

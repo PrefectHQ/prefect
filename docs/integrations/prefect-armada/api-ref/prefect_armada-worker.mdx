@@ -127,13 +127,13 @@ checkout out the [Prefect docs](https://docs.prefect.io/concepts/work-pools/).
 
 ## Classes
 
-### `ArmadaImagePullPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArmadaImagePullPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enum representing the image pull policy options for an Armada job.
 
 
-### `ArmadaWorkerJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L271" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArmadaWorkerJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L280" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Configuration class used by the Armada worker.
@@ -166,7 +166,7 @@ cluster, substituted for a local address in jobs' `PREFECT_API_URL`.
 
 **Methods:**
 
-#### `container` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `container` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 container(self) -> dict[str, Any]
@@ -175,7 +175,7 @@ container(self) -> dict[str, Any]
 The first container in the job manifest's pod spec.
 
 
-#### `get_credentials` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_credentials` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_credentials(self) -> ArmadaCredentials
@@ -194,7 +194,7 @@ of whichever cluster config is used, so a work pool can point at an
 Armada server without configuring a block.
 
 
-#### `get_environment_variable_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L432" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_environment_variable_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L441" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_environment_variable_value(self, name: str) -> str | None
@@ -203,7 +203,7 @@ get_environment_variable_value(self, name: str) -> str | None
 Returns the value of an environment variable from the job manifest.
 
 
-#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L496" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L505" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prepare_for_flow_run(self, flow_run: FlowRun, deployment: DeploymentResponse | None = None, flow: APIFlow | None = None, work_pool: WorkPool | None = None, worker_name: str | None = None, worker_id: UUID | None = None)
@@ -223,7 +223,7 @@ preparation.
 - `worker_name`: The name of the worker used for preparation.
 
 
-### `ArmadaWorkerVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L737" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArmadaWorkerVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L746" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Default variables for the Armada worker.
@@ -232,13 +232,13 @@ The schema for this class is used to populate the `variables` section of the
 default base job template.
 
 
-### `ArmadaWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArmadaWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L916" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Contains information about the final state of a completed process
 
 
-### `ArmadaWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L911" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArmadaWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L976" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Prefect worker that executes flow runs within Armada jobs.
@@ -246,7 +246,7 @@ Prefect worker that executes flow runs within Armada jobs.
 
 **Methods:**
 
-#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L990" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L1055" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 kill_infrastructure(self, infrastructure_pid: str, configuration: ArmadaWorkerJobConfiguration, grace_seconds: int = 30) -> None
@@ -265,7 +265,7 @@ cancelling a job.
 - `InfrastructureNotFound`: If the job doesn't exist.
 
 
-#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/worker.py#L1015" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, flow_run: FlowRun, configuration: ArmadaWorkerJobConfiguration, task_status: anyio.abc.TaskStatus[str] | None = None) -> ArmadaWorkerResult

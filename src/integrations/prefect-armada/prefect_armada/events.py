@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Sequence
+import asyncio
+from collections.abc import AsyncGenerator, Callable, Sequence
 from contextlib import aclosing
 
 import anyio
+import grpc
 from armada_client.event import Event
 
 from prefect import task
@@ -65,14 +67,61 @@ async def stream_job_set_events(
                     break
         ```
     """
+    async with aclosing(
+        _stream_job_set_events(
+            armada_credentials=armada_credentials,
+            queue=queue,
+            job_set_id=job_set_id,
+            from_message_id=from_message_id,
+        )
+    ) as events:
+        async for event in events:
+            yield event
+
+
+async def _stream_job_set_events(
+    armada_credentials: ArmadaCredentials,
+    queue: str,
+    job_set_id: str,
+    from_message_id: str | None = None,
+    on_connected: Callable[[], None] | None = None,
+) -> AsyncGenerator[Event, None]:
+    """
+    Yields events for an Armada job set as `stream_job_set_events` does.
+
+    Args:
+        on_connected: Called once a connection to Armada has been established,
+            which for a stream with no new events is before any event arrives.
+    """
+    connected = False
+
+    def notify_connected() -> None:
+        nonlocal connected
+        if not connected and on_connected is not None:
+            connected = True
+            on_connected()
+
+    async def notify_when_ready(channel: grpc.aio.Channel) -> None:
+        await channel.channel_ready()
+        notify_connected()
+
     async with armada_credentials.get_client() as client:
         event_stream = await client.get_job_events_stream(
             queue=queue,
             job_set_id=job_set_id,
             from_message_id=from_message_id,
         )
+        # Runs alongside the stream rather than before it, so that waiting for
+        # the connection never delays or replaces the stream's own errors.
+        channel = getattr(client, "channel", None)
+        ready_task = (
+            asyncio.create_task(notify_when_ready(channel))
+            if on_connected is not None and channel is not None
+            else None
+        )
         try:
             async for message in event_stream:
+                notify_connected()
                 try:
                     event = client.unmarshal_event_response(message)
                 except ValueError:
@@ -89,6 +138,8 @@ async def stream_job_set_events(
                     continue
                 yield event
         finally:
+            if ready_task is not None:
+                ready_task.cancel()
             client.unwatch_events(event_stream)
 
 

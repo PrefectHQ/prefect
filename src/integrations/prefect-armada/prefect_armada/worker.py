@@ -121,6 +121,7 @@ from __future__ import annotations
 
 import enum
 import logging
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -135,11 +136,19 @@ from urllib.parse import urlsplit
 
 import anyio
 import anyio.abc
+import anyio.to_thread
 import grpc
+from armada_client.armada import submit_pb2
 from armada_client.asyncio_client import ArmadaAsyncIOClient
 from jsonpatch import JsonPatch
 from pydantic import Field, field_validator, model_validator
-from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, wait_random
+from tenacity import (
+    AsyncRetrying,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_fixed,
+    wait_random,
+)
 
 import prefect
 from prefect.client.schemas.objects import Flow as APIFlow
@@ -908,6 +917,62 @@ class ArmadaWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
 
+# gRPC errors from submitting a job that may clear on their own. Armada returns
+# INTERNAL when it fails to publish a submitted job, in which case it created
+# nothing. Any other error, such as an invalid job or a missing queue, would
+# fail again, so it is reported straight away.
+_RETRYABLE_SUBMIT_STATUS_CODES = frozenset(
+    {
+        grpc.StatusCode.UNAVAILABLE,
+        grpc.StatusCode.DEADLINE_EXCEEDED,
+        grpc.StatusCode.RESOURCE_EXHAUSTED,
+        grpc.StatusCode.ABORTED,
+        grpc.StatusCode.INTERNAL,
+    }
+)
+
+
+def _is_retryable_submit_error(exc: BaseException) -> bool:
+    """Whether a failed job submission is worth retrying."""
+    return rpc_status_code(exc) in _RETRYABLE_SUBMIT_STATUS_CODES
+
+
+def _with_client_ids(
+    job_request_items: list[submit_pb2.JobSubmitRequestItem],
+) -> list[submit_pb2.JobSubmitRequestItem]:
+    """
+    Returns copies of job request items with a `client_id` set on each one that
+    does not already have one.
+
+    Armada returns the job it already created for a `client_id` it has seen in
+    the queue, rather than creating another. The IDs are generated once per
+    submission and shared by all of its retries, so a retry after a lost
+    response cannot create a second job. They are unique to the submission,
+    since Armada remembers them for days and would otherwise hand a rescheduled
+    flow run the job from its earlier attempt.
+    """
+    submission_id = uuid.uuid4().hex
+    items: list[submit_pb2.JobSubmitRequestItem] = []
+    for index, item in enumerate(job_request_items):
+        copy = submit_pb2.JobSubmitRequestItem()
+        copy.CopyFrom(item)
+        if not copy.client_id:
+            copy.client_id = f"{submission_id}-{index}"
+        items.append(copy)
+    return items
+
+
+async def _stop_observer() -> None:
+    """
+    Stops the Armada observer without blocking the event loop.
+
+    Stopping waits for the observer thread to exit, and is shielded so that it
+    finishes even when the worker is shutting down because it was cancelled.
+    """
+    with anyio.CancelScope(shield=True):
+        await anyio.to_thread.run_sync(stop_observer)
+
+
 class ArmadaWorker(
     BaseWorker[
         "ArmadaWorkerJobConfiguration",
@@ -1055,11 +1120,14 @@ class ArmadaWorker(
         job_set_id = configuration.job_set_id
         assert job_set_id, "Expected a job set ID to be set for the flow run"
 
-        job_request_items = coerce_job_request_items(configuration.job_manifest)
+        job_request_items = _with_client_ids(
+            coerce_job_request_items(configuration.job_manifest)
+        )
 
         try:
             retry_settings = settings.worker.submit_job_retry
             async for attempt in AsyncRetrying(
+                retry=retry_if_exception(_is_retryable_submit_error),
                 stop=stop_after_attempt(retry_settings.max_retries),
                 wait=wait_fixed(retry_settings.delay_seconds)
                 + wait_random(
@@ -1209,7 +1277,9 @@ class ArmadaWorker(
         """
         if ArmadaSettings().observer.enabled:
             try:
-                start_observer()
+                # Waits up to 30 seconds for the observer to start, which must
+                # not block the worker's event loop.
+                await anyio.to_thread.run_sync(start_observer)
             except ArmadaObserverStartupError as exc:
                 self._logger.error(
                     "%s. Without the observer, Armada jobs that fail before "
@@ -1224,7 +1294,7 @@ class ArmadaWorker(
             await super().__aenter__()
         except BaseException:
             if ArmadaSettings().observer.enabled:
-                stop_observer()
+                await _stop_observer()
             raise
 
         if queue := await self._get_missing_queue():
@@ -1249,4 +1319,4 @@ class ArmadaWorker(
         finally:
             # Need to run after the runs task group exits
             if ArmadaSettings().observer.enabled:
-                stop_observer()
+                await _stop_observer()

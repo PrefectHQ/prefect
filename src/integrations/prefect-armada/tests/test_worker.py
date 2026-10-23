@@ -1,3 +1,5 @@
+import asyncio
+import threading
 import uuid
 from unittest.mock import MagicMock
 
@@ -701,6 +703,104 @@ class TestArmadaWorker:
         assert result.identifier.endswith("test-job-id")
         assert mock_armada_client.submit_jobs.await_count == 2
 
+    @pytest.fixture
+    def no_retry_delay(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv(
+            "PREFECT_INTEGRATIONS_ARMADA_WORKER_SUBMIT_JOB_RETRY_DELAY_SECONDS", "0"
+        )
+        monkeypatch.setenv(
+            "PREFECT_INTEGRATIONS_ARMADA_WORKER_SUBMIT_JOB_RETRY_JITTER_MAX_SECONDS",
+            "0",
+        )
+
+    async def test_retries_of_a_submission_share_its_client_id(
+        self, default_configuration, flow_run, mock_armada_client, no_retry_delay
+    ):
+        """
+        Armada returns the job it already created for a `client_id` it has seen,
+        so a retry after a lost response cannot create a second job. Separate
+        submissions, such as a rescheduled flow run's, must not share one.
+        """
+        mock_armada_client.submit_jobs.side_effect = [
+            FakeRpcError(grpc.StatusCode.DEADLINE_EXCEEDED, "response lost"),
+            make_job_submit_response(),
+            make_job_submit_response(),
+        ]
+        default_configuration.prepare_for_flow_run(flow_run)
+
+        async with ArmadaWorker(work_pool_name="test") as worker:
+            await worker.run(flow_run=flow_run, configuration=default_configuration)
+            await worker.run(flow_run=flow_run, configuration=default_configuration)
+
+        client_ids = [
+            call[1]["job_request_items"][0].client_id
+            for call in mock_armada_client.submit_jobs.call_args_list
+        ]
+        first_attempt, retry, second_submission = client_ids
+        assert first_attempt and len(first_attempt) <= 100
+        assert retry == first_attempt
+        assert second_submission != first_attempt
+
+    async def test_keeps_a_client_id_set_in_the_job_template(
+        self, default_configuration, flow_run, mock_armada_client
+    ):
+        mock_armada_client.submit_jobs.return_value = make_job_submit_response()
+        default_configuration.prepare_for_flow_run(flow_run)
+        default_configuration.job_manifest["client_id"] = "my-client-id"
+
+        async with ArmadaWorker(work_pool_name="test") as worker:
+            await worker.run(flow_run=flow_run, configuration=default_configuration)
+
+        call = mock_armada_client.submit_jobs.call_args[1]
+        assert call["job_request_items"][0].client_id == "my-client-id"
+
+    @pytest.mark.parametrize(
+        "status_code",
+        [grpc.StatusCode.INTERNAL, grpc.StatusCode.RESOURCE_EXHAUSTED],
+        ids=lambda code: code.name,
+    )
+    async def test_retries_errors_that_may_clear(
+        self,
+        default_configuration,
+        flow_run,
+        mock_armada_client,
+        no_retry_delay,
+        status_code,
+    ):
+        mock_armada_client.submit_jobs.side_effect = [
+            FakeRpcError(status_code, "try again"),
+            make_job_submit_response(),
+        ]
+        default_configuration.prepare_for_flow_run(flow_run)
+
+        async with ArmadaWorker(work_pool_name="test") as worker:
+            await worker.run(flow_run=flow_run, configuration=default_configuration)
+
+        assert mock_armada_client.submit_jobs.await_count == 2
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            FakeRpcError(grpc.StatusCode.INVALID_ARGUMENT, "invalid job"),
+            FakeRpcError(grpc.StatusCode.PERMISSION_DENIED, "denied"),
+            FakeRpcError(grpc.StatusCode.NOT_FOUND, "queue not found"),
+            ValueError("not a gRPC error"),
+        ],
+        ids=["INVALID_ARGUMENT", "PERMISSION_DENIED", "NOT_FOUND", "not-grpc"],
+    )
+    async def test_does_not_retry_errors_that_would_fail_again(
+        self, default_configuration, flow_run, mock_armada_client, error
+    ):
+        """Retrying only delays the error, and its hint, reaching the user."""
+        mock_armada_client.submit_jobs.side_effect = error
+        default_configuration.prepare_for_flow_run(flow_run)
+
+        async with ArmadaWorker(work_pool_name="test") as worker:
+            with pytest.raises((InfrastructureError, ValueError)):
+                await worker.run(flow_run=flow_run, configuration=default_configuration)
+
+        mock_armada_client.submit_jobs.assert_awaited_once()
+
     async def test_kill_infrastructure_cancels_the_job(
         self, default_configuration, mock_armada_client
     ):
@@ -776,6 +876,27 @@ class TestArmadaWorker:
             mock_observer.stop.assert_not_called()
 
         mock_observer.stop.assert_called_once()
+
+    @pytest.mark.parametrize("call", ["start", "stop"])
+    async def test_observer_start_and_stop_do_not_block_the_event_loop(
+        self, mock_observer, call
+    ):
+        """Starting waits up to 30 seconds and stopping joins the observer thread."""
+        loop = asyncio.get_running_loop()
+        loop_ran = threading.Event()
+
+        def wait_for_the_event_loop():
+            # Only runs if the event loop is free while this call is in progress
+            loop.call_soon_threadsafe(loop_ran.set)
+            if not loop_ran.wait(timeout=2):
+                raise AssertionError(f"observer {call} blocked the event loop")
+
+        getattr(mock_observer, call).side_effect = wait_for_the_event_loop
+
+        async with ArmadaWorker(work_pool_name="test"):
+            pass
+
+        getattr(mock_observer, call).assert_called_once()
 
     async def test_observer_can_be_disabled(
         self, mock_observer, monkeypatch: pytest.MonkeyPatch

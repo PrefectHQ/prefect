@@ -10,7 +10,7 @@ Utilities for working with the Armada Python client.
 
 ## Functions
 
-### `pod_spec_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pod_spec_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L271" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pod_spec_from_dict(pod_spec: dict[str, Any]) -> core_v1.PodSpec
@@ -30,7 +30,7 @@ Converts a Kubernetes pod spec dictionary into an Armada pod spec.
 - `ArmadaJobDefinitionError`: If the pod spec cannot be converted.
 
 
-### `job_request_item_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `job_request_item_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 job_request_item_from_dict(job_request: dict[str, Any]) -> submit_pb2.JobSubmitRequestItem
@@ -50,7 +50,7 @@ pod specs may be given under either `pod_spec` or `podSpec`.
 - `ArmadaJobDefinitionError`: If the job request cannot be converted.
 
 
-### `coerce_job_request_items` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `coerce_job_request_items` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L340" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 coerce_job_request_items(job_request: dict[str, Any] | submit_pb2.JobSubmitRequestItem | list[dict[str, Any] | submit_pb2.JobSubmitRequestItem]) -> list[submit_pb2.JobSubmitRequestItem]
@@ -73,7 +73,7 @@ representation is most convenient.
 - `ArmadaJobDefinitionError`: If a job request cannot be converted.
 
 
-### `queue_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `queue_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L369" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 queue_from_dict(queue: dict[str, Any]) -> submit_pb2.Queue
@@ -92,7 +92,7 @@ Converts a queue dictionary into an Armada queue.
 - `ArmadaJobDefinitionError`: If the queue cannot be converted.
 
 
-### `coerce_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L383" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `coerce_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L384" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 coerce_queues(queues: Iterable[dict[str, Any] | submit_pb2.Queue]) -> list[submit_pb2.Queue]
@@ -111,7 +111,7 @@ Coerces queue input into a list of Armada queues.
 - `ArmadaJobDefinitionError`: If a queue cannot be converted.
 
 
-### `job_state_from_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `job_state_from_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L404" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 job_state_from_value(value: Any) -> JobState
@@ -130,7 +130,7 @@ Converts an Armada job state value into a `JobState`.
 - `ValueError`: If the value does not correspond to a known job state.
 
 
-### `format_job_pid` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L422" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `format_job_pid` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format_job_pid(queue: str, job_set_id: str, job_id: str) -> str
@@ -148,7 +148,7 @@ Formats an Armada job identifier for use as an infrastructure PID.
 - The infrastructure PID, for example `"my-queue:my-job-set:01hqk..."`.
 
 
-### `parse_job_pid` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L436" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `parse_job_pid` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/utilities.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 parse_job_pid(infrastructure_pid: str) -> tuple[str, str, str]

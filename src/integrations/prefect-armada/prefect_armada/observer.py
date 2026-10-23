@@ -52,7 +52,7 @@ from prefect.states import Crashed
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
 from prefect_armada.credentials import ArmadaCredentials
-from prefect_armada.events import stream_job_set_events
+from prefect_armada.events import _stream_job_set_events
 from prefect_armada.exceptions import (
     ArmadaObserverStartupError,
     rpc_details,
@@ -75,8 +75,8 @@ TERMINAL_EVENT_TYPES = {"succeeded", "failed", "cancelled", "preempted"}
 WATCH_RETRY_MAX_ATTEMPTS = 8
 WATCH_RETRY_MAX_DELAY_SECONDS = 30
 
-# How long a job set's event stream must stay open before it ending, cleanly or
-# not, counts as a dropped connection rather than a failed one. Proxies and load
+# How long a job set's event stream must stay connected before it ending, cleanly
+# or not, counts as a dropped connection rather than a failed one. Proxies and load
 # balancers routinely close streams that have been idle for a while, which must
 # not slow down reconnecting or be reported as a failure.
 WATCH_STABLE_CONNECTION_SECONDS = 30
@@ -89,6 +89,9 @@ _PERMANENT_STREAM_ERRORS = {
     grpc.StatusCode.PERMISSION_DENIED,
     grpc.StatusCode.UNAUTHENTICATED,
 }
+
+# How long `start_observer` waits for the observer's first startup attempt.
+OBSERVER_STARTUP_TIMEOUT_SECONDS = 30
 
 # The ceiling on the exponential backoff between attempts to restart the
 # observer after it fails, for example because the Prefect API is unreachable.
@@ -137,6 +140,9 @@ _stop_flag: threading.Event | None = None
 _startup_flag: threading.Event | None = None
 # The permanent failure that made the observer give up on its first startup.
 _startup_error: Exception | None = None
+# Guards the hand-off of a startup failure to `start_observer`, so that one is
+# only recorded while `start_observer` is still waiting to read it.
+_startup_lock = threading.Lock()
 
 
 class _JobSetWatchState:
@@ -342,14 +348,22 @@ async def _watch_job_set_events(
         # Set when the error came from handling an event rather than from the
         # stream, which says nothing about whether the stream itself works.
         handling_error: Exception | None = None
-        connected_at = time.monotonic()
+        # When the connection was established, which a connection attempt that
+        # hangs and then fails never reaches.
+        connected_at: float | None = None
+
+        def mark_connected() -> None:
+            nonlocal connected_at
+            connected_at = time.monotonic()
+
         try:
             async with aclosing(
-                stream_job_set_events(
+                _stream_job_set_events(
                     armada_credentials=credentials,
                     queue=queue,
                     job_set_id=job_set_id,
                     from_message_id=last_message_id,
+                    on_connected=mark_connected,
                 )
             ) as event_stream:
                 async for event in event_stream:
@@ -394,7 +408,10 @@ async def _watch_job_set_events(
         except Exception as exc:
             error = exc
 
-        if time.monotonic() - connected_at >= WATCH_STABLE_CONNECTION_SECONDS:
+        if (
+            connected_at is not None
+            and time.monotonic() - connected_at >= WATCH_STABLE_CONNECTION_SECONDS
+        ):
             # The stream was healthy until it was closed, so this is the first
             # attempt to reconnect rather than another failure in a row.
             failures = 0
@@ -759,14 +776,18 @@ async def _mark_flow_run_as_crashed(
             )
         return superseded
 
-    # Exit early for terminal/final/scheduled/paused states
+    # Exit early for final, scheduled and paused runs, and for runs being
+    # cancelled: cancelling a run cancels its Armada job, and the worker marks
+    # the run Cancelled, which a Crashed proposal would race.
     if (
         flow_run.state.is_final()
         or flow_run.state.is_scheduled()
         or flow_run.state.is_paused()
+        or flow_run.state.is_cancelling()
     ):
         logger.debug(
-            "Flow run %s is in final, scheduled, or paused state, skipping",
+            "Flow run %s is in a final, scheduled, paused, or cancelling state, "
+            "skipping",
             flow_run_id,
         )
         return
@@ -798,9 +819,10 @@ async def _mark_flow_run_as_crashed(
             )
 
     assert flow_run.state is not None, "Expected flow run state to be set"
-    if flow_run.state.is_final():
+    if flow_run.state.is_final() or flow_run.state.is_cancelling():
         logger.debug(
-            "Flow run %s reached a final state on its own, skipping", flow_run_id
+            "Flow run %s reached a final or cancelling state on its own, skipping",
+            flow_run_id,
         )
         return
 
@@ -918,8 +940,16 @@ def _register_configured_job_sets(credentials: ArmadaCredentials) -> None:
             _persistent_job_sets.add((queue, job_set_id))
 
 
-async def _observer_main(stop_flag: threading.Event) -> None:
-    """Runs the observer until it is stopped."""
+async def _observer_main(
+    stop_flag: threading.Event, started: threading.Event | None = None
+) -> None:
+    """
+    Runs the observer until it is stopped.
+
+    Args:
+        stop_flag: Set to stop the observer.
+        started: Set once the observer is running and watching its job sets.
+    """
     global _observer_loop
     global events_client
     global orchestration_client
@@ -943,6 +973,8 @@ async def _observer_main(stop_flag: threading.Event) -> None:
             for key in keys:
                 await _ensure_watch(key)
 
+            if started is not None:
+                started.set()
             if _startup_flag is not None:
                 _startup_flag.set()
 
@@ -972,12 +1004,16 @@ def _observer_thread_entry(
     not leave the worker submitting jobs with nothing watching them.
 
     The exception is a first startup that fails for a reason retrying will not
-    fix. That is recorded for `start_observer` to raise, so the worker refuses
-    to start rather than run without an observer indefinitely.
+    fix while `start_observer` is still waiting for it. That is recorded for
+    `start_observer` to raise, so the worker refuses to start rather than run
+    without an observer indefinitely. Any other failure, including a permanent
+    one after the observer has started or after `start_observer` has stopped
+    waiting, is logged and retried, since nothing else would report it.
     """
     global _startup_error
 
     failures = 0
+    ever_started = False
     try:
         # Prefect settings live in a context variable, which a new thread does
         # not inherit, so the starting thread's settings are re-applied here to
@@ -988,13 +1024,24 @@ def _observer_thread_entry(
             profile=settings_context.profile, settings=settings_context.settings
         ):
             while not stop_flag.is_set():
+                started = threading.Event()
                 try:
-                    asyncio.run(_observer_main(stop_flag))
+                    asyncio.run(_observer_main(stop_flag, started))
                 except Exception as exc:
-                    if failures == 0 and not isinstance(
-                        exc, _TRANSIENT_STARTUP_EXCEPTIONS
-                    ):
-                        _startup_error = exc
+                    if started.is_set():
+                        # The observer had been running, so this failure starts
+                        # a new run of restarts rather than continuing one.
+                        ever_started = True
+                        failures = 0
+                    with _startup_lock:
+                        report = (
+                            not ever_started
+                            and _startup_flag is not None
+                            and not isinstance(exc, _TRANSIENT_STARTUP_EXCEPTIONS)
+                        )
+                        if report:
+                            _startup_error = exc
+                    if report:
                         return
                     delay = min(2**failures, OBSERVER_RESTART_MAX_DELAY_SECONDS)
                     failures += 1
@@ -1045,24 +1092,30 @@ def start_observer() -> None:
         daemon=True,
     )
     _observer_thread.start()
-    if not _startup_flag.wait(timeout=30):
-        logger.warning(
-            "Armada observer did not report readiness within 30 seconds; "
-            "continuing without it"
-        )
-    elif _startup_error is not None:
+    ready = _startup_flag.wait(timeout=OBSERVER_STARTUP_TIMEOUT_SECONDS)
+    with _startup_lock:
+        # Once no one is waiting, the observer thread logs and retries its
+        # failures instead of recording them here.
+        _startup_flag = None
         error, _startup_error = _startup_error, None
+
+    if error is not None:
         stop_observer()
         raise ArmadaObserverStartupError(
             f"The Armada observer failed to start: {error}"
         ) from error
+    if not ready:
+        logger.warning(
+            "Armada observer did not report readiness within %s seconds; "
+            "continuing without it",
+            OBSERVER_STARTUP_TIMEOUT_SECONDS,
+        )
     elif _observer_loop is None:
         logger.warning(
             "Armada observer failed to start and will keep retrying in the "
             "background; until it is running, Armada jobs that fail before "
             "their flow run starts will not be marked as crashed"
         )
-    _startup_flag = None
 
 
 def stop_observer() -> None:

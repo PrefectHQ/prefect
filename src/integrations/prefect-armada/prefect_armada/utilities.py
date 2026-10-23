@@ -28,12 +28,13 @@ TERMINAL_JOB_STATES: set[JobState] = {
 UNSUCCESSFUL_JOB_STATES: set[JobState] = TERMINAL_JOB_STATES - {JobState.SUCCEEDED}
 
 # Armada event types that indicate a job will never produce a result. Armada
-# does not emit a "rejected" event type; rejections surface as failures.
+# does not emit a "rejected" event type; rejections surface as failures. Nor is
+# "lease_expired" one of them: Armada may requeue a job whose lease expired, and
+# when it does not, it also emits "failed".
 UNSUCCESSFUL_EVENT_TYPES: set[str] = {
     "failed",
     "cancelled",
     "preempted",
-    "lease_expired",
 }
 
 # The annotation key prefix Armada uses for job metadata that is meaningful to

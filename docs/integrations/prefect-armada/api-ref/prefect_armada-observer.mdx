@@ -28,7 +28,7 @@ this process submits to. Additional job sets can be watched by setting
 
 ## Functions
 
-### `observe_job_set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/observer.py#L206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `observe_job_set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/observer.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 observe_job_set(credentials: ArmadaCredentials, queue: str, job_set_id: str, job_id: str | None = None) -> None
@@ -50,7 +50,7 @@ given.
 job set is watched until this job has finished.
 
 
-### `start_observer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/observer.py#L1016" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `start_observer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/observer.py#L1063" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start_observer() -> None
@@ -69,7 +69,7 @@ registered in the meantime are watched once it is running.
 reason that retrying will not fix.
 
 
-### `stop_observer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/observer.py#L1068" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `stop_observer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/observer.py#L1121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop_observer() -> None

@@ -242,8 +242,9 @@ ArmadaCredentials(
 ```
 
 <Note>
-The `token` is sent verbatim in the `authorization` header. Include the `Bearer` prefix if the Armada
-server expects one.
+The `token` is sent as `Bearer <token>` in the `authorization` header, so it works with or without the
+`Bearer` prefix. Authentication set on the block takes precedence over the `CONNECTION_TOKEN`,
+`CONNECTION_USERNAME`, and `CONNECTION_PASSWORD` settings.
 </Note>
 
 ## Submit Armada jobs from a flow
@@ -344,18 +345,16 @@ All settings are configured through environment variables prefixed with `PREFECT
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `CLUSTER_UID` | none | A unique identifier for the Armada cluster in use. |
 | `CONNECTION_HOST` | `localhost` | The hostname of the Armada server's gRPC endpoint. |
 | `CONNECTION_PORT` | `50051` | The port of the Armada server's gRPC endpoint. |
 | `CONNECTION_DISABLE_SSL` | `false` | Whether to connect to Armada without TLS. |
 | `CONNECTION_BINOCULARS_HOST` | the server host | The hostname of Armada's Binoculars endpoint, which serves job logs. |
 | `CONNECTION_BINOCULARS_PORT` | `50053` | The port of Armada's Binoculars endpoint. |
-| `CONNECTION_TOKEN` | none | A bearer token to authenticate with Armada, without the `Bearer` prefix. |
+| `CONNECTION_TOKEN` | none | A bearer token to authenticate with Armada, with or without the `Bearer` prefix. |
 | `CONNECTION_USERNAME` | none | The username for basic auth. |
 | `CONNECTION_PASSWORD` | none | The password for basic auth. |
 | `WORKER_DEFAULT_QUEUE` | `prefect` | The default `queue` given to work pools created by this process. Existing work pools keep the queue shown in their defaults. |
-| `WORKER_ADD_GRPC_KEEPALIVE` | `true` | Whether to enable gRPC keepalive pings on channels the worker opens. |
-| `WORKER_SUBMIT_JOB_RETRY_MAX_RETRIES` | `3` | Attempts to submit a job before giving up. |
+| `WORKER_SUBMIT_JOB_RETRY_MAX_RETRIES` | `3` | Attempts to submit a job before giving up. Only errors that may clear on their own, such as Armada being temporarily unavailable, are retried. |
 | `WORKER_SUBMIT_JOB_RETRY_DELAY_SECONDS` | `1` | Fixed delay between submission retries. |
 | `WORKER_SUBMIT_JOB_RETRY_JITTER_MIN_SECONDS` | `0` | Minimum jitter added to the retry delay. |
 | `WORKER_SUBMIT_JOB_RETRY_JITTER_MAX_SECONDS` | `3` | Maximum jitter added to the retry delay. |

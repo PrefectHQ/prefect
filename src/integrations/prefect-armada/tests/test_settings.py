@@ -10,12 +10,10 @@ from prefect_armada.settings import (
 def test_defaults():
     settings = ArmadaSettings()
 
-    assert settings.cluster_uid is None
     assert settings.connection.host == "localhost"
     assert settings.connection.port == 50051
     assert settings.connection.binoculars_port == 50053
     assert settings.worker.default_queue == "prefect"
-    assert settings.worker.add_grpc_keepalive is True
     assert settings.worker.submit_job_retry.max_retries == 3
     assert settings.observer.enabled is True
     assert settings.observer.replicate_job_events is True
@@ -29,7 +27,6 @@ def test_set_values_via_environment_variables(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_CONNECTION_PORT", "50055")
     monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_WORKER_DEFAULT_QUEUE", "batch")
     monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_OBSERVER_ENABLED", "false")
-    monkeypatch.setenv("PREFECT_INTEGRATIONS_ARMADA_CLUSTER_UID", "test-cluster-uid")
 
     settings = ArmadaSettings()
 
@@ -37,7 +34,6 @@ def test_set_values_via_environment_variables(monkeypatch: pytest.MonkeyPatch):
     assert settings.connection.port == 50055
     assert settings.worker.default_queue == "batch"
     assert settings.observer.enabled is False
-    assert settings.cluster_uid == "test-cluster-uid"
 
 
 def test_connection_settings_honor_armada_tooling_variables(
