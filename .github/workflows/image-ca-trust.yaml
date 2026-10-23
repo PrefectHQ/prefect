@@ -1,0 +1,39 @@
+name: Image CA trust tests
+
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - client/Dockerfile
+      - scripts/check_image_ca_trust.py
+      - scripts/refresh_pip_ca_bundle.py
+      - scripts/tests/**
+      - .github/workflows/image-ca-trust.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trust-stores:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "0.13.4"
+          python-version: ${{ matrix.python }}
+      - name: Refresh the legacy pip trust store and test
+        env:
+          UV_LINK_MODE: copy
+        run: >-
+          uv run --no-project --python ${{ matrix.python }}
+          --with certifi==2026.10.19 --with "pip==23.3.1; python_version < '3.10'"
+          --with "pip==26.2.2; python_version >= '3.10'"
+          python -c "import runpy, unittest;
+          runpy.run_path('scripts/refresh_pip_ca_bundle.py');
+          result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover('scripts/tests'));
+          raise SystemExit(not result.wasSuccessful())"
