@@ -1,0 +1,95 @@
+---
+title: automation_held_events
+sidebarTitle: automation_held_events
+---
+
+# `prefect.server.events.models.automation_held_events`
+
+
+
+Held `expect` events for proactive triggers with `after`.
+
+Events for one bucketing key can be evaluated in any order, so an `expect` event can be
+evaluated before the `after` event that opens its window, or counted in one window
+before a later `after` event rolls it. Every `expect`-only event is held here, and each
+bucket that opens or rolls counts the held events that occurred inside its window.
+
+
+## Functions
+
+### `slot_start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automation_held_events.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+slot_start(occurred: datetime, width: timedelta) -> datetime
+```
+
+
+The start of the slot that contains `occurred`, where slots are `width` wide
+and aligned to the epoch
+
+
+### `holds_expect_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automation_held_events.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+holds_expect_events(trigger: EventTrigger) -> bool
+```
+
+
+Whether the trigger holds its `expect`-only events for the buckets that open
+later
+
+
+### `acquire_bucketing_key_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automation_held_events.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acquire_bucketing_key_lock(db: PrefectDBInterface, session: AsyncSession, trigger: EventTrigger, bucketing_key: Sequence[str]) -> None
+```
+
+
+Acquire a transaction-scoped lock on one bucketing key of a trigger.
+
+The lock is released when the transaction commits or rolls back.
+
+
+### `is_held` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automation_held_events.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_held(db: PrefectDBInterface, session: AsyncSession, trigger: EventTrigger, bucketing_key: Sequence[str], event: ReceivedEvent) -> bool
+```
+
+
+Whether the event is already held for this trigger and key
+
+
+### `hold_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automation_held_events.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+hold_event(db: PrefectDBInterface, session: AsyncSession, trigger: EventTrigger, bucketing_key: Sequence[str], event: ReceivedEvent) -> None
+```
+
+
+Hold the event for the buckets that open later, and drop held events for the
+same key that are too old or that no window needs to meet its threshold
+
+
+### `held_events_in_window` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automation_held_events.py#L195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+held_events_in_window(db: PrefectDBInterface, trigger: EventTrigger, bucketing_key: Sequence[str], start: datetime, end: datetime) -> sa.ScalarSelect[int]
+```
+
+
+A scalar subquery counting the events held for this trigger and key that
+occurred in the window from `start` (inclusive) to `end` (exclusive)
+
+
+### `sweep_held_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automation_held_events.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+sweep_held_events(db: PrefectDBInterface, session: AsyncSession, now: datetime) -> None
+```
+
+
+Delete every held event that was held more than `HELD_EXPECT_EVENTS_RETENTION`
+before `now`, unless a bucket for its key has not ended by `now`
+

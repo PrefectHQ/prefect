@@ -155,12 +155,7 @@ export const FlowRunStateTriggerFields = () => {
 	const selectedDeploymentIds =
 		extractDeploymentIdsFromMatchRelated(matchRelated);
 
-	const handleFlowToggle = (flowId: string) => {
-		const currentFlowIds = selectedFlowIds;
-		const newFlowIds = currentFlowIds.includes(flowId)
-			? currentFlowIds.filter((id) => id !== flowId)
-			: [...currentFlowIds, flowId];
-
+	const handleFlowIdsChange = (newFlowIds: string[]) => {
 		// Clear tags when flows are selected (Vue behavior)
 		const newTags = newFlowIds.length > 0 ? [] : selectedTags;
 		form.setValue(
@@ -193,7 +188,7 @@ export const FlowRunStateTriggerFields = () => {
 				<FormControl>
 					<FlowMultiSelect
 						selectedFlowIds={selectedFlowIds}
-						onToggleFlow={handleFlowToggle}
+						onSelectFlowIds={handleFlowIdsChange}
 						emptyMessage="All flows"
 					/>
 				</FormControl>

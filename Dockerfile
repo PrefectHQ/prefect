@@ -1,5 +1,5 @@
 # The version of Python in the final image
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.11
 # The base image to use for the final image; Prefect and its Python requirements will
 # be installed in this image. The default is the official Python slim image.
 # The following images are also available in this file:
@@ -7,11 +7,11 @@ ARG PYTHON_VERSION=3.10
 # Any image tag can be used, but it must have apt and pip.
 ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
-ARG BUILD_PYTHON_VERSION=3.10
+ARG BUILD_PYTHON_VERSION=3.11
 # The version used to build the V1 UI distributable.
-ARG NODE_VERSION=20.20.2
+ARG NODE_VERSION=22.23.4
 # The version used to build the V2 UI distributable (requires Node 22+).
-ARG NODE_V2_VERSION=22.23.2
+ARG NODE_V2_VERSION=22.23.4
 # SQLite version — must match the tag published to prefecthq/prefect-sqlite on DockerHub
 # See Dockerfile.sqlite-builder and .github/workflows/sqlite-builder.yaml
 ARG SQLITE_VERSION=3.50.4
@@ -87,7 +87,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     (echo "ERROR: git version must be >= 1:2.47.3" && exit 1)
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.12.10 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /bin/uv
 
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
@@ -185,7 +185,7 @@ COPY --from=sqlite-builder /usr/local/lib/pkgconfig/sqlite3.pc /usr/local/lib/pk
 RUN ldconfig
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.12.10 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /bin/uv
 
 # Extras to include during installation
 ARG PREFECT_EXTRAS=[redis,client,otel]

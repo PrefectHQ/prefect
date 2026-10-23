@@ -89,6 +89,9 @@ def _assert_apprise_url_matches(actual_url: str, expected_url: str) -> None:
 
     actual_query = urllib.parse.parse_qs(actual.query, keep_blank_values=True)
     expected_query = urllib.parse.parse_qs(expected.query, keep_blank_values=True)
+    # Apprise 2 omits Discord's default text format from the URL.
+    if "format" not in expected_query:
+        assert actual_query.pop("format", ["text"]) == ["text"]
     for key, expected_value in expected_query.items():
         assert actual_query.get(key) == expected_value
 
@@ -216,7 +219,7 @@ class TestSlackWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                services="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
+                "https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -285,7 +288,7 @@ class TestSlackWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                services="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
+                "https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
             )
             apprise_instance_mock.notify.assert_called_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -549,7 +552,7 @@ class TestDiscordWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                apprise_instance_mock.add.call_args.kwargs["services"],
+                apprise_instance_mock.add.call_args.args[0],
                 f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
                 "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&overflow=upstream",
             )
@@ -575,7 +578,7 @@ class TestDiscordWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                apprise_instance_mock.add.call_args.kwargs["services"],
+                apprise_instance_mock.add.call_args.args[0],
                 f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
                 "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&overflow=upstream",
             )
@@ -604,7 +607,7 @@ class TestOpsgenieWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                apprise_instance_mock.add.call_args.kwargs["services"],
+                apprise_instance_mock.add.call_args.args[0],
                 f"opsgenie://{self.API_KEY}/?action=new&region=us&priority=normal&"
                 "batch=no&:info=note&:success=close&:warning=new&:failure="
                 "new&format=text&overflow=upstream",
@@ -633,7 +636,7 @@ class TestOpsgenieWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                apprise_instance_mock.add.call_args.kwargs["services"],
+                apprise_instance_mock.add.call_args.args[0],
                 f"opsgenie://{self.API_KEY}/{targets}?{params}"
                 "&:info=note&:success=close&:warning=new&:failure=new&format=text&overflow=upstream",
             )
@@ -686,7 +689,7 @@ class TestPagerDutyWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                apprise_instance_mock.add.call_args.kwargs["services"],
+                apprise_instance_mock.add.call_args.args[0],
                 "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
                 "image=yes&format=text&overflow=upstream",
             )
@@ -714,7 +717,7 @@ class TestPagerDutyWebhook:
             for add_call, expected_url in zip(
                 apprise_instance_mock.add.call_args_list, expected_urls
             ):
-                _assert_apprise_url_matches(add_call.kwargs["services"], expected_url)
+                _assert_apprise_url_matches(add_call.args[0], expected_url)
 
             notify_type = "info"
             apprise_instance_mock.async_notify.assert_awaited_once_with(
@@ -737,7 +740,7 @@ class TestPagerDutyWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                apprise_instance_mock.add.call_args.kwargs["services"],
+                apprise_instance_mock.add.call_args.args[0],
                 "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
                 "image=yes&format=text&overflow=upstream",
             )
@@ -770,7 +773,7 @@ class TestPagerDutyWebhook:
             for add_call, expected_url in zip(
                 apprise_instance_mock.add.call_args_list, expected_urls
             ):
-                _assert_apprise_url_matches(add_call.kwargs["services"], expected_url)
+                _assert_apprise_url_matches(add_call.args[0], expected_url)
 
             notify_type = "info"
             apprise_instance_mock.notify.assert_called_once_with(
@@ -805,7 +808,7 @@ class TestTwilioSMS:
             AppriseMock.assert_called_once()
             client_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                client_instance_mock.add.call_args.kwargs["services"],
+                client_instance_mock.add.call_args.args[0],
                 valid_apprise_url,
             )
 
@@ -836,7 +839,7 @@ class TestTwilioSMS:
             AppriseMock.assert_called_once()
             client_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                client_instance_mock.add.call_args.kwargs["services"],
+                client_instance_mock.add.call_args.args[0],
                 valid_apprise_url,
             )
 
@@ -1196,7 +1199,7 @@ class TestSendgridEmail:
             # add() should be called twice: once in constructor, once in notify update
             assert apprise_instance_mock.add.call_count == 2
             for add_call in apprise_instance_mock.add.call_args_list:
-                _assert_apprise_url_matches(add_call.kwargs["services"], url)
+                _assert_apprise_url_matches(add_call.args[0], url)
 
             # clear() should be called once during notify to update emails
             apprise_instance_mock.clear.assert_called_once()
@@ -1235,7 +1238,7 @@ class TestSendgridEmail:
             # add() should be called twice: once in constructor, once in notify update
             assert apprise_instance_mock.add.call_count == 2
             for add_call in apprise_instance_mock.add.call_args_list:
-                _assert_apprise_url_matches(add_call.kwargs["services"], url)
+                _assert_apprise_url_matches(add_call.args[0], url)
 
             # clear() should be called once during notify to update emails
             apprise_instance_mock.clear.assert_called_once()
@@ -1304,11 +1307,11 @@ class TestSendgridEmail:
             assert len(add_calls) == 2
 
             # The second call should have the updated email in the URL
-            updated_url = add_calls[1].kwargs["services"]
+            updated_url = add_calls[1].args[0]
             assert "updated%40gmail.com" in updated_url
 
             # The first call should have empty targets (since to_emails was [])
-            initial_url = add_calls[0].kwargs["services"]
+            initial_url = add_calls[0].args[0]
             # With empty to_emails, the URL should still be valid but have no targets in path
             assert initial_url.startswith("sendgrid://")
             assert "updated%40gmail.com" not in initial_url
@@ -1336,7 +1339,7 @@ class TestMicrosoftTeamsWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                apprise_instance_mock.add.call_args.kwargs["services"],
+                apprise_instance_mock.add.call_args.args[0],
                 "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
                 "?image=yes&wrap=yes&pa=no"
                 "&format=markdown&overflow=upstream",
@@ -1361,7 +1364,7 @@ class TestMicrosoftTeamsWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                apprise_instance_mock.add.call_args.kwargs["services"],
+                apprise_instance_mock.add.call_args.args[0],
                 "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
                 "?image=yes&wrap=yes&pa=no"
                 "&format=markdown&overflow=upstream",
@@ -1386,7 +1389,7 @@ class TestMicrosoftTeamsWebhook:
 
             apprise_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                apprise_instance_mock.add.call_args.kwargs["services"],
+                apprise_instance_mock.add.call_args.args[0],
                 "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
                 "?image=yes&wrap=yes&pa=yes"
                 "&format=markdown&overflow=upstream",
@@ -1405,7 +1408,7 @@ class TestMicrosoftTeamsWebhook:
 
             apprise_instance_mock.add.assert_called_once()
             _assert_apprise_url_matches(
-                apprise_instance_mock.add.call_args.kwargs["services"],
+                apprise_instance_mock.add.call_args.args[0],
                 "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
                 "?image=yes&wrap=yes&pa=yes&route=12"
                 "&format=markdown&overflow=upstream",

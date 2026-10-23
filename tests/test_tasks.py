@@ -10,7 +10,7 @@ import threading
 import time
 import weakref
 from asyncio import Event, sleep
-from functools import partial
+from functools import partial, wraps
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import ANY, MagicMock, call
@@ -139,6 +139,16 @@ class TestTaskName:
 
 
 class TestTaskKey:
+    def test_user_decorator_keeps_its_own_task_key(self):
+        def original(value: int) -> int:
+            return value
+
+        @wraps(original)
+        def decorated(value: int) -> int:
+            return original(value) + 1
+
+        assert task(decorated).task_key != task(original).task_key
+
     def test_task_key_typical_case(self):
         @task
         def my_task():
@@ -4172,6 +4182,29 @@ class TestTaskWithOptions:
         assert initial_task.tags == {"tag1", "tag2", "tag3"}
         assert with_options_task.tags == {"tag1", "tag2"}
 
+    @pytest.mark.parametrize("hook_name", ["on_completion", "on_failure", "on_running"])
+    def test_hooks_are_copied_from_original_task(self, hook_name: str):
+        "Ensure hooks added to the new task don't affect the original task"
+
+        def original_hook(task, task_run, state):
+            pass
+
+        def added_hook(task, task_run, state):
+            pass
+
+        @task(**{hook_name: [original_hook]})
+        def initial_task():
+            pass
+
+        with_options_task = initial_task.with_options(name="With options task")
+        getattr(with_options_task, hook_name)(added_hook)
+
+        assert getattr(initial_task, f"{hook_name}_hooks") == [original_hook]
+        assert getattr(with_options_task, f"{hook_name}_hooks") == [
+            original_hook,
+            added_hook,
+        ]
+
     def test_with_options_signature_aligns_with_task_signature(self):
         task_params = set(inspect.signature(task).parameters.keys())
         with_options_params = set(
@@ -4194,6 +4227,16 @@ class TestTaskWithOptions:
         task_with_options = initial_task.with_options(retries=0, retry_delay_seconds=0)
         assert task_with_options.retries == 0
         assert task_with_options.retry_delay_seconds == 0
+
+    @pytest.mark.parametrize("empty_tags", [[], set(), ()])
+    def test_with_options_can_clear_tags_with_empty_collection(self, empty_tags):
+        @task(tags=["original"])
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options(tags=empty_tags)
+        assert task_with_options.tags == set()
+        assert initial_task.tags == {"original"}
 
     async def test_with_options_refresh_cache(
         self,
@@ -4646,6 +4689,30 @@ class TestTaskMap:
         def my_flow():
             numbers = [1, 2, 3]
             return add_some.map(numbers)
+
+        task_states = my_flow()
+        assert [await state.result() for state in task_states] == [6, 7, 8]
+
+    async def test_with_keyword_with_field_default(self):
+        @task
+        def add_some(x: int, y: int = pydantic.Field(default=5)):
+            return x + y
+
+        @flow
+        def my_flow():
+            return add_some.map([1, 2, 3])
+
+        task_states = my_flow()
+        assert [await state.result() for state in task_states] == [6, 7, 8]
+
+    async def test_with_keyword_with_field_default_async_task(self):
+        @task
+        async def add_some(x: int, y: int = pydantic.Field(default=5)):
+            return x + y
+
+        @flow
+        def my_flow():
+            return add_some.map([1, 2, 3])
 
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [6, 7, 8]

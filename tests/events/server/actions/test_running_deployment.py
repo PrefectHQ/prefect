@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
+import jsonschema
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -673,6 +674,17 @@ async def test_action_rejects_negative_schedule_after():
                 "schedule_after": -3600,
             }
         )
+
+
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+def test_schedule_after_schema_publishes_its_lower_bound(mode: str):
+    schedule_after = actions.RunDeployment.model_json_schema(mode=mode)["properties"][
+        "schedule_after"
+    ]
+    validator = jsonschema.Draft202012Validator(schedule_after)
+
+    assert not validator.is_valid(-3600)
+    assert validator.is_valid(0)
 
 
 async def test_running_deployment_with_delay(

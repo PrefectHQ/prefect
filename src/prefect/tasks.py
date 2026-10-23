@@ -162,6 +162,15 @@ class TaskOptions(TypedDict, total=False):
     asset_deps: Optional[list[Union[Asset, str]]]
 
 
+def _get_task_source(fn: Callable[..., Any]) -> Callable[..., Any]:
+    # Compatibility decorators can preserve code identity without unwrapping
+    # user decorators, including those that copy this attribute with wraps().
+    source = getattr(fn, "__prefect_task_source__", None)
+    if source is not None and source is getattr(fn, "__wrapped__", None):
+        return source
+    return fn
+
+
 def task_input_hash(
     context: "TaskRunContext", arguments: dict[str, Any]
 ) -> Optional[str]:
@@ -183,7 +192,7 @@ def task_input_hash(
         # task functions `co_code` bytes to avoid caching when the underlying function
         # changes
         context.task.task_key,
-        context.task.fn.__code__.co_code.hex(),
+        _get_task_source(context.task.fn).__code__.co_code.hex(),
         arguments,
     )
 
@@ -283,6 +292,7 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
     Args:
         fn: The function to generate a task key for.
     """
+    fn = _get_task_source(fn)
     if not hasattr(fn, "__qualname__"):
         return to_qualified_name(type(fn))
 
@@ -791,7 +801,7 @@ class Task(Generic[P, R]):
             fn=self.fn,
             name=name or self.name,
             description=description or self.description,
-            tags=tags or copy(self.tags),
+            tags=tags if tags is not None else copy(self.tags),
             version=self.version,
             cache_policy=cache_policy
             if cache_policy is not NotSet
@@ -842,9 +852,9 @@ class Task(Generic[P, R]):
             refresh_cache=(
                 refresh_cache if refresh_cache is not NotSet else self.refresh_cache
             ),
-            on_completion=on_completion or self.on_completion_hooks,
-            on_failure=on_failure or self.on_failure_hooks,
-            on_running=on_running or self.on_running_hooks,
+            on_completion=on_completion or copy(self.on_completion_hooks),
+            on_failure=on_failure or copy(self.on_failure_hooks),
+            on_running=on_running or copy(self.on_running_hooks),
             on_rollback=copy(self.on_rollback_hooks),
             on_commit=copy(self.on_commit_hooks),
             retry_condition_fn=retry_condition_fn or self.retry_condition_fn,
@@ -2258,9 +2268,10 @@ class MaterializingTask(Task[P, R]):
                 continue
 
             attr_name = param_to_attr.get(param_name, param_name)
-            init_kwargs[param_name] = task_kwargs.get(
-                param_name, getattr(self, attr_name)
-            )
+            value = getattr(self, attr_name)
+            if attr_name.endswith("_hooks"):
+                value = copy(value)
+            init_kwargs[param_name] = task_kwargs.get(param_name, value)
 
         return MaterializingTask(
             fn=self.fn,

@@ -338,7 +338,7 @@ describe("DeploymentsDataTable", () => {
 		});
 		await userEvent.click(confirmDeleteButton);
 
-		expect(screen.getByText("Deployment deleted")).toBeInTheDocument();
+		expect(await screen.findByText("Deployment deleted")).toBeInTheDocument();
 	});
 
 	it("has an action menu item that links to duplicate deployment", async () => {

@@ -302,7 +302,7 @@ async def _generate_concurrency_locked_response(
 @router.post("/increment", status_code=status.HTTP_200_OK)
 async def bulk_increment_active_slots(
     slots: int = Body(..., gt=0),
-    names: List[str] = Body(..., min_items=1),
+    names: List[str] = Body(..., min_length=1),
     mode: Literal["concurrency", "rate_limit"] = Body("concurrency"),
     create_if_missing: Optional[bool] = Body(
         None,
@@ -337,7 +337,7 @@ async def bulk_increment_active_slots(
 @router.post("/increment-with-lease", status_code=status.HTTP_200_OK)
 async def bulk_increment_active_slots_with_lease(
     slots: int = Body(..., gt=0),
-    names: List[str] = Body(..., min_items=1),
+    names: List[str] = Body(..., min_length=1),
     mode: Literal["concurrency", "rate_limit"] = Body("concurrency"),
     lease_duration: float = Body(
         300,  # 5 minutes
@@ -391,7 +391,7 @@ async def bulk_increment_active_slots_with_lease(
 @router.post("/decrement", status_code=status.HTTP_200_OK)
 async def bulk_decrement_active_slots(
     slots: int = Body(..., gt=0),
-    names: List[str] = Body(..., min_items=1),
+    names: List[str] = Body(..., min_length=1),
     occupancy_seconds: Optional[float] = Body(None, gt=0.0),
     create_if_missing: bool = Body(
         None,

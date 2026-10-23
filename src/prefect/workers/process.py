@@ -35,9 +35,9 @@ from prefect.runner._flow_run_executor import (
     FlowRunExecutorContext,
 )
 from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._starter_bundle import BundleExecutionStarter
 from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
-from prefect.runner.runner import Runner
 from prefect.states import Pending
 from prefect.utilities.processutils import command_to_string, get_sys_executable
 from prefect.workers.base import (
@@ -278,35 +278,26 @@ class ProcessWorker(
             await self._propose_crashed_state(flow_run, message)
             return
 
+        async def resolve_flow(_: "FlowRun") -> "Flow[..., FR]":
+            return flow
+
         logger.debug("Executing flow run bundle in subprocess...")
         try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
-                await self._runner.execute_bundle(
-                    bundle=result["bundle"],
-                    cwd=configuration.working_dir,
-                    env=configuration.env,
+            async with FlowRunExecutorContext() as ctx:
+                executor = ctx.create_executor(
+                    flow_run,
+                    BundleExecutionStarter(
+                        bundle=result["bundle"],
+                        cwd=configuration.working_dir,
+                        env=configuration.env,
+                        control_channel=ctx.control_channel,
+                    ),
+                    resolve_flow=resolve_flow,
+                    propose_submitting=False,
                 )
+                await executor.submit()
         except Exception:
             logger.exception("Error executing flow run bundle in subprocess")
             await self._propose_crashed_state(flow_run, "Flow run execution failed")
         finally:
             logger.debug("Flow run bundle execution complete")
-
-    async def __aenter__(self) -> ProcessWorker:
-        runner = Runner(pause_on_shutdown=False, limit=None)
-        self._runner = await runner.__aenter__()
-        try:
-            await super().__aenter__()
-        except BaseException as exc:
-            await runner.__aexit__(type(exc), exc, exc.__traceback__)
-            raise
-        return self
-
-    async def __aexit__(self, *exc_info: Any) -> None:
-        try:
-            # The worker task group owns ad-hoc submissions. Let those finish
-            # while the runner is still available to supervise their children.
-            await super().__aexit__(*exc_info)
-        finally:
-            await self._runner.__aexit__(*exc_info)
