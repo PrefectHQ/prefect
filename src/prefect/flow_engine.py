@@ -812,7 +812,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         raise_if_flow_run_suspension_requested()
         self._return_value = resolved_result
         state = self.set_state(terminal_state)
-        if state.is_scheduled():
+        if terminal_state.is_failed() and state.is_scheduled():
             self.logger.info(
                 f"Received non-final state {state.name!r} when proposing final"
                 f" state {terminal_state.name!r} and will attempt to run again..."
@@ -1544,7 +1544,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         raise_if_flow_run_suspension_requested()
         self._return_value = resolved_result
         state = await self.set_state(terminal_state)
-        if state.is_scheduled():
+        if terminal_state.is_failed() and state.is_scheduled():
             self.logger.info(
                 f"Received non-final state {state.name!r} when proposing final"
                 f" state {terminal_state.name!r} and will attempt to run again..."

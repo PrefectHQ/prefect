@@ -73,11 +73,13 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import (
+    AwaitingRetry,
     Cancelled,
     Cancelling,
     Failed,
     Paused,
     PausedRun,
+    Scheduled,
     State,
     StateType,
     raise_state_exception,
@@ -2346,6 +2348,40 @@ class TestFlowRetries:
         state = await foo(return_state=True)
         assert state.is_failed()
         assert run_count == 2
+
+    @pytest.mark.parametrize("returned_state", [Scheduled, AwaitingRetry])
+    @pytest.mark.parametrize("retries", [0, 1])
+    def test_flow_returning_scheduled_state_is_not_retried(
+        self, returned_state, retries
+    ):
+        run_count = 0
+
+        @flow(retries=retries)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            return returned_state()
+
+        state = foo(return_state=True)
+        assert state.is_scheduled()
+        assert run_count == 1
+
+    @pytest.mark.parametrize("returned_state", [Scheduled, AwaitingRetry])
+    @pytest.mark.parametrize("retries", [0, 1])
+    async def test_async_flow_returning_scheduled_state_is_not_retried(
+        self, returned_state, retries
+    ):
+        run_count = 0
+
+        @flow(retries=retries)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            return returned_state()
+
+        state = await foo(return_state=True)
+        assert state.is_scheduled()
+        assert run_count == 1
 
     def test_flow_retry_with_returned_failed_state_then_success(self):
         run_count = 0
