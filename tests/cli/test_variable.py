@@ -1,4 +1,6 @@
+import json
 import sys
+from typing import Any
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,6 +61,45 @@ async def variables(
     await session.commit()
 
     return models
+
+
+LITERAL_VALUES: list[Any] = [
+    "[red]literal[/red]",
+    ":smile:",
+    "literal [/unexpected]",
+    "x" * 500,
+    {"nested": ["[bold]value[/bold]", ":thumbs_up:", {"deep": "[/close]"}]},
+]
+
+
+@pytest.fixture(params=LITERAL_VALUES)
+async def literal_variable(session: AsyncSession, request: pytest.FixtureRequest):
+    model = await create_variable(
+        session, VariableCreate(name="literal_value", value=request.param)
+    )
+    await session.commit()
+
+    return model
+
+
+def test_get_variable_preserves_literal_value(literal_variable):
+    result = invoke_and_assert(
+        ["variable", "get", literal_variable.name], expected_code=0
+    )
+    assert json.loads(result.stdout) == literal_variable.value
+
+
+def test_inspect_variable_json_preserves_literal_value(literal_variable):
+    result = invoke_and_assert(
+        ["variable", "inspect", literal_variable.name, "--output", "json"],
+        expected_code=0,
+    )
+    assert json.loads(result.stdout)["value"] == literal_variable.value
+
+
+def test_list_variables_json_preserves_literal_value(literal_variable):
+    result = invoke_and_assert(["variable", "ls", "--output", "json"], expected_code=0)
+    assert [v["value"] for v in json.loads(result.stdout)] == [literal_variable.value]
 
 
 def test_list_output_variables_with_limit(variables):
@@ -145,8 +186,6 @@ def test_inspect_variable(variable):
 
 def test_inspect_variable_with_json_output(variable):
     """Test variable inspect command with JSON output flag."""
-    import json
-
     result = invoke_and_assert(
         ["variable", "inspect", variable.name, "--output", "json"],
         expected_code=0,
