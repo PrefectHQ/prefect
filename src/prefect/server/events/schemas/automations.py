@@ -23,6 +23,8 @@ from uuid import UUID, uuid4
 from pydantic import (
     Field,
     PrivateAttr,
+    TypeAdapter,
+    ValidationError,
     field_validator,
     model_validator,
 )
@@ -40,7 +42,7 @@ from prefect.server.events.schemas.events import (
 )
 from prefect.server.schemas.actions import ActionBaseModel
 from prefect.server.utilities.schemas import ORMBaseModel, PrefectBaseModel
-from prefect.types import DateTime
+from prefect.types import DateTime, DurationOrSecondsTimeDelta
 from prefect.utilities.collections import AutoEnum
 
 # Dict form accepted by ResourceSpecification via Pydantic coercion
@@ -50,6 +52,8 @@ if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger(__name__)
+
+_timedelta_adapter: TypeAdapter[timedelta] = TypeAdapter(timedelta)
 
 
 class Posture(AutoEnum):
@@ -123,7 +127,7 @@ class CompositeTrigger(Trigger, abc.ABC):
 
     type: Literal["compound", "sequence"]
     triggers: List["ServerTriggerTypes"]
-    within: Optional[timedelta]
+    within: Optional[DurationOrSecondsTimeDelta]
 
     def create_automation_state_change_event(
         self, firing: Firing, trigger_state: TriggerState
@@ -339,9 +343,10 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
+    within: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=0),
         ge=timedelta(seconds=0),
+        json_schema_extra={"minimum": 0},
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
@@ -363,8 +368,16 @@ class EventTrigger(ResourceTrigger):
         posture: Optional[Posture] = data.get("posture")
         within: Optional[timedelta] = data.get("within")
 
-        if isinstance(within, (int, float)):
-            data["within"] = within = timedelta(seconds=within)
+        if within is not None and not isinstance(within, timedelta):
+            # Parse the raw value the same way the field would, so that every
+            # form pydantic accepts for a timedelta reaches the comparisons
+            # below as a timedelta.
+            try:
+                within = _timedelta_adapter.validate_python(within)
+            except ValidationError:
+                # The field validation reports the unparsable value.
+                return data
+            data["within"] = within
 
         if posture == Posture.Proactive:
             if not within or within == timedelta(0):

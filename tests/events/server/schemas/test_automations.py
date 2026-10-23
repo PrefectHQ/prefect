@@ -1,6 +1,7 @@
 import json
 from datetime import timedelta
 
+import jsonschema
 import pytest
 
 from prefect.server.events.schemas.automations import (
@@ -145,3 +146,29 @@ def test_server_composite_triggers_validate_to_server_triggers():
     assert isinstance(trigger, CompoundTrigger), type(trigger)
     assert isinstance(trigger.triggers[0], EventTrigger), type(trigger.triggers[0])
     assert isinstance(trigger.triggers[1], EventTrigger), type(trigger.triggers[1])
+
+
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+def test_event_trigger_within_schema_publishes_its_lower_bound(mode: str):
+    within = EventTrigger.model_json_schema(mode=mode)["properties"]["within"]
+    validator = jsonschema.Draft202012Validator(within)
+
+    assert not validator.is_valid(-5)
+    assert validator.is_valid(0)
+
+
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+def test_compound_trigger_within_schema_allows_negative_seconds(mode: str):
+    trigger = CompoundTrigger.model_validate(
+        {
+            "triggers": [{"posture": "Reactive", "expect": ["dragon.seen"]}],
+            "require": "all",
+            "within": -5,
+        }
+    )
+    assert trigger.within == timedelta(seconds=-5)
+
+    schema = CompoundTrigger.model_json_schema(mode=mode)
+    within = schema["$defs"]["CompoundTrigger"]["properties"]["within"]
+    assert {"type": "number"} in within["anyOf"]
+    assert "minimum" not in within

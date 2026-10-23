@@ -82,7 +82,6 @@ const searchParams = z
 			.optional()
 			.default("NAME_ASC"),
 	})
-	.optional()
 	.prefault({});
 
 type SearchParams = z.infer<typeof searchParams>;

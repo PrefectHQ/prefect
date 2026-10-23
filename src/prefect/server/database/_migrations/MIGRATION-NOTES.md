@@ -8,6 +8,15 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add `automation_held_event` table
+SQLite: `8f5eda7c1dd7`
+Postgres: `e7f54680bce3`
+
+Holds the `expect`-only events of proactive triggers with `after`, so each
+bucket that opens or rolls counts the held events that occurred inside its
+window. Rows are short-lived: the triggers service deletes them after twice the
+preceding-event lookback. Downgrading drops the table, and held events are lost.
+
 # Add `flow_run(state_type, coalesce(start_time, expected_start_time))` index
 SQLite: `a3b9c7d2e5f1`
 Postgres: `d4a7e1c93f52`

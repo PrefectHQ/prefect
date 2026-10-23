@@ -16,7 +16,7 @@ read_flow_run_history(sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.F
 ### `count_task_runs_by_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/flow_runs.py#L97" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-count_task_runs_by_flow_run(flow_run_ids: list[UUID] = Body(default=..., embed=True, max_items=200), db: PrefectDBInterface = Depends(provide_database_interface)) -> dict[UUID, int]
+count_task_runs_by_flow_run(flow_run_ids: list[UUID] = Body(default=..., embed=True, max_length=200), db: PrefectDBInterface = Depends(provide_database_interface)) -> dict[UUID, int]
 ```
 
 

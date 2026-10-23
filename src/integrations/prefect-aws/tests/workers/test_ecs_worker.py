@@ -301,8 +301,8 @@ async def test_default(aws_credentials: AwsCredentials, flow_run: FlowRun):
         "containers": [
             {
                 "containerArn": ANY,
-                "cpu": 0,
-                "memory": 0,
+                "cpu": "0",
+                "memory": "0",
                 "healthStatus": "HEALTHY",
                 "exitCode": 0,
                 "image": ANY,
