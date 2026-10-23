@@ -4,6 +4,7 @@ import {
 	STATE_NAMES_WITHOUT_SCHEDULED,
 } from "@/api/flow-runs/constants";
 import { useStateOptions } from "@/api/observed-states";
+import { isFlowRunStateName } from "@/components/automations/trigger-details/trigger-utils";
 import { StateNameBadge } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-name-badge";
 import {
 	Combobox,
@@ -142,12 +143,22 @@ export function StateMultiSelect({
 						{filteredStates.map((stateName) => (
 							<ComboboxCommandItem
 								key={stateName}
+								aria-label={stateName}
+								disabled={
+									!isFlowRunStateName(stateName) &&
+									!selectedStates.includes(stateName)
+								}
 								selected={selectedStates.includes(stateName)}
 								onSelect={() => handleStateToggle(stateName)}
 								value={stateName}
 								closeOnSelect={false}
 							>
 								<StateNameBadge name={stateName} />
+								{!isFlowRunStateName(stateName) && (
+									<span className="text-muted-foreground">
+										Use Custom trigger
+									</span>
+								)}
 							</ComboboxCommandItem>
 						))}
 					</ComboboxCommandGroup>

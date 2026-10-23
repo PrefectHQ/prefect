@@ -46,8 +46,8 @@ async def read_observed_states(
     if query and (prefix := query.strip()):
         statement = statement.where(
             sa.or_(
-                observed.c.state_type.ilike(f"{prefix}%"),
-                observed.c.state_name.ilike(f"{prefix}%"),
+                observed.c.state_type.istartswith(prefix, autoescape=True),
+                observed.c.state_name.istartswith(prefix, autoescape=True),
             )
         )
     ordering = [observed.c.state_type.asc(), observed.c.state_name.asc()]

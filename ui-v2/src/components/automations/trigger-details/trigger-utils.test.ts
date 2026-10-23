@@ -416,6 +416,34 @@ describe("trigger-utils", () => {
 		});
 
 		describe("isFlowRunStateTrigger", () => {
+			it.each([
+				"heartbeat",
+				"pull-step.executed",
+				"pull-step.failed",
+				"Data*",
+				"Data?",
+				"Data[12]",
+			])("keeps %s events in the custom editor", (name) => {
+				const trigger = createFlowRunStateTrigger({
+					expect: [`prefect.flow-run.${name}`],
+				});
+				expect(getAutomationTriggerTemplate(trigger)).toBe("custom");
+			});
+
+			it("keeps proactive triggers with a state type match in the custom editor", () => {
+				const trigger = createFlowRunStateTrigger({
+					posture: "Proactive",
+					match: {
+						"prefect.resource.id": "prefect.flow-run.*",
+						"prefect.state-type": ["RUNNING"],
+					},
+					after: ["prefect.flow-run.Running"],
+					expect: [],
+					within: 60,
+				});
+				expect(getAutomationTriggerTemplate(trigger)).toBe("custom");
+			});
+
 			it("should return true for valid flow-run-state trigger", () => {
 				const trigger = createFlowRunStateTrigger();
 				expect(isFlowRunStateTrigger(trigger)).toBe(true);

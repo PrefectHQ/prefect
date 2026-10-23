@@ -57,6 +57,45 @@ const FlowRunStateTriggerFieldsContainer = ({
 };
 
 describe("FlowRunStateTriggerFields", () => {
+	it("requires state names instead of a global type match for Stays in", async () => {
+		const user = userEvent.setup();
+		render(
+			<FlowRunStateTriggerFieldsContainer
+				defaultExpect={["prefect.flow-run.Running"]}
+				defaultMatch={{ "prefect.resource.id": "prefect.flow-run.*" }}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await user.click(screen.getByRole("button", { name: "State types" }));
+		await user.click(screen.getByRole("menuitem", { name: "Running" }));
+		await user.keyboard("{Escape}");
+		await user.click(screen.getByLabelText("select posture"));
+		expect(screen.getByRole("option", { name: "Stays in" })).toHaveAttribute(
+			"aria-disabled",
+			"true",
+		);
+		await user.keyboard("{Escape}");
+		await user.click(screen.getByRole("button", { name: "State types" }));
+		await user.click(screen.getByRole("menuitem", { name: "All state types" }));
+		await user.keyboard("{Escape}");
+		await user.click(screen.getByLabelText("select posture"));
+		await user.click(screen.getByRole("option", { name: "Stays in" }));
+		expect(
+			screen.queryByRole("button", { name: "State types" }),
+		).not.toBeInTheDocument();
+		expect(
+			JSON.parse(screen.getByTestId("trigger-value").textContent ?? "{}"),
+		).toMatchObject({
+			posture: "Proactive",
+			after: ["prefect.flow-run.Running"],
+			expect: [],
+			match: { "prefect.resource.id": "prefect.flow-run.*" },
+		});
+		expect(
+			JSON.parse(screen.getByTestId("trigger-value").textContent ?? "{}"),
+		).not.toHaveProperty(["match", "prefect.state-type"]);
+	});
+
 	it("edits custom states and types without dropping existing match conditions", async () => {
 		const user = userEvent.setup();
 		render(

@@ -1,12 +1,14 @@
 import { useFormContext, useWatch } from "react-hook-form";
 import type { StateType } from "@/api/flow-runs/constants";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import { isFlowRunStateEvent } from "@/components/automations/trigger-details/trigger-utils";
 import { STATE_TYPES } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import { StateTypeFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-type-filter";
 import { FlowMultiSelect } from "@/components/flows/flow-multi-select";
 import { DurationInput } from "@/components/ui/duration-input";
 import {
 	FormControl,
+	FormDescription,
 	FormField,
 	FormItem,
 	FormLabel,
@@ -35,7 +37,6 @@ function toStateNameEvents(stateNames: string[]): string[] {
 
 // Convert event strings back to state names (e.g., "prefect.flow-run.Completed" -> "Completed")
 // Wildcard "prefect.flow-run.*" returns empty array (means "any state")
-// Heartbeats are not state transitions. Preserve arbitrary custom state names.
 function fromStateNameEvents(events: string[] | undefined): string[] {
 	if (!events || events.length === 0) {
 		return [];
@@ -44,9 +45,8 @@ function fromStateNameEvents(events: string[] | undefined): string[] {
 		return [];
 	}
 	return events
-		.filter((event) => event.startsWith("prefect.flow-run."))
-		.map((event) => event.replace("prefect.flow-run.", ""))
-		.filter((name) => name !== "heartbeat");
+		.filter(isFlowRunStateEvent)
+		.map((event) => event.slice("prefect.flow-run.".length));
 }
 
 function matchRelatedAsArray(
@@ -237,12 +237,14 @@ export const FlowRunStateTriggerFields = () => {
 
 			<FormItem>
 				<FormLabel>Flow Run</FormLabel>
-				<StateTypeFilter
-					selectedFilters={selectedStateTypes}
-					onSelectFilter={onStateTypesChange}
-				/>
+				{posture === "Reactive" && (
+					<StateTypeFilter
+						selectedFilters={selectedStateTypes}
+						onSelectFilter={onStateTypesChange}
+					/>
+				)}
 				<div className="grid grid-cols-[10rem_1fr] gap-2">
-					<PostureSelect />
+					<PostureSelect disableProactive={selectedStateTypes.size > 0} />
 					<FormField
 						control={form.control}
 						name={stateFieldName}
@@ -265,6 +267,12 @@ export const FlowRunStateTriggerFields = () => {
 						}}
 					/>
 				</div>
+				{selectedStateTypes.size > 0 && (
+					<FormDescription>
+						State types apply to Enters. Clear state types and select state
+						names to use Stays in.
+					</FormDescription>
+				)}
 			</FormItem>
 
 			{posture === "Proactive" && (

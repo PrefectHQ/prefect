@@ -172,20 +172,28 @@ const FLOW_RUN_WILDCARD_EVENT = `${FLOW_RUN_EVENT_PREFIX}*`;
 
 // Event type checkers
 
+/** Whether a state name can be represented by an exact event pattern. */
+export function isFlowRunStateName(name: string): boolean {
+	return (
+		name.length > 0 &&
+		!["*", "?", "[", "]"].some((character) => name.includes(character)) &&
+		!["heartbeat", "pull-step.executed", "pull-step.failed"].includes(name)
+	);
+}
+
 /**
  * A flow run event that the flow-run-state form can represent: either the
- * wildcard or an exact built-in or custom state name. Heartbeat events (e.g.
- * `prefect.flow-run.heartbeat`) are only editable as a custom trigger.
+ * wildcard or an exact built-in or custom state name. Non-state events and
+ * event patterns are only editable as a custom trigger.
  */
-function isFlowRunStateEvent(event: string): boolean {
+export function isFlowRunStateEvent(event: string): boolean {
 	if (event === FLOW_RUN_WILDCARD_EVENT) {
 		return true;
 	}
 	if (!event.startsWith(FLOW_RUN_EVENT_PREFIX)) {
 		return false;
 	}
-	const name = event.slice(FLOW_RUN_EVENT_PREFIX.length);
-	return name.length > 0 && name !== "heartbeat";
+	return isFlowRunStateName(event.slice(FLOW_RUN_EVENT_PREFIX.length));
 }
 
 function isDeploymentStatusEvent(event: string): boolean {
@@ -333,6 +341,9 @@ function isFlowRunStateTriggerMatchRelated(trigger: EventTrigger): boolean {
 export function isFlowRunStateTrigger(trigger: unknown): boolean {
 	return (
 		isEventTrigger(trigger) &&
+		// A global type match would exclude exit events needed to resolve the timer.
+		(trigger.posture !== "Proactive" ||
+			getTriggerMatchValue(trigger, "prefect.state-type").length === 0) &&
 		isMatchResource(trigger, (prefectResourceIds) =>
 			prefectResourceIds.every((value) => value.startsWith("prefect.flow-run")),
 		) &&

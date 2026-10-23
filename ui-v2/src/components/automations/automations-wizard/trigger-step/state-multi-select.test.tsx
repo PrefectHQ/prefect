@@ -1,7 +1,8 @@
 import { render as renderComponent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createWrapper } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
+import { HttpResponse, http } from "msw";
 import type { ReactElement } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
@@ -15,6 +16,36 @@ const render = (ui: ReactElement) =>
 	renderComponent(ui, { wrapper: createWrapper() });
 
 describe("StateMultiSelect", () => {
+	it.each(["Data*", "Data?", "Data[12]", "pull-step.failed"])(
+		"prevents selecting %s as an exact state event",
+		async (name) => {
+			server.use(
+				http.get(buildApiUrl("/observed-states"), () =>
+					HttpResponse.json(
+						[name, "Data ready"].map((state_name) => ({
+							state_type: "FAILED",
+							state_name,
+							first_seen: "2020-01-01T00:00:00Z",
+							last_seen: "2020-01-01T00:00:00Z",
+						})),
+					),
+				),
+			);
+			const user = userEvent.setup();
+			const onStateChange = vi.fn();
+			render(
+				<StateMultiSelect selectedStates={[]} onStateChange={onStateChange} />,
+			);
+			await user.click(screen.getByRole("button"));
+			const option = await screen.findByRole("option", { name });
+			expect(option).toHaveAttribute("aria-disabled", "true");
+			await user.click(option);
+			expect(onStateChange).not.toHaveBeenCalled();
+			await user.click(screen.getByRole("option", { name: "Data ready" }));
+			expect(onStateChange).toHaveBeenCalledWith(["Data ready"]);
+		},
+	);
+
 	it("preserves an unobserved custom name exactly", async () => {
 		const user = userEvent.setup();
 		const onStateChange = vi.fn();

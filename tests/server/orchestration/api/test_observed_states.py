@@ -158,6 +158,29 @@ async def test_name_order_and_limit(
     ]
 
 
+@pytest.mark.parametrize("prefix", ["%", "_", "/", "\\", "release%", "release_"])
+async def test_prefix_search_treats_pattern_characters_literally(
+    client: httpx.AsyncClient,
+    session: AsyncSession,
+    flow_run: orm_models.FlowRun,
+    prefix: str,
+):
+    expected = {f"{prefix}one", f"{prefix}two"}
+    near_miss = prefix.translate(str.maketrans({c: "x" for c in "%_/\\"})) + "other"
+    for name in [*expected, near_miss, "unrelated"]:
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=schemas.states.Failed(name=name),
+            force=True,
+        )
+    await session.commit()
+
+    response = await client.get("/observed-states", params={"query": prefix})
+    assert response.status_code == 200
+    assert {row["state_name"] for row in response.json()} == expected
+
+
 async def test_deleted_runs_remove_observations(
     client: httpx.AsyncClient,
     session: AsyncSession,
