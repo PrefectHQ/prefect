@@ -123,7 +123,7 @@ function useGetNextRun(deployment: Deployment) {
 	const { data } = useFilterFlowRunswithFlows({
 		deployments: { id: { any_: [deployment.id] }, operator: "and_" },
 		flow_runs: {
-			state: { type: { any_: ["SCHEDULED"] }, operator: "and_" },
+			state: { name: { any_: ["Scheduled"] }, operator: "and_" },
 			operator: "and_",
 		},
 		sort: "EXPECTED_START_TIME_ASC",
