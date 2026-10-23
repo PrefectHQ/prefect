@@ -1,20 +1,25 @@
 from __future__ import annotations
 
+import builtins
 import copy
 import json
 import os
 import sys
 import textwrap
+import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Callable, Generator
 
+import dotenv.main
 import pydantic
+import pydantic_settings
 import pytest
 import toml
 from cachetools import TTLCache
+from packaging.version import Version
 from pydantic_core import to_jsonable_python
 from sqlalchemy import make_url
 
@@ -1747,6 +1752,85 @@ class TestSettingsSources:
         from prefect.settings.sources import _get_profiles_path
 
         _get_profiles_path()
+
+    @pytest.fixture
+    def dotenv_opens(self, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+        """Records every file opened by `python-dotenv`, starting from an empty
+        settings file cache."""
+        monkeypatch.setattr(
+            "prefect.settings.sources._file_cache", TTLCache(maxsize=100, ttl=60)
+        )
+        opened: list[str] = []
+
+        def counting_open(file: Any, *args: Any, **kwargs: Any) -> Any:
+            opened.append(str(file))
+            return builtins.open(file, *args, **kwargs)
+
+        monkeypatch.setattr(dotenv.main, "open", counting_open, raising=False)
+        return opened
+
+    def test_dotenv_file_read_once_across_settings_sources(
+        self, temporary_env_file: Callable[[str], None], dotenv_opens: list[str]
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23532"""
+        temporary_env_file("PREFECT_API_URL=http://from-dotenv:4200/api")
+
+        assert Settings().api.url == "http://from-dotenv:4200/api"
+        assert Settings().api.url == "http://from-dotenv:4200/api"
+
+        assert len(dotenv_opens) == 1
+
+    def test_dotenv_file_changes_are_reloaded(
+        self, temporary_env_file: Callable[[str], None], dotenv_opens: list[str]
+    ):
+        temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420")
+        assert Settings().client.retry_extra_codes == {420}
+
+        temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
+        assert Settings().client.retry_extra_codes == {420, 500}
+
+        assert len(dotenv_opens) == 2
+
+    @pytest.mark.skipif(
+        Version(pydantic_settings.__version__) < Version("2.14"),
+        reason="pydantic-settings < 2.14 does not read FIFO dotenv files",
+    )
+    def test_dotenv_fifo_read_once_across_settings_sources(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        dotenv_opens: list[str],
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23532
+
+        1Password Environments mounts `.env` as a FIFO, where every open is
+        served by 1Password, so it must only be read once.
+        """
+        monkeypatch.chdir(tmp_path)
+        os.mkfifo(".env")
+        stop = threading.Event()
+
+        def serve() -> None:
+            while not stop.is_set():
+                try:
+                    with open(".env", "w") as f:
+                        f.write("PREFECT_API_URL=http://from-fifo:4200/api\n")
+                except BrokenPipeError:
+                    pass
+
+        server = threading.Thread(target=serve, daemon=True)
+        server.start()
+        try:
+            assert Settings().api.url == "http://from-fifo:4200/api"
+            assert Settings().api.url == "http://from-fifo:4200/api"
+        finally:
+            stop.set()
+            # unblock the server if it is waiting for a reader
+            fd = os.open(".env", os.O_RDONLY | os.O_NONBLOCK)
+            server.join(timeout=5)
+            os.close(fd)
+
+        assert len(dotenv_opens) == 1
 
     def test_resolution_order(
         self,

@@ -17,6 +17,7 @@ from pydantic_settings import (
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
+from pydantic_settings.sources import DotenvType
 
 from prefect.settings.sources import (
     EnvFilterSettingsSource,
@@ -72,7 +73,9 @@ class PrefectBaseSettings(BaseSettings):
             ),
             FilteredDotEnvSettingsSource(
                 settings_cls,
-                env_file=cls.model_config.get("env_file"),
+                env_file=cls.model_config.get(
+                    "prefect_env_file", cls.model_config.get("env_file")
+                ),
                 env_file_encoding=cls.model_config.get("env_file_encoding"),
                 case_sensitive=cls.model_config.get("case_sensitive"),
                 env_prefix=cls.model_config.get("env_prefix"),
@@ -225,6 +228,13 @@ class PrefectSettingsConfigDict(SettingsConfigDict, total=False):
     To use the root table, exclude this config setting or provide an empty tuple.
     """
 
+    prefect_env_file: DotenvType | None
+    """
+    Dotenv file(s) to load settings from. Used instead of `env_file`, which
+    pydantic-settings reads with its own dotenv source that Prefect discards,
+    so `.env` is only read by Prefect's cached dotenv source.
+    """
+
 
 def _add_environment_variables(
     schema: dict[str, Any], model: type[PrefectBaseSettings]
@@ -252,7 +262,7 @@ def build_settings_config(
     env_prefix = f"PREFECT_{'_'.join(path).upper()}_" if path else "PREFECT_"
     return PrefectSettingsConfigDict(
         env_prefix=env_prefix,
-        env_file=".env",
+        prefect_env_file=".env",
         extra="ignore",
         toml_file="prefect.toml",
         prefect_toml_table_header=path,
