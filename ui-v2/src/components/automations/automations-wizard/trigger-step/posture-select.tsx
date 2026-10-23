@@ -28,7 +28,8 @@ export const PostureSelect = () => {
 					<FormControl>
 						<Select
 							value={field.value}
-							onValueChange={(value: "Reactive" | "Proactive") => {
+							onValueChange={(value) => {
+								if (value !== "Reactive" && value !== "Proactive") return;
 								const previousPosture = field.value;
 								field.onChange(value);
 
