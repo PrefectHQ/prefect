@@ -148,7 +148,9 @@ class TestGetLocallyInstalledWorkerMetadata:
             == "pip install prefect-armada"
         )
 
-    def test_a_worker_whose_metadata_fails_does_not_hide_the_others(self, monkeypatch):
+    def test_a_worker_whose_metadata_fails_does_not_hide_the_others(
+        self, monkeypatch, caplog
+    ):
         class BrokenWorker(ProcessWorker):
             type: str = "broken"
 
@@ -165,6 +167,8 @@ class TestGetLocallyInstalledWorkerMetadata:
         metadata = get_locally_installed_worker_metadata()
 
         assert list(metadata["prefect"]) == ["process"]
+        [record] = [r for r in caplog.records if "'broken' worker" in r.getMessage()]
+        assert record.name == "prefect.workers.utilities"
 
     def test_unregistered_worker_types_are_skipped(self, monkeypatch):
         monkeypatch.setattr(

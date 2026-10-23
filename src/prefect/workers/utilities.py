@@ -7,6 +7,8 @@ from prefect.logging.loggers import get_logger
 from prefect.settings import get_current_settings
 from prefect.workers.base import BaseWorker
 
+logger = get_logger(__name__)
+
 
 def _is_worker_debug_mode() -> bool:
     settings = get_current_settings()
@@ -58,7 +60,7 @@ def get_locally_installed_worker_metadata() -> Dict[str, Dict[str, Dict[str, Any
                 "is_beta": False,
             }
         except Exception:
-            get_logger().warning(
+            logger.warning(
                 "Unable to read metadata for the locally installed %r worker",
                 worker_type,
                 exc_info=True,

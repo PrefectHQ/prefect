@@ -1,13 +1,12 @@
 import json
 import logging
+from copy import deepcopy
 from typing import Any, Dict
 
-import anyio
-import anyio.to_thread
 import httpx
 from anyio import Path
 from cachetools import TTLCache
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 
 from prefect.logging import get_logger
 from prefect.server.utilities.server import PrefectRouter
@@ -21,12 +20,6 @@ GLOBAL_COLLECTIONS_VIEW_CACHE: TTLCache[str, dict[str, Any]] = TTLCache(
     maxsize=200, ttl=60 * 10
 )
 
-# Worker metadata for the worker types installed alongside the server. Installed
-# packages do not change while the server runs, so it is built once per process,
-# separately from the registry views, whose cache expires.
-_local_worker_metadata: dict[str, dict[str, dict[str, Any]]] | None = None
-_local_worker_metadata_lock = anyio.Lock()
-
 REGISTRY_VIEWS = (
     "https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views"
 )
@@ -39,10 +32,14 @@ KNOWN_VIEWS = {
 
 
 @router.get("/views/{view}")
-async def read_view_content(view: str) -> Dict[str, Any]:
+async def read_view_content(view: str, request: Request) -> Dict[str, Any]:
     """Reads the content of a view from the prefect-collection-registry."""
+    # Built at server startup; absent when the app runs without its lifespan
+    local_worker_metadata = getattr(request.app.state, "local_worker_metadata", None)
     try:
-        return await get_collection_view(view)
+        return await get_collection_view(
+            view, local_worker_metadata=local_worker_metadata
+        )
     except KeyError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -58,31 +55,24 @@ async def read_view_content(view: str) -> Dict[str, Any]:
             raise
 
 
-async def _get_local_worker_metadata() -> dict[str, dict[str, dict[str, Any]]]:
-    """Returns metadata for the worker types installed alongside the server.
+def _build_local_worker_metadata() -> dict[str, dict[str, dict[str, Any]]]:
+    """Builds metadata for the worker types installed alongside the server.
 
-    Building it loads every installed integration and its default job template,
-    which is synchronous and can be slow, so it runs in a worker thread rather
-    than on the server's event loop, and only once: concurrent first requests
-    wait for the same result.
+    Building it imports every installed integration and renders each worker's
+    default job template. Installed packages do not change while the server
+    runs, so the server builds it once at startup, before it serves requests,
+    and keeps it on the API app's state rather than in the registry views'
+    expiring cache. A failure is logged, and the views then list only the
+    workers the registry knows about.
     """
-    global _local_worker_metadata
-
-    if _local_worker_metadata is not None:
-        return _local_worker_metadata
-    async with _local_worker_metadata_lock:
-        if _local_worker_metadata is None:
-            try:
-                _local_worker_metadata = await anyio.to_thread.run_sync(
-                    get_locally_installed_worker_metadata
-                )
-            except Exception:
-                logger.warning(
-                    "Unable to read worker metadata from the local worker registry",
-                    exc_info=True,
-                )
-                return {}
-    return _local_worker_metadata
+    try:
+        return get_locally_installed_worker_metadata()
+    except Exception:
+        logger.warning(
+            "Unable to read worker metadata from the local worker registry",
+            exc_info=True,
+        )
+        return {}
 
 
 def _merge_local_worker_metadata(
@@ -108,18 +98,27 @@ def _merge_local_worker_metadata(
         for worker_type, worker in workers.items():
             if worker_type in known_types:
                 continue
-            data.setdefault(collection_name, {})[worker_type] = worker
+            # A copy, so that changes to a served view cannot reach the
+            # metadata built at startup, which outlives every cached view
+            data.setdefault(collection_name, {})[worker_type] = deepcopy(worker)
 
 
-async def _post_process_view(view: str, data: dict[str, Any]) -> dict[str, Any]:
+def _post_process_view(
+    view: str,
+    data: dict[str, Any],
+    local_worker_metadata: dict[str, dict[str, dict[str, Any]]],
+) -> dict[str, Any]:
     """Applies view-specific adjustments before a view is cached and served."""
     if view == "aggregate-worker-metadata":
         data.get("prefect", {}).pop("prefect-agent", None)
-        _merge_local_worker_metadata(data, await _get_local_worker_metadata())
+        _merge_local_worker_metadata(data, local_worker_metadata)
     return data
 
 
-async def get_collection_view(view: str) -> dict[str, Any]:
+async def get_collection_view(
+    view: str,
+    local_worker_metadata: dict[str, dict[str, dict[str, Any]]] | None = None,
+) -> dict[str, Any]:
     try:
         return GLOBAL_COLLECTIONS_VIEW_CACHE[view]
     except KeyError:
@@ -130,7 +129,7 @@ async def get_collection_view(view: str) -> dict[str, Any]:
             resp = await client.get(KNOWN_VIEWS[view])
             resp.raise_for_status()
 
-            data = await _post_process_view(view, resp.json())
+            data = _post_process_view(view, resp.json(), local_worker_metadata or {})
 
             GLOBAL_COLLECTIONS_VIEW_CACHE[view] = data
             return data
@@ -140,7 +139,9 @@ async def get_collection_view(view: str) -> dict[str, Any]:
         local_file = Path(__file__).parent / Path(f"collections_data/views/{view}.json")
         if await local_file.exists():
             raw_data = await local_file.read_text()
-            data = await _post_process_view(view, json.loads(raw_data))
+            data = _post_process_view(
+                view, json.loads(raw_data), local_worker_metadata or {}
+            )
             GLOBAL_COLLECTIONS_VIEW_CACHE[view] = data
             return data
         else:

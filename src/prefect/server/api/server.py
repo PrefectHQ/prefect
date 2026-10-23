@@ -925,6 +925,13 @@ def create_app(
         await run_migrations()
         await add_block_types()
 
+        # Installed packages do not change while the server runs, so the
+        # metadata for locally installed workers is built once, here, before
+        # any request is served
+        api_app.state.local_worker_metadata = (
+            api.collections._build_local_worker_metadata()
+        )
+
         _log_worker_channel_config()
 
         Services: type[Service] | None = (
