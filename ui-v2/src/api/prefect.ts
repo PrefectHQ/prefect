@@ -5474,6 +5474,11 @@ export interface components {
             triggers: (components["schemas"]["EventTrigger-Input"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
             /** Within */
             within: number | string | null;
+            /**
+             * For Each
+             * @description Evaluate the composite trigger separately for each distinct value of these labels on the event that caused each child trigger to fire.  Child firings are only paired together when they share the same value for every label, rather than being paired by timing alone.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`, matching the `for_each` syntax of `EventTrigger`.
+             */
+            for_each?: string[];
             /** Require */
             require: number | ("any" | "all");
         };
@@ -5499,6 +5504,11 @@ export interface components {
             triggers: (components["schemas"]["EventTrigger-Output"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
             /** Within */
             within: number | null;
+            /**
+             * For Each
+             * @description Evaluate the composite trigger separately for each distinct value of these labels on the event that caused each child trigger to fire.  Child firings are only paired together when they share the same value for every label, rather than being paired by timing alone.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`, matching the `for_each` syntax of `EventTrigger`.
+             */
+            for_each?: string[];
             /** Require */
             require: number | ("any" | "all");
         };
@@ -9761,6 +9771,11 @@ export interface components {
             triggers: (components["schemas"]["EventTrigger-Input"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
             /** Within */
             within: number | string | null;
+            /**
+             * For Each
+             * @description Evaluate the composite trigger separately for each distinct value of these labels on the event that caused each child trigger to fire.  Child firings are only paired together when they share the same value for every label, rather than being paired by timing alone.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`, matching the `for_each` syntax of `EventTrigger`.
+             */
+            for_each?: string[];
         };
         /**
          * SequenceTrigger
@@ -9784,6 +9799,11 @@ export interface components {
             triggers: (components["schemas"]["EventTrigger-Output"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
             /** Within */
             within: number | null;
+            /**
+             * For Each
+             * @description Evaluate the composite trigger separately for each distinct value of these labels on the event that caused each child trigger to fire.  Child firings are only paired together when they share the same value for every label, rather than being paired by timing alone.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`, matching the `for_each` syntax of `EventTrigger`.
+             */
+            for_each?: string[];
         };
         /**
          * ServerAPISettings
