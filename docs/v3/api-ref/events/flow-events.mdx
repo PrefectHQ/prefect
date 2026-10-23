@@ -1,0 +1,106 @@
+---
+title: Flow archival events
+description: Events emitted by Prefect Cloud when flows are archived, unarchived, or identified as dormant.
+keywords: ["inactive", "restoration", "managed automations", "run history"]
+---
+
+<Note>
+These events are only available in Prefect Cloud.
+</Note>
+
+Flow archival events describe changes to a flow's visibility and eligibility for automatic archival.
+For run state transitions, see [Flow run events](/v3/api-ref/events/flow-run-events).
+For setup instructions, see [Archive and restore flows](/v3/how-to-guides/cloud/archive-flows).
+
+## `prefect.flow.archived`
+
+Emitted when a flow changes from unarchived to archived, whether through the UI, API, a bulk operation, or an automation.
+Archiving an already archived flow does not emit an event.
+A bulk operation emits one event for each flow whose state changes.
+
+### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.flow.{uuid}` |
+| `prefect.resource.name` | Flow name |
+
+### Related resources
+
+Related resources identify the actor that performed the action, the account, and the workspace, with roles `actor`, `account`, and `workspace`.
+
+### Payload
+
+The payload describes the flow after the change.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Flow name |
+| `tags` | array of strings | Flow tags |
+| `labels` | object or null | Flow labels |
+| `created_by` | object or null | Information about the flow's creator |
+| `updated_by` | object or null | Information about the actor that updated the flow |
+| `archived` | boolean | `true` |
+| `archived_at` | string | ISO 8601 timestamp when the flow was archived |
+
+## `prefect.flow.unarchived`
+
+Emitted when a flow changes from archived to unarchived, including restoration by a managed automation.
+Unarchiving a flow that is not archived does not emit an event.
+
+The resource, related resources, and payload fields are the same as for [`prefect.flow.archived`](#prefect-flow-archived), except `archived` is `false` and `archived_at` is `null`.
+
+Archive and unarchive operations emit these specific events instead of an additional `prefect.flow.updated` event.
+
+## `prefect.flow.dormant`
+
+Emitted when Prefect Cloud identifies an unarchived flow that meets the workspace's [dormancy criteria](/v3/how-to-guides/cloud/archive-flows#archive-dormant-flows).
+The **Dormant flow archival** managed automation responds with an archive action.
+This event describes eligibility; it does not confirm that archival succeeded.
+Use `prefect.flow.archived` to observe the completed change.
+
+Dormant events are emitted only in workspaces with **Dormant flow archival** enabled.
+Prefect Cloud checks daily and schedules events for up to 50 eligible flows per workspace, spread across the day.
+It checks eligibility again before emitting each event.
+A flow can produce another event on a later day if it remains dormant and unarchived, at most once per day per flow.
+
+### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.flow.{uuid}` |
+| `prefect.resource.name` | Flow name |
+
+### Related resources
+
+This event has no related resources.
+
+### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `window_days` | integer | Effective inactivity window: the shorter of the configured `inactive_days` and the plan's run retention |
+| `last_run_at` | string or null | Latest retained, non-deleted run's start time, or expected start time if it has not started; `null` when no such run is available |
+| `run_retention_days` | integer | Plan's run retention in days when the event was emitted |
+
+<Expandable title="Example: dormant flow event">
+
+```json
+{
+  "occurred": "2026-10-23T12:00:00Z",
+  "event": "prefect.flow.dormant",
+  "resource": {
+    "prefect.resource.id": "prefect.flow.a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "prefect.resource.name": "retired-daily-report"
+  },
+  "related": [],
+  "payload": {
+    "window_days": 30,
+    "last_run_at": null,
+    "run_retention_days": 30
+  },
+  "id": "f6a7b890-1234-5678-9012-abcdef345678"
+}
+```
+
+</Expandable>

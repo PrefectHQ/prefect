@@ -225,6 +225,7 @@
                 ]
               },
               "v3/how-to-guides/cloud/workspaces",
+              "v3/how-to-guides/cloud/archive-flows",
               "v3/how-to-guides/cloud/create-a-webhook",
               "v3/how-to-guides/cloud/troubleshoot-cloud",
               "v3/how-to-guides/cloud/scope-of-support"
@@ -1125,6 +1126,7 @@
                 "group": "Events",
                 "pages": [
                   "v3/api-ref/events/index",
+                  "v3/api-ref/events/flow-events",
                   "v3/api-ref/events/flow-run-events",
                   "v3/api-ref/events/task-run-events",
                   "v3/api-ref/events/deployment-events",
