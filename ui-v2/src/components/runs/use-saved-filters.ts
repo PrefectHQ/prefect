@@ -4,7 +4,7 @@ import type {
 	DateRangePreset,
 	DateRangeUrlState,
 } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/date-range-url-state";
-import { FLOW_RUN_STATES_WITHOUT_SCHEDULED } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import { NON_SCHEDULED_STATE_TYPES } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 
 /**
@@ -43,7 +43,7 @@ export function isSystemFilter(id: string | null): boolean {
 
 /**
  * System filters that are always available in the saved filters menu.
- * These match the Vue UI's systemSavedSearches from prefect-ui-library.
+ * State-type presets include custom names as well as built-in names.
  *
  * - "Past week": Default filter applied on page load, filters to last 7 days
  * - "Hide scheduled runs": Filters to last 7 days and excludes scheduled-type states
@@ -59,7 +59,7 @@ export const SYSTEM_FILTERS: SavedFilter[] = [
 		name: "Hide scheduled runs",
 		filters: {
 			range: "past-7-days",
-			state: [...FLOW_RUN_STATES_WITHOUT_SCHEDULED],
+			stateTypes: [...NON_SCHEDULED_STATE_TYPES],
 		},
 	},
 ];
