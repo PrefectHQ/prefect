@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.models.variables import create_variable
 from prefect.server.schemas.actions import VariableCreate
+from prefect.settings import PREFECT_CLI_WRAP_LINES, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
 pytestmark = pytest.mark.clear_db
@@ -63,19 +64,35 @@ async def variables(
     return models
 
 
+LITERAL_TAGS = ["[red]tag[/red]", ":smile:"]
+
 LITERAL_VALUES: list[Any] = [
     "[red]literal[/red]",
     ":smile:",
     "literal [/unexpected]",
-    "x" * 500,
+    "x" * 1000,
     {"nested": ["[bold]value[/bold]", ":thumbs_up:", {"deep": "[/close]"}]},
 ]
 
 
-@pytest.fixture(params=LITERAL_VALUES)
-async def literal_variable(session: AsyncSession, request: pytest.FixtureRequest):
+@pytest.fixture
+def wrap_lines_enabled():
+    # The test suite disables line wrapping by default; enable it so long values
+    # exercise terminal-width wrapping.
+    with temporary_settings(updates={PREFECT_CLI_WRAP_LINES: True}):
+        yield
+
+
+@pytest.fixture(
+    params=LITERAL_VALUES,
+    ids=["markup", "emoji", "unmatched-closing-tag", "long-string", "nested"],
+)
+async def literal_variable(
+    session: AsyncSession, request: pytest.FixtureRequest, wrap_lines_enabled: None
+):
     model = await create_variable(
-        session, VariableCreate(name="literal_value", value=request.param)
+        session,
+        VariableCreate(name="literal_value", value=request.param, tags=LITERAL_TAGS),
     )
     await session.commit()
 
@@ -94,12 +111,16 @@ def test_inspect_variable_json_preserves_literal_value(literal_variable):
         ["variable", "inspect", literal_variable.name, "--output", "json"],
         expected_code=0,
     )
-    assert json.loads(result.stdout)["value"] == literal_variable.value
+    output = json.loads(result.stdout)
+    assert output["value"] == literal_variable.value
+    assert output["tags"] == LITERAL_TAGS
 
 
 def test_list_variables_json_preserves_literal_value(literal_variable):
     result = invoke_and_assert(["variable", "ls", "--output", "json"], expected_code=0)
-    assert [v["value"] for v in json.loads(result.stdout)] == [literal_variable.value]
+    output = json.loads(result.stdout)
+    assert [v["value"] for v in output] == [literal_variable.value]
+    assert [v["tags"] for v in output] == [LITERAL_TAGS]
 
 
 def test_list_output_variables_with_limit(variables):
