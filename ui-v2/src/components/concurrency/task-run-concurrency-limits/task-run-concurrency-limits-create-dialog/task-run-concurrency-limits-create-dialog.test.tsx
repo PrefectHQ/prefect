@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
@@ -38,7 +38,7 @@ describe("TaskRunConcurrencyLimitsCreateDialog", () => {
 		await user.click(screen.getByRole("button", { name: /add/i }));
 
 		// ------------ Assert
-		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
+		await waitFor(() => expect(mockOnSubmitFn).toHaveBeenCalledOnce());
 	});
 
 	it("allows concurrency limit of 0", async () => {
@@ -59,7 +59,7 @@ describe("TaskRunConcurrencyLimitsCreateDialog", () => {
 		await user.type(screen.getByLabelText(/tag/i), "my-tag");
 		await user.click(screen.getByRole("button", { name: /add/i }));
 
-		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
+		await waitFor(() => expect(mockOnSubmitFn).toHaveBeenCalledOnce());
 	});
 
 	it("shows validation error when concurrency limit is negative", async () => {
