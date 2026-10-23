@@ -116,6 +116,13 @@ jobs:
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
+  update-integration-lock:
+    needs: [build-pypi-dists, publish-pypi-dists]
+    uses: ./.github/workflows/update-uv-lock-integrations.yaml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit
+
   get-prefect-version:
     name: Get latest Prefect version
     needs: [build-pypi-dists, publish-pypi-dists]
