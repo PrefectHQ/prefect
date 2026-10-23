@@ -69,7 +69,7 @@ from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
-from prefect.results import get_result_store
+from prefect.results import ResultStore, get_result_store
 from prefect.runtime import flow_run as runtime_flow_run
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
@@ -977,6 +977,128 @@ class TestEngineOutcomeReceipts:
         report_engine_outcome.assert_called_once_with(
             EngineOutcomeReceipt.orchestration_aborted()
         )
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+@pytest.mark.parametrize("flow_raises", [False, True], ids=["state-save", "flow-error"])
+async def test_completion_save_failure_does_not_trigger_failure_hook(
+    async_flow: bool,
+    flow_raises: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    hook_states: list[states.State[Any]] = []
+    completion_attempts: list[states.State[Any]] = []
+
+    def on_failure(
+        flow: Flow[Any, Any], flow_run: Any, state: states.State[Any]
+    ) -> None:
+        hook_states.append(state)
+
+    def body() -> None:
+        if flow_raises:
+            raise ValueError("flow failed")
+
+    async def async_body() -> None:
+        body()
+
+    test_flow = flow(async_body if async_flow else body, on_failure=[on_failure])
+    flow_run = await prefect_client.create_flow_run(test_flow)
+    original_propose = (
+        flow_engine_module.propose_state
+        if async_flow
+        else flow_engine_module.propose_state_sync
+    )
+
+    def reject_completed(state: states.State[Any]) -> None:
+        if state.is_completed():
+            completion_attempts.append(state)
+            raise ConnectionError("completion save failed")
+
+    if async_flow:
+
+        async def propose_async(
+            client: Any, state: states.State[Any], **kwargs: Any
+        ) -> states.State[Any]:
+            reject_completed(state)
+            return await original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr(flow_engine_module, "propose_state", propose_async)
+    else:
+
+        def propose_sync(
+            client: Any, state: states.State[Any], **kwargs: Any
+        ) -> states.State[Any]:
+            reject_completed(state)
+            return original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr(flow_engine_module, "propose_state_sync", propose_sync)
+
+    error = ValueError if flow_raises else ConnectionError
+    message = "flow failed" if flow_raises else "completion save failed"
+    with pytest.raises(error, match=message):
+        if async_flow:
+            await run_flow_async(test_flow, flow_run=flow_run)
+        else:
+            run_flow_sync(test_flow, flow_run=flow_run)
+
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    if flow_raises:
+        assert saved_run.state.is_failed()
+        assert len(hook_states) == 1
+        assert hook_states[0].id == saved_run.state.id
+        assert not completion_attempts
+    else:
+        # The Completed proposal failed, so the server still has Running.
+        assert saved_run.state.is_running()
+        assert len(completion_attempts) == 1
+        assert not hook_states
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+async def test_result_storage_failure_does_not_trigger_failure_hook(
+    async_flow: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    hook_states: list[states.State[Any]] = []
+
+    def on_failure(
+        flow: Flow[Any, Any], flow_run: Any, state: states.State[Any]
+    ) -> None:
+        hook_states.append(state)
+
+    def body() -> int:
+        return 42
+
+    async def async_body() -> int:
+        return body()
+
+    test_flow = flow(
+        async_body if async_flow else body,
+        persist_result=True,
+        on_failure=[on_failure],
+    )
+    flow_run = await prefect_client.create_flow_run(test_flow)
+    persist_result = AsyncMock(side_effect=OSError("result storage unavailable"))
+    monkeypatch.setattr(ResultStore, "apersist_result_record", persist_result)
+
+    if async_flow:
+        result = await run_flow_async(test_flow, flow_run=flow_run)
+    else:
+        result = run_flow_sync(test_flow, flow_run=flow_run)
+
+    assert result == 42
+    persist_result.assert_awaited_once()
+    assert persist_result.call_args.args[0].result == 42
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    assert saved_run.state.is_completed()
+    assert not hook_states
+    assert "Encountered an error while persisting result" in caplog.text
+    assert "result storage unavailable" in caplog.text
 
 
 class TestFlowRunsAsync:

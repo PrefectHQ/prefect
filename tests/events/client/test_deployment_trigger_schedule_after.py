@@ -1,8 +1,10 @@
 from datetime import timedelta
 
+import jsonschema
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
+from prefect.events.actions import RunDeployment
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 
 
@@ -65,3 +67,15 @@ async def test_deployment_trigger_passes_schedule_after_to_action():
 
     action = actions[0]
     assert action.schedule_after == timedelta(hours=1)
+
+
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+@pytest.mark.parametrize("model", [DeploymentEventTrigger, RunDeployment])
+def test_schedule_after_schema_publishes_its_lower_bound(
+    model: type[BaseModel], mode: str
+):
+    schedule_after = model.model_json_schema(mode=mode)["properties"]["schedule_after"]
+    validator = jsonschema.Draft202012Validator(schedule_after)
+
+    assert not validator.is_valid(-3600)
+    assert validator.is_valid(0)

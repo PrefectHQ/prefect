@@ -89,7 +89,7 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 
 ## Tech Stack & Tooling
 
-- **Python >=3.11,<3.15** with modern typing (`list[int]`, `T | None`)
+- **Python >=3.11,<3.16** with modern typing (`list[int]`, `T | None`)
 - **FastAPI** for REST APIs
 - **Pydantic v2** for validation
 - **SQLAlchemy 2.0** async ORM

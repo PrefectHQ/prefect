@@ -113,7 +113,7 @@ Do nothing when an Automation is triggered
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self) -> str
@@ -141,7 +141,7 @@ create_event(self, triggered_action: 'TriggeredAction') -> 'Event'
 Create an event from the TriggeredAction
 
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self) -> str
@@ -159,7 +159,7 @@ the Orchestration API
 
 **Methods:**
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self) -> str
@@ -247,7 +247,7 @@ events
 deployment_id_to_use(self, triggered_action: 'TriggeredAction') -> UUID
 ```
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self) -> str
@@ -303,7 +303,7 @@ orchestration_client(self, triggered_action: 'TriggeredAction') -> 'Orchestratio
 reason_from_response(self, response: Response) -> str
 ```
 
-#### `selected_deployment_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_deployment_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_deployment_requires_id(self)
@@ -720,7 +720,7 @@ events
 
 **Methods:**
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self) -> str
@@ -863,7 +863,7 @@ events
 
 **Methods:**
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self) -> str
@@ -921,7 +921,7 @@ orchestration_client(self, triggered_action: 'TriggeredAction') -> 'Orchestratio
 reason_from_response(self, response: Response) -> str
 ```
 
-#### `selected_work_queue_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_work_queue_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L229" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_work_queue_requires_id(self) -> Self
@@ -1000,7 +1000,7 @@ events
 automation_id_to_use(self, triggered_action: 'TriggeredAction') -> UUID
 ```
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self) -> str
@@ -1052,7 +1052,7 @@ orchestration_client(self, triggered_action: 'TriggeredAction') -> 'Orchestratio
 reason_from_response(self, response: Response) -> str
 ```
 
-#### `selected_automation_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_automation_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L271" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_automation_requires_id(self) -> Self

@@ -105,7 +105,7 @@ $ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
 ```
 
 
-### `create_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L697" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L704" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_schedule(name: str)
@@ -115,7 +115,7 @@ create_schedule(name: str)
 Create a schedule for a given deployment.
 
 
-### `delete_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L877" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L884" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_schedule(deployment_name: str, schedule_id: UUID)
@@ -125,7 +125,7 @@ delete_schedule(deployment_name: str, schedule_id: UUID)
 Delete a deployment schedule.
 
 
-### `pause_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1039" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pause_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1046" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_schedule(deployment_name: Annotated[Optional[str], cyclopts.Parameter('deployment_name')] = None, schedule_id: Annotated[Optional[UUID], cyclopts.Parameter('schedule_id')] = None)
@@ -145,7 +145,7 @@ $ prefect deployment schedule pause --all
 ```
 
 
-### `resume_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1077" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resume_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1084" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_schedule(deployment_name: Annotated[Optional[str], cyclopts.Parameter('deployment_name')] = None, schedule_id: Annotated[Optional[UUID], cyclopts.Parameter('schedule_id')] = None)
@@ -165,7 +165,7 @@ $ prefect deployment schedule resume --all
 ```
 
 
-### `list_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `list_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 list_schedules(deployment_name: str)
@@ -175,7 +175,7 @@ list_schedules(deployment_name: str)
 View all schedules for a deployment.
 
 
-### `clear_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `clear_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 clear_schedules(deployment_name: str)

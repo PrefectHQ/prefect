@@ -10,7 +10,7 @@ import threading
 import time
 import weakref
 from asyncio import Event, sleep
-from functools import partial
+from functools import partial, wraps
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import ANY, MagicMock, call
@@ -139,6 +139,16 @@ class TestTaskName:
 
 
 class TestTaskKey:
+    def test_user_decorator_keeps_its_own_task_key(self):
+        def original(value: int) -> int:
+            return value
+
+        @wraps(original)
+        def decorated(value: int) -> int:
+            return original(value) + 1
+
+        assert task(decorated).task_key != task(original).task_key
+
     def test_task_key_typical_case(self):
         @task
         def my_task():
@@ -4218,6 +4228,16 @@ class TestTaskWithOptions:
         assert task_with_options.retries == 0
         assert task_with_options.retry_delay_seconds == 0
 
+    @pytest.mark.parametrize("empty_tags", [[], set(), ()])
+    def test_with_options_can_clear_tags_with_empty_collection(self, empty_tags):
+        @task(tags=["original"])
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options(tags=empty_tags)
+        assert task_with_options.tags == set()
+        assert initial_task.tags == {"original"}
+
     async def test_with_options_refresh_cache(
         self,
     ):
@@ -4669,6 +4689,30 @@ class TestTaskMap:
         def my_flow():
             numbers = [1, 2, 3]
             return add_some.map(numbers)
+
+        task_states = my_flow()
+        assert [await state.result() for state in task_states] == [6, 7, 8]
+
+    async def test_with_keyword_with_field_default(self):
+        @task
+        def add_some(x: int, y: int = pydantic.Field(default=5)):
+            return x + y
+
+        @flow
+        def my_flow():
+            return add_some.map([1, 2, 3])
+
+        task_states = my_flow()
+        assert [await state.result() for state in task_states] == [6, 7, 8]
+
+    async def test_with_keyword_with_field_default_async_task(self):
+        @task
+        async def add_some(x: int, y: int = pydantic.Field(default=5)):
+            return x + y
+
+        @flow
+        def my_flow():
+            return add_some.map([1, 2, 3])
 
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [6, 7, 8]

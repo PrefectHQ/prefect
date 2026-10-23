@@ -4,6 +4,7 @@ on:
     branches:
       - main
     paths:
+      - ".github/workflows/validate_worker_metadata.yaml"
       - "src/prefect/server/api/collections_data/views/*.json"
 jobs:
   submit-update-pr:
