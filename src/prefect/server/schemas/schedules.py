@@ -42,13 +42,13 @@ from prefect.types._datetime import (
 MAX_ITERATIONS = 1000
 
 if sys.version_info >= (3, 13):
-    from whenever import DateTimeDelta
-
     try:
         from whenever import ItemizedDelta as _ItemizedDelta
 
         _WHENEVER_DELTA_TYPES: tuple[type, ...] = (_ItemizedDelta,)
     except ImportError:
+        from whenever import DateTimeDelta
+
         _ItemizedDelta = None  # type: ignore[assignment]
         _WHENEVER_DELTA_TYPES = (DateTimeDelta,)
 
@@ -226,7 +226,7 @@ class IntervalSchedule(PrefectBaseModel):
                 # whenever delta types distinguish calendar days from exact hours,
                 # so we can use them directly. We still need an approximate
                 # total-seconds value for the initial offset jump.
-                if isinstance(interval, DateTimeDelta):
+                if _ItemizedDelta is None:
                     _months, _days, _secs, _nanos = interval.in_months_days_secs_nanos()
                     approx_total_seconds = (
                         _months * 30 * 86400 + _days * 86400 + _secs + _nanos / 1e9
