@@ -228,18 +228,20 @@ source = "versioningit"
 
 [tool.versioningit]
 # This fallback is used in git-less environments (e.g. archive builds).
-# It must stay above the highest prefect>= floor declared by in-repo integrations
-# (currently >=3.6.22 in prefect-aws / prefect-kubernetes) so that uv lock can
-# resolve integration dependencies against the local package.
-default-version = "3.6.24+nogit"
+# It must stay at or above the highest prefect>= floor declared by in-repo
+# integrations (currently >=3.8.4) so that
+# uv lock can resolve the latest integration releases against the local package.
+default-version = "3.9.0+nogit"
 
 [tool.versioningit.vcs]
 match = ["[0-9]*.[0-9]*.[0-9]*", "[0-9]*.[0-9]*.[0-9]*.dev[0-9]*"]
 # Dependabot clones with `--no-tags --depth 1`, so .git exists but
 # `git describe` finds no tags.  versioningit then uses default-tag as the
-# base version.  Keep this above the highest in-repo prefect>= floor
-# (currently >=3.6.22) so the local wheel satisfies integration constraints.
-default-tag = "3.6.24"
+# base version.  Keep this at or above the highest in-repo prefect>= floor
+# (currently >=3.8.4) so the local wheel satisfies integration constraints.
+# Otherwise, lock updates from these clones silently pin integrations to old
+# releases, and the Docker image (which installs from uv.lock) ships them.
+default-tag = "3.9.0"
 
 [tool.versioningit.write]
 method = { module = "write_build_info", value = "write_build_info", module-dir = "tools" }
