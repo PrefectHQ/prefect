@@ -1518,6 +1518,7 @@
                           {
                             "group": "models",
                             "pages": [
+                              "v3/api-ref/python/prefect-server-events-models-automation_held_events",
                               "v3/api-ref/python/prefect-server-events-models-automations",
                               "v3/api-ref/python/prefect-server-events-models-composite_trigger_child_firing"
                             ]

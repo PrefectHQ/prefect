@@ -1,8 +1,10 @@
+import asyncio
 import threading
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
+import anyio
 import grpc
 import pytest
 from armada_client.armada import event_pb2
@@ -34,7 +36,10 @@ def clean_observer_state():
     """Keeps observer module state from leaking between tests."""
     yield
     observer._watch_registry.clear()
+    observer._expected_job_ids.clear()
+    observer._persistent_job_sets.clear()
     observer._pending_restarts.clear()
+    observer._finishing_watches.clear()
     observer._watch_tasks.clear()
     observer._last_event_cache.clear()
     observer.events_client = None
@@ -60,12 +65,13 @@ def mock_orchestration_client():
     return client
 
 
-def flow_run_with_state(state):
+def flow_run_with_state(state, infrastructure_pid=None):
     return FlowRun(
         id=uuid.UUID(FLOW_RUN_ID),
         flow_id=uuid.uuid4(),
         name="my-flow-run-name",
         state=state,
+        infrastructure_pid=infrastructure_pid,
     )
 
 
@@ -104,6 +110,46 @@ class TestObserveJobSet:
         observer.observe_job_set(credentials, "my-queue", "my-job-set")
 
         assert observer._pending_restarts == {("my-queue", "my-job-set")}
+
+    def test_records_the_jobs_submitted_to_a_job_set(self):
+        credentials = ArmadaCredentials()
+
+        observer.observe_job_set(credentials, "my-queue", "my-job-set", "job-1")
+        observer.observe_job_set(credentials, "my-queue", "my-job-set", "job-2")
+
+        assert observer._expected_job_ids == {
+            ("my-queue", "my-job-set"): {"job-1", "job-2"}
+        }
+
+    def test_registering_a_job_keeps_the_running_watch(self):
+        """The running watch waits for the new job, so no restart is needed."""
+        credentials = ArmadaCredentials()
+
+        observer.observe_job_set(credentials, "my-queue", "my-job-set", "job-1")
+        observer.observe_job_set(credentials, "my-queue", "my-job-set", "job-2")
+
+        assert observer._pending_restarts == set()
+
+    def test_registering_a_job_restarts_a_watch_that_is_ending(self):
+        key = ("my-queue", "my-job-set")
+        observer.observe_job_set(ArmadaCredentials(), *key, "job-1")
+        state = observer._JobSetWatchState()
+        state.submitted_job_ids = {"job-1"}
+        state.finished_job_ids = {"job-1"}
+        assert observer._is_watch_finished(key, state) is True
+
+        observer.observe_job_set(ArmadaCredentials(), *key, "job-2")
+
+        assert observer._pending_restarts == {key}
+
+    def test_a_finished_watch_forgets_its_jobs(self):
+        key = ("my-queue", "my-job-set")
+        observer.observe_job_set(ArmadaCredentials(), *key, "job-1")
+
+        observer._finalize_watch(key)
+
+        assert observer._watch_registry == {}
+        assert observer._expected_job_ids == {}
 
     async def test_ensure_watch_starts_one_task_per_job_set(
         self, monkeypatch: pytest.MonkeyPatch
@@ -290,6 +336,9 @@ class TestHandleEvent:
             "reason": "OOMKilled",
             "namespace": "prefect",
             "credentials": mark_crashed.await_args[1]["credentials"],
+            "queue": "my-queue",
+            "job_set_id": "my-job-set",
+            "submission_order": {},
         }
 
     async def test_does_not_mark_a_successful_job_as_crashed(
@@ -401,6 +450,248 @@ class TestWatchJobSet:
         # 3 attempts, per the `fast_retries` fixture
         assert mock_armada_client.get_job_events_stream.await_count == 3
 
+    async def test_keeps_watching_a_job_set_through_repeated_disconnects(
+        self, mock_events_client, mock_armada_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        A long-running job's stream can drop many times, for example when a load
+        balancer closes idle connections, and the watch must outlast all of them.
+        """
+        mark_crashed = AsyncMock()
+        monkeypatch.setattr(observer, "_mark_flow_run_as_crashed", mark_crashed)
+        mock_armada_client.get_job_events_stream.side_effect = [
+            FakeEventStream(
+                [
+                    make_event(
+                        "submitted", job_id="job-1", annotations=PREFECT_ANNOTATIONS
+                    ),
+                ]
+            ),
+            # More consecutive failures than the retry limit
+            *[RuntimeError("connection reset")] * 5,
+            FakeEventStream(
+                [make_event("failed", job_id="job-1", message_id="2")], hang=True
+            ),
+        ]
+
+        await observer._watch_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+
+        mark_crashed.assert_awaited_once()
+        # Reconnects resume after the last handled event rather than replaying
+        # the job set's history.
+        calls = mock_armada_client.get_job_events_stream.await_args_list
+        assert calls[0][1]["from_message_id"] is None
+        assert all(call[1]["from_message_id"] == "1" for call in calls[1:])
+
+    async def test_idle_disconnects_are_not_reported_as_failures(
+        self,
+        mock_events_client,
+        mock_armada_client,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        """
+        Proxies close streams that have been idle for a while, which must not
+        count towards the run of failures that slows reconnects and logs warnings.
+        """
+        monkeypatch.setattr(observer, "WATCH_STABLE_CONNECTION_SECONDS", 0.01)
+        mark_crashed = AsyncMock()
+        monkeypatch.setattr(observer, "_mark_flow_run_as_crashed", mark_crashed)
+
+        async def stream_closed_after_idling(events):
+            for event in events:
+                yield event
+            await anyio.sleep(0.02)
+
+        mock_armada_client.get_job_events_stream.side_effect = [
+            stream_closed_after_idling(
+                [
+                    make_event(
+                        "submitted", job_id="job-1", annotations=PREFECT_ANNOTATIONS
+                    )
+                ]
+            ),
+            # More idle disconnects in a row than the retry limit
+            *[stream_closed_after_idling([]) for _ in range(5)],
+            FakeEventStream(
+                [make_event("failed", job_id="job-1", message_id="2")], hang=True
+            ),
+        ]
+
+        with caplog.at_level("DEBUG", logger="prefect.prefect_armada.observer"):
+            await observer._watch_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+
+        mark_crashed.assert_awaited_once()
+        assert [
+            record.getMessage()
+            for record in caplog.records
+            if record.levelname == "WARNING"
+        ] == []
+
+    async def test_skips_an_event_that_keeps_failing(
+        self, mock_events_client, mock_armada_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        """One event that cannot be handled must not stall the job set forever."""
+        mark_crashed = AsyncMock()
+        monkeypatch.setattr(observer, "_mark_flow_run_as_crashed", mark_crashed)
+        handle_event = observer._handle_event
+
+        async def flaky_handle_event(event, *args):
+            if event.id == "2":
+                raise RuntimeError("Prefect API unavailable")
+            await handle_event(event, *args)
+
+        monkeypatch.setattr(observer, "_handle_event", flaky_handle_event)
+        running = make_event("running", job_id="job-1", message_id="2")
+        mock_armada_client.get_job_events_stream.side_effect = [
+            FakeEventStream(
+                [
+                    make_event(
+                        "submitted", job_id="job-1", annotations=PREFECT_ANNOTATIONS
+                    ),
+                    running,
+                ]
+            ),
+            FakeEventStream([running]),
+            FakeEventStream(
+                [running, make_event("failed", job_id="job-1", message_id="3")],
+                hang=True,
+            ),
+        ]
+
+        await observer._watch_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+
+        # Skipped after 3 attempts, per the `fast_retries` fixture
+        assert mock_armada_client.get_job_events_stream.await_count == 3
+        mark_crashed.assert_awaited_once()
+
+    async def test_gives_up_on_a_job_set_whose_events_have_expired(
+        self, mock_events_client, mock_armada_client
+    ):
+        mock_armada_client.get_job_events_stream.side_effect = [
+            FakeEventStream(
+                [
+                    make_event(
+                        "submitted", job_id="job-1", annotations=PREFECT_ANNOTATIONS
+                    )
+                ]
+            ),
+            *[FakeRpcError(grpc.StatusCode.NOT_FOUND, "Jobset does not exist")] * 5,
+        ]
+
+        await observer._watch_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+
+        # The stream ending and two failed reconnects make the 3 attempts allowed
+        # by `fast_retries`
+        assert mock_armada_client.get_job_events_stream.await_count == 3
+
+    async def test_keeps_trying_when_a_job_is_submitted_while_failing(
+        self, mock_events_client, mock_armada_client
+    ):
+        """A new submission suggests the job set is about to become visible."""
+        calls = 0
+
+        async def get_job_events_stream(**kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                observer.observe_job_set(
+                    ArmadaCredentials(), "my-queue", "my-job-set", "job-2"
+                )
+            raise FakeRpcError(grpc.StatusCode.NOT_FOUND, "Jobset does not exist")
+
+        mock_armada_client.get_job_events_stream.side_effect = get_job_events_stream
+
+        await observer._watch_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+
+        # 3 attempts, then another 2 once job-2 is registered, per `fast_retries`
+        assert calls == 5
+        assert observer._finishing_watches == {("my-queue", "my-job-set")}
+
+    async def test_does_not_give_up_on_a_configured_job_set(
+        self, mock_events_client, mock_armada_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Nothing would register a configured job set again once dropped."""
+        monkeypatch.setenv(
+            "PREFECT_INTEGRATIONS_ARMADA_OBSERVER_JOB_SETS", "my-queue/my-job-set"
+        )
+        observer._register_configured_job_sets(ArmadaCredentials())
+        mock_armada_client.get_job_events_stream.side_effect = FakeRpcError(
+            grpc.StatusCode.NOT_FOUND, "Jobset does not exist"
+        )
+
+        with anyio.move_on_after(0.5) as scope:
+            await observer._watch_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+
+        assert scope.cancelled_caught, "Expected the watch to still be running"
+        assert mock_armada_client.get_job_events_stream.await_count > 3
+
+    async def test_does_not_stop_before_a_registered_job_finishes(
+        self, mock_events_client, mock_armada_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        A job set's history is replayed from the start, so a watch can see an
+        earlier job finish before it sees a later job being submitted.
+        """
+        mark_crashed = AsyncMock()
+        monkeypatch.setattr(observer, "_mark_flow_run_as_crashed", mark_crashed)
+        observer.observe_job_set(ArmadaCredentials(), "my-queue", "my-job-set", "job-2")
+        mock_armada_client.get_job_events_stream.return_value = FakeEventStream(
+            [
+                make_event(
+                    "submitted", job_id="job-1", annotations=PREFECT_ANNOTATIONS
+                ),
+                make_event("succeeded", job_id="job-1", message_id="2"),
+                make_event(
+                    "submitted",
+                    job_id="job-2",
+                    message_id="3",
+                    annotations=PREFECT_ANNOTATIONS,
+                ),
+                make_event("failed", job_id="job-2", message_id="4"),
+            ],
+            hang=True,
+        )
+
+        await observer._watch_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+
+        mark_crashed.assert_awaited_once()
+        assert mark_crashed.await_args[1]["job_id"] == "job-2"
+
+    async def test_configured_job_sets_are_watched_indefinitely(
+        self, mock_events_client, mock_armada_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Nothing re-registers a configured job set, so its watch must not end."""
+        monkeypatch.setenv(
+            "PREFECT_INTEGRATIONS_ARMADA_OBSERVER_JOB_SETS", "my-queue/my-job-set"
+        )
+        observer._register_configured_job_sets(ArmadaCredentials())
+        mark_crashed = AsyncMock()
+        monkeypatch.setattr(observer, "_mark_flow_run_as_crashed", mark_crashed)
+        mock_armada_client.get_job_events_stream.return_value = FakeEventStream(
+            [
+                make_event(
+                    "submitted", job_id="job-1", annotations=PREFECT_ANNOTATIONS
+                ),
+                make_event("succeeded", job_id="job-1", message_id="2"),
+                make_event(
+                    "submitted",
+                    job_id="job-2",
+                    message_id="3",
+                    annotations=PREFECT_ANNOTATIONS,
+                ),
+                make_event("failed", job_id="job-2", message_id="4"),
+            ],
+            hang=True,
+        )
+
+        with anyio.move_on_after(0.5) as scope:
+            await observer._watch_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+
+        assert scope.cancelled_caught, "Expected the watch to still be running"
+        mark_crashed.assert_awaited_once()
+        assert mark_crashed.await_args[1]["job_id"] == "job-2"
+
 
 class TestMarkFlowRunAsCrashed:
     @pytest.fixture(autouse=True)
@@ -415,7 +706,7 @@ class TestMarkFlowRunAsCrashed:
         monkeypatch.setattr(observer, "propose_state", mock)
         return mock
 
-    async def _mark(self, credentials=None):
+    async def _mark(self, credentials=None, submission_order=None):
         await observer._mark_flow_run_as_crashed(
             flow_run_id=FLOW_RUN_ID,
             job_id="job-1",
@@ -423,6 +714,9 @@ class TestMarkFlowRunAsCrashed:
             reason="OOMKilled",
             namespace="default",
             credentials=credentials or ArmadaCredentials(),
+            queue="my-queue",
+            job_set_id="my-job-set",
+            submission_order=submission_order or {},
         )
 
     async def test_marks_a_running_flow_run_as_crashed(
@@ -451,6 +745,98 @@ class TestMarkFlowRunAsCrashed:
         await self._mark()
 
         propose_state.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "state", [Pending(), Running()], ids=["pending", "running"]
+    )
+    async def test_ignores_a_job_from_an_earlier_attempt(
+        self, mock_orchestration_client, propose_state, state
+    ):
+        """
+        A rescheduled flow run is resubmitted into the same job set, whose replayed
+        history still holds the earlier job's failure.
+        """
+        mock_orchestration_client.read_flow_run.return_value = flow_run_with_state(
+            state, infrastructure_pid="my-queue:my-job-set:job-2"
+        )
+
+        await self._mark(submission_order={"job-1": 0, "job-2": 1})
+
+        propose_state.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "infrastructure_pid",
+        ["my-queue:my-job-set:job-2", "my-queue:other-job-set:job-2"],
+        ids=["not-seen-yet", "other-job-set"],
+    )
+    async def test_ignores_a_failure_from_before_the_run_was_resubmitted(
+        self, mock_orchestration_client, propose_state, infrastructure_pid
+    ):
+        """
+        Replaying a job set from the start reaches an earlier job's failure before
+        the run's current job has been submitted.
+        """
+        mock_orchestration_client.read_flow_run.return_value = flow_run_with_state(
+            Running(), infrastructure_pid=infrastructure_pid
+        )
+
+        await self._mark(submission_order={"job-1": 0})
+
+        propose_state.assert_not_awaited()
+
+    async def test_marks_the_failed_job_as_crashed_when_the_recorded_job_is_older(
+        self, mock_orchestration_client, propose_state
+    ):
+        """
+        The worker records a new job's ID after submitting it, and may fail to, so
+        a recorded job submitted before the failed one is from an earlier attempt.
+        """
+        mock_orchestration_client.read_flow_run.return_value = flow_run_with_state(
+            Running(), infrastructure_pid="my-queue:my-job-set:job-0"
+        )
+
+        await self._mark(submission_order={"job-0": 0, "job-1": 1})
+
+        propose_state.assert_awaited_once()
+
+    async def test_skips_an_earlier_attempts_failure_without_waiting(
+        self,
+        mock_orchestration_client,
+        propose_state,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Waiting would hold up the job set's later events, such as real failures."""
+        monkeypatch.setenv(
+            "PREFECT_INTEGRATIONS_ARMADA_OBSERVER_CRASHED_RUN_GRACE_SECONDS", "60"
+        )
+        fetch_logs = AsyncMock()
+        monkeypatch.setattr(observer, "_fetch_crashed_job_logs", fetch_logs)
+        mock_orchestration_client.read_flow_run.return_value = flow_run_with_state(
+            Pending(), infrastructure_pid="my-queue:my-job-set:job-2"
+        )
+
+        with anyio.fail_after(1):
+            await self._mark(submission_order={"job-1": 0, "job-2": 1})
+
+        propose_state.assert_not_awaited()
+        fetch_logs.assert_not_awaited()
+        mock_orchestration_client.read_flow_run.assert_awaited_once()
+
+    @pytest.mark.parametrize(
+        "infrastructure_pid",
+        ["my-queue:my-job-set:job-1", "my-queue:etl:nightly:job-1", "12345"],
+        ids=["current-job", "job-set-with-colons", "not-an-armada-job"],
+    )
+    async def test_marks_the_flow_runs_current_job_as_crashed(
+        self, mock_orchestration_client, propose_state, infrastructure_pid
+    ):
+        mock_orchestration_client.read_flow_run.return_value = flow_run_with_state(
+            Running(), infrastructure_pid=infrastructure_pid
+        )
+
+        await self._mark()
+
+        propose_state.assert_awaited_once()
 
     async def test_handles_a_missing_flow_run(
         self, mock_orchestration_client, propose_state
@@ -658,6 +1044,37 @@ class TestObserverLifecycle:
             observer.stop_observer()
 
         assert watched == [("my-queue", "my-job-set")]
+
+    async def test_a_restarted_observer_still_watches_in_flight_job_sets(
+        self, mock_armada_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Stopping the observer's main loop after a failure cancels its watches, and
+        the restarted loop must pick their job sets up again.
+        """
+        key = ("my-queue", "my-job-set")
+        started = []
+
+        async def fake_watch(credentials, queue, job_set_id):
+            started.append((queue, job_set_id))
+            await anyio.sleep(3600)
+
+        monkeypatch.setattr(observer, "_watch_job_set", fake_watch)
+        observer.observe_job_set(ArmadaCredentials(), *key, "job-1")
+        stop_flag = threading.Event()
+
+        for run in range(1, 3):
+            main = asyncio.create_task(observer._observer_main(stop_flag))
+            for _ in range(200):
+                if len(started) == run:
+                    break
+                await anyio_sleep(0.01)
+            # Ending the main loop runs the same cleanup as a failure does
+            main.cancel()
+            await asyncio.gather(main, return_exceptions=True)
+
+        assert started == [key, key]
+        assert observer._expected_job_ids == {key: {"job-1"}}
 
     async def test_stops_while_waiting_to_restart(
         self, monkeypatch: pytest.MonkeyPatch

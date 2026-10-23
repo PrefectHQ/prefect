@@ -188,7 +188,13 @@ class TestJobPid:
         assert pid == "queue:job-set:job-id"
         assert parse_job_pid(pid) == ("queue", "job-set", "job-id")
 
-    @pytest.mark.parametrize("pid", ["queue:job-set", "a:b:c:d", "::", "queue::job"])
+    def test_round_trips_a_job_set_id_containing_colons(self):
+        pid = format_job_pid("queue", "etl:nightly", "job-id")
+        assert parse_job_pid(pid) == ("queue", "etl:nightly", "job-id")
+
+    @pytest.mark.parametrize(
+        "pid", ["queue:job-set", "::", "queue::job", ":job-set:job", "queue:job-set:"]
+    )
     def test_raises_on_invalid_pid(self, pid):
         with pytest.raises(ValueError, match="Invalid infrastructure_pid"):
             parse_job_pid(pid)

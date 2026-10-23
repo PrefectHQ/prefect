@@ -617,6 +617,10 @@ class TestArmadaWorker:
             mock_observer.observe.call_args[1]["job_set_id"]
             == default_configuration.job_set_id
         )
+        # The submitted job keeps the job set watched until it has finished
+        assert mock_observer.observe.call_args[1]["job_id"] == (
+            make_job_submit_response().job_response_items[0].job_id
+        )
 
     async def test_initiate_run_submits_a_job(
         self, default_configuration, flow_run, mock_armada_client

@@ -23,7 +23,9 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
+import time
 import uuid
+from collections.abc import Mapping
 from contextlib import aclosing
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -38,6 +40,7 @@ from websockets.exceptions import ConnectionClosed
 
 from prefect import __version__, get_client
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import FlowRun
 from prefect.context import SettingsContext, get_settings_context
 from prefect.events import Event, RelatedResource
 from prefect.events.clients import EventsClient, get_events_client
@@ -56,18 +59,36 @@ from prefect_armada.exceptions import (
     rpc_status_code,
 )
 from prefect_armada.settings import ArmadaSettings
-from prefect_armada.utilities import UNSUCCESSFUL_EVENT_TYPES
+from prefect_armada.utilities import UNSUCCESSFUL_EVENT_TYPES, parse_job_pid
 
 logger = get_logger("prefect_armada.observer")
 
 # Armada event types after which a job will never run again.
 TERMINAL_EVENT_TYPES = {"succeeded", "failed", "cancelled", "preempted"}
 
-# How many times to (re)connect to a job set's event stream before giving up,
-# and the ceiling on the exponential backoff between attempts. Eight attempts
-# with this backoff spans a little over two minutes.
+# How many consecutive failures a job set's watch tolerates before giving up on
+# a job set that has never become visible or that fails permanently, and before
+# skipping an event it cannot handle; and the ceiling on the exponential backoff
+# between attempts. Eight attempts with this backoff spans a little over two
+# minutes. Any other failure is retried until every job in the job set has
+# finished, so that a long-running job outlasts dropped connections.
 WATCH_RETRY_MAX_ATTEMPTS = 8
 WATCH_RETRY_MAX_DELAY_SECONDS = 30
+
+# How long a job set's event stream must stay open before it ending, cleanly or
+# not, counts as a dropped connection rather than a failed one. Proxies and load
+# balancers routinely close streams that have been idle for a while, which must
+# not slow down reconnecting or be reported as a failure.
+WATCH_STABLE_CONNECTION_SECONDS = 30
+
+# Errors from a job set's event stream that retrying will not fix. Armada reports
+# NOT_FOUND both before a new job set becomes visible and after an old one's
+# events have expired.
+_PERMANENT_STREAM_ERRORS = {
+    grpc.StatusCode.NOT_FOUND,
+    grpc.StatusCode.PERMISSION_DENIED,
+    grpc.StatusCode.UNAUTHENTICATED,
+}
 
 # The ceiling on the exponential backoff between attempts to restart the
 # observer after it fails, for example because the Prefect API is unreachable.
@@ -96,7 +117,16 @@ _JobSetKey = tuple[str, str]
 
 _registry_lock = threading.Lock()
 _watch_registry: dict[_JobSetKey, ArmadaCredentials] = {}
+# The jobs this process submitted to each watched job set. A watch does not end
+# until all of them have finished, even if every job it has seen so far has.
+_expected_job_ids: dict[_JobSetKey, set[str]] = {}
+# Job sets configured via settings. Nothing re-registers them when more jobs are
+# submitted, so their watches never end.
+_persistent_job_sets: set[_JobSetKey] = set()
 _pending_restarts: set[_JobSetKey] = set()
+# Job sets whose watch has decided to end but has not been cleaned up yet. A job
+# registered for one of these needs a new watch rather than the current one.
+_finishing_watches: set[_JobSetKey] = set()
 _watch_tasks: dict[_JobSetKey, asyncio.Task[None]] = {}
 
 _observer_thread: threading.Thread | None = None
@@ -116,6 +146,9 @@ class _JobSetWatchState:
         self.annotations: dict[str, dict[str, str]] = {}
         self.submitted_job_ids: set[str] = set()
         self.finished_job_ids: set[str] = set()
+        # The order in which jobs were submitted to the job set, as the position
+        # of each job's `submitted` event in the stream.
+        self.submission_order: dict[str, int] = {}
 
     @property
     def is_finished(self) -> bool:
@@ -125,26 +158,79 @@ class _JobSetWatchState:
         )
 
 
+def _is_watch_finished(key: _JobSetKey, state: _JobSetWatchState) -> bool:
+    """
+    Whether a job set's watch can end.
+
+    Armada replays a job set's history from the start, so a restarted watch can
+    see an earlier job finish before it sees a later job being submitted. Every
+    job seen so far having finished is therefore not enough on its own; the jobs
+    this process submitted must have finished too.
+    """
+    with _registry_lock:
+        if key in _persistent_job_sets:
+            return False
+        expected_job_ids = _expected_job_ids.get(key, set())
+        finished = state.is_finished and expected_job_ids.issubset(
+            state.finished_job_ids
+        )
+        if finished:
+            # Decided under the lock so that `observe_job_set` either adds its
+            # job before this check or sees that the watch is ending.
+            _finishing_watches.add(key)
+        return finished
+
+
+def _registered_job_ids(key: _JobSetKey) -> set[str]:
+    """Returns the jobs registered for a job set so far."""
+    with _registry_lock:
+        return set(_expected_job_ids.get(key, ()))
+
+
+def _try_end_watch(key: _JobSetKey, known_job_ids: set[str]) -> bool:
+    """
+    Marks a failing watch as ending, unless a job was registered for its job set
+    since `known_job_ids` was read.
+
+    A newly submitted job is a reason to keep trying, and checking for one under
+    the lock means `observe_job_set` either registers its job before this check
+    or sees that the watch is ending and queues a restart.
+    """
+    with _registry_lock:
+        if not _expected_job_ids.get(key, set()).issubset(known_job_ids):
+            return False
+        _finishing_watches.add(key)
+        return True
+
+
 def observe_job_set(
-    credentials: ArmadaCredentials, queue: str, job_set_id: str
+    credentials: ArmadaCredentials,
+    queue: str,
+    job_set_id: str,
+    job_id: str | None = None,
 ) -> None:
     """
     Registers an Armada job set to be watched by the observer.
 
     Safe to call from any thread and safe to call repeatedly for the same job
-    set; a job set that is already being watched is only re-watched if its
-    current watch has already finished.
+    set. A running watch keeps going until `job_id` has finished; a job set is
+    only re-watched if its current watch is already ending, or if no `job_id` is
+    given.
 
     Args:
         credentials: The credentials used to connect to Armada.
         queue: The name of the Armada queue the job set was submitted to.
         job_set_id: The name of the Armada job set to watch.
+        job_id: The ID of the job just submitted to the job set, if any. The
+            job set is watched until this job has finished.
     """
     key = (queue, job_set_id)
     with _registry_lock:
         already_watching = key in _watch_registry
         _watch_registry[key] = credentials
-        if already_watching:
+        if job_id:
+            _expected_job_ids.setdefault(key, set()).add(job_id)
+        if already_watching and (not job_id or key in _finishing_watches):
             _pending_restarts.add(key)
 
     loop = _observer_loop
@@ -169,17 +255,29 @@ async def _ensure_watch(key: _JobSetKey) -> None:
     queue, job_set_id = key
     task = asyncio.create_task(_watch_job_set(credentials, queue, job_set_id))
     _watch_tasks[key] = task
-    task.add_done_callback(lambda _: _finalize_watch(key))
+    task.add_done_callback(lambda task: _finalize_watch(key, task.cancelled()))
 
 
-def _finalize_watch(key: _JobSetKey) -> None:
-    """Cleans up after a job set watch has ended, restarting it if needed."""
+def _finalize_watch(key: _JobSetKey, cancelled: bool = False) -> None:
+    """
+    Cleans up after a job set watch has ended, restarting it if needed.
+
+    A watch is only cancelled when the observer stops. If the observer is
+    restarting after a failure, it watches every registered job set again, so a
+    cancelled watch's job set stays registered; `stop_observer` clears the
+    registry when the observer stops for good.
+    """
     _watch_tasks.pop(key, None)
     with _registry_lock:
         restart = key in _pending_restarts
         _pending_restarts.discard(key)
+        _finishing_watches.discard(key)
+        if cancelled:
+            return
         if not restart:
             _watch_registry.pop(key, None)
+            _expected_job_ids.pop(key, None)
+            _persistent_job_sets.discard(key)
 
     if restart and _observer_loop is not None:
         asyncio.run_coroutine_threadsafe(_ensure_watch(key), _observer_loop)
@@ -194,30 +292,65 @@ async def _watch_job_set(
     Armada replays a job set's history from the beginning of the stream, so a
     watch that is restarted will see events it has already handled. Replicated
     Prefect events use deterministic IDs so that the replay is deduplicated by
-    Prefect's event system rather than producing duplicates.
+    Prefect's event system rather than producing duplicates. Within a watch,
+    reconnects resume after the last handled event instead.
     """
     logger.debug("Watching Armada job set %r in queue %r", job_set_id, queue)
+    key = (queue, job_set_id)
     state = _JobSetWatchState()
+    # The jobs registered when the current run of failures began.
+    known_job_ids: set[str] = set()
+    last_message_id: str | None = None
+    job_set_seen = False
+    # Consecutive connections that ended soon after opening without handling a
+    # new event.
+    failures = 0
+    # An event that could not be handled, and how many times in a row it failed.
+    failing_message_id: str | None = None
+    event_failures = 0
 
-    # A watch usually starts moments after the job set's first job is submitted,
-    # before Armada has made the job set visible to the event service, so the
-    # first attempts routinely fail with NOT_FOUND. Retrying with backoff is
-    # what keeps a flow run's job set from going unobserved.
-    for attempt in range(1, WATCH_RETRY_MAX_ATTEMPTS + 1):
+    while True:
+        error: Exception | None = None
+        connected_at = time.monotonic()
         try:
             async with aclosing(
                 stream_job_set_events(
                     armada_credentials=credentials,
                     queue=queue,
                     job_set_id=job_set_id,
+                    from_message_id=last_message_id,
                 )
             ) as event_stream:
                 async for event in event_stream:
-                    # The stream is working, so later failures get a full set of
-                    # retries of their own.
-                    attempt = 1
-                    await _handle_event(event, queue, job_set_id, state, credentials)
-                    if state.is_finished:
+                    job_set_seen = True
+                    try:
+                        await _handle_event(
+                            event, queue, job_set_id, state, credentials
+                        )
+                    except Exception:
+                        if event.id == failing_message_id:
+                            event_failures += 1
+                        else:
+                            failing_message_id, event_failures = event.id, 1
+                        if event_failures < WATCH_RETRY_MAX_ATTEMPTS:
+                            # Reconnecting delivers the event again.
+                            raise
+                        # Retrying an event that keeps failing would stall the
+                        # job set's later events indefinitely.
+                        logger.warning(
+                            "Skipping Armada %s event for job %s in job set %r "
+                            "after %s failed attempts to handle it",
+                            event.type.value,
+                            getattr(event.message, "job_id", ""),
+                            job_set_id,
+                            event_failures,
+                            exc_info=True,
+                        )
+                    # Only advance once the event is handled, so an event whose
+                    # handling failed is delivered again after reconnecting.
+                    last_message_id = event.id or last_message_id
+                    failures = 0
+                    if _is_watch_finished(key, state):
                         logger.debug(
                             "Finished watching Armada job set %r in queue %r",
                             job_set_id,
@@ -227,34 +360,75 @@ async def _watch_job_set(
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            if attempt >= WATCH_RETRY_MAX_ATTEMPTS:
+            error = exc
+
+        if time.monotonic() - connected_at >= WATCH_STABLE_CONNECTION_SECONDS:
+            # The stream was healthy until it was closed, so this is the first
+            # attempt to reconnect rather than another failure in a row.
+            failures = 0
+        failures += 1
+        if failures == 1:
+            known_job_ids = _registered_job_ids(key)
+        if failures >= WATCH_RETRY_MAX_ATTEMPTS and _should_give_up(
+            key, job_set_seen, error
+        ):
+            if _try_end_watch(key, known_job_ids):
                 logger.warning(
                     "Giving up watching Armada job set %r in queue %r after %s "
                     "attempts",
                     job_set_id,
                     queue,
-                    attempt,
-                    exc_info=True,
+                    failures,
+                    exc_info=error,
                 )
                 return
-            delay = min(2 ** (attempt - 1), WATCH_RETRY_MAX_DELAY_SECONDS)
-            logger.debug(
+            # A job was just submitted to the job set, so start counting again.
+            known_job_ids = _registered_job_ids(key)
+            failures = 1
+
+        delay = min(2 ** (failures - 1), WATCH_RETRY_MAX_DELAY_SECONDS)
+        log = logger.warning if failures == WATCH_RETRY_MAX_ATTEMPTS else logger.debug
+        if error is None:
+            # The stream ended without the job set finishing, e.g. Armada or a
+            # proxy closed it.
+            log(
+                "Event stream for Armada job set %r in queue %r ended; "
+                "reconnecting in %ss",
+                job_set_id,
+                queue,
+                delay,
+            )
+        else:
+            log(
                 "Error watching Armada job set %r in queue %r (%s); retrying in %ss",
                 job_set_id,
                 queue,
-                exc,
+                error,
                 delay,
             )
-            await asyncio.sleep(delay)
-        else:
-            # The stream ended without the job set finishing, e.g. Armada closed
-            # it; reconnect to pick up where it left off.
-            logger.debug(
-                "Event stream for Armada job set %r in queue %r ended; reconnecting",
-                job_set_id,
-                queue,
-            )
-            await asyncio.sleep(min(2 ** (attempt - 1), WATCH_RETRY_MAX_DELAY_SECONDS))
+        await asyncio.sleep(delay)
+
+
+def _should_give_up(
+    key: _JobSetKey, job_set_seen: bool, error: Exception | None
+) -> bool:
+    """
+    Whether a watch that keeps failing should stop.
+
+    A watch usually starts moments after the job set's first job is submitted,
+    before Armada has made the job set visible, so its first attempts routinely
+    fail with NOT_FOUND. A job set that never becomes visible is given up on, as
+    is one whose stream fails permanently, for example because its events have
+    expired. Anything else is retried, because giving up would leave unfinished
+    jobs unobserved. Configured job sets are never given up on, since nothing
+    would register them again.
+    """
+    with _registry_lock:
+        if key in _persistent_job_sets:
+            return False
+    if not job_set_seen:
+        return True
+    return error is not None and rpc_status_code(error) in _PERMANENT_STREAM_ERRORS
 
 
 async def _handle_event(
@@ -274,6 +448,7 @@ async def _handle_event(
 
     if event_type == "submitted":
         state.submitted_job_ids.add(job_id)
+        state.submission_order.setdefault(job_id, len(state.submission_order))
         state.annotations[job_id] = dict(getattr(message.job, "annotations", {}) or {})
 
     if event_type in TERMINAL_EVENT_TYPES:
@@ -305,6 +480,9 @@ async def _handle_event(
             reason=getattr(message, "reason", "") or "",
             namespace=getattr(message, "pod_namespace", "") or "default",
             credentials=credentials,
+            queue=queue,
+            job_set_id=job_set_id,
+            submission_order=state.submission_order,
         )
 
 
@@ -464,6 +642,48 @@ def _related_resources_from_annotations(
     return related
 
 
+def _is_superseded(
+    flow_run: FlowRun,
+    queue: str,
+    job_set_id: str,
+    job_id: str,
+    submission_order: Mapping[str, int],
+) -> bool:
+    """
+    Whether a flow run has moved on from an Armada job to a newer one.
+
+    A rescheduled flow run is resubmitted into the same job set, whose replayed
+    history still holds the failures of its earlier jobs, so a failure only
+    belongs to the run if the job is the one its worker last recorded. The
+    recorded job can also be stale: the worker records a new job's ID moments
+    after submitting it, and may fail to record it at all. A recorded job that
+    was submitted before the failed one is therefore an earlier attempt, and the
+    failed job is the current one.
+    """
+    if not flow_run.infrastructure_pid:
+        return False
+    try:
+        current_queue, current_job_set_id, current_job_id = parse_job_pid(
+            flow_run.infrastructure_pid
+        )
+    except ValueError:
+        # Not an Armada job, e.g. the run last ran on other infrastructure.
+        return False
+    if current_job_id == job_id:
+        return False
+    if (current_queue, current_job_set_id) != (queue, job_set_id):
+        # The run was last submitted to another job set, which only happens when
+        # its job set changed between attempts, so this failure is from before.
+        return True
+
+    current_position = submission_order.get(current_job_id)
+    failed_position = submission_order.get(job_id)
+    if current_position is None or failed_position is None:
+        # A job not seen yet is one submitted after the events handled so far.
+        return True
+    return current_position > failed_position
+
+
 async def _mark_flow_run_as_crashed(
     flow_run_id: str,
     job_id: str,
@@ -471,6 +691,9 @@ async def _mark_flow_run_as_crashed(
     reason: str,
     namespace: str,
     credentials: ArmadaCredentials,
+    queue: str,
+    job_set_id: str,
+    submission_order: Mapping[str, int],
 ) -> None:
     """
     Marks a flow run as crashed if its Armada job did not run to completion.
@@ -502,6 +725,17 @@ async def _mark_flow_run_as_crashed(
         )
         return
 
+    # Checked before fetching logs and waiting, so that replaying an earlier
+    # attempt's failure does not hold up the job set's later events.
+    if _is_superseded(flow_run, queue, job_set_id, job_id, submission_order):
+        logger.debug(
+            "Armada job %s is not flow run %s's current job (%s), skipping",
+            job_id,
+            flow_run_id,
+            flow_run.infrastructure_pid,
+        )
+        return
+
     # Eagerly fetch job logs while the flow run is still in a pre-connectivity
     # state. Armada's log service can only serve logs while the job's pod
     # exists, which may no longer be true by the time the wait below finishes.
@@ -527,6 +761,16 @@ async def _mark_flow_run_as_crashed(
     if flow_run.state.is_final():
         logger.debug(
             "Flow run %s reached a final state on its own, skipping", flow_run_id
+        )
+        return
+
+    # The run may have been rescheduled and resubmitted during the wait.
+    if _is_superseded(flow_run, queue, job_set_id, job_id, submission_order):
+        logger.debug(
+            "Armada job %s is not flow run %s's current job (%s), skipping",
+            job_id,
+            flow_run_id,
+            flow_run.infrastructure_pid,
         )
         return
 
@@ -637,6 +881,7 @@ def _register_configured_job_sets(credentials: ArmadaCredentials) -> None:
             continue
         with _registry_lock:
             _watch_registry.setdefault((queue, job_set_id), credentials)
+            _persistent_job_sets.add((queue, job_set_id))
 
 
 async def _observer_main(stop_flag: threading.Event) -> None:
@@ -801,4 +1046,7 @@ def stop_observer() -> None:
     _stop_flag = None
     with _registry_lock:
         _watch_registry.clear()
+        _expected_job_ids.clear()
+        _persistent_job_sets.clear()
         _pending_restarts.clear()
+        _finishing_watches.clear()

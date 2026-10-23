@@ -446,11 +446,14 @@ def parse_job_pid(infrastructure_pid: str) -> tuple[str, str, str]:
     Raises:
         ValueError: If the identifier is not in the expected format.
     """
-    parts = infrastructure_pid.split(":")
-    if len(parts) != 3 or not all(parts):
+    # A job set ID may itself contain colons, while queue names and Armada's
+    # ULID job IDs do not, so the job set ID is everything between the first
+    # and last colons.
+    queue, _, rest = infrastructure_pid.partition(":")
+    job_set_id, _, job_id = rest.rpartition(":")
+    if not (queue and job_set_id and job_id):
         raise ValueError(
             f"Invalid infrastructure_pid format: {infrastructure_pid!r}. "
             "Expected format: '<queue>:<job_set_id>:<job_id>'"
         )
-    queue, job_set_id, job_id = parts
     return queue, job_set_id, job_id

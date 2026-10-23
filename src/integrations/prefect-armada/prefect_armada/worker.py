@@ -1102,6 +1102,7 @@ class ArmadaWorker(
                 credentials=configuration.get_credentials(),
                 queue=configuration.queue,
                 job_set_id=job_set_id,
+                job_id=job_response.job_id,
             )
 
         return job_response.job_id

@@ -10,7 +10,7 @@ Module to define common exceptions within `prefect_armada`.
 
 ## Functions
 
-### `rpc_status_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `rpc_status_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 rpc_status_code(exc: BaseException) -> grpc.StatusCode | None
@@ -30,7 +30,7 @@ exception, so this helper degrades to `None`.
 - The gRPC status code, or `None` if the exception does not have one.
 
 
-### `rpc_details` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `rpc_details` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 rpc_details(exc: BaseException) -> str
@@ -76,4 +76,10 @@ An exception for when an Armada resource cannot be found by a client.
 
 
 An exception for when an Armada job times out.
+
+
+### `ArmadaObserverStartupError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/exceptions.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+An exception for when the Armada observer cannot be started.
 
