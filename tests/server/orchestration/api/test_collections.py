@@ -304,6 +304,26 @@ class TestReadCollectionViews:
         assert with_local["prefect"] == {"process": {}, "local": {"type": "local"}}
         assert without_local["prefect"] == {"process": {}}
 
+    async def test_malformed_registry_collection_does_not_fail_the_view(self):
+        """A registry entry that is not a collection of workers is left as it
+        is, and the other local workers are still merged."""
+        registry_view = {"prefect": {"process": {}}, "prefect-armada": None}
+        local_metadata = {
+            "prefect-armada": {"armada": {"type": "armada"}},
+            "prefect-other": {"other": {"type": "other"}},
+        }
+
+        with respx.mock(using="httpx") as respx_mock:
+            respx_mock.get(self.collection_view_url("worker")).mock(
+                return_value=Response(200, json=registry_view)
+            )
+            view = await collections.get_collection_view(
+                "aggregate-worker-metadata", local_worker_metadata=local_metadata
+            )
+
+        assert view["prefect-armada"] is None
+        assert view["prefect-other"] == {"other": {"type": "other"}}
+
     async def test_worker_metadata_survives_local_registry_failure(
         self, started_server, mock_get_view, caplog
     ):

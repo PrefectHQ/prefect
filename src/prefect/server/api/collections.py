@@ -96,12 +96,19 @@ def _merge_local_worker_metadata(
                 known_types.add(worker["type"])
 
     for collection_name, workers in local_metadata.items():
-        for worker_type, worker in workers.items():
-            if worker_type in known_types:
-                continue
-            # A copy, so that changes to a served view cannot reach the
-            # metadata built at startup, which lives as long as the server
-            data.setdefault(collection_name, {})[worker_type] = deepcopy(worker)
+        # Copies, so that changes to a served view cannot reach the metadata
+        # built at startup, which lives as long as the server
+        missing = {
+            worker_type: deepcopy(worker)
+            for worker_type, worker in workers.items()
+            if worker_type not in known_types
+        }
+        if not missing:
+            continue
+        collection = data.setdefault(collection_name, {})
+        # Leave a malformed registry entry as it is rather than fail the view
+        if isinstance(collection, dict):
+            collection.update(missing)
 
 
 def _post_process_view(view: str, data: dict[str, Any]) -> dict[str, Any]:
