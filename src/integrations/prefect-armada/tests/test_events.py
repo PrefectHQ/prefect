@@ -1,5 +1,7 @@
 from contextlib import aclosing
 
+from armada_client.armada import event_pb2
+from armada_client.event import Event
 from conftest import FakeEventStream, make_event
 from prefect_armada.events import (
     get_job_set_events,
@@ -32,6 +34,38 @@ async def test_stream_job_set_events_yields_unmarshalled_events(
         "from_message_id": None,
     }
     mock_armada_client.unwatch_events.assert_called_once_with(stream)
+
+
+async def test_stream_job_set_events_skips_events_it_cannot_decode(
+    armada_credentials, mock_armada_client
+):
+    """
+    A newer Armada server can send event types the installed client does not
+    know, which must not stop the rest of the stream from being read.
+    """
+    mock_armada_client.unmarshal_event_response.side_effect = Event
+    known = event_pb2.EventMessage(
+        running=event_pb2.JobRunningEvent(job_id="test-job-id")
+    )
+    mock_armada_client.get_job_events_stream.return_value = FakeEventStream(
+        [
+            event_pb2.EventStreamMessage(id="1", message=known),
+            # No event set, as when the event type is unknown to the client
+            event_pb2.EventStreamMessage(id="2"),
+            event_pb2.EventStreamMessage(id="3", message=known),
+        ]
+    )
+
+    events = [
+        event
+        async for event in stream_job_set_events(
+            armada_credentials=armada_credentials,
+            queue="test-queue",
+            job_set_id="test-job-set",
+        )
+    ]
+
+    assert [event.id for event in events] == ["1", "3"]
 
 
 async def test_stream_job_set_events_cancels_the_stream_when_closed(

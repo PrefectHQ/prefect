@@ -9,7 +9,10 @@ import anyio
 from armada_client.event import Event
 
 from prefect import task
+from prefect.logging.loggers import get_logger
 from prefect_armada.credentials import ArmadaCredentials
+
+logger = get_logger("prefect_armada.events")
 
 
 async def stream_job_set_events(
@@ -27,6 +30,9 @@ async def stream_job_set_events(
     wrap this generator in `contextlib.aclosing` so that the underlying gRPC
     stream is cancelled as soon as they stop rather than whenever the generator
     is garbage collected.
+
+    Events that cannot be decoded, such as event types newer than the installed
+    `armada_client`, are skipped with a warning.
 
     Args:
         armada_credentials: `ArmadaCredentials` block holding authentication
@@ -67,7 +73,21 @@ async def stream_job_set_events(
         )
         try:
             async for message in event_stream:
-                yield client.unmarshal_event_response(message)
+                try:
+                    event = client.unmarshal_event_response(message)
+                except ValueError:
+                    # An event type this version of `armada_client` does not
+                    # know, e.g. from a newer Armada server. Skipping it keeps
+                    # the rest of the stream readable.
+                    logger.warning(
+                        "Skipping Armada event %r in job set %r that could not "
+                        "be decoded",
+                        message.id,
+                        job_set_id,
+                        exc_info=True,
+                    )
+                    continue
+                yield event
         finally:
             client.unwatch_events(event_stream)
 

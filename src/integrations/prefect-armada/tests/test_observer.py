@@ -565,6 +565,66 @@ class TestWatchJobSet:
         assert mock_armada_client.get_job_events_stream.await_count == 3
         mark_crashed.assert_awaited_once()
 
+    async def test_an_error_handling_an_event_does_not_end_the_watch(
+        self, mock_events_client, mock_armada_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        A gRPC error raised while handling an event, e.g. by a call to another
+        Armada service, says nothing about whether the job set's stream works.
+        """
+        handle_event = observer._handle_event
+
+        async def handle_event_failing_on_submitted(event, *args):
+            if event.id == "1":
+                raise FakeRpcError(grpc.StatusCode.PERMISSION_DENIED, "denied")
+            await handle_event(event, *args)
+
+        monkeypatch.setattr(
+            observer, "_handle_event", handle_event_failing_on_submitted
+        )
+        submitted = make_event(
+            "submitted", job_id="job-1", annotations=PREFECT_ANNOTATIONS
+        )
+        mock_armada_client.get_job_events_stream.side_effect = [
+            # Not visible yet, so the run of failures is already under way
+            FakeRpcError(grpc.StatusCode.NOT_FOUND, "Jobset does not exist"),
+            FakeRpcError(grpc.StatusCode.NOT_FOUND, "Jobset does not exist"),
+            FakeEventStream([submitted]),
+            FakeEventStream([submitted]),
+            FakeEventStream(
+                [submitted, make_event("succeeded", job_id="job-1", message_id="2")],
+                hang=True,
+            ),
+        ]
+
+        await observer._watch_job_set(ArmadaCredentials(), "my-queue", "my-job-set")
+
+        # The event is skipped after 3 attempts per `fast_retries`, and the watch
+        # then finishes normally
+        assert mock_armada_client.get_job_events_stream.await_count == 5
+
+    async def test_restarts_a_watch_that_fails_unexpectedly(
+        self, mock_events_client, mock_armada_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A job registered while a failed watch winds down must still be watched."""
+        key = ("my-queue", "my-job-set")
+        observer.observe_job_set(ArmadaCredentials(), *key, "job-1")
+
+        def broken_registered_job_ids(key):
+            raise RuntimeError("unexpected")
+
+        # Called outside the stream's error handling once the stream ends
+        monkeypatch.setattr(observer, "_registered_job_ids", broken_registered_job_ids)
+        mock_armada_client.get_job_events_stream.return_value = FakeEventStream(
+            [make_event("submitted", job_id="job-1", annotations=PREFECT_ANNOTATIONS)]
+        )
+
+        await observer._watch_job_set(ArmadaCredentials(), *key)
+        observer._finalize_watch(key)
+
+        assert observer._watch_registry == {key: observer._watch_registry[key]}
+        assert observer._expected_job_ids == {key: {"job-1"}}
+
     async def test_gives_up_on_a_job_set_whose_events_have_expired(
         self, mock_events_client, mock_armada_client
     ):

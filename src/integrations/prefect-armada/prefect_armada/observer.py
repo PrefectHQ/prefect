@@ -287,6 +287,34 @@ async def _watch_job_set(
     credentials: ArmadaCredentials, queue: str, job_set_id: str
 ) -> None:
     """
+    Watches an Armada job set until every job in it has finished, restarting the
+    watch if it fails unexpectedly.
+
+    The job set stays registered across the restart, so that no job registered
+    in the meantime goes unwatched, and the restart waits for the longest retry
+    delay so that a failure that recurs does not restart in a tight loop.
+    """
+    try:
+        await _watch_job_set_events(credentials, queue, job_set_id)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.exception(
+            "Watching Armada job set %r in queue %r failed unexpectedly; "
+            "restarting in %ss",
+            job_set_id,
+            queue,
+            WATCH_RETRY_MAX_DELAY_SECONDS,
+        )
+        await asyncio.sleep(WATCH_RETRY_MAX_DELAY_SECONDS)
+        with _registry_lock:
+            _pending_restarts.add((queue, job_set_id))
+
+
+async def _watch_job_set_events(
+    credentials: ArmadaCredentials, queue: str, job_set_id: str
+) -> None:
+    """
     Watches an Armada job set's event stream until every job in it has finished.
 
     Armada replays a job set's history from the beginning of the stream, so a
@@ -311,6 +339,9 @@ async def _watch_job_set(
 
     while True:
         error: Exception | None = None
+        # Set when the error came from handling an event rather than from the
+        # stream, which says nothing about whether the stream itself works.
+        handling_error: Exception | None = None
         connected_at = time.monotonic()
         try:
             async with aclosing(
@@ -327,13 +358,14 @@ async def _watch_job_set(
                         await _handle_event(
                             event, queue, job_set_id, state, credentials
                         )
-                    except Exception:
+                    except Exception as exc:
                         if event.id == failing_message_id:
                             event_failures += 1
                         else:
                             failing_message_id, event_failures = event.id, 1
                         if event_failures < WATCH_RETRY_MAX_ATTEMPTS:
                             # Reconnecting delivers the event again.
+                            handling_error = exc
                             raise
                         # Retrying an event that keeps failing would stall the
                         # job set's later events indefinitely.
@@ -369,8 +401,9 @@ async def _watch_job_set(
         failures += 1
         if failures == 1:
             known_job_ids = _registered_job_ids(key)
+        stream_error = None if error is handling_error else error
         if failures >= WATCH_RETRY_MAX_ATTEMPTS and _should_give_up(
-            key, job_set_seen, error
+            key, job_set_seen, stream_error
         ):
             if _try_end_watch(key, known_job_ids):
                 logger.warning(
@@ -713,6 +746,19 @@ async def _mark_flow_run_as_crashed(
 
     assert flow_run.state is not None, "Expected flow run state to be set"
 
+    def is_superseded() -> bool:
+        superseded = _is_superseded(
+            flow_run, queue, job_set_id, job_id, submission_order
+        )
+        if superseded:
+            logger.debug(
+                "Armada job %s is not flow run %s's current job (%s), skipping",
+                job_id,
+                flow_run_id,
+                flow_run.infrastructure_pid,
+            )
+        return superseded
+
     # Exit early for terminal/final/scheduled/paused states
     if (
         flow_run.state.is_final()
@@ -727,13 +773,7 @@ async def _mark_flow_run_as_crashed(
 
     # Checked before fetching logs and waiting, so that replaying an earlier
     # attempt's failure does not hold up the job set's later events.
-    if _is_superseded(flow_run, queue, job_set_id, job_id, submission_order):
-        logger.debug(
-            "Armada job %s is not flow run %s's current job (%s), skipping",
-            job_id,
-            flow_run_id,
-            flow_run.infrastructure_pid,
-        )
+    if is_superseded():
         return
 
     # Eagerly fetch job logs while the flow run is still in a pre-connectivity
@@ -765,13 +805,7 @@ async def _mark_flow_run_as_crashed(
         return
 
     # The run may have been rescheduled and resubmitted during the wait.
-    if _is_superseded(flow_run, queue, job_set_id, job_id, submission_order):
-        logger.debug(
-            "Armada job %s is not flow run %s's current job (%s), skipping",
-            job_id,
-            flow_run_id,
-            flow_run.infrastructure_pid,
-        )
+    if is_superseded():
         return
 
     message = f"Armada job {job_id} for this flow run {event_type}"

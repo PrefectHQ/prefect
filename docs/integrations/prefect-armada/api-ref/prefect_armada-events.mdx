@@ -10,7 +10,7 @@ Module to define tasks and helpers for observing Armada job set events.
 
 ## Functions
 
-### `stream_job_set_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/events.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `stream_job_set_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/events.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stream_job_set_events(armada_credentials: ArmadaCredentials, queue: str, job_set_id: str, from_message_id: str | None = None) -> AsyncGenerator[Event, None]
@@ -27,6 +27,9 @@ wrap this generator in `contextlib.aclosing` so that the underlying gRPC
 stream is cancelled as soon as they stop rather than whenever the generator
 is garbage collected.
 
+Events that cannot be decoded, such as event types newer than the installed
+`armada_client`, are skipped with a warning.
+
 **Args:**
 - `armada_credentials`: `ArmadaCredentials` block holding authentication
 needed to generate the required API client.
@@ -35,7 +38,7 @@ needed to generate the required API client.
 - `from_message_id`: If provided, the stream resumes after this message ID.
 
 
-### `get_job_set_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/events.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_job_set_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/events.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_job_set_events(armada_credentials: ArmadaCredentials, queue: str, job_set_id: str, from_message_id: str | None = None, max_events: int | None = None, event_types: Sequence[str] | None = None, timeout_seconds: float | None = 30) -> list[Event]
@@ -61,7 +64,7 @@ timeout or `max_events`.
 - A list of `Event` objects.
 
 
-### `wait_for_job_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/events.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `wait_for_job_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-armada/prefect_armada/events.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_job_event(armada_credentials: ArmadaCredentials, queue: str, job_set_id: str, job_id: str, event_types: Sequence[str], timeout_seconds: float | None = None) -> Event | None
