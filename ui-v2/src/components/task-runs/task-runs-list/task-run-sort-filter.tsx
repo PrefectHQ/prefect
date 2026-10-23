@@ -19,7 +19,17 @@ export const TaskRunsSortFilter = ({
 	onSelect,
 }: TaskRunsSortFilterProps) => {
 	return (
-		<Select defaultValue={defaultValue} value={value} onValueChange={onSelect}>
+		<Select
+			defaultValue={defaultValue}
+			value={value}
+			onValueChange={(value) => {
+				if (
+					value === "EXPECTED_START_TIME_ASC" ||
+					value === "EXPECTED_START_TIME_DESC"
+				)
+					onSelect(value);
+			}}
+		>
 			<SelectTrigger aria-label="Task run sort order" className="w-full">
 				<SelectValue placeholder="Sort by" />
 			</SelectTrigger>

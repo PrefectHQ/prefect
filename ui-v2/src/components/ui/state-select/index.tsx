@@ -46,7 +46,13 @@ export const StateSelect = ({
 	});
 
 	return (
-		<Select value={value} onValueChange={onValueChange}>
+		<Select
+			value={value}
+			onValueChange={(value) => {
+				const state = filteredStates.find(([key]) => key === value);
+				if (state) onValueChange(state[0]);
+			}}
+		>
 			<SelectTrigger aria-label="select state" className="w-full">
 				<SelectValue placeholder={placeholder}>
 					{value && <StateBadge type={value} name={RUN_STATES[value]} />}

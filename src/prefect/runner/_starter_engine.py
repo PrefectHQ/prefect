@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 class EngineCommandStarter:
     """Starts a flow run via `python -m prefect.engine` subprocess.
 
-    Source: runner.py lines 891-965.
     Uses module-level `run_process` reference -- patch the module to override.
 
     `task_status_handler=lambda p: ProcessHandle(p)` ensures the signaled
@@ -71,7 +70,7 @@ class EngineCommandStarter:
         flow_run: FlowRun,
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None:
-        # Assemble command -- mirrors runner.py lines 891-894
+        # Assemble command
         if self._command is None:
             runner_command = [get_sys_executable(), "-m", "prefect.engine"]
         else:
@@ -105,7 +104,7 @@ class EngineCommandStarter:
                 # legacy kill-only cancellation path.
                 pass
 
-        # Build env following runner.py lines 907-929
+        # Build env
         deployment_name = (
             self._deployment_name
             if self._deployment_name is not None

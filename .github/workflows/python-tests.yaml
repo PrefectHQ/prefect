@@ -169,6 +169,7 @@ jobs:
           - "3.12"
           - "3.13"
           - "3.14"
+          - "3.15"
         exclude:
           # The canonical Python 3.12/Postgres lane uses duration-balanced
           # groups in run-canonical-tests instead of these static test types.
@@ -678,6 +679,7 @@ jobs:
           - "3.12"
           - "3.13"
           - "3.14"
+          - "3.15"
 
       fail-fast: false
 

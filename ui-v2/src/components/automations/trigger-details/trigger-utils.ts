@@ -2,9 +2,9 @@ import { STATE_NAMES } from "@/api/flow-runs/constants";
 import type { components } from "@/api/prefect";
 
 // Type aliases for OpenAPI schema types
-export type EventTrigger = components["schemas"]["EventTrigger"];
-export type CompoundTrigger = components["schemas"]["CompoundTrigger-Input"];
-export type SequenceTrigger = components["schemas"]["SequenceTrigger-Input"];
+export type EventTrigger = components["schemas"]["EventTrigger-Output"];
+export type CompoundTrigger = components["schemas"]["CompoundTrigger-Output"];
+export type SequenceTrigger = components["schemas"]["SequenceTrigger-Output"];
 
 // Union type for all automation triggers
 export type AutomationTrigger =

@@ -5,13 +5,15 @@ import os
 import random
 import time
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Any, Awaitable, Generator, List, Literal, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
 
 import anyio
+import pydantic
 import pytest
 
 from prefect import Task, flow, tags, task
@@ -56,7 +58,7 @@ from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
 from prefect.transactions import transaction
 from prefect.types._datetime import now
-from prefect.utilities.annotations import opaque
+from prefect.utilities.annotations import opaque, quote
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 from prefect.utilities.math import clamped_poisson_interval
@@ -1293,6 +1295,129 @@ class TestTaskRetries:
         assert attempts == 2
         assert final_state.is_completed()
         assert await final_state.result() == "success"
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("async_predicate", [False, True])
+    @pytest.mark.parametrize("should_retry", [False, True])
+    @pytest.mark.parametrize(
+        "predicate_type", ["function", "method", "partial", "instance"]
+    )
+    async def test_retry_condition_accepts_callable_types(
+        self,
+        async_task: bool,
+        async_predicate: bool,
+        should_retry: bool,
+        predicate_type: Literal["function", "method", "partial", "instance"],
+    ):
+        attempts = 0
+        predicate_calls = 0
+
+        def retry_condition(task: Task, task_run: TaskRun, state: State) -> bool:
+            nonlocal predicate_calls
+            predicate_calls += 1
+            assert state.is_failed()
+            return should_retry
+
+        async def async_retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> bool:
+            return retry_condition(task, task_run, state)
+
+        class RetryPolicy:
+            def should_retry(self, task: Task, task_run: TaskRun, state: State) -> bool:
+                return retry_condition(task, task_run, state)
+
+            __call__ = should_retry
+
+        class AsyncRetryPolicy:
+            async def should_retry(
+                self, task: Task, task_run: TaskRun, state: State
+            ) -> bool:
+                return await async_retry_condition(task, task_run, state)
+
+            __call__ = should_retry
+
+        policy = AsyncRetryPolicy() if async_predicate else RetryPolicy()
+        predicate = async_retry_condition if async_predicate else retry_condition
+        predicates = {
+            "function": predicate,
+            "method": policy.should_retry,
+            "partial": partial(predicate),
+            "instance": policy,
+        }
+
+        def flaky_function() -> str:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise ValueError("Temporary failure")
+            return "success"
+
+        async def async_flaky_function() -> str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=predicates[predicate_type],
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert predicate_calls == 1
+        assert attempts == (2 if should_retry else 1)
+        assert final_state.is_completed() == should_retry
+        assert final_state.is_failed() == (not should_retry)
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("should_retry", [False, True])
+    async def test_retry_condition_returns_custom_awaitable(
+        self, async_task: bool, should_retry: bool
+    ):
+        attempts = 0
+        predicate_calls = 0
+
+        class RetryDecision(Awaitable[bool]):
+            def __await__(self) -> Generator[Any, None, bool]:
+                async def resolve() -> bool:
+                    nonlocal predicate_calls
+                    predicate_calls += 1
+                    return should_retry
+
+                return resolve().__await__()
+
+        def retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> Awaitable[bool]:
+            assert state.is_failed()
+            return RetryDecision()
+
+        def flaky_function() -> str:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise ValueError("Temporary failure")
+            return "success"
+
+        async def async_flaky_function() -> str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=retry_condition,
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert predicate_calls == 1
+        assert attempts == (2 if should_retry else 1)
+        assert final_state.is_completed() == should_retry
+        assert final_state.is_failed() == (not should_retry)
 
     async def test_task_retries_receive_latest_task_run_in_context(self):
         state_names: List[str] = []
@@ -3915,6 +4040,36 @@ class TestWaitUntilReadySync:
 
             # State should now be Retrying (not Running)
             assert engine.state.name == "Retrying"
+
+
+class TestPydanticTaskArgumentWithUnsetPrivateAttributes:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/23514"""
+
+    class Document(pydantic.BaseModel):
+        text: Any
+        _cache: dict[str, Any] = pydantic.PrivateAttr()
+
+    def test_sync_task(self):
+        @task
+        def read(document: Any) -> tuple[str, bool]:
+            return document.text, hasattr(document, "_cache")
+
+        @flow
+        def my_flow() -> tuple[str, bool]:
+            return read(self.Document(text=quote("parsed text")))
+
+        assert my_flow() == ("parsed text", False)
+
+    async def test_async_task(self):
+        @task
+        async def read(document: Any) -> tuple[str, bool]:
+            return document.text, hasattr(document, "_cache")
+
+        @flow
+        async def my_flow() -> tuple[str, bool]:
+            return await read(self.Document(text=quote("parsed text")))
+
+        assert await my_flow() == ("parsed text", False)
 
 
 class TestRunSchemaObjectAsTaskArgument:
