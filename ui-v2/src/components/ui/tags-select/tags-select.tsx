@@ -76,6 +76,7 @@ export function TagsSelect({
 								tags={value}
 								variant="secondary"
 								maxTagsDisplayed={3}
+								overflow="badge"
 							/>
 						</div>
 					) : (

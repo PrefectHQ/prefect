@@ -13,11 +13,19 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, cast
 
+import aiohttp
 import anyio
 import kopf
 from cachetools import TTLCache
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job
+from kubernetes_asyncio.client.exceptions import ApiException
+from tenacity import (
+    AsyncRetrying,
+    RetryCallState,
+    retry_if_exception,
+    wait_exponential_jitter,
+)
 
 from prefect import __version__, get_client
 from prefect.client.orchestration import PrefectClient
@@ -152,12 +160,12 @@ class _PodLifecycleStates:
 
 
 _pod_lifecycle_states = _PodLifecycleStates()
-_POD_LIST_PAGE_SIZE = 500
+_LIST_PAGE_SIZE = 500
 _POD_LIFECYCLE_RECONCILIATION_INTERVAL_SECONDS = 5 * 60
 
 
-def _pod_label_filters() -> dict[str, Any]:
-    """Return the label filters shared by pod watching and reconciliation."""
+def _observed_label_filters() -> dict[str, Any]:
+    """Return the label filters shared by pod/job watching and reconciliation."""
     additional_label_filters = cast(
         dict[str, str], settings.observer.additional_label_filters
     )
@@ -167,11 +175,11 @@ def _pod_label_filters() -> dict[str, Any]:
     }
 
 
-def _pod_label_selector() -> str:
-    """Render the pod observer's label filters for Kubernetes list calls."""
+def _observed_label_selector() -> str:
+    """Render the observer's label filters as a Kubernetes label selector."""
     return ",".join(
         key if value is kopf.PRESENT else f"{key}={value}"
-        for key, value in sorted(_pod_label_filters().items())
+        for key, value in sorted(_observed_label_filters().items())
     )
 
 
@@ -195,8 +203,8 @@ async def _reconcile_pod_lifecycle_states(logger: kopf.Logger) -> None:
                 continue_token: str | None = None
                 while True:
                     list_kwargs: dict[str, Any] = {
-                        "label_selector": _pod_label_selector(),
-                        "limit": _POD_LIST_PAGE_SIZE,
+                        "label_selector": _observed_label_selector(),
+                        "limit": _LIST_PAGE_SIZE,
                     }
                     if continue_token:
                         list_kwargs["_continue"] = continue_token
@@ -327,6 +335,12 @@ _pod_lifecycle_reconciliation_task: asyncio.Task[None] | None = None
 @kopf.on.startup()
 def configure(settings: kopf.OperatorSettings, **_):
     settings.scanning.disabled = True
+    # Filter server-side so Kubernetes never sends unrelated pods or jobs, and
+    # page the initial LIST so large clusters don't produce one huge response.
+    label_selector = _observed_label_selector()
+    settings.watching.label_selectors["v1", "pods"] = label_selector
+    settings.watching.label_selectors["batch", "v1", "jobs"] = label_selector
+    settings.watching.chunk_size = _LIST_PAGE_SIZE
 
 
 @kopf.on.startup()
@@ -645,7 +659,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
 if settings.observer.replicate_pod_events:
     kopf.on.event(
         "pods",
-        labels=_pod_label_filters(),
+        labels=_observed_label_filters(),
     )(_replicate_pod_event)  # type: ignore
 
 
@@ -914,6 +928,7 @@ async def _get_k8s_jobs(
 
     Uses kubernetes-asyncio to list jobs.
     """
+    client: ApiClient | None = None
     try:
         client = await _get_kubernetes_client()
         batch_client = BatchV1Api(client)
@@ -925,17 +940,91 @@ async def _get_k8s_jobs(
         logger.error(f"Failed to get jobs for flow run {flow_run_id}: {e}")
         return []
     finally:
+        if client is not None:
+            await client.close()  # type: ignore
+
+
+_JOB_LOOKUP_REQUEST_TIMEOUT = 30
+_JOB_LOOKUP_RETRY_WAIT = wait_exponential_jitter(initial=1, max=60)
+
+
+def _is_transient_job_lookup_error(exc: BaseException) -> bool:
+    if isinstance(exc, ApiException):
+        status = exc.status or 0
+        return status in (408, 429) or (500 <= status < 600 and status != 501)
+    return isinstance(exc, (aiohttp.ClientError, TimeoutError, ConnectionError))
+
+
+async def _read_job_uid(name: str, namespace: str) -> str | None:
+    """Return the UID of the named job, or `None` if it doesn't exist."""
+    client = await _get_kubernetes_client()
+    try:
+        job = await BatchV1Api(client).read_namespaced_job(  # type: ignore
+            name=name,
+            namespace=namespace,
+            _request_timeout=_JOB_LOOKUP_REQUEST_TIMEOUT,
+        )
+    except ApiException as e:
+        if e.status == 404:
+            return None
+        raise
+    finally:
         await client.close()  # type: ignore
+    return job.metadata.uid  # type: ignore
+
+
+async def _job_still_exists(
+    name: str, namespace: str, uid: str | None, logger: kopf.Logger
+) -> bool | None:
+    """Return whether the job behind a DELETED watch event still exists.
+
+    A server-side label selector reports a job whose labels stop matching as
+    DELETED even though the job still exists. Only a missing job, or a new job
+    with the same name, confirms the deletion. Kopf doesn't retry raw event
+    handlers, so transient lookup failures are retried here until the lookup
+    succeeds or the handler is cancelled. Returns `None` if the lookup fails
+    permanently, since that proves neither existence nor absence.
+    """
+
+    def log_retry(retry_state: RetryCallState) -> None:
+        assert retry_state.outcome is not None
+        assert retry_state.next_action is not None
+        logger.warning(
+            f"Failed to confirm deletion of job {name} (attempt"
+            f" {retry_state.attempt_number}): {retry_state.outcome.exception()}."
+            f" Retrying in {retry_state.next_action.sleep:.0f}s."
+        )
+
+    try:
+        async for attempt in AsyncRetrying(
+            retry=retry_if_exception(_is_transient_job_lookup_error),
+            wait=_JOB_LOOKUP_RETRY_WAIT,
+            before_sleep=log_retry,
+            reraise=True,
+        ):
+            with attempt:
+                current_uid = await _read_job_uid(name, namespace)
+    except Exception as e:
+        logger.warning(f"Failed to confirm deletion of job {name}: {e}")
+        return None
+    return current_uid is not None and current_uid == uid
+
+
+def _flow_run_state_is_settled(state: State) -> bool:
+    """Return whether the observer should leave a flow run in `state` alone."""
+    return (
+        state.is_final()
+        or state.is_scheduled()
+        or state.is_paused()
+        or state.is_cancelling()
+    )
 
 
 @kopf.on.event(
     "batch",
     "v1",
     "jobs",
-    labels={
-        "prefect.io/flow-run-id": kopf.PRESENT,
-        **settings.observer.additional_label_filters,
-    },
+    labels=_observed_label_filters(),
 )  # type: ignore
 async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
     event: kopf.RawEvent,
@@ -984,14 +1073,32 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
 
     assert flow_run.state is not None, "Expected flow run state to be set"
 
-    if (
-        flow_run.state.is_final()
-        or flow_run.state.is_scheduled()
-        or flow_run.state.is_paused()
-        or flow_run.state.is_cancelling()
-    ):
+    if _flow_run_state_is_settled(flow_run.state):
         logger.debug(f"Flow run {flow_run_id} is in {flow_run.state.name!r}, skipping")
         return
+
+    uid = kwargs.get("uid")
+    if event["type"] == "DELETED":
+        job_exists = await _job_still_exists(name, kwargs["namespace"], uid, logger)
+        if job_exists is not False:
+            if job_exists:
+                logger.debug(f"Job {name} still exists, skipping DELETED event")
+            return
+
+        # Lookup retries may have taken a while, so re-check the flow run.
+        try:
+            flow_run = await orchestration_client.read_flow_run(
+                flow_run_id=uuid.UUID(flow_run_id)
+            )
+        except ObjectNotFound:
+            logger.debug(f"Flow run {flow_run_id} not found, skipping")
+            return
+        assert flow_run.state is not None, "Expected flow run state to be set"
+        if _flow_run_state_is_settled(flow_run.state):
+            logger.debug(
+                f"Flow run {flow_run_id} is in {flow_run.state.name!r}, skipping"
+            )
+            return
 
     # Eagerly fetch pod logs while the flow run is still in a pre-connectivity
     # state (Pending / InfrastructurePending).  We capture them *before* the
@@ -1022,8 +1129,13 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
                 flow_run_id, namespace=kwargs["namespace"], logger=logger
             )
 
-            # Filter out the current job from the list
-            other_jobs = [job for job in k8s_jobs if job.metadata.name != name]  # type: ignore
+            # Filter out the current job from the list. Compare by UID when
+            # available, since a replacement job can reuse the same name.
+            other_jobs = [
+                job
+                for job in k8s_jobs
+                if (job.metadata.uid != uid if uid else job.metadata.name != name)  # type: ignore
+            ]
 
             # Check if any other job is completed or running
             has_other_active_job = any(

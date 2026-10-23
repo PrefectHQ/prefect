@@ -27,6 +27,11 @@ R = TypeVar("R", infer_variance=True)
 # Track all active services for fork handling
 _active_services: weakref.WeakSet[_QueueServiceBase[Any]] = weakref.WeakSet()
 
+# Services take items that are already queued without leaving the event loop.
+# Other services share the global loop, so a service working through a backlog
+# yields to them after this many items in a row.
+_READY_ITEMS_PER_YIELD = 256
+
 
 def _reset_services_after_fork():
     """
@@ -57,6 +62,9 @@ if hasattr(os, "register_at_fork"):
 class _QueueServiceBase(abc.ABC, Generic[T]):
     _instances: dict[int, Self] = {}
     _instance_lock = threading.Lock()
+    # Keep cache access separate from startup serialization: instance() waits for
+    # the global loop, whose service cleanup must be able to evict instances.
+    _instance_cache_lock = threading.Lock()
     _max_queue_size: int = 0  # 0 means unbounded
 
     def __init__(self, *args: Hashable) -> None:
@@ -70,6 +78,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         self._started: bool = False
         self._key = hash((self.__class__, *args))
         self._lock = threading.Lock()
+        self._ready_items_since_yield = 0
         self._queue_get_thread = WorkerThread(
             # TODO: This thread should not need to be a daemon but when it is not, it
             #       can prevent the interpreter from exiting.
@@ -96,6 +105,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """Reset class-level state after fork() to prevent deadlocks in child process."""
         cls._instances.clear()
         cls._instance_lock = threading.Lock()
+        cls._instance_cache_lock = threading.Lock()
 
     def start(self) -> None:
         logger.debug("Starting service %r", self)
@@ -180,14 +190,37 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
             assert self._done_event is not None
             self._done_event.set()
 
+    async def _get_item(self, timeout: Optional[float] = None) -> Optional[T]:
+        """
+        Take the next item from the queue.
+
+        An item that is already queued is taken on the event loop. Only an empty
+        queue waits on the queue thread, which raises `queue.Empty` if `timeout`
+        passes first.
+        """
+        if self._ready_items_since_yield >= _READY_ITEMS_PER_YIELD:
+            self._ready_items_since_yield = 0
+            await asyncio.sleep(0)
+
+        try:
+            item = self._queue.get_nowait()
+        except queue.Empty:
+            pass
+        else:
+            self._ready_items_since_yield += 1
+            return item
+
+        self._ready_items_since_yield = 0
+        return await self._queue_get_thread.submit(
+            create_call(self._queue.get, timeout=timeout)
+        ).aresult()
+
     async def _main_loop(self) -> None:
         last_log_time = 0
         log_interval = 4  # log every 4 seconds
 
         while True:
-            item: Optional[T] = await self._queue_get_thread.submit(
-                create_call(self._queue.get)
-            ).aresult()
+            item: Optional[T] = await self._get_item()
 
             if self._stopped:
                 current_time = asyncio.get_event_loop().time()
@@ -281,7 +314,8 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """
         futures: list[concurrent.futures.Future[bool]] = []
         with cls._instance_lock:
-            instances = tuple(cls._instances.values())
+            with cls._instance_cache_lock:
+                instances = tuple(cls._instances.values())
 
             for instance in instances:
                 futures.append(instance._drain(at_exit=at_exit))
@@ -312,28 +346,44 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """
         with cls._instance_lock:
             key = hash((cls, *args))
-            if key not in cls._instances:
-                cls._instances[key] = cls._new_instance(*args)
+            with cls._instance_cache_lock:
+                instance = cls._instances.get(key)
+            if instance is None or instance._stopped:
+                instance = cls._new_instance(*args)
 
-            return cls._instances[key]
+            return instance
 
     def _remove_instance(self):
-        self._instances.pop(self._key, None)
+        # Only evict this instance; a newer instance may already be cached under
+        # the same key
+        with self._instance_cache_lock:
+            if self._instances.get(self._key) is self:
+                self._instances.pop(self._key, None)
 
     @classmethod
     def _new_instance(cls, *args: Hashable) -> Self:
         """
-        Create and start a new instance of the service.
+        Create, cache, and start a new instance of the service.
         """
         instance = cls(*args)
 
-        # If already on the global loop, just start it here to avoid deadlock
-        if threading.get_ident() == get_global_loop().thread.ident:
-            instance.start()
+        # Cache before starting so that a service which stops while starting, e.g.
+        # because its lifespan failed, evicts itself instead of being cached after
+        # it has already stopped
+        with cls._instance_cache_lock:
+            cls._instances[instance._key] = instance
 
-        # Otherwise, bind the service to the global loop
-        else:
-            from_sync.call_soon_in_loop_thread(create_call(instance.start)).result()
+        try:
+            # If already on the global loop, just start it here to avoid deadlock
+            if threading.get_ident() == get_global_loop().thread.ident:
+                instance.start()
+
+            # Otherwise, bind the service to the global loop
+            else:
+                from_sync.call_soon_in_loop_thread(create_call(instance.start)).result()
+        except BaseException:
+            instance._remove_instance()
+            raise
 
         return instance
 
@@ -479,9 +529,7 @@ class BatchedQueueService(QueueService[T]):
             deadline = get_deadline(self.min_interval)
             while batch_size < self.max_batch_size:
                 try:
-                    item = await self._queue_get_thread.submit(
-                        create_call(self._queue.get, timeout=get_timeout(deadline))
-                    ).aresult()
+                    item = await self._get_item(timeout=get_timeout(deadline))
 
                     if item is None:
                         done = True

@@ -8,6 +8,7 @@ import { categorizeError } from "@/api/error-utils";
 import { BlockDocumentCreatePage } from "@/components/blocks/block-document-create-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 const blockCreateSearchSchema = z.object({
 	redirect: z.string().optional(),
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/blocks/catalog_/$slug_/create")({
 		const { slug } = Route.useParams();
 		const { redirect } = Route.useSearch();
 		const { data: blockType } = useSuspenseQuery(buildGetBlockTypeQuery(slug));
+		usePageTitle(`Create Block: ${blockType.name}`);
 		const { data: blockSchemas } = useSuspenseQuery(
 			buildListFilterBlockSchemasQuery({
 				block_schemas: {

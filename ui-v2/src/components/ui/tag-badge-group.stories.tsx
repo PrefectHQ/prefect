@@ -23,3 +23,31 @@ export const TwoTags: Story = {
 export const FourTags: Story = {
 	args: { tags: ["testTag", "testTag2", "testTag3", "testTag4"] },
 };
+
+export const MaxTagsDisplayed: Story = {
+	args: {
+		tags: ["testTag", "testTag2", "testTag3", "testTag4"],
+		maxTagsDisplayed: 2,
+	},
+};
+
+export const LimitedWidth: Story = {
+	args: {
+		tags: [
+			"production",
+			"daily-etl",
+			"team-data-platform",
+			"critical",
+			"region-us-east-1",
+			"backfill",
+		],
+		onTagsChange: (tags) => console.log(tags),
+	},
+	decorators: [
+		(Story) => (
+			<div className="w-72 resize-x overflow-hidden border p-2">
+				<Story />
+			</div>
+		),
+	],
+};

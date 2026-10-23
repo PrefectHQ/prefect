@@ -6,11 +6,13 @@ import { categorizeError } from "@/api/error-utils";
 import { BlockDocumentDetailsPage } from "@/components/blocks/block-document-details-page/block-document-details-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export const Route = createFileRoute("/blocks/block/$id")({
 	component: function RouteComponent() {
 		const { id } = Route.useParams();
 		const { data } = useSuspenseQuery(buildGetBlockDocumentQuery(id));
+		usePageTitle(`Block: ${data.name}`);
 		return <BlockDocumentDetailsPage blockDocument={data} />;
 	},
 	loader: ({ params, context: { queryClient } }) =>

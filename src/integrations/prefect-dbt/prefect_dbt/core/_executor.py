@@ -8,6 +8,8 @@ This module provides:
 """
 
 import atexit
+import os
+import threading
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from enum import Enum
@@ -22,6 +24,7 @@ except ImportError:
     from dbt.events.base_types import EventLevel, EventMsg  # type: ignore[no-redef]
 
 from prefect.logging import get_logger
+from prefect_dbt.core._invoke import invoke_dbt
 from prefect_dbt.core._manifest import DbtNode
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import kwargs_to_args
@@ -234,9 +237,14 @@ class _AdapterPool:
                     conn = conn_mgr.thread_connections.get(key)
                     if conn is not None:
                         return conn
-                    # Transplant: move an open connection from a departed thread.
+                    # Only reuse connections whose owner has exited. In
+                    # particular, cancellation on the supervisor must acquire
+                    # its own connection without stealing an active query's.
+                    live_keys = {
+                        (os.getpid(), thread.ident) for thread in threading.enumerate()
+                    }
                     for old_key in list(conn_mgr.thread_connections):
-                        if old_key != key:
+                        if old_key != key and old_key not in live_keys:
                             old_conn = conn_mgr.thread_connections[old_key]
                             if old_conn.state == "open":
                                 del conn_mgr.thread_connections[old_key]
@@ -489,7 +497,7 @@ class DbtCoreExecutor:
                     )
                 else:
                     runner = dbtRunner(callbacks=[_capture_event])
-                res = runner.invoke(args)
+                res = invoke_dbt(runner, args)
 
                 if self._pool_adapters:
                     if res.success:
@@ -514,9 +522,11 @@ class DbtCoreExecutor:
                 artifacts=artifacts,
                 log_messages=captured_logs or None,
             )
-        except Exception as exc:
+        except BaseException as exc:
             if self._pool_adapters:
                 _adapter_pool.revert()
+            if not isinstance(exc, Exception):
+                raise
             return ExecutionResult(
                 success=False,
                 node_ids=list(node_ids),
@@ -632,7 +642,7 @@ class DbtCoreExecutor:
                 "--log-level-file",
                 str(self._settings.log_level.value),
             ]
-            result = dbtRunner().invoke(args)
+            result = invoke_dbt(dbtRunner(), args)
 
         if not result.success:
             raise RuntimeError(
@@ -673,7 +683,7 @@ class DbtCoreExecutor:
                 "--log-level-file",
                 str(self._settings.log_level.value),
             ]
-            result = dbtRunner().invoke(args)
+            result = invoke_dbt(dbtRunner(), args)
 
         if not result.success:
             raise RuntimeError(

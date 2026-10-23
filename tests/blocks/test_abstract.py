@@ -283,7 +283,10 @@ class TestObjectStorageBlock:
         a_object_storage_block.upload_from_folder(
             from_folder=tmp_path, to_folder="uploaded_from_folder"
         )
-        caplog.records[0].message == f"uploaded from {tmp_path} to uploaded_from_folder"
+        assert (
+            caplog.records[0].message
+            == f"uploaded from {tmp_path} to uploaded_from_folder"
+        )
 
         # download to path
         a_object_storage_block.download_object_to_path(
@@ -304,9 +307,10 @@ class TestObjectStorageBlock:
         a_object_storage_block.download_folder_to_path(
             from_folder="uploaded_from_folder", to_folder="downloaded_to_folder"
         )
-        caplog.records[
-            1
-        ].message == "downloaded from uploaded_from_folder to downloaded_to_folder"
+        assert (
+            caplog.records[1].message
+            == "downloaded from uploaded_from_folder to downloaded_to_folder"
+        )
 
 
 class TestSecretBlock:

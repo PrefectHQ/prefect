@@ -22,7 +22,7 @@ export const FlowRunDuration = ({ flowRun }: FlowRunDurationProps) => {
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<div className="flex gap-2 items-center text-xs font-mono">
+					<div className="flex gap-2 items-center text-xs font-mono shrink-0 whitespace-nowrap">
 						<Icon id="Clock" className="size-4" />
 						{durationLabel}
 					</div>

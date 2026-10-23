@@ -511,6 +511,18 @@ The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it
 ---
 ## DeploymentsSettings
 Settings for configuring deployments defaults
+### `clear_schedules_on_empty`
+Clear existing schedules when an empty schedules list is passed to RunnerDeployment.apply or aapply, including via prefect deploy. This opt-in setting will be removed when clearing becomes the default, after a deprecation period of at least six months or three minor releases, whichever is longer.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `deployments.clear_schedules_on_empty`
+
+**Supported environment variables**:
+`PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY`
+
 ### `default_work_pool_name`
 The default work pool to use when creating deployments.
 
@@ -1703,7 +1715,7 @@ The name of the Docket instance.
 `PREFECT_SERVER_DOCKET_NAME`
 
 ### `url`
-The URL of the Redis server to use for Docket.
+The URL of the Redis server to use for Docket. Supports the memory:// (single-server only), redis://, rediss://, redis+sentinel:// and rediss+sentinel:// schemes; the Sentinel schemes discover the current master through the listed Sentinel daemons and follow failover automatically (requires pydocket>=0.23.1).
 
 **Type**: `string`
 

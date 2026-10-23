@@ -245,6 +245,7 @@ SUPPORTED_SETTINGS = {
         "test_value": 10,
         "legacy": True,
     },
+    "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY": {"test_value": True},
     "PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect"},
     "PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME": {"test_value": "default"},
     "PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER": {
@@ -3209,6 +3210,30 @@ def test_prefect_custom_sources_satisfy_pydantic_warning_check() -> None:
         )
 
     assert not caught
+
+
+class TestServerDocketUrl:
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "memory://",
+            "redis://redis-host:6379/0",
+            "rediss://redis-host:6379/0",
+            "redis+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster/0",
+            "rediss+sentinel://sentinel-a:26379/mymaster",
+        ],
+    )
+    def test_docket_url_accepts_supported_schemes(self, url: str):
+        # The URL is parsed by Docket, not prefect, so the setting must accept
+        # every documented scheme unchanged — in particular the redis+sentinel://
+        # schemes that pydocket>=0.22.0 resolves through Sentinel (see
+        # docs/v3/advanced/self-hosted.mdx).
+        settings = Settings(server={"docket": {"url": url}})
+        assert settings.server.docket.url == url
+
+
+def test_clear_schedules_on_empty_defaults_to_false():
+    assert Settings().deployments.clear_schedules_on_empty is False
 
 
 class TestWorkerDebugMode:

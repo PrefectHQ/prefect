@@ -468,12 +468,23 @@ async def monitor_cancelled_flow_runs(
         .limit(batch_size)
     )
 
-    async with db.session_context() as session:
-        flow_run_result = await session.execute(cancelled_flow_query)
-    flow_run_ids = flow_run_result.scalars().all()
+    last_flow_run_id = UUID(int=0)
 
-    for flow_run_id in flow_run_ids:
-        await docket.add(cancel_child_task_runs)(flow_run_id)
+    while True:
+        async with db.session_context() as session:
+            flow_run_result = await session.execute(
+                cancelled_flow_query.where(db.FlowRun.id > last_flow_run_id)
+            )
+        flow_run_ids = flow_run_result.scalars().all()
+
+        for flow_run_id in flow_run_ids:
+            await docket.add(
+                cancel_child_task_runs, key=f"cancel-child-task-runs:{flow_run_id}"
+            )(flow_run_id)
+
+        if len(flow_run_ids) < batch_size:
+            break
+        last_flow_run_id = flow_run_ids[-1]
 
 
 # Perpetual monitor for subflow runs that need cancellation (find and flood pattern)
@@ -511,9 +522,20 @@ async def monitor_subflow_runs(
         .limit(batch_size)
     )
 
-    async with db.session_context() as session:
-        subflow_run_result = await session.execute(subflow_query)
-    subflow_run_ids = subflow_run_result.scalars().all()
+    last_subflow_run_id = UUID(int=0)
 
-    for subflow_run_id in subflow_run_ids:
-        await docket.add(cancel_subflow_run)(subflow_run_id)
+    while True:
+        async with db.session_context() as session:
+            subflow_run_result = await session.execute(
+                subflow_query.where(db.FlowRun.id > last_subflow_run_id)
+            )
+        subflow_run_ids = subflow_run_result.scalars().all()
+
+        for subflow_run_id in subflow_run_ids:
+            await docket.add(
+                cancel_subflow_run, key=f"cancel-subflow-run:{subflow_run_id}"
+            )(subflow_run_id)
+
+        if len(subflow_run_ids) < batch_size:
+            break
+        last_subflow_run_id = subflow_run_ids[-1]

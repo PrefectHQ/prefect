@@ -16,7 +16,7 @@ dependencies = [
 dynamic = ["version"]
 description = "Prefect integrations with the Dask execution framework."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
@@ -26,10 +26,10 @@ classifiers = [
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: Libraries",
 ]
 
@@ -49,7 +49,7 @@ dev = [
   "mypy",
   "pillow",
   "pre-commit",
-  "pytest-asyncio >= 0.18.2, != 0.22.0, < 0.23.0",
+  "pytest-asyncio >=0.26.0, !=0.22.0, <1.4.1",
   "pytest >= 8.3",
   "pytest-env",
   "pytest-xdist",

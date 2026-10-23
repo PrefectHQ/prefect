@@ -32,6 +32,7 @@ from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.settings.context import get_current_settings
 from prefect.types import DateTime
 from prefect.types._datetime import now
+from prefect_redis.connection import redis_from_url
 
 _MAX_TRANSACTION_ATTEMPTS = 20
 _LeaseExpiryActionResult = (
@@ -89,7 +90,8 @@ class RedisWorkerCleanupQueueSettings(PrefectBaseSettings):
     url: str | None = Field(
         default=None,
         description=(
-            "Full Redis URL for worker cleanup queue storage. When set, "
+            "Full Redis URL for worker cleanup queue storage (redis://, "
+            "rediss://, redis+sentinel:// or rediss+sentinel://). When set, "
             "host, port, database, username, password, and SSL settings are "
             "ignored."
         ),
@@ -1195,8 +1197,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
         settings = RedisWorkerCleanupQueueSettings()
         if settings.url:
-            self._redis_client = Redis.from_url(
+            self._redis_client = redis_from_url(
                 settings.url,
+                asynchronous=True,
                 health_check_interval=settings.health_check_interval,
                 decode_responses=True,
                 socket_timeout=settings.socket_timeout,

@@ -4,7 +4,7 @@ import asyncio
 import shlex
 import time
 from json import JSONDecodeError
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Union, cast
+from typing import Any, Awaitable, Callable, cast
 
 from httpx import HTTPStatusError
 from pydantic import Field
@@ -201,8 +201,8 @@ async def _materialize_dbt_cloud_assets(dbt_cloud_job_run: "DbtCloudJobRun") -> 
 async def get_dbt_cloud_job_info(
     dbt_cloud_credentials: DbtCloudCredentials,
     job_id: int,
-    order_by: Optional[str] = None,
-) -> Dict:
+    order_by: str | None = None,
+) -> dict:
     """
     A task to retrieve information about a dbt Cloud job.
 
@@ -255,9 +255,9 @@ async def create_dbt_cloud_job(
     project_id: int,
     environment_id: int,
     name: str,
-    execute_steps: Optional[List[str]] = None,
+    execute_steps: list[str] | None = None,
     **kwargs: Any,
-) -> Dict:
+) -> dict:
     """
     A task to create a new dbt Cloud job.
 
@@ -377,8 +377,8 @@ async def delete_dbt_cloud_job(
 async def trigger_dbt_cloud_job_run(
     dbt_cloud_credentials: DbtCloudCredentials,
     job_id: int,
-    options: Optional[TriggerJobRunOptions] = None,
-) -> Dict:
+    options: TriggerJobRunOptions | None = None,
+) -> dict:
     """
     A task to trigger a dbt Cloud job run.
 
@@ -474,7 +474,7 @@ async def trigger_dbt_cloud_job_run(
     name="Get dbt Cloud job run ID",
     description="Extracts the run ID from a trigger job run API response",
 )
-def get_run_id(obj: Dict):
+def get_run_id(obj: dict):
     """
     Task that extracts the run ID from a trigger job run API response,
 
@@ -523,11 +523,11 @@ def get_run_id(obj: Dict):
 async def trigger_dbt_cloud_job_run_and_wait_for_completion(
     dbt_cloud_credentials: DbtCloudCredentials,
     job_id: int,
-    trigger_job_run_options: Optional[TriggerJobRunOptions] = None,
+    trigger_job_run_options: TriggerJobRunOptions | None = None,
     max_wait_seconds: int = 900,
     poll_frequency_seconds: int = 10,
     retry_filtered_models_attempts: int = 3,
-) -> Dict:
+) -> dict:
     """
     Flow that triggers a job run and waits for the triggered run to complete.
 
@@ -699,8 +699,8 @@ async def _build_trigger_job_run_options(
     dbt_cloud_credentials: DbtCloudCredentials,
     trigger_job_run_options: TriggerJobRunOptions,
     run_id: int,
-    run_info: Dict[str, Any],
-    job_info: Dict[str, Any],
+    run_info: dict[str, Any],
+    job_info: dict[str, Any],
 ):
     """
     Compiles a list of steps (commands) to retry, then either build trigger job
@@ -829,10 +829,10 @@ async def _build_trigger_job_run_options(
 async def retry_dbt_cloud_job_run_subset_and_wait_for_completion(
     dbt_cloud_credentials: DbtCloudCredentials,
     run_id: int,
-    trigger_job_run_options: Optional[TriggerJobRunOptions] = None,
+    trigger_job_run_options: TriggerJobRunOptions | None = None,
     max_wait_seconds: int = 900,
     poll_frequency_seconds: int = 10,
-) -> Dict:
+) -> dict:
     """
     Flow that retrys a subset of dbt Cloud job run, filtered by select statuses,
     and waits for the triggered retry to complete.
@@ -980,7 +980,7 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
             await asyncio.sleep(interval_seconds)
 
     @sync_compatible
-    async def get_run(self) -> Dict[str, Any]:
+    async def get_run(self) -> dict[str, Any]:
         """
         Makes a request to the dbt Cloud API to get the run data.
 
@@ -1022,7 +1022,7 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
         )
 
     @sync_compatible
-    async def fetch_result(self, step: Optional[int] = None) -> Dict[str, Any]:
+    async def fetch_result(self, step: int | None = None) -> dict[str, Any]:
         """
         Gets the results from the job run. Since the results
         may not be ready, use wait_for_completion before calling this method.
@@ -1062,8 +1062,8 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
     async def get_run_artifacts(
         self,
         path: Literal["manifest.json", "catalog.json", "run_results.json"],
-        step: Optional[int] = None,
-    ) -> Union[Dict[str, Any], str]:
+        step: int | None = None,
+    ) -> dict[str, Any] | str:
         """
         Get an artifact generated for a completed run.
 
@@ -1095,11 +1095,11 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
 
     def _select_unsuccessful_commands(
         self,
-        run_results: List[Dict[str, Any]],
-        command_components: List[str],
+        run_results: list[dict[str, Any]],
+        command_components: list[str],
         command: str,
         exe_command: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Select nodes that were not successful and rebuild a command.
         """
@@ -1134,8 +1134,8 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
 
     async def _build_trigger_job_run_options(
         self,
-        job: Dict[str, Any],
-        run: Dict[str, Any],
+        job: dict[str, Any],
+        run: dict[str, Any],
     ) -> TriggerJobRunOptions:
         """
         Compiles a list of steps (commands) to retry, then either build trigger job
@@ -1316,7 +1316,7 @@ class DbtCloudJob(JobBlock):
     )
 
     @sync_compatible
-    async def get_job(self, order_by: Optional[str] = None) -> Dict[str, Any]:
+    async def get_job(self, order_by: str | None = None) -> dict[str, Any]:
         """
         Retrieve information about a dbt Cloud job.
 
@@ -1338,7 +1338,7 @@ class DbtCloudJob(JobBlock):
 
     @sync_compatible
     async def trigger(
-        self, trigger_job_run_options: Optional[TriggerJobRunOptions] = None
+        self, trigger_job_run_options: TriggerJobRunOptions | None = None
     ) -> DbtCloudJobRun:
         """
         Triggers a dbt Cloud job.
@@ -1378,7 +1378,7 @@ async def run_dbt_cloud_job(
     dbt_cloud_job: DbtCloudJob,
     targeted_retries: int = 3,
     create_assets: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Flow that triggers and waits for a dbt Cloud job run, retrying a
     subset of failed nodes if necessary.
@@ -1408,7 +1408,7 @@ async def run_dbt_cloud_job(
         ```
     """
     logger = get_run_logger()
-    asset_materialization_runs: List[DbtCloudJobRun] = []
+    asset_materialization_runs: list[DbtCloudJobRun] = []
 
     run = await task(dbt_cloud_job.trigger.aio)(dbt_cloud_job)
 

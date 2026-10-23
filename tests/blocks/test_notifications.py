@@ -1,3 +1,4 @@
+import json
 import logging
 import urllib
 from typing import Type
@@ -485,6 +486,20 @@ class TestMattermostWebhook:
             body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
         )
 
+    def test_botname_reaches_the_mattermost_payload(self):
+        mm_block = MattermostWebhook(
+            hostname="example.com",
+            token="token",
+            botname="Prefect Bot",
+        )
+
+        with patch("requests.post") as post:
+            post.return_value.status_code = 200
+            list(mm_block._apprise_client)[0].send(body="test")
+
+        payload = json.loads(post.call_args.kwargs["data"])
+        assert payload["username"] == "Prefect Bot"
+
     def test_is_picklable(self):
         block = MattermostWebhook(token="token", hostname="example.com")
         pickled = cloudpickle.dumps(block)
@@ -963,6 +978,37 @@ class TestCustomWebhook:
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
+
+    async def test_json_data_with_null_values(self):
+        with respx.mock(using="httpx") as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={
+                    "text": "{{body}}",
+                    "metadata": {"optional": None},
+                    "items": [None, "{{name}}"],
+                },
+            )
+            await custom_block.notify("test")
+
+            last_req = xmock.calls.last.request
+            assert (
+                last_req.content
+                == b'{"text":"test","metadata":{"optional":null},"items":[null,"test name"]}'
+            )
+
+    async def test_json_data_with_null_values_still_rejects_unknown_placeholders(
+        self,
+    ):
+        with pytest.raises(KeyError, match="json_data"):
+            CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"text": "{{unknown}}", "metadata": {"optional": None}},
+            )
 
     async def test_subst_none(self):
         with respx.mock(using="httpx") as xmock:

@@ -21,7 +21,7 @@ export const FlowRunTaskRuns = ({ flowRun }: FlowRunTaskRunsProps) => {
 	}
 
 	return (
-		<div className="flex items-center gap-2">
+		<div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
 			<Icon id="Spline" className="size-4" />
 			<p
 				className={clsx(

@@ -7,8 +7,13 @@ import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
-import { buildPaginateDeploymentsQuery } from "@/api/deployments";
+import {
+	buildFilterDeploymentsQuery,
+	buildPaginateDeploymentsQuery,
+	type DeploymentsFilter,
+} from "@/api/deployments";
 import { categorizeError } from "@/api/error-utils";
+import type { FlowRun } from "@/api/flow-runs";
 import {
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
@@ -77,7 +82,6 @@ const searchParams = z
 			.optional()
 			.default("NAME_ASC"),
 	})
-	.optional()
 	.prefault({});
 
 type SearchParams = z.infer<typeof searchParams>;
@@ -111,6 +115,26 @@ const buildPaginationBody = (
 		sort: search["runs.sort"],
 		flow_runs: flowRunsFilter,
 		flows: { operator: "and_" as const, id: { any_: [flowId] } },
+	};
+};
+
+const buildFlowRunDeploymentsFilter = (
+	flowRuns: FlowRun[],
+): DeploymentsFilter | null => {
+	const deploymentIds = Array.from(
+		new Set(
+			flowRuns
+				.map((run) => run.deployment_id)
+				.filter((id): id is string => Boolean(id)),
+		),
+	);
+	if (deploymentIds.length === 0) {
+		return null;
+	}
+	return {
+		deployments: { operator: "and_", id: { any_: deploymentIds } },
+		offset: 0,
+		sort: "CREATED_DESC",
 	};
 };
 
@@ -364,6 +388,17 @@ export const Route = createFileRoute("/flows/flow/$id")({
 
 		const flowRuns = flowRunsPage?.results ?? [];
 
+		// Load deployments for the visible flow runs so each card can link to its deployment
+		const flowRunDeploymentsFilter = useMemo(
+			() => buildFlowRunDeploymentsFilter(flowRuns),
+			[flowRuns],
+		);
+		const { data: flowRunDeployments } = useQuery(
+			buildFilterDeploymentsQuery(flowRunDeploymentsFilter ?? undefined, {
+				enabled: flowRunDeploymentsFilter !== null,
+			}),
+		);
+
 		// Prefetch task run counts for the current page's flow runs
 		// This ensures the data is ready when FlowRunCard renders
 		useEffect(() => {
@@ -390,10 +425,17 @@ export const Route = createFileRoute("/flows/flow/$id")({
 					const pageData = await queryClient.ensureQueryData(
 						buildPaginateFlowRunsQuery(filter, 30_000),
 					);
-					const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
+					const pageFlowRuns = pageData?.results ?? [];
+					const flowRunIds = pageFlowRuns.map((run) => run.id);
 					if (flowRunIds.length > 0) {
 						void queryClient.prefetchQuery(
 							buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+						);
+					}
+					const deploymentsFilter = buildFlowRunDeploymentsFilter(pageFlowRuns);
+					if (deploymentsFilter) {
+						void queryClient.prefetchQuery(
+							buildFilterDeploymentsQuery(deploymentsFilter),
 						);
 					}
 				})();
@@ -418,6 +460,7 @@ export const Route = createFileRoute("/flows/flow/$id")({
 			<FlowDetail
 				flow={flow}
 				flowRuns={flowRuns}
+				flowRunDeployments={flowRunDeployments ?? []}
 				flowRunsCount={flowRunsPage?.count ?? 0}
 				flowRunsPages={flowRunsPage?.pages ?? 0}
 				deployments={deploymentsPage?.results ?? []}
@@ -545,10 +588,17 @@ export const Route = createFileRoute("/flows/flow/$id")({
 					30_000,
 				),
 			);
-			const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
+			const pageFlowRuns = pageData?.results ?? [];
+			const flowRunIds = pageFlowRuns.map((run) => run.id);
 			if (flowRunIds.length > 0) {
 				void context.queryClient.prefetchQuery(
 					buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+				);
+			}
+			const deploymentsFilter = buildFlowRunDeploymentsFilter(pageFlowRuns);
+			if (deploymentsFilter) {
+				void context.queryClient.prefetchQuery(
+					buildFilterDeploymentsQuery(deploymentsFilter),
 				);
 			}
 		})();

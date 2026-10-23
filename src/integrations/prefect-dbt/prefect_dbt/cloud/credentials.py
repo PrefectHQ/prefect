@@ -1,7 +1,5 @@
 """Module containing credentials for interacting with dbt Cloud"""
 
-from typing import Union
-
 from pydantic import Field, SecretStr
 from typing_extensions import Literal
 
@@ -168,7 +166,7 @@ class DbtCloudCredentials(CredentialsBlock):
 
     def get_client(
         self, client_type: Literal["administrative", "metadata"]
-    ) -> Union[DbtCloudAdministrativeClient, DbtCloudMetadataClient]:
+    ) -> DbtCloudAdministrativeClient | DbtCloudMetadataClient:
         """
         Returns a newly instantiated client for working with the dbt Cloud API.
 
