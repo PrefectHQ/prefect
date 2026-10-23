@@ -27,6 +27,12 @@
 		"enabled": true,
 		"indentStyle": "tab"
 	},
+	"overrides": [
+		{
+			"includes": ["public/mockServiceWorker.js"],
+			"linter": { "enabled": false }
+		}
+	],
 	"assist": { "actions": { "source": { "organizeImports": "on" } } },
 	"linter": {
 		"enabled": true,
