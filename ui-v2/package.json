@@ -146,7 +146,7 @@
     "msw-storybook-addon": "^3.0.0",
     "openapi-typescript": "^7.13.0",
     "postcss": "^8.5.25",
-    "storybook": "^10.5.5",
+    "storybook": "^10.6.3",
     "tailwindcss": "^4.0.8",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
