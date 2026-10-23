@@ -21,11 +21,23 @@ const ComboboxContext = createContext<{
 	setOpen: (open: boolean) => void;
 } | null>(null);
 
-const Combobox = ({ children }: { children: React.ReactNode }) => {
+const Combobox = ({
+	children,
+	onOpenChange,
+}: {
+	children: React.ReactNode;
+	onOpenChange?: (open: boolean) => void;
+}) => {
 	const [open, setOpen] = useState(false);
 	return (
 		<ComboboxContext.Provider value={{ open, setOpen }}>
-			<Popover open={open} onOpenChange={setOpen}>
+			<Popover
+				open={open}
+				onOpenChange={(value) => {
+					setOpen(value);
+					onOpenChange?.(value);
+				}}
+			>
 				{children}
 			</Popover>
 		</ComboboxContext.Provider>

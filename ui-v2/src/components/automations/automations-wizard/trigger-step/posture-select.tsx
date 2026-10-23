@@ -16,7 +16,11 @@ const POSTURE_OPTIONS = [
 
 const DEFAULT_PROACTIVE_WITHIN = 30;
 
-export const PostureSelect = () => {
+export const PostureSelect = ({
+	disableProactive = false,
+}: {
+	disableProactive?: boolean;
+}) => {
 	const form = useFormContext<AutomationWizardSchema>();
 
 	return (
@@ -61,7 +65,11 @@ export const PostureSelect = () => {
 							</SelectTrigger>
 							<SelectContent>
 								{POSTURE_OPTIONS.map((option) => (
-									<SelectItem key={option.value} value={option.value}>
+									<SelectItem
+										key={option.value}
+										value={option.value}
+										disabled={disableProactive && option.value === "Proactive"}
+									>
 										{option.label}
 									</SelectItem>
 								))}
