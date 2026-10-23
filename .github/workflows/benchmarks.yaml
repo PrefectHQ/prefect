@@ -9,6 +9,8 @@ on:
       - .github/workflows/benchmarks.yaml
       - .github/workflows/python-tests.yaml
       - benches/cli-bench.toml
+      - scripts/cli_startup_benchmark.py
+      - tests/scripts/test_cli_startup_benchmark.py
       - "src/prefect/**/*.py"
       - pyproject.toml
       - uv.lock
@@ -113,6 +115,8 @@ jobs:
             should_run:
               - "src/prefect/cli/**"
               - "benches/cli-bench.toml"
+              - "scripts/cli_startup_benchmark.py"
+              - "tests/scripts/test_cli_startup_benchmark.py"
               - "pyproject.toml"
               - "uv.lock"
               - "Dockerfile"
@@ -142,11 +146,6 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
-      - name: Install hyperfine
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y hyperfine
-
       - name: Extract cli-bench config from head
         id: full-config
         run: |
@@ -157,64 +156,6 @@ jobs:
           echo "Using benches/cli-bench.toml from ${{ github.event.pull_request.head.sha }}"
           cat "$config_path"
 
-      - name: Build sharded benchmark config
-        env:
-          CLI_BENCH_SHARD_INDEX: ${{ matrix.shard_index }}
-          CLI_BENCH_SHARD_TOTAL: "4"
-          CLI_BENCH_CONFIG_SOURCE: ${{ steps.full-config.outputs.path }}
-          CLI_BENCH_CONFIG_SHARD: ${{ runner.temp }}/cli-bench.shard.toml
-        run: |
-          uv run python - <<'PY'
-          from __future__ import annotations
-
-          import json
-          import os
-          import tomllib
-          from pathlib import Path
-
-          shard_index = int(os.environ["CLI_BENCH_SHARD_INDEX"])
-          shard_total = int(os.environ["CLI_BENCH_SHARD_TOTAL"])
-          source_path = Path(os.environ["CLI_BENCH_CONFIG_SOURCE"])
-          output_path = Path(os.environ["CLI_BENCH_CONFIG_SHARD"])
-
-          data = tomllib.loads(source_path.read_text())
-          commands = data.get("commands", [])
-          selected = [
-              command
-              for index, command in enumerate(commands)
-              if index % shard_total == shard_index
-          ]
-
-          if not selected:
-              raise SystemExit(
-                  f"No commands selected for shard {shard_index}/{shard_total}"
-              )
-
-          lines: list[str] = [
-              "# generated shard config",
-              f"# source: {source_path}",
-              f"# shard: {shard_index}/{shard_total}",
-              "",
-              "[project]",
-          ]
-
-          for key, value in data.get("project", {}).items():
-              lines.append(f"{key} = {json.dumps(value)}")
-
-          for command in selected:
-              lines.append("")
-              lines.append("[[commands]]")
-              for key, value in command.items():
-                  lines.append(f"{key} = {json.dumps(value)}")
-
-          output_path.write_text("\n".join(lines) + "\n")
-          print(
-              f"Shard {shard_index}/{shard_total} selected {len(selected)} "
-              f"commands out of {len(commands)}"
-          )
-          print(output_path.read_text())
-          PY
-
       - name: Prepare worktrees
         run: |
           git fetch origin ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
@@ -222,36 +163,39 @@ jobs:
           git worktree add "$RUNNER_TEMP/head" ${{ github.event.pull_request.head.sha }}
 
       - name: Install dependencies
-        run: uv sync --group cli-bench --locked
-
-      - name: Run base benchmarks
+        # Each worktree gets its own environment, built and warmed before measurement
+        # so dependency resolution is never timed as CLI startup.
         run: |
-          uv run --group cli-bench cli-bench \
-            --config "$RUNNER_TEMP/cli-bench.shard.toml" \
-            --project-root "$RUNNER_TEMP/base" \
-            run \
-            --runs 5 \
+          uv sync --group cli-bench --locked
+          for target in base head; do
+            uv sync --locked --no-dev --directory "$RUNNER_TEMP/$target"
+          done
+
+      - name: Test benchmark helper
+        if: ${{ matrix.shard_index == 0 }}
+        run: uv run --group cli-bench pytest tests/scripts/test_cli_startup_benchmark.py -q
+
+      - name: Run paired benchmarks and check shard for regressions
+        # Base and head run back to back per command in alternating order; see
+        # scripts/cli_startup_benchmark.py for the decision rule.
+        env:
+          CLI_BENCH_CONFIG: ${{ steps.full-config.outputs.path }}
+          CLI_BENCH_SHARD_INDEX: ${{ matrix.shard_index }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          uv run --group cli-bench python scripts/cli_startup_benchmark.py \
+            --config "$CLI_BENCH_CONFIG" \
+            --shard-index "$CLI_BENCH_SHARD_INDEX" \
+            --shard-total 4 \
+            --base-root "$RUNNER_TEMP/base" \
+            --base-sha "$BASE_SHA" \
+            --head-root "$RUNNER_TEMP/head" \
+            --head-sha "$HEAD_SHA" \
             --category startup \
-            --output baseline.json
-
-      - name: Run head benchmarks
-        run: |
-          uv run --group cli-bench cli-bench \
-            --config "$RUNNER_TEMP/cli-bench.shard.toml" \
-            --project-root "$RUNNER_TEMP/head" \
-            run \
-            --runs 5 \
-            --category startup \
-            --output comparison.json
-
-      - name: Check shard for regressions
-        run: |
-          uv run --group cli-bench cli-bench compare \
-            baseline.json comparison.json \
-            --threshold 15 \
-            --fail-on-regression \
-            --summary-md cli-benchmark-compare.md \
-            --digest-json cli-benchmark-digest.json
+            --rounds 10 \
+            --warmups 2 \
+            --threshold 15
 
       - name: Upload benchmark shard
         if: always()
