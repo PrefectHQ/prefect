@@ -4477,7 +4477,7 @@ type-checking = [
 
 [[package]]
 name = "prefect-aws"
-version = "0.7.7"
+version = "0.7.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiobotocore" },
@@ -4489,14 +4489,14 @@ dependencies = [
     { name = "tenacity" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c4/80/f2f159f60f5ccf3832df1dd5bb166db21bb33f6842598632f2ee479a897a/prefect_aws-0.7.7.tar.gz", hash = "sha256:939d5dad269c3cfc59a7c44c8b77d123bec83c0aede236e225e35c426d3d6f49", size = 158979, upload-time = "2026-03-30T20:29:11.983Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/c2/af6404a9650854dfab845b43e900cf9fdffdc1b0e1e386fe643d9905e32e/prefect_aws-0.7.12.tar.gz", hash = "sha256:54c10e90b4819a5f8a151937b299a2e585b4410ebd7662305f315abd400204c9", size = 164395, upload-time = "2026-09-08T18:09:40.965Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/58/889c448f2185abef8510a4afad5bf2d89f9295966871f85bc33c69dcc709/prefect_aws-0.7.7-py3-none-any.whl", hash = "sha256:539815c48490209a8841757c4001cf5631d586f55139291c484940216c8d48b9", size = 93852, upload-time = "2026-03-30T20:29:09.965Z" },
+    { url = "https://files.pythonhosted.org/packages/86/0e/d1b5dc785ecd377a465fe227660c8439a47d2c1723054673eb9cd2937bcd/prefect_aws-0.7.12-py3-none-any.whl", hash = "sha256:5c9a47ee81a287b92067a6ccd69ab47b5d860491dba0b3ac7870d12e2d789d99", size = 95548, upload-time = "2026-09-08T18:09:39.609Z" },
 ]
 
 [[package]]
 name = "prefect-azure"
-version = "0.4.8"
+version = "0.4.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -4507,23 +4507,23 @@ dependencies = [
     { name = "prefect-docker" },
     { name = "setuptools" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b6/dd/ef19c86342e3843184d78b1257189a0ec2a3d628af582fa6906f5a0e69bd/prefect_azure-0.4.8.tar.gz", hash = "sha256:235239e3526aac1c3704e34467bb2f0c969f147c06b7297e04eb59eebbbf4952", size = 57940, upload-time = "2026-01-15T22:53:41.935Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/3e/5451d1ffdfd91af9b81fed528fabb2111c3a5b0f1aed43b813909a0a3cc2/prefect_azure-0.4.13.tar.gz", hash = "sha256:0e29a09d2e073d4a6e2b14889fc3f94978e1133300529cfd88ddabfcf481cc5b", size = 66701, upload-time = "2026-09-08T18:27:53.429Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ff/5e/555d30bbc30b9410d54c9908163e7463b724280b633132f430f8dc28b60b/prefect_azure-0.4.8-py3-none-any.whl", hash = "sha256:ea0c94ce837c0056422c2f1d97be36fb94a4ecd9408671afe6dd7f9f893cf426", size = 41702, upload-time = "2026-01-15T22:53:40.532Z" },
+    { url = "https://files.pythonhosted.org/packages/de/2a/83a66d37044f63c7e5d9d634a1f50b9058327e494f8dca6e7c7c35f4a819/prefect_azure-0.4.13-py3-none-any.whl", hash = "sha256:fd32c2912884b8823c3c6d583a913cde850eceab62d761c5d2aa41d0aae1f0fa", size = 47068, upload-time = "2026-09-08T18:27:52.046Z" },
 ]
 
 [[package]]
 name = "prefect-bitbucket"
-version = "0.3.6"
+version = "0.3.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "atlassian-python-api" },
     { name = "prefect" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/c9/c9a8b6ab6da0d9df598898954d935479d5c85c0adae46aa48300380054b9/prefect_bitbucket-0.3.6.tar.gz", hash = "sha256:bbac64d83881049df1cd242f7c9c10b3070de71073b69a95799998620ceabfb2", size = 15945, upload-time = "2026-02-12T22:03:00.972Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/70/3d87753ddfe75be9cc9aca86bf361727596ab35040584c888f307c131cc9/prefect_bitbucket-0.3.7.tar.gz", hash = "sha256:69ea17b8160e53fe88ead06c2114f967568d1ae1e3269c3520902579e6911ab7", size = 16764, upload-time = "2026-06-12T20:19:51.657Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/57/ad/a763c84b954fd2ce3b1cb1c37c833ffd4d38a3a1ca707425902c5076928a/prefect_bitbucket-0.3.6-py3-none-any.whl", hash = "sha256:c951105d0f059d1990aae6bd0a6c58e53b4fb1451e8572b1c425529dfea16cdb", size = 12059, upload-time = "2026-02-12T22:02:59.942Z" },
+    { url = "https://files.pythonhosted.org/packages/d4/c2/975aeb338c949908bb56edd4093244a19314dd022b230b3260ba19cea29d/prefect_bitbucket-0.3.7-py3-none-any.whl", hash = "sha256:f1a3b3972cfa4d7f560260d4d546374ea0463ef43787ee244cf158834db01eef", size = 12129, upload-time = "2026-06-12T20:19:50.713Z" },
 ]
 
 [[package]]
@@ -4568,33 +4568,34 @@ wheels = [
 
 [[package]]
 name = "prefect-docker"
-version = "0.7.1"
+version = "0.7.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docker" },
     { name = "exceptiongroup" },
     { name = "prefect" },
+    { name = "python-on-whales" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/77/76/477cb000395452edbd641734aa1d2b41680b35e9172c11ace685a74b2e54/prefect_docker-0.7.1.tar.gz", hash = "sha256:7d5053bcc049d56b5498ca4629c9b08b31d96f5387e1eb34f510ec322d5aad89", size = 41684, upload-time = "2026-01-15T22:53:06.477Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/55/35e245d41e091bf87207a9e6ee0049620fdb18a6420094ea639f71bac31f/prefect_docker-0.7.4.tar.gz", hash = "sha256:cfd4bd5f36d493472a4aa33b48695330a1ba70d022fdf8efc9aba8f9eea20cb3", size = 50648, upload-time = "2026-09-08T18:33:13.371Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/5c/20f573c6f800ad784603c7bd5787770ef648758289af2970d12c39072534/prefect_docker-0.7.1-py3-none-any.whl", hash = "sha256:b4fe1760c12206d3eaec2826d63acb1235bd41756921eb0c6b5feeb20b157e37", size = 28254, upload-time = "2026-01-15T22:53:04.998Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/bf/ac92a81ba57ab290455e662efe0c2af1d39b81dc47c8048fb7d41ee6266f/prefect_docker-0.7.4-py3-none-any.whl", hash = "sha256:93d743696b79739ce24990796cb9d366516236dd81f3350e57b7f6205af58dc8", size = 32463, upload-time = "2026-09-08T18:33:12.248Z" },
 ]
 
 [[package]]
 name = "prefect-email"
-version = "0.4.2"
+version = "0.4.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prefect" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/68/34/db0062b75f79344c89be9ac94ee8d306ae186d23143516b153c476de3447/prefect_email-0.4.2.tar.gz", hash = "sha256:1bf49a47c72ac6276920fbedb385782aaa34d2bd7bd7df09825b5d8fd509a8fa", size = 16123, upload-time = "2025-04-09T17:44:09.212Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bf/c0/0545483f865632cffa193c9736958ebb4a966bef6d6559f14736becbcd24/prefect_email-0.4.3.tar.gz", hash = "sha256:61b6be361a1a6a39f3d0975cbeca7514a9562719e7e47656e61ccf35385bad12", size = 16801, upload-time = "2026-09-08T18:33:07.514Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/7c/d092fd341f4fa9677c71605e4745b473350b1eb0bd332d91ed911ab3f59c/prefect_email-0.4.2-py3-none-any.whl", hash = "sha256:9d11ed368f8eee4e9a55cafd04e70302acd1a7f585c9e672c4acf3675590a2ee", size = 11054, upload-time = "2025-04-09T17:44:08.141Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/d7/bbb73b56e9e2913cdfaee00b563c93370c57d9d979373e5227434453a4ef/prefect_email-0.4.3-py3-none-any.whl", hash = "sha256:8d9a0d638a9d46a57e82393e7e885cdbf95dd5c162214a864be33aef5eab0b12", size = 11034, upload-time = "2026-09-08T18:33:06.474Z" },
 ]
 
 [[package]]
 name = "prefect-gcp"
-version = "0.6.17"
+version = "0.6.22"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "google-api-python-client" },
@@ -4604,36 +4605,36 @@ dependencies = [
     { name = "python-slugify" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f7/fd/51276d6aa3470fa7ea32385d14acd85028aa95874eda35cc408232c1fdf6/prefect_gcp-0.6.17.tar.gz", hash = "sha256:c4dab814c4c83927a608cb800ca30e8c98c5aede7bdd4ddce22f472737d86d59", size = 94001, upload-time = "2026-02-12T22:06:03.719Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7f/65/ae944a21dea04c6f251d178d8066662beb891a9efd848db5b568943a38e6/prefect_gcp-0.6.22.tar.gz", hash = "sha256:ae6bd3af5338609349e56ecaea062f05a1e11a96892c8d8d68ec35d05c7cb4ae", size = 111642, upload-time = "2026-09-08T18:33:05.369Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/9f/a88b0ecf16387f237e5a46df4022b97e2605d840c0627e7038db2e629994/prefect_gcp-0.6.17-py3-none-any.whl", hash = "sha256:4cfa5aad025dbb5bcf14a69766894ababe36ed68fa0befade572ec766e22f04a", size = 66607, upload-time = "2026-02-12T22:06:01.896Z" },
+    { url = "https://files.pythonhosted.org/packages/af/9f/4e4849a9491a3e2678b39b119a06b9b2334fde4f4da7790efe6dff20e0d6/prefect_gcp-0.6.22-py3-none-any.whl", hash = "sha256:61cd3d06ae6ca9f2486f2e59991cc809694449ddec414f107b3e07013c8196d2", size = 74201, upload-time = "2026-09-08T18:33:03.936Z" },
 ]
 
 [[package]]
 name = "prefect-github"
-version = "0.4.2"
+version = "0.4.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prefect" },
     { name = "sgqlc" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/82/1b/6f2560ee39082842158c7e450e51e49fea8fcd2c40265e110a2842d2669a/prefect_github-0.4.2.tar.gz", hash = "sha256:d67a741acea0169460e60126d110bc958ed8cbb7d94789738a10416a8f2d87c2", size = 337529, upload-time = "2026-02-12T22:04:25.078Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/7d/ff6beb3864c730ba7656fa96ac14f94712cdcefe04b970085b6d1f218d84/prefect_github-0.4.4.tar.gz", hash = "sha256:4ee1ee45a5f77dca3fbf2bda187fa31f5d93919019bc1948d7a0490482ce3b01", size = 338121, upload-time = "2026-06-12T20:18:26.899Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/68/21/4d1416d0436ba0550b65005c0dd4ae2feec0ddf61628a61c34e4187a65b7/prefect_github-0.4.2-py3-none-any.whl", hash = "sha256:42273113e3c8bcf855290dfdb19b7d08d0e9616d76c9684dce8486cb73a634b6", size = 366399, upload-time = "2026-02-12T22:04:23.882Z" },
+    { url = "https://files.pythonhosted.org/packages/a0/eb/47801be99b546e5880e885ad1636f28d71ec51069d321fde6f5a6ee44e78/prefect_github-0.4.4-py3-none-any.whl", hash = "sha256:2e5c2db909ff7ba25ad2f9c464cee017d257df957c60784285d29054a24c0b5a", size = 366191, upload-time = "2026-06-12T20:18:25.111Z" },
 ]
 
 [[package]]
 name = "prefect-gitlab"
-version = "0.3.4"
+version = "0.3.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prefect" },
     { name = "python-gitlab" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/46/01/c4e2aa22525a0a9a18ba746be1fdcb8d84b5798dceac753d9af6bcfc5b8f/prefect_gitlab-0.3.4.tar.gz", hash = "sha256:a1dcc087b59809ac781ac90858531e621de71d8f1470df62a155cee995bf5817", size = 12920, upload-time = "2026-02-12T22:04:15.942Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/30/89/42719423c73848ca1032c4a73053db301a3c0c9a2144ffd39158233a5ca1/prefect_gitlab-0.3.5.tar.gz", hash = "sha256:99af215ec8a9cef88a512c71a83629de754b9471e8c92403a21e2d9d0a7e9261", size = 13496, upload-time = "2026-06-12T20:18:28.01Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/41/d0e3a0956fd9ae77125fe1e6a87a689307b567c39dcfcb9023c9efa47a04/prefect_gitlab-0.3.4-py3-none-any.whl", hash = "sha256:2a33c6986dab383e6761e653a8b010e9150207ee35b109626f2dc2d522f79c3b", size = 10881, upload-time = "2026-02-12T22:04:14.865Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/b0/b00835e3e971364cabfaae06966cb78c23203ad6a9f15d4fa4f0892ae062/prefect_gitlab-0.3.5-py3-none-any.whl", hash = "sha256:e00c8307a6a1f8bacf1a2df4da2987e49cdd594f08ea12565d3499e0a2d31ecd", size = 10896, upload-time = "2026-06-12T20:18:26.572Z" },
 ]
 
 [[package]]
@@ -4656,15 +4657,15 @@ wheels = [
 
 [[package]]
 name = "prefect-ray"
-version = "0.5.0"
+version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prefect" },
     { name = "ray", extra = ["default"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/31/2f637fde08cdf415ac047e281120b60b3129505794e4f3cc7a9523778e8d/prefect_ray-0.5.0.tar.gz", hash = "sha256:7d54022b4077425b1bd0531c01ceea6c14170ba8c333fa123582f4a20d5eae3e", size = 17256, upload-time = "2026-05-16T16:15:07.707Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/78/72/2ea150918a9ce5580d3278a07e6a34697399f56611c269a85e5d04033d9c/prefect_ray-0.6.0.tar.gz", hash = "sha256:c113e1853633772eb37280cfae5a74d6685791b5b4b225593d1e5c9578832bf4", size = 17581, upload-time = "2026-10-19T14:06:56.507Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ba/9f/89e592fabe68ad9be8adf0b63bbc6400af9ee88f5c938217a5f402db3e20/prefect_ray-0.5.0-py3-none-any.whl", hash = "sha256:9e93b6ebd3555ad543839b6be61d4540d3bafa956b00bb05eb61756690dc9212", size = 11508, upload-time = "2026-05-16T16:15:05.918Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/54/b9c7ee849c2ade8f845cd6cd8ef38a3c90ba17d8d5dca18b27572e6f514c/prefect_ray-0.6.0-py3-none-any.whl", hash = "sha256:638c9f3d7731f559e4e1da259bde0ed92a1978899536b722a7005a6ed5ace285", size = 11507, upload-time = "2026-10-19T14:06:55.333Z" },
 ]
 
 [[package]]
@@ -4682,33 +4683,33 @@ wheels = [
 
 [[package]]
 name = "prefect-shell"
-version = "0.3.6"
+version = "0.3.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prefect" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d7/ba/809413f801683f3c0f09717822311a098eada7f3fb28fcf2e05ac00c8bef/prefect_shell-0.3.6.tar.gz", hash = "sha256:ae768a90493feb3d495643a52bda56f603f50a6a59f03ed2a916c3b8a8cf3e78", size = 20205, upload-time = "2026-06-05T19:39:04.005Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3d/63/175541c5d9aaa0f8573ecca5b8db6fc95471e8167fc407b7585ef650d4e3/prefect_shell-0.3.7.tar.gz", hash = "sha256:82f780348eefe0236e0a1b6fb8d2c3cdb3697a06428012da47e06c24f716e2d2", size = 21168, upload-time = "2026-09-30T16:09:13.844Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/88/968b85998bcfa84e1a6c40fdca52b56f713733ea50be9ef046e74b62ec6f/prefect_shell-0.3.6-py3-none-any.whl", hash = "sha256:03b80d3f4509ef2432b09b27fc1db0444eb38a39460cd84a3a1182e0e58b594a", size = 13074, upload-time = "2026-06-05T19:39:02.973Z" },
+    { url = "https://files.pythonhosted.org/packages/49/d1/452275817b8114ea32c89c44cde1e4a2474448fcace49de94c78b2cea6f6/prefect_shell-0.3.7-py3-none-any.whl", hash = "sha256:e5971d7e984db4a08ebba85fc163d84eeba338faeb3d6868f6c841462375bb2e", size = 13405, upload-time = "2026-09-30T16:09:12.443Z" },
 ]
 
 [[package]]
 name = "prefect-slack"
-version = "0.3.1"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "prefect" },
     { name = "slack-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8c/58/0506e132aaead9a0c4d6adf3d547d8e1fd1010053b0c0a8ba76db419f0eb/prefect_slack-0.3.1.tar.gz", hash = "sha256:3eaa9dd997c1be96d9601b7a1dbfb57f7e9a40d7208b22b6c5cdc0579be13b21", size = 11710, upload-time = "2024-11-15T17:17:29.282Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/cb/9ce2d4a4e0732e91bdc6bc9c1e81239d2cb68ebfefe51fd77b054a7a49b0/prefect_slack-0.4.0.tar.gz", hash = "sha256:a49303796602b8d8df674f69446809ef1ad820c631a8ebeadf136180c638e54c", size = 12391, upload-time = "2026-08-04T17:57:02.182Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/41/12/6b095a290517abd605875be2a746d222a95d0296d44ff81f56fc93a32eac/prefect_slack-0.3.1-py3-none-any.whl", hash = "sha256:84067ef89c9085fd991943747e4943accb3fe586a9401355180bb50dac5dab21", size = 10588, upload-time = "2024-11-15T17:17:27.495Z" },
+    { url = "https://files.pythonhosted.org/packages/22/87/f57aa0df3be1a4f83d1178331bf53b7959637b07e16a7707e995a25e5533/prefect_slack-0.4.0-py3-none-any.whl", hash = "sha256:e91c31eeb4f202413d21509bab8502999400e4f7a374fe67022a0050ab4838c4", size = 10534, upload-time = "2026-08-04T17:57:00.915Z" },
 ]
 
 [[package]]
 name = "prefect-snowflake"
-version = "0.28.8"
+version = "0.28.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prefect" },
@@ -4716,9 +4717,9 @@ dependencies = [
     { name = "snowflake-connector-python" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/91/88/faf51c2d1cbe20ab0bb2773d08ba9422d197e7dc54e261bc2d0c4f8f6ed4/prefect_snowflake-0.28.8.tar.gz", hash = "sha256:0b382420487cd52fe7fa73a3be70e94ec5b4271750111ecfb4d8abc85831c6a4", size = 48715, upload-time = "2026-06-05T19:38:54.366Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/5b/f5d8aeee1367392ba4b0cb289f324c504cf1d0ea8f79ecbb3b71c7e1e932/prefect_snowflake-0.28.9.tar.gz", hash = "sha256:0502e1cf37b663eabfb5e0d965430fe1bb9e2886569af34e59f4bb06160cb3f5", size = 49568, upload-time = "2026-09-08T18:28:06.108Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/e6/ca77f8b6f970ef7e332d7915084e27a6684c802f1924cfbaf9027f3cf809/prefect_snowflake-0.28.8-py3-none-any.whl", hash = "sha256:0351dcdeafee1493cb05e42f2219cb58ba627db7882403d288b325e5622fa2a2", size = 26183, upload-time = "2026-06-05T19:38:53.125Z" },
+    { url = "https://files.pythonhosted.org/packages/be/34/00ce2e3272b0502b5e78457d69d1bccb04dbbe249da1d1a5bed38ec91490/prefect_snowflake-0.28.9-py3-none-any.whl", hash = "sha256:d104d504b6c3a8f49e813b283c2744a8c99180f1ee8bca78a9dbf9ad07fd15df", size = 26406, upload-time = "2026-09-08T18:28:04.859Z" },
 ]
 
 [[package]]
@@ -6370,11 +6371,11 @@ wheels = [
 
 [[package]]
 name = "setuptools"
-version = "83.0.0"
+version = "80.10.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/34/26/f5d29e25ffdb535afef2d35cdb55b325298f96debd670da4c325e08d70f4/setuptools-83.0.0.tar.gz", hash = "sha256:025bccbbf0fa05b6192bc64ae1e7b16e001fd6d6d4d5de03c97b1c1ade523bef", size = 1154254, upload-time = "2026-07-04T15:31:22.699Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/76/95/faf61eb8363f26aa7e1d762267a8d602a1b26d4f3a1e758e92cb3cb8b054/setuptools-80.10.2.tar.gz", hash = "sha256:8b0e9d10c784bf7d262c4e5ec5d4ec94127ce206e8738f29a437945fbc219b70", size = 1200343, upload-time = "2026-01-25T22:38:17.252Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl", hash = "sha256:29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3", size = 1008090, upload-time = "2026-07-04T15:31:20.885Z" },
+    { url = "https://files.pythonhosted.org/packages/94/b8/f1f62a5e3c0ad2ff1d189590bfa4c46b4f3b6e49cef6f26c6ee4e575394d/setuptools-80.10.2-py3-none-any.whl", hash = "sha256:95b30ddfb717250edb492926c92b5221f7ef3fbcc2b07579bcd4a27da21d0173", size = 1064234, upload-time = "2026-01-25T22:38:15.216Z" },
 ]
 
 [[package]]
