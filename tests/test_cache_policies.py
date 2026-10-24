@@ -4,11 +4,12 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Callable
+from typing import Any, Callable
 from unittest.mock import MagicMock
 
 import pytest
 
+from prefect import task
 from prefect.cache_policies import (
     DEFAULT,
     CachePolicy,
@@ -339,6 +340,58 @@ class TestTaskSourcePolicy:
     def test_initializes(self):
         policy = TaskSource()
         assert isinstance(policy, CachePolicy)
+
+    @pytest.mark.parametrize(
+        "expression_a, expression_b",
+        [
+            ("x + 1", "x + 100"),
+            ("left(x)", "right(x)"),
+            ("(lambda: x + 1)()", "(lambda: x + 100)()"),
+        ],
+    )
+    def test_distinguishes_code_without_source(
+        self, expression_a: str, expression_b: str
+    ):
+        policy = TaskSource()
+        keys = []
+        for expression in (expression_a, expression_b, expression_a):
+            namespace: dict[str, Any] = {}
+            exec(f"def dynamic(x):\n    return {expression}", namespace)  # noqa: S102
+            dynamic_task = task(namespace["dynamic"])
+            assert dynamic_task.source_code is None
+            ctx = TaskRunContext.model_construct(task=dynamic_task)
+            keys.append(policy.compute_key(ctx, inputs=None, flow_parameters=None))
+
+        assert keys[0] is not None
+        assert keys[0] == keys[2]
+        assert keys[0] != keys[1]
+
+    @pytest.mark.parametrize("expression", ["x + 1", "(lambda: x + 1)()"])
+    @pytest.mark.parametrize(
+        "filename, prefix, indent",
+        [("job-2", "", "    "), ("job-1", "\n\n", "    "), ("job-2", "\n", "        ")],
+    )
+    def test_code_without_source_ignores_compilation_location(
+        self, expression: str, filename: str, prefix: str, indent: str
+    ):
+        policy = TaskSource()
+        keys = []
+        for name, padding, spacing in [
+            ("job-1", "", "    "),
+            (filename, prefix, indent),
+        ]:
+            namespace: dict[str, Any] = {}
+            code = compile(
+                f"{padding}def dynamic(x):\n{spacing}return {expression}", name, "exec"
+            )
+            exec(code, namespace)  # noqa: S102
+            dynamic_task = task(namespace["dynamic"])
+            assert dynamic_task.source_code is None
+            ctx = TaskRunContext.model_construct(task=dynamic_task)
+            keys.append(policy.compute_key(ctx, inputs=None, flow_parameters=None))
+
+        assert keys[0] is not None
+        assert keys[0] == keys[1]
 
     def test_changes_in_def_change_key(self):
         policy = TaskSource()
