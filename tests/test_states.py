@@ -104,6 +104,29 @@ class TestRaiseStateException:
         ):
             await raise_state_exception(state_cls(data=inner_states))
 
+    async def test_raises_first_doubly_nested_multistate_exception(
+        self, state_cls: type[State]
+    ):
+        inner_states = [
+            [Completed(data="test"), Failed(data=ValueError("Test"))],
+            [Failed(data=ValueError("Should not be raised"))],
+        ]
+        with pytest.raises(ValueError, match="Test"):
+            await raise_state_exception(state_cls(data=inner_states))
+
+    async def test_value_error_if_all_doubly_nested_multistates_are_not_failed(
+        self, state_cls: type[State]
+    ):
+        inner_states = [
+            [Completed(), Completed()],
+            [Completed(data=ValueError("Should not be raised"))],
+        ]
+        with pytest.raises(
+            ValueError,
+            match="Failed state result was an iterable of states but none were failed",
+        ):
+            await raise_state_exception(state_cls(data=inner_states))
+
     async def test_raises_wrapper_with_message_if_result_is_string(self, state_cls):
         state_to_exception = {
             Failed: FailedRun,
@@ -271,6 +294,55 @@ class TestReturnValueToState:
         assert result_state.message == "2/3 states are not final."
         # Aggregate type is failed
         assert result_state.is_failed()
+
+    async def test_nested_states_with_failure(self, store: ResultStore):
+        states = [
+            [Completed(message="hi"), Failed(message="err")],
+            [Completed(message="bye")],
+        ]
+        result_state = await return_value_to_state(states, store)
+        # The nested structure is kept as the result data
+        assert await result_state.result(raise_on_failure=False) == states
+        # Message explains aggregate across the nested states
+        assert result_state.message == "1/3 states failed."
+        # Aggregate type is failed
+        assert result_state.is_failed()
+
+    async def test_nested_states_all_completed(self, store: ResultStore):
+        states = [[Completed(message="hi")], [Completed(message="bye")]]
+        result_state = await return_value_to_state(states, store)
+        assert await result_state.result() == states
+        assert result_state.message == "All states completed."
+        assert result_state.is_completed()
+
+    async def test_nested_states_with_empty_collections(self, store: ResultStore):
+        states = [[Failed(message="err")], []]
+        result_state = await return_value_to_state(states, store)
+        assert await result_state.result(raise_on_failure=False) == states
+        # Empty collections contribute no states to the aggregate
+        assert result_state.message == "1/1 states failed."
+        assert result_state.is_failed()
+
+    async def test_nested_tuple_and_set_states(self, store: ResultStore):
+        states = ([Completed(message="hi")], {Failed(message="err")})
+        result_state = await return_value_to_state(states, store)
+        assert result_state.message == "1/2 states failed."
+        assert result_state.is_failed()
+
+    async def test_mixed_nested_content_is_data(self, store: ResultStore):
+        value = [[Completed(message="hi")], [1, 2, 3]]
+        result_state = await return_value_to_state(value, store)
+        # Not exclusively states, so the value is treated as plain data
+        assert result_state.is_completed()
+        assert await result_state.result() == value
+
+    async def test_self_referencing_collection_is_data(self, store: ResultStore):
+        value = []
+        value.append(value)
+        result_state = await return_value_to_state(value, store)
+        assert result_state.is_completed()
+        result = await result_state.result()
+        assert result[0] is result
 
     @pytest.mark.parametrize("run_identifier", ["task_run_id", "flow_run_id"])
     async def test_single_state_in_future_is_processed(self, run_identifier, store):
@@ -676,6 +748,30 @@ class TestReturnValueToStateSync:
         assert result_state.result(raise_on_failure=False) == states
         assert result_state.message == "2/3 states are not final."
         assert result_state.is_failed()
+
+    def test_nested_states_with_failure(self, store: ResultStore):
+        states = [
+            [Completed(message="hi"), Failed(message="err")],
+            [Completed(message="bye")],
+        ]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "1/3 states failed."
+        assert result_state.is_failed()
+
+    def test_nested_states_all_completed(self, store: ResultStore):
+        states = [[Completed(message="hi")], [Completed(message="bye")]]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result() == states
+        assert result_state.message == "All states completed."
+        assert result_state.is_completed()
+
+    def test_mixed_nested_content_is_data(self, store: ResultStore):
+        value = [[Completed(message="hi")], [1, 2, 3]]
+        result_state = return_value_to_state_sync(value, store)
+        # Not exclusively states, so the value is treated as plain data
+        assert result_state.is_completed()
+        assert result_state.result() == value
 
     @pytest.mark.parametrize("run_identifier", ["task_run_id", "flow_run_id"])
     def test_single_state_in_future_is_processed(self, run_identifier, store):

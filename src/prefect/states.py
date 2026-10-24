@@ -7,7 +7,7 @@ import traceback
 import uuid
 from collections import Counter
 from types import GeneratorType, TracebackType
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, Optional, Type
 
 import anyio
 import httpx
@@ -29,7 +29,6 @@ from prefect.exceptions import (
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.types._datetime import now
 from prefect.utilities.annotations import BaseAnnotation
-from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
     import logging
@@ -369,8 +368,8 @@ async def return_value_to_state(
         return state
 
     # Determine a new state from the aggregate of contained states
-    if isinstance(retval, State) or is_state_iterable(retval):
-        states = StateGroup(ensure_iterable(retval))
+    if contained_states := _flatten_nested_states(retval):
+        states = StateGroup(contained_states)
 
         # Determine the new state type
         if states.all_completed():
@@ -514,9 +513,9 @@ async def aget_state_exception(state: State) -> BaseException:
         # Return the exception from the inner state
         return await aget_state_exception(result)
 
-    elif is_state_iterable(result):
+    elif nested_states := _flatten_nested_states(result):
         # Return the first failure
-        for state in result:
+        for state in nested_states:
             if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return await aget_state_exception(state)
 
@@ -615,9 +614,9 @@ def get_state_exception(state: State) -> BaseException:
         # Return the exception from the inner state
         return get_state_exception(result)
 
-    elif is_state_iterable(result):
+    elif nested_states := _flatten_nested_states(result):
         # Return the first failure
-        for state in result:
+        for state in nested_states:
             if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return get_state_exception(state)
 
@@ -674,6 +673,71 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
         return all([isinstance(o, State) for o in obj])
     else:
         return False
+
+
+# Maximum nesting depth `_flatten_nested_states` will descend into a value
+# before giving up and treating it as plain data. Legitimate nesting (e.g.
+# the results of several `.map()` calls) is only a few levels deep; the cap
+# exists so adversarially deep inputs cannot exhaust the call stack.
+_MAX_NESTED_STATES_DEPTH = 1000
+
+
+def _flatten_nested_states(obj: Any) -> list[State] | None:
+    """
+    Flatten a state, or a collection of states that may be nested inside
+    `list`, `set`, and `tuple` containers, into a list of states.
+
+    Nesting occurs naturally when a run returns the results of several
+    `.map()` calls, which resolve to a list of lists of states.
+
+    Returns `None` if the object contains anything other than states and
+    nested collections of states, or if the collections form a reference
+    cycle. Empty collections contain no states and contribute nothing, so
+    a value made up only of empty collections returns an empty list.
+
+    The traversal is iterative, so inputs nested deeper than
+    `_MAX_NESTED_STATES_DEPTH` cannot raise `RecursionError`; they are
+    treated as plain data and `None` is returned instead.
+    """
+    if isinstance(obj, State):
+        return [obj]
+
+    if isinstance(obj, BaseAnnotation) or not isinstance(obj, (list, set, tuple)):
+        return None
+
+    states: list[State] = []
+    # Ids of the collections on the current path, for reference-cycle detection.
+    on_path: set[int] = {id(obj)}
+    # Explicit stack of (iterator, container, depth); avoids recursion so
+    # adversarially deep inputs cannot exhaust the interpreter's call stack.
+    stack: list[tuple[Iterator[Any], Any, int]] = []
+    container: Any = obj
+    iterator: Iterator[Any] = iter(obj)
+    depth = 1
+    while True:
+        for item in iterator:
+            if isinstance(item, State):
+                states.append(item)
+            elif (
+                isinstance(item, BaseAnnotation)
+                or not isinstance(item, (list, set, tuple))
+                or id(item) in on_path
+                or depth >= _MAX_NESTED_STATES_DEPTH
+            ):
+                # Anything other than states and nested collections, a
+                # reference cycle, or nesting beyond the depth cap means the
+                # value is plain data rather than states.
+                return None
+            else:
+                stack.append((iterator, container, depth))
+                on_path.add(id(item))
+                container, iterator, depth = item, iter(item), depth + 1
+                break
+        else:
+            on_path.discard(id(container))
+            if not stack:
+                return states
+            iterator, container, depth = stack.pop()
 
 
 class StateGroup:
