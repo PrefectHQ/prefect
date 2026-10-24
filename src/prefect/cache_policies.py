@@ -282,12 +282,34 @@ class _None(CachePolicy):
         return other
 
 
+def _get_task_closure_values(task: Any) -> dict[str, Any]:
+    """
+    Extract the values captured by a task's underlying function, keyed by
+    free-variable name.
+
+    Factory-created tasks can share identical source text while capturing
+    different values, so those values are needed to tell the tasks apart.
+    """
+    fn = getattr(task, "fn", None)
+    code = getattr(fn, "__code__", None)
+    closure = getattr(fn, "__closure__", None)
+    if code is None or not closure:
+        return {}
+    return {
+        name: cell.cell_contents
+        for name, cell in zip(code.co_freevars, closure, strict=True)
+    }
+
+
 @dataclass
 class TaskSource(CachePolicy):
     """
     Policy for computing a cache key based on the source code of the task.
 
-    This policy only considers raw lines of code in the task, and not the source code of nested tasks.
+    This policy only considers raw lines of code in the task, and not the
+    source code of nested tasks. Values captured by the task function's
+    closure are included so that tasks created by a factory share a cache
+    key only when they captured the same values.
     """
 
     def compute_key(
@@ -300,22 +322,24 @@ class TaskSource(CachePolicy):
         if not task_ctx:
             return None
 
+        closure_values = _get_task_closure_values(task_ctx.task)
+
         # Use stored source code if available (works after cloudpickle serialization)
         lines = getattr(task_ctx.task, "source_code", None)
-        if lines is not None:
-            return hash_objects(lines, raise_on_failure=True)
+        if lines is None:
+            # Fall back to inspect.getsource for local execution
+            try:
+                lines = inspect.getsource(task_ctx.task)
+            except TypeError:
+                lines = inspect.getsource(task_ctx.task.fn.__class__)
+            except OSError as exc:
+                if "source code" in str(exc):
+                    lines = task_ctx.task.fn.__code__.co_code
+                else:
+                    raise
 
-        # Fall back to inspect.getsource for local execution
-        try:
-            lines = inspect.getsource(task_ctx.task)
-        except TypeError:
-            lines = inspect.getsource(task_ctx.task.fn.__class__)
-        except OSError as exc:
-            if "source code" in str(exc):
-                lines = task_ctx.task.fn.__code__.co_code
-            else:
-                raise
-
+        if closure_values:
+            return hash_objects(lines, closure_values, raise_on_failure=True)
         return hash_objects(lines, raise_on_failure=True)
 
 
