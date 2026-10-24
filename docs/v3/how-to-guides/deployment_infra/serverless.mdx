@@ -701,7 +701,9 @@ Click **Create** to configure your push work pool by selecting a push option in 
     create the IAM role to assume. Set `AWS_ROLE_ARN` to that role in the work pool's environment variables, then
     write the token to a file and point `AWS_WEB_IDENTITY_TOKEN_FILE` at it before creating any boto3 clients.
     boto3 then assumes the role from the token file and re-assumes it whenever the temporary credentials expire,
-    so runs that last longer than the role's maximum session duration keep working:
+    so runs that last longer than the role's maximum session duration keep working. Each re-assumption reuses the
+    same token, because Modal sets `MODAL_IDENTITY_TOKEN` once when the sandbox starts. A run must finish before
+    the token expires; the token's `exp` claim gives the expiration time:
 
     {/* pmd-metadata: notest */}
     ```python
