@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -52,10 +52,12 @@ async def upsert_child_firing(
     db: PrefectDBInterface,
     session: AsyncSession,
     firing: Firing,
+    bucketing_key: Optional[list[str]] = None,
 ):
     automation_id = firing.trigger.automation.id
     parent_trigger_id = firing.trigger.parent.id
     child_trigger_id = firing.trigger.id
+    bucketing_key = bucketing_key or []
 
     upsert = (
         postgresql.insert(db.CompositeTriggerChildFiring)
@@ -66,12 +68,14 @@ async def upsert_child_firing(
             child_firing_id=firing.id,
             child_fired_at=firing.triggered,
             child_firing=firing.model_dump(),
+            bucketing_key=bucketing_key,
         )
         .on_conflict_do_update(
             index_elements=[
                 db.CompositeTriggerChildFiring.automation_id,
                 db.CompositeTriggerChildFiring.parent_trigger_id,
                 db.CompositeTriggerChildFiring.child_trigger_id,
+                db.CompositeTriggerChildFiring.bucketing_key,
             ],
             set_=dict(
                 child_firing_id=firing.id,
@@ -89,6 +93,7 @@ async def upsert_child_firing(
             db.CompositeTriggerChildFiring.automation_id == automation_id,
             db.CompositeTriggerChildFiring.parent_trigger_id == parent_trigger_id,
             db.CompositeTriggerChildFiring.child_trigger_id == child_trigger_id,
+            db.CompositeTriggerChildFiring.bucketing_key == bucketing_key,
         )
     )
 
@@ -100,15 +105,18 @@ async def get_child_firings(
     db: PrefectDBInterface,
     session: AsyncSession,
     trigger: CompositeTrigger,
+    bucketing_key: Optional[list[str]] = None,
 ) -> Sequence["ORMCompositeTriggerChildFiring"]:
+    filters = [
+        db.CompositeTriggerChildFiring.automation_id == trigger.automation.id,
+        db.CompositeTriggerChildFiring.parent_trigger_id == trigger.id,
+        db.CompositeTriggerChildFiring.child_trigger_id.in_(trigger.child_trigger_ids),
+    ]
+    if bucketing_key is not None:
+        filters.append(db.CompositeTriggerChildFiring.bucketing_key == bucketing_key)
+
     result = await session.execute(
-        sa.select(db.CompositeTriggerChildFiring).filter(
-            db.CompositeTriggerChildFiring.automation_id == trigger.automation.id,
-            db.CompositeTriggerChildFiring.parent_trigger_id == trigger.id,
-            db.CompositeTriggerChildFiring.child_trigger_id.in_(
-                trigger.child_trigger_ids
-            ),
-        )
+        sa.select(db.CompositeTriggerChildFiring).filter(*filters)
     )
 
     return result.scalars().unique().all()
