@@ -647,18 +647,25 @@ async def delete(
                 exit_with_error(
                     "Cannot provide a deployment name or id when deleting all deployments."
                 )
-            deployments = await client.read_deployments()
-            if len(deployments) == 0:
+            total = 0
+            while page := await client.read_deployments(offset=total):
+                total += len(page)
+            if total == 0:
                 exit_with_success("No deployments found.")
             if _cli.is_interactive() and not confirm(
-                f"Are you sure you want to delete all {len(deployments)} deployments?",
+                f"Are you sure you want to delete all {total} deployments?",
                 default=False,
             ):
                 exit_with_error("Deletion aborted.")
-            for deployment in deployments:
-                await client.delete_deployment(deployment.id)
-            plural = "" if len(deployments) == 1 else "s"
-            exit_with_success(f"Deleted {len(deployments)} deployment{plural}.")
+            # Always read from the start: deleting shifts later pages, and the
+            # default name sort is not stable for deployments sharing a name.
+            deleted = 0
+            while page := await client.read_deployments():
+                for deployment in page:
+                    await client.delete_deployment(deployment.id)
+                deleted += len(page)
+            plural = "" if deleted == 1 else "s"
+            exit_with_success(f"Deleted {deleted} deployment{plural}.")
 
         if name is None and deployment_id is not None:
             try:

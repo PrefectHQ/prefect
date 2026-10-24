@@ -1,0 +1,89 @@
+---
+title: 3.9
+---
+
+## 3.9.0 - Pendulum's last swing
+
+*Released on October 21, 2026*
+
+**Breaking Changes ⚠️**
+
+* Drop Python 3.10 support by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23324](https://github.com/PrefectHQ/prefect/pull/23324)
+* Remove deprecated Runner execution paths by [@desertaxle](https://github.com/desertaxle) in [#23496](https://github.com/PrefectHQ/prefect/pull/23496)
+* Deprecate Pendulum datetime behavior on Python 3.11–3.12 by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23328](https://github.com/PrefectHQ/prefect/pull/23328)
+
+**New Features 🎉**
+
+* Add Python 3.15 support by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23400](https://github.com/PrefectHQ/prefect/pull/23400)
+
+**Enhancements ➕➕**
+
+* Add opt-in clearing for empty deployment schedules by [@mifuha](https://github.com/mifuha) in [#23412](https://github.com/PrefectHQ/prefect/pull/23412)
+* Cut CPU spent delivering events and API logs by [@desertaxle](https://github.com/desertaxle) in [#23473](https://github.com/PrefectHQ/prefect/pull/23473)
+* Open a run's artifacts directly from the Artifacts tab and run graph in ui-v2 by [@JonasFockstedt](https://github.com/JonasFockstedt) in [#23339](https://github.com/PrefectHQ/prefect/pull/23339)
+* Read automations with action types this version doesn't know by [@nathandpeterson](https://github.com/nathandpeterson) in [#23426](https://github.com/PrefectHQ/prefect/pull/23426)
+* Recover cancellation and suspension observers from websocket outages by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23421](https://github.com/PrefectHQ/prefect/pull/23421)
+
+**Bug Fixes 🐞**
+
+* Keep the runner healthcheck healthy while the API is in maintenance by [@jimid27](https://github.com/jimid27) in [#23325](https://github.com/PrefectHQ/prefect/pull/23325)
+* Skip duplicate worker submissions of runs that already hold a limit slot by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23341](https://github.com/PrefectHQ/prefect/pull/23341)
+* Fix prefect.yaml creation when optional contents is omitted by [@MuhammadWaleed12](https://github.com/MuhammadWaleed12) in [#23334](https://github.com/PrefectHQ/prefect/pull/23334)
+* Check out pinned `commit_sha` when a git checkout already exists by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23374](https://github.com/PrefectHQ/prefect/pull/23374)
+* Preserve pytz timezone names in `RRuleSchedule.from_rrule()` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23396](https://github.com/PrefectHQ/prefect/pull/23396)
+* Fix `visit_collection` returning another object's cached result after id reuse by [@novain-shibu](https://github.com/novain-shibu) in [#23404](https://github.com/PrefectHQ/prefect/pull/23404)
+* Make `*args`/`**kwargs` optional collections in flow parameter schemas by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23418](https://github.com/PrefectHQ/prefect/pull/23418)
+* Return run input from async `pause_flow_run` when pause is rejected by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23435](https://github.com/PrefectHQ/prefect/pull/23435)
+* Allow `Task.with_options(tags=[])` to clear existing tags by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23444](https://github.com/PrefectHQ/prefect/pull/23444)
+* Delete every deployment with `prefect deployment delete --all` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23440](https://github.com/PrefectHQ/prefect/pull/23440)
+* Unwrap `FieldInfo` defaults for unmapped parameters in `task.map()` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23369](https://github.com/PrefectHQ/prefect/pull/23369)
+* Count expect events that race or precede a proactive trigger's window by [@chrisguidry](https://github.com/chrisguidry) in [#23445](https://github.com/PrefectHQ/prefect/pull/23445)
+* Respect `--hours` in `work-pool preview` and `work-queue preview --pool` by [@LuisFigueroaG](https://github.com/LuisFigueroaG) in [#23300](https://github.com/PrefectHQ/prefect/pull/23300)
+* Raise `ValueError` for negative timeout in `pause_flow_run` by [@kingsley-123](https://github.com/kingsley-123) in [#22761](https://github.com/PrefectHQ/prefect/pull/22761)
+* Fix `prefect deploy` dropping list items templated from step outputs by [@MohammadHijjawi97](https://github.com/MohammadHijjawi97) in [#23381](https://github.com/PrefectHQ/prefect/pull/23381)
+* Copy hook lists in `with_options` for tasks and flows by [@spicysharkco](https://github.com/spicysharkco) in [#23442](https://github.com/PrefectHQ/prefect/pull/23442)
+* Return empty list from `extract_instances` when there is no match by [@udsy19](https://github.com/udsy19) in [#23427](https://github.com/PrefectHQ/prefect/pull/23427)
+* Fix `timeout=0` raising a `TimeoutError` in `PrefectFutureList.result` by [@uinstinct](https://github.com/uinstinct) in [#23408](https://github.com/PrefectHQ/prefect/pull/23408)
+* Fix silently skipped task retries in `retry_condition_fn` by [@uinstinct](https://github.com/uinstinct) in [#23397](https://github.com/PrefectHQ/prefect/pull/23397)
+* Fix overlapping action branches in the automation JSON schema by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23448](https://github.com/PrefectHQ/prefect/pull/23448)
+* Use `min_length` and `max_length` on request bodies so the server imports on FastAPI 0.155 by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#23476](https://github.com/PrefectHQ/prefect/pull/23476)
+* Make flow run activity cells navigable by [@VivekVRobo](https://github.com/VivekVRobo) in [#23352](https://github.com/PrefectHQ/prefect/pull/23352)
+* Render run graph artifact icons instead of black boxes in ui-v2 by [@JonasFockstedt](https://github.com/JonasFockstedt) in [#23348](https://github.com/PrefectHQ/prefect/pull/23348)
+
+**Integrations & Dependencies 🤝**
+
+* Bump `source-map-js` from 1.2.1 to 1.2.2 in /ui by [@dependabot](https://github.com/dependabot)[bot] in [#23315](https://github.com/PrefectHQ/prefect/pull/23315)
+* Bump `postcss-selector-parser` from 6.1.2 to 6.1.4 in /ui by [@dependabot](https://github.com/dependabot)[bot] in [#23288](https://github.com/PrefectHQ/prefect/pull/23288)
+* Bump `seroval` from 1.6.2 to 1.6.8 in /ui-v2 by [@dependabot](https://github.com/dependabot)[bot] in [#23314](https://github.com/PrefectHQ/prefect/pull/23314)
+* Bump `snowflake-connector-python` from 4.7.1 to 4.7.3 by [@dependabot](https://github.com/dependabot)[bot] in [#23316](https://github.com/PrefectHQ/prefect/pull/23316)
+* Bump `werkzeug` from 3.1.6 to 3.1.9 by [@dependabot](https://github.com/dependabot)[bot] in [#23317](https://github.com/PrefectHQ/prefect/pull/23317)
+* Bump `mako` from 1.3.12 to 1.4.2 by [@dependabot](https://github.com/dependabot)[bot] in [#23318](https://github.com/PrefectHQ/prefect/pull/23318)
+* Bump `multidict` from 6.7.0 to 6.9.1 by [@dependabot](https://github.com/dependabot)[bot] in [#23319](https://github.com/PrefectHQ/prefect/pull/23319)
+* Bump `uv` from 0.12.10 to 0.12.18 in /scripts/proxy-test by [@dependabot](https://github.com/dependabot)[bot] in [#23365](https://github.com/PrefectHQ/prefect/pull/23365)
+* Bump `cairosvg` from 2.9.0 to 2.9.1 by [@dependabot](https://github.com/dependabot)[bot] in [#23363](https://github.com/PrefectHQ/prefect/pull/23363)
+* Bump `source-map-js` from 1.2.1 to 1.2.2 in /ui-v2 by [@dependabot](https://github.com/dependabot)[bot] in [#23364](https://github.com/PrefectHQ/prefect/pull/23364)
+* Bump `dompurify` from 3.4.12 to 3.4.16 in /ui-v2 by [@dependabot](https://github.com/dependabot)[bot] in [#23362](https://github.com/PrefectHQ/prefect/pull/23362)
+* Bump `aiohttp` from 3.14.3 to 3.14.4 by [@dependabot](https://github.com/dependabot)[bot] in [#23462](https://github.com/PrefectHQ/prefect/pull/23462)
+* Bump `follow-redirects` from 1.16.0 to 1.16.1 in /ui by [@dependabot](https://github.com/dependabot)[bot] in [#23480](https://github.com/PrefectHQ/prefect/pull/23480)
+* Bump `vite` from 8.2.2 to 8.3.4 in /ui by [@dependabot](https://github.com/dependabot)[bot] in [#23485](https://github.com/PrefectHQ/prefect/pull/23485)
+* Cap `fastapi` below 0.151 by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#23478](https://github.com/PrefectHQ/prefect/pull/23478)
+* Update `certifi` and `uv` for the eMudhra CA compromise by [@desertaxle](https://github.com/desertaxle) in [#23483](https://github.com/PrefectHQ/prefect/pull/23483)
+
+**Development & Tidiness 🧹**
+
+* Keep the patched test clock timezone-aware on Python 3.12 by [@chrisguidry](https://github.com/chrisguidry) in [#23465](https://github.com/PrefectHQ/prefect/pull/23465)
+* Wait for the events client to confirm events before asserting in checkpoint tests by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#23477](https://github.com/PrefectHQ/prefect/pull/23477)
+* Guard internal call sites against Pendulum deprecation warnings by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23497](https://github.com/PrefectHQ/prefect/pull/23497)
+* Replace dead Sanity logo URLs in bundled collection metadata by [@mattiamatrix](https://github.com/mattiamatrix) in [#23409](https://github.com/PrefectHQ/prefect/pull/23409)
+
+**Documentation 📓**
+
+* Fix broken in-page anchors in the events reference by [@wznhf78gyf-bot](https://github.com/wznhf78gyf-bot) in [#23331](https://github.com/PrefectHQ/prefect/pull/23331)
+* Fix `items` type in the base job template customization docs by [@rjafarau](https://github.com/rjafarau) in [#23388](https://github.com/PrefectHQ/prefect/pull/23388)
+* Document `UnknownAction` for automations and transfer skips by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23446](https://github.com/PrefectHQ/prefect/pull/23446)
+* Document held expect events for proactive triggers with `after` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23467](https://github.com/PrefectHQ/prefect/pull/23467)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.8.8...3.9.0
+
+
+---

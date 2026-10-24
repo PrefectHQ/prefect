@@ -706,6 +706,7 @@ async def preview(
                 responses = await client.get_scheduled_flow_runs_for_work_pool(
                     work_pool_name=pool,
                     work_queue_names=[name],
+                    scheduled_before=window,
                 )
                 runs = [response.flow_run for response in responses]
             except ObjectNotFound:

@@ -32,11 +32,11 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v7
         id: setup_python
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Create Docker networks
         run: |
@@ -60,7 +60,7 @@ jobs:
             ubuntu/squid
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           python-version: "3.12"
           enable-cache: true

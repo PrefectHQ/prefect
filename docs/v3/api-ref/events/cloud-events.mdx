@@ -126,7 +126,7 @@ rendered or the resulting event was invalid).
 
 #### Resource
 
-Same as [`prefect-cloud.webhook.received`](#prefect-cloudwebhookreceived).
+Same as [`prefect-cloud.webhook.received`](#prefect-cloud-webhook-received).
 
 ## Incident events
 
@@ -157,11 +157,11 @@ Emitted when an incident is resolved.
 
 #### Resource
 
-Same as [`prefect-cloud.incident.declared`](#prefect-cloudincidentdeclared).
+Same as [`prefect-cloud.incident.declared`](#prefect-cloud-incident-declared).
 
 #### Payload
 
-Same as [`prefect-cloud.incident.declared`](#prefect-cloudincidentdeclared), with
+Same as [`prefect-cloud.incident.declared`](#prefect-cloud-incident-declared), with
 status reflecting the resolved state and `end_time` included.
 
 ### `prefect-cloud.incident.reopened`
@@ -170,7 +170,7 @@ Emitted when a previously resolved incident is reopened.
 
 #### Resource
 
-Same as [`prefect-cloud.incident.declared`](#prefect-cloudincidentdeclared).
+Same as [`prefect-cloud.incident.declared`](#prefect-cloud-incident-declared).
 
 ### `prefect-cloud.incident.comment.added`
 
@@ -178,7 +178,7 @@ Emitted when a comment is added to an incident.
 
 #### Resource
 
-Same as [`prefect-cloud.incident.declared`](#prefect-cloudincidentdeclared).
+Same as [`prefect-cloud.incident.declared`](#prefect-cloud-incident-declared).
 
 ### `prefect-cloud.incident.updated.{field}`
 
@@ -198,4 +198,4 @@ identifies which field changed.
 
 #### Resource
 
-Same as [`prefect-cloud.incident.declared`](#prefect-cloudincidentdeclared).
+Same as [`prefect-cloud.incident.declared`](#prefect-cloud-incident-declared).

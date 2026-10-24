@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { type JSX, useCallback, useMemo, useState } from "react";
 import type { Deployment } from "@/api/deployments";
 import type { FlowRun } from "@/api/flow-runs";
+import type { StateType } from "@/api/flow-runs/constants";
 import type { Flow } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
@@ -15,7 +16,7 @@ import {
 } from "@/components/flow-runs/flow-runs-list";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
-import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import { StateTypeFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-type-filter";
 import { SearchInput } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeleteFlowDialog } from "./delete-flow-dialog";
@@ -43,6 +44,8 @@ export default function FlowDetail({
 	flowRunSearch,
 	onFlowRunSearchChange,
 	selectedStates,
+	selectedStateTypes = new Set(),
+	onStateTypesChange,
 	onSelectFilter,
 	deploymentSearch,
 	onDeploymentSearchChange,
@@ -71,8 +74,10 @@ export default function FlowDetail({
 	onSortChange: (sort: SortFilters) => void;
 	flowRunSearch: string | undefined;
 	onFlowRunSearchChange: (search: string) => void;
-	selectedStates: Set<FlowRunState>;
-	onSelectFilter: (states: Set<FlowRunState>) => void;
+	selectedStates: Set<string>;
+	selectedStateTypes?: Set<StateType>;
+	onStateTypesChange?: (types: Set<StateType>) => void;
+	onSelectFilter: (states: Set<string>) => void;
 	deploymentSearch: string | undefined;
 	onDeploymentSearchChange: (search: string) => void;
 	deploymentTags: string[];
@@ -110,8 +115,9 @@ export default function FlowDetail({
 	const onClearFilters = useCallback(() => {
 		onFlowRunSearchChange("");
 		onSelectFilter(new Set());
+		onStateTypesChange?.(new Set());
 		clearSet();
-	}, [onFlowRunSearchChange, onSelectFilter, clearSet]);
+	}, [onFlowRunSearchChange, onSelectFilter, onStateTypesChange, clearSet]);
 
 	return (
 		<>
@@ -161,6 +167,12 @@ export default function FlowDetail({
 									onChange={(e) => onFlowRunSearchChange(e.target.value)}
 									className="w-64"
 								/>
+								{onStateTypesChange && (
+									<StateTypeFilter
+										selectedFilters={selectedStateTypes}
+										onSelectFilter={onStateTypesChange}
+									/>
+								)}
 								<StateFilter
 									selectedFilters={selectedStates}
 									onSelectFilter={onSelectFilter}

@@ -810,8 +810,17 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             )
         )
         raise_if_flow_run_suspension_requested()
-        self.set_state(terminal_state)
         self._return_value = resolved_result
+        state = self.set_state(terminal_state)
+        if terminal_state.is_failed() and state.is_scheduled():
+            self.logger.info(
+                f"Received non-final state {state.name!r} when proposing final"
+                f" state {terminal_state.name!r} and will attempt to run again..."
+            )
+            raise_if_flow_run_suspension_requested()
+            self._return_value = NotSet
+            self.set_state(Running())
+            return result
 
         link_state_to_flow_run_result(terminal_state, resolved_result)
         self._telemetry.end_span_on_success()
@@ -1332,6 +1341,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 self.handle_timeout(exc)
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
+                if self.state.is_final() or self._return_value is not NotSet:
+                    raise
                 self.handle_exception(exc)
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
@@ -1531,8 +1542,17 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             write_result=should_persist_result(),
         )
         raise_if_flow_run_suspension_requested()
-        await self.set_state(terminal_state)
         self._return_value = resolved_result
+        state = await self.set_state(terminal_state)
+        if terminal_state.is_failed() and state.is_scheduled():
+            self.logger.info(
+                f"Received non-final state {state.name!r} when proposing final"
+                f" state {terminal_state.name!r} and will attempt to run again..."
+            )
+            raise_if_flow_run_suspension_requested()
+            self._return_value = NotSet
+            await self.set_state(Running())
+            return result
 
         self._telemetry.end_span_on_success()
 
@@ -2075,6 +2095,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 await self.handle_timeout(exc)
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
+                if self.state.is_final() or self._return_value is not NotSet:
+                    raise
                 await self.handle_exception(exc)
 
     async def call_flow_fn(self) -> Coroutine[Any, Any, R]:
