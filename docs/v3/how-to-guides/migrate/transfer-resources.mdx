@@ -163,6 +163,10 @@ After transferring resources:
 - Automations that use an action type your installed version of Prefect doesn't recognize are skipped, because the resources those actions reference can't be mapped to the destination
 - The skip message lists the unrecognized action types; upgrade Prefect and run the transfer again, or recreate the automation in the destination manually
 
+**Automations skipped due to unrecognized metrics**
+- Automations with a metric trigger that uses a metric your installed version of Prefect doesn't recognize are skipped, because the transfer can't confirm that the destination supports that metric
+- The skip message lists the unrecognized metric names; upgrade Prefect and run the transfer again, or recreate the automation in the destination manually
+
 **Connection errors**
 - Verify both profiles are correctly configured
 - Check network connectivity and authentication
