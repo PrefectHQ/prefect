@@ -340,6 +340,11 @@ def test_drain_after_reset_for_fork_does_not_error():
     "fork" not in multiprocessing.get_all_start_methods(),
     reason="Requires the fork start method",
 )
+@pytest.mark.filterwarnings(
+    # Python 3.15 warns when a multi-threaded process calls fork(); the running
+    # service thread makes this process multi-threaded by design
+    "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning"
+)
 def test_forked_child_exits_cleanly_with_running_service():
     instance = MockService.instance()
     instance.send(1)
