@@ -928,12 +928,32 @@ def test_creating_multiple_automations_with_partial_failure(
     assert create_automation.await_count == 2
 
 
-def test_deleting_all_automations(
+@pytest.fixture
+def stored_automations(
     delete_automation: mock.AsyncMock,
     read_automations: mock.AsyncMock,
     various_automations: List[Automation],
+) -> List[Automation]:
+    """Serve `various_automations` from a store that `delete_automation`
+    removes from, like the API does."""
+    stored = list(various_automations)
+
+    async def read(self, *, offset: int = 0, **kwargs) -> List[Automation]:
+        return stored[offset:]
+
+    async def delete(self, automation_id: UUID) -> None:
+        stored[:] = [a for a in stored if a.id != automation_id]
+
+    read_automations.side_effect = read
+    delete_automation.side_effect = delete
+    return stored
+
+
+def test_deleting_all_automations(
+    delete_automation: mock.AsyncMock,
+    stored_automations: List[Automation],
+    various_automations: List[Automation],
 ):
-    read_automations.return_value = various_automations
     invoke_and_assert(
         ["automations", "delete", "--all"],
         prompts_and_responses=[
@@ -947,14 +967,14 @@ def test_deleting_all_automations(
     )
 
     assert delete_automation.await_count == len(various_automations)
+    assert stored_automations == []
 
 
 def test_deleting_all_automations_aborted(
     delete_automation: mock.AsyncMock,
-    read_automations: mock.AsyncMock,
+    stored_automations: List[Automation],
     various_automations: List[Automation],
 ):
-    read_automations.return_value = various_automations
     invoke_and_assert(
         ["automations", "delete", "--all"],
         prompts_and_responses=[
@@ -968,6 +988,50 @@ def test_deleting_all_automations_aborted(
     )
 
     delete_automation.assert_not_called()
+
+
+@pytest.fixture
+def small_automation_pages(monkeypatch: pytest.MonkeyPatch):
+    """Serve automations two at a time, like a server whose page limit is 2."""
+    from prefect.client.orchestration import PrefectClient
+
+    original_read_automations = PrefectClient.read_automations
+
+    async def read_automations(
+        self: PrefectClient, *, offset: int = 0, **kwargs
+    ) -> List[Automation]:
+        rows = await original_read_automations(self, **kwargs)
+        return rows[offset : offset + 2]
+
+    monkeypatch.setattr(PrefectClient, "read_automations", read_automations)
+
+
+@pytest.mark.usefixtures("small_automation_pages")
+async def test_deleting_all_automations_across_pages(
+    prefect_client: "PrefectClient",
+):
+    for i in range(5):
+        await prefect_client.create_automation(
+            AutomationCore(
+                name=f"automation-{i}",
+                trigger=EventTrigger(
+                    posture=Posture.Reactive, expect={"event.one"}, threshold=1
+                ),
+                actions=[DoNothing()],
+            )
+        )
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        ["automations", "delete", "--all"],
+        prompts_and_responses=[
+            ("Are you sure you want to delete all 5 automations?", "y")
+        ],
+        expected_code=0,
+        expected_output_contains=["Deleted 5 automations."],
+    )
+
+    assert await prefect_client.read_automations() == []
 
 
 def test_deleting_all_automations_when_none_exist(
