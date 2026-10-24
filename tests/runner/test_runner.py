@@ -2,51 +2,48 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import multiprocessing
 import os
 import re
 import signal
-import subprocess
 import sys
 import tempfile
 import time
 import uuid
 import warnings
+from collections import defaultdict
+from dataclasses import dataclass, field
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from time import sleep
-from typing import TYPE_CHECKING, Any, Coroutine, Generator, List, Union
+from typing import Any, Coroutine, Generator, List, Union
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import anyio
+import httpx
 import pytest
-import uv
+import respx
+from packaging.version import Version
 from pydantic import BaseModel
+from pydantic.version import VERSION as PYDANTIC_VERSION
 from starlette import status
 
 import prefect.runner
-import prefect.runner._starter_bundle as bundle_starter_mod
 import prefect.runner._starter_direct as starter_mod
+import prefect.types._datetime
 from prefect import __version__, aserve, flow, serve, task
-from prefect._internal.attempt_control import (
-    AttemptConclusion,
-    EngineOutcomeReceipt,
-    StateOwnershipDelegation,
-)
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.server_maintenance import record_maintenance_backoff
 from prefect._internal.versioning import VersionType
 from prefect.blocks.core import BlockNotSavedError
 from prefect.blocks.system import Secret
-from prefect.bundles import create_bundle_for_flow_run
 from prefect.cli.deploy._storage import _PullStepStorage
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
     FlowRun,
-    State,
     StateType,
     Worker,
     WorkerStatus,
@@ -64,17 +61,19 @@ from prefect.events.clients import (
 )
 from prefect.events.schemas.automations import Posture
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
-from prefect.exceptions import ScriptError
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.flow_engine import (
     run_flow_in_subprocess as original_run_flow_in_subprocess,
 )
 from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
-from prefect.runner._control_channel import ControlSignalStatus
+from prefect.runner._process_manager import ProcessHandle
 from prefect.runner.runner import Runner
-from prefect.runner.server import perform_health_check
+from prefect.runner.server import perform_health_check, run_count
 from prefect.schedules import Cron, Interval
 from prefect.settings import (
+    PREFECT_CLIENT_MAX_RETRIES,
+    PREFECT_CLIENT_RETRY_JITTER_FACTOR,
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_RUNNER_POLL_FREQUENCY,
@@ -82,16 +81,19 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_ENABLE,
     temporary_settings,
 )
-from prefect.states import Cancelling, Crashed
 from prefect.types._datetime import now
 from prefect.utilities import processutils
 from prefect.utilities.annotations import freeze
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
-from prefect.utilities.processutils import command_to_string
 from prefect.utilities.slugify import slugify
 
 pytestmark = pytest.mark.clear_db
+
+PYDANTIC_TEMPORAL_SECONDS = (
+    Version("2.12") <= Version(PYDANTIC_VERSION) < Version("2.14")
+)
 
 
 @pytest.fixture(autouse=True)
@@ -201,31 +203,6 @@ def short_but_not_too_short():
 
 
 @pytest.fixture
-def patch_run_process(monkeypatch: pytest.MonkeyPatch):
-    def patch_run_process(returncode: int = 0, pid: int = 1000):
-        mock_run_process = AsyncMock()
-        mock_process = MagicMock()
-        mock_process.returncode = returncode
-        mock_process.pid = pid
-        mock_run_process.return_value = mock_process
-
-        async def side_effect(
-            *args: Any,
-            **kwargs: Any,
-        ):
-            kwargs["task_status"].started(mock_process)
-            return MagicMock(returncode=returncode, pid=pid)
-
-        mock_run_process.side_effect = side_effect
-
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
-
-        return mock_run_process
-
-    return patch_run_process
-
-
-@pytest.fixture
 def mock_events_client(monkeypatch: pytest.MonkeyPatch):
     mock_events_client = AssertingEventsClient()
     monkeypatch.setattr(
@@ -329,6 +306,13 @@ def in_temporary_runner_directory(tmp_path: Path):
         yield
 
 
+def test_process_map_entry_is_deprecated():
+    with pytest.warns(PrefectDeprecationWarning, match="ProcessMapEntry"):
+        from prefect.runner.runner import ProcessMapEntry
+
+    assert set(ProcessMapEntry.__annotations__) == {"flow_run", "pid"}
+
+
 class TestInit:
     async def test_runner_respects_limit_setting(self):
         runner = Runner()
@@ -347,7 +331,7 @@ class TestInit:
 
         # Be extra sure that the limiter is not initialized
         assert runner._limiter is None
-        assert runner._acquire_limit_slot("foobar") is True
+        assert runner._limit_manager.acquire_for_flow_run(uuid.uuid4()) is True
 
     async def test_runner_respects_poll_setting(self):
         runner = Runner()
@@ -894,10 +878,8 @@ class TestRunner:
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/18106
         """
-        runner_1 = Runner()
+        runner_1 = Runner(pause_on_shutdown=False)
         runner_2 = Runner()
-        runner_2._mark_flow_run_as_cancelled = AsyncMock()
-        runner_2._kill_process = AsyncMock()
         deployment_id = await runner_1.add_deployment(
             await tired_flow.to_deployment(__file__)
         )
@@ -906,11 +888,13 @@ class TestRunner:
             deployment_id=deployment_id
         )
 
-        async with runner_1, runner_2:
-            execute_task = asyncio.create_task(runner_1.execute_flow_run(flow_run.id))
+        async with runner_2:
+            runner_2._cancellation_manager.cancel = AsyncMock()
+            execute_task = asyncio.create_task(runner_1.start(run_once=True))
 
             while True:
                 await anyio.sleep(0.5)
+                assert not execute_task.done(), "Execution ended earlier than expected"
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 assert flow_run.state
                 if flow_run.state.is_running():
@@ -927,91 +911,7 @@ class TestRunner:
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state.is_cancelled()
-        runner_2._mark_flow_run_as_cancelled.assert_not_called()
-        runner_2._kill_process.assert_not_called()
-
-    async def test_runner_does_not_start_engine_for_cancelled_flow_run(
-        self, prefect_client: PrefectClient
-    ):
-        """
-        Test that if a flow run is already cancelled when execute_flow_run
-        is called, the runner exits early without starting the engine.
-        """
-        runner = Runner()
-        deployment_id = await runner.add_deployment(
-            await tired_flow.to_deployment(__file__)
-        )
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        # Set the flow run to CANCELLED before execution
-        await prefect_client.set_flow_run_state(
-            flow_run_id=flow_run.id,
-            state=State(
-                name="Cancelled",
-                type=StateType.CANCELLED,
-                message="Cancelled by test",
-            ),
-            force=True,
-        )
-
-        async with runner:
-            # Mock _submit_run_and_capture_errors to verify it's never called
-            runner._submit_run_and_capture_errors = AsyncMock()
-
-            await runner.execute_flow_run(flow_run.id)
-
-            # Verify the engine was never started
-            runner._submit_run_and_capture_errors.assert_not_called()
-
-        # Verify the flow run is still cancelled
-        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-        assert flow_run.state is not None
-        assert flow_run.state.is_cancelled()
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_does_not_start_engine_for_cancelling_flow_run(
-        self, prefect_client: PrefectClient
-    ):
-        """
-        Test that if a flow run is already cancelling when execute_flow_run
-        is called, the runner exits early without starting the engine.
-        """
-        runner = Runner()
-        deployment_id = await runner.add_deployment(
-            await tired_flow.to_deployment(__file__)
-        )
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        # Set the flow run to CANCELLING before execution
-        await prefect_client.set_flow_run_state(
-            flow_run_id=flow_run.id,
-            state=State(
-                name="Cancelling",
-                type=StateType.CANCELLING,
-                message="Cancelling by test",
-            ),
-            force=True,
-        )
-
-        async with runner:
-            # Mock _submit_run_and_capture_errors to verify it's never called
-            runner._submit_run_and_capture_errors = AsyncMock()
-
-            await runner.execute_flow_run(flow_run.id)
-
-            # Verify the engine was never started
-            runner._submit_run_and_capture_errors.assert_not_called()
-
-        # Verify the flow run state was updated to cancelled
-        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-        assert flow_run.state is not None
-        assert flow_run.state.is_cancelled()
+        runner_2._cancellation_manager.cancel.assert_not_called()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
@@ -1021,7 +921,7 @@ class TestRunner:
         in_temporary_runner_directory: None,
         temp_storage: MockStorage,
     ):
-        runner = Runner(query_seconds=1)
+        runner = Runner(query_seconds=1, pause_on_shutdown=False)
 
         temp_storage.code = dedent(
             """\
@@ -1047,29 +947,29 @@ class TestRunner:
             name=__file__,
         )
 
-        async with runner:
-            flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment_id
-            )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
 
-            execute_task = asyncio.create_task(runner.execute_flow_run(flow_run.id))
-            # Need to wait for polling loop to pick up flow run and
-            # start execution
-            while True:
-                await anyio.sleep(0.5)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                assert flow_run.state
-                if flow_run.state.is_running():
-                    break
+        execute_task = asyncio.create_task(runner.start(run_once=True))
+        # Need to wait for polling loop to pick up flow run and
+        # start execution
+        while True:
+            await anyio.sleep(0.5)
+            assert not execute_task.done(), "Execution ended earlier than expected"
+            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+            assert flow_run.state
+            if flow_run.state.is_running():
+                break
 
-            await prefect_client.set_flow_run_state(
-                flow_run_id=flow_run.id,
-                state=flow_run.state.model_copy(
-                    update={"name": "Cancelling", "type": StateType.CANCELLING}
-                ),
-            )
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=flow_run.state.model_copy(
+                update={"name": "Cancelling", "type": StateType.CANCELLING}
+            ),
+        )
 
-            await execute_task
+        await execute_task
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state.is_cancelled()
@@ -1084,7 +984,7 @@ class TestRunner:
         in_temporary_runner_directory: None,
         temp_storage: MockStorage,
     ):
-        runner = Runner(query_seconds=2)
+        runner = Runner(query_seconds=2, pause_on_shutdown=False)
 
         temp_storage.code = dedent(
             """\
@@ -1110,31 +1010,31 @@ class TestRunner:
             name=__file__,
         )
 
-        async with runner:
-            flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment_id
-            )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
 
-            execute_task = asyncio.create_task(runner.execute_flow_run(flow_run.id))
-            # Need to wait for polling loop to pick up flow run and
-            # start execution
-            while True:
-                await anyio.sleep(0.5)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                assert flow_run.state
-                if flow_run.state.is_running():
-                    break
+        execute_task = asyncio.create_task(runner.start(run_once=True))
+        # Need to wait for polling loop to pick up flow run and
+        # start execution
+        while True:
+            await anyio.sleep(0.5)
+            assert not execute_task.done(), "Execution ended earlier than expected"
+            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+            assert flow_run.state
+            if flow_run.state.is_running():
+                break
 
-            await prefect_client.delete_deployment(deployment_id=deployment_id)
+        await prefect_client.delete_deployment(deployment_id=deployment_id)
 
-            await prefect_client.set_flow_run_state(
-                flow_run_id=flow_run.id,
-                state=flow_run.state.model_copy(
-                    update={"name": "Cancelling", "type": StateType.CANCELLING}
-                ),
-            )
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=flow_run.state.model_copy(
+                update={"name": "Cancelling", "type": StateType.CANCELLING}
+            ),
+        )
 
-            await execute_task
+        await execute_task
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
 
@@ -1155,7 +1055,7 @@ class TestRunner:
         in_temporary_runner_directory: None,
         temp_storage: MockStorage,
     ):
-        runner = Runner()
+        runner = Runner(pause_on_shutdown=False)
         temp_storage.code = dedent(
             """\
         import os
@@ -1184,72 +1084,13 @@ class TestRunner:
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
         )
-        await runner.execute_flow_run(flow_run.id)
+        await runner.start(run_once=True)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state
         assert flow_run.state.is_crashed()
-        # check to make sure on_cancellation hook was called
+        # check to make sure on_crashed hook was called
         assert "This flow crashed!" in caplog.text
-
-    @pytest.mark.parametrize(
-        "exception,hook_type",
-        [
-            # Test various exceptions that can occur when loading flows
-            (
-                ScriptError(
-                    user_exc=FileNotFoundError("File not found"), path="/missing.py"
-                ),
-                "crashed",
-            ),
-            (ValueError("Flow run does not have an associated deployment"), "crashed"),
-            (RuntimeError("Unexpected error!"), "crashed"),
-            # Also test cancellation hooks
-            (
-                ScriptError(
-                    user_exc=FileNotFoundError("File not found"), path="/missing.py"
-                ),
-                "cancellation",
-            ),
-        ],
-    )
-    async def test_runner_handles_exceptions_in_hooks(
-        self,
-        exception,
-        hook_type,
-        caplog: pytest.LogCaptureFixture,
-    ):
-        """Test that exceptions during flow loading don't crash the runner"""
-
-        runner = Runner()
-
-        # Create a mock flow run
-        mock_flow_run = MagicMock()
-        mock_flow_run.id = "test-flow-run-id"
-        mock_flow_run.deployment_id = "test-deployment-id"
-        mock_flow_run.name = "test-flow-run"
-
-        # Mock load_flow_from_flow_run to raise the exception
-        with patch(
-            "prefect.runner.runner.load_flow_from_flow_run", side_effect=exception
-        ):
-            # Run the appropriate hook method
-            if hook_type == "crashed":
-                state = Crashed(message="Test crash")
-                await runner._run_on_crashed_hooks(mock_flow_run, state)
-                expected_msg = (
-                    "Runner failed to retrieve flow to execute on_crashed hooks"
-                )
-            else:
-                state = Cancelling(message="Test cancellation")
-                await runner._run_on_cancellation_hooks(mock_flow_run, state)
-                expected_msg = (
-                    "Runner failed to retrieve flow to execute on_cancellation hooks"
-                )
-
-        # Verify warning was logged with exception details
-        assert expected_msg in caplog.text
-        assert type(exception).__name__ in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     @pytest.mark.parametrize(
@@ -1265,179 +1106,20 @@ class TestRunner:
         dummy_flow: Flow,
         prefect_client: PrefectClient,
     ):
-        runner = Runner(limit=None)
+        runner = Runner(limit=None, pause_on_shutdown=False)
 
-        deployment_id = await (await dummy_flow.to_deployment(__file__)).apply()
+        deployment_id = await runner.add_deployment(
+            await dummy_flow.to_deployment(__file__)
+        )
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
         )
-        await runner.execute_flow_run(flow_run.id)
+        await runner.start(run_once=True)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state
         assert flow_run.state.is_completed()
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_respects_set_limit(
-        self, prefect_client: PrefectClient, caplog
-    ):
-        async with Runner(limit=1) as runner:
-            deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-            good_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment_id
-            )
-            bad_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment_id
-            )
-
-            runner._acquire_limit_slot(good_run.id)
-            await runner.execute_flow_run(bad_run.id)
-            assert "run limit reached" in caplog.text
-
-            flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
-            assert flow_run.state.is_scheduled()
-
-            runner._release_limit_slot(good_run.id)
-            await runner.execute_flow_run(bad_run.id)
-
-            flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
-            assert flow_run.state.is_completed()
-
-    async def test_handles_spaces_in_sys_executable(self, monkeypatch, prefect_client):
-        """
-        Regression test for https://github.com/PrefectHQ/prefect/issues/10820
-        """
-        import sys
-
-        mock_process = AsyncMock()
-        mock_process.returncode = 0
-        mock_process.pid = 4242
-
-        mock_run_process_call = AsyncMock(
-            return_value=mock_process,
-        )
-
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
-
-        monkeypatch.setattr(sys, "executable", "C:/Program Files/Python38/python.exe")
-
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-        await runner._run_process(flow_run)
-
-        # Previously the command would have been
-        # ["C:/Program", "Files/Python38/python.exe", "-m", "prefect.engine"]
-        assert mock_run_process_call.call_args[1]["command"] == [
-            "C:/Program Files/Python38/python.exe",
-            "-m",
-            "prefect.engine",
-        ]
-
-    async def test_handles_quoted_windows_command_strings(
-        self, monkeypatch, prefect_client
-    ):
-        mock_process = AsyncMock()
-        mock_process.returncode = 0
-        mock_process.pid = 4242
-
-        mock_run_process_call = AsyncMock(return_value=mock_process)
-
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
-
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        await runner._run_process(
-            flow_run,
-            command=command_to_string(
-                [
-                    "C:/Program Files/Python38/python.exe",
-                    "-m",
-                    "prefect.engine",
-                ]
-            ),
-        )
-
-        assert mock_run_process_call.call_args[1]["command"] == [
-            "C:/Program Files/Python38/python.exe",
-            "-m",
-            "prefect.engine",
-        ]
-
-    @pytest.mark.windows
-    async def test_handles_native_windows_command_strings(
-        self, monkeypatch, prefect_client
-    ):
-        mock_process = AsyncMock()
-        mock_process.returncode = 0
-        mock_process.pid = 4242
-
-        mock_run_process_call = AsyncMock(return_value=mock_process)
-
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
-
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        await runner._run_process(
-            flow_run,
-            command=r"C:\Users\O'Brien\Python311\python.exe -m prefect.engine",
-        )
-
-        assert mock_run_process_call.call_args[1]["command"] == [
-            r"C:\Users\O'Brien\Python311\python.exe",
-            "-m",
-            "prefect.engine",
-        ]
-
-    async def test_runner_sets_flow_run_env_var_with_dashes(
-        self, monkeypatch, prefect_client
-    ):
-        """
-        Regression test for https://github.com/PrefectHQ/prefect/issues/10851
-        """
-        env_var_value = None
-
-        mock_process = AsyncMock()
-        mock_process.returncode = 0
-        mock_process.pid = 4242
-
-        def capture_env_var(*args, **kwargs):
-            nonlocal env_var_value
-            nonlocal mock_process
-            env_var_value = kwargs["env"].get("PREFECT__FLOW_RUN_ID")
-            return mock_process
-
-        mock_run_process_call = AsyncMock(side_effect=capture_env_var)
-
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
-
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-        await runner._run_process(flow_run)
-
-        assert env_var_value == str(flow_run.id)
-        assert env_var_value != flow_run.id.hex
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_a_remotely_stored_flow(
@@ -1575,7 +1257,7 @@ class TestRunner:
             # Mark the flow run as already being submitted to simulate the
             # race condition where a poll discovers a run already in progress.
             # The poller uses _submitting_flow_run_ids to deduplicate.
-            runner._acquire_limit_slot(flow_run.id)
+            runner._limit_manager.acquire_for_flow_run(flow_run.id)
             runner._scheduled_run_poller._submitting_flow_run_ids.add(flow_run.id)
             await runner._get_and_submit_flow_runs()
 
@@ -1584,456 +1266,6 @@ class TestRunner:
             runner.stopping = True
             runner._cancelling_flow_run_ids.add(flow_run.id)
             await runner._cancel_run(flow_run)
-
-    async def test_runner_cancel_run_signals_control_channel_for_legacy_execute_flow_run_path(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        runner = Runner(pause_on_shutdown=False)
-
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-        flow_run.name = "legacy-run"
-        flow_run.state = Cancelling()
-
-        runner._flow_run_process_map[flow_run.id] = {
-            "pid": 12345,
-            "flow_run": flow_run,
-        }
-
-        call_order: list[tuple[Any, ...]] = []
-
-        async def _signal(flow_run_id: uuid.UUID, intent: str) -> ControlSignalStatus:
-            call_order.append(("signal", flow_run_id, intent))
-            return ControlSignalStatus.ACKNOWLEDGED
-
-        async def _wait(
-            flow_run_id: uuid.UUID, pid: int, *, grace_seconds: float
-        ) -> bool:
-            call_order.append(("wait", flow_run_id, pid))
-            return False
-
-        async def _kill(pid: int, *, grace_seconds: float) -> None:
-            call_order.append(("kill", pid))
-
-        async def _hooks(flow_run: Any, state: Any) -> None:
-            call_order.append(("hooks", flow_run.id, state))
-
-        async def _mark(*args: Any, **kwargs: Any) -> bool:
-            call_order.append(("mark",))
-            return True
-
-        runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(side_effect=_signal)
-        runner._wait_for_process_exit = AsyncMock(side_effect=_wait)
-        runner._kill_process = AsyncMock(side_effect=_kill)
-        runner._run_on_cancellation_hooks = AsyncMock(side_effect=_hooks)
-        runner._mark_flow_run_as_cancelled = AsyncMock(side_effect=_mark)
-        runner._get_flow_and_deployment = AsyncMock(return_value=(None, None))
-        runner._emit_flow_run_cancelled_event = AsyncMock()
-        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
-
-        monkeypatch.setattr("prefect.runner.runner._is_windows_platform", lambda: True)
-        monotonic_values = iter([100.0, 112.5])
-        monkeypatch.setattr(
-            "prefect.runner.runner.time.monotonic",
-            lambda: next(monotonic_values, 112.5),
-        )
-
-        await runner._cancel_run(flow_run)
-
-        assert call_order == [
-            ("signal", flow_run.id, "cancel"),
-            ("wait", flow_run.id, 12345),
-            ("kill", 12345),
-            ("hooks", flow_run.id, flow_run.state),
-            ("mark",),
-        ]
-        runner._wait_for_process_exit.assert_awaited_once_with(
-            flow_run.id, 12345, grace_seconds=30.0
-        )
-        runner._kill_process.assert_awaited_once_with(12345, grace_seconds=17.5)
-        runner._run_on_cancellation_hooks.assert_awaited_once_with(
-            flow_run, flow_run.state
-        )
-        runner._mark_flow_run_as_cancelled.assert_awaited_once()
-        runner._emit_flow_run_cancelled_event.assert_awaited_once_with(
-            flow_run=flow_run, flow=None, deployment=None
-        )
-
-    async def test_runner_cancel_run_skips_kill_when_acked_legacy_process_exits_on_windows(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        runner = Runner(pause_on_shutdown=False)
-        monkeypatch.setattr("prefect.runner.runner._is_windows_platform", lambda: True)
-
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-        flow_run.name = "legacy-run"
-        flow_run.state = Cancelling()
-
-        runner._flow_run_process_map[flow_run.id] = {
-            "pid": 12345,
-            "flow_run": flow_run,
-        }
-
-        runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(
-            return_value=ControlSignalStatus.ACKNOWLEDGED
-        )
-        runner._wait_for_process_exit = AsyncMock(return_value=True)
-        runner._kill_process = AsyncMock()
-        runner._run_on_cancellation_hooks = AsyncMock()
-        runner._mark_flow_run_as_cancelled = AsyncMock()
-        runner._get_flow_and_deployment = AsyncMock(return_value=(None, None))
-        runner._emit_flow_run_cancelled_event = AsyncMock()
-        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
-        runner._client = MagicMock()
-        runner._client.read_flow_run = AsyncMock(return_value=MagicMock(state=None))
-
-        await runner._cancel_run(flow_run)
-
-        runner._wait_for_process_exit.assert_awaited_once_with(
-            flow_run.id, 12345, grace_seconds=30.0
-        )
-        runner._kill_process.assert_not_awaited()
-        runner._run_on_cancellation_hooks.assert_awaited_once_with(
-            flow_run, flow_run.state
-        )
-
-    async def test_runner_cancel_run_skips_finalization_when_acked_legacy_process_already_finalized_on_windows(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        runner = Runner(pause_on_shutdown=False)
-        monkeypatch.setattr("prefect.runner.runner._is_windows_platform", lambda: True)
-        monkeypatch.setattr(
-            "prefect.runner.runner.should_skip_cancel_after_acked_process_exit",
-            AsyncMock(return_value=True),
-        )
-
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-        flow_run.name = "legacy-run"
-        flow_run.state = Cancelling()
-
-        runner._flow_run_process_map[flow_run.id] = {
-            "pid": 12345,
-            "flow_run": flow_run,
-        }
-
-        runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(
-            return_value=ControlSignalStatus.ACKNOWLEDGED
-        )
-        runner._wait_for_process_exit = AsyncMock(return_value=True)
-        runner._kill_process = AsyncMock()
-        runner._run_on_cancellation_hooks = AsyncMock()
-        runner._mark_flow_run_as_cancelled = AsyncMock()
-        runner._emit_flow_run_cancelled_event = AsyncMock()
-        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
-        runner._client = MagicMock()
-        runner._client.read_flow_run = AsyncMock(return_value=MagicMock(state=None))
-
-        await runner._cancel_run(flow_run)
-
-        runner._kill_process.assert_not_awaited()
-        runner._run_on_cancellation_hooks.assert_not_awaited()
-        runner._mark_flow_run_as_cancelled.assert_not_awaited()
-        runner._emit_flow_run_cancelled_event.assert_not_awaited()
-
-    async def test_runner_cancel_run_skips_finalization_when_acked_kill_fallback_finds_process_already_gone_on_windows(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        runner = Runner(pause_on_shutdown=False)
-        monkeypatch.setattr("prefect.runner.runner._is_windows_platform", lambda: True)
-        monkeypatch.setattr(
-            "prefect.runner.runner.should_skip_cancel_after_acked_process_exit",
-            AsyncMock(return_value=True),
-        )
-
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-        flow_run.name = "legacy-run"
-        flow_run.state = Cancelling()
-
-        runner._flow_run_process_map[flow_run.id] = {
-            "pid": 12345,
-            "flow_run": flow_run,
-        }
-
-        runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(
-            return_value=ControlSignalStatus.ACKNOWLEDGED
-        )
-        runner._wait_for_process_exit = AsyncMock(return_value=False)
-        runner._kill_process = AsyncMock(
-            side_effect=RuntimeError(
-                "Unable to kill process 12345: The process was not found."
-            )
-        )
-        runner._is_process_not_found_runtime_error = MagicMock(return_value=True)
-        runner._run_on_cancellation_hooks = AsyncMock()
-        runner._mark_flow_run_as_cancelled = AsyncMock()
-        runner._emit_flow_run_cancelled_event = AsyncMock()
-        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
-        runner._client = MagicMock()
-        runner._client.read_flow_run = AsyncMock(return_value=MagicMock(state=None))
-
-        monotonic_values = iter([100.0, 100.0])
-        monkeypatch.setattr(
-            "prefect.runner.runner.time.monotonic",
-            lambda: next(monotonic_values, 100.0),
-        )
-
-        await runner._cancel_run(flow_run)
-
-        runner._wait_for_process_exit.assert_awaited_once_with(
-            flow_run.id, 12345, grace_seconds=30.0
-        )
-        runner._kill_process.assert_awaited_once_with(12345, grace_seconds=30.0)
-        runner._run_on_cancellation_hooks.assert_not_awaited()
-        runner._mark_flow_run_as_cancelled.assert_not_awaited()
-        runner._emit_flow_run_cancelled_event.assert_not_awaited()
-
-    async def test_runner_cancel_run_kills_immediately_after_ack_on_posix(self):
-        runner = Runner(pause_on_shutdown=False)
-
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-        flow_run.name = "legacy-run"
-        flow_run.state = Cancelling()
-
-        runner._flow_run_process_map[flow_run.id] = {
-            "pid": 12345,
-            "flow_run": flow_run,
-        }
-
-        runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(
-            return_value=ControlSignalStatus.ACKNOWLEDGED
-        )
-        runner._wait_for_process_exit = AsyncMock()
-        runner._kill_process = AsyncMock()
-        runner._run_on_cancellation_hooks = AsyncMock()
-        runner._mark_flow_run_as_cancelled = AsyncMock(return_value=True)
-        runner._get_flow_and_deployment = AsyncMock(return_value=(None, None))
-        runner._emit_flow_run_cancelled_event = AsyncMock()
-        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
-
-        await runner._cancel_run(flow_run)
-
-        runner._wait_for_process_exit.assert_not_awaited()
-        runner._kill_process.assert_awaited_once_with(12345, grace_seconds=30.0)
-
-    async def test_runner_cancel_run_stops_when_engine_receipt_already_concluded_attempt(
-        self,
-    ):
-        runner = Runner(pause_on_shutdown=False)
-
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-        flow_run.name = "legacy-run"
-        flow_run.state = Cancelling()
-
-        runner._flow_run_process_map[flow_run.id] = {
-            "pid": 12345,
-            "flow_run": flow_run,
-        }
-        runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(
-            return_value=ControlSignalStatus.ALREADY_CONCLUDED
-        )
-        runner._wait_for_process_exit = AsyncMock()
-        runner._kill_process = AsyncMock()
-        runner._run_on_cancellation_hooks = AsyncMock()
-        runner._mark_flow_run_as_cancelled = AsyncMock(return_value=True)
-        runner._emit_flow_run_cancelled_event = AsyncMock()
-        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
-
-        await runner._cancel_run(flow_run)
-
-        runner._wait_for_process_exit.assert_not_awaited()
-        runner._kill_process.assert_not_awaited()
-        runner._run_on_cancellation_hooks.assert_not_awaited()
-        runner._mark_flow_run_as_cancelled.assert_not_awaited()
-        runner._emit_flow_run_cancelled_event.assert_not_awaited()
-
-    async def test_runner_cancel_run_skips_cancelled_finalization_when_acked_process_already_completed(
-        self,
-    ):
-        runner = Runner(pause_on_shutdown=False)
-
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-        flow_run.name = "legacy-run"
-        flow_run.state = Cancelling()
-
-        runner._flow_run_process_map[flow_run.id] = {
-            "pid": 12345,
-            "flow_run": flow_run,
-        }
-
-        runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(
-            return_value=ControlSignalStatus.ACKNOWLEDGED
-        )
-        runner._kill_process = AsyncMock(
-            side_effect=RuntimeError(
-                "Unable to kill process 12345: The process was not found."
-            )
-        )
-        runner._run_on_cancellation_hooks = AsyncMock()
-        runner._mark_flow_run_as_cancelled = AsyncMock(return_value=True)
-        runner._get_flow_and_deployment = AsyncMock(return_value=(None, None))
-        runner._emit_flow_run_cancelled_event = AsyncMock()
-        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
-
-        final_state = MagicMock()
-        final_state.is_cancelled.return_value = False
-        final_state.is_final.return_value = True
-        final_state.type.value = "COMPLETED"
-        runner._client = MagicMock()
-        runner._client.read_flow_run = AsyncMock(
-            return_value=MagicMock(state=final_state)
-        )
-
-        await runner._cancel_run(flow_run)
-
-        runner._client.read_flow_run.assert_awaited_once_with(flow_run.id)
-        runner._run_on_cancellation_hooks.assert_not_awaited()
-        runner._mark_flow_run_as_cancelled.assert_not_awaited()
-        runner._emit_flow_run_cancelled_event.assert_not_awaited()
-
-    async def test_mark_flow_run_as_cancelled_falls_back_to_crashed_when_non_terminal(
-        self,
-    ):
-        runner = Runner(pause_on_shutdown=False)
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-
-        runner._state_proposer = MagicMock()
-        runner._state_proposer.propose_cancelled = AsyncMock(
-            side_effect=RuntimeError("api down")
-        )
-        runner._state_proposer.propose_crashed = AsyncMock(return_value=MagicMock())
-
-        non_terminal_state = MagicMock()
-        non_terminal_state.is_cancelled.return_value = False
-        non_terminal_state.is_final.return_value = False
-        runner._client = MagicMock()
-        runner._client.read_flow_run = AsyncMock(
-            return_value=MagicMock(state=non_terminal_state)
-        )
-
-        assert await runner._mark_flow_run_as_cancelled(flow_run) is False
-        runner._state_proposer.propose_crashed.assert_awaited_once()
-
-    async def test_mark_flow_run_as_cancelled_treats_successful_write_as_durable(
-        self,
-    ):
-        runner = Runner(pause_on_shutdown=False)
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-
-        runner._state_proposer = MagicMock()
-        runner._state_proposer.propose_cancelled = AsyncMock(return_value=True)
-        runner._state_proposer.propose_crashed = AsyncMock(return_value=MagicMock())
-
-        runner._client = MagicMock()
-        runner._client.read_flow_run = AsyncMock(side_effect=RuntimeError("api down"))
-
-        assert await runner._mark_flow_run_as_cancelled(flow_run) is True
-        runner._client.read_flow_run.assert_not_awaited()
-        runner._state_proposer.propose_crashed.assert_not_awaited()
-
-    async def test_mark_flow_run_as_cancelled_falls_back_to_crashed_when_propose_cancelled_noops(
-        self,
-    ):
-        runner = Runner(pause_on_shutdown=False)
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-        flow_run.state = None
-
-        runner._state_proposer = MagicMock()
-        runner._state_proposer.propose_cancelled = AsyncMock(return_value=False)
-        runner._state_proposer.propose_crashed = AsyncMock(return_value=MagicMock())
-
-        runner._client = MagicMock()
-        runner._client.read_flow_run = AsyncMock(return_value=MagicMock(state=None))
-
-        assert await runner._mark_flow_run_as_cancelled(flow_run) is False
-        runner._state_proposer.propose_cancelled.assert_awaited_once()
-        runner._state_proposer.propose_crashed.assert_awaited_once()
-
-    async def test_runner_cancel_run_skips_cancelled_event_when_terminal_fallback_used(
-        self,
-    ):
-        runner = Runner(pause_on_shutdown=False)
-
-        flow_run = MagicMock()
-        flow_run.id = uuid.uuid4()
-        flow_run.name = "legacy-run"
-        flow_run.state = Cancelling()
-
-        runner._flow_run_process_map[flow_run.id] = {
-            "pid": 12345,
-            "flow_run": flow_run,
-        }
-
-        runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(
-            return_value=ControlSignalStatus.NOT_ACKNOWLEDGED
-        )
-        runner._kill_process = AsyncMock()
-        runner._run_on_cancellation_hooks = AsyncMock()
-        runner._mark_flow_run_as_cancelled = AsyncMock(return_value=False)
-        runner._get_flow_and_deployment = AsyncMock(return_value=(None, None))
-        runner._emit_flow_run_cancelled_event = AsyncMock()
-        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
-
-        await runner._cancel_run(flow_run)
-
-        runner._mark_flow_run_as_cancelled.assert_awaited_once()
-        runner._emit_flow_run_cancelled_event.assert_not_awaited()
-
-    async def test_wait_for_process_exit_returns_true_when_process_exits(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        runner = Runner(pause_on_shutdown=False)
-        flow_run_id = uuid.uuid4()
-        runner._flow_run_process_map[flow_run_id] = {
-            "pid": 12345,
-            "flow_run": MagicMock(),
-        }
-
-        monkeypatch.setattr(
-            "prefect.runner.runner._pid_is_alive",
-            lambda pid: False,
-        )
-
-        assert await runner._wait_for_process_exit(flow_run_id, 12345, grace_seconds=1)
-
-    async def test_wait_for_process_exit_returns_false_on_timeout(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        runner = Runner(pause_on_shutdown=False)
-        flow_run_id = uuid.uuid4()
-        runner._flow_run_process_map[flow_run_id] = {
-            "pid": 12345,
-            "flow_run": MagicMock(),
-        }
-
-        monkeypatch.setattr(
-            "prefect.runner.runner._pid_is_alive",
-            lambda pid: True,
-        )
-
-        assert (
-            await runner._wait_for_process_exit(flow_run_id, 12345, grace_seconds=0)
-            is False
-        )
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_process_manager_remove_unregisters_control_channel(self):
@@ -2044,491 +1276,6 @@ class TestRunner:
             await runner._process_manager.remove(flow_run_id)
 
         runner._control_channel.unregister.assert_called_once_with(flow_run_id)
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_execute_flow_run_direct_subprocess_registers_control_channel(
-        self,
-        prefect_client: PrefectClient,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        runner = Runner(name="legacy-direct-control-env")
-        deployment_id = await runner.add_flow(dummy_flow_1, __file__, interval=3600)
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
-
-        process = MagicMock()
-        process.pid = 12345
-        process.exitcode = 0
-        process.join = MagicMock()
-
-        run_flow = MagicMock(return_value=process)
-        monkeypatch.setattr(prefect.runner.runner, "run_flow_in_subprocess", run_flow)
-
-        async with runner:
-            runner._control_channel.register = MagicMock(
-                return_value=(4321, "token-123")
-            )
-            result = await runner.execute_flow_run(flow_run.id)
-
-        assert result is process
-        runner._control_channel.register.assert_called_once_with(flow_run.id)
-        run_flow.assert_called_once()
-        assert run_flow.call_args.kwargs["flow_run"].id == flow_run.id
-        assert run_flow.call_args.kwargs["env"] == {
-            "PREFECT__CONTROL_PORT": "4321",
-            "PREFECT__CONTROL_TOKEN": "token-123",
-            "PREFECT__DEPLOYMENT_NAME": "test_runner",
-        }
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_execute_flow_run_direct_subprocess_clears_inherited_deployment_name(
-        self,
-        prefect_client: PrefectClient,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        runner = Runner(name="legacy-direct-clear-deployment-env")
-        deployment_id = await runner.add_flow(dummy_flow_1, __file__, interval=3600)
-
-        runner._deployment_registry._deployment_name_map.pop(deployment_id)
-        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
-
-        process = MagicMock()
-        process.pid = 12345
-        process.exitcode = 0
-        process.join = MagicMock()
-
-        run_flow = MagicMock(return_value=process)
-        monkeypatch.setattr(prefect.runner.runner, "run_flow_in_subprocess", run_flow)
-
-        with patch.dict(
-            os.environ,
-            {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
-            clear=False,
-        ):
-            async with runner:
-                result = await runner.execute_flow_run(flow_run.id)
-
-        assert result is process
-        assert run_flow.call_args.kwargs["env"]["PREFECT__DEPLOYMENT_NAME"] is None
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_run_process_includes_deployment_name_env(
-        self,
-        prefect_client: PrefectClient,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        runner = Runner(name="legacy-engine-deployment-name-env")
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-        runner._deployment_registry.register_deployment(deployment_id, "test_runner")
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
-
-        process = MagicMock()
-        process.pid = 12345
-        process.returncode = 0
-
-        mock_run_process = AsyncMock()
-
-        async def side_effect(*args: Any, **kwargs: Any):
-            kwargs["task_status"].started(process)
-            return process
-
-        mock_run_process.side_effect = side_effect
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
-
-        async with runner:
-            await runner._run_process(flow_run)
-
-        env = mock_run_process.call_args.kwargs["env"]
-        assert env["PREFECT__DEPLOYMENT_NAME"] == "test_runner"
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_run_process_clears_inherited_deployment_name_env(
-        self,
-        prefect_client: PrefectClient,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        runner = Runner(name="legacy-engine-clear-deployment-env")
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
-
-        process = MagicMock()
-        process.pid = 12345
-        process.returncode = 0
-
-        mock_run_process = AsyncMock()
-
-        async def side_effect(*args: Any, **kwargs: Any):
-            kwargs["task_status"].started(process)
-            return process
-
-        mock_run_process.side_effect = side_effect
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
-
-        with patch.dict(
-            os.environ,
-            {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
-            clear=False,
-        ):
-            async with runner:
-                await runner._run_process(flow_run)
-
-        env = mock_run_process.call_args.kwargs["env"]
-        assert "PREFECT__DEPLOYMENT_NAME" not in env
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_execute_flow_run_engine_command_control_env_wins_over_inherited_environment(
-        self,
-        prefect_client: PrefectClient,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        runner = Runner(name="legacy-engine-control-env")
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
-
-        process = MagicMock()
-        process.pid = 12345
-        process.returncode = 0
-
-        mock_run_process = AsyncMock()
-
-        async def side_effect(*args: Any, **kwargs: Any):
-            kwargs["task_status"].started(process)
-            return process
-
-        mock_run_process.side_effect = side_effect
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
-
-        with patch.dict(
-            os.environ,
-            {
-                "PREFECT__CONTROL_PORT": "11111",
-                "PREFECT__CONTROL_TOKEN": "stale-token",
-            },
-            clear=False,
-        ):
-            async with runner:
-                runner._control_channel.register = MagicMock(
-                    return_value=(4321, "token-123")
-                )
-                await runner.execute_flow_run(flow_run.id)
-
-        env = mock_run_process.call_args.kwargs["env"]
-        assert env["PREFECT__CONTROL_PORT"] == "4321"
-        assert env["PREFECT__CONTROL_TOKEN"] == "token-123"
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_run_process_drops_none_env_values_before_launch(
-        self,
-        prefect_client: PrefectClient,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        runner = Runner(name="legacy-engine-env-sanitize")
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
-
-        process = MagicMock()
-        process.pid = 12345
-        process.returncode = 0
-
-        mock_run_process = AsyncMock()
-
-        async def side_effect(*args: Any, **kwargs: Any):
-            kwargs["task_status"].started(process)
-            return process
-
-        mock_run_process.side_effect = side_effect
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
-
-        async with runner:
-            await runner._run_process(
-                flow_run,
-                env={"KEEP_ME": "value", "DROP_ME": None},
-            )
-
-        env = mock_run_process.call_args.kwargs["env"]
-        assert env["KEEP_ME"] == "value"
-        assert "DROP_ME" not in env
-
-    @pytest.mark.parametrize(
-        "exit_code,help_message",
-        [
-            (-9, "Process exited due to a SIGKILL signal"),
-            (
-                247,
-                "Process was terminated due to high memory usage.",
-            ),
-        ],
-    )
-    async def test_runner_logs_exit_code_help_message(
-        self,
-        exit_code: int,
-        help_message: str,
-        caplog: pytest.LogCaptureFixture,
-        patch_run_process: MagicMock,
-        prefect_client: PrefectClient,
-        monkeypatch: pytest.MonkeyPatch,
-        tmp_path: Path,
-    ):
-        # Change directory to avoid polluting the working directory
-        monkeypatch.chdir(str(tmp_path))
-        flow_id = await prefect_client.create_flow(
-            flow=dummy_flow_1,
-        )
-        deployment_id = await prefect_client.create_deployment(
-            flow_id=flow_id,
-            name=f"test-runner-deployment-{uuid.uuid4()}",
-            path=str(
-                prefect.__development_base_path__
-                / "tests"
-                / "test-projects"
-                / "import-project"
-            ),
-            entrypoint="my_module/flow.py:test_flow",
-        )
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id,
-        )
-
-        patch_run_process(returncode=exit_code)
-        async with Runner() as runner:
-            result = await runner.execute_flow_run(
-                flow_run_id=flow_run.id,
-            )
-
-        assert result
-        assert result.returncode == exit_code
-
-        record = next(r for r in caplog.records if help_message in r.message)
-        if exit_code == -9:
-            assert record.levelname == "INFO"
-        else:
-            assert record.levelname == "ERROR"
-
-    @pytest.mark.parametrize(
-        "attempt_conclusion,exit_code,expected_status_code,expects_crash",
-        [
-            (
-                EngineOutcomeReceipt.state_reported(
-                    state_id=uuid.uuid4(),
-                    state_type="FAILED",
-                    state_name="Failed",
-                ),
-                1,
-                0,
-                False,
-            ),
-            (StateOwnershipDelegation("cancel"), 1, 0, False),
-            (None, 7, 7, True),
-        ],
-    )
-    async def test_legacy_execution_interprets_terminal_evidence(
-        self,
-        attempt_conclusion: AttemptConclusion | None,
-        exit_code: int,
-        expected_status_code: int,
-        expects_crash: bool,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        runner = Runner()
-        flow_run = MagicMock(id=uuid.uuid4(), name="test-flow-run")
-        task_status = MagicMock(spec=anyio.abc.TaskStatus)
-        completion_status: asyncio.Future[int | None] = (
-            asyncio.get_running_loop().create_future()
-        )
-        crashed_state = Crashed(message="Process crashed")
-        propose_crashed = AsyncMock(return_value=crashed_state)
-        run_crashed_hooks = AsyncMock()
-        client = MagicMock()
-        client.read_flow_run = AsyncMock()
-
-        monkeypatch.setattr(runner, "_run_process", AsyncMock(return_value=exit_code))
-        monkeypatch.setattr(runner, "_release_limit_slot", MagicMock())
-        monkeypatch.setattr(
-            runner,
-            "_remove_flow_run_process_map_entry",
-            AsyncMock(return_value=attempt_conclusion),
-        )
-        monkeypatch.setattr(runner, "_get_flow_run_logger", MagicMock())
-        monkeypatch.setattr(runner, "_propose_crashed_state", propose_crashed)
-        monkeypatch.setattr(runner, "_run_on_crashed_hooks", run_crashed_hooks)
-        runner._client = client
-
-        status_code = await runner._submit_run_and_capture_errors(
-            flow_run,
-            task_status,
-            completion_status=completion_status,
-        )
-
-        assert status_code == expected_status_code
-        assert completion_status.result() == expected_status_code
-        if expects_crash:
-            propose_crashed.assert_awaited_once()
-            run_crashed_hooks.assert_awaited_once_with(
-                flow_run=flow_run,
-                state=crashed_state,
-            )
-        else:
-            propose_crashed.assert_not_awaited()
-            run_crashed_hooks.assert_not_awaited()
-        client.read_flow_run.assert_not_awaited()
-
-    @pytest.mark.skipif(
-        sys.platform != "win32",
-        reason="subprocess.CREATE_NEW_PROCESS_GROUP is only defined in Windows",
-    )
-    async def test_windows_process_worker_run_sets_process_group_creation_flag(
-        self,
-        patch_run_process: MagicMock,
-        prefect_client: PrefectClient,
-    ):
-        mock = patch_run_process()
-
-        deployment = await dummy_flow_1.ato_deployment(__file__)
-        deployment_id_coro = deployment.apply()
-        if TYPE_CHECKING:
-            assert isinstance(deployment_id_coro, Coroutine)
-        deployment_id = await deployment_id_coro
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        async with Runner() as runner:
-            await runner.execute_flow_run(
-                flow_run_id=flow_run.id,
-            )
-
-        mock.assert_awaited_once()
-        (_, kwargs) = mock.call_args
-        assert kwargs.get("creationflags") == mock.CREATE_NEW_PROCESS_GROUP
-
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason=(
-            "The asyncio.open_process_*.creationflags argument is only supported on Windows"
-        ),
-    )
-    async def test_unix_process_worker_run_does_not_set_creation_flag(
-        self, patch_run_process: MagicMock, prefect_client: PrefectClient
-    ):
-        mock = patch_run_process()
-        deployment = await dummy_flow_1.ato_deployment(__file__)
-        deployment_id_coro = deployment.apply()
-        if TYPE_CHECKING:
-            assert isinstance(deployment_id_coro, Coroutine)
-        deployment_id = await deployment_id_coro
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        async with Runner() as runner:
-            await runner.execute_flow_run(
-                flow_run_id=flow_run.id,
-            )
-
-        mock.assert_awaited_once()
-        (_, kwargs) = mock.call_args
-        assert kwargs.get("creationflags") is None
-
-    async def test_reschedule_flow_runs(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        prefect_client: PrefectClient,
-    ):
-        deployment_id = await (await tired_flow.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        # Use a lightweight subprocess that just sleeps instead of running
-        # the full flow engine in a SpawnProcess. The real subprocess imports
-        # all of prefect from scratch, which can exceed the 90s test timeout
-        # under CI load.
-        ctx = multiprocessing.get_context("spawn")
-        fake_process = ctx.Process(target=time.sleep, args=(3600,))
-        fake_process.start()
-
-        monkeypatch.setattr(
-            "prefect.runner.runner.run_flow_in_subprocess",
-            lambda *args, **kwargs: fake_process,
-        )
-
-        runner = Runner()
-
-        execute_flow_run_task = asyncio.create_task(
-            runner.execute_flow_run(flow_run_id=flow_run.id)
-        )
-
-        # Wait for the process to be registered in the runner's process map
-        # before forcing the Running state and rescheduling
-        while flow_run.id not in runner._flow_run_process_map:
-            await anyio.sleep(0.1)
-
-        # Force the flow run to Running since the mock subprocess doesn't
-        # run the flow engine that would normally propose this transition
-        await prefect_client.set_flow_run_state(
-            flow_run_id=flow_run.id,
-            state=State(type=StateType.RUNNING, name="Running"),
-            force=True,
-        )
-
-        runner.reschedule_current_flow_runs()
-
-        await execute_flow_run_task
-
-        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-        assert flow_run.state
-        assert flow_run.state.is_scheduled()
-
-    async def test_runner_marks_flow_run_as_crashed_when_unabled_to_start_process(
-        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
-    ):
-        mock = AsyncMock(side_effect=Exception("Test error"))
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock)
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        await runner.execute_flow_run(flow_run_id=flow_run.id)
-
-        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-        assert flow_run.state
-        assert flow_run.state.is_crashed()
-
-    async def test_runner_handles_output_stream_errors(
-        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
-    ):
-        """
-        Regression test for https://github.com/PrefectHQ/prefect/issues/17316
-        """
-        # Simulate stream output error
-        mock = AsyncMock(side_effect=Exception("Test error"))
-        monkeypatch.setattr(processutils, "consume_process_output", mock)
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        # Runner shouldn't crash
-        await runner.execute_flow_run(flow_run_id=flow_run.id)
-
-        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-        assert flow_run.state
-        assert flow_run.state.is_completed()
 
     async def test_runner_temp_dir_creation_is_idempotent(self):
         """
@@ -2553,338 +1300,11 @@ class TestRunner:
         # Directory should be cleaned up after exiting context
         assert not runner._tmp_dir.exists()
 
-    async def test_runner_handles_deleted_flow_run_in_propose_crashed_state(
-        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
-    ):
-        """
-        Regression test for https://github.com/PrefectHQ/prefect/issues/19141
-
-        Ensures the runner doesn't crash when trying to propose a crashed state
-        for a flow run that has been deleted.
-        """
-        from prefect.exceptions import ObjectNotFound
-
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        # Mock propose_state to raise ObjectNotFound (simulating a deleted flow run)
-        original_propose_state = prefect.runner.runner.propose_state
-
-        async def mock_propose_state(*args, **kwargs):
-            if kwargs.get("flow_run_id") == flow_run.id:
-                raise ObjectNotFound(
-                    Exception("Flow run not found"), help_message="Flow run was deleted"
-                )
-            return await original_propose_state(*args, **kwargs)
-
-        monkeypatch.setattr(prefect.runner.runner, "propose_state", mock_propose_state)
-
-        async with runner:
-            # This should not crash the runner
-            await runner._propose_crashed_state(flow_run, "Test crash message")
-
         # Runner should continue running without crashing
 
-    async def test_runner_handles_deleted_flow_run_in_mark_as_cancelled(
-        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
-    ):
-        """
-        Regression test for https://github.com/PrefectHQ/prefect/issues/19141
-
-        Ensures the runner doesn't crash when trying to mark a deleted flow run
-        as cancelled.
-        """
-        from prefect.exceptions import ObjectNotFound
-
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        async with runner:
-            # Mock set_flow_run_state to raise ObjectNotFound
-            async def mock_set_state(*args, **kwargs):
-                raise ObjectNotFound(
-                    Exception("Flow run not found"), help_message="Flow run was deleted"
-                )
-
-            monkeypatch.setattr(runner._client, "set_flow_run_state", mock_set_state)
-
-            # This should not crash the runner
-            await runner._mark_flow_run_as_cancelled(flow_run)
-
         # Runner should continue running without crashing
-
-    async def test_runner_handles_deleted_flow_run_after_completion(
-        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
-    ):
-        """
-        Regression test for https://github.com/PrefectHQ/prefect/issues/19141
-
-        Ensures the runner doesn't crash when trying to read a flow run after
-        completion if the flow run has been deleted.
-        """
-        from prefect.exceptions import ObjectNotFound
-
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        # Mock read_flow_run to raise ObjectNotFound after the process completes
-        original_read = prefect_client.read_flow_run
-        call_count = {"count": 0}
-
-        async def mock_read_flow_run(*args, **kwargs):
-            call_count["count"] += 1
-            # First call succeeds (for initial read), second call fails (after completion)
-            if call_count["count"] > 1:
-                raise ObjectNotFound(
-                    Exception("Flow run not found"), help_message="Flow run was deleted"
-                )
-            return await original_read(*args, **kwargs)
-
-        monkeypatch.setattr(prefect_client, "read_flow_run", mock_read_flow_run)
-
-        # This should not crash the runner - it should complete successfully
-        await runner.execute_flow_run(flow_run_id=flow_run.id)
 
         # Runner should have handled the ObjectNotFound gracefully
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    class TestRunnerBundleExecution:
-        @pytest.fixture(autouse=True)
-        def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
-            mock_subprocess_check_call = AsyncMock()
-            monkeypatch.setattr(subprocess, "check_call", mock_subprocess_check_call)
-            return mock_subprocess_check_call
-
-        async def test_basic(
-            self, prefect_client: PrefectClient, mock_subprocess_check_call: AsyncMock
-        ):
-            runner = Runner()
-
-            @flow(persist_result=True)
-            def simple_flow():
-                return "Be a simple kind of flow"
-
-            flow_run = await prefect_client.create_flow_run(simple_flow)
-
-            result = create_bundle_for_flow_run(simple_flow, flow_run)
-            bundle = result["bundle"]
-            await runner.execute_bundle(bundle)
-
-            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-            assert flow_run.state
-            assert flow_run.state.is_completed()
-            assert await flow_run.state.result() == "Be a simple kind of flow"
-
-            # Ensure that the dependencies are installed
-            assert mock_subprocess_check_call.call_count == 1
-            assert mock_subprocess_check_call.call_args[0][0][:3] == [
-                uv.find_uv_bin(),
-                "pip",
-                "install",
-            ]
-
-        async def test_with_parameters(self, prefect_client: PrefectClient):
-            runner = Runner()
-
-            @flow(persist_result=True)
-            def flow_with_parameters(x: int, y: str):
-                return f"Be a simple kind of flow with {x} and {y}"
-
-            flow_run = await prefect_client.create_flow_run(
-                flow_with_parameters,
-                parameters={"x": 42, "y": "hello"},
-            )
-
-            result = create_bundle_for_flow_run(flow_with_parameters, flow_run)
-            bundle = result["bundle"]
-            await runner.execute_bundle(bundle)
-
-            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-            assert flow_run.state
-            assert flow_run.state.is_completed()
-            assert (
-                await flow_run.state.result()
-                == "Be a simple kind of flow with 42 and hello"
-            )
-
-        async def test_failed_flow(self, prefect_client: PrefectClient):
-            runner = Runner()
-
-            @flow
-            def total_and_utter_failure():
-                raise ValueError("This flow failed!")
-
-            flow_run = await prefect_client.create_flow_run(total_and_utter_failure)
-
-            result = create_bundle_for_flow_run(total_and_utter_failure, flow_run)
-            bundle = result["bundle"]
-            await runner.execute_bundle(bundle)
-
-            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-            assert flow_run.state
-            assert flow_run.state.is_failed()
-
-        async def test_cancel_bundle_execution(
-            self, prefect_client: PrefectClient, caplog: pytest.LogCaptureFixture
-        ):
-            runner = Runner(query_seconds=1)
-
-            @flow
-            def flow_to_cancel():
-                sleep(100)
-
-            @flow_to_cancel.on_cancellation
-            def da_hook(
-                flow: "Flow[Any, Any]", flow_run: "FlowRun", state: "State[Any]"
-            ):
-                flow_run_logger(flow_run, flow).info("This flow was cancelled!")
-
-            flow_run = await prefect_client.create_flow_run(flow_to_cancel)
-
-            result = create_bundle_for_flow_run(flow_to_cancel, flow_run)
-            bundle = result["bundle"]
-            execution_task = asyncio.create_task(runner.execute_bundle(bundle))
-
-            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-            assert flow_run.state is not None
-            while not flow_run.state.is_running():
-                assert not execution_task.done(), (
-                    "Execution ended earlier than expected"
-                )
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                assert flow_run.state is not None
-
-            await prefect_client.set_flow_run_state(
-                flow_run_id=flow_run.id,
-                state=Cancelling(),
-            )
-
-            await execution_task
-
-            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-            assert flow_run.state
-            assert flow_run.state.is_cancelled()
-
-            assert "This flow was cancelled!" in caplog.text
-
-        async def test_execute_bundle_registers_control_channel_and_injects_env(
-            self,
-            prefect_client: PrefectClient,
-            monkeypatch: pytest.MonkeyPatch,
-        ):
-            @flow
-            def simple_flow():
-                return "ok"
-
-            flow_run = await prefect_client.create_flow_run(simple_flow)
-            result = create_bundle_for_flow_run(simple_flow, flow_run)
-            bundle = result["bundle"]
-
-            process = MagicMock()
-            process.pid = 12345
-            process.exitcode = 0
-            process.join = MagicMock()
-
-            execute_bundle_in_subprocess = MagicMock(return_value=process)
-            monkeypatch.setattr(
-                bundle_starter_mod,
-                "execute_bundle_in_subprocess",
-                execute_bundle_in_subprocess,
-            )
-
-            async with Runner() as runner:
-                runner._control_channel.register = MagicMock(
-                    return_value=(4321, "token-123")
-                )
-                await runner.execute_bundle(
-                    bundle,
-                    env={"EXISTING_VAR": "present"},
-                )
-
-            runner._control_channel.register.assert_called_once_with(flow_run.id)
-            execute_bundle_in_subprocess.assert_called_once()
-            assert execute_bundle_in_subprocess.call_args.kwargs["env"] == {
-                "EXISTING_VAR": "present",
-                "PREFECT__CONTROL_PORT": "4321",
-                "PREFECT__CONTROL_TOKEN": "token-123",
-            }
-
-        async def test_execute_bundle_preserves_receipt_with_nonzero_child_exit(
-            self,
-            prefect_client: PrefectClient,
-            monkeypatch: pytest.MonkeyPatch,
-        ):
-            @flow
-            def failed_flow():
-                raise ValueError("application failure")
-
-            flow_run = await prefect_client.create_flow_run(failed_flow)
-            bundle = create_bundle_for_flow_run(failed_flow, flow_run)["bundle"]
-            receipt = EngineOutcomeReceipt.state_reported(
-                state_id=uuid.uuid4(),
-                state_type="FAILED",
-                state_name="Failed",
-            )
-            process = MagicMock(pid=12345, exitcode=1, join=MagicMock())
-            monkeypatch.setattr(
-                bundle_starter_mod,
-                "execute_bundle_in_subprocess",
-                MagicMock(return_value=process),
-            )
-
-            async with Runner() as runner:
-                runner._control_channel.get_conclusion = MagicMock(return_value=receipt)
-                runner._state_proposer.propose_crashed = AsyncMock()
-                runner._hook_runner.run_crashed_hooks = AsyncMock()
-
-                await runner.execute_bundle(bundle)
-
-            runner._state_proposer.propose_crashed.assert_not_awaited()
-            runner._hook_runner.run_crashed_hooks.assert_not_awaited()
-
-        async def test_handled_crashed_bundle_execution_runs_engine_hook_once(
-            self, prefect_client: PrefectClient, tmp_path: Path
-        ):
-            runner = Runner()
-            hook_marker = tmp_path / "crashed-hook.txt"
-
-            @flow
-            def crashed_flow():
-                os.kill(os.getpid(), signal.SIGTERM)
-
-            @crashed_flow.on_crashed
-            def da_hook(
-                flow: "Flow[Any, Any]", flow_run: "FlowRun", state: "State[Any]"
-            ):
-                with hook_marker.open("a") as marker:
-                    marker.write("ran\n")
-
-            flow_run = await prefect_client.create_flow_run(crashed_flow)
-
-            result = create_bundle_for_flow_run(crashed_flow, flow_run)
-            bundle = result["bundle"]
-            await runner.execute_bundle(bundle)
-
-            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-            assert flow_run.state
-            assert flow_run.state.is_crashed()
-
-            assert hook_marker.read_text().splitlines() == ["ran"]
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
@@ -2895,7 +1315,7 @@ async def test_runner_emits_cancelled_event(
     temp_storage: MockStorage,
     in_temporary_runner_directory: None,
 ):
-    runner = Runner(query_seconds=1)
+    runner = Runner(query_seconds=1, pause_on_shutdown=False)
     temp_storage.code = dedent(
         """\
         from time import sleep
@@ -2924,23 +1344,21 @@ async def test_runner_emits_cancelled_event(
     )
     api_flow = await prefect_client.read_flow(flow_run.flow_id)
 
-    async with runner:
-        execute_task = asyncio.create_task(
-            runner.execute_flow_run(flow_run_id=flow_run.id)
-        )
-        while True:
-            await anyio.sleep(0.5)
-            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-            assert flow_run.state
-            if flow_run.state.is_running():
-                break
-        await prefect_client.set_flow_run_state(
-            flow_run_id=flow_run.id,
-            state=flow_run.state.model_copy(
-                update={"name": "Cancelling", "type": StateType.CANCELLING}
-            ),
-        )
-        await execute_task
+    execute_task = asyncio.create_task(runner.start(run_once=True))
+    while True:
+        await anyio.sleep(0.5)
+        assert not execute_task.done(), "Execution ended earlier than expected"
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        if flow_run.state.is_running():
+            break
+    await prefect_client.set_flow_run_state(
+        flow_run_id=flow_run.id,
+        state=flow_run.state.model_copy(
+            update={"name": "Cancelling", "type": StateType.CANCELLING}
+        ),
+    )
+    await execute_task
 
     cancelled_events = list(
         filter(
@@ -2989,7 +1407,7 @@ async def test_runner_can_execute_instance_method_flow(
     prefect_client: PrefectClient,
 ):
     """Test that instance method flows can be executed via multiprocessing."""
-    runner = Runner(query_seconds=1)
+    runner = Runner(query_seconds=1, pause_on_shutdown=False)
 
     # Create an instance and add its flow method
     flow_instance = ClassWithInstanceMethod(10)
@@ -3003,8 +1421,7 @@ async def test_runner_can_execute_instance_method_flow(
         parameters={"x": 5},
     )
 
-    async with runner:
-        await runner.execute_flow_run(flow_run_id=flow_run.id)
+    await runner.start(run_once=True)
 
     flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
     assert flow_run.state
@@ -3016,7 +1433,7 @@ async def test_runner_runs_on_cancellation_hooks_for_instance_method_flows(
     caplog: pytest.LogCaptureFixture,
 ):
     """Test that cancellation hooks work correctly for instance method flows."""
-    runner = Runner(query_seconds=1)
+    runner = Runner(query_seconds=1, pause_on_shutdown=False)
 
     # Create an instance and add its flow method with cancellation hook
     flow_instance = ClassWithCancellableFlow()
@@ -3025,30 +1442,30 @@ async def test_runner_runs_on_cancellation_hooks_for_instance_method_flows(
         name="cancellable-instance-method",
     )
 
-    async with runner:
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment_id
+    )
 
-        execute_task = asyncio.create_task(runner.execute_flow_run(flow_run.id))
+    execute_task = asyncio.create_task(runner.start(run_once=True))
 
-        # Wait for flow to start running
-        while True:
-            await anyio.sleep(0.5)
-            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-            assert flow_run.state
-            if flow_run.state.is_running():
-                break
+    # Wait for flow to start running
+    while True:
+        await anyio.sleep(0.5)
+        assert not execute_task.done(), "Execution ended earlier than expected"
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        if flow_run.state.is_running():
+            break
 
-        # Cancel the flow run
-        await prefect_client.set_flow_run_state(
-            flow_run_id=flow_run.id,
-            state=flow_run.state.model_copy(
-                update={"name": "Cancelling", "type": StateType.CANCELLING}
-            ),
-        )
+    # Cancel the flow run
+    await prefect_client.set_flow_run_state(
+        flow_run_id=flow_run.id,
+        state=flow_run.state.model_copy(
+            update={"name": "Cancelling", "type": StateType.CANCELLING}
+        ),
+    )
 
-        await execute_task
+    await execute_task
 
     flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
     assert flow_run.state.is_cancelled()
@@ -3061,7 +1478,7 @@ async def test_runner_runs_on_crashed_hooks_for_instance_method_flows(
     tmp_path: Path,
 ):
     """Test that crashed hooks work correctly for instance method flows."""
-    runner = Runner()
+    runner = Runner(pause_on_shutdown=False)
 
     # Create an instance and add its flow method with crashed hook
     flow_instance = ClassWithCrashingFlow()
@@ -3076,7 +1493,7 @@ async def test_runner_runs_on_crashed_hooks_for_instance_method_flows(
     hook_marker = tmp_path / "instance-crash-hook"
     monkeypatch.setenv("PREFECT_TEST_INSTANCE_CRASH_HOOK_MARKER", str(hook_marker))
 
-    await runner.execute_flow_run(flow_run.id)
+    await runner.start(run_once=True)
 
     flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
     assert flow_run.state
@@ -3095,7 +1512,7 @@ async def test_run_hooks_with_partial_hooks(
     """
     from functools import partial
 
-    from prefect.runner.runner import _run_hooks
+    from prefect.runner._hook_runner import _run_hooks
     from prefect.states import Cancelled
 
     data = {}
@@ -3623,6 +2040,262 @@ class TestRunnerDeployment:
         assert deployment.paused is False
         assert deployment.global_concurrency_limit is None
 
+    @pytest.mark.parametrize("clear_schedules", [False, True])
+    @pytest.mark.parametrize("slug", [None, "daily"])
+    @pytest.mark.parametrize(
+        "apply_kwargs, expected_cron",
+        [
+            pytest.param({}, "0 4 * * *", id="omitted"),
+            pytest.param({"schedules": None}, "0 4 * * *", id="none"),
+            pytest.param({"schedules": []}, None, id="empty"),
+            pytest.param(
+                {"schedules": [{"schedule": CronSchedule(cron="0 5 * * *")}]},
+                "0 5 * * *",
+                id="populated",
+            ),
+        ],
+    )
+    async def test_aapply_existing_deployment_schedules(
+        self,
+        prefect_client: PrefectClient,
+        apply_kwargs: dict[str, Any],
+        expected_cron: str | None,
+        clear_schedules: bool,
+        slug: str | None,
+    ):
+        original = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            name="schedule-update",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="0 4 * * *"), slug=slug
+                )
+            ],
+            version_type=VersionType.SIMPLE,
+        )
+        deployment_id = await original.aapply()
+        before = await prefect_client.read_deployment(deployment_id)
+        assert len(before.schedules) == 1
+        assert before.schedules[0].active is True
+
+        deployment = RunnerDeployment(
+            name=original.name,
+            flow_name=original.flow_name,
+            version_type=VersionType.SIMPLE,
+        )
+        if apply_kwargs.get("schedules"):
+            apply_kwargs = {
+                "schedules": [{**apply_kwargs["schedules"][0], "slug": slug}]
+            }
+        with temporary_settings(
+            {"deployments.clear_schedules_on_empty": clear_schedules}
+        ):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", FutureWarning)
+                updated_id = await deployment.aapply(**apply_kwargs)
+
+        deprecations = [w for w in caught if issubclass(w.category, FutureWarning)]
+        if apply_kwargs.get("schedules") == [] and not clear_schedules:
+            assert len(deprecations) == 1
+            message = str(deprecations[0].message)
+            assert "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true" in message
+            assert "six months or three minor releases, whichever is longer" in message
+            assert "schedules=None" in message
+            expected_cron = "0 4 * * *"
+        else:
+            assert deprecations == []
+
+        assert updated_id == deployment_id
+        updated = await prefect_client.read_deployment(deployment_id)
+        assert updated.paused is False
+        if expected_cron is None:
+            assert updated.schedules == []
+        else:
+            assert len(updated.schedules) == 1
+            assert updated.schedules[0].schedule == CronSchedule(cron=expected_cron)
+            assert updated.schedules[0].active is True
+            if expected_cron == "0 4 * * *":
+                assert updated.schedules[0].id == before.schedules[0].id
+
+    @pytest.mark.parametrize("sync", [False, True])
+    @pytest.mark.parametrize("clear_schedules", [False, True])
+    @pytest.mark.parametrize("slug", [None, "daily"])
+    @pytest.mark.parametrize("preset", ["empty", "populated", "previously-cleared"])
+    async def test_empty_schedule_override_with_preset_schedules(
+        self,
+        prefect_client: PrefectClient,
+        sync: bool,
+        clear_schedules: bool,
+        slug: str | None,
+        preset: str,
+    ):
+        original = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            name="preset-schedules",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="0 4 * * *"), slug=slug
+                )
+            ],
+            version_type=VersionType.SIMPLE,
+        )
+        deployment_id = await original.aapply()
+        if preset == "previously-cleared":
+            deployment = original
+            with temporary_settings({"deployments.clear_schedules_on_empty": True}):
+                if sync:
+                    await run_sync_in_worker_thread(
+                        deployment.apply, schedules=[], _sync=True
+                    )
+                else:
+                    await deployment.aapply(schedules=[])
+            # Restore a server-side schedule, then reuse the cleared object.
+            await prefect_client.create_deployment_schedules(
+                deployment_id,
+                [
+                    DeploymentScheduleCreate(
+                        schedule=CronSchedule(cron="0 4 * * *"), slug=slug
+                    )
+                ],
+            )
+        else:
+            deployment = RunnerDeployment.from_flow(
+                dummy_flow_1,
+                name=original.name,
+                schedules=(
+                    [
+                        DeploymentScheduleCreate(
+                            schedule=CronSchedule(cron="0 5 * * *"), slug=slug
+                        )
+                    ]
+                    if preset == "populated"
+                    else []
+                ),
+                version_type=VersionType.SIMPLE,
+            )
+
+        before = await prefect_client.read_deployment(deployment_id)
+        assert len(before.schedules) == 1
+        preset_schedules = list(deployment.schedules)
+        deployment.description = "Updated without replacing preserved schedules"
+        with (
+            temporary_settings(
+                {"deployments.clear_schedules_on_empty": clear_schedules}
+            ),
+            warnings.catch_warnings(record=True) as caught,
+        ):
+            warnings.simplefilter("always", FutureWarning)
+            if sync:
+                updated_id = await run_sync_in_worker_thread(
+                    deployment.apply, schedules=[], _sync=True
+                )
+            else:
+                updated_id = await deployment.aapply(schedules=[])
+
+        deprecations = [w for w in caught if issubclass(w.category, FutureWarning)]
+        assert len(deprecations) == (0 if clear_schedules else 1)
+        assert updated_id == deployment_id
+        after = await prefect_client.read_deployment(deployment_id)
+        assert after.description == deployment.description
+        assert after.paused == before.paused
+        if clear_schedules:
+            assert after.schedules == []
+        else:
+            assert after.schedules == before.schedules
+            assert deployment.schedules == preset_schedules
+
+    @pytest.mark.parametrize("sync", [False, True])
+    @pytest.mark.parametrize(
+        "slugs", [[], [None, None], [None, "daily"], ["daily", "nightly"]]
+    )
+    async def test_opt_in_clears_all_schedules(
+        self, prefect_client: PrefectClient, sync: bool, slugs: list[str | None]
+    ):
+        original = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            name="clear-all-schedules",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron=f"0 {hour} * * *"), slug=slug
+                )
+                for hour, slug in enumerate(slugs)
+            ],
+            version_type=VersionType.SIMPLE,
+        )
+        deployment_id = await original.aapply()
+        deployment = RunnerDeployment(
+            name=original.name,
+            flow_name=original.flow_name,
+            version_type=VersionType.SIMPLE,
+        )
+        with temporary_settings({"deployments.clear_schedules_on_empty": True}):
+            # Clearing an already empty deployment must also succeed.
+            for _ in range(2):
+                if sync:
+                    updated_id = await run_sync_in_worker_thread(
+                        deployment.apply, schedules=[], _sync=True
+                    )
+                else:
+                    updated_id = await deployment.aapply(schedules=[])
+                assert updated_id == deployment_id
+                assert (
+                    await prefect_client.read_deployment(deployment_id)
+                ).schedules == []
+
+    @pytest.mark.parametrize("sync", [False, True])
+    @pytest.mark.parametrize("clear_schedules", [False, True])
+    async def test_new_deployment_with_empty_schedules_does_not_warn(
+        self, prefect_client: PrefectClient, sync: bool, clear_schedules: bool
+    ):
+        deployment = RunnerDeployment(
+            name="new-empty-schedules",
+            flow_name="empty-schedules",
+            version_type=VersionType.SIMPLE,
+        )
+        with temporary_settings(
+            {"deployments.clear_schedules_on_empty": clear_schedules}
+        ):
+            # Warnings are errors under the test suite's default filter.
+            if sync:
+                deployment_id = await run_sync_in_worker_thread(
+                    deployment.apply, schedules=[], _sync=True
+                )
+            else:
+                deployment_id = await deployment.aapply(schedules=[])
+        assert (await prefect_client.read_deployment(deployment_id)).schedules == []
+
+    @pytest.mark.parametrize("sync", [False, True])
+    async def test_failed_update_does_not_clear_slugged_schedules(
+        self, prefect_client: PrefectClient, sync: bool
+    ):
+        @flow
+        def parameterized(value: int = 1):
+            pass
+
+        deployment = RunnerDeployment.from_flow(
+            parameterized,
+            name="invalid-update",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="0 4 * * *"), slug="daily"
+                )
+            ],
+            version_type=VersionType.SIMPLE,
+        )
+        deployment_id = await deployment.aapply()
+        before = await prefect_client.read_deployment(deployment_id)
+        deployment.parameters = {"value": "invalid integer"}
+        with temporary_settings({"deployments.clear_schedules_on_empty": True}):
+            with pytest.raises(PrefectHTTPStatusError, match="409"):
+                if sync:
+                    await run_sync_in_worker_thread(
+                        deployment.apply, schedules=[], _sync=True
+                    )
+                else:
+                    await deployment.aapply(schedules=[])
+        after = await prefect_client.read_deployment(deployment_id)
+        assert after.schedules == before.schedules
+
     async def test_saved_block_parameters_are_converted_to_references(
         self, saved_secret_block: tuple[Secret[Any], uuid.UUID]
     ):
@@ -3695,41 +2368,191 @@ class TestRunnerDeployment:
                 ],
             )
 
-    async def test_applied_deployment_preserves_temporal_parameter_encoding(
+    def test_datetime_parameter_in_dataclass_with_non_init_field(self):
+        @dataclass
+        class Options:
+            starts_at: datetime.datetime
+            calculated: int = field(init=False, default=5)
+
+        starts_at = datetime.datetime(
+            2024,
+            1,
+            2,
+            3,
+            4,
+            5,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=-5)),
+        )
+        options = Options(starts_at)
+        deployment = RunnerDeployment(
+            name="dataclass-parameter",
+            flow_name="flow",
+            parameters={"options": options},
+        )
+
+        expected: float | str = starts_at.isoformat()
+        if PYDANTIC_TEMPORAL_SECONDS:
+            expected = starts_at.replace(tzinfo=datetime.UTC).timestamp()
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": {"starts_at": expected, "calculated": 5}
+        }
+        assert deployment.parameters["options"] is options
+        assert options.starts_at is starts_at
+
+    def test_datetime_parameter_in_defaultdict(self):
+        starts_at = datetime.datetime(
+            2024,
+            1,
+            2,
+            3,
+            4,
+            5,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=-5)),
+        )
+        options = defaultdict(list, starts_at=[starts_at])
+        deployment = RunnerDeployment(
+            name="defaultdict-parameter",
+            flow_name="flow",
+            parameters={"options": options},
+        )
+
+        expected: float | str = starts_at.isoformat()
+        if PYDANTIC_TEMPORAL_SECONDS:
+            expected = starts_at.replace(tzinfo=datetime.UTC).timestamp()
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": {"starts_at": [expected]}
+        }
+        assert deployment.parameters["options"] is options
+        assert options.default_factory is list
+        assert options["starts_at"][0] is starts_at
+
+    @pytest.mark.parametrize("temporal", [False, True])
+    @pytest.mark.parametrize("container", [set, frozenset])
+    def test_dataclass_set_parameters(self, temporal: bool, container: type):
+        @dataclass(frozen=True)
+        class Options:
+            value: int | datetime.datetime
+
+        value = (
+            datetime.datetime.fromisoformat("2024-01-02T03:04:05-05:00")
+            if temporal
+            else 1
+        )
+        options = Options(value)
+        deployment = RunnerDeployment(
+            name="dataclass-set-parameter",
+            flow_name="flow",
+            parameters={"options": container([options])},
+        )
+
+        expected: int | float | str
+        if isinstance(value, datetime.datetime):
+            expected = value.isoformat()
+            if PYDANTIC_TEMPORAL_SECONDS:
+                expected = value.replace(tzinfo=datetime.UTC).timestamp()
+        else:
+            expected = value
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": [{"value": expected}]
+        }
+        assert deployment.parameters["options"] == {options}
+        assert options.value is value
+
+    @pytest.mark.parametrize("temporal", [False, True])
+    @pytest.mark.parametrize("tuple_key", [False, True])
+    def test_dataclass_dictionary_key_parameters(self, temporal: bool, tuple_key: bool):
+        @dataclass(frozen=True)
+        class Options:
+            value: int | datetime.datetime
+
+        value = (
+            datetime.datetime.fromisoformat("2024-01-02T03:04:05-05:00")
+            if temporal
+            else 1
+        )
+        options = Options(value)
+        key = (options,) if tuple_key else options
+        deployment = RunnerDeployment(
+            name="dataclass-key-parameter",
+            flow_name="flow",
+            parameters={"options": {key: "value"}},
+        )
+
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "options": {str(options): "value"}
+        }
+        assert next(iter(deployment.parameters["options"])) is key
+        assert options.value is value
+
+    async def test_applied_deployment_uses_pydantic_temporal_serialization(
         self, prefect_client: PrefectClient
     ):
         scheduled_at = datetime.datetime(
             2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
         )
         delay = datetime.timedelta(seconds=90)
+        run_on = datetime.date(2024, 1, 2)
+        at_time = datetime.time(3, 4, 5)
+        offset_at = datetime.datetime(
+            2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))
+        )
 
         @flow
         def flow_with_temporal_parameters(
             scheduled_at: str | datetime.datetime,
             delay: datetime.timedelta,
+            run_on: datetime.date,
+            at_time: datetime.time,
+            offset_at: str | datetime.datetime,
         ) -> None:
             pass
 
         deployment = await flow_with_temporal_parameters.ato_deployment(
             name="temporal-parameters",
-            parameters={"scheduled_at": scheduled_at, "delay": delay},
+            parameters={
+                "scheduled_at": scheduled_at,
+                "delay": delay,
+                "run_on": run_on,
+                "at_time": at_time,
+                "offset_at": offset_at,
+            },
             enforce_parameter_schema=False,
         )
 
         deployment_id = await deployment.apply()
         stored_deployment = await prefect_client.read_deployment(deployment_id)
 
-        assert stored_deployment.parameters == {
-            "scheduled_at": scheduled_at.timestamp(),
+        expected_parameters = {
+            "scheduled_at": "2024-01-02T03:04:05Z",
             "delay": delay.total_seconds(),
+            "run_on": "2024-01-02",
+            "at_time": "03:04:05",
+            "offset_at": "2024-01-02T03:04:05-05:00",
         }
+        if PYDANTIC_TEMPORAL_SECONDS:
+            # Pydantic 2.12-2.13 also applies ser_json_timedelta to dates and times.
+            expected_parameters.update(
+                scheduled_at=scheduled_at.timestamp(),
+                run_on=datetime.datetime(2024, 1, 2, tzinfo=datetime.UTC).timestamp(),
+                at_time=3 * 3600 + 4 * 60 + 5,
+                offset_at=scheduled_at.timestamp(),
+            )
+        assert stored_deployment.parameters == expected_parameters
         validated_parameters = flow_with_temporal_parameters.validate_parameters(
             stored_deployment.parameters
         )
-        assert validated_parameters == {
-            "scheduled_at": scheduled_at,
+        expected_validated_parameters = expected_parameters | {
             "delay": delay,
+            "run_on": run_on,
+            "at_time": at_time,
         }
+        if PYDANTIC_TEMPORAL_SECONDS:
+            expected_validated_parameters.update(
+                scheduled_at=scheduled_at,
+                at_time=datetime.time(3, 4, 5, tzinfo=datetime.UTC),
+                offset_at=scheduled_at,
+            )
+        assert validated_parameters == expected_validated_parameters
 
     async def test_applied_deployment_stores_and_resolves_saved_block_parameter(
         self,
@@ -4328,6 +3151,20 @@ class TestServer:
         runner.last_polled = now("UTC")
         assert health_check().status_code == status.HTTP_200_OK
 
+    async def test_run_count_reports_tracked_flow_runs(self):
+        runner = Runner()
+        get_run_count = run_count(runner)
+        assert get_run_count() == 0
+
+        flow_run_ids = [uuid.uuid4(), uuid.uuid4()]
+        for flow_run_id in flow_run_ids:
+            await runner._process_manager.add(flow_run_id, ProcessHandle(MagicMock()))
+        assert get_run_count() == 2
+
+        for flow_run_id in flow_run_ids:
+            await runner._process_manager.remove(flow_run_id)
+        assert get_run_count() == 0
+
     @pytest.mark.skip("This test is flaky and needs to be fixed")
     @pytest.mark.parametrize("enabled", [True, False])
     async def test_webserver_start_flag(self, enabled: bool):
@@ -4342,6 +3179,159 @@ class TestServer:
             if not enabled:
                 mocked_thread.assert_not_called()
                 mocked_thread.return_value.start.assert_not_called()
+
+
+def maintenance_response(retry_after: str) -> httpx.Response:
+    return httpx.Response(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        headers={"Prefect-Maintenance": "true", "Retry-After": retry_after},
+    )
+
+
+class TestHealthCheckDuringServerMaintenance:
+    # The default window: 2 missed polls x 10s poll frequency.
+    DELAY_THRESHOLD = 20
+
+    @pytest.fixture(autouse=True)
+    def disable_jitter(self) -> Generator[None, None, None]:
+        with temporary_settings({PREFECT_CLIENT_RETRY_JITTER_FACTOR: 0}):
+            yield
+
+    @pytest.fixture
+    def mock_clock(
+        self, mock_anyio_sleep: AsyncMock, monkeypatch: pytest.MonkeyPatch
+    ) -> AsyncMock:
+        # The health check and the poller import `now` directly; have them
+        # follow the clock that `mock_anyio_sleep` advances.
+        monkeypatch.setattr("prefect.runner.server.now_fn", prefect.types._datetime.now)
+        monkeypatch.setattr(
+            "prefect.runner._scheduled_run_poller.now", prefect.types._datetime.now
+        )
+        return mock_anyio_sleep
+
+    def mock_scheduled_flow_runs(
+        self, respx_mock: respx.MockRouter, side_effect: Any
+    ) -> None:
+        respx_mock.post(path__regex=r"/deployments/get_scheduled_flow_runs$").mock(
+            side_effect=side_effect
+        )
+        respx_mock.route().pass_through()
+
+    async def test_runner_waiting_out_maintenance_reports_healthy(
+        self, respx_mock: respx.MockRouter, mock_clock: AsyncMock
+    ):
+        runner = Runner()
+        health_check = perform_health_check(
+            runner, delay_threshold=self.DELAY_THRESHOLD
+        )
+        health_at_each_attempt: list[int] = []
+
+        def in_maintenance_for_three_attempts(request: httpx.Request) -> httpx.Response:
+            health_at_each_attempt.append(health_check().status_code)
+            if len(health_at_each_attempt) <= 3:
+                return maintenance_response("200")
+            return httpx.Response(status.HTTP_200_OK, json=[])
+
+        self.mock_scheduled_flow_runs(respx_mock, in_maintenance_for_three_attempts)
+        async with runner:
+            runner.last_polled = prefect.types._datetime.now("UTC")
+            await runner._scheduled_run_poller._get_and_submit_flow_runs()
+
+        # The last three attempts come 200s, 400s and 600s after the previous
+        # poll, far past the 20s window, while the poll waits out maintenance.
+        assert health_at_each_attempt == [status.HTTP_200_OK] * 4
+
+    async def test_runner_gets_the_polling_window_after_maintenance_ends(
+        self, respx_mock: respx.MockRouter, mock_clock: AsyncMock
+    ):
+        runner = Runner()
+        health_check = perform_health_check(
+            runner, delay_threshold=self.DELAY_THRESHOLD
+        )
+        attempts: list[tuple[datetime.datetime, int]] = []
+
+        def unavailable_after_maintenance(request: httpx.Request) -> httpx.Response:
+            attempts.append(
+                (prefect.types._datetime.now("UTC"), health_check().status_code)
+            )
+            if len(attempts) <= 3:
+                return maintenance_response("200")
+            # Maintenance is over, but the API is not answering yet.
+            return httpx.Response(status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        self.mock_scheduled_flow_runs(respx_mock, unavailable_after_maintenance)
+        async with runner:
+            runner.last_polled = prefect.types._datetime.now("UTC")
+            with temporary_settings({PREFECT_CLIENT_MAX_RETRIES: 0}):
+                with pytest.raises(PrefectHTTPStatusError):
+                    await runner._scheduled_run_poller._get_and_submit_flow_runs()
+
+            assert all(code == status.HTTP_200_OK for _, code in attempts)
+
+            # The first attempt after the last maintenance back-off.
+            maintenance_ended_at = attempts[3][0]
+            await anyio.sleep(
+                (
+                    maintenance_ended_at
+                    + datetime.timedelta(seconds=self.DELAY_THRESHOLD - 1)
+                    - prefect.types._datetime.now("UTC")
+                ).total_seconds()
+            )
+            assert health_check().status_code == status.HTTP_200_OK
+
+            await anyio.sleep(2)
+            assert health_check().status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+    async def test_ordinary_retries_do_not_extend_the_polling_window(
+        self, respx_mock: respx.MockRouter, mock_clock: AsyncMock
+    ):
+        runner = Runner()
+        health_check = perform_health_check(
+            runner, delay_threshold=self.DELAY_THRESHOLD
+        )
+        health_at_each_attempt: list[int] = []
+
+        def unavailable_without_maintenance(request: httpx.Request) -> httpx.Response:
+            health_at_each_attempt.append(health_check().status_code)
+            if len(health_at_each_attempt) <= 3:
+                return httpx.Response(
+                    status.HTTP_503_SERVICE_UNAVAILABLE, headers={"Retry-After": "200"}
+                )
+            return httpx.Response(status.HTTP_200_OK, json=[])
+
+        self.mock_scheduled_flow_runs(respx_mock, unavailable_without_maintenance)
+        async with runner:
+            runner.last_polled = prefect.types._datetime.now("UTC")
+            await runner._scheduled_run_poller._get_and_submit_flow_runs()
+
+        # Same timings as maintenance, but these retries do not extend the window.
+        assert health_at_each_attempt == [
+            status.HTTP_200_OK,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        ]
+
+    async def test_healthcheck_uses_the_polling_window_before_the_first_poll(
+        self, mock_clock: AsyncMock
+    ):
+        runner = Runner()
+        health_check = perform_health_check(
+            runner, delay_threshold=self.DELAY_THRESHOLD
+        )
+
+        await anyio.sleep(self.DELAY_THRESHOLD - 1)
+        assert health_check().status_code == status.HTTP_200_OK
+
+        record_maintenance_backoff(600)
+        await anyio.sleep(600 + self.DELAY_THRESHOLD - 1)
+        assert health_check().status_code == status.HTTP_200_OK
+
+        await anyio.sleep(2)
+        assert health_check().status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+        runner.last_polled = prefect.types._datetime.now("UTC")
+        assert health_check().status_code == status.HTTP_200_OK
 
 
 class TestDeploy:
@@ -5192,188 +4182,19 @@ class TestCancellationObserverFailureHandling:
     def runner(self):
         return Runner(name="test-runner")
 
-    @pytest.fixture
-    def mock_flow_run(self):
-        """Create a mock flow run for testing."""
-        flow_run = MagicMock(spec=FlowRun)
-        flow_run.id = uuid.uuid4()
-        flow_run.name = "test-flow-run"
-        flow_run.deployment_id = None
-        return flow_run
-
-    async def test_logs_warning_to_flow_run_logger_when_crash_on_cancellation_failure_disabled(
-        self, runner, mock_flow_run
-    ):
-        """When crash_on_cancellation_failure is False (default), should log warning to flow run logger but not raise."""
-        # Add the flow run to the process map
-        runner._flow_run_process_map[mock_flow_run.id] = {
-            "flow_run": mock_flow_run,
-            "pid": 12345,
-        }
-
-        mock_logger = MagicMock()
-        # Should not raise when setting is disabled (default)
-        with patch.object(
-            runner, "_kill_process", new_callable=AsyncMock
-        ) as mock_kill_process:
-            with patch.object(
-                runner, "_get_flow_run_logger", return_value=mock_logger
-            ) as mock_get_logger:
-                await runner._handle_cancellation_observer_failure()
-
-                # Flow run logger should have been retrieved and warning logged
-                mock_get_logger.assert_called_once_with(mock_flow_run)
-                mock_logger.warning.assert_called_once()
-                assert (
-                    "Cancellation observing failed"
-                    in mock_logger.warning.call_args[0][0]
-                )
-
-                # Flow run process should NOT have been killed
-                mock_kill_process.assert_not_called()
-
-    async def test_logs_warning_to_each_flow_run_logger_when_disabled(self, runner):
-        """When disabled, should log warning to each flow run's logger."""
-        # Create multiple mock flow runs
-        for i in range(3):
-            flow_run = MagicMock(spec=FlowRun)
-            flow_run.id = uuid.uuid4()
-            flow_run.name = f"test-flow-run-{i}"
-            flow_run.deployment_id = None
-            runner._flow_run_process_map[flow_run.id] = {
-                "flow_run": flow_run,
-                "pid": 12345,
-            }
-
-        mock_logger = MagicMock()
-        with patch.object(
-            runner, "_get_flow_run_logger", return_value=mock_logger
-        ) as mock_get_logger:
-            await runner._handle_cancellation_observer_failure()
-
-            # Logger should have been retrieved for each flow run
-            assert mock_get_logger.call_count == 3
-            # Warning should have been logged for each flow run
-            assert mock_logger.warning.call_count == 3
-
-    async def test_kills_flow_run_processes_when_crash_on_cancellation_failure_enabled(
-        self, runner, mock_flow_run
-    ):
-        """When crash_on_cancellation_failure is True, should kill flow run processes."""
-        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
-
-        # Add the flow run to the process map
-        runner._flow_run_process_map[mock_flow_run.id] = {
-            "flow_run": mock_flow_run,
-            "pid": 12345,
-        }
-
-        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
-            with patch.object(
-                runner, "_kill_process", new_callable=AsyncMock
-            ) as mock_kill_process:
-                await runner._handle_cancellation_observer_failure()
-
-                # Flow run process should have been killed
-                mock_kill_process.assert_called_once_with(12345)
-
-    async def test_kills_multiple_flow_run_processes_when_enabled(self, runner):
-        """When enabled, should kill all in-flight flow run processes."""
-        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
-
-        # Create multiple mock flow runs with different PIDs
-        pids = [12345, 12346, 12347]
-        for i in range(3):
-            flow_run = MagicMock(spec=FlowRun)
-            flow_run.id = uuid.uuid4()
-            flow_run.name = f"test-flow-run-{flow_run.id}"
-            flow_run.deployment_id = None
-            runner._flow_run_process_map[flow_run.id] = {
-                "flow_run": flow_run,
-                "pid": pids[i],
-            }
-
-        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
-            with patch.object(
-                runner, "_kill_process", new_callable=AsyncMock
-            ) as mock_kill_process:
-                await runner._handle_cancellation_observer_failure()
-
-                # All flow run processes should have been killed
-                assert mock_kill_process.call_count == 3
-
-    async def test_does_nothing_when_process_map_is_empty(self, runner):
-        """Should do nothing when there are no flow runs in the process map."""
-        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
-
-        # Process map is empty
-        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
-            with patch.object(
-                runner, "_kill_process", new_callable=AsyncMock
-            ) as mock_kill_process:
-                await runner._handle_cancellation_observer_failure()
-
-                # Should not have tried to kill any process since map is empty
-                mock_kill_process.assert_not_called()
-
-    async def test_continues_killing_processes_after_exception(self, runner):
-        """Should continue killing other processes even if one fails."""
-        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
-
-        # Create multiple mock flow runs with different PIDs
-        pids = [12345, 12346, 12347]
-        for i in range(3):
-            flow_run = MagicMock(spec=FlowRun)
-            flow_run.id = uuid.uuid4()
-            flow_run.name = f"test-flow-run-{flow_run.id}"
-            flow_run.deployment_id = None
-            runner._flow_run_process_map[flow_run.id] = {
-                "flow_run": flow_run,
-                "pid": pids[i],
-            }
-
-        # Make _kill_process fail on first call, succeed on others
-        call_count = 0
-
-        async def mock_kill(pid):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise RuntimeError("Process not found")
-
-        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
-            with patch.object(runner, "_kill_process", side_effect=mock_kill):
-                await runner._handle_cancellation_observer_failure()
-
-                # All 3 processes should have been attempted to be killed
-                assert call_count == 3
-
-    async def test_sets_stopping_flag_when_crash_enabled(self, runner, mock_flow_run):
+    async def test_sets_stopping_flag_when_crash_enabled(self, runner):
         """Should set stopping=True when crash_on_cancellation_failure is enabled."""
         from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
-
-        runner._flow_run_process_map[mock_flow_run.id] = {
-            "flow_run": mock_flow_run,
-            "pid": 12345,
-        }
 
         assert runner.stopping is False
 
         with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
-            with patch.object(runner, "_kill_process", new_callable=AsyncMock):
-                await runner._handle_cancellation_observer_failure()
+            await runner._handle_cancellation_observer_failure()
 
         assert runner.stopping is True
 
-    async def test_does_not_set_stopping_flag_when_crash_disabled(
-        self, runner, mock_flow_run
-    ):
+    async def test_does_not_set_stopping_flag_when_crash_disabled(self, runner):
         """Should not set stopping flag when crash_on_cancellation_failure is disabled."""
-        runner._flow_run_process_map[mock_flow_run.id] = {
-            "flow_run": mock_flow_run,
-            "pid": 12345,
-        }
-
         assert runner.stopping is False
 
         await runner._handle_cancellation_observer_failure()
@@ -5403,6 +4224,83 @@ class TestAsyncDispatch:
 
         result = sync_prefect_client.read_deployment(deployment_id)
         assert result.name == "test_runner"
+
+    @pytest.mark.parametrize("clear_schedules", [False, True])
+    @pytest.mark.parametrize("slug", [None, "daily"])
+    @pytest.mark.parametrize(
+        "apply_kwargs, expected_cron",
+        [
+            pytest.param({}, "0 4 * * *", id="omitted"),
+            pytest.param({"schedules": None}, "0 4 * * *", id="none"),
+            pytest.param({"schedules": []}, None, id="empty"),
+            pytest.param(
+                {"schedules": [{"schedule": CronSchedule(cron="0 5 * * *")}]},
+                "0 5 * * *",
+                id="populated",
+            ),
+        ],
+    )
+    def test_apply_existing_deployment_schedules(
+        self,
+        sync_prefect_client: SyncPrefectClient,
+        apply_kwargs: dict[str, Any],
+        expected_cron: str | None,
+        clear_schedules: bool,
+        slug: str | None,
+    ):
+        original = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            name="schedule-update",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="0 4 * * *"), slug=slug
+                )
+            ],
+            version_type=VersionType.SIMPLE,
+        )
+        deployment_id = original.apply()
+        before = sync_prefect_client.read_deployment(deployment_id)
+        assert len(before.schedules) == 1
+        assert before.schedules[0].active is True
+
+        deployment = RunnerDeployment(
+            name=original.name,
+            flow_name=original.flow_name,
+            version_type=VersionType.SIMPLE,
+        )
+        if apply_kwargs.get("schedules"):
+            apply_kwargs = {
+                "schedules": [{**apply_kwargs["schedules"][0], "slug": slug}]
+            }
+        with temporary_settings(
+            {"deployments.clear_schedules_on_empty": clear_schedules}
+        ):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", FutureWarning)
+                updated_id = deployment.apply(**apply_kwargs)
+
+        deprecations = [w for w in caught if issubclass(w.category, FutureWarning)]
+        if apply_kwargs.get("schedules") == [] and not clear_schedules:
+            assert len(deprecations) == 1
+            message = str(deprecations[0].message)
+            assert "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true" in message
+            assert "six months or three minor releases, whichever is longer" in message
+            assert "schedules=None" in message
+            expected_cron = "0 4 * * *"
+        else:
+            assert deprecations == []
+
+        assert updated_id == deployment_id
+        updated = sync_prefect_client.read_deployment(deployment_id)
+        assert updated.paused is False
+        if expected_cron is None:
+            assert updated.schedules == []
+        else:
+            assert len(updated.schedules) == 1
+            assert updated.schedules[0].schedule == CronSchedule(cron=expected_cron)
+            assert updated.schedules[0].active is True
+            if expected_cron == "0 4 * * *":
+                assert updated.schedules[0].id == before.schedules[0].id
 
     def test_apply_saved_block_parameter_in_sync_context(
         self, sync_prefect_client: SyncPrefectClient
@@ -5569,6 +4467,129 @@ class TestRunnerAsyncDispatch:
         assert isinstance(result, Coroutine)
         with pytest.raises(RuntimeError, match="not yet started"):
             await result
+
+
+class TestHandleSigterm:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/23345"""
+
+    @pytest.fixture(autouse=True)
+    def preserve_sigterm_handler(self) -> Generator[None, None, None]:
+        original_handler = signal.getsignal(signal.SIGTERM)
+        yield
+        signal.signal(signal.SIGTERM, original_handler)
+
+    def test_handle_sigterm_exits_when_runner_not_started(self):
+        runner = Runner(name="test-sigterm-not-started")
+
+        with pytest.raises(SystemExit):
+            runner.handle_sigterm(signal.SIGTERM, None)
+
+    async def test_handle_sigterm_schedules_astop_on_runner_loop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(name="test-sigterm-astop", pause_on_shutdown=False)
+        cancel_all = AsyncMock()
+        monkeypatch.setattr(runner, "cancel_all", cancel_all)
+
+        start_task = asyncio.create_task(runner.start(webserver=False))
+        with anyio.fail_after(30):
+            while not runner.started:
+                await anyio.sleep(0.05)
+
+        runner.handle_sigterm(signal.SIGTERM, None)
+
+        with anyio.fail_after(30):
+            await start_task
+
+        cancel_all.assert_awaited_once()
+        assert runner.stopping
+        assert not runner.started
+
+    async def test_handle_sigterm_after_restart_schedules_astop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(name="test-sigterm-restart", pause_on_shutdown=False)
+        cancel_all = AsyncMock()
+        monkeypatch.setattr(runner, "cancel_all", cancel_all)
+
+        for _ in range(2):
+            start_task = asyncio.create_task(runner.start(webserver=False))
+            with anyio.fail_after(30):
+                while not runner.started:
+                    await anyio.sleep(0.05)
+            assert not runner.stopping
+
+            runner.handle_sigterm(signal.SIGTERM, None)
+
+            with anyio.fail_after(30):
+                await start_task
+
+        assert cancel_all.await_count == 2
+
+    def test_handle_sigterm_after_restart_on_new_event_loop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(name="test-sigterm-new-loop", pause_on_shutdown=False)
+        cancel_all = AsyncMock()
+        monkeypatch.setattr(runner, "cancel_all", cancel_all)
+
+        async def start_then_sigterm() -> None:
+            start_task = asyncio.create_task(runner.start(webserver=False))
+            with anyio.fail_after(30):
+                while not runner.started:
+                    await anyio.sleep(0.05)
+            assert runner._loop is asyncio.get_running_loop()
+
+            runner.handle_sigterm(signal.SIGTERM, None)
+
+            with anyio.fail_after(30):
+                await start_task
+
+        asyncio.run(start_then_sigterm())
+        asyncio.run(start_then_sigterm())
+
+        assert cancel_all.await_count == 2
+
+    async def test_repeated_sigterm_while_stopping_exits(self):
+        runner = Runner(name="test-sigterm-repeated")
+        runner.started = True
+        runner.stopping = True
+        runner._loop = asyncio.get_running_loop()
+
+        with pytest.raises(SystemExit):
+            runner.handle_sigterm(signal.SIGTERM, None)
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_handle_sigterm_cancels_served_flow_runs(
+        self, prefect_client: PrefectClient
+    ):
+        runner = Runner(query_seconds=1, pause_on_shutdown=False)
+        deployment_id = await runner.add_flow(tired_flow, __file__)
+
+        start_task = asyncio.create_task(runner.start(webserver=False))
+        with anyio.fail_after(30):
+            while not runner.started:
+                await anyio.sleep(0.1)
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        with anyio.fail_after(60):
+            while True:
+                await anyio.sleep(0.5)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
+                if flow_run.state.is_running():
+                    break
+
+        runner.handle_sigterm(signal.SIGTERM, None)
+
+        with anyio.fail_after(60):
+            await start_task
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_cancelled()
 
 
 class TestResolveStarter:

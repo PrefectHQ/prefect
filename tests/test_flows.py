@@ -73,10 +73,13 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import (
+    AwaitingRetry,
     Cancelled,
     Cancelling,
+    Failed,
     Paused,
     PausedRun,
+    Scheduled,
     State,
     StateType,
     raise_state_exception,
@@ -510,6 +513,32 @@ class TestFlowWithOptions:
         assert flow_with_options.result_storage == storage
         assert flow_with_options.cache_result_in_memory is False
         assert flow_with_options.log_prints is False
+
+    @pytest.mark.parametrize(
+        "hook_name",
+        ["on_completion", "on_failure", "on_cancellation", "on_crashed", "on_running"],
+    )
+    def test_hooks_are_copied_from_original_flow(self, hook_name: str):
+        "Ensure hooks added to the new flow don't affect the original flow"
+
+        def original_hook(flow, flow_run, state):
+            pass
+
+        def added_hook(flow, flow_run, state):
+            pass
+
+        @flow(**{hook_name: [original_hook]})
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(name="With options flow")
+        getattr(flow_with_options, hook_name)(added_hook)
+
+        assert getattr(initial_flow, f"{hook_name}_hooks") == [original_hook]
+        assert getattr(flow_with_options, f"{hook_name}_hooks") == [
+            original_hook,
+            added_hook,
+        ]
 
     def test_with_options_can_unset_timeout_seconds_with_zero(self):
         @flow(timeout_seconds=1)
@@ -1897,6 +1926,15 @@ class TestFlowParameterTypes:
 
         assert my_flow(keys="hello") == "hello"
 
+    @pytest.mark.parametrize("value", [None, 0, False, "ab", {"b": 2}])
+    def test_invalid_var_positional_values_are_rejected(self, value):
+        @flow
+        def my_flow(x: int = 1, *args: int):
+            return x, args
+
+        with pytest.raises(ParameterTypeError):
+            my_flow.validate_parameters({"args": value})
+
 
 class TestSubflowTaskInputs:
     async def test_subflow_with_one_upstream_task_future(self, prefect_client):
@@ -2284,6 +2322,132 @@ class TestFlowRetries:
 
         assert foo() == "hello"
         assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_state(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            return [Failed(message="boom")]
+
+        state = foo(return_state=True)
+        assert state.is_failed()
+        assert run_count == 2
+
+    async def test_async_flow_retry_with_returned_failed_state(self):
+        run_count = 0
+
+        @flow(retries=1)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            return Failed(message="boom")
+
+        state = await foo(return_state=True)
+        assert state.is_failed()
+        assert run_count == 2
+
+    @pytest.mark.parametrize("returned_state", [Scheduled, AwaitingRetry])
+    @pytest.mark.parametrize("retries", [0, 1])
+    def test_flow_returning_scheduled_state_is_not_retried(
+        self, returned_state, retries
+    ):
+        run_count = 0
+
+        @flow(retries=retries)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            return returned_state()
+
+        state = foo(return_state=True)
+        assert state.is_scheduled()
+        assert run_count == 1
+
+    @pytest.mark.parametrize("returned_state", [Scheduled, AwaitingRetry])
+    @pytest.mark.parametrize("retries", [0, 1])
+    async def test_async_flow_returning_scheduled_state_is_not_retried(
+        self, returned_state, retries
+    ):
+        run_count = 0
+
+        @flow(retries=retries)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            return returned_state()
+
+        state = await foo(return_state=True)
+        assert state.is_scheduled()
+        assert run_count == 1
+
+    def test_flow_retry_with_returned_failed_state_then_success(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            return "hello"
+
+        assert foo() == "hello"
+        assert run_count == 2
+
+    async def test_async_flow_retry_with_returned_failed_state_then_success(self):
+        run_count = 0
+
+        @flow(retries=1)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            return "hello"
+
+        assert await foo() == "hello"
+        assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_state_then_error(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            raise ValueError("second attempt")
+
+        with pytest.raises(ValueError, match="second attempt"):
+            foo()
+        assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_task_future(self):
+        flow_run_count = 0
+        task_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+            if flow_run_count == 1:
+                raise ValueError()
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            return my_task.submit()
+
+        state = foo(return_state=True)
+        assert state.is_completed()
+        assert flow_run_count == 2
+        assert task_run_count == 2
 
     async def test_flow_retry_with_error_in_flow_and_successful_task(self):
         task_run_count = 0

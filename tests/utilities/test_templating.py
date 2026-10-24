@@ -161,6 +161,11 @@ class TestApplyValues:
         values = {"first_name": "Alice", "last_name": "Smith", "age": 30}
         assert apply_values(template, values) == {"name": "Alice Smith", "age": 30}
 
+    def test_apply_values_with_numeric_string_dict_key(self):
+        values = {"years": {"2026": 42}}
+        assert apply_values({"year": "{{ years.2026 }}"}, values) == {"year": 42}
+        assert apply_values("FY{{ years.2026 }}", values) == "FY42"
+
     def test_apply_values_dictionary_with_unset_value(self):
         template = {"last_name": "{{last_name}}", "age": "{{age}}"}
         values = {"first_name": "Alice", "age": 30}
@@ -214,6 +219,18 @@ class TestApplyValues:
                 }
             }
         ]
+
+    def test_apply_values_list_with_missing_value_removed(self):
+        template = ["{{ missing }}", "{{ name }}"]
+        values = {"name": "Alice"}
+        assert apply_values(template, values) == ["Alice"]
+
+    def test_apply_values_list_with_missing_value_not_removed(self):
+        template = {"tags": ["{{ missing }}", "{{ name }}", NotSet]}
+        values = {"name": "Alice"}
+        assert apply_values(template, values, remove_notset=False) == {
+            "tags": ["{{ missing }}", "Alice", NotSet]
+        }
 
     def test_apply_values_list_with_placeholders(self):
         template = [

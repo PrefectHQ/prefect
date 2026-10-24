@@ -30,6 +30,7 @@ import prefect
 import prefect.client.schemas as schemas
 import prefect.types._datetime
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.observers import FlowRunCancellingObserver
 from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
 from prefect._internal.server_maintenance import (
     record_maintenance_backoff,
@@ -61,6 +62,7 @@ from prefect.client.schemas.worker_channel import (
     WorkPoolSnapshotPayload,
 )
 from prefect.context import FlowRunContext, TagsContext
+from prefect.events import Event
 from prefect.exceptions import (
     CrashedRun,
     ObjectAlreadyExists,
@@ -793,6 +795,54 @@ async def test_worker_handles_double_release_gracefully(
     updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
     assert updated_flow_run.state is not None
     assert updated_flow_run.state.is_crashed()
+
+
+async def test_worker_skips_duplicate_submission_of_run_holding_limit_slot(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23340"""
+
+    def create_run_with_deployment(state: State):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    running_flow_run = await create_run_with_deployment(
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=2))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=2) as worker:
+
+        async def submit_run_and_keep_slot(flow_run: FlowRun) -> None:
+            # Simulate infrastructure that has started: the run is no longer
+            # "submitting" but its limit slot is held until it exits.
+            worker._submitting_flow_run_ids.remove(flow_run.id)
+
+        worker._submit_run = AsyncMock(side_effect=submit_run_and_keep_slot)
+
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+        assert [flow_run.id for flow_run in submitted_flow_runs] == [
+            running_flow_run.id
+        ]
+        assert worker.limiter.borrowed_tokens == 1
+
+        new_flow_run = await create_run_with_deployment(
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
+        )
+
+        # The API returns the already-running flow run again
+        with caplog.at_level(logging.WARNING):
+            submitted_flow_runs = await worker.get_and_submit_flow_runs()
+
+        assert [flow_run.id for flow_run in submitted_flow_runs] == [new_flow_run.id]
+        assert worker.limiter.borrowed_tokens == 2
+        assert (
+            f"Duplicate submission of flow run '{running_flow_run.id}' detected"
+            in caplog.text
+        )
 
 
 async def test_worker_with_work_pool_and_limit(
@@ -3444,14 +3494,11 @@ class TestWorkerChannelClient:
 
         async with anyio.create_task_group() as task_group:
             await channel.sync(task_group)
+            # `stop()` cancels the channel's run loop, so the task group exits
+            # once the session is closed; no wall-clock deadline is needed.
             channel.stop()
 
-            with anyio.fail_after(1):
-                while not connect_context_by_ref["connect_context"].exited:
-                    await anyio.sleep(0)
-
-            task_group.cancel_scope.cancel()
-
+        assert connect_context_by_ref["connect_context"].exited
         client.read_work_pool.assert_not_awaited()
         client.send_worker_heartbeat.assert_not_awaited()
 
@@ -3832,11 +3879,10 @@ class TestWorkerChannelClient:
         channel_by_ref["channel"] = channel
 
         async with anyio.create_task_group() as task_group:
+            # The channel's run loop exits on its own once the reconnect attempt
+            # is terminal, so let the task group wait for it instead of racing
+            # a wall-clock deadline that a loaded CI runner can exceed.
             await channel.sync(task_group)
-            with anyio.fail_after(1):
-                while not channel.state.terminal:
-                    await anyio.sleep(0)
-            task_group.cancel_scope.cancel()
 
         assert attempts == 2
         assert first_connect is not None
@@ -5451,6 +5497,35 @@ class TestBackwardsCompatibility:
                 )
 
 
+class _IdleEventsSubscriber:
+    """An events stream that connects and stays quiet until closed."""
+
+    def __init__(self) -> None:
+        self.consuming = asyncio.Event()
+        self.exited = False
+
+    async def __aenter__(self) -> "_IdleEventsSubscriber":
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        self.exited = True
+
+    def __aiter__(self) -> "_IdleEventsSubscriber":
+        return self
+
+    async def __anext__(self) -> Event:
+        self.consuming.set()
+        await asyncio.Event().wait()
+        raise StopAsyncIteration
+
+
+class _FailingEventsSubscriber(_IdleEventsSubscriber):
+    """An events stream that cannot connect."""
+
+    async def __aenter__(self) -> "_FailingEventsSubscriber":
+        raise ConnectionError("websocket unavailable")
+
+
 class TestWorkerCancellationHandling:
     """Tests for worker-side flow run cancellation handling."""
 
@@ -5621,8 +5696,15 @@ class TestWorkerCancellationHandling:
                 # doesn't support killing infrastructure
                 mock_mark.assert_not_called()
 
-    async def test_teardown_cancellation_handling_cleans_up(self):
-        """Test that teardown properly cleans up cancellation resources."""
+    async def test_teardown_cancellation_handling_cleans_up(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that teardown closes the cancellation observer's events stream."""
+        subscriber = _IdleEventsSubscriber()
+        monkeypatch.setattr(
+            "prefect._internal.observers.get_events_subscriber",
+            lambda **kwargs: subscriber,
+        )
         with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
             worker = WorkerTestImpl(
                 work_pool_name="test-pool",
@@ -5631,10 +5713,10 @@ class TestWorkerCancellationHandling:
 
             async with worker:
                 assert worker._cancelling_observer is not None
-                consumer_task = worker._cancelling_observer._consumer_task
+                await asyncio.wait_for(subscriber.consuming.wait(), timeout=10)
+                assert not subscriber.exited
 
-            # After exit, task should be cancelled or done
-            assert consumer_task.cancelled() or consumer_task.done()
+            assert subscriber.exited
 
     async def test_base_worker_kill_infrastructure_raises_not_implemented(self):
         """Test that base worker kill_infrastructure raises NotImplementedError."""
@@ -5651,36 +5733,28 @@ class TestWorkerCancellationHandling:
             )
 
     async def test_websocket_failure_falls_back_to_polling(
-        self,
-        prefect_client: PrefectClient,
+        self, monkeypatch: pytest.MonkeyPatch
     ):
-        """Test that when the WebSocket consumer fails, we fall back to polling."""
+        """Test that when the WebSocket is unavailable, we fall back to polling."""
+        polled = asyncio.Event()
+
+        async def record_poll(self: FlowRunCancellingObserver) -> None:
+            polled.set()
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.get_events_subscriber",
+            lambda **kwargs: _FailingEventsSubscriber(),
+        )
+        monkeypatch.setattr(
+            FlowRunCancellingObserver, "_check_for_cancelled_flow_runs", record_poll
+        )
         with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
             async with WorkerTestImpl(
                 work_pool_name="test-pool",
                 name="test-worker",
             ) as worker:
-                observer = worker._cancelling_observer
-                assert observer is not None
-                assert observer._consumer_task is not None
-                assert observer._polling_task is None
-
-                # Simulate WebSocket consumer task failing
-                observer._consumer_task.cancel()
-                try:
-                    await observer._consumer_task
-                except asyncio.CancelledError:
-                    pass
-
-                # Manually trigger the done callback with an exception
-                failed_task = MagicMock()
-                failed_task.cancelled.return_value = False
-                failed_task.exception.return_value = RuntimeError("WebSocket failed")
-
-                observer._start_polling_task(failed_task)
-
-                # Should have started the polling task
-                assert observer._polling_task is not None
+                assert worker._cancelling_observer is not None
+                await asyncio.wait_for(polled.wait(), timeout=10)
 
     async def test_flow_run_ids_registered_with_observer(
         self,

@@ -189,6 +189,15 @@ def test_inspect_flow_run_with_web_flag_no_ui_url(
     mock_webbrowser.open_new_tab.assert_not_called()
 
 
+def test_inspect_flow_run_not_found():
+    missing_flow_run_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
+    invoke_and_assert(
+        command=["flow-run", "inspect", missing_flow_run_id],
+        expected_output_contains=f"Flow run '{missing_flow_run_id}' not found!",
+        expected_code=1,
+    )
+
+
 def test_inspect_flow_run_with_json_output(flow_run: FlowRun):
     """Test flow-run inspect command with JSON output flag."""
     result = invoke_and_assert(
