@@ -1,5 +1,7 @@
 import asyncio
 import contextlib
+import multiprocessing
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -322,6 +324,32 @@ def test_instance_cache_lock_is_reset_after_fork(monkeypatch: pytest.MonkeyPatch
     instance.send(1)
     instance.drain()
     instance.mock.assert_called_once_with(instance, 1)
+
+
+def test_drain_after_reset_for_fork_does_not_fail():
+    # In a forked child, the at-exit callback registered by `start()` in the parent
+    # still runs after `reset_for_fork()` cleared the service's state.
+    instance = MockService.instance()
+    instance.send(1)
+    instance.drain()
+
+    instance.reset_for_fork()
+
+    assert instance.drain(at_exit=True) is False
+    instance._at_exit()
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="requires os.fork")
+def test_forked_child_exits_cleanly_after_service_started():
+    instance = MockService.instance()
+    instance.send(1)
+    try:
+        process = multiprocessing.get_context("fork").Process(target=int)
+        process.start()
+        process.join(timeout=30)
+        assert process.exitcode == 0
+    finally:
+        instance.drain()
 
 
 def test_send_one():

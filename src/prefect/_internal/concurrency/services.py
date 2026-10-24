@@ -271,8 +271,10 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
 
         self._stop(at_exit=at_exit)
 
-        assert self._done_event is not None
-        if self._done_event.is_set():
+        # `reset_for_fork()` clears the event in a forked child, but the at-exit
+        # callback registered by `start()` in the parent is still registered there.
+        # The service never ran in this process, so there is nothing to wait for.
+        if self._done_event is None or self._done_event.is_set():
             future: concurrent.futures.Future[bool] = concurrent.futures.Future()
             future.set_result(False)
             return future
