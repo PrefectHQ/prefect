@@ -1,3 +1,4 @@
+import asyncio
 import shutil
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -1238,6 +1239,42 @@ async def test_decrement_concurrency_limit_with_lease(
     refreshed_limit = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
     assert refreshed_limit.status_code == 200
     assert refreshed_limit.json()["active_slots"] == 0
+
+
+@pytest.mark.usefixtures("use_filesystem_lease_storage")
+async def test_concurrent_decrements_of_one_lease_release_its_slots_once(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    # another holder takes a slot without a lease and keeps it
+    response = await client.post(
+        "/v2/concurrency_limits/increment",
+        json={"names": [concurrency_limit.name], "slots": 1},
+    )
+    assert response.status_code == 200
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": [concurrency_limit.name], "slots": 1},
+    )
+    assert response.status_code == 200
+    lease_id = response.json()["lease_id"]
+
+    # a client retrying its release, or two cleanups of the same lease
+    responses = await asyncio.gather(
+        *(
+            client.post(
+                "/v2/concurrency_limits/decrement-with-lease",
+                json={"lease_id": lease_id},
+            )
+            for _ in range(2)
+        )
+    )
+    assert [r.status_code for r in responses] == [204, 204]
+
+    refreshed_limit = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
+    assert refreshed_limit.status_code == 200
+    assert refreshed_limit.json()["active_slots"] == 1
 
 
 async def test_renew_concurrency_lease(
