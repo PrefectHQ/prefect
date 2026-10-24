@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import sys
 from contextlib import contextmanager
+from functools import cache
 from typing import Annotated, Any, Union, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
@@ -127,6 +128,7 @@ def parse_datetime(dt: str) -> datetime.datetime:
         return cast(datetime.datetime, _wrap_pendulum_value(pendulum.parse(dt)))
 
 
+@cache
 def get_timezones() -> tuple[str, ...]:
     return tuple(available_timezones())
 
