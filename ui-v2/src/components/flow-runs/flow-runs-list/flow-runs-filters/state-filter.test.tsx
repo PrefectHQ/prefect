@@ -1,11 +1,11 @@
-import { render as renderComponent, screen } from "@testing-library/react";
+import { act, render as renderComponent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { StateFilter } from "./state-filter";
 
 const render = (ui: ReactElement) =>
@@ -13,6 +13,10 @@ const render = (ui: ReactElement) =>
 
 describe("FlowRunsDataTable -- StateFilter", () => {
 	beforeAll(mockPointerEvents);
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
 
 	it("searches beyond the discovery cap and keeps deleted selected names", async () => {
 		const requests: string[] = [];
@@ -39,8 +43,14 @@ describe("FlowRunsDataTable -- StateFilter", () => {
 				);
 			}),
 		);
+		// Fake the clock so the 300ms search debounce in `useStateOptions` is
+		// advanced explicitly instead of consuming `findByRole`'s 1s wait budget,
+		// which caused timeouts on loaded CI runners.
+		vi.useFakeTimers({ shouldAdvanceTime: true });
 		const onSelect = vi.fn();
-		const user = userEvent.setup();
+		const user = userEvent.setup({
+			advanceTimers: vi.advanceTimersByTimeAsync.bind(vi),
+		});
 		render(
 			<StateFilter
 				selectedFilters={new Set(["Deleted state"])}
@@ -53,6 +63,7 @@ describe("FlowRunsDataTable -- StateFilter", () => {
 			screen.getByRole("menuitem", { name: "Deleted state" }),
 		).toBeVisible();
 		await user.type(screen.getByLabelText("Search state names"), "Base");
+		await act(() => vi.advanceTimersByTimeAsync(300));
 		await user.click(
 			await screen.findByRole("menuitem", { name: "Baseline, NOT Met" }),
 		);
