@@ -6,6 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from prefect.cli._transfer_utils import (
+    collect_resources as _collect_resources,
+)
+from prefect.cli._transfer_utils import (
     find_root_resources as _find_root_resources,
 )
 from prefect.cli._transfer_utils import (
@@ -13,6 +16,8 @@ from prefect.cli._transfer_utils import (
 )
 from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.cli.transfer._migratable_resources.base import MigratableProtocol
+from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import GlobalConcurrencyLimitCreate
 from prefect.settings import Profile, ProfilesCollection
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -220,6 +225,22 @@ class TestResourceCollection:
             command=["transfer", "--from", "source", "--to", "target"],
             expected_code=0,
             expected_output_contains="No resources found to transfer",
+        )
+
+    async def test_collect_resources_reads_every_global_concurrency_limit(
+        self, prefect_client: PrefectClient
+    ):
+        """Test that more than one default page of limits is collected."""
+        names = [f"transfer-limit-{i:02d}" for i in range(12)]
+        for name in names:
+            await prefect_client.create_global_concurrency_limit(
+                GlobalConcurrencyLimitCreate(name=name, limit=1)
+            )
+
+        resources = await _collect_resources(prefect_client)
+
+        assert (
+            sorted(r.source_global_concurrency_limit.name for r in resources) == names
         )
 
 
