@@ -26,7 +26,7 @@ Shared fixtures live in `fixtures/` (see fixtures/AGENTS.md) and root `conftest.
 - **Client-side tests** use `prefect_client` (full SDK client). Do not use in server tests.
 - **Server API tests** use `client` / `test_client` (raw httpx/FastAPI against an ephemeral server)
 - **Server model/orchestration tests** use `session` (async SQLAlchemy) and pre-built ORM fixtures (`flow`, `flow_run`, `task_run`, `deployment`, etc.)
-- `test-projects/` — Sample projects used by CLI/deploy tests
+- `test-projects/` — Sample projects used by CLI/deploy tests. Treat as read-only shared state: under xdist, other tests import and execute modules in these directories (writing `__pycache__`), so copy into `tmp_path` (`shutil.copytree`) before writing to a project or asserting on its directory contents
 
 ## Testing Guidelines
 
