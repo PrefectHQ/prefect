@@ -81,6 +81,8 @@ async def test_flows_fail_with_timeout(self): ...
 
 When combining `timeout_seconds` flows with concurrency, use a generous timeout (≥ 2s): the heartbeat-thread setup runs inside the flow's timeout scope and can exhaust a tight timeout before the flow body starts, causing pre-`yield` cancellation on contended CI runners.
 
+**CLI tests that disable test mode leak logging config**: the CLI entrypoint calls `setup_logging()` whenever `settings.testing.test_mode` is false (e.g. a fresh profile), which resets the process-wide `prefect` logger levels (dropping DEBUG logs) for unrelated later tests on the same xdist worker. Add an autouse fixture that calls `setup_logging(incremental=False)` on teardown (see `tests/cli/test_config.py`).
+
 Use `retry_asserts` from `prefect._internal.testing` to handle timing-sensitive assertions. Two patterns:
 
 - **Retrying assertions for async event propagation** (most common): wrap the assertion inside `with attempt:` so it retries until the event arrives.
