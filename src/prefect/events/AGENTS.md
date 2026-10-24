@@ -8,6 +8,7 @@ Client-side event system for emitting, subscribing to, and defining automations 
 - Events follow the CloudEvents-inspired schema: `Event` with `Resource` and `RelatedResource`.
 - Automations combine triggers (event, metric, compound, sequence) with actions.
 - **Metric triggers are Cloud-only.** OSS's `ServerTriggerTypes` excludes `MetricTrigger`, so `POST /automations` returns 422. For "alert if a flow takes too long" on OSS, use a proactive `EventTrigger` (`after={prefect.flow-run.Running}`, terminal states in `expect`, SLO in `within`).
+- **Automations read from the API can contain values newer than this client.** Cloud may add action types and metric names before a client release knows them; they are read as `UnknownAction` / a plain `str` `MetricTriggerQuery.name` instead of failing, and must round-trip unchanged on update. Code consuming automations must handle these forms (e.g. don't assume `.value` on a metric name); `prefect transfer` skips such automations rather than copying them.
 - **Event name prefixes differ by backend.** OSS emits `prefect.*`; Cloud emits `prefect-cloud.*` for automation/action lifecycle events (e.g., `prefect-cloud.automation.triggered`). Cross-backend tooling that filters events must match both.
 - `DeploymentTriggerTypes` are the subset of triggers usable in `prefect.yaml` deployment definitions.
 
