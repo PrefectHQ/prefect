@@ -15,20 +15,27 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from docket import Docket
+import sqlalchemy as sa
+from docket import Docket, Worker
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.compatibility.starlette import status
 from prefect.server import models, schemas
-from prefect.server.schemas.statuses import DeploymentStatus
+from prefect.server.database import PrefectDBInterface, orm_models
+from prefect.server.events.clients import AssertingEventsClient
+from prefect.server.events.schemas.events import Event
+from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
+from prefect.server.services import foreman
 from prefect.server.services.cancellation_cleanup import cancelling_timeout_check_key
 from prefect.settings import (
     PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED,
+    PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
     get_current_settings,
     temporary_settings,
 )
+from prefect.types._datetime import now
 
 pytestmark = pytest.mark.clear_db
 
@@ -144,6 +151,320 @@ class TestDocketAtMostOnceExecution:
             deployments.append(deployment)
         await session.commit()
         return deployments
+
+    @pytest.fixture
+    async def queue_deployment(
+        self,
+        session: AsyncSession,
+        flow: orm_models.Flow,
+        work_pool: orm_models.WorkPool,
+    ) -> orm_models.Deployment:
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="queue-deployment",
+                flow_id=flow.id,
+                work_queue_id=work_pool.default_queue_id,
+            ),
+        )
+        assert deployment is not None
+        await session.commit()
+        return deployment
+
+    @pytest.mark.parametrize("poll_kind", ["pool", "polled", "ready"])
+    async def test_large_queue_set_records_polls_within_bind_limit(
+        self,
+        db: PrefectDBInterface,
+        session: AsyncSession,
+        work_pool: orm_models.WorkPool,
+        client_with_real_docket: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        poll_kind: str,
+    ):
+        budget = 100
+        queue_ids = [work_pool.default_queue_id, *(uuid4() for _ in range(budget))]
+        await session.execute(
+            sa.insert(db.WorkQueue),
+            [
+                {"id": queue_id, "name": str(queue_id), "work_pool_id": work_pool.id}
+                for queue_id in queue_ids[1:]
+            ],
+        )
+        await session.commit()
+        polled = now("UTC")
+        monkeypatch.setattr(models.work_queues, "now", lambda _: polled)
+        monkeypatch.setattr(
+            models.work_queues, "get_max_query_parameters", lambda: budget
+        )
+        monkeypatch.setattr(
+            models.work_queues, "PrefectServerEventsClient", AssertingEventsClient
+        )
+        AssertingEventsClient.reset()
+
+        def enforce_bind_limit(
+            conn: sa.Connection,
+            cursor: Any,
+            statement: str,
+            parameters: Any,
+            context: sa.engine.ExecutionContext,
+            executemany: bool,
+        ) -> None:
+            assert len(parameters) <= budget
+
+        engine = await db.engine()
+        sa.event.listen(engine.sync_engine, "before_cursor_execute", enforce_bind_limit)
+        try:
+            if poll_kind == "pool":
+                response = await client_with_real_docket.post(
+                    f"/work_pools/{work_pool.name}/get_scheduled_flow_runs", json={}
+                )
+                assert response.status_code == 200
+            else:
+                await models.work_queues.mark_work_queues_ready(
+                    db=db,
+                    polled_work_queue_ids=queue_ids if poll_kind == "polled" else [],
+                    ready_work_queue_ids=queue_ids if poll_kind == "ready" else [],
+                )
+        finally:
+            sa.event.remove(
+                engine.sync_engine, "before_cursor_execute", enforce_bind_limit
+            )
+
+        queues = (
+            await session.scalars(
+                sa.select(db.WorkQueue).where(db.WorkQueue.work_pool_id == work_pool.id)
+            )
+        ).all()
+        assert len(queues) == len(queue_ids)
+        assert all(queue.last_polled == polled for queue in queues)
+        assert all(
+            queue.status
+            == (
+                WorkQueueStatus.READY
+                if poll_kind == "ready"
+                else WorkQueueStatus.NOT_READY
+            )
+            for queue in queues
+        )
+        events = [
+            event for client in AssertingEventsClient.all for event in client.events
+        ]
+        assert len(events) == (len(queue_ids) if poll_kind == "ready" else 0)
+        if poll_kind == "ready":
+            assert {event.resource.id for event in events} == {
+                f"prefect.work-queue.{queue_id}" for queue_id in queue_ids
+            }
+            assert all(event.event == "prefect.work-queue.ready" for event in events)
+
+    @pytest.mark.parametrize("poll_kind", ["queue", "pool"])
+    async def test_deduplicated_poll_preserves_latest_heartbeat(
+        self,
+        db: PrefectDBInterface,
+        session: AsyncSession,
+        queue_deployment: orm_models.Deployment,
+        work_pool: orm_models.WorkPool,
+        real_docket: Docket,
+        client_with_real_docket: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        poll_kind: str,
+    ):
+        queue_id = queue_deployment.work_queue_id
+        assert queue_id is not None
+        route = (
+            f"/work_queues/{queue_id}/get_runs"
+            if poll_kind == "queue"
+            else f"/work_pools/{work_pool.name}/get_scheduled_flow_runs"
+        )
+        start = now("UTC")
+        clock = start
+        for module in (models.work_queues, models.deployments, foreman):
+            monkeypatch.setattr(module, "now", lambda _: clock)
+        await models.deployments.mark_deployments_ready(
+            db=db, deployment_ids=[queue_deployment.id]
+        )
+
+        with temporary_settings(
+            {PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS: 60}
+        ):
+            for elapsed in (0, 25):
+                clock = start + timedelta(seconds=elapsed)
+                response = await client_with_real_docket.post(route, json={})
+                assert response.status_code == 200
+            assert (await real_docket.snapshot()).total_tasks == 2
+            queue = await session.get(db.WorkQueue, queue_id)
+            assert queue is not None
+            await session.refresh(queue)
+            assert queue.last_polled == clock
+
+            # The deployment task can finish while the queue task is still delayed.
+            clock = start + timedelta(seconds=26)
+            await models.deployments.mark_deployments_ready(
+                db=db, work_queue_ids=[queue_id], skip_recently_polled=True
+            )
+            await session.refresh(queue_deployment)
+            assert queue_deployment.last_polled == start
+            for elapsed, expected in (
+                (65, DeploymentStatus.READY),
+                (86, DeploymentStatus.NOT_READY),
+            ):
+                clock = start + timedelta(seconds=elapsed)
+                await foreman._mark_deployments_as_not_ready(
+                    db=db, deployment_last_polled_timeout_seconds=60
+                )
+                await session.refresh(queue_deployment)
+                assert queue_deployment.status == expected
+
+    @pytest.mark.parametrize("poll_kind", ["queue", "pool"])
+    async def test_deployment_enqueue_failure_does_not_repeat_queue_event(
+        self,
+        session: AsyncSession,
+        queue_deployment: orm_models.Deployment,
+        work_pool: orm_models.WorkPool,
+        real_docket: Docket,
+        client_with_real_docket: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        poll_kind: str,
+    ):
+        queue_id = queue_deployment.work_queue_id
+        route = (
+            f"/work_queues/{queue_id}/get_runs"
+            if poll_kind == "queue"
+            else f"/work_pools/{work_pool.name}/get_scheduled_flow_runs"
+        )
+        monkeypatch.setattr(
+            models.work_queues, "PrefectServerEventsClient", AssertingEventsClient
+        )
+        add = real_docket.add
+
+        def fail_deployment_enqueue(function: Any, *args: Any, **kwargs: Any) -> Any:
+            if function is models.deployments.mark_deployments_ready:
+
+                async def reject(*args: Any, **kwargs: Any) -> None:
+                    raise ConnectionError("deployment enqueue failed")
+
+                return reject
+            return add(function, *args, **kwargs)
+
+        AssertingEventsClient.reset()
+        async with Worker(real_docket) as worker:
+            with monkeypatch.context() as patcher:
+                patcher.setattr(real_docket, "add", fail_deployment_enqueue)
+                for _ in range(5):
+                    with pytest.raises(
+                        ConnectionError, match="deployment enqueue failed"
+                    ):
+                        await client_with_real_docket.post(route, json={})
+                    await worker.run_until_finished()
+            assert [
+                event.event
+                for client in AssertingEventsClient.all
+                for event in client.events
+            ] == ["prefect.work-queue.ready"]
+            response = await client_with_real_docket.post(route, json={})
+            assert response.status_code == 200
+            await worker.run_until_finished()
+
+        await session.refresh(queue_deployment)
+        assert queue_deployment.status == DeploymentStatus.READY
+        assert sorted(
+            event.event
+            for client in AssertingEventsClient.all
+            for event in client.events
+        ) == ["prefect.deployment.ready", "prefect.work-queue.ready"]
+
+    @pytest.mark.parametrize("failure_table", ["work_queue", "deployment"])
+    async def test_poll_write_failure_preserves_independent_work(
+        self,
+        db: PrefectDBInterface,
+        session: AsyncSession,
+        queue_deployment: orm_models.Deployment,
+        work_pool: orm_models.WorkPool,
+        real_docket: Docket,
+        client_with_real_docket: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        failure_table: str,
+    ):
+        monkeypatch.setattr(
+            models.work_queues, "PrefectServerEventsClient", AssertingEventsClient
+        )
+
+        def fail_update(
+            conn: sa.Connection,
+            cursor: Any,
+            statement: str,
+            parameters: Any,
+            context: sa.engine.ExecutionContext,
+            executemany: bool,
+        ) -> None:
+            if (
+                context.isupdate
+                and context.compiled.statement.table.name == failure_table
+            ):
+                raise RuntimeError("poll write failed")
+
+        engine = await db.engine()
+        AssertingEventsClient.reset()
+        sa.event.listen(engine.sync_engine, "before_cursor_execute", fail_update)
+        try:
+            async with Worker(real_docket) as worker:
+                route = f"/work_pools/{work_pool.name}/get_scheduled_flow_runs"
+                if failure_table == "work_queue":
+                    with pytest.raises(RuntimeError, match="poll write failed"):
+                        await client_with_real_docket.post(route, json={})
+                    assert (await real_docket.snapshot()).total_tasks == 0
+                else:
+                    response = await client_with_real_docket.post(route, json={})
+                    assert response.status_code == 200
+                    await worker.run_until_finished()
+        finally:
+            sa.event.remove(engine.sync_engine, "before_cursor_execute", fail_update)
+
+        queue = await session.get(db.WorkQueue, queue_deployment.work_queue_id)
+        assert queue is not None
+        await session.refresh(queue)
+        await session.refresh(queue_deployment)
+        assert queue_deployment.status == DeploymentStatus.NOT_READY
+        assert queue.status == (
+            WorkQueueStatus.READY
+            if failure_table == "deployment"
+            else WorkQueueStatus.NOT_READY
+        )
+        assert [
+            event.event
+            for client in AssertingEventsClient.all
+            for event in client.events
+        ] == (["prefect.work-queue.ready"] if failure_table == "deployment" else [])
+
+    async def test_deployment_work_survives_queue_event_failure(
+        self,
+        session: AsyncSession,
+        queue_deployment: orm_models.Deployment,
+        work_pool: orm_models.WorkPool,
+        real_docket: Docket,
+        client_with_real_docket: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        class FailingQueueEventsClient(AssertingEventsClient):
+            async def emit(self, event: Event) -> Event:
+                raise ConnectionError("queue event failed")
+
+        monkeypatch.setattr(
+            models.work_queues, "PrefectServerEventsClient", FailingQueueEventsClient
+        )
+        AssertingEventsClient.reset()
+        response = await client_with_real_docket.post(
+            f"/work_pools/{work_pool.name}/get_scheduled_flow_runs", json={}
+        )
+        assert response.status_code == 200
+        async with Worker(real_docket) as worker:
+            await worker.run_until_finished()
+        await session.refresh(queue_deployment)
+        assert queue_deployment.status == DeploymentStatus.READY
+        assert [
+            event.event
+            for client in AssertingEventsClient.all
+            for event in client.events
+        ] == ["prefect.deployment.ready"]
 
     @pytest.fixture
     async def flow_run(self, session: AsyncSession, flow):
@@ -266,26 +587,17 @@ class TestDocketAtMostOnceExecution:
         # Get snapshot after requests
         final_snapshot = await real_docket.snapshot()
 
-        # Should only have 2 new tasks (mark_work_queues_ready and mark_deployments_ready)
-        # despite making 3 requests, because duplicate keys are ignored
+        # Queue events and deployment updates have separate deduplicated tasks.
         new_tasks = final_snapshot.total_tasks - initial_task_count
-        assert new_tasks == 2, (
-            f"Expected 2 tasks (one per unique key), but got {new_tasks}. "
-            "Duplicate requests should not create additional tasks."
-        )
+        assert new_tasks == 2
 
         # Verify the tasks have the expected keys
         # Include both future (queued) and running tasks since the worker may have
         # already started processing some tasks by the time we take the snapshot
         task_keys = {task.key for task in final_snapshot.future}
         task_keys.update(task.key for task in final_snapshot.running)
-        expected_keys = {
-            f"mark_work_queues_ready:{work_queue.id}",
-            f"mark_deployments_ready:work_queue:{work_queue.id}",
-        }
-        assert expected_keys.issubset(task_keys), (
-            f"Expected keys {expected_keys} not found in {task_keys}"
-        )
+        assert f"mark_work_queues_ready:{work_queue.id}" in task_keys
+        assert f"mark_deployments_ready:work_queue:{work_queue.id}" in task_keys
 
     async def test_workers_duplicate_requests_queue_single_task(
         self,
@@ -311,21 +623,15 @@ class TestDocketAtMostOnceExecution:
         final_snapshot = await real_docket.snapshot()
         new_tasks = final_snapshot.total_tasks - initial_task_count
 
-        # Should only have 2 new tasks despite 3 requests
-        assert new_tasks == 2, (
-            f"Expected 2 tasks, but got {new_tasks}. "
-            "Duplicate requests should not create additional tasks."
-        )
+        # Queue events and deployment updates have separate deduplicated tasks.
+        assert new_tasks == 2
 
         # Include both future (queued) and running tasks since the worker may have
         # already started processing some tasks by the time we take the snapshot
         task_keys = {task.key for task in final_snapshot.future}
         task_keys.update(task.key for task in final_snapshot.running)
-        expected_keys = {
-            f"mark_work_queues_ready:work_pool:{work_pool.id}",
-            f"mark_deployments_ready:work_pool:{work_pool.id}",
-        }
-        assert expected_keys.issubset(task_keys)
+        assert f"mark_work_queues_ready:work_pool:{work_pool.id}" in task_keys
+        assert f"mark_deployments_ready:work_pool:{work_pool.id}" in task_keys
 
     async def test_deployments_duplicate_requests_queue_single_task(
         self,

@@ -11,10 +11,13 @@ from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.statuses import DeploymentStatus
+from prefect.server.services import foreman
 from prefect.server.services.foreman import monitor_worker_health
 from prefect.settings import (
     PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS,
     PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE,
+    PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
+    temporary_settings,
 )
 from prefect.settings.context import get_current_settings
 
@@ -573,6 +576,64 @@ class TestForeman:
 
         events = [event for item in AssertingEventsClient.all for event in item.events]
         assert len(events) == 0
+
+    @pytest.mark.parametrize("poll_kind", ["direct", "direct_without_queue", "queue"])
+    async def test_deployment_timeout_starts_at_last_poll(
+        self,
+        db: PrefectDBInterface,
+        session: AsyncSession,
+        deployment: "ORMDeployment",
+        monkeypatch: pytest.MonkeyPatch,
+        poll_kind: str,
+    ):
+        if poll_kind == "direct_without_queue":
+            deployment.work_queue_id = None
+            await session.commit()
+
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        clock = start
+        for module in (models.deployments, models.work_queues, foreman):
+            monkeypatch.setattr(module, "now", lambda _: clock)
+
+        with temporary_settings(
+            {PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS: 60}
+        ):
+            for elapsed in (0, 25):
+                clock = start + timedelta(seconds=elapsed)
+                if poll_kind == "queue":
+                    assert deployment.work_queue_id is not None
+                    await models.work_queues.mark_work_queues_ready(
+                        db=db,
+                        polled_work_queue_ids=[deployment.work_queue_id],
+                        ready_work_queue_ids=[]
+                        if elapsed
+                        else [deployment.work_queue_id],
+                    )
+                    await models.deployments.mark_deployments_ready(
+                        db=db,
+                        work_queue_ids=[deployment.work_queue_id],
+                        skip_recently_polled=True,
+                    )
+                else:
+                    await models.deployments.mark_deployments_ready(
+                        db=db,
+                        deployment_ids=iter([deployment.id]),
+                        skip_recently_polled=True,
+                    )
+
+            await session.refresh(deployment)
+            assert deployment.last_polled == (start if poll_kind == "queue" else clock)
+
+            for elapsed, expected in (
+                (65, DeploymentStatus.READY),
+                (86, DeploymentStatus.NOT_READY),
+            ):
+                clock = start + timedelta(seconds=elapsed)
+                await foreman._mark_deployments_as_not_ready(
+                    db=db, deployment_last_polled_timeout_seconds=60
+                )
+                await session.refresh(deployment)
+                assert deployment.status == expected
 
     async def test_foreman_with_no_deployments_to_update(self):
         # Count only events emitted by the foreman run, not fixture creation
