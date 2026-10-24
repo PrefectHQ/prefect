@@ -58,6 +58,10 @@ If it passes, delete the `pytestmark` (or per-test marker) and commit.
 
 `PREFECT_HOME` is a single temp directory created once per test session (`pytest_sessionstart`), not reset between tests. A test that writes a file directly into it (e.g. a PID file) must delete it in fixture teardown, or later tests in the same session can see it as real state.
 
+### Process-wide logging config
+
+The CLI calls `setup_logging()` when not in test mode, and uvicorn reconfigures logging on startup. A test that runs either one (e.g. `invoke_and_assert` under a fresh, non-test profile) replaces process-wide logging config (the CLI path lowers the `prefect` logger to INFO) for every later test on that xdist worker, so failures show up in unrelated tests that assert on DEBUG logs. Restore with `setup_logging(incremental=False)` in fixture teardown.
+
 ### Event assertions
 
 Creating a domain object emits a lifecycle event: building a `flow`, `work_pool`, `variable`, block, concurrency limit, etc. (via fixture or model call) emits `prefect.<object>.{created,...}`. Server tests that assert on `AssertingEventsClient` totals or ordering must `AssertingEventsClient.reset()` after fixture setup, so they count only the events from the action under test rather than the events emitted while building fixtures.
