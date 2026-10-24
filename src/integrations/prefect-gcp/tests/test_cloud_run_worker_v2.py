@@ -815,6 +815,62 @@ class TestCloudRunWorkerV2KillInfrastructure:
         assert "503" in mock_logger.warning.call_args[0][1:].__repr__()
 
 
+class TestCloudRunWorkerV2ExecutionPollInterval:
+    """
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/15855
+
+    The execution watch loop polled every 5 seconds with no way to change it,
+    which adds up to a lot of Cloud Run API reads for many long-running flows.
+    """
+
+    def _poll_interval_used(self, config, **kwargs) -> float:
+        worker = CloudRunWorkerV2("my-work-pool")
+        finished = MagicMock(spec=ExecutionV2)
+        finished.succeeded.return_value = True
+        finished.logUri = "https://console.cloud.google.com/logs"
+
+        with (
+            mock.patch.object(
+                worker, "_watch_job_execution", return_value=finished
+            ) as watch,
+            mock.patch("prefect_gcp.workers.cloud_run_v2.JobV2.delete"),
+        ):
+            worker._watch_job_execution_and_get_result(
+                cr_client=MagicMock(),
+                configuration=config,
+                execution=MagicMock(spec=ExecutionV2),
+                logger=MagicMock(spec=PrefectLogAdapter),
+                **kwargs,
+            )
+        return watch.call_args.kwargs["poll_interval"]
+
+    def test_defaults_to_five_seconds(self, cloud_run_worker_v2_job_config):
+        assert self._poll_interval_used(cloud_run_worker_v2_job_config) == 5.0
+
+    def test_uses_the_worker_setting(self, cloud_run_worker_v2_job_config):
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_EXECUTION_POLL_INTERVAL_SECONDS": "60"
+            },
+        ):
+            assert self._poll_interval_used(cloud_run_worker_v2_job_config) == 60.0
+
+    def test_explicit_argument_wins(self, cloud_run_worker_v2_job_config):
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_EXECUTION_POLL_INTERVAL_SECONDS": "60"
+            },
+        ):
+            assert (
+                self._poll_interval_used(
+                    cloud_run_worker_v2_job_config, poll_interval=2
+                )
+                == 2
+            )
+
+
 class TestCloudRunWorkerV2ExecutionPollRetries:
     def test_watch_job_execution_404_not_retried(
         self, cloud_run_worker_v2_job_config, mock_credentials
