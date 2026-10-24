@@ -105,7 +105,7 @@ async def run_startup_hooks(ctx: HookContext) -> list[SetupSummary]:
             logger.debug("Plugin %s completed successfully", name)
         except Exception as e:
             logger.exception("Failed to apply result from plugin %s", name)
-            summaries.append(SetupSummary(name, {}, None, None, error=str(e)))
+            summaries.append(SetupSummary(name, {}, None, error=str(e)))
 
     # Strict failure policy
     if settings.strict:
