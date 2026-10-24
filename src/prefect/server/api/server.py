@@ -988,6 +988,16 @@ def create_app(
     )
     ui_app = create_ui_app(ephemeral)
 
+    # Optional fastapi-guard security middleware (off unless
+    # PREFECT_SERVER_API_GUARD_ENABLED). Attached before the CORS middleware
+    # below so the guard nests inside it (last-added is outermost) and
+    # guard-generated 403/429 responses still leave with CORS headers;
+    # the CSRF and request-limit middlewares added after it also stay
+    # outside the guard.
+    from prefect.server.api.guard import attach_guard
+
+    attach_guard(app)
+
     # middleware
     app.add_middleware(
         CORSMiddleware,
