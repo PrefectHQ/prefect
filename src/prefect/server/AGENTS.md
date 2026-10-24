@@ -72,6 +72,8 @@ alembic_revision("description")      # Create a new migration
 
 - **`docket.add()` in monitor loops must pass a per-entity `key=` to prevent duplicate enqueues.** Without it, repeated iterations over the same pending entity enqueue duplicate tasks — causing duplicate state transitions. Format: `"<service-name>:<entity-id>"`, e.g., `"mark-flow-run-late:{run.id}"` in `services/late_runs.py`.
 
+- **`TaskRunRecorder` and `EventPersister` share a buffered-consumer shape; keep their failure handling in sync.** Both (`services/task_run_recorder.py`, `events/services/event_persister.py`) queue messages and flush from a never-awaited `flush_periodically` task, so any exception escaping that loop silently stops flushing for the life of the service (#22441, #23308). Database drivers can raise `CancelledError` during outages, so the loop exits on cancellation only after the shutdown path sets its `stopping` flag. Mirror retry/drop/cancellation fixes in both.
+
 ## UI Serving Architecture
 
 Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFECT_UI_SERVE_BASE` (default `/`), V2 at `{base_url}/v2`. The `redirect_to_preferred_ui` middleware routes neutral entry points using the `prefect_ui_version` cookie. `PREFECT_SERVER_UI_V2_ENABLED` sets the *default* for browsers with no saved preference — it does not remove V1 or force all users to V2. Both bundles must be built before packaging (`PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1` enforces this via `hatch_build.py`). **The version-redirect `Location` header must be a relative path** — using `request.url.replace(...)` builds an absolute URL that embeds the internal Host behind a reverse proxy and leaks it to the client.
