@@ -62,6 +62,7 @@ WORKDIR /opt/prefect
 # Install system requirements
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
+    ca-certificates \
     git=1:2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -80,12 +81,15 @@ COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /bin/uv
 # whiteout on top of that layer, so the archive still ships in the pushed image.
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,from=python-builder,source=/opt/prefect/dist,target=/dist \
-    UV_COMPILE_BYTECODE=1 uv pip install "/dist/prefect_client.tar.gz"
+    UV_COMPILE_BYTECODE=1 uv pip install "/dist/prefect_client.tar.gz" "pip>=26.2.2"
 
 # Remove setuptools
 RUN uv pip uninstall setuptools
 
 # Smoke test
+RUN --mount=type=bind,source=scripts/check_image_ca_trust.py,target=/tmp/check_image_ca_trust.py \
+    python /tmp/check_image_ca_trust.py
+
 RUN python -c "import prefect; print(prefect.__version__)"
 
 # Setup entrypoint
