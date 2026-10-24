@@ -137,6 +137,7 @@ class ProcessWorker(
     type = "process"
     job_configuration: type[ProcessJobConfiguration] = ProcessJobConfiguration
     job_configuration_variables: type[ProcessVariables] | None = ProcessVariables
+    flow_runs_end_with_worker = True
 
     _description = (
         "Execute flow runs as subprocesses on a worker. Works well for local execution"
