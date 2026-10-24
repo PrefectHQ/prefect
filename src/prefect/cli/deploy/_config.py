@@ -126,7 +126,7 @@ def _load_deploy_configs_and_actions(
     """
     raw: dict[str, Any] = {}
     try:
-        with prefect_file.open("r") as f:
+        with prefect_file.open("r", encoding="utf-8") as f:
             loaded = yaml.safe_load(f)
     except (FileNotFoundError, IsADirectoryError, YAMLError) as exc:
         console.print(

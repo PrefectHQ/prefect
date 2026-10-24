@@ -54,10 +54,10 @@ def _gather_deployment_trigger_definitions(
                 if t.endswith(".yaml"):
                     import yaml
 
-                    with open(t, "r") as f:
+                    with open(t, "r", encoding="utf-8") as f:
                         trigger_specs.extend(yaml.safe_load(f).get("triggers", []))
                 elif t.endswith(".json"):
-                    with open(t, "r") as f:
+                    with open(t, "r", encoding="utf-8") as f:
                         trigger_specs.extend(json.load(f).get("triggers", []))
                 else:
                     trigger_specs.append(json.loads(t))
