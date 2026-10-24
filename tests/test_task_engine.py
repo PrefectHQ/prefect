@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import time
+from contextlib import AsyncExitStack
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
@@ -47,6 +48,7 @@ from prefect.states import (
     Running,
     State,
     Suspended,
+    to_state_create,
 )
 from prefect.task_engine import (
     AsyncTaskRunEngine,
@@ -56,7 +58,7 @@ from prefect.task_engine import (
 )
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
-from prefect.transactions import transaction
+from prefect.transactions import CommitMode, atransaction, transaction
 from prefect.types._datetime import now
 from prefect.utilities.annotations import opaque, quote
 from prefect.utilities.callables import get_call_parameters
@@ -2371,6 +2373,178 @@ class TestPersistence:
 
 
 class TestCachePolicy:
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("retries", [0, 1])
+    @pytest.mark.parametrize("aggregate", [False, True])
+    @pytest.mark.parametrize("named_result", [False, True])
+    async def test_returned_failed_state_is_not_cached(
+        self,
+        tmp_path: Path,
+        is_async: bool,
+        retries: int,
+        aggregate: bool,
+        named_result: bool,
+    ):
+        # Aggregate states do not participate in the explicit-state retry path.
+        retries = 0 if aggregate else retries
+        attempts = 0
+
+        def flaky(order_id: int) -> State | list[State] | str:
+            nonlocal attempts
+            attempts += 1
+            if attempts <= retries + 1:
+                failure = Failed(data=ValueError("temporary"))
+                return [failure] if aggregate else failure
+            return "recovered"
+
+        async def async_flaky(order_id: int) -> State | list[State] | str:
+            return flaky(order_id)
+
+        flaky_task = task(
+            async_flaky if is_async else flaky,
+            cache_policy=None if named_result else INPUTS,
+            result_storage_key="named-result" if named_result else None,
+            persist_result=True,
+            result_storage=tmp_path,
+            retries=retries,
+        )
+        run = run_task_async if is_async else run_task_sync
+
+        first = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            first = await first
+        assert first.is_failed()
+        assert attempts == retries + 1
+
+        second = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            second = await second
+        assert second.is_completed()
+        assert second.name == "Completed"
+        assert await second.result() == "recovered"
+        assert attempts == retries + 2
+
+        third = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            third = await third
+        assert third.name == "Cached"
+        assert await third.result() == "recovered"
+        assert attempts == retries + 2
+
+        # The original failure must remain persisted after a successful call.
+        persisted_failure = ResultStore(
+            result_storage=LocalFileSystem(basepath=tmp_path)
+        )
+        record = await persisted_failure.aread(first.data.metadata.storage_key)
+        failure = record.result[0].data if aggregate else record.result
+        assert isinstance(failure, ValueError)
+        assert str(failure) == "temporary"
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("persist_result", [False, True])
+    @pytest.mark.parametrize("data_type", ["metadata", "record"])
+    async def test_returned_failure_preserves_persisted_result(
+        self, tmp_path: Path, is_async: bool, persist_result: bool, data_type: str
+    ):
+        store = ResultStore(result_storage=LocalFileSystem(basepath=tmp_path))
+        record = store.create_result_record(ValueError("temporary"), key="failure")
+        await store.apersist_result_record(record)
+        data = record.metadata if data_type == "metadata" else record
+        attempts = 0
+
+        def flaky(order_id: int) -> State | str:
+            nonlocal attempts
+            attempts += 1
+            return Failed(data=data) if attempts == 1 else "recovered"
+
+        async def async_flaky(order_id: int) -> State | str:
+            return flaky(order_id)
+
+        flaky_task = task(
+            async_flaky if is_async else flaky,
+            cache_policy=INPUTS,
+            persist_result=persist_result,
+            result_storage=tmp_path,
+        )
+        run = run_task_async if is_async else run_task_sync
+        first = run(flaky_task, parameters={"order_id": 42}, return_type="state")
+        if is_async:
+            first = await first
+        assert first.is_failed()
+        assert first.data is data
+        assert attempts == 1
+        assert list(tmp_path.iterdir()) == [tmp_path / "failure"]
+        with pytest.raises(ValueError, match="temporary"):
+            await first.result()
+        if data_type == "record":
+            assert first.data.is_persisted
+            assert to_state_create(first).data == record.metadata
+
+        second = run(flaky_task, parameters={"order_id": 42}, return_type="state")
+        if is_async:
+            second = await second
+        assert second.name == "Completed"
+        assert await second.result() == "recovered"
+        assert attempts == 2
+        stored = await store.aread(record.metadata.storage_key)
+        assert isinstance(stored.result, ValueError)
+        assert str(stored.result) == "temporary"
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("outcome", ["commit", "rollback", "off"])
+    @pytest.mark.parametrize("persist_result", [False, True])
+    @pytest.mark.parametrize("cache_enabled", [False, True])
+    async def test_returned_failure_persistence_follows_parent_transaction(
+        self,
+        tmp_path: Path,
+        is_async: bool,
+        outcome: str,
+        persist_result: bool,
+        cache_enabled: bool,
+    ):
+        def fail() -> State:
+            return Failed(data=ValueError("temporary"))
+
+        async def async_fail() -> State:
+            return fail()
+
+        failing_task = task(
+            async_fail if is_async else fail,
+            cache_policy=INPUTS if cache_enabled else None,
+            persist_result=persist_result,
+            result_storage=tmp_path,
+        )
+        commit_mode = CommitMode.OFF if outcome == "off" else CommitMode.LAZY
+        async with AsyncExitStack() as stack:
+            if is_async:
+                parent = await stack.enter_async_context(
+                    atransaction(commit_mode=commit_mode)
+                )
+                state = await run_task_async(failing_task, return_type="state")
+            else:
+                parent = stack.enter_context(transaction(commit_mode=commit_mode))
+                state = run_task_sync(failing_task, return_type="state")
+            assert state.is_failed()
+            record = state.data
+            assert not record.is_persisted
+            assert not list(tmp_path.iterdir())
+            if outcome == "rollback":
+                if is_async:
+                    await parent.rollback()
+                else:
+                    parent.rollback()
+
+        if outcome == "commit" and persist_result:
+            assert record.is_persisted
+            stored = await ResultStore(
+                result_storage=LocalFileSystem(basepath=tmp_path)
+            ).aread(record.metadata.storage_key)
+            assert isinstance(stored.result, ValueError)
+            assert str(stored.result) == "temporary"
+        else:
+            assert not record.is_persisted
+            assert not list(tmp_path.iterdir())
+
     async def test_result_stored_with_storage_key_if_no_policy_set(
         self, prefect_client
     ):
