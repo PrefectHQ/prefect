@@ -68,6 +68,10 @@ loaderDeps: ({ search }) => {
 
 Forgetting this causes every pagination click to re-run the loader, which collapses open accordions and other ephemeral UI state.
 
+## Search/Filter-Driven List Queries
+
+On list pages with a search input or filters, never read a query whose key depends on those params with `useSuspenseQuery` (including filtered counts). Each keystroke re-suspends the route, unmounting the search input and dropping focus. Use `useQuery` with a `placeholderData: keepPreviousData` factory instead; only stable-key queries (e.g. unfiltered totals) may suspend. Keep the toolbar mounted: render filtered-empty and error states in place of the table only, and hide the filtered-empty state while `isPending` or `isPlaceholderData`.
+
 ## Pagination with Persisted Page Size
 
 Routes that persist page size across navigation use `usePageSizePreference`. The `limit` search param must use `.optional().catch(undefined)` — **not** `.default(10)` — so the hook can detect first-visit and restore from localStorage. Adding `.default(10)` silently breaks persistence: the hook receives a value and never calls `onInitialize`.
