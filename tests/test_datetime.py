@@ -441,6 +441,11 @@ def test_astimezone_preserves_timezone_for_pendulum_tz():
     assert result.utcoffset() is not None
 
 
+def test_get_timezones_is_cached():
+    """Schedule validation must not rescan tzdata on every call."""
+    assert datetime_module.get_timezones() is datetime_module.get_timezones()
+
+
 @pytest.mark.skipif(sys.version_info >= (3, 13), reason="legacy Pendulum API")
 class TestPendulumCompatibility:
     @pytest.mark.parametrize(
