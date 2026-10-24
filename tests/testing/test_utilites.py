@@ -3,6 +3,7 @@ import gc
 import unittest
 import uuid
 import warnings
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -309,3 +310,25 @@ async def test_prefect_test_harness_async_cleanup():
         pass
     # Force garbage collection to trigger finalization of any unawaited coroutines
     gc.collect()
+
+
+def test_prefect_test_harness_uses_a_given_database_directory(tmp_path: Path):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/11465
+
+    A caller-owned directory (for example from pytest's `tmp_path_factory`) holds
+    the test database and is left in place, so the caller controls cleanup.
+    """
+    database_directory = tmp_path / "harness"
+
+    @flow
+    def harness_flow():
+        return "done"
+
+    with prefect_test_harness(database_directory=database_directory):
+        assert str(database_directory) in str(
+            PREFECT_SERVER_DATABASE_CONNECTION_URL.value()
+        )
+        assert harness_flow() == "done"
+
+    assert (database_directory / "prefect-test.db").exists()

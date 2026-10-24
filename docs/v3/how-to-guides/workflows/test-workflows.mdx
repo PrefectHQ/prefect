@@ -53,6 +53,18 @@ def test_my_favorite_flow():
 In this example, the fixture is scoped to run once for the entire test session. In most cases, you do not need a clean database for each test. Just isolate your test runs to a test database. Creating a new test database per test creates significant overhead, so scope the fixture to the session. If you need to isolate some tests fully, place them in a separate module with a function-scoped harness fixture (see [Stale state between tests](#stale-state-between-tests)).
 </Note>
 
+By default the harness creates its database in a new temporary directory and removes it when the Python process exits. To keep the database with pytest's own temporary directories, which pytest retains for the last few runs so you can inspect them, pass `database_directory`. The harness does not delete a directory you pass.
+
+```python
+import pytest
+from prefect.testing.utilities import prefect_test_harness
+
+@pytest.fixture(autouse=True, scope="session")
+def prefect_test_fixture(tmp_path_factory):
+    with prefect_test_harness(database_directory=tmp_path_factory.mktemp("prefect")):
+        yield
+```
+
 ## Understand what the test harness does
 
 When you enter the `prefect_test_harness` context manager, the following happens:
@@ -61,8 +73,8 @@ When you enter the `prefect_test_harness` context manager, the following happens
 
 ### Create a temporary database
 
-A temporary directory is created and `PREFECT_SERVER_DATABASE_CONNECTION_URL` is overridden
-to point at a new SQLite file inside it. The database interface is reset through
+A temporary directory is created, or the `database_directory` you pass is used, and
+`PREFECT_SERVER_DATABASE_CONNECTION_URL` is overridden to point at a new SQLite file inside it. The database interface is reset through
 `temporary_database_interface()` so the server uses this temporary database instead of
 any previously configured one.
 
