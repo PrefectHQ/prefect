@@ -418,6 +418,50 @@ When you make a change to your code, Prefect does not push your code to your `gi
 This is intentional to avoid confusion about the `git` history and push process.
 </Warning>
 
+### Reuse Git objects on persistent workers
+
+Set `cache_dir` on `git_clone` to reuse downloaded Git objects across flow runs on the same host.
+Without `cache_dir`, Git pulls retain their existing behavior.
+
+```yaml
+pull:
+  - prefect.deployments.steps.git_clone:
+      repository: https://github.com/org/flow-code.git
+      branch: main
+      cache_dir: /var/cache/prefect/source
+```
+
+The same option is available on `GitRepository`. Branches, commit SHAs, credentials, sparse checkout,
+and submodules keep their existing semantics. Each new checkout still contacts the remote.
+Prefect fetches the requested branch, tag, or full commit and its history into a bare object cache,
+including tags that Git follows automatically. It does not mirror unrelated branches or hosting-specific
+refs. The normal clone uses this cache with Git's `--reference` and `--dissociate` options, giving each
+run independent Git objects so pruning cannot break it. Abbreviated commit arguments use the normal
+uncached path. Submodule repositories are not separately cached.
+
+The first cache fetch includes the selected history, which can cost more bandwidth and disk space
+than a normal shallow or partial clone. Later pulls reuse downloaded objects while checking the
+remote. This cache does not provide offline execution or bypass remote authentication.
+
+Repository-specific filesystem locks protect updates and cloning. Unrelated repositories can pull
+concurrently. After successful pulls, Prefect prunes least recently used idle entries in the reserved
+`prefect-git-v1` subdirectory to retain at most eight entries and 512 MiB. Active entries and temporary
+fetches can exceed these limits until their pulls finish.
+
+If one repository's cached objects exceed 512 MiB, Prefect replaces them with a small bypass entry
+after serving the current run. Subsequent pulls use ordinary clones without attempting another cache
+fill while that entry is retained. Bypass entries share the eight-entry limit and are refreshed on use;
+eviction or manually clearing the cache allows another attempt. The limits apply across repositories
+sharing `cache_dir`.
+
+Use a persistent local disk with working filesystem locks and a directory accessible only to one
+trusted worker identity. Cache keys use repository URLs without credentials; cache fetches do not store remote URLs or write `FETCH_HEAD`. A cache shared between different identities is
+not an authorization boundary. Ephemeral containers without a persistent volume get no cross-run hits
+and incur additional work.
+
+`cache_dir` is a filesystem path, not a storage block or an S3/GCS URL. To distribute flow code through
+object storage, use the blob-storage pull steps described below instead.
+
 ### Prefect Cloud GitHub App integration
 
 If you use Prefect Cloud, you can install the **Prefect Cloud GitHub App** to authenticate

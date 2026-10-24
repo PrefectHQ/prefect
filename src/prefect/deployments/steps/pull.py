@@ -61,6 +61,7 @@ async def agit_clone(
     credentials: Optional["Block"] = None,
     directories: Optional[list[str]] = None,
     clone_directory_name: Optional[str] = None,
+    cache_dir: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Asynchronously clones a git repository into the current working directory.
@@ -76,6 +77,8 @@ async def agit_clone(
             credentials to use for cloning the repository.
         clone_directory_name: the name of the local directory to clone into; if not provided,
             the name will be inferred from the repository URL and branch
+        cache_dir: Optional persistent local directory for reusing Git objects.
+            Omit to retain the existing clone behavior.
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -98,6 +101,7 @@ async def agit_clone(
         include_submodules=include_submodules,
         directories=directories,
         name=clone_directory_name,
+        cache_dir=cache_dir,
     )
 
     await _pull_git_repository_with_retries(storage)
@@ -115,6 +119,7 @@ def git_clone(
     credentials: Optional["Block"] = None,
     directories: Optional[list[str]] = None,
     clone_directory_name: Optional[str] = None,
+    cache_dir: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Clones a git repository into the current working directory.
@@ -131,6 +136,8 @@ def git_clone(
         directories: Specify directories you want to be included (uses git sparse-checkout)
         clone_directory_name: the name of the local directory to clone into; if not provided,
             the name will be inferred from the repository URL and branch
+        cache_dir: Optional persistent local directory for reusing Git objects.
+            Omit to retain the existing clone behavior.
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -221,6 +228,7 @@ def git_clone(
         include_submodules=include_submodules,
         directories=directories,
         name=clone_directory_name,
+        cache_dir=cache_dir,
     )
 
     run_coro_as_sync(_pull_git_repository_with_retries(storage))
