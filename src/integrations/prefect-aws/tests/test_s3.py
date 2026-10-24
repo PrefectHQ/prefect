@@ -686,8 +686,13 @@ async def test_put_directory_respects_basepath(
     ).exists()
 
 
+@pytest.mark.parametrize("sync", [False, True])
 async def test_put_directory_with_ignore_file(
-    s3_bucket: S3Bucket, tmp_path: Path, aws_creds_block
+    s3_bucket: S3Bucket,
+    tmp_path: Path,
+    aws_creds_block,
+    filter_files_format,
+    sync: bool,
 ):
     (tmp_path / "file1.txt").write_text("FILE 1")
     (tmp_path / "file2.txt").write_text("FILE 2")
@@ -696,13 +701,18 @@ async def test_put_directory_with_ignore_file(
     (tmp_path / "folder1" / "file4.txt").write_text("FILE 4")
     (tmp_path / "folder1" / "folder2").mkdir()
     (tmp_path / "folder1" / "folder2" / "file5.txt").write_text("FILE 5")
-    (tmp_path / ".prefectignore").write_text("folder2/*")
+    (tmp_path / "folder1" / "folder2" / "keep.txt").write_text("KEEP")
+    (tmp_path / ".prefectignore").write_text("folder2/*\n!folder2/keep.txt")
 
-    uploaded_file_count = await s3_bucket.put_directory(
-        local_path=str(tmp_path / "folder1"),
-        ignore_file=str(tmp_path / ".prefectignore"),
-    )
-    assert uploaded_file_count == 2
+    kwargs = {
+        "local_path": str(tmp_path / "folder1"),
+        "ignore_file": str(tmp_path / ".prefectignore"),
+    }
+    if sync:
+        uploaded_file_count = s3_bucket.put_directory(**kwargs, _sync=True)
+    else:
+        uploaded_file_count = await s3_bucket.aput_directory(**kwargs)
+    assert uploaded_file_count == 3
 
     (tmp_path / "downloaded_files").mkdir()
 
@@ -710,7 +720,9 @@ async def test_put_directory_with_ignore_file(
 
     assert (tmp_path / "downloaded_files" / "file3.txt").exists()
     assert (tmp_path / "downloaded_files" / "file4.txt").exists()
-    assert not (tmp_path / "downloaded_files" / "folder2").exists()
+    assert (
+        tmp_path / "downloaded_files" / "folder2" / "keep.txt"
+    ).read_text() == "KEEP"
     assert not (tmp_path / "downloaded_files" / "folder2" / "file5.txt").exists()
 
 
