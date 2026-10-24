@@ -52,6 +52,7 @@ export const queryKeyFactory = {
   - Create: invalidate `lists()` + `counts()`
   - Delete: invalidate `lists()` + `counts()`
   - Update: invalidate `lists()` + `detail(id)`
+  - Cross-resource: if the mutation changes data cached under another resource's key factory (e.g. deployment create/delete changes `flows` `deploymentsCount`), also invalidate that factory's prefix key — the mutated resource's `all()` does not cover it
 
 ## Query Key Factory Scope
 
