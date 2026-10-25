@@ -6,6 +6,10 @@ The foundation for building and executing workflows with Python. This covers the
 
 There is no formal public/private boundary beyond the `_` prefix convention. Modules and functions prefixed with `_` are internal. Everything else is considered public and requires backward compatibility.
 
+## Runtime Parameter Defaults
+
+Runtime flow/task parameter values must come from `utilities.callables.get_call_parameters` or `get_parameter_defaults`: raw signature defaults can be `pydantic.Field(...)` objects. These helpers unwrap `FieldInfo` defaults; schema generation intentionally retains `FieldInfo` to preserve metadata.
+
 ## Entry Points
 
 - `flows.py` / `tasks.py` — `@flow` and `@task` decorator definitions. The primary user-facing API.
