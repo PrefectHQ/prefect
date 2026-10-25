@@ -592,6 +592,11 @@ class TestValidateDeploymentConcurrencyAtRunning:
         monkeypatch.setattr(
             lease_storage, "read_lease", read_lease_with_terminal_barrier
         )
+        # the orchestration rule must see the patched storage instance
+        monkeypatch.setattr(
+            "prefect.server.orchestration.core_policy.get_concurrency_lease_storage",
+            lambda: lease_storage,
+        )
 
         db = provide_database_interface()
         completed_transition = (
