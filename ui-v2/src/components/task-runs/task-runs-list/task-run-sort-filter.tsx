@@ -25,7 +25,9 @@ export const TaskRunsSortFilter = ({
 			onValueChange={(value) => {
 				if (
 					value === "EXPECTED_START_TIME_ASC" ||
-					value === "EXPECTED_START_TIME_DESC"
+					value === "EXPECTED_START_TIME_DESC" ||
+					value === "DURATION_DESC" ||
+					value === "DURATION_ASC"
 				)
 					onSelect(value);
 			}}
