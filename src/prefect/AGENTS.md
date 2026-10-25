@@ -74,3 +74,7 @@ Use `get_logger()` from `prefect.logging` instead of raw `logging.getLogger()` �
 - `docker/` → `DockerImage` class for building and pushing Docker images during deployment
 - `telemetry/` → OS-level resource metric collection and run telemetry
 - `testing/` → Test utilities shipped with the SDK: `prefect_test_harness`, assertion helpers, and reusable fixtures (see testing/AGENTS.md)
+
+## Multi-pass Templating
+
+When applying `utilities.templating.apply_values` in stages, use `remove_notset=False` on passes that must preserve placeholders for later values. The default drops unresolved whole-value dict entries and list items and blanks unresolved inline placeholders. This matters when deployment preparation applies environment values before build/push outputs exist; only remove unresolved values when the caller has reached its final resolution pass.
