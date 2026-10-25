@@ -73,8 +73,10 @@ class PrefectBaseSettings(BaseSettings):
             ),
             FilteredDotEnvSettingsSource(
                 settings_cls,
-                env_file=cls.model_config.get(
-                    "prefect_env_file", cls.model_config.get("env_file")
+                env_file=(
+                    env_file
+                    if (env_file := cls.model_config.get("env_file")) is not None
+                    else cls.model_config.get("prefect_env_file")
                 ),
                 env_file_encoding=cls.model_config.get("env_file_encoding"),
                 case_sensitive=cls.model_config.get("case_sensitive"),
@@ -230,9 +232,10 @@ class PrefectSettingsConfigDict(SettingsConfigDict, total=False):
 
     prefect_env_file: DotenvType | None
     """
-    Dotenv file(s) to load settings from. Used instead of `env_file`, which
-    pydantic-settings reads with its own dotenv source that Prefect discards,
-    so `.env` is only read by Prefect's cached dotenv source.
+    Default dotenv file(s) to load settings from. Used instead of `env_file`,
+    which pydantic-settings reads with its own dotenv source that Prefect
+    discards, so `.env` is only read by Prefect's cached dotenv source.
+    An `env_file` set by a subclass takes precedence.
     """
 
 

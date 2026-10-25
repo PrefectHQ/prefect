@@ -1,3 +1,4 @@
+import io
 import os
 import stat
 import sys
@@ -28,8 +29,9 @@ from prefect._internal.compatibility.backports import tomllib
 from prefect.settings.constants import DEFAULT_PREFECT_HOME, DEFAULT_PROFILES_PATH
 from prefect.utilities.collections import get_from_dict
 
-_file_cache: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=100, ttl=60)
+_file_cache: TTLCache[str, Any] = TTLCache(maxsize=100, ttl=60)
 _file_cache_lock = threading.Lock()
+_dotenv_file_lock = threading.Lock()
 
 
 def _read_toml_file(path: Path) -> dict[str, Any]:
@@ -50,7 +52,7 @@ def _read_toml_file(path: Path) -> dict[str, Any]:
 
 
 def _read_dotenv_file(path: Path, encoding: str | None = None) -> dict[str, str | None]:
-    """Read a dotenv file, sharing the result across all settings sources.
+    """Read a dotenv file, sharing its contents across all settings sources.
 
     Each settings class builds its own dotenv source, so without a cache `.env`
     is opened once per settings class every time settings are loaded. Regular
@@ -58,7 +60,9 @@ def _read_dotenv_file(path: Path, encoding: str | None = None) -> dict[str, str 
     mounts) are slow to open and their `stat` may not reflect content
     changes, so they are re-read once the cache TTL expires.
 
-    The returned mapping is shared and must not be mutated.
+    Only the file contents are cached. Values are parsed on each call, so
+    `${VAR}` interpolation uses the current environment. Loads are serialized
+    so that concurrent cache misses open the file only once.
     """
     path_stat = path.stat()
     if stat.S_ISFIFO(path_stat.st_mode):
@@ -66,13 +70,15 @@ def _read_dotenv_file(path: Path, encoding: str | None = None) -> dict[str, str 
     else:
         version = f"{path_stat.st_ino}:{path_stat.st_size}:{path_stat.st_mtime_ns}"
     cache_key = f"dotenv_file:{path.absolute()}:{encoding}:{version}"
-    with _file_cache_lock:
-        if (value := _file_cache.get(cache_key)) is not None:
-            return value
-    data = dotenv.dotenv_values(path, encoding=encoding or "utf8")
-    with _file_cache_lock:
-        _file_cache[cache_key] = data
-    return data
+    with _dotenv_file_lock:
+        with _file_cache_lock:
+            content: str | None = _file_cache.get(cache_key)
+        if content is None:
+            with open(path, encoding=encoding or "utf8") as f:
+                content = f.read()
+            with _file_cache_lock:
+                _file_cache[cache_key] = content
+    return dotenv.dotenv_values(stream=io.StringIO(content))
 
 
 class EnvFilterSettingsSource(EnvSettingsSource):
