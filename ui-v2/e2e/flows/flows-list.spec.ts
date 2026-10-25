@@ -1,10 +1,12 @@
 import type { Page } from "@playwright/test";
 import {
+	cleanupDeployments,
 	cleanupFlowRuns,
 	cleanupFlows,
 	createDeployment,
 	createFlow,
 	expect,
+	listFlowRuns,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
@@ -30,6 +32,7 @@ test.describe("Flows List Page", () => {
 		try {
 			await cleanupFlows(apiClient, TEST_PREFIX);
 			await cleanupFlowRuns(apiClient, TEST_PREFIX);
+			await cleanupDeployments(apiClient, TEST_PREFIX);
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -39,6 +42,7 @@ test.describe("Flows List Page", () => {
 		try {
 			await cleanupFlows(apiClient, TEST_PREFIX);
 			await cleanupFlowRuns(apiClient, TEST_PREFIX);
+			await cleanupDeployments(apiClient, TEST_PREFIX);
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -180,5 +184,88 @@ test.describe("Flows List Page", () => {
 		await expect(page.getByText("1 Deployment")).toBeVisible({
 			timeout: 10000,
 		});
+	});
+
+	test("Row menu hides Run for a flow with no deployments", async ({
+		page,
+		apiClient,
+	}) => {
+		const flowName = `${TEST_PREFIX}no-deps-${Date.now()}`;
+		const flow = await createFlow(apiClient, flowName);
+
+		await expect(async () => {
+			await page.goto(`/flows?name=${flowName}`);
+			await expect(page.getByRole("link", { name: flowName })).toBeVisible({
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
+
+		const row = page.getByRole("row", { name: new RegExp(flowName) });
+		await row.getByRole("button", { name: /open menu/i }).click();
+
+		await expect(page.getByRole("menuitem", { name: "Copy ID" })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: "Run" })).not.toBeVisible();
+
+		await page.keyboard.press("Escape");
+
+		const flowRuns = await listFlowRuns(apiClient);
+		expect(flowRuns.some((fr) => fr.flow_id === flow.id)).toBe(false);
+	});
+
+	test("Run a flow from the list via an explicitly selected deployment", async ({
+		page,
+		apiClient,
+	}) => {
+		const timestamp = Date.now();
+		const flowName = `${TEST_PREFIX}run-${timestamp}`;
+		const flow = await createFlow(apiClient, flowName);
+		await createDeployment(apiClient, {
+			name: `${TEST_PREFIX}dep-a-${timestamp}`,
+			flowId: flow.id,
+		});
+		const depB = await createDeployment(apiClient, {
+			name: `${TEST_PREFIX}dep-b-${timestamp}`,
+			flowId: flow.id,
+		});
+
+		await expect(async () => {
+			await page.goto(`/flows?name=${flowName}`);
+			await expect(page.getByRole("link", { name: flowName })).toBeVisible({
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
+
+		const row = page.getByRole("row", { name: new RegExp(flowName) });
+		await row.getByRole("button", { name: /open menu/i }).click();
+		await page.getByRole("menuitem", { name: "Run" }).click();
+
+		const dialog = page.getByRole("dialog", { name: `Run ${flowName}` });
+		await expect(dialog).toBeVisible();
+
+		await dialog.getByRole("button", { name: "Select a deployment" }).click();
+		await page
+			.getByRole("option", { name: `${TEST_PREFIX}dep-b-${timestamp}` })
+			.click();
+
+		await dialog.getByRole("button", { name: "Run" }).click();
+		await page.getByRole("menuitem", { name: "Quick run" }).click();
+
+		await expect(page.getByRole("button", { name: /view run/i })).toBeVisible({
+			timeout: 10000,
+		});
+		await expect(dialog).not.toBeVisible();
+		await expect(page).toHaveURL(/\/flows/);
+
+		await expect
+			.poll(
+				async () => {
+					const flowRuns = await listFlowRuns(apiClient);
+					return flowRuns.find(
+						(fr) => fr.deployment_id === depB.id && fr.flow_id === flow.id,
+					);
+				},
+				{ timeout: 10000 },
+			)
+			.toBeTruthy();
 	});
 });

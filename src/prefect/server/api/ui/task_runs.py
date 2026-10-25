@@ -13,7 +13,7 @@ from prefect.server import models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
-from prefect.types._datetime import end_of_period, now
+from prefect.types._datetime import _pendulum_call, end_of_period, now
 
 if TYPE_CHECKING:
     import logging
@@ -64,7 +64,9 @@ async def read_dashboard_task_run_counts(
     )
 
     bucket_count = 20
-    start_time = task_runs.start_time.after_.replace(microsecond=0, second=0)
+    start_time = _pendulum_call(
+        task_runs.start_time.after_, "replace", microsecond=0, second=0
+    )
     end_time = (
         end_of_period(task_runs.start_time.before_, "minute")
         if task_runs.start_time.before_

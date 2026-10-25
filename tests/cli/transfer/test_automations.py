@@ -14,8 +14,18 @@ from prefect.events.actions import (
     PauseWorkQueue,
     RunDeployment,
     SendNotification,
+    UnknownAction,
 )
-from prefect.events.schemas.automations import Automation, EventTrigger, Posture
+from prefect.events.schemas.automations import (
+    Automation,
+    CompoundTrigger,
+    EventTrigger,
+    MetricTrigger,
+    MetricTriggerOperator,
+    MetricTriggerQuery,
+    Posture,
+    SequenceTrigger,
+)
 from prefect.events.schemas.events import ResourceSpecification
 from prefect.exceptions import ObjectNotFound
 
@@ -482,6 +492,88 @@ class TestMigratableAutomation:
         # Verify destination_automation is set to existing
         assert migratable.destination_automation == existing_automation
         assert migratable.destination_id == existing_automation.id
+
+    @patch("prefect.cli.transfer._migratable_resources.automations.get_client")
+    async def test_migrate_skips_unknown_action_types(self, mock_get_client: MagicMock):
+        """An action type this version doesn't know may refer to IDs that can't be
+        mapped to the destination, so the automation is skipped, not copied."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+        mock_client.read_automations_by_name.return_value = []
+
+        automation = Automation(
+            id=uuid.uuid4(),
+            name=f"test-automation-{uuid.uuid4()}",
+            trigger=create_test_trigger(),
+            actions=[
+                DoNothing(),
+                UnknownAction(
+                    type="pause-schedule-for-flow-run",
+                    deployment_id=str(uuid.uuid4()),
+                ),
+            ],
+            actions_on_trigger=[UnknownAction(type="sla-violation")],
+            actions_on_resolve=[UnknownAction(type="pause-schedule-for-flow-run")],
+        )
+
+        migratable = await MigratableAutomation.construct(automation)
+
+        with pytest.raises(
+            TransferSkipped,
+            match="does not recognize: pause-schedule-for-flow-run, sla-violation$",
+        ):
+            await migratable.migrate()
+
+        mock_client.create_automation.assert_not_called()
+        assert migratable.destination_automation is None
+
+    @patch("prefect.cli.transfer._migratable_resources.automations.get_client")
+    async def test_migrate_skips_unknown_metric_names(self, mock_get_client: MagicMock):
+        """The destination may not support a metric this version doesn't know, so
+        the automation is skipped, not copied. Nested metric triggers count too."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+        mock_client.read_automations_by_name.return_value = []
+
+        def metric_trigger(name: str) -> MetricTrigger:
+            return MetricTrigger(
+                metric=MetricTriggerQuery(
+                    name=name,
+                    threshold=1,
+                    operator=MetricTriggerOperator.LT,
+                    range=timedelta(days=1),
+                    firing_for=timedelta(hours=1),
+                )
+            )
+
+        automation = Automation(
+            id=uuid.uuid4(),
+            name=f"test-automation-{uuid.uuid4()}",
+            trigger=CompoundTrigger(
+                require="any",
+                within=timedelta(minutes=5),
+                triggers=[
+                    metric_trigger("lateness"),
+                    metric_trigger("volume"),
+                    SequenceTrigger(
+                        within=timedelta(minutes=5),
+                        triggers=[metric_trigger("sla_violations")],
+                    ),
+                ],
+            ),
+            actions=[DoNothing()],
+        )
+
+        migratable = await MigratableAutomation.construct(automation)
+
+        with pytest.raises(
+            TransferSkipped,
+            match="does not recognize: sla_violations, volume$",
+        ):
+            await migratable.migrate()
+
+        mock_client.create_automation.assert_not_called()
+        assert migratable.destination_automation is None
 
     @patch("prefect.cli.transfer._migratable_resources.automations.get_client")
     async def test_migrate_success_no_dependencies(

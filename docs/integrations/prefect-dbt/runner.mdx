@@ -30,6 +30,7 @@ if __name__ == "__main__":
 
 When calling `.invoke()` in a flow or task, each node in dbt's execution graph is reflected as a task in Prefect's execution graph.
 Logs from each node will belong to the corresponding task, and each task's state is determined by the state of that node's execution.
+A [microbatch](https://docs.getdbt.com/docs/build/incremental-microbatch) model appears as a single task run that covers all of its batches. If only some batches succeed, dbt reports the model as `partial success`, and the task run finishes in a `Failed` state.
 
 ```bash
 15:54:59.119 | INFO    | Flow run 'imposing-partridge' - Found 8 models, 3 seeds, 18 data tests, 543 macros

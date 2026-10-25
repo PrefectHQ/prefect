@@ -4,12 +4,14 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - ".github/workflows/k8s-integration-tests.yaml"
       - "src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py"
       - "src/integrations/prefect-kubernetes/prefect_kubernetes/observer.py"
       - "src/integrations/prefect-kubernetes/integration_tests/**"
   push:
     branches: [main]
     paths:
+      - ".github/workflows/k8s-integration-tests.yaml"
       - "src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py"
       - "src/integrations/prefect-kubernetes/prefect_kubernetes/observer.py"
       - "src/integrations/prefect-kubernetes/integration_tests/**"
@@ -29,14 +31,14 @@ jobs:
           persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
           python-version: "3.12"
           cache-dependency-glob: "src/integrations/prefect-kubernetes/integration_tests/pyproject.toml"
 
       - name: Set up Kind cluster
-        uses: helm/kind-action@v1.14.0
+        uses: helm/kind-action@v1.15.1
         with:
           cluster_name: prefect-test
 

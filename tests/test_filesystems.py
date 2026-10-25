@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Tuple
@@ -600,13 +601,24 @@ class TestRemoteFileSystem:
             "/flat/shared_libs.py",
         }
 
-    async def test_put_directory_tree(self):
+    @pytest.fixture
+    def tree_project(self, tmp_path: Path) -> Path:
+        # Other tests import modules from tree-project, which concurrently writes
+        # `__pycache__` entries into the shared directory under xdist; use a
+        # private copy so the directory contents can't change mid-test.
+        return Path(
+            shutil.copytree(
+                TEST_PROJECTS_DIR / "tree-project",
+                tmp_path / "tree-project",
+                ignore=shutil.ignore_patterns("__pycache__"),
+            )
+        )
+
+    async def test_put_directory_tree(self, tree_project: Path):
         fs = RemoteFileSystem(basepath="memory://tree")
         await fs.put_directory(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
-            ignore_file=os.path.join(
-                TEST_PROJECTS_DIR, "tree-project", ".prefectignore"
-            ),
+            str(tree_project),
+            ignore_file=str(tree_project / ".prefectignore"),
         )
         copied_files = set(fs.filesystem.glob("/tree/**"))
 
@@ -624,20 +636,20 @@ class TestRemoteFileSystem:
             "/tree/.hidden",
         }
 
-    async def test_put_directory_put_file_count(self):
-        ignore_file = os.path.join(TEST_PROJECTS_DIR, "tree-project", ".prefectignore")
+    async def test_put_directory_put_file_count(self, tree_project: Path):
+        ignore_file = str(tree_project / ".prefectignore")
 
         # Put files
         fs = RemoteFileSystem(basepath="memory://tree")
         num_files_put = await fs.put_directory(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            str(tree_project),
             ignore_file=ignore_file,
         )
 
         # Expected files
         ignore_patterns = Path(ignore_file).read_text().splitlines(keepends=False)
         included_files = prefect.utilities.filesystem.filter_files(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            str(tree_project),
             ignore_patterns,
             include_dirs=False,
         )

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import inspect
-import json
 import logging
 import sys
 import time
@@ -11,6 +10,7 @@ import warnings
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, Callable, Dict, TextIO, Type, cast
 
+import orjson
 from rich.console import Console
 from rich.highlighter import Highlighter, NullHighlighter
 from rich.theme import Theme
@@ -64,22 +64,51 @@ def emit_api_log(log: Dict[str, Any]) -> None:
     APILogWorker.instance().send(log)
 
 
-class APILogWorker(BatchedQueueService[Dict[str, Any]]):
+class APILogWorker(BatchedQueueService[bytes]):
     @property
     def max_batch_size(self) -> int:
+        # A batch takes logs until it reaches this size, and the last log it takes
+        # can be a maximum size log. Leave room for that log and for the opening
+        # bracket of the request body, so the request fits in the configured
+        # batch size. A batch always takes at least one log.
         return max(
             PREFECT_LOGGING_TO_API_BATCH_SIZE.value()
-            - PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
-            PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
+            - PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()
+            - 1,
+            1,
         )
 
     @property
     def min_interval(self) -> float | None:
         return PREFECT_LOGGING_TO_API_BATCH_INTERVAL.value()
 
-    async def _handle_batch(self, items: list[dict[str, Any]]):
+    def send(self, item: Dict[str, Any] | bytes) -> None:
+        """
+        Queue a log to send to the API.
+
+        Accepts a `LogCreate`-compatible dict, such as one returned by
+        `APILogHandler.prepare`, or its serialized JSON. Logs are queued as JSON
+        so each one is held once and is not serialized again when its batch is
+        sent.
+        """
+        if isinstance(item, dict):
+            payload = orjson.dumps(
+                {key: value for key, value in item.items() if key != "__payload_size__"}
+            )
+            # orjson output can take far more memory than its length, about 1 KiB
+            # for a short log. Copy it so a backlog of queued logs holds only the
+            # JSON.
+            item = memoryview(payload).tobytes()
+        super().send(item)
+
+    async def _handle_batch(self, items: list[bytes]):
         try:
-            await self._client.create_logs(items)
+            await self._client.request(
+                "POST",
+                "/logs/",
+                content=b"[" + b",".join(items) + b"]",
+                headers={"Content-Type": "application/json"},
+            )
         except Exception as e:
             # Roughly replicate the behavior of the stdlib logger error handling
             if logging.raiseExceptions and sys.stderr:
@@ -106,8 +135,10 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
         # Ensure a unique worker is retrieved per relevant logging settings
         return super().instance(*settings, *args)
 
-    def _get_size(self, item: Dict[str, Any]) -> int:
-        return item.pop("__payload_size__", None) or len(json.dumps(item).encode())
+    def _get_size(self, item: bytes) -> int:
+        # Count the comma or closing bracket that follows each log in the request
+        # body, so a full batch stays within the configured batch size
+        return len(item) + 1
 
 
 class APILogHandler(logging.Handler):
@@ -286,7 +317,7 @@ class APILogHandler(logging.Handler):
         return log
 
     def _get_payload_size(self, log: Dict[str, Any]) -> int:
-        return len(json.dumps(log).encode())
+        return len(orjson.dumps(log))
 
 
 class WorkerAPILogHandler(APILogHandler):

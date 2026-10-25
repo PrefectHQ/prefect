@@ -9,7 +9,7 @@ dependencies = [
     "tenacity>=8.2.3",
     "exceptiongroup",
     "pyopenssl>=24.1.0",
-    "kopf>=1.37.4",
+    "kopf>=1.45.1",
     "python-json-logger>=3.3.0",
 ]
 name = "prefect-kubernetes"

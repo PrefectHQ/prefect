@@ -20,6 +20,7 @@ import {
 	buildPaginateFlowRunsQuery,
 	type FlowRunsPaginateFilter,
 } from "@/api/flow-runs";
+import type { StateType } from "@/api/flow-runs/constants";
 import {
 	buildDeploymentsCountByFlowQuery,
 	buildFLowDetailsQuery,
@@ -35,7 +36,10 @@ import {
 	SORT_FILTERS,
 	type SortFilters,
 } from "@/components/flow-runs/flow-runs-list";
-import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import {
+	buildStateFilter,
+	STATE_TYPES,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import FlowDetail from "@/components/flows/detail";
 import {
 	buildCompletedTaskRunsCountFilter,
@@ -69,6 +73,7 @@ const searchParams = z
 		"runs.sort": z.enum(SORT_FILTERS).optional().default("START_TIME_DESC"),
 		"runs.flowRuns.nameLike": z.string().optional().default(""),
 		"runs.flowRuns.state.name": z.array(z.string()).optional(),
+		"runs.flowRuns.state.type": z.array(z.enum(STATE_TYPES)).optional(),
 		type: z.enum(["span", "range"]).optional(),
 		seconds: z.number().int().positive().optional(),
 		startDateTime: z.date().optional(),
@@ -82,7 +87,6 @@ const searchParams = z
 			.optional()
 			.default("NAME_ASC"),
 	})
-	.optional()
 	.prefault({});
 
 type SearchParams = z.infer<typeof searchParams>;
@@ -92,20 +96,20 @@ const buildPaginationBody = (
 	flowId: string,
 ): FlowRunsPaginateFilter => {
 	const flowRunSearch = search["runs.flowRuns.nameLike"];
-	const stateFilters = search["runs.flowRuns.state.name"] ?? [];
+	const stateFilter = buildStateFilter(
+		search["runs.flowRuns.state.name"] ?? [],
+		search["runs.flowRuns.state.type"],
+	);
 
-	const hasFilters = flowRunSearch || stateFilters.length > 0;
+	const hasFilters = flowRunSearch || stateFilter;
 	const flowRunsFilter = hasFilters
 		? {
 				operator: "and_" as const,
 				...(flowRunSearch && {
 					name: { like_: flowRunSearch },
 				}),
-				...(stateFilters.length > 0 && {
-					state: {
-						operator: "and_" as const,
-						name: { any_: stateFilters },
-					},
+				...(stateFilter && {
+					state: stateFilter,
 				}),
 			}
 		: undefined;
@@ -214,12 +218,12 @@ const useStateFilter = () => {
 	const navigate = Route.useNavigate();
 
 	const selectedStates = useMemo(
-		() => new Set((search["runs.flowRuns.state.name"] || []) as FlowRunState[]),
+		() => new Set(search["runs.flowRuns.state.name"] ?? []),
 		[search["runs.flowRuns.state.name"]],
 	);
 
 	const onSelectFilter = useCallback(
-		(states: Set<FlowRunState>) => {
+		(states: Set<string>) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
@@ -233,7 +237,27 @@ const useStateFilter = () => {
 		[navigate],
 	);
 
-	return { selectedStates, onSelectFilter };
+	const selectedStateTypes = new Set(search["runs.flowRuns.state.type"] ?? []);
+	const onStateTypesChange = useCallback(
+		(types: Set<StateType>) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"runs.flowRuns.state.type": [...types],
+					"runs.page": 1,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+	return {
+		selectedStates,
+		onSelectFilter,
+		selectedStateTypes,
+		onStateTypesChange,
+	};
 };
 
 const useDeploymentSearch = () => {
@@ -342,7 +366,12 @@ export const Route = createFileRoute("/flows/flow/$id")({
 		const [pagination, onPaginationChange] = usePagination();
 		const [sort, onSortChange] = useSort();
 		const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
-		const { selectedStates, onSelectFilter } = useStateFilter();
+		const {
+			selectedStates,
+			onSelectFilter,
+			selectedStateTypes,
+			onStateTypesChange,
+		} = useStateFilter();
 
 		// Navigation hooks for deployments
 		const [deploymentSearch, onDeploymentSearchChange] = useDeploymentSearch();
@@ -477,6 +506,8 @@ export const Route = createFileRoute("/flows/flow/$id")({
 				flowRunSearch={flowRunSearch}
 				onFlowRunSearchChange={onFlowRunSearchChange}
 				selectedStates={selectedStates}
+				selectedStateTypes={selectedStateTypes}
+				onStateTypesChange={onStateTypesChange}
 				onSelectFilter={onSelectFilter}
 				deploymentSearch={deploymentSearch}
 				onDeploymentSearchChange={onDeploymentSearchChange}

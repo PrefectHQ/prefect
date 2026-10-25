@@ -273,7 +273,7 @@ async def apause_flow_run(
             if wait_for_input:
                 # The flow run wanted input, so we need to load it and return it
                 # to the user.
-                await wait_for_input.aload(run_input_keyset)
+                return await wait_for_input.aload(run_input_keyset)
 
             return
 

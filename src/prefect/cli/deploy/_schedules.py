@@ -24,20 +24,20 @@ def _construct_schedules(
     *,
     console: "Console",
     is_interactive: Callable[[], bool],
-) -> list[dict[str, Any]]:
-    schedules: list[dict[str, Any]] = []
-    schedule_configs = deploy_config.get("schedules", NotSet) or []
+) -> list[dict[str, Any]] | None:
+    schedule_configs = deploy_config.get("schedules", NotSet)
 
-    if schedule_configs is not NotSet:
-        schedules = [
-            _schedule_config_to_deployment_schedule(schedule_config)
-            for schedule_config in apply_values(schedule_configs, step_outputs)
-        ]
-    elif schedule_configs is NotSet:
+    if schedule_configs is NotSet:
         if is_interactive():
-            schedules = prompt_schedules(console)
+            return prompt_schedules(console) or None
+        return None
+    if schedule_configs is None:
+        return None
 
-    return schedules
+    return [
+        _schedule_config_to_deployment_schedule(schedule_config)
+        for schedule_config in apply_values(schedule_configs, step_outputs)
+    ]
 
 
 def _schedule_config_to_deployment_schedule(
