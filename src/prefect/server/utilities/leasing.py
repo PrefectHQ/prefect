@@ -62,12 +62,17 @@ class LeaseStorage(Protocol[T]):
         """
         ...
 
-    async def revoke_lease(self, lease_id: UUID) -> None:
+    async def revoke_lease(self, lease_id: UUID) -> bool | None:
         """
         Release a resource lease by removing it from list of active leases.
 
         Args:
             lease_id: The ID of the lease to release.
+
+        Returns:
+            True if this call removed the lease, False if it did not exist (it
+            was never created, or was already revoked). None may be returned by
+            legacy implementations that cannot tell the two apart.
         """
         ...
 
