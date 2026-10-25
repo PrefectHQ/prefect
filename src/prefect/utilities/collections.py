@@ -13,6 +13,7 @@ from collections.abc import (
     Hashable,
     Iterable,
     Iterator,
+    Mapping,
     Sequence,
     Set,
 )
@@ -543,8 +544,10 @@ def visit_collection(
                 model_instance = expr.model_construct(
                     _fields_set=expr.model_fields_set, **updated_data
                 )
-                for private_attr in expr.__private_attributes__:
-                    setattr(model_instance, private_attr, getattr(expr, private_attr))
+                # Only copy private attributes that have values; unset
+                # private attributes are absent from `__pydantic_private__`
+                for private_attr, value in (expr.__pydantic_private__ or {}).items():
+                    setattr(model_instance, private_attr, value)
                 result = model_instance
 
     # Update the cache with the final transformed result
@@ -617,6 +620,21 @@ def distinct(
         yield item
 
 
+def _canonical_int_or_key(key: Any) -> Any:
+    """
+    Convert a string like `"1"` or `"-1"` to an int, leaving any other key
+    (including non-canonical forms like `"01"`) unchanged.
+    """
+    if isinstance(key, str):
+        try:
+            int_key = int(key)
+        except ValueError:
+            return key
+        if str(int_key) == key:
+            return int_key
+    return key
+
+
 @overload
 def get_from_dict(
     dct: NestedDict[str, VT], keys: Union[str, list[str]], default: None = None
@@ -645,7 +663,9 @@ def get_from_dict(
         keys: The sequence of keys to use for access. Can be a
             dot-separated string or a list of keys. List indices can be included
             in the sequence as either integer keys or as string indices in square
-            brackets.
+            brackets. When indexing a dictionary, a string key is matched
+            exactly first and only falls back to the equivalent integer key
+            (e.g. `"1"` -> `1`) if no exact match exists.
         default: The default value to return if the requested key path does not
             exist. Defaults to None.
 
@@ -658,6 +678,7 @@ def get_from_dict(
     get_from_dict({'a': {'b': {'c': [1, 2, 3, 4]}}}, 'a.b.c[1]') # 2
     get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, ['a', 'b', 1, 'c', 1]) # 2
     get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, 'a.b.1.c.2', 'default') # 'default'
+    get_from_dict({'years': {'2026': 42}}, 'years.2026') # 42
     ```
     """
     if isinstance(keys, str):
@@ -665,13 +686,16 @@ def get_from_dict(
     value = dct
     try:
         for key in keys:
-            try:
-                # Try to cast to int to handle list indices
-                key = int(key)
-            except ValueError:
-                # If it's not an int, use the key as-is
-                # for dict lookup
-                pass
+            if isinstance(value, Mapping):
+                # Prefer an exact match so numeric string keys like "2026" resolve
+                if key not in value:
+                    key = _canonical_int_or_key(key)
+            else:
+                try:
+                    # Try to cast to int to handle list indices
+                    key = int(key)
+                except ValueError:
+                    pass
             value = value[key]  # type: ignore
         return cast(VT, value)
     except (TypeError, KeyError, IndexError):

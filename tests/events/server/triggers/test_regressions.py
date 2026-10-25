@@ -978,3 +978,66 @@ async def test_same_event_in_expect_and_after_proactively_fires_with_for_each_th
                     id=uuid4(),
                 ).receive()
             )
+
+
+@pytest.fixture
+async def counting_after_automation(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+) -> Automation:
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="Counts expected events after a starting event",
+            trigger=EventTrigger(
+                after={"start-event"},
+                expect={"counted-event"},
+                posture=Posture.Reactive,
+                threshold=1000,
+                within=timedelta(hours=1),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+    return automation
+
+
+async def test_concurrent_bucket_updates_count_each_event_once(
+    act: mock.AsyncMock,
+    start_of_test: DateTime,
+    counting_after_automation: Automation,
+    automations_session: AsyncSession,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23470, where
+    concurrent events reading and then updating the same bucket failed on SQLite with
+    "database is locked"."""
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=start_of_test,
+            event="start-event",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+    )
+
+    events = [
+        Event(
+            occurred=start_of_test + timedelta(milliseconds=i + 1),
+            event="counted-event",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+        for i in range(25)
+    ]
+
+    await asyncio.gather(*[triggers.reactive_evaluation(event) for event in events])
+
+    bucket = await triggers.read_bucket(
+        automations_session, counting_after_automation.trigger, ()
+    )
+    assert bucket
+    assert bucket.count == len(events)
+    act.assert_not_awaited()

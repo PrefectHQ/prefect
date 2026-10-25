@@ -26,14 +26,6 @@ def _multiprocessing_worker():
     """
     Worker function for multiprocessing test. Must be at module level for pickling.
     """
-    import os
-
-    # os._exit() is required here despite the underscore prefix. On Linux with fork(),
-    # the child process inherits Prefect's logging/event state. Normal exit (return or
-    # sys.exit) triggers Python cleanup that fails with this inherited state, causing
-    # exitcode=1. os._exit() bypasses cleanup and is documented for use "in the child
-    # process after os.fork()" - which is exactly this scenario.
-    os._exit(0)
 
 
 def _api_url_without_settings_context() -> str:

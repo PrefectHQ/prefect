@@ -61,13 +61,14 @@ corresponding variable values.
 
 If a template contains a placeholder that is not in `values`, NotSet will
 be returned to signify that no placeholder replacement occurred. If
-`template` is a dictionary that contains a key with a value of NotSet,
-the key will be removed in the return value unless `remove_notset` is set to False.
+`template` is a dictionary or list that contains a value of NotSet, the
+key or item will be removed in the return value unless `remove_notset` is
+set to False, in which case the original value is kept.
 
 **Args:**
 - `template`: template to discover and replace values in
 - `values`: The values to apply to placeholders in the template
-- `remove_notset`: If True, remove keys with an unset value
+- `remove_notset`: If True, remove keys and list items with an unset value
 - `warn_on_notset`: If True, warn when a placeholder is not found in `values`
 - `skip_prefixes`: If provided, placeholders whose names start with any of
 these prefixes will be left untouched in the template.
@@ -76,7 +77,7 @@ these prefixes will be left untouched in the template.
 - The template with the values applied
 
 
-### `resolve_block_document_references` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_block_document_references` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_block_document_references(template: T, client: Optional['PrefectClient'] = None, value_transformer: Optional[Callable[[str, Any], Any]] = None) -> Union[T, dict[str, Any]]
@@ -158,7 +159,7 @@ inline string representation.
 - The template with block documents resolved
 
 
-### `resolve_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L483" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L486" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_variables(template: T, client: Optional['PrefectClient'] = None) -> T

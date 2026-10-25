@@ -213,7 +213,7 @@ export const CreateFlowRunForm = ({
 										name="empirical_policy.retry_delay"
 										render={({ field }) => (
 											<FormItem>
-												<FormLabel>Retries (Optional)</FormLabel>
+												<FormLabel>Retry Delay (Optional)</FormLabel>
 												<div className="flex items-center">
 													<FormControl>
 														<Input
