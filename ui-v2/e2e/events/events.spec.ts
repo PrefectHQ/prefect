@@ -32,6 +32,8 @@ test.describe("Events List Page", () => {
 
 	let flowIdForCleanup: string | undefined;
 	const flowRunResourceId = `prefect.flow-run.${crypto.randomUUID()}`;
+	const deploymentResourceId = `prefect.deployment.${crypto.randomUUID()}`;
+	const workPoolResourceId = `prefect.work-pool.${crypto.randomUUID()}`;
 
 	test.beforeAll(async ({ apiClient }) => {
 		await waitForServerHealth(apiClient);
@@ -54,13 +56,13 @@ test.describe("Events List Page", () => {
 			}),
 			buildTestEvent({
 				event: deploymentEvent,
-				resourceId: `prefect.deployment.${crypto.randomUUID()}`,
+				resourceId: deploymentResourceId,
 				resourceName: deploymentResourceName,
 				occurred: backdatedOccurred,
 			}),
 			buildTestEvent({
 				event: workPoolEvent,
-				resourceId: `prefect.work-pool.${crypto.randomUUID()}`,
+				resourceId: workPoolResourceId,
 				resourceName: workPoolResourceName,
 				occurred: backdatedOccurred,
 			}),
@@ -109,14 +111,15 @@ test.describe("Events List Page", () => {
 	test("Events timeline shows events from multiple resource types", async ({
 		page,
 	}) => {
-		// Filter by the specific resources to avoid pagination overflow in busy CI
-		// environments where parallel shards generate many events that can push
-		// the test events off the first page (limit 50, DESC order).
+		// Filter by the exact test resource IDs to avoid pagination overflow in
+		// busy CI environments. Broad prefixes like "prefect.deployment." match
+		// events from parallel tests, which are newer than these backdated events
+		// and push them off the first page (limit 50, DESC order).
 		const resourceFilter = encodeURIComponent(
 			JSON.stringify([
 				flowRunResourceId,
-				"prefect.deployment.",
-				"prefect.work-pool.",
+				deploymentResourceId,
+				workPoolResourceId,
 			]),
 		);
 		await expect(async () => {
@@ -161,8 +164,8 @@ test.describe("Events List Page", () => {
 		const resourceFilter = encodeURIComponent(
 			JSON.stringify([
 				flowRunResourceId,
-				"prefect.deployment.",
-				"prefect.work-pool.",
+				deploymentResourceId,
+				workPoolResourceId,
 			]),
 		);
 		await expect(async () => {
