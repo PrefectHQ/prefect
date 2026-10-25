@@ -850,6 +850,13 @@ async def set_flow_run_state(
     async with db.session_context(
         begin_transaction=True, with_for_update=True
     ) as session:
+        # Wait for any transition already holding the run before converting to a
+        # full State, which stamps it with the current time. A timestamp taken
+        # earlier could precede the state that transition writes, and the run's
+        # history, ordered by timestamp, would end in a state the run is not in.
+        await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id, for_update=True
+        )
         orchestration_result = await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run_id,
