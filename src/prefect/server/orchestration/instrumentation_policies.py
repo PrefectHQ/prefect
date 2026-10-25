@@ -8,7 +8,7 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import orm_models
-from prefect.server.events.clients import PrefectServerEventsClient
+from prefect.server.events._publishing import publish_after_commit
 from prefect.server.models.events import (
     TRUNCATE_STATE_MESSAGES_AT,
     flow_run_state_change_event,
@@ -23,7 +23,12 @@ from prefect.server.schemas import core
 
 
 class InstrumentFlowRunStateTransitions(FlowRunUniversalTransform):
-    """When a Flow Run changes states, fire a Prefect Event for the state change"""
+    """When a Flow Run changes states, fire a Prefect Event for the state change
+
+    The event is published after the transaction writing the state commits, so
+    subscribers can always read the new state, and transitions that are rolled back
+    never emit an event.
+    """
 
     async def after_transition(
         self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]
@@ -53,15 +58,14 @@ class InstrumentFlowRunStateTransitions(FlowRunUniversalTransform):
 
         assert isinstance(context.session, AsyncSession)
 
-        async with PrefectServerEventsClient() as events:
-            await events.emit(
-                await flow_run_state_change_event(
-                    session=context.session,
-                    occurred=validated_state.timestamp,
-                    flow_run=context.run,
-                    initial_state_id=initial_state.id if initial_state else None,
-                    initial_state=initial_state,
-                    validated_state_id=validated_state.id,
-                    validated_state=validated_state,
-                )
-            )
+        event = await flow_run_state_change_event(
+            session=context.session,
+            occurred=validated_state.timestamp,
+            flow_run=context.run,
+            initial_state_id=initial_state.id if initial_state else None,
+            initial_state=initial_state,
+            validated_state_id=validated_state.id,
+            validated_state=validated_state,
+        )
+
+        publish_after_commit(context.session, event)
