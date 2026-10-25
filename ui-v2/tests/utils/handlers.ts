@@ -158,12 +158,21 @@ const flowHandlers = [
 	}),
 
 	http.post(buildApiUrl("/flows/paginate"), () => {
+		const results = [
+			{ id: "1", name: "Flow 1", tags: [] },
+			{ id: "2", name: "Flow 2", tags: [] },
+		];
 		return HttpResponse.json({
-			results: [
-				{ id: "1", name: "Flow 1", tags: [] },
-				{ id: "2", name: "Flow 2", tags: [] },
-			],
+			results,
+			count: results.length,
+			limit: 10,
+			pages: 1,
+			page: 1,
 		});
+	}),
+
+	http.post(buildApiUrl("/flows/count"), () => {
+		return HttpResponse.json(2);
 	}),
 
 	http.post(buildApiUrl("/flows/filter"), () => {
