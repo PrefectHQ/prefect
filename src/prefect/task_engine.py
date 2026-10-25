@@ -180,6 +180,9 @@ class _TimeoutWatchdog:
         # (deadline, handle) pairs, including disarmed ones not yet dropped
         self._deadlines: list[tuple[float, int]] = []
         self._armed: dict[int, Callable[[], None]] = {}
+        # The handle `arm` has pushed but not yet stored, kept when deadlines that
+        # are not armed are dropped
+        self._arming: int | None = None
         self._firing: set[int] = set()
         # The thread serving deadlines. Each new watchdog thread takes over once it
         # runs, and the one it replaces exits.
@@ -192,10 +195,16 @@ class _TimeoutWatchdog:
         self._start_thread_if_needed()
         with self._lock:
             handle = next(_timeout_watchdog_handles)
+            # Built before the heap is looked up, since a finalizer run meanwhile can
+            # replace the heap while dropping disarmed deadlines
+            entry = (time.monotonic() + seconds, handle)
             # Pushed before the callback is stored, since an interruption between
-            # the two then leaves only a deadline that is skipped
-            heapq.heappush(self._deadlines, (time.monotonic() + seconds, handle))
+            # the two then leaves only a deadline that is skipped. A finalizer run
+            # between them can drop disarmed deadlines, which must not drop this one.
+            self._arming = handle
+            heapq.heappush(self._deadlines, entry)
             self._armed[handle] = run_in_context
+            self._arming = None
             if self._deadlines[0][1] == handle:
                 self._condition.notify_all()
         return handle
@@ -259,7 +268,9 @@ class _TimeoutWatchdog:
         size = len(self._deadlines)
         if size > _TIMEOUT_WATCHDOG_MIN_COMPACT_SIZE and size > 2 * len(self._armed):
             self._deadlines = [
-                entry for entry in self._deadlines if entry[1] in self._armed
+                entry
+                for entry in self._deadlines
+                if entry[1] in self._armed or entry[1] == self._arming
             ]
             heapq.heapify(self._deadlines)
 
@@ -272,6 +283,8 @@ class _TimeoutWatchdog:
             self._condition.notify_all()
         while (claimed := self._wait_for_next_deadline()) is not None:
             self._fire(*claimed)
+            # Not kept while waiting, since the callback holds on to the run it reports
+            del claimed
 
     def _wait_for_next_deadline(self) -> tuple[int, Callable[[], None]] | None:
         """
@@ -294,9 +307,14 @@ class _TimeoutWatchdog:
                         min(remaining, _TIMEOUT_WATCHDOG_MAX_WAIT_SECONDS)
                     )
                     continue
-                heapq.heappop(self._deadlines)
+                # Claimed by handle, its deadline then dropped like a disarmed one,
+                # since a finalizer run on this thread may have disarmed it or
+                # replaced the heap since it was looked up
+                callback = self._armed.pop(handle, None)
+                if callback is None:
+                    continue
                 self._firing.add(handle)
-                return handle, self._armed.pop(handle)
+                return handle, callback
             return None
 
     def _fire(self, handle: int, callback: Callable[[], None]) -> None:
@@ -505,13 +523,22 @@ class BaseTaskRunEngine(Generic[P, R]):
                 try:
                     # The warning only uses a log worker that is already running
                     _ensure_api_log_worker()
+                except Exception:
+                    # Without one the warning still reaches the other log handlers
+                    get_logger("engine").debug(
+                        "Could not start an API log worker for the timeout warning",
+                        exc_info=True,
+                    )
+                try:
                     handle = _task_run_timeout_watchdog.arm(
                         self.task.timeout_seconds + _TIMEOUT_WATCHDOG_GRACE_SECONDS,
                         warn_unless_exited,
                     )
                 except Exception:
                     # Advisory, so the run goes on without the warning
-                    handle = None
+                    get_logger("engine").debug(
+                        "Could not arm the timeout watchdog", exc_info=True
+                    )
 
             yield
         finally:

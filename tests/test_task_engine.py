@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 import warnings
+import weakref
 from collections.abc import Callable, Generator
 from datetime import timedelta
 from functools import partial
@@ -2350,6 +2351,14 @@ def _watchdog_threads_started_since(
     ]
 
 
+def _patch_watchdog_monotonic(
+    monkeypatch: pytest.MonkeyPatch, monotonic: Callable[[], float]
+) -> None:
+    patched_time = SimpleNamespace(**vars(time))
+    patched_time.monotonic = monotonic
+    monkeypatch.setattr(prefect.task_engine, "time", patched_time)
+
+
 class TestTaskTimeoutWatchdog:
     """Tests for the shared watchdog that reports runs outliving their timeout."""
 
@@ -2623,6 +2632,148 @@ class TestTaskTimeoutWatchdog:
 
         assert fired.wait(timeout=10)
 
+    def test_fired_callback_is_not_kept_while_waiting(self):
+        """Test that the thread lets go of the last run it reported.
+
+        The callback holds the run's engine and context, which would otherwise stay
+        alive until another run outlives its timeout.
+        """
+        watchdog = _TimeoutWatchdog()
+        fired = threading.Event()
+
+        class Run:
+            def warn(self) -> None:
+                fired.set()
+
+        run = Run()
+        run_ref = weakref.ref(run)
+        handle = watchdog.arm(0, run.warn)
+        del run
+        assert fired.wait(timeout=10)
+        # Returns once the callback has finished
+        watchdog.disarm(handle)
+
+        deadline = time.monotonic() + 10
+        while run_ref() is not None:
+            assert time.monotonic() < deadline, "The reported run was kept alive"
+            time.sleep(0.01)
+
+    def test_deadline_disarmed_as_it_is_claimed_does_not_stop_the_thread(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that the thread skips a deadline disarmed just as it falls due.
+
+        Garbage collection on the watchdog thread can finalize runs, which disarms
+        their deadlines and can drop the disarmed ones from the heap, between the
+        thread finding a deadline due and claiming it.
+        """
+        monkeypatch.setattr(
+            "prefect.task_engine._TIMEOUT_WATCHDOG_DISARM_WAIT_SECONDS", 30
+        )
+        watchdog = _TimeoutWatchdog()
+        idle = threading.Event()
+        disarmed_fired = threading.Event()
+        later_fired = threading.Event()
+        to_disarm: list[int] = []
+        monotonic = time.monotonic
+        watchdog.arm(0, idle.set)
+        assert idle.wait(timeout=10)
+
+        def monotonic_then_disarm() -> float:
+            now = monotonic()
+            if threading.current_thread() is watchdog._thread:
+                # As if finalizers disarmed these runs here
+                while to_disarm:
+                    watchdog.disarm(to_disarm.pop())
+            return now
+
+        # Holds the running thread off until every deadline is armed
+        with watchdog._lock:
+            to_disarm.extend(
+                watchdog.arm(3600, lambda: None)
+                for _ in range(2 * _TIMEOUT_WATCHDOG_MIN_COMPACT_SIZE)
+            )
+            # Disarmed first, while it is the deadline found due
+            to_disarm.append(watchdog.arm(0, disarmed_fired.set))
+            later = watchdog.arm(0, later_fired.set)
+            _patch_watchdog_monotonic(monkeypatch, monotonic_then_disarm)
+
+        assert later_fired.wait(timeout=10)
+        assert not disarmed_fired.is_set()
+        # Returns once the later callback has finished
+        watchdog.disarm(later)
+        assert not watchdog._firing
+
+    def test_deadline_armed_as_disarmed_ones_are_dropped_fires(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that a deadline armed while disarmed ones are dropped still fires.
+
+        Garbage collection while a run arms can finalize other runs, which disarm
+        their deadlines and can so replace the heap the new deadline goes into.
+        """
+        watchdog = _TimeoutWatchdog()
+        idle = threading.Event()
+        fired = threading.Event()
+        monotonic = time.monotonic
+        watchdog.arm(0, idle.set)
+        assert idle.wait(timeout=10)
+
+        # Holds the running thread off so that only disarming removes deadlines
+        with watchdog._lock:
+            to_disarm = [
+                watchdog.arm(3600, lambda: None)
+                for _ in range(2 * _TIMEOUT_WATCHDOG_MIN_COMPACT_SIZE)
+            ]
+
+            def monotonic_after_disarming() -> float:
+                # As if a finalizer disarmed the other runs here
+                while to_disarm:
+                    watchdog.disarm(to_disarm.pop())
+                return monotonic()
+
+            _patch_watchdog_monotonic(monkeypatch, monotonic_after_disarming)
+            watchdog.arm(0, fired.set)
+
+        assert fired.wait(timeout=10)
+
+    def test_deadline_pushed_as_disarmed_ones_are_dropped_fires(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that disarmed deadlines dropped right after a push keep the new one.
+
+        Garbage collection after a deadline is pushed but before its callback is
+        stored can finalize other runs, whose disarms drop deadlines without one.
+        """
+        watchdog = _TimeoutWatchdog()
+        idle = threading.Event()
+        fired = threading.Event()
+        heappush = heapq.heappush
+        watchdog.arm(0, idle.set)
+        assert idle.wait(timeout=10)
+
+        # Holds the running thread off so that only disarming removes deadlines
+        with watchdog._lock:
+            to_disarm = [
+                watchdog.arm(3600, lambda: None)
+                for _ in range(2 * _TIMEOUT_WATCHDOG_MIN_COMPACT_SIZE)
+            ]
+
+            def heappush_then_disarm(
+                heap: list[tuple[float, int]], entry: tuple[float, int]
+            ) -> None:
+                heappush(heap, entry)
+                # As if a finalizer disarmed the other runs here
+                while to_disarm:
+                    watchdog.disarm(to_disarm.pop())
+
+            patched_heapq = SimpleNamespace(**vars(heapq))
+            patched_heapq.heappush = heappush_then_disarm
+            monkeypatch.setattr(prefect.task_engine, "heapq", patched_heapq)
+            watchdog.arm(0, fired.set)
+
+        assert fired.wait(timeout=10)
+
     def test_callback_runs_in_the_arming_context(self):
         """Test that the callback sees the context it was armed from.
 
@@ -2664,21 +2815,30 @@ class TestTaskTimeoutWatchdog:
 
         assert "RuntimeError: boom" in caplog.text
 
-    def test_run_survives_a_watchdog_that_cannot_start(self):
+    def test_run_survives_a_watchdog_that_cannot_start(
+        self, caplog: pytest.LogCaptureFixture
+    ):
         """Test that a run completes when the watchdog thread cannot be started.
 
-        The warning is advisory, so failing to arm it must not take the run down.
+        The warning is advisory, so failing to arm it must not take the run down,
+        but the reason it is missing is logged.
         """
 
         @task(timeout_seconds=30)
         def timed_task():
             return "result"
 
-        with mock.patch(
-            "prefect.task_engine._task_run_timeout_watchdog.arm",
-            side_effect=RuntimeError("can't start new thread"),
+        with (
+            mock.patch(
+                "prefect.task_engine._task_run_timeout_watchdog.arm",
+                side_effect=RuntimeError("can't start new thread"),
+            ),
+            caplog.at_level(logging.DEBUG, logger="prefect.engine"),
         ):
             assert run_task_sync(timed_task) == "result"
+
+        assert "Could not arm the timeout watchdog" in caplog.text
+        assert "can't start new thread" in caplog.text
 
     def test_warning_names_the_configured_timeout(
         self, caplog: pytest.LogCaptureFixture
@@ -3009,6 +3169,41 @@ class TestTaskTimeoutExceededWarning:
             "but is still running" in record.message for record in caplog.records
         )
         assert "TaskRunTimeoutWatchdog" not in started_on
+
+    def test_warning_logged_when_the_api_log_worker_cannot_start(
+        self, caplog: pytest.LogCaptureFixture, held_until_warned: threading.Lock
+    ):
+        """Test that the run is still warned about when no API log worker starts.
+
+        The worker is only for the API copy of the warning, so failing to start one
+        must not keep the warning from the other log handlers.
+        """
+
+        @task(timeout_seconds=1)
+        def blocking_task():
+            held_until_warned.acquire(timeout=30)
+            return "result"
+
+        @flow
+        def my_flow():
+            return blocking_task.submit().result(raise_on_failure=False)
+
+        with (
+            mock.patch(
+                "prefect.task_engine._ensure_api_log_worker",
+                side_effect=RuntimeError("can't start new thread"),
+            ),
+            caplog.at_level(logging.WARNING),
+            caplog.at_level(logging.DEBUG, logger="prefect.engine"),
+        ):
+            my_flow()
+
+        assert any(
+            "exceeded its timeout of 1.0 second(s) but is still running"
+            in record.message
+            for record in caplog.records
+        )
+        assert "Could not start an API log worker" in caplog.text
 
     def test_no_warning_for_a_run_that_has_exited(
         self, caplog: pytest.LogCaptureFixture
