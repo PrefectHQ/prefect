@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 import * as matchers from "@testing-library/jest-dom/matchers";
+import { HttpNetworkFrame } from "msw/experimental";
 import { toast } from "sonner";
 import { afterAll, afterEach, beforeAll, expect, vi } from "vitest";
 import "@testing-library/jest-dom";
@@ -8,10 +9,13 @@ import { server } from "./utils";
 
 beforeAll(() => {
 	server.listen({
-		onUnhandledRequest: (request) => {
-			throw new Error(
-				`No request handler found for ${request.method} ${request.url}`,
-			);
+		onUnhandledFrame: ({ frame }) => {
+			if (frame instanceof HttpNetworkFrame) {
+				const { request } = frame.data;
+				throw new Error(
+					`No request handler found for ${request.method} ${request.url}`,
+				);
+			}
 		},
 	});
 });

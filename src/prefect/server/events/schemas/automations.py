@@ -42,7 +42,7 @@ from prefect.server.events.schemas.events import (
 )
 from prefect.server.schemas.actions import ActionBaseModel
 from prefect.server.utilities.schemas import ORMBaseModel, PrefectBaseModel
-from prefect.types import DateTime
+from prefect.types import DateTime, DurationOrSecondsTimeDelta
 from prefect.utilities.collections import AutoEnum
 
 # Dict form accepted by ResourceSpecification via Pydantic coercion
@@ -127,7 +127,7 @@ class CompositeTrigger(Trigger, abc.ABC):
 
     type: Literal["compound", "sequence"]
     triggers: List["ServerTriggerTypes"]
-    within: Optional[timedelta]
+    within: Optional[DurationOrSecondsTimeDelta]
 
     def create_automation_state_change_event(
         self, firing: Firing, trigger_state: TriggerState
@@ -343,9 +343,10 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
+    within: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=0),
         ge=timedelta(seconds=0),
+        json_schema_extra={"minimum": 0},
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "

@@ -95,7 +95,7 @@ async def read_flow_run_history(
 
 @router.post("/count-task-runs")
 async def count_task_runs_by_flow_run(
-    flow_run_ids: list[UUID] = Body(default=..., embed=True, max_items=200),
+    flow_run_ids: list[UUID] = Body(default=..., embed=True, max_length=200),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> dict[UUID, int]:
     """
@@ -119,7 +119,7 @@ async def count_task_runs_by_flow_run(
         results = await session.execute(query)
 
         task_run_counts_by_flow_run = {
-            flow_run_id: task_run_count for flow_run_id, task_run_count in results.t
+            flow_run_id: task_run_count for flow_run_id, task_run_count in results
         }
 
         return {

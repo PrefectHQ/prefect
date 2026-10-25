@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import multiprocessing
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -54,6 +55,50 @@ class MockBatchedService(BatchedQueueService[int]):
         await asyncio.sleep(0)
         self.mock(self, items)
         print(f"Handled batch for {self}")
+
+
+class _BacklogMixin:
+    """
+    Holds items in the queue until `release` is set, so a backlog builds up, then
+    handles them without suspending.
+    """
+
+    release: threading.Event
+    handled: List[int]
+    # The queue size when other work on the event loop first got to run
+    queue_sizes_seen_by_other_work: List[int]
+
+    @contextlib.asynccontextmanager
+    async def _lifespan(self):
+        await asyncio.to_thread(self.release.wait)
+        # Runs the first time the service lets the event loop do other work
+        asyncio.get_running_loop().call_soon(
+            lambda: self.queue_sizes_seen_by_other_work.append(self._queue.qsize())
+        )
+        yield
+
+
+class BacklogService(_BacklogMixin, QueueService[int]):
+    async def _handle(self, item: int):
+        self.handled.append(item)
+
+
+class BatchedBacklogService(_BacklogMixin, BatchedQueueService[int]):
+    _max_batch_size = 10_000
+
+    async def _handle_batch(self, items: List[int]):
+        self.handled.extend(items)
+
+
+@pytest.fixture(params=[BacklogService, BatchedBacklogService])
+def backlog_service_type(request: pytest.FixtureRequest):
+    service_type = request.param
+    service_type.release = threading.Event()
+    service_type.handled = []
+    service_type.queue_sizes_seen_by_other_work = []
+    yield service_type
+    service_type.release.set()
+    service_type.drain_all()
 
 
 @pytest.fixture(autouse=True)
@@ -278,6 +323,40 @@ def test_instance_cache_lock_is_reset_after_fork(monkeypatch: pytest.MonkeyPatch
     instance.send(1)
     instance.drain()
     instance.mock.assert_called_once_with(instance, 1)
+
+
+def test_drain_after_reset_for_fork_does_not_error():
+    instance = MockService.instance()
+    instance.send(1)
+    instance.drain()
+
+    # Simulates the state of an inherited service in a forked child process
+    instance.reset_for_fork()
+
+    assert instance.drain(at_exit=True) is False
+
+
+@pytest.mark.skipif(
+    "fork" not in multiprocessing.get_all_start_methods(),
+    reason="Requires the fork start method",
+)
+@pytest.mark.filterwarnings(
+    # Python 3.15 warns when a multi-threaded process calls fork(); the running
+    # service thread makes this process multi-threaded by design
+    "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning"
+)
+def test_forked_child_exits_cleanly_with_running_service():
+    instance = MockService.instance()
+    instance.send(1)
+
+    try:
+        process = multiprocessing.get_context("fork").Process(target=int)
+        process.start()
+        process.join(timeout=10)
+
+        assert process.exitcode == 0
+    finally:
+        instance.drain()
 
 
 def test_send_one():
@@ -551,6 +630,40 @@ def test_batched_queue_service_min_interval():
     IntervalMockBatchedService.mock.assert_has_calls(
         [call(instance, [1]), call(instance, [2])]
     )
+
+
+def test_queued_items_are_taken_without_waiting_on_queue_thread(
+    backlog_service_type: type[BacklogService] | type[BatchedBacklogService],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    instance = backlog_service_type.instance()
+    queue_thread_submit = MagicMock(wraps=instance._queue_get_thread.submit)
+    monkeypatch.setattr(instance._queue_get_thread, "submit", queue_thread_submit)
+
+    for i in range(1000):
+        instance.send(i)
+    backlog_service_type.release.set()
+    instance.drain()
+
+    assert backlog_service_type.handled == list(range(1000))
+    # At most one wait for the stop signal, if it arrived after the backlog was
+    # taken
+    assert queue_thread_submit.call_count <= 1
+
+
+def test_service_working_through_backlog_lets_other_work_run(
+    backlog_service_type: type[BacklogService] | type[BatchedBacklogService],
+):
+    instance = backlog_service_type.instance()
+
+    for i in range(5000):
+        instance.send(i)
+    backlog_service_type.release.set()
+    instance.drain()
+
+    assert backlog_service_type.handled == list(range(5000))
+    # Other work on the global loop ran while most of the backlog was still queued
+    assert backlog_service_type.queue_sizes_seen_by_other_work[0] > 4000
 
 
 def test_on_item_dropped_called_when_queue_full():

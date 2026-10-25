@@ -31,6 +31,7 @@ from typing_extensions import Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.events.actions import ActionTypes, ActionTypesOrUnknown, RunDeployment
+from prefect.types import DurationOrSecondsTimeDelta
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -200,9 +201,10 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
+    within: DurationOrSecondsTimeDelta = Field(
         default=timedelta(seconds=0),
         ge=timedelta(seconds=0),
+        json_schema_extra={"minimum": 0},
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
@@ -288,9 +290,16 @@ class MetricTriggerQuery(PrefectBaseModel):
     to Metric automations, that specify the query configurations
     and breaching conditions for the Automation"""
 
-    name: PrefectMetric = Field(
+    # Prefect Cloud can add metrics before a client release knows about them.
+    # Reading an automation that uses one keeps its name as a string instead of
+    # failing, so updating the automation sends the name back unchanged.
+    name: Union[PrefectMetric, str] = Field(
         ...,
-        description="The name of the metric to query.",
+        union_mode="left_to_right",
+        description=(
+            "The name of the metric to query. Names this version of Prefect does "
+            "not recognize are kept as strings."
+        ),
     )
     threshold: float = Field(
         ...,
@@ -305,16 +314,18 @@ class MetricTriggerQuery(PrefectBaseModel):
             "the query result against the threshold value."
         ),
     )
-    range: timedelta = Field(
+    range: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
+        json_schema_extra={"minimum": 300},
         description=(
             "The lookback duration (seconds) for a metric query. This duration is "
             "used to determine the time range over which the query will be executed. "
             "The minimum value is 300 seconds (5 minutes)."
         ),
     )
-    firing_for: timedelta = Field(
+    firing_for: DurationOrSecondsTimeDelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
+        json_schema_extra={"minimum": 300},
         description=(
             "The duration (seconds) for which the metric query must breach "
             "or resolve continuously before the state is updated and the "
@@ -353,7 +364,8 @@ class MetricTrigger(ResourceTrigger):
         return textwrap.indent(
             "\n".join(
                 [
-                    f"Metric: {m.name.value} {m.operator.value} {m.threshold} for {m.range}",
+                    f"Metric: {m.name.value if isinstance(m.name, PrefectMetric) else m.name} "
+                    f"{m.operator.value} {m.threshold} for {m.range}",
                 ]
             ),
             prefix="  " * indent,
@@ -367,7 +379,7 @@ class CompositeTrigger(Trigger, abc.ABC):
 
     type: Literal["compound", "sequence"]
     triggers: List["TriggerTypes"]
-    within: Optional[timedelta] = Field(
+    within: Optional[DurationOrSecondsTimeDelta] = Field(
         None,
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "

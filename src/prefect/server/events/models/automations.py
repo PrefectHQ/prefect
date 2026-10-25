@@ -59,9 +59,13 @@ AUTOMATION_CHANGES_CHANNEL = "prefect_automation_changes"
 @asynccontextmanager
 @db_injector
 async def automations_session(
-    db: PrefectDBInterface, begin_transaction: bool = False
+    db: PrefectDBInterface,
+    begin_transaction: bool = False,
+    with_for_update: bool = False,
 ) -> AsyncGenerator[AsyncSession, None]:
-    async with db.session_context(begin_transaction=begin_transaction) as session:
+    async with db.session_context(
+        begin_transaction=begin_transaction, with_for_update=with_for_update
+    ) as session:
         yield session
 
 

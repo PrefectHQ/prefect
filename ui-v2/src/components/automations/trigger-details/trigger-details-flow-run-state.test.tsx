@@ -31,6 +31,19 @@ function QueryWrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe("TriggerDetailsFlowRunState", () => {
+	it("displays custom names and type restrictions", () => {
+		render(
+			<TriggerDetailsFlowRunState
+				flowIds={[]}
+				tags={[]}
+				posture="Reactive"
+				states={["Baseline NOT Met"]}
+				stateTypes={["FAILED"]}
+			/>,
+		);
+		expect(screen.getByText("Baseline NOT Met")).toBeVisible();
+		expect(screen.getByText("with state type FAILED")).toBeVisible();
+	});
 	it("renders basic text for any flow run", () => {
 		render(
 			<TriggerDetailsFlowRunState
@@ -91,7 +104,7 @@ describe("TriggerDetailsFlowRunState", () => {
 		expect(screen.getByText("InfrastructurePending")).toBeInTheDocument();
 	});
 
-	it("does not render badges for inherited object keys", () => {
+	it("renders names matching inherited object keys as custom labels", () => {
 		render(
 			<TriggerDetailsFlowRunState
 				flowIds={[]}
@@ -102,7 +115,7 @@ describe("TriggerDetailsFlowRunState", () => {
 			{ wrapper: QueryWrapper },
 		);
 
-		expect(screen.queryByText("constructor")).not.toBeInTheDocument();
+		expect(screen.getByText("constructor")).toBeVisible();
 	});
 
 	it("renders 'stays in' for Proactive posture", () => {

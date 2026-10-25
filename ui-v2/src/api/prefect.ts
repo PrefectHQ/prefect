@@ -812,6 +812,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/observed-states": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Observed States
+         * @description Discover exact state names and types from retained run transitions.
+         *
+         *     Search by case-insensitive name or type prefix. Timestamps describe retained
+         *     history; deleting runs can change them or remove a state from the results.
+         */
+        get: operations["read_observed_states_observed_states_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deployments/": {
         parameters: {
             query?: never;
@@ -3566,22 +3589,22 @@ export interface components {
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
              */
-            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"];
+            trigger: components["schemas"]["EventTrigger-Output"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"];
             /**
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Output"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Output"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Output"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Id
              * Format: uuid
@@ -3620,22 +3643,22 @@ export interface components {
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
              */
-            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"];
+            trigger: components["schemas"]["EventTrigger-Input"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"];
             /**
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Owner Resource
              * @description The resource to which this automation belongs
@@ -3768,22 +3791,22 @@ export interface components {
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
              */
-            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"];
+            trigger: components["schemas"]["EventTrigger-Input"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"];
             /**
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
         };
         /**
          * BlockDocument
@@ -5471,9 +5494,9 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
+            triggers: (components["schemas"]["EventTrigger-Input"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
             /** Within */
-            within: number | null;
+            within: number | string | null;
             /** Require */
             require: number | ("any" | "all");
         };
@@ -5496,7 +5519,7 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
+            triggers: (components["schemas"]["EventTrigger-Output"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
             /** Within */
             within: number | null;
             /** Require */
@@ -6435,7 +6458,7 @@ export interface components {
              * Schedule
              * @description The schedule for the deployment.
              */
-            schedule: components["schemas"]["IntervalSchedule"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"];
+            schedule: components["schemas"]["IntervalSchedule-Output"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"];
             /**
              * Active
              * @description Whether or not the schedule is active.
@@ -6472,7 +6495,7 @@ export interface components {
              * Schedule
              * @description The schedule for the deployment.
              */
-            schedule: components["schemas"]["IntervalSchedule"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"];
+            schedule: components["schemas"]["IntervalSchedule-Input"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"];
             /**
              * Max Scheduled Runs
              * @description The maximum number of scheduled runs for the schedule.
@@ -6507,7 +6530,7 @@ export interface components {
              * Schedule
              * @description The schedule for the deployment.
              */
-            schedule?: components["schemas"]["IntervalSchedule"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"] | null;
+            schedule?: components["schemas"]["IntervalSchedule-Input"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"] | null;
             /**
              * Max Scheduled Runs
              * @description The maximum number of scheduled runs for the schedule.
@@ -6638,6 +6661,12 @@ export interface components {
          * @description Settings for configuring deployments defaults
          */
         DeploymentsSettings: {
+            /**
+             * Clear Schedules On Empty
+             * @description Clear existing schedules when an empty schedules list is passed to RunnerDeployment.apply or aapply, including via prefect deploy. This opt-in setting will be removed when clearing becomes the default, after a deprecation period of at least six months or three minor releases, whichever is longer.
+             * @default false
+             */
+            clear_schedules_on_empty: boolean;
             /**
              * Default Work Pool Name
              * @description The default work pool to use when creating deployments.
@@ -6926,7 +6955,75 @@ export interface components {
          * @description A trigger that fires based on the presence or absence of events within a given
          *     period of time.
          */
-        EventTrigger: {
+        "EventTrigger-Input": {
+            /**
+             * Type
+             * @default event
+             * @constant
+             */
+            type: "event";
+            /**
+             * Id
+             * Format: uuid
+             * @description The unique ID of this trigger
+             */
+            id?: string;
+            /**
+             * Match
+             * @description Labels for resources which this trigger will match.
+             */
+            match?: components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            };
+            /**
+             * Match Related
+             * @description Labels for related resources which this trigger will match.
+             */
+            match_related?: components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            } | (components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            })[];
+            /**
+             * After
+             * @description The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`
+             */
+            after?: string[];
+            /**
+             * Expect
+             * @description The event(s) this trigger is expecting to see.  If empty, this trigger will match any event.  Events may include trailing wildcards, like `prefect.flow-run.*`
+             */
+            expect?: string[];
+            /**
+             * For Each
+             * @description Evaluate the trigger separately for each distinct value of these labels on the resource.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`.  This will use the value of that label for the first related resource in that role.  For example, `"for_each": ["related:flow:prefect.resource.id"]` would evaluate the trigger for each flow.
+             */
+            for_each?: string[];
+            /**
+             * Posture
+             * @description The posture of this trigger, either Reactive or Proactive.  Reactive triggers respond to the _presence_ of the expected events, while Proactive triggers respond to the _absence_ of those expected events.
+             * @enum {string}
+             */
+            posture: "Reactive" | "Proactive";
+            /**
+             * Threshold
+             * @description The number of events required for this trigger to fire (for Reactive triggers), or the number of events expected (for Proactive triggers)
+             * @default 1
+             */
+            threshold: number;
+            /**
+             * Within
+             * @description The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers
+             * @default PT0S
+             */
+            within: number | string;
+        };
+        /**
+         * EventTrigger
+         * @description A trigger that fires based on the presence or absence of events within a given
+         *     period of time.
+         */
+        "EventTrigger-Output": {
             /**
              * Type
              * @default event
@@ -8497,9 +8594,52 @@ export interface components {
          *             if not provided, the current timestamp will be used.
          *         timezone (str, optional): a valid timezone string.
          */
-        IntervalSchedule: {
+        "IntervalSchedule-Input": {
             /** Interval */
             interval: number | string;
+            /**
+             * Anchor Date
+             * Format: date-time
+             * @example 2020-01-01T00:00:00Z
+             */
+            anchor_date?: string;
+            /**
+             * Timezone
+             * @example America/New_York
+             */
+            timezone?: string | null;
+        };
+        /**
+         * IntervalSchedule
+         * @description A schedule formed by adding `interval` increments to an `anchor_date`. If no
+         *     `anchor_date` is supplied, the current UTC time is used.  If a
+         *     timezone-naive datetime is provided for `anchor_date`, it is assumed to be
+         *     in the schedule's timezone (or UTC). Even if supplied with an IANA timezone,
+         *     anchor dates are always stored as UTC offsets, so a `timezone` can be
+         *     provided to determine localization behaviors like DST boundary handling. If
+         *     none is provided it will be inferred from the anchor date.
+         *
+         *     NOTE: If the `IntervalSchedule` `anchor_date` or `timezone` is provided in a
+         *     DST-observing timezone, then the schedule will adjust itself appropriately.
+         *     Intervals greater than 24 hours will follow DST conventions, while intervals
+         *     of less than 24 hours will follow UTC intervals. For example, an hourly
+         *     schedule will fire every UTC hour, even across DST boundaries. When clocks
+         *     are set back, this will result in two runs that *appear* to both be
+         *     scheduled for 1am local time, even though they are an hour apart in UTC
+         *     time. For longer intervals, like a daily schedule, the interval schedule
+         *     will adjust for DST boundaries so that the clock-hour remains constant. This
+         *     means that a daily schedule that always fires at 9am will observe DST and
+         *     continue to fire at 9am in the local time zone.
+         *
+         *     Args:
+         *         interval (datetime.timedelta): an interval to schedule on.
+         *         anchor_date (DateTime, optional): an anchor date to schedule increments against;
+         *             if not provided, the current timestamp will be used.
+         *         timezone (str, optional): a valid timezone string.
+         */
+        "IntervalSchedule-Output": {
+            /** Interval */
+            interval: number;
             /**
              * Anchor Date
              * Format: date-time
@@ -8832,6 +8972,40 @@ export interface components {
             /** Artifacts */
             artifacts: components["schemas"]["GraphArtifact"][];
         };
+        /**
+         * ObservedState
+         * @description An exact state type/name pair and the bounds of its retained transitions.
+         */
+        ObservedState: {
+            /**
+             * State Type
+             * @description The state type.
+             */
+            state_type: string;
+            /**
+             * State Name
+             * @description The exact state name.
+             */
+            state_name: string;
+            /**
+             * First Seen
+             * Format: date-time
+             * @description Earliest retained transition timestamp.
+             */
+            first_seen: string;
+            /**
+             * Last Seen
+             * Format: date-time
+             * @description Latest retained transition timestamp.
+             */
+            last_seen: string;
+        };
+        /**
+         * ObservedStateSort
+         * @description Supported ordering for observed state discovery.
+         * @enum {string}
+         */
+        ObservedStateSort: "NAME_ASC" | "LAST_SEEN_DESC";
         /**
          * Operator
          * @description Operators for combining filter criteria.
@@ -9255,7 +9429,50 @@ export interface components {
          * RunDeployment
          * @description Runs the given deployment with the given parameters
          */
-        RunDeployment: {
+        "RunDeployment-Input": {
+            /**
+             * Type
+             * @default run-deployment
+             * @constant
+             */
+            type: "run-deployment";
+            /**
+             * Source
+             * @description Whether this Action applies to a specific selected deployment (given by `deployment_id`), or to a deployment that is inferred from the triggering event.  If the source is 'inferred', the `deployment_id` may not be set.  If the source is 'selected', the `deployment_id` must be set.
+             * @default selected
+             * @enum {string}
+             */
+            source: "selected" | "inferred";
+            /**
+             * Deployment Id
+             * @description The identifier of the deployment
+             */
+            deployment_id?: string | null;
+            /**
+             * Parameters
+             * @description The parameters to pass to the deployment, or None to use the deployment's default parameters
+             */
+            parameters?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Job Variables
+             * @description The job variables to pass to the created flow run, or None to use the deployment's default job variables
+             */
+            job_variables?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Schedule After
+             * @description The amount of time to wait before running the deployment. Defaults to running the deployment immediately.
+             */
+            schedule_after?: number | string;
+        };
+        /**
+         * RunDeployment
+         * @description Runs the given deployment with the given parameters
+         */
+        "RunDeployment-Output": {
             /**
              * Type
              * @default run-deployment
@@ -9598,9 +9815,9 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
+            triggers: (components["schemas"]["EventTrigger-Input"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
             /** Within */
-            within: number | null;
+            within: number | string | null;
         };
         /**
          * SequenceTrigger
@@ -9621,7 +9838,7 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
+            triggers: (components["schemas"]["EventTrigger-Output"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
             /** Within */
             within: number | null;
         };
@@ -14404,6 +14621,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["State"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_observed_states_observed_states_get: {
+        parameters: {
+            query?: {
+                query?: string | null;
+                order_by?: components["schemas"]["ObservedStateSort"];
+                limit?: number;
+            };
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservedState"][];
                 };
             };
             /** @description Validation Error */
