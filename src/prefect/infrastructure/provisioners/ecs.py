@@ -1005,7 +1005,25 @@ class ExecutionRoleResource:
                 ],
             }
         )
-        self._requires_provisioning = None
+        # `AmazonECSTaskExecutionRolePolicy` allows creating log streams and
+        # putting log events, but not creating the log group that the ECS worker
+        # asks for with `awslogs-create-group` when CloudWatch logs are enabled.
+        self._logs_policy_name = "PrefectEcsTaskExecutionRoleLogsPolicy"
+        self._logs_policy_document = json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "AllowCreateLogGroup",
+                        "Effect": "Allow",
+                        "Action": "logs:CreateLogGroup",
+                        "Resource": "*",
+                    }
+                ],
+            }
+        )
+        self._requires_role_provisioning = None
+        self._requires_logs_policy_provisioning = None
 
     async def get_task_count(self) -> int:
         """
@@ -1014,7 +1032,46 @@ class ExecutionRoleResource:
         Returns:
             int: The number of tasks to be provisioned.
         """
-        return 1 if await self.requires_provisioning() else 0
+        role_count = 1 if await self._role_requires_provisioning() else 0
+        logs_policy_count = 1 if await self._logs_policy_requires_provisioning() else 0
+        return role_count + logs_policy_count
+
+    async def _role_requires_provisioning(self) -> bool:
+        if self._requires_role_provisioning is None:
+            try:
+                await anyio.to_thread.run_sync(
+                    partial(
+                        self._iam_client.get_role, RoleName=self._execution_role_name
+                    )
+                )
+                self._requires_role_provisioning = False
+            except self._iam_client.exceptions.NoSuchEntityException:
+                self._requires_role_provisioning = True
+
+        return self._requires_role_provisioning
+
+    async def _logs_policy_requires_provisioning(self) -> bool:
+        """
+        Checked separately from role creation so that roles provisioned before
+        the logs policy existed get it when provisioning is run again.
+        """
+        if self._requires_logs_policy_provisioning is None:
+            if await self._role_requires_provisioning():
+                self._requires_logs_policy_provisioning = True
+            else:
+                try:
+                    await anyio.to_thread.run_sync(
+                        partial(
+                            self._iam_client.get_role_policy,
+                            RoleName=self._execution_role_name,
+                            PolicyName=self._logs_policy_name,
+                        )
+                    )
+                    self._requires_logs_policy_provisioning = False
+                except self._iam_client.exceptions.NoSuchEntityException:
+                    self._requires_logs_policy_provisioning = True
+
+        return self._requires_logs_policy_provisioning
 
     async def requires_provisioning(self) -> bool:
         """
@@ -1023,18 +1080,10 @@ class ExecutionRoleResource:
         Returns:
             bool: True if provisioning is required, False otherwise.
         """
-        if self._requires_provisioning is None:
-            try:
-                await anyio.to_thread.run_sync(
-                    partial(
-                        self._iam_client.get_role, RoleName=self._execution_role_name
-                    )
-                )
-                self._requires_provisioning = False
-            except self._iam_client.exceptions.NoSuchEntityException:
-                self._requires_provisioning = True
-
-        return self._requires_provisioning
+        return (
+            await self._role_requires_provisioning()
+            or await self._logs_policy_requires_provisioning()
+        )
 
     async def get_planned_actions(self) -> List[str]:
         """
@@ -1044,12 +1093,18 @@ class ExecutionRoleResource:
             Optional[str]: A description of the planned actions for provisioning the resource,
                 or None if provisioning is not required.
         """
-        if await self.requires_provisioning():
-            return [
+        actions: list[str] = []
+        if await self._role_requires_provisioning():
+            actions.append(
                 "Creating an IAM role assigned to ECS tasks:"
                 f" [blue]{self._execution_role_name}[/]"
-            ]
-        return []
+            )
+        if await self._logs_policy_requires_provisioning():
+            actions.append(
+                "Allowing the ECS task execution role to create CloudWatch log"
+                f" groups: [blue]{self._logs_policy_name}[/]"
+            )
+        return actions
 
     async def provision(
         self,
@@ -1064,8 +1119,8 @@ class ExecutionRoleResource:
                 infrastructure for.
             advance: A callback function to indicate progress.
         """
-        if await self.requires_provisioning():
-            console = current_console.get()
+        console = current_console.get()
+        if await self._role_requires_provisioning():
             console.print("Provisioning execution role")
             response = await anyio.to_thread.run_sync(
                 partial(
@@ -1087,6 +1142,18 @@ class ExecutionRoleResource:
             response = await anyio.to_thread.run_sync(
                 partial(self._iam_client.get_role, RoleName=self._execution_role_name)
             )
+
+        if await self._logs_policy_requires_provisioning():
+            console.print("Adding CloudWatch logs policy to execution role")
+            await anyio.to_thread.run_sync(
+                partial(
+                    self._iam_client.put_role_policy,
+                    RoleName=self._execution_role_name,
+                    PolicyName=self._logs_policy_name,
+                    PolicyDocument=self._logs_policy_document,
+                )
+            )
+            advance()
 
         base_job_template["variables"]["properties"]["execution_role_arn"][
             "default"

@@ -102,6 +102,7 @@ Before committing any changes, always run:
 ## API Integration
 
 - Use **`useSuspenseQuery`** over `useQuery` for declarative code; use `useQuery` when the component must silently return `null` while loading rather than suspend the tree (e.g., optional or promotional components that should disappear rather than show a skeleton)
+- **Exception for queries keyed by search/filter input**: a `useSuspenseQuery` whose key changes as the user types re-suspends the tree, remounting the input and dropping focus (recurring bug in the events feed, deployments, and flows lists). Use `useQuery` with `placeholderData: keepPreviousData` and handle `isPending`/`isError` in the component; keep `useSuspenseQuery` for stable keys (e.g. unfiltered total counts), and derive filtered counts from the paginated response rather than a separate suspense count query
 - **Query factories** in `/api` directories with standardized key patterns
 - **Mutation hooks** in `/api` directories
 - **No data transformation** in query factories - do it in components

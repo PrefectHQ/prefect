@@ -398,6 +398,11 @@ export const useDeleteFlowRun = () => {
 type MutateCreateFlowRun = {
 	id: string;
 } & CreateNewFlowRun;
+
+export const deploymentCreateFlowRunMutationKey = [
+	"flowRuns",
+	"create-from-deployment",
+] as const;
 /**
  * Hook for creating a new flow run from an automation
  *
@@ -422,6 +427,7 @@ type MutateCreateFlowRun = {
 export const useDeploymentCreateFlowRun = () => {
 	const queryClient = useQueryClient();
 	const { mutate: createDeploymentFlowRun, ...rest } = useMutation({
+		mutationKey: deploymentCreateFlowRunMutationKey,
 		mutationFn: async ({ id, ...body }: MutateCreateFlowRun) => {
 			const res = await (await getQueryService()).POST(
 				"/deployments/{id}/create_flow_run",

@@ -1,7 +1,12 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { StateType } from "@/api/flow-runs/constants";
 import type { DateRangePreset } from "@/components/flow-runs/flow-runs-list";
 import type { SavedFilter as SavedFiltersMenuFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/saved-filters-menu";
+import {
+	parseStateNames,
+	serializeStateNames,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import {
 	type SavedFilter,
 	type SavedFilterValues,
@@ -15,8 +20,9 @@ const routeApi = getRouteApi("/runs/");
  * Converts URL search params to SavedFilterValues format.
  * URL params use comma-separated strings, SavedFilterValues uses arrays.
  */
-function urlParamsToFilterValues(search: {
-	state?: string;
+export function urlParamsToFilterValues(search: {
+	state?: string | string[];
+	"state-types"?: StateType[];
 	flows?: string;
 	deployments?: string;
 	"work-pools"?: string;
@@ -30,7 +36,7 @@ function urlParamsToFilterValues(search: {
 		return value.split(",").filter((s) => s.trim().length > 0);
 	};
 
-	const stateArray = parseCommaSeparated(search.state);
+	const stateArray = parseStateNames(search.state);
 	const flowsArray = parseCommaSeparated(search.flows);
 	const deploymentsArray = parseCommaSeparated(search.deployments);
 	const workPoolsArray = parseCommaSeparated(search["work-pools"]);
@@ -38,8 +44,9 @@ function urlParamsToFilterValues(search: {
 
 	return {
 		...(stateArray.length > 0 && {
-			state: stateArray as SavedFilterValues["state"],
+			state: stateArray,
 		}),
+		...(search["state-types"]?.length && { stateTypes: search["state-types"] }),
 		...(flowsArray.length > 0 && { flows: flowsArray }),
 		...(deploymentsArray.length > 0 && { deployments: deploymentsArray }),
 		...(workPoolsArray.length > 0 && { workPools: workPoolsArray }),
@@ -54,8 +61,9 @@ function urlParamsToFilterValues(search: {
  * Converts SavedFilterValues to URL search params format.
  * SavedFilterValues uses arrays, URL params use comma-separated strings.
  */
-function filterValuesToUrlParams(filters: SavedFilterValues): {
-	state: string;
+export function filterValuesToUrlParams(filters: SavedFilterValues): {
+	state: string | string[];
+	"state-types": StateType[] | undefined;
 	flows: string;
 	deployments: string;
 	"work-pools": string;
@@ -65,7 +73,8 @@ function filterValuesToUrlParams(filters: SavedFilterValues): {
 	end: string | undefined;
 } {
 	return {
-		state: filters.state?.join(",") ?? "",
+		state: serializeStateNames(filters.state ?? []),
+		"state-types": filters.stateTypes,
 		flows: filters.flows?.join(",") ?? "",
 		deployments: filters.deployments?.join(",") ?? "",
 		"work-pools": filters.workPools?.join(",") ?? "",
@@ -163,6 +172,7 @@ export function useRunsSavedFilters(): UseRunsSavedFiltersReturn {
 		// Check if there are any active filters
 		const hasActiveFilters =
 			currentFilterValues.state?.length ||
+			currentFilterValues.stateTypes?.length ||
 			currentFilterValues.flows?.length ||
 			currentFilterValues.deployments?.length ||
 			currentFilterValues.workPools?.length ||
@@ -298,7 +308,8 @@ export function useApplyDefaultFilterOnMount(): void {
 	// Compute whether there are any active filters in the URL
 	const hasActiveFilters = useMemo(() => {
 		return !!(
-			search.state ||
+			parseStateNames(search.state).length ||
+			search["state-types"]?.length ||
 			search.flows ||
 			search.deployments ||
 			search["work-pools"] ||
