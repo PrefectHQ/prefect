@@ -111,6 +111,8 @@ RUN uv export --frozen --no-dev --all-extras --no-emit-project --no-hashes -o di
 # Setup a base final image from miniconda
 FROM continuumio/miniconda3:26.7.1 AS prefect-conda
 
+RUN conda update --name base --all --yes && conda clean --all --yes
+
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
 RUN conda create \

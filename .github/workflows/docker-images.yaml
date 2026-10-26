@@ -73,6 +73,17 @@ jobs:
           filter: blob:none
           ref: ${{ github.event.inputs.tag || github.ref }}
 
+      - name: Load current Dockerfile
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          DOCKERFILE: ${{ (matrix.image == 'prefecthq/prefect-client') && 'client/Dockerfile' || 'Dockerfile' }}
+        run: |
+          # Keep release sources unchanged while applying current image maintenance fixes.
+          gh api -H 'Accept: application/vnd.github.raw+json' \
+            "repos/$GITHUB_REPOSITORY/contents/$DOCKERFILE?ref=$WORKFLOW_SHA" \
+            > "$RUNNER_TEMP/Dockerfile"
+
       - name: Generate tags for ${{ matrix.image }} (dev)
         id: metadata-dev
         uses: docker/metadata-action@v6
@@ -108,9 +119,9 @@ jobs:
           # push `3-latest` tags on latest release or manual trigger
           tags: |
             type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event_name == 'release' }}
-            type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event_name == 'release' && github.event.release.prerelease == false }}
-            type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event_name == 'release' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
-            type=raw,value=3-latest${{ matrix.flavor }},enable=${{ (github.event_name == 'release' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG && matrix.python-version == '3.12') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true') }}
+            type=pep440,pattern={{major}}.{{minor}},value=${{ github.event.inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ (github.event_name == 'release' && github.event.release.prerelease == false) || (github.event.inputs.publish_3_latest == 'true' && github.event.inputs.tag == env.LATEST_TAG) }}
+            type=pep440,pattern={{major}},value=${{ github.event.inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ (github.event_name == 'release' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG) || (github.event.inputs.publish_3_latest == 'true' && github.event.inputs.tag == env.LATEST_TAG) }}
+            type=raw,value=3-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.12' && ((github.event_name == 'release' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG) || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true')) }}
             type=raw,value=3-latest-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true' }}
           flavor: |
             latest=false
@@ -121,10 +132,11 @@ jobs:
           echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_OUTPUT
 
       - name: Build and push image
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ${{ (matrix.image == 'prefecthq/prefect-client') && 'client/Dockerfile' || 'Dockerfile' }}
+          file: ${{ runner.temp }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
@@ -136,9 +148,37 @@ jobs:
           labels: ${{ steps.metadata-dev.outputs.labels }}
           push: true
           pull: true
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
           provenance: false
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }},ignore-error=true
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }},ignore-error=true
+
+      - name: Verify published image
+        env:
+          IMAGE: ${{ matrix.image }}@${{ steps.build.outputs.digest }}
+          EXPECTED_VERSION: ${{ github.event.inputs.tag || github.event.release.tag_name || '' }}
+          EXPECTED_PYTHON: ${{ matrix.python-version }}
+        run: |
+          for platform in linux/amd64 linux/arm64; do
+            docker run --rm -i --platform "$platform" --entrypoint /bin/bash \
+              --env EXPECTED_VERSION --env EXPECTED_PYTHON "$IMAGE" --login -c 'python -' <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          import prefect
+          assert not os.environ["EXPECTED_VERSION"] or prefect.__version__ == os.environ["EXPECTED_VERSION"]
+          assert f"{sys.version_info.major}.{sys.version_info.minor}" == os.environ["EXPECTED_PYTHON"]
+          version = subprocess.check_output(["dpkg-query", "-W", "-f=${Version}", "libbrotli1"], text=True).strip()
+          fixed = {"1.0.9": "1.0.9-2+deb12u1", "1.1.0": "1.1.0-2+deb13u1"}[version.split("-")[0]]
+          subprocess.run(["dpkg", "--compare-versions", version, "ge", fixed], check=True)
+          packages = {}
+          for metadata in Path("/opt/conda").rglob("conda-meta"):
+              for record in metadata.glob("*brotli*.json"):
+                  package = json.loads(record.read_text())
+                  assert tuple(map(int, package["version"].split("."))) >= (1, 2, 1), package
+                  packages[f"{metadata.parent}/{package['name']}"] = package["version"]
+          print(json.dumps({"prefect": prefect.__version__, "python": sys.version, "libbrotli1": version, "conda": packages}), flush=True)
+          PY
+          done
 
   trigger-integration-test-update:
     name: Trigger integration test worker image update
