@@ -27,6 +27,27 @@ describe("getDateRangeFromSearch", () => {
 		});
 	});
 
+	it.each([
+		[-3600, "2024-06-01T11:00:00.000Z", "2024-06-01T12:00:00.000Z"],
+		[3600, "2024-06-01T12:00:00.000Z", "2024-06-01T13:00:00.000Z"],
+	])("honors seconds=%s when no range type is set", (seconds, from, to) => {
+		expect(getDateRangeFromSearch({ seconds })).toEqual({ from, to });
+	});
+
+	it("honors explicit range dates", () => {
+		expect(
+			getDateRangeFromSearch({
+				rangeType: "range",
+				seconds: -3600,
+				start: "2020-01-01T00:00:00.000Z",
+				end: "2020-01-01T01:00:00.000Z",
+			}),
+		).toEqual({
+			from: "2020-01-01T00:00:00.000Z",
+			to: "2020-01-01T01:00:00.000Z",
+		});
+	});
+
 	it("honors explicit from/to when no range type is set", () => {
 		expect(
 			getDateRangeFromSearch({

@@ -174,7 +174,12 @@ export function getDateRangeFromSearch(search: DashboardSearch): {
 	from: string;
 	to: string;
 } {
-	switch (search.rangeType) {
+	// Legacy absolute URLs have from/to without a range type.
+	if (!search.rangeType && search.from && search.to) {
+		return { from: search.from, to: search.to };
+	}
+
+	switch (search.rangeType ?? "span") {
 		case "span": {
 			const now = roundToMinute(new Date());
 			const seconds = search.seconds ?? -86400;
@@ -783,7 +788,15 @@ export function RouteComponent() {
 	const hideSubflows = search.hideSubflows ?? false;
 	const tags = search.tags ?? [];
 	const dateRangeValue = useMemo<DateRangeSelectValue>(() => {
-		switch (search.rangeType) {
+		if (!search.rangeType && search.from && search.to) {
+			return {
+				type: "range",
+				startDate: new Date(search.from),
+				endDate: new Date(search.to),
+			};
+		}
+
+		switch (search.rangeType ?? "span") {
 			case "span": {
 				const seconds = search.seconds ?? -86400; // default 24h
 				return { type: "span", seconds };
@@ -817,6 +830,8 @@ export function RouteComponent() {
 		}
 	}, [
 		search.rangeType,
+		search.from,
+		search.to,
 		search.seconds,
 		search.start,
 		search.end,
