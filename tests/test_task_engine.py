@@ -2370,6 +2370,37 @@ class TestPersistence:
 
 
 class TestCachePolicy:
+    def test_tasks_without_source_reuse_their_own_cached_results(self, tmp_path: Path):
+        tasks = []
+        for fee in (1, 100):
+            namespace: dict[str, Any] = {}
+            exec(  # noqa: S102
+                f"def calculate_total(amount):\n    return amount + {fee}\n",
+                namespace,
+            )
+            dynamic_task = task(persist_result=True, result_storage=tmp_path)(
+                namespace["calculate_total"]
+            )
+            assert dynamic_task.source_code is None
+            tasks.append(dynamic_task)
+
+        @flow
+        def calculate_totals() -> list[State]:
+            return [
+                dynamic_task(10, return_state=True)
+                for _ in range(2)
+                for dynamic_task in tasks
+            ]
+
+        states = calculate_totals()
+
+        assert [(state.result(), state.name) for state in states] == [
+            (11, "Completed"),
+            (110, "Completed"),
+            (11, "Cached"),
+            (110, "Cached"),
+        ]
+
     async def test_result_stored_with_storage_key_if_no_policy_set(
         self, prefect_client
     ):
