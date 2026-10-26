@@ -1011,17 +1011,17 @@ async def read_bucket_by_trigger_id(
 ) -> "ORMAutomationBucket | None":
     """Gets the bucket this event would fall into for the given Automation, if there is
     one currently"""
-    query = sa.select(db.AutomationBucket).where(
-        db.AutomationBucket.automation_id == automation_id,
-        db.AutomationBucket.trigger_id == trigger_id,
-        db.AutomationBucket.bucketing_key == bucketing_key,
+    query = (
+        sa.select(db.AutomationBucket)
+        .where(
+            db.AutomationBucket.automation_id == automation_id,
+            db.AutomationBucket.trigger_id == trigger_id,
+            db.AutomationBucket.bucketing_key == bucketing_key,
+        )
+        .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
-    bucket = result.scalars().first()
-    if bucket:
-        await session.refresh(bucket)
-
-    return bucket
+    return result.scalars().first()
 
 
 async def hold_expect_event(
