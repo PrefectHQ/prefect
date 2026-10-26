@@ -156,6 +156,24 @@ class TestApplyValues:
             == "Hello, Alice Smith!"
         )
 
+    def test_apply_values_does_not_substitute_inserted_placeholders(self):
+        assert (
+            apply_values(
+                "prefix {{ first }} / {{ second }}",
+                {"first": "{{ second }}", "second": "resolved"},
+            )
+            == "prefix {{ second }} / resolved"
+        )
+
+    def test_apply_values_does_not_substitute_placeholders_inserted_from_env_vars(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("TEMPLATED_ENV_VAR", "{{ name }}")
+        assert (
+            apply_values("{{ $TEMPLATED_ENV_VAR }} and {{ name }}", {"name": "Alice"})
+            == "{{ name }} and Alice"
+        )
+
     def test_apply_values_dictionary_with_placeholders(self):
         template = {"name": "{{first_name}} {{last_name}}", "age": "{{age}}"}
         values = {"first_name": "Alice", "last_name": "Smith", "age": 30}
