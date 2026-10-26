@@ -1,11 +1,11 @@
 """Regression tests for prefect-azure packaging metadata.
 
-``prefect-azure`` used to declare an unconditional ``setuptools<81`` runtime
-dependency so that ``pkg_resources`` remained importable for ``azureml-core``
-(AzureML imports ``pkg_resources`` at runtime on older supported versions).
+`prefect-azure` used to declare an unconditional `setuptools<81` runtime
+dependency so that `pkg_resources` remained importable for `azureml-core`
+(AzureML imports `pkg_resources` at runtime on older supported versions).
 AzureML is optional, so the cap belongs on the ML extras — an unconditional
-cap forces resolvers to downgrade ``prefect-azure`` (or hold back
-``setuptools``) for users who never install AzureML. See
+cap forces resolvers to downgrade `prefect-azure` (or hold back
+`setuptools`) for users who never install AzureML. See
 https://github.com/PrefectHQ/prefect/pull/23583.
 """
 
@@ -121,12 +121,12 @@ BASE_MODULES = [
 
 def test_base_modules_import_without_pkg_resources():
     """Smoke test: importing the base package and its non-ML modules must not
-    touch ``pkg_resources`` (which only exists under setuptools<81).
+    touch `pkg_resources` (which only exists under setuptools<81).
 
-    ``prefect_azure.ml_datastore`` is intentionally excluded: it imports
-    ``azureml-core``, which is exactly the code path that still needs
-    ``pkg_resources``. ``prefect_azure.deployments.steps`` is also excluded:
-    it requires the ``blob_storage`` extra.
+    `prefect_azure.ml_datastore` is intentionally excluded: it imports
+    `azureml-core`, which is exactly the code path that still needs
+    `pkg_resources`. `prefect_azure.deployments.steps` is also excluded:
+    it requires the `blob_storage` extra.
     """
     blocker = """
 import sys
