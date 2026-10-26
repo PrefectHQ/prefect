@@ -1,4 +1,6 @@
+import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -60,3 +62,46 @@ def test_release_rebuild_uses_current_dockerfile_without_changing_sources(
     assert (source / "Dockerfile").read_text() == "old release Dockerfile"
     if not download_fails:
         assert (runner / "Dockerfile").read_text() == "current Dockerfile"
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="Requires jq")
+def test_verification_pulls_distinct_platform_manifests(tmp_path: Path):
+    root = Path(__file__).parents[2]
+    workflow = yaml.safe_load(
+        (root / ".github/workflows/docker-images.yaml").read_text()
+    )
+    step = next(
+        step
+        for step in workflow["jobs"]["publish-docker-images"]["steps"]
+        if step["name"] == "Verify published image"
+    )
+    docker = tmp_path / "docker"
+    docker.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, os, sys\n"
+        "if sys.argv[1:4] == ['buildx', 'imagetools', 'inspect']:\n"
+        "    print(json.dumps({'manifests': [\n"
+        "        {'platform': {'os': 'linux', 'architecture': arch}, 'digest': 'sha256:' + arch}\n"
+        "        for arch in ('amd64', 'arm64')]}))\n"
+        "else:\n"
+        "    assert sys.argv[1] == 'run'\n"
+        "    with open(os.environ['DOCKER_CALLS'], 'a') as f:\n"
+        "        f.write(json.dumps(sys.argv[1:]) + '\\n')\n"
+    )
+    docker.chmod(0o755)
+    calls = tmp_path / "calls.jsonl"
+    subprocess.run(
+        ["bash", "-e", "-o", "pipefail", "-c", step["run"]],
+        env=dict(
+            os.environ,
+            PATH=f"{tmp_path}{os.pathsep}{os.environ['PATH']}",
+            IMAGE="registry.example/prefect@sha256:index",
+            DOCKER_CALLS=str(calls),
+        ),
+        check=True,
+    )
+    recorded = [json.loads(line) for line in calls.read_text().splitlines()]
+    assert len(recorded) == 2
+    for call, architecture in zip(recorded, ("amd64", "arm64")):
+        assert f"registry.example/prefect@sha256:{architecture}" in call
+        assert "registry.example/prefect@sha256:index" not in call

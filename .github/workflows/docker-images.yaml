@@ -160,8 +160,10 @@ jobs:
           EXPECTED_PYTHON: ${{ matrix.python-version }}
         run: |
           for platform in linux/amd64 linux/arm64; do
+            platform_digest=$(docker buildx imagetools inspect "$IMAGE" --raw | \
+              jq -er --arg arch "${platform#linux/}" '.manifests[] | select(.platform.os == "linux" and .platform.architecture == $arch) | .digest')
             docker run --rm -i --platform "$platform" --entrypoint /bin/bash \
-              --env EXPECTED_VERSION --env EXPECTED_PYTHON "$IMAGE" --login -c 'python -' <<'PY'
+              --env EXPECTED_VERSION --env EXPECTED_PYTHON "${IMAGE%@*}@$platform_digest" --login -c 'python -' <<'PY'
           import json, os, subprocess, sys
           from pathlib import Path
           import prefect
