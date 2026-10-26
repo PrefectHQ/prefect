@@ -45,10 +45,9 @@ def _register_stable_transforms() -> None:
     if sys.modules.get("pandas") is not None:
         import pandas as pd  # pyright: ignore
 
-        # Version the payload so pre-fix keys cannot return wrong-order results.
         STABLE_TRANSFORMS[pd.DataFrame] = lambda df: (  # pyright: ignore
-            "prefect.dataframe.v2",
-            [df[col] for col in df.columns],
+            list(df.columns),
+            [df.iloc[:, i] for i in range(len(df.columns))],
         )
 
 

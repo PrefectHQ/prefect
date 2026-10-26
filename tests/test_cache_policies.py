@@ -130,13 +130,14 @@ class TestInputsPolicy:
         class FakeDataFrame:
             def __init__(self, columns: dict[str, str]):
                 self._columns = columns
+                self.iloc = self
 
             @property
             def columns(self) -> list[str]:
                 return list(self._columns)
 
-            def __getitem__(self, column: str) -> str:
-                return self._columns[column]
+            def __getitem__(self, key: tuple[slice, int]) -> str:
+                return self._columns[self.columns[key[1]]]
 
         fake_pandas = ModuleType("pandas")
         fake_pandas.DataFrame = FakeDataFrame  # type: ignore[attr-defined]
@@ -164,13 +165,19 @@ class TestInputsPolicy:
             flow_parameters=None,
         )
 
+    @pytest.mark.parametrize("columns", [["a", "b"], ["a", "a"]])
     def test_dataframe_cache_preserves_order_and_ignores_legacy_results(
-        self, tmp_path: Path
+        self, tmp_path: Path, columns: list[str]
     ):
         pd = pytest.importorskip("pandas")
-        df = pd.DataFrame({"a": [1, 2], "b": [10, 20]})
-        reordered = df[["b", "a"]]
+        df = pd.DataFrame([[1, 10], [2, 20]], columns=columns)
+        reordered = df.iloc[:, ::-1]
         executions = []
+
+        for frame in (df, reordered):
+            assert INPUTS.compute_key(None, {"df": frame}, {}) != hash_objects(
+                {"df": [frame[col] for col in sorted(frame.columns)]}
+            )
 
         @task(cache_policy=INPUTS, persist_result=True, result_storage=tmp_path)
         def first_column(df) -> list[int]:
@@ -195,7 +202,11 @@ class TestInputsPolicy:
         assert changed.result() == [10, 20]
         assert repeated.name == "Cached"
         assert repeated.result() == [1, 2]
-        assert executions == [["b", "a"], ["a", "b"], ["b", "a"]]
+        assert executions == [
+            list(reordered.columns),
+            list(df.columns),
+            list(reordered.columns),
+        ]
 
     def test_dataframe_key_is_stable_across_processes(self):
         pd = pytest.importorskip("pandas")
