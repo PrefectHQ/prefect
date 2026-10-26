@@ -116,6 +116,17 @@ jobs:
           fetch-depth: 0
           ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
+      - name: Load current Dockerfile
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          DOCKERFILE: Dockerfile
+        run: |
+          # Keep release sources unchanged while applying current image maintenance fixes.
+          gh api -H 'Accept: application/vnd.github.raw+json' \
+            "repos/$GITHUB_REPOSITORY/contents/$DOCKERFILE?ref=$WORKFLOW_SHA" \
+            > "$RUNNER_TEMP/Dockerfile"
+
       - name: Generate tags for prefecthq/prefect-dev
         id: metadata-dev
         uses: docker/metadata-action@v5
@@ -152,15 +163,17 @@ jobs:
           tags: |
             type=pep440,pattern={{version}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
             type=pep440,pattern={{major}}.{{minor}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ (github.event_name == 'release' && github.event.release.prerelease == false) || needs.prepare-release-recovery.outputs.publish_minor == 'true' }}
-            type=pep440,pattern={{major}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
+            type=pep440,pattern={{major}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ (github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG) || needs.prepare-release-recovery.outputs.publish_2_latest == 'true' }}
             type=raw,value=2-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.10' && ((github.event_name == 'release' && github.event.release.prerelease == false) || needs.prepare-release-recovery.outputs.publish_2_latest == 'true') }}
           flavor: |
             latest=false
 
       - name: Build and push image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ${{ runner.temp }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
@@ -170,4 +183,32 @@ jobs:
           labels: ${{ steps.metadata-dev.outputs.labels }}
           push: true
           pull: true
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' }}
           provenance: false
+
+      - name: Verify published image
+        env:
+          IMAGE: prefecthq/prefect@${{ steps.build.outputs.digest }}
+          EXPECTED_VERSION: ${{ inputs.tag || github.event.release.tag_name || '' }}
+          EXPECTED_PYTHON: ${{ matrix.python-version }}
+        run: |
+          for platform in linux/amd64 linux/arm64; do
+            docker run --rm -i --platform "$platform" --entrypoint /bin/bash \
+              --env EXPECTED_VERSION --env EXPECTED_PYTHON "$IMAGE" --login -c 'python -' <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          import prefect
+          assert not os.environ["EXPECTED_VERSION"] or prefect.__version__ == os.environ["EXPECTED_VERSION"]
+          assert f"{sys.version_info.major}.{sys.version_info.minor}" == os.environ["EXPECTED_PYTHON"]
+          version = subprocess.check_output(["dpkg-query", "-W", "-f=${Version}", "libbrotli1"], text=True).strip()
+          fixed = {"1.0.9": "1.0.9-2+deb12u1", "1.1.0": "1.1.0-2+deb13u1"}[version.split("-")[0]]
+          subprocess.run(["dpkg", "--compare-versions", version, "ge", fixed], check=True)
+          packages = {}
+          for metadata in Path("/opt/conda").rglob("conda-meta"):
+              for record in metadata.glob("*brotli*.json"):
+                  package = json.loads(record.read_text())
+                  assert tuple(map(int, package["version"].split("."))) >= (1, 2, 1), package
+                  packages[f"{metadata.parent}/{package['name']}"] = package["version"]
+          print(json.dumps({"prefect": prefect.__version__, "python": sys.version, "libbrotli1": version, "conda": packages}), flush=True)
+          PY
+          done

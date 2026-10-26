@@ -72,7 +72,7 @@ FROM continuumio/miniconda3 as prefect-conda
 RUN --mount=from=ghcr.io/astral-sh/uv:0.13.4,source=/uv,target=/tmp/uv \
     /tmp/uv pip install --python /opt/conda/bin/python --upgrade \
         "certifi>=2026.10.19" "pip>=26.2.2" && \
-    conda update --name base --yes ca-certificates
+    conda update --name base --all --yes && conda clean --all --yes
 
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
