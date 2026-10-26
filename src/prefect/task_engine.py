@@ -243,6 +243,8 @@ class BaseTaskRunEngine(Generic[P, R]):
     _return_value: Union[R, Type[NotSet]] = NotSet
     # holds the exception raised by the user code, if any
     _raised: Union[Exception, BaseException, Type[NotSet]] = NotSet
+    # set when the consumer closes a generator task; closing must not restart its body
+    _is_closing_generator: bool = False
     _initial_run_context: Optional[TaskRunContext] = None
     _is_started: bool = False
     _task_name_set: bool = False
@@ -667,7 +669,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         - If the task has no retries left, or the retry condition is not met, return False.
         """
         failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
-        if self.retries < self.task.retries and self.can_retry(exc_or_state):
+        if (
+            not self._is_closing_generator
+            and self.retries < self.task.retries
+            and self.can_retry(exc_or_state)
+        ):
             if self.task.retry_delay_seconds:
                 delay = (
                     self.task.retry_delay_seconds[
@@ -703,8 +709,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 self.call_hooks(new_state)
             self.retries: int = self.retries + 1
             return True
-        elif self.retries >= self.task.retries:
-            if self.task.retries > 0:
+        elif self._is_closing_generator or self.retries >= self.task.retries:
+            if self.task.retries > 0 and not self._is_closing_generator:
                 self.logger.error(
                     f"Task run failed with {failure_type}: {exc_or_state!r} - Retries are exhausted",
                     exc_info=True,
@@ -1300,7 +1306,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
         failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
 
-        if self.retries < self.task.retries and await self.can_retry(exc_or_state):
+        if (
+            not self._is_closing_generator
+            and self.retries < self.task.retries
+            and await self.can_retry(exc_or_state)
+        ):
             if self.task.retry_delay_seconds:
                 delay = (
                     self.task.retry_delay_seconds[
@@ -1336,8 +1346,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 await self.call_hooks(new_state)
             self.retries: int = self.retries + 1
             return True
-        elif self.retries >= self.task.retries:
-            if self.task.retries > 0:
+        elif self._is_closing_generator or self.retries >= self.task.retries:
+            if self.task.retries > 0 and not self._is_closing_generator:
                 self.logger.error(
                     f"Task run failed with {failure_type}: {exc_or_state!r} - Retries are exhausted",
                     exc_info=True,
@@ -1784,9 +1794,11 @@ def run_generator_task_sync(
                             yield gen_result
                     except StopIteration as exc:
                         engine.handle_success(exc.value, transaction=txn)
-                    except GeneratorExit as exc:
+                    except GeneratorExit:
+                        engine._is_closing_generator = True
+                        gen.close()
                         engine.handle_success(None, transaction=txn)
-                        gen.throw(exc)
+                        raise
             raise_if_flow_run_suspension_requested()
 
     return engine.result()
@@ -1846,8 +1858,9 @@ async def run_generator_task_async(
                     except StopAsyncIteration:
                         await engine.handle_success(None, transaction=txn)
                     except GeneratorExit:
-                        await engine.handle_success(None, transaction=txn)
+                        engine._is_closing_generator = True
                         await gen.aclose()
+                        await engine.handle_success(None, transaction=txn)
                         raise
             raise_if_flow_run_suspension_requested()
 

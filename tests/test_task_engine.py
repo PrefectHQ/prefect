@@ -2592,6 +2592,33 @@ class TestGenerators:
         gen_tr = await prefect_client.read_task_run(gen_id)
         assert gen_tr.name == "gen-1000"
 
+    async def test_generator_closed_early_with_failing_finalizer_does_not_retry(
+        self, prefect_client: PrefectClient, events_pipeline
+    ):
+        starts: list[str] = []
+        cleanups: list[bool] = []
+
+        @task(retries=1)
+        def g():
+            starts.append("start")
+            try:
+                yield TaskRunContext.get().task_run.id
+                yield 2
+            finally:
+                cleanups.append(TaskRunContext.get() is not None)
+                raise ValueError("cleanup failed")
+
+        gen = g()
+        tr_id = next(gen)
+        with pytest.raises(ValueError, match="cleanup failed"):
+            gen.close()
+
+        assert starts == ["start"]
+        assert cleanups == [True]
+        await events_pipeline.process_events()
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_failed()
+
     async def test_generator_retries(self):
         """
         Test that a generator can retry and will re-emit its events
@@ -2780,6 +2807,33 @@ class TestAsyncGenerators:
         assert tr.state.is_completed()
         assert hooks == ["completion"]
         assert finally_ran_in_context == [True]
+
+    async def test_generator_task_closed_early_with_failing_finalizer_does_not_retry(
+        self, prefect_client: PrefectClient, events_pipeline
+    ):
+        starts: list[str] = []
+        cleanups: list[bool] = []
+
+        @task(retries=1)
+        async def g():
+            starts.append("start")
+            try:
+                yield TaskRunContext.get().task_run.id
+                yield 2
+            finally:
+                cleanups.append(TaskRunContext.get() is not None)
+                raise ValueError("cleanup failed")
+
+        gen = g()
+        tr_id = await gen.__anext__()
+        with pytest.raises(ValueError, match="cleanup failed"):
+            await gen.aclose()
+
+        assert starts == ["start"]
+        assert cleanups == [True]
+        await events_pipeline.process_events()
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_failed()
 
     async def test_generator_parent_tracking(
         self, prefect_client: PrefectClient, events_pipeline
