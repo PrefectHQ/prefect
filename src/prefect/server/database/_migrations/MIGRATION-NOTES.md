@@ -8,6 +8,15 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add observed state covering indexes
+SQLite: `27d8f4e1a6c9`
+Postgres: `91e2b8f3d6a4`
+
+SQLite adds `(type, name, timestamp)` indexes to both run state histories for
+observed state aggregation. Building them scans retained history and requires
+additional disk space; SQLite holds its write lock during the migration.
+Downgrading drops the indexes. The PostgreSQL companion is a no-op.
+
 # Add `automation_held_event` table
 SQLite: `8f5eda7c1dd7`
 Postgres: `e7f54680bce3`

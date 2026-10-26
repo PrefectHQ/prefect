@@ -178,7 +178,8 @@ def existing_iam_user():
 
 
 @pytest.fixture
-def existing_execution_role():
+def existing_execution_role_without_logs_policy():
+    """An execution role created before the provisioner added the logs policy."""
     iam_client = boto3.client("iam")
     iam_client.create_role(
         RoleName="PrefectEcsTaskExecutionRole",
@@ -199,7 +200,36 @@ def existing_execution_role():
 
     yield
 
+    for policy_name in iam_client.list_role_policies(
+        RoleName="PrefectEcsTaskExecutionRole"
+    )["PolicyNames"]:
+        iam_client.delete_role_policy(
+            RoleName="PrefectEcsTaskExecutionRole", PolicyName=policy_name
+        )
     iam_client.delete_role(RoleName="PrefectEcsTaskExecutionRole")
+
+
+@pytest.fixture
+def existing_execution_role(existing_execution_role_without_logs_policy):
+    iam_client = boto3.client("iam")
+    iam_client.put_role_policy(
+        RoleName="PrefectEcsTaskExecutionRole",
+        PolicyName="PrefectEcsTaskExecutionRoleLogsPolicy",
+        PolicyDocument=json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": "logs:CreateLogGroup",
+                        "Resource": "*",
+                    }
+                ],
+            }
+        ),
+    )
+
+    yield
 
 
 class TestIamUserResource:
@@ -431,7 +461,7 @@ class TestAuthenticationResource:
     async def test_get_task_count(self, authentication_resource):
         count = await authentication_resource.get_task_count()
 
-        assert count == 5
+        assert count == 6
 
     async def test_get_planned_actions(self, authentication_resource):
         actions = await authentication_resource.get_planned_actions()
@@ -454,6 +484,10 @@ class TestAuthenticationResource:
             (
                 "Creating an IAM role assigned to ECS tasks:"
                 " [blue]PrefectEcsTaskExecutionRole[/]"
+            ),
+            (
+                "Allowing the ECS task execution role to create CloudWatch log"
+                " groups: [blue]PrefectEcsTaskExecutionRoleLogsPolicy[/]"
             ),
             "Storing generated AWS credentials in a block",
         ]
@@ -483,7 +517,7 @@ class TestAuthenticationResource:
             "default": {"$ref": {"block_document_id": str(block_document.id)}},
         }
 
-        assert advance_mock.call_count == 5
+        assert advance_mock.call_count == 6
 
 
 @pytest.fixture
@@ -1160,6 +1194,14 @@ class TestExecutionRoleResource:
     async def test_get_task_count_requires_provisioning(self, execution_role_resource):
         count = await execution_role_resource.get_task_count()
 
+        assert count == 2
+
+    @pytest.mark.usefixtures("existing_execution_role_without_logs_policy")
+    async def test_get_task_count_existing_role_without_logs_policy(
+        self, execution_role_resource
+    ):
+        count = await execution_role_resource.get_task_count()
+
         assert count == 1
 
     @pytest.mark.usefixtures("existing_execution_role")
@@ -1181,6 +1223,14 @@ class TestExecutionRoleResource:
 
         assert requires_provisioning is False
 
+    @pytest.mark.usefixtures("existing_execution_role_without_logs_policy")
+    async def test_requires_provisioning_existing_role_without_logs_policy(
+        self, execution_role_resource
+    ):
+        requires_provisioning = await execution_role_resource.requires_provisioning()
+
+        assert requires_provisioning is True
+
     async def test_get_planned_actions_requires_provisioning(
         self, execution_role_resource
     ):
@@ -1188,7 +1238,20 @@ class TestExecutionRoleResource:
 
         assert actions == [
             "Creating an IAM role assigned to ECS tasks:"
-            " [blue]PrefectEcsTaskExecutionRole[/]"
+            " [blue]PrefectEcsTaskExecutionRole[/]",
+            "Allowing the ECS task execution role to create CloudWatch log"
+            " groups: [blue]PrefectEcsTaskExecutionRoleLogsPolicy[/]",
+        ]
+
+    @pytest.mark.usefixtures("existing_execution_role_without_logs_policy")
+    async def test_get_planned_actions_existing_role_without_logs_policy(
+        self, execution_role_resource
+    ):
+        actions = await execution_role_resource.get_planned_actions()
+
+        assert actions == [
+            "Allowing the ECS task execution role to create CloudWatch log"
+            " groups: [blue]PrefectEcsTaskExecutionRoleLogsPolicy[/]",
         ]
 
     @pytest.mark.usefixtures("existing_execution_role")
@@ -1215,7 +1278,51 @@ class TestExecutionRoleResource:
         )
 
         assert arn == "arn:aws:iam::123456789012:role/PrefectEcsTaskExecutionRole"
+        assert advance_mock.call_count == 2
+        iam_client = boto3.client("iam")
+        attached_policies = iam_client.list_attached_role_policies(
+            RoleName="PrefectEcsTaskExecutionRole"
+        )["AttachedPolicies"]
+        assert [policy["PolicyName"] for policy in attached_policies] == [
+            "AmazonECSTaskExecutionRolePolicy"
+        ]
+        logs_policy = iam_client.get_role_policy(
+            RoleName="PrefectEcsTaskExecutionRole",
+            PolicyName="PrefectEcsTaskExecutionRoleLogsPolicy",
+        )["PolicyDocument"]
+        assert logs_policy["Statement"] == [
+            {
+                "Sid": "AllowCreateLogGroup",
+                "Effect": "Allow",
+                "Action": "logs:CreateLogGroup",
+                "Resource": "*",
+            }
+        ]
+
+    @pytest.mark.usefixtures("existing_execution_role_without_logs_policy")
+    async def test_provision_adds_logs_policy_to_existing_role(
+        self, execution_role_resource
+    ):
+        advance_mock = MagicMock()
+
+        arn = await execution_role_resource.provision(
+            base_job_template={
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "execution_role_arn": {},
+                    },
+                }
+            },
+            advance=advance_mock,
+        )
+
+        assert arn == "arn:aws:iam::123456789012:role/PrefectEcsTaskExecutionRole"
         advance_mock.assert_called_once()
+        iam_client = boto3.client("iam")
+        assert iam_client.list_role_policies(RoleName="PrefectEcsTaskExecutionRole")[
+            "PolicyNames"
+        ] == ["PrefectEcsTaskExecutionRoleLogsPolicy"]
 
     @pytest.mark.usefixtures("existing_execution_role")
     async def test_provision_does_not_require_provisioning(

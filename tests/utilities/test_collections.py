@@ -849,6 +849,16 @@ class TestGetFromDict:
                 "default_value",
                 "default_value",
             ),
+            ({"years": {"2026": 42}}, "years.2026", 42, None),
+            ({"items": {"01": "first"}}, "items.01", "first", None),
+            ({"a": {1: "int", "1": "str"}}, "a.1", "str", None),
+            ({"a": {1: "int", "1": "str"}}, ["a", 1], "int", None),
+            ({"a": {1: "int"}}, "a.1", "int", None),
+            ({"a": {-1: "neg"}}, "a.-1", "neg", None),
+            ({"a": {1: "int"}}, "a.01", "default_value", "default_value"),
+            ({"a": [1, 2, 3]}, "a[-1]", 3, None),
+            ({"a": [1, 2, 3]}, "a.-1", 3, None),
+            ({"a": [{"b": 1}]}, "a[0].b", 1, None),
         ],
     )
     def test_get_from_dict(self, dct, keys, expected, default):
