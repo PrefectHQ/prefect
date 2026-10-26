@@ -646,7 +646,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             expiration=expiration,
         )
 
-        on_commit_hooks = self.task.on_commit_hooks.copy()
         if terminal_state.is_failed():
             if (
                 isinstance(terminal_state.data, ResultRecord)
@@ -659,12 +658,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 )
                 terminal_state.data = failure_record
                 if transaction.write_on_commit:
-                    # A hook also supports tasks whose cache policy produces no key.
-                    def persist_failure(_: Transaction) -> None:
+                    try:
                         result_store.persist_result_record(failure_record)
-
-                    persist_failure.log_on_run = False
-                    on_commit_hooks.append(persist_failure)
+                    except Exception as exc:
+                        self.logger.warning(
+                            "Failed to write result: %s Execution will continue, but the result has not been written",
+                            exc,
+                        )
             transaction.write_on_commit = False
 
         # Avoid logging when running this rollback hook since it is not user-defined
@@ -673,16 +673,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
-            on_commit_hooks=on_commit_hooks,
+            on_rollback_hooks=([] if terminal_state.is_failed() else [handle_rollback])
+            + self.task.on_rollback_hooks,
+            on_commit_hooks=self.task.on_commit_hooks,
         )
-        if transaction.is_committed():
+        if terminal_state.is_failed():
+            transaction.rollback()
+        elif transaction.is_committed():
             terminal_state.name = "Cached"
 
         self.set_state(terminal_state)
         self._return_value = result
 
-        self._telemetry.end_span_on_success()
+        if terminal_state.is_failed():
+            self._telemetry.end_span_on_failure(terminal_state.message)
+        else:
+            self._telemetry.end_span_on_success()
 
     def handle_retry(self, exc_or_state: Exception | State[R]) -> bool:
         """Handle any task run retries.
@@ -1299,7 +1305,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             expiration=expiration,
         )
 
-        on_commit_hooks = self.task.on_commit_hooks.copy()
         if terminal_state.is_failed():
             if (
                 isinstance(terminal_state.data, ResultRecord)
@@ -1312,12 +1317,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 )
                 terminal_state.data = failure_record
                 if transaction.write_on_commit:
-                    # A hook also supports tasks whose cache policy produces no key.
-                    async def persist_failure(_: AsyncTransaction) -> None:
+                    try:
                         await result_store.apersist_result_record(failure_record)
-
-                    persist_failure.log_on_run = False
-                    on_commit_hooks.append(persist_failure)
+                    except Exception as exc:
+                        self.logger.warning(
+                            "Failed to write result: %s Execution will continue, but the result has not been written",
+                            exc,
+                        )
             transaction.write_on_commit = False
 
         # Avoid logging when running this rollback hook since it is not user-defined
@@ -1326,15 +1332,21 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
-            on_commit_hooks=on_commit_hooks,
+            on_rollback_hooks=([] if terminal_state.is_failed() else [handle_rollback])
+            + self.task.on_rollback_hooks,
+            on_commit_hooks=self.task.on_commit_hooks,
         )
-        if transaction.is_committed():
+        if terminal_state.is_failed():
+            await transaction.rollback()
+        elif transaction.is_committed():
             terminal_state.name = "Cached"
 
         await self.set_state(terminal_state)
         self._return_value = result
-        self._telemetry.end_span_on_success()
+        if terminal_state.is_failed():
+            self._telemetry.end_span_on_failure(terminal_state.message)
+        else:
+            self._telemetry.end_span_on_success()
 
         return result
 

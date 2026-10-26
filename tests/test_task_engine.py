@@ -57,7 +57,14 @@ from prefect.task_engine import (
 )
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
-from prefect.transactions import CommitMode, atransaction, transaction
+from prefect.transactions import (
+    AsyncTransaction,
+    CommitMode,
+    Transaction,
+    atransaction,
+    get_transaction,
+    transaction,
+)
 from prefect.types._datetime import now
 from prefect.utilities.annotations import opaque
 from prefect.utilities.callables import get_call_parameters
@@ -2329,6 +2336,32 @@ class TestSyncTaskTimeoutWarning:
 
 
 class TestPersistence:
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_returned_failure_survives_persistence_error(
+        self, is_async: bool, caplog: pytest.LogCaptureFixture
+    ):
+        @task(persist_result=True)
+        def fail() -> State:
+            return Failed(data=ValueError("original failure"))
+
+        @task(persist_result=True)
+        async def async_fail() -> State:
+            return Failed(data=ValueError("original failure"))
+
+        method = "apersist_result_record" if is_async else "persist_result_record"
+        with patch.object(
+            ResultStore, method, side_effect=OSError("storage unavailable")
+        ):
+            state = (
+                await async_fail(return_state=True)
+                if is_async
+                else fail(return_state=True)
+            )
+        assert state.is_failed()
+        with pytest.raises(ValueError, match="original failure"):
+            await state.result()
+        assert "storage unavailable" in caplog.text
+
     async def test_task_can_return_result_record(self):
         @task
         async def async_task():
@@ -2490,14 +2523,14 @@ class TestCachePolicy:
         assert str(stored.result) == "temporary"
 
     @pytest.mark.parametrize("is_async", [False, True])
-    @pytest.mark.parametrize("outcome", ["commit", "rollback", "off"])
+    @pytest.mark.parametrize("commit_mode", list(CommitMode))
     @pytest.mark.parametrize("persist_result", [False, True])
     @pytest.mark.parametrize("cache_enabled", [False, True])
-    async def test_returned_failure_persistence_follows_parent_transaction(
+    async def test_returned_failure_diagnostics_survive_parent_rollback(
         self,
         tmp_path: Path,
         is_async: bool,
-        outcome: str,
+        commit_mode: CommitMode,
         persist_result: bool,
         cache_enabled: bool,
     ):
@@ -2513,7 +2546,6 @@ class TestCachePolicy:
             persist_result=persist_result,
             result_storage=tmp_path,
         )
-        commit_mode = CommitMode.OFF if outcome == "off" else CommitMode.LAZY
         async with AsyncExitStack() as stack:
             if is_async:
                 parent = await stack.enter_async_context(
@@ -2524,16 +2556,11 @@ class TestCachePolicy:
                 parent = stack.enter_context(transaction(commit_mode=commit_mode))
                 state = run_task_sync(failing_task, return_type="state")
             assert state.is_failed()
+            assert parent.is_rolled_back()
             record = state.data
-            assert not record.is_persisted
-            assert not list(tmp_path.iterdir())
-            if outcome == "rollback":
-                if is_async:
-                    await parent.rollback()
-                else:
-                    parent.rollback()
+            assert record.is_persisted is persist_result
 
-        if outcome == "commit" and persist_result:
+        if persist_result:
             assert record.is_persisted
             stored = await ResultStore(
                 result_storage=LocalFileSystem(basepath=tmp_path)
@@ -3657,6 +3684,108 @@ class TestRunStateIsDenormalized:
 
 
 class TestTransactionHooks:
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_returned_failure_keeps_failed_state_after_rollback(
+        self, is_async: bool, prefect_client: PrefectClient, events_pipeline: Any
+    ):
+        @task
+        def fail() -> State:
+            return Failed(data=ValueError("temporary"))
+
+        @task
+        async def async_fail() -> State:
+            return Failed(data=ValueError("temporary"))
+
+        state = (
+            await async_fail(return_state=True) if is_async else fail(return_state=True)
+        )
+        await events_pipeline.process_events()
+        states = await prefect_client.read_task_run_states(
+            state.state_details.task_run_id
+        )
+        assert [s.name for s in states] == ["Pending", "Running", "Failed"]
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("return_state", [False, True])
+    @pytest.mark.parametrize("has_parent", [False, True])
+    @pytest.mark.parametrize("retries,recover", [(0, False), (1, False), (1, True)])
+    async def test_returned_failure_transaction_hooks(
+        self,
+        is_async: bool,
+        return_state: bool,
+        has_parent: bool,
+        retries: int,
+        recover: bool,
+    ):
+        attempts = 0
+        events: list[str] = []
+        transactions: list[Transaction | AsyncTransaction] = []
+
+        def fail() -> State | str:
+            nonlocal attempts
+            attempts += 1
+            txn = get_transaction()
+            assert txn is not None
+            transactions.append(txn)
+            if recover and attempts > 1:
+                return "recovered"
+            return Failed(data=ValueError("temporary"))
+
+        async def async_fail() -> State | str:
+            return fail()
+
+        failing_task = task(
+            async_fail if is_async else fail,
+            retries=retries,
+            persist_result=False,
+        )
+
+        @failing_task.on_commit
+        def commit(txn: Transaction) -> None:
+            events.append("task_commit")
+
+        @failing_task.on_rollback
+        def rollback(txn: Transaction) -> None:
+            events.append("task_rollback")
+
+        async with AsyncExitStack() as stack:
+            if has_parent:
+                parent = (
+                    await stack.enter_async_context(atransaction())
+                    if is_async
+                    else stack.enter_context(transaction())
+                )
+                parent.stage(
+                    None,
+                    on_commit_hooks=[lambda txn: events.append("parent_commit")],
+                    on_rollback_hooks=[lambda txn: events.append("parent_rollback")],
+                )
+            result = (
+                await failing_task(return_state=return_state)
+                if is_async
+                else failing_task(return_state=return_state)
+            )
+            assert attempts == retries + 1
+            if recover:
+                assert not transactions[-1].is_rolled_back()
+                if return_state:
+                    assert result.is_completed()
+                    assert await result.result() == "recovered"
+                else:
+                    assert result == "recovered"
+            else:
+                assert transactions[-1].is_rolled_back()
+                assert result.is_failed()
+                with pytest.raises(ValueError, match="temporary"):
+                    await result.result()
+            if has_parent:
+                assert parent.is_rolled_back() is (not recover)
+
+        expected = ["task_commit" if recover else "task_rollback"]
+        if has_parent:
+            expected.append("parent_commit" if recover else "parent_rollback")
+        assert events == expected
+
     async def test_task_transitions_to_rolled_back_on_transaction_rollback(
         self,
         events_pipeline,
