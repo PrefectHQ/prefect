@@ -310,3 +310,92 @@ async def test_run_namespaced_job_streams_logs_before_job_completes(
     assert capsys.readouterr().out == "test log\n"
     assert pod_logs == {"test-pod": "partial logs\n"}
     assert read_pod_logs.call_count == 1
+
+
+@pytest.fixture
+def job_observations(mock_read_namespaced_job, mock_list_namespaced_pod):
+    """Configure the sequence of job statuses observed while polling."""
+
+    def configure(*statuses: models.V1JobStatus):
+        observations = iter(statuses)
+
+        async def read_job(*args, **kwargs):
+            return _job_with_status(next(observations))
+
+        mock_read_namespaced_job.side_effect = read_job
+        mock_list_namespaced_pod.return_value = _pod_list("Succeeded")
+
+    return configure
+
+
+async def test_run_namespaced_job_waits_for_complete_after_success_criteria_met(
+    valid_kubernetes_job_block,
+    mock_create_namespaced_job,
+    mock_read_namespaced_job,
+    mock_delete_namespaced_job,
+    job_observations,
+    read_pod_logs,
+):
+    job_observations(
+        models.V1JobStatus(
+            active=0,
+            succeeded=1,
+            conditions=[
+                models.V1JobCondition(type="SuccessCriteriaMet", status="True")
+            ],
+        ),
+        models.V1JobStatus(
+            active=0,
+            succeeded=1,
+            conditions=[
+                models.V1JobCondition(type="SuccessCriteriaMet", status="True"),
+                models.V1JobCondition(type="Complete", status="True"),
+            ],
+        ),
+    )
+    valid_kubernetes_job_block.interval_seconds = 0
+
+    await run_namespaced_job_async(kubernetes_job=valid_kubernetes_job_block)
+
+    assert mock_read_namespaced_job.call_count == 2
+    assert mock_delete_namespaced_job.call_count == 1
+
+
+async def test_run_namespaced_job_waits_for_failed_after_failure_target(
+    valid_kubernetes_job_block,
+    mock_create_namespaced_job,
+    mock_read_namespaced_job,
+    mock_delete_namespaced_job,
+    job_observations,
+    read_pod_logs,
+):
+    job_observations(
+        models.V1JobStatus(
+            active=0,
+            failed=1,
+            conditions=[
+                models.V1JobCondition(
+                    type="FailureTarget", status="True", reason="BackoffLimitExceeded"
+                )
+            ],
+        ),
+        models.V1JobStatus(
+            active=0,
+            failed=1,
+            conditions=[
+                models.V1JobCondition(
+                    type="FailureTarget", status="True", reason="BackoffLimitExceeded"
+                ),
+                models.V1JobCondition(
+                    type="Failed", status="True", reason="BackoffLimitExceeded"
+                ),
+            ],
+        ),
+    )
+    valid_kubernetes_job_block.interval_seconds = 0
+
+    with pytest.raises(RuntimeError, match=r"failed due to \['BackoffLimitExceeded'\]"):
+        await run_namespaced_job_async(kubernetes_job=valid_kubernetes_job_block)
+
+    assert mock_read_namespaced_job.call_count == 2
+    assert mock_delete_namespaced_job.call_count == 0
