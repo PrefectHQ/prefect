@@ -3134,5 +3134,10 @@
       "source": "/v3/manage/server/examples/helm"
     }
   ],
+  "seo": {
+    "metatags": {
+      "canonical": "https://www.prefect.io"
+    }
+  },
   "theme": "mint"
 }
