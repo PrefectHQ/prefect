@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import prefect.server.models as models
 from prefect.client import schemas as client_schemas
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import (
@@ -1271,6 +1272,65 @@ async def test_concurrent_decrements_of_one_lease_release_its_slots_once(
         )
     )
     assert [r.status_code for r in responses] == [204, 204]
+
+    refreshed_limit = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
+    assert refreshed_limit.status_code == 200
+    assert refreshed_limit.json()["active_slots"] == 1
+
+
+@pytest.mark.usefixtures("use_filesystem_lease_storage")
+async def test_failed_decrement_with_lease_can_be_retried(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # another holder takes a slot without a lease and keeps it
+    response = await client.post(
+        "/v2/concurrency_limits/increment",
+        json={"names": [concurrency_limit.name], "slots": 1},
+    )
+    assert response.status_code == 200
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": [concurrency_limit.name], "slots": 1},
+    )
+    assert response.status_code == 200
+    lease_id = response.json()["lease_id"]
+
+    class DecrementFailed(Exception):
+        pass
+
+    bulk_decrement_active_slots = (
+        models.concurrency_limits_v2.bulk_decrement_active_slots
+    )
+
+    async def fail_once(*args: Any, **kwargs: Any) -> bool:
+        monkeypatch.setattr(
+            models.concurrency_limits_v2,
+            "bulk_decrement_active_slots",
+            bulk_decrement_active_slots,
+        )
+        raise DecrementFailed
+
+    monkeypatch.setattr(
+        models.concurrency_limits_v2, "bulk_decrement_active_slots", fail_once
+    )
+    with pytest.raises(DecrementFailed):
+        await client.post(
+            "/v2/concurrency_limits/decrement-with-lease",
+            json={"lease_id": lease_id},
+        )
+
+    # the failed release kept the lease, so retrying it releases the slot,
+    # and releasing it again does not free the other holder's slot
+    assert await get_concurrency_lease_storage().read_lease(uuid.UUID(lease_id))
+    for _ in range(2):
+        response = await client.post(
+            "/v2/concurrency_limits/decrement-with-lease",
+            json={"lease_id": lease_id},
+        )
+        assert response.status_code == 204
 
     refreshed_limit = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
     assert refreshed_limit.status_code == 200

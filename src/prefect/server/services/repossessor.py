@@ -57,25 +57,28 @@ async def revoke_expired_lease(
         datetime.now(timezone.utc) - expired_lease.created_at
     ).total_seconds()
 
-    # Revoke before decrementing, and decrement only if this task is the one
-    # that removed the lease. The holder releasing it, or a duplicate reaper,
-    # may be working on the same lease, and each decrement would free a slot.
-    if await lease_storage.revoke_lease(lease_id) is False:
-        logger.info(f"Lease {lease_id} was already revoked")
-        return
-
     logger.info(
         f"Revoking lease {lease_id} for {len(expired_lease.resource_ids)} "
         f"concurrency limits with {expired_lease.metadata.slots} slots"
     )
 
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
+        # Decrement, then revoke while the decrement holds the limits' rows, and
+        # keep the decrement only if this task is the one that removed the lease.
+        # The holder releasing it, or a duplicate reaper, waits on those rows,
+        # finds the lease gone, and rolls back. If the decrement fails, the lease
+        # is still in storage and a later pass reaps it again.
         await bulk_decrement_active_slots(
             session=session,
             concurrency_limit_ids=expired_lease.resource_ids,
             slots=expired_lease.metadata.slots,
             occupancy_seconds=occupancy_seconds,
         )
+        if await lease_storage.revoke_lease(lease_id) is False:
+            await session.rollback()
+            logger.info(f"Lease {lease_id} was already revoked")
 
 
 @perpetual_service(

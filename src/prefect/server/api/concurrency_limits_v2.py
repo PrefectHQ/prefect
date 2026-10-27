@@ -438,20 +438,23 @@ async def bulk_decrement_active_slots_with_lease(
 
     occupancy_seconds = (datetime.now(timezone.utc) - lease.created_at).total_seconds()
 
-    # Revoke before decrementing, and decrement only if this request is the one
-    # that removed the lease. Overlapping releases of the same lease (a client
-    # retrying after a timeout, or the repossessor expiring it) would otherwise
-    # each decrement, freeing slots that belong to other holders.
-    if await lease_storage.revoke_lease(lease_id) is False:
-        return
-
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
+        # Decrement, then revoke while the decrement holds the limits' rows, and
+        # keep the decrement only if this request is the one that removed the
+        # lease. An overlapping release of the same lease (a client retrying after
+        # a timeout, or the repossessor expiring it) waits on those rows, finds
+        # the lease gone, and rolls back. If the decrement fails, the lease is
+        # still in storage, so the release can be retried.
         await models.concurrency_limits_v2.bulk_decrement_active_slots(
             session=session,
             concurrency_limit_ids=lease.resource_ids,
             slots=lease.metadata.slots if lease.metadata else 0,
             occupancy_seconds=occupancy_seconds,
         )
+        if await lease_storage.revoke_lease(lease_id) is False:
+            await session.rollback()
 
 
 @router.post("/leases/{lease_id}/renew", status_code=status.HTTP_204_NO_CONTENT)
