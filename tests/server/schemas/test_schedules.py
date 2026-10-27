@@ -1276,6 +1276,36 @@ class TestCronScheduleDaylightSavingsTime:
 
         assert len({value.timestamp() for value in dates}) == MAX_ITERATIONS
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13),
+        reason="Corrected DST resolution applies to the Python 3.13+ whenever engine",
+    )
+    async def test_cron_nonexistent_start_resolves_before_lookback(self):
+        zone = ZoneInfo("America/New_York")
+        schedule = CronSchedule(cron="* * * * * *", timezone=zone.key)
+
+        dates = await schedule.get_dates(
+            n=2, start=datetime(2024, 3, 10, 2, 30, tzinfo=zone)
+        )
+
+        assert [value.isoformat() for value in dates] == [
+            "2024-03-10T03:30:00-04:00",
+            "2024-03-10T03:30:01-04:00",
+        ]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13),
+        reason="Corrected DST resolution applies to the Python 3.13+ whenever engine",
+    )
+    async def test_cron_gap_lookback_returns_final_occurrence(self):
+        schedule = CronSchedule(cron="30 2 10 3 * 0 2024", timezone="America/New_York")
+
+        dates = await schedule.get_dates(
+            n=1, start=datetime.fromisoformat("2024-03-10T03:00:00-04:00")
+        )
+
+        assert [value.isoformat() for value in dates] == ["2024-03-10T03:30:00-04:00"]
+
     async def test_berlin_fall_runs_only_at_first_occurrence(self):
         zone = ZoneInfo("Europe/Berlin")
         schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)

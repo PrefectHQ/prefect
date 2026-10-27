@@ -36,7 +36,7 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-from prefect._vendor.croniter import croniter
+from prefect._vendor.croniter import CroniterBadDateError, croniter
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime, TimeZone
 from prefect.types._datetime import (
@@ -49,6 +49,15 @@ from prefect.types._datetime import (
 )
 
 MAX_ITERATIONS = 1000
+
+
+def _cron_wall_times(cron: croniter) -> Iterator[datetime.datetime]:
+    """Yield `cron` wall times, ending when the cron has no further matches."""
+    while True:
+        try:
+            yield cron.get_next(datetime.datetime)
+        except CroniterBadDateError:
+            return
 
 
 def _whenever_delta_seconds(delta: Any) -> float:
@@ -677,6 +686,9 @@ class CronSchedule(PrefectBaseModel):
         start = datetime.datetime.combine(start, start.timetz())
         if self.timezone:
             start = start.astimezone(ZoneInfo(self.timezone))
+        # Resolve a nonexistent start to its real instant before deriving the
+        # wall-clock anchors from it.
+        start = start.astimezone(datetime.timezone.utc).astimezone(start.tzinfo)
 
         # subtract one second from the start date, so that croniter returns it
         # as an event (if it meets the cron criteria). The croniter anchor is
@@ -738,12 +750,13 @@ class CronSchedule(PrefectBaseModel):
                 )
                 gap_end = _whenever_to_stdlib(transition).replace(tzinfo=None)
                 shifted_times = takewhile(
-                    lambda wall: wall < gap_end,
-                    iter(lambda: lookback.get_next(datetime.datetime), None),
+                    lambda wall: wall < gap_end, _cron_wall_times(lookback)
                 )
+                # `merge` reads ahead in both streams, so both must end cleanly
+                # when the cron has no later matches.
                 candidate_dates = merge(
                     map(localize, shifted_times),
-                    candidate_dates,
+                    map(localize, _cron_wall_times(cron)),
                     key=lambda date: date.astimezone(datetime.timezone.utc),
                 )
 
