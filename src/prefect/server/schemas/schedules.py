@@ -7,7 +7,9 @@ from __future__ import annotations
 import calendar
 import datetime
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from heapq import merge
+from itertools import islice, takewhile
 from math import gcd
 from typing import (
     Annotated,
@@ -743,11 +745,34 @@ class CronSchedule(PrefectBaseModel):
             return _whenever_to_stdlib(min(viable) if viable else min(candidates))
 
         cron = croniter(self.cron, start_naive, day_or=self.day_or)  # type: ignore
+        wall_times = iter(lambda: cron.get_next(datetime.datetime), None)
+        candidate_dates: Iterator[datetime.datetime] = map(localize, wall_times)
+        transition = start_instant.add(seconds=1).prev_transition()
+        if transition is not None:
+            gap = (transition.offset - transition.subtract(seconds=1).offset).total(
+                "seconds"
+            )
+            if 0 <= (start_instant - transition).total("seconds") < gap:
+                lookback = croniter(
+                    self.cron,
+                    start_naive - datetime.timedelta(seconds=gap),
+                    day_or=self.day_or,
+                )
+                gap_end = _whenever_to_stdlib(transition).replace(tzinfo=None)
+                shifted_times = takewhile(
+                    lambda wall: wall < gap_end,
+                    iter(lambda: lookback.get_next(datetime.datetime), None),
+                )
+                candidate_dates = merge(
+                    map(localize, shifted_times),
+                    candidate_dates,
+                    key=lambda date: date.astimezone(datetime.timezone.utc),
+                )
+
         start_utc = start.astimezone(datetime.timezone.utc)
         end_utc = end.astimezone(datetime.timezone.utc) if end else None
         dates = set()
-        for _ in range(MAX_ITERATIONS + 2):
-            next_date = localize(cron.get_next(datetime.datetime))
+        for next_date in islice(candidate_dates, MAX_ITERATIONS + 2):
             next_utc = next_date.astimezone(datetime.timezone.utc)
             if end_utc and next_utc > end_utc:
                 break

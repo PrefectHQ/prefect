@@ -1015,6 +1015,105 @@ class TestCronScheduleDaylightSavingsTime:
     Tests that DST boundaries are respected
     """
 
+    async def test_berlin_spring_gap_resolution(self):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+        dates = await schedule.get_dates(n=3, start=datetime(2027, 3, 28, tzinfo=zone))
+        expected_first = (
+            "2027-03-28T01:30:00+01:00"
+            if sys.version_info < (3, 13)
+            else "2027-03-28T03:30:00+02:00"
+        )
+        assert [value.isoformat() for value in dates] == [
+            expected_first,
+            "2027-03-29T02:30:00+02:00",
+            "2027-03-30T02:30:00+02:00",
+        ]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    @pytest.mark.parametrize(
+        "timezone, day",
+        [("Europe/Berlin", "2027-03-28"), ("America/New_York", "2024-03-10")],
+    )
+    @pytest.mark.parametrize(
+        "start_time, end_time, expected_shift",
+        [
+            ("00:00:00", "04:00:00", True),
+            ("01:45:00", "04:00:00", True),
+            ("03:00:00", "03:20:00", False),
+            ("03:00:00", "03:30:00", True),
+            ("03:30:00", "04:00:00", True),
+            ("03:30:00.000001", "04:00:00", False),
+            ("04:00:00", "05:00:00", False),
+        ],
+    )
+    async def test_cron_gap_shifted_start_and_end_bounds(
+        self,
+        timezone: str,
+        day: str,
+        start_time: str,
+        end_time: str,
+        expected_shift: bool,
+    ):
+        zone = ZoneInfo(timezone)
+        schedule = CronSchedule(cron="30 2 * * *", timezone=timezone)
+        start = datetime.fromisoformat(f"{day}T{start_time}").replace(tzinfo=zone)
+        end = datetime.fromisoformat(f"{day}T{end_time}").replace(tzinfo=zone)
+        shifted = datetime.fromisoformat(f"{day}T03:30:00").replace(tzinfo=zone)
+
+        dates = await schedule.get_dates(start=start, end=end)
+
+        assert dates == ([shifted] if expected_shift else [])
+        next_dates = await schedule.get_dates(n=2, start=start)
+        next_day = (shifted + timedelta(days=1)).replace(hour=2)
+        assert next_dates[0] == (shifted if start <= shifted else next_day)
+        assert all(value.timestamp() >= start.timestamp() for value in next_dates)
+
+    @pytest.mark.parametrize(
+        "cron, timezone, start, expected",
+        [
+            (
+                "20,40 2 * * *",
+                "Australia/Lord_Howe",
+                "2024-10-06T02:30:00+11:00",
+                [
+                    "2024-10-06T02:40:00+11:00",
+                    "2024-10-06T02:50:00+11:00",
+                    "2024-10-07T02:20:00+11:00",
+                ],
+            ),
+            (
+                "0 12 * * 5",
+                "Pacific/Apia",
+                "2011-12-31T00:00:00+14:00",
+                [
+                    "2011-12-31T12:00:00+14:00",
+                    "2012-01-06T12:00:00+14:00",
+                    "2012-01-13T12:00:00+14:00",
+                ],
+            ),
+        ],
+    )
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13),
+        reason="Corrected DST resolution applies to the Python 3.13+ whenever engine",
+    )
+    async def test_cron_gap_lookback_preserves_order(
+        self, cron: str, timezone: str, start: str, expected: list[str]
+    ):
+        schedule = CronSchedule(cron=cron, timezone=timezone)
+        start_date = datetime.fromisoformat(start)
+
+        dates = await schedule.get_dates(n=3, start=start_date)
+
+        assert [value.astimezone(ZoneInfo("UTC")) for value in dates] == [
+            datetime.fromisoformat(value).astimezone(ZoneInfo("UTC"))
+            for value in expected
+        ]
+        assert await schedule.get_dates(n=1, start=start_date) == dates[:1]
+
     async def test_berlin_fall_runs_only_at_first_occurrence(self):
         zone = ZoneInfo("Europe/Berlin")
         schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
