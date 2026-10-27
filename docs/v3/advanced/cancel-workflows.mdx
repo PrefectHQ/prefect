@@ -67,6 +67,7 @@ Another worker may attempt cancellation.
 - If the `infrastructre_pid` is missing, the flow run is marked as cancelled but cancellation cannot be enforced.
 - If the worker runs into an unexpected error during cancellation, the flow run may or may not be cancelled 
 depending on where the error occurred. The worker will try again to cancel the flow run. Another worker may attempt cancellation.
+- If a worker-launched flow run is cancelled before it starts, the server stops its runtime from starting the flow later, even if the infrastructure is still running. To run it, reschedule it.
 
 <Note>
 If a flow run remains in `CANCELLING` for longer than the cancelling timeout (default: 300 seconds), the server automatically transitions it to `CANCELLED`.

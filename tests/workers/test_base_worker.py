@@ -52,6 +52,7 @@ from prefect.client.schemas.objects import (
     WorkPoolStorageConfiguration,
     WorkQueue,
 )
+from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.worker_channel import (
     WORK_POOL_SNAPSHOT_CAPABILITY,
     WORK_POOL_WORKER_CHANNEL_VERSION,
@@ -5833,6 +5834,92 @@ class TestWorkerCancellationHandling:
         cancelled_run = await prefect_client.read_flow_run(flow_run.id)
         assert cancelled_run.state is not None
         assert cancelled_run.state.is_cancelled()
+
+    async def test_late_runtime_cannot_start_after_teardown_is_acknowledged(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment: DeploymentResponse,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Teardown can be acknowledged before the infrastructure exits. A runtime
+        that starts in that window must not run the cancelled flow run."""
+        monkeypatch.setattr(
+            "prefect._internal.observers.get_events_subscriber",
+            lambda **kwargs: _IdleEventsSubscriber(),
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+        infrastructure_exited = anyio.Event()
+
+        async def mock_run_fn(
+            self: object,
+            flow_run: FlowRun,
+            configuration: object,
+            task_status: anyio.abc.TaskStatus[int] | None = None,
+        ) -> BaseWorkerResult:
+            if task_status:
+                task_status.started(1234)
+            await infrastructure_exited.wait()
+            return BaseWorkerResult(identifier="1234", status_code=0)
+
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+            async with WorkerTestImpl(
+                work_pool_name=work_pool.name,
+                name="test-worker",
+            ) as worker:
+                observer = worker._cancelling_observer
+                assert observer is not None
+                monkeypatch.setattr(worker, "run", mock_run_fn.__get__(worker))
+                kill_infrastructure = AsyncMock()
+                monkeypatch.setattr(worker, "kill_infrastructure", kill_infrastructure)
+
+                await worker.get_and_submit_flow_runs()
+                with anyio.fail_after(10):
+                    while flow_run.id in worker._submitting_flow_run_ids:
+                        await anyio.sleep(0.01)
+
+                pending_run = await prefect_client.read_flow_run(flow_run.id)
+                assert pending_run.infrastructure_pid == "1234"
+                assert pending_run.start_time is None
+                assert flow_run.id in observer._in_flight_flow_run_ids
+
+                await prefect_client.set_flow_run_state(flow_run.id, Cancelling())
+                observer._handle_event(
+                    Event(
+                        occurred=now_fn("UTC"),
+                        event="prefect.flow-run.Cancelling",
+                        resource={
+                            "prefect.resource.id": f"prefect.flow-run.{flow_run.id}"
+                        },
+                        id=uuid.uuid4(),
+                    )
+                )
+
+                with anyio.fail_after(10):
+                    while True:
+                        current = await prefect_client.read_flow_run(flow_run.id)
+                        if current.state is not None and current.state.is_cancelled():
+                            break
+                        await anyio.sleep(0.01)
+                kill_infrastructure.assert_awaited_once()
+                assert not infrastructure_exited.is_set()
+
+                late_start = await prefect_client.set_flow_run_state(
+                    flow_run.id, Running()
+                )
+                assert late_start.status == SetStateStatus.ABORT
+
+                infrastructure_exited.set()
+                with anyio.fail_after(10):
+                    while flow_run.id in observer._in_flight_flow_run_ids:
+                        await anyio.sleep(0.01)
+
+        final_run = await prefect_client.read_flow_run(flow_run.id)
+        assert final_run.state is not None
+        assert final_run.state.is_cancelled()
 
 
 class TestWorkerDebugMode:

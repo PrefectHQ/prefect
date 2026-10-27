@@ -35,6 +35,7 @@ from prefect.server.orchestration.core_policy import (
     CacheRetrieval,
     CopyScheduledTime,
     CopyTaskParametersID,
+    CoreFlowPolicy,
     EnforceCancellingToCancelledTransition,
     EnsureOnlyScheduledFlowsMarkedLate,
     HandleFlowTerminalStateTransitions,
@@ -3575,6 +3576,102 @@ class TestHandleCancellingStateTransitions:
         # The rule should NOT reject transitions from CANCELLED state
         # because this rule is specifically for CANCELLING -> CANCELLED enforcement
         assert ctx.response_status != SetStateStatus.REJECT
+
+
+class TestPreventRunningFlowRunsCancelledBeforeStart:
+    async def _set_history(
+        self,
+        session: AsyncSession,
+        flow_run: orm.FlowRun,
+        state_types: list[StateType],
+        infrastructure_pid: str | None = "my-pid-42",
+    ) -> None:
+        if infrastructure_pid:
+            await flow_runs.update_flow_run(
+                session,
+                flow_run.id,
+                actions.FlowRunUpdate(infrastructure_pid=infrastructure_pid),
+            )
+        for state_type in state_types:
+            await flow_runs.set_flow_run_state(
+                session, flow_run.id, states.State(type=state_type), force=True
+            )
+        await session.commit()
+
+    async def _propose_running(
+        self, session: AsyncSession, flow_run: orm.FlowRun
+    ) -> SetStateStatus:
+        result = await flow_runs.set_flow_run_state(
+            session, flow_run.id, states.Running(), flow_policy=CoreFlowPolicy
+        )
+        await session.commit()
+        return result.status
+
+    async def test_aborts_running_for_run_cancelled_before_start(
+        self, session: AsyncSession, flow_run: orm.FlowRun
+    ):
+        await self._set_history(
+            session,
+            flow_run,
+            [
+                StateType.SCHEDULED,
+                StateType.PENDING,
+                StateType.CANCELLING,
+                StateType.CANCELLED,
+            ],
+        )
+
+        assert await self._propose_running(session, flow_run) == SetStateStatus.ABORT
+
+        await session.refresh(flow_run)
+        assert flow_run.state_type == StateType.CANCELLED
+
+    async def test_accepts_running_for_run_that_ran_in_current_attempt(
+        self, session: AsyncSession, flow_run: orm.FlowRun
+    ):
+        await self._set_history(
+            session,
+            flow_run,
+            [
+                StateType.SCHEDULED,
+                StateType.PENDING,
+                StateType.RUNNING,
+                StateType.CANCELLING,
+                StateType.CANCELLED,
+            ],
+        )
+
+        assert await self._propose_running(session, flow_run) == SetStateStatus.ACCEPT
+
+    async def test_aborts_when_only_a_previous_attempt_ran(
+        self, session: AsyncSession, flow_run: orm.FlowRun
+    ):
+        await self._set_history(
+            session,
+            flow_run,
+            [
+                StateType.PENDING,
+                StateType.RUNNING,
+                StateType.FAILED,
+                StateType.PENDING,
+                StateType.CANCELLING,
+                StateType.CANCELLED,
+            ],
+        )
+
+        assert await self._propose_running(session, flow_run) == SetStateStatus.ABORT
+
+    async def test_accepts_running_without_infrastructure_pid(
+        self, session: AsyncSession, flow_run: orm.FlowRun
+    ):
+        await self._set_history(
+            session,
+            flow_run,
+            [StateType.PENDING, StateType.CANCELLED],
+            infrastructure_pid=None,
+        )
+
+        assert await self._propose_running(session, flow_run) == SetStateStatus.ACCEPT
 
 
 class TestBypassCancellingFlowRunsWithNoInfra:

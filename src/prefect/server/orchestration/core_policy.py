@@ -134,6 +134,7 @@ class CoreFlowPolicy(FlowRunOrchestrationPolicy):
                 PreserveDeploymentConcurrencyLeaseId,
                 PreventDuplicateTransitions,
                 HandleFlowTerminalStateTransitions,
+                PreventRunningFlowRunsCancelledBeforeStart,
                 EnforceCancellingToCancelledTransition,
                 BypassCancellingFlowRunsWithNoInfra,
                 PreventPendingTransitions,
@@ -1693,6 +1694,65 @@ class HandleFlowTerminalStateTransitions(FlowRunOrchestrationRule):
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         context.run.empirical_policy = core.FlowRunPolicy(**self.original_flow_policy)
+
+
+class PreventRunningFlowRunsCancelledBeforeStart(FlowRunOrchestrationRule):
+    """
+    Aborts transitions from Cancelled to Running for a worker-launched flow run
+    whose current attempt never ran.
+
+    A worker can mark a pending flow run Cancelled before its infrastructure has
+    exited, so a late runtime may still propose Running. An attempt begins at the
+    most recent Scheduled or Pending state; if no Running state was recorded after
+    it, the attempt never ran and must not start. `start_time` cannot be used here
+    because it is set when a run reaches a final state without one.
+
+    Flow runs without an `infrastructure_pid` (for example, subflows) and flow runs
+    that are rescheduled after cancellation are not affected.
+    """
+
+    FROM_STATES = {StateType.CANCELLED}
+    TO_STATES = {StateType.RUNNING}
+
+    @db_injector
+    async def before_transition(
+        self,
+        db: PrefectDBInterface,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
+        if not context.run.infrastructure_pid:
+            return
+
+        latest_attempt_start = (
+            select(sa.func.max(db.FlowRunState.timestamp))
+            .where(
+                db.FlowRunState.flow_run_id == context.run.id,
+                db.FlowRunState.type.in_([StateType.SCHEDULED, StateType.PENDING]),
+            )
+            .scalar_subquery()
+        )
+        attempt_ran = await context.session.scalar(
+            select(
+                sa.exists().where(
+                    db.FlowRunState.flow_run_id == context.run.id,
+                    db.FlowRunState.type == StateType.RUNNING,
+                    sa.or_(
+                        latest_attempt_start.is_(None),
+                        db.FlowRunState.timestamp > latest_attempt_start,
+                    ),
+                )
+            )
+        )
+        if not attempt_ran:
+            await self.abort_transition(
+                "Flow run was cancelled before it started and cannot start unless "
+                "it is rescheduled."
+            )
 
 
 class PreventResultDataLoss(FlowRunOrchestrationRule):
