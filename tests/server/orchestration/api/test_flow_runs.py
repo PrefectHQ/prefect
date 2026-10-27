@@ -2457,6 +2457,72 @@ class TestSetFlowRunState:
             assert concurrency_limit.status_code == 200
             assert concurrency_limit.json()["active_slots"] == 0
 
+        async def test_lease_handling_force_cancelled(
+            self,
+            client: AsyncClient,
+            flow_run_with_concurrency_limit: schemas.core.FlowRun,
+            deployment_with_concurrency_limit: schemas.core.Deployment,
+        ):
+            """
+            Test that a forced cancellation (as sent by the UI) keeps the lease ID
+            so the lease is revoked when the run reaches CANCELLED. Otherwise the
+            orphaned lease expires later and its slot is released a second time.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/23296
+            """
+            lease_storage = get_concurrency_lease_storage()
+            headers = {"User-Agent": "prefect/3.4.11 (API 0.8.4)"}
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.PENDING, name="Pending")),
+                headers=headers,
+            )
+            assert response.status_code == 201
+            lease_id = response.json()["state"]["state_details"][
+                "deployment_concurrency_lease_id"
+            ]
+            assert lease_id is not None
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.RUNNING, name="Running")),
+                headers=headers,
+            )
+            assert response.status_code == 201
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(
+                    state=dict(type=StateType.CANCELLING, name="Cancelling"),
+                    force=True,
+                ),
+            )
+            assert response.status_code == 201
+            assert (
+                response.json()["state"]["state_details"][
+                    "deployment_concurrency_lease_id"
+                ]
+                == lease_id
+            )
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.CANCELLED, name="Cancelled")),
+                headers=headers,
+            )
+            assert response.status_code == 201
+
+            # The lease is revoked, so lease expiration can't release the slot again
+            lease_ids = await lease_storage.read_active_lease_ids()
+            assert len(lease_ids) == 0
+
+            concurrency_limit = await client.get(
+                f"/v2/concurrency_limits/{deployment_with_concurrency_limit.concurrency_limit_id}"
+            )
+            assert concurrency_limit.status_code == 200
+            assert concurrency_limit.json()["active_slots"] == 0
+
 
 class TestPreventResultDataLossAPI:
     """API-level regression test: force=True routes through MinimalFlowPolicy
