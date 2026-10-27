@@ -1041,7 +1041,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         "requests, or file I/O. The timeout will only take effect after "
                         "the blocking operation completes. Consider using an async task "
                         "with `await` statements for reliable timeout behavior. "
-                        "See https://docs.prefect.io/v3/how-to-guides/workflows/"
+                        "See https://www.prefect.io/docs/v3/how-to-guides/workflows/"
                         "write-and-run#task-timeout-behavior for more information.",
                         self.task.timeout_seconds,
                     )

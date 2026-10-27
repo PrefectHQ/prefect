@@ -7,4 +7,4 @@
         <img src="https://img.shields.io/pypi/dm/prefect-snowflake?color=26272B&labelColor=090422" /></a>
 </p>
 
-See the docs at [https://docs.prefect.io/integrations/prefect-snowflake](https://docs.prefect.io/integrations/prefect-snowflake) for more information.
+See the docs at [https://www.prefect.io/docs/integrations/prefect-snowflake](https://www.prefect.io/docs/integrations/prefect-snowflake) for more information.

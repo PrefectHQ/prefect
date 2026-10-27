@@ -836,7 +836,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png",
 			documentation_url:
-				"https://docs.prefect.io/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig",
+				"https://www.prefect.io/docs/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig",
 			description:
 				"Stores configuration for interaction with Kubernetes clusters.\n\nSee `from_file` for creation.",
 			code_example:
@@ -7539,7 +7539,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/3f624663f7beb97d011d011bffd51ecf6c499efc-195x195.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem",
+				"https://www.prefect.io/docs/latest/develop/results#specifying-a-default-filesystem",
 			description: "Store data as a file on a SMB share.",
 			code_example:
 				'Load stored SMB config:\n\n```python\nfrom prefect.filesystems import SMB\nsmb_block = SMB.load("BLOCK_NAME")\n```',
@@ -7587,7 +7587,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/e86b41bc0f9c99ba9489abeee83433b43d5c9365-48x48.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem",
+				"https://www.prefect.io/docs/latest/develop/results#specifying-a-default-filesystem",
 			description:
 				'Store data as a file on a remote file system.\n\nSupports any remote file system supported by `fsspec`. The file system is specified\nusing a protocol. For example, "s3://my-bucket/my-folder/" will use S3.',
 			code_example:
@@ -7629,7 +7629,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			slug: "string",
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/c262ea2c80a2c043564e8763f3370c3db5a6b3e6-48x48.png",
-			documentation_url: "https://docs.prefect.io/latest/develop/blocks",
+			documentation_url: "https://www.prefect.io/docs/latest/develop/blocks",
 			description:
 				"A block that represents a string. Deprecated, please use Variables to store string data instead.",
 			code_example:
@@ -7696,7 +7696,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/82bc6ed16ca42a2252a5512c72233a253b8a58eb-250x250.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations",
+				"https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations",
 			description: "Enables sending notifications via Sendgrid email service.",
 			code_example:
 				'Load a saved Sendgrid and send a email message:\n```python\nfrom prefect.blocks.notifications import SendgridEmail\n\nsendgrid_block = SendgridEmail.load("BLOCK_NAME")\n\nsendgrid_block.notify("Hello from Prefect!")',
@@ -7848,7 +7848,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/c7247cb359eb6cf276734d4b1fbf00fb8930e89e-250x250.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations",
+				"https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations",
 			description:
 				"Enables sending notifications via any custom webhook.\n\nAll nested string param contains `{{key}}` will be substituted with value from context/secrets.\n\nContext values include: `subject`, `body` and `name`.",
 			code_example:
@@ -7957,7 +7957,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/9e94976c80ef925b66d24e5d14f0d47baa6b8f88-250x250.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations",
+				"https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations",
 			description:
 				"Enables sending notifications via a provided Discord webhook.",
 			code_example:
@@ -8072,7 +8072,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/1350a147130bf82cbc799a5f868d2c0116207736-250x250.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations",
+				"https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations",
 			description:
 				"Enables sending notifications via a provided Mattermost webhook.",
 			code_example:
@@ -8268,7 +8268,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/d8b5bc6244ae6cd83b62ec42f10d96e14d6e9113-280x280.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations",
+				"https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations",
 			description:
 				"Enables sending notifications via a provided Opsgenie webhook.",
 			code_example:
@@ -8349,7 +8349,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/8bd8777999f82112c09b9c8d57083ac75a4a0d65-250x250.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations",
+				"https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations",
 			description: "Enables sending notifications via Twilio SMS.",
 			code_example:
 				'Load a saved `TwilioSMS` block and send a message:\n```python\nfrom prefect.blocks.notifications import TwilioSMS\ntwilio_webhook_block = TwilioSMS.load("BLOCK_NAME")\ntwilio_webhook_block.notify("Hello from Prefect!")\n```',
@@ -8500,7 +8500,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/8dbf37d17089c1ce531708eac2e510801f7b3aee-250x250.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations",
+				"https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations",
 			description:
 				"Enables sending notifications via a provided PagerDuty webhook.",
 			code_example:
@@ -8576,7 +8576,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/817efe008a57f0a24f3587414714b563e5e23658-250x250.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations",
+				"https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations",
 			description:
 				"Enables sending notifications via a provided Microsoft Teams webhook.",
 			code_example:
@@ -8637,7 +8637,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/c1965ecbf8704ee1ea20d77786de9a41ce1087d1-500x500.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations",
+				"https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations",
 			description:
 				"Enables sending notifications via a provided Slack webhook.",
 			code_example:
@@ -8686,7 +8686,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/ad39089fa66d273b943394a68f003f7a19aa850e-48x48.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem",
+				"https://www.prefect.io/docs/latest/develop/results#specifying-a-default-filesystem",
 			description: "Store data as a file on a local file system.",
 			code_example:
 				'Load stored local file system config:\n```python\nfrom prefect.filesystems import LocalFileSystem\n\nlocal_file_system_block = LocalFileSystem.load("BLOCK_NAME")\n```',
@@ -8750,7 +8750,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			slug: "secret",
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/c6f20e556dd16effda9df16551feecfb5822092b-48x48.png",
-			documentation_url: "https://docs.prefect.io/latest/develop/blocks",
+			documentation_url: "https://www.prefect.io/docs/latest/develop/blocks",
 			description:
 				"A block that represents a secret value. The value stored in this block will be obfuscated when\nthis block is viewed or edited in the UI.",
 			code_example:
@@ -8793,7 +8793,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			slug: "date-time",
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/8b3da9a6621e92108b8e6a75b82e15374e170ff7-48x48.png",
-			documentation_url: "https://docs.prefect.io/latest/develop/blocks",
+			documentation_url: "https://www.prefect.io/docs/latest/develop/blocks",
 			description:
 				"A block that represents a datetime. Deprecated, please use Variables to store datetime data instead.",
 			code_example:
@@ -8834,7 +8834,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			slug: "json",
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/4fcef2294b6eeb423b1332d1ece5156bf296ff96-48x48.png",
-			documentation_url: "https://docs.prefect.io/latest/develop/blocks",
+			documentation_url: "https://www.prefect.io/docs/latest/develop/blocks",
 			description:
 				"A block that represents JSON. Deprecated, please use Variables to store JSON data instead.",
 			code_example:
@@ -8906,7 +8906,7 @@ export const BLOCK_SCHEMAS: Array<components["schemas"]["BlockSchema"]> = [
 			logo_url:
 				"https://cdn.sanity.io/images/3ugk85nk/production/c7247cb359eb6cf276734d4b1fbf00fb8930e89e-250x250.png",
 			documentation_url:
-				"https://docs.prefect.io/latest/automate/events/webhook-triggers",
+				"https://www.prefect.io/docs/latest/automate/events/webhook-triggers",
 			description: "Block that enables calling webhooks.",
 			code_example:
 				'```python\nfrom prefect.blocks.webhook import Webhook\n\nwebhook_block = Webhook.load("BLOCK_NAME")\n```',

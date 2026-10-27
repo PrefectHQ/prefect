@@ -99,7 +99,7 @@ allocated to Kubernetes jobs created by workers in this work pool, but the limit
 is hard-coded and cannot be changed by deployments.
 
 For more information about work pools and workers,
-checkout out the [Prefect docs](https://docs.prefect.io/concepts/work-pools/).
+checkout out the [Prefect docs](https://www.prefect.io/docs/concepts/work-pools/).
 """
 
 from __future__ import annotations
@@ -834,7 +834,7 @@ class KubernetesWorker(
         "Kubernetes cluster."
     )
     _display_name = "Kubernetes"
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-kubernetes"
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-kubernetes"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/kubernetes.png"  # noqa
 
     def __init__(self, *args: Any, **kwargs: Any):
