@@ -336,8 +336,10 @@ def test_unset_repairs_active_profile_with_invalid_value(
     result = subprocess.run(
         [sys.executable, "-m", "prefect", "config", "unset", setting, "-y"],
         env=env,
+        cwd=tmp_path,
         capture_output=True,
         text=True,
+        timeout=60,
     )
 
     output = result.stdout + result.stderr
