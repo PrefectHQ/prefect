@@ -11,6 +11,7 @@ from urllib.parse import quote
 from uuid import UUID
 
 import orjson
+import pydantic_core
 import sqlalchemy as sa
 from docket import Depends as DocketDepends
 from docket import Docket, Retry
@@ -565,7 +566,9 @@ async def resume_flow_run(
                 flow_run_input=schemas.core.FlowRunInput(
                     flow_run_id=flow_run_id,
                     key=keyset["response"],
-                    value=orjson.dumps(run_input).decode("utf-8"),
+                    value=pydantic_core.to_json(run_input, inf_nan_mode="null").decode(
+                        "utf-8"
+                    ),
                 ),
             )
 
