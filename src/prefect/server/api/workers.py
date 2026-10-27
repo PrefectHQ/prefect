@@ -876,6 +876,17 @@ async def get_scheduled_flow_runs(
             ]
             work_queue_ids = [wq.id for wq in work_queues]
 
+        ready_work_queue_ids = [
+            wq.id for wq in work_queues if wq.status == WorkQueueStatus.NOT_READY
+        ]
+        deployments_becoming_ready = bool(ready_work_queue_ids)
+        if not deployments_becoming_ready:
+            deployments_becoming_ready = (
+                await models.deployments.has_not_ready_deployments(
+                    session=session, work_queue_ids=[wq.id for wq in work_queues]
+                )
+            )
+
     async with db.session_context(begin_transaction=True) as session:
         queue_response = await models.workers.get_scheduled_flow_runs(
             session=session,
@@ -886,14 +897,16 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-    ready_work_queue_ids = [
-        wq.id for wq in work_queues if wq.status == WorkQueueStatus.NOT_READY
-    ]
+    # Filtered polls only carry their own queues, so scope their keys to those
+    # queues; otherwise a poll for one subset could replace another's update.
+    key_scope = f"work_pool:{work_pool_id}"
+    if work_queue_ids is not None:
+        key_scope += ":" + ",".join(sorted(str(id) for id in set(work_queue_ids)))
 
     await schedule_readiness_update(
         docket,
         mark_work_queues_ready,
-        key=f"mark_work_queues_ready:work_pool:{work_pool_id}",
+        key=f"mark_work_queues_ready:{key_scope}",
         becoming_ready=bool(ready_work_queue_ids),
     )(
         polled_work_queue_ids=[
@@ -905,8 +918,8 @@ async def get_scheduled_flow_runs(
     await schedule_readiness_update(
         docket,
         mark_deployments_ready,
-        key=f"mark_deployments_ready:work_pool:{work_pool_id}",
-        becoming_ready=bool(ready_work_queue_ids),
+        key=f"mark_deployments_ready:{key_scope}",
+        becoming_ready=deployments_becoming_ready,
     )(
         work_queue_ids=[wq.id for wq in work_queues],
     )

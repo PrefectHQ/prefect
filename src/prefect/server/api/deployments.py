@@ -31,7 +31,6 @@ from prefect.server.schemas.responses import (
     FlowRunBulkCreateResponse,
     FlowRunCreateResult,
 )
-from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.types._datetime import now
@@ -657,16 +656,8 @@ async def get_scheduled_flow_runs_for_deployments(
             for orm_flow_run in orm_flow_runs
         ]
 
-        becoming_ready = (
-            await session.scalar(
-                sa.select(db.Deployment.id)
-                .where(
-                    db.Deployment.id.in_(deployment_ids),
-                    db.Deployment.status == DeploymentStatus.NOT_READY,
-                )
-                .limit(1)
-            )
-            is not None
+        becoming_ready = await models.deployments.has_not_ready_deployments(
+            session=session, deployment_ids=deployment_ids
         )
 
     sorted_deployment_ids = ",".join(str(d) for d in sorted(deployment_ids))

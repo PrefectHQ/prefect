@@ -5,6 +5,9 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from prefect.server import models, schemas
+from prefect.server.database import provide_database_interface
+from prefect.server.database.orm_models import ORMWorkQueue
+from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.types._datetime import now
@@ -506,3 +509,33 @@ class TestCountWorkQueueActiveSlots:
             session=session, work_queue_id=wq.id
         )
         assert result == 0
+
+
+class TestMarkWorkQueuesReady:
+    async def test_emits_ready_event_once_for_repeated_calls(
+        self, work_queue: ORMWorkQueue, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(
+            "prefect.server.models.work_queues.PrefectServerEventsClient",
+            AssertingEventsClient,
+        )
+        await models.work_queues.mark_work_queues_not_ready(
+            work_queue_ids=[work_queue.id]
+        )
+        AssertingEventsClient.reset()
+
+        for _ in range(2):
+            await models.work_queues.mark_work_queues_ready(
+                db=provide_database_interface(),
+                polled_work_queue_ids=[],
+                ready_work_queue_ids=[work_queue.id],
+            )
+
+        ready_events = [
+            event
+            for client in AssertingEventsClient.all
+            for event in client.events
+            if event.event == "prefect.work-queue.ready"
+            and event.resource.id == f"prefect.work-queue.{work_queue.id}"
+        ]
+        assert len(ready_events) == 1
