@@ -141,10 +141,10 @@ def start(
         PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED,
         PREFECT_SERVER_UI_ENABLED,
     )
-    from prefect.settings.profiles import ensure_profile_is_valid_for_server
+    from prefect.settings.profiles import _ensure_profile_is_valid_for_server
 
     try:
-        ensure_profile_is_valid_for_server(get_settings_context().profile)
+        _ensure_profile_is_valid_for_server(get_settings_context().profile)
     except ValueError as exc:
         exit_with_error(str(exc))
 

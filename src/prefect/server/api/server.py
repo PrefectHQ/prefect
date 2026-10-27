@@ -71,7 +71,7 @@ from prefect.settings import (
     PREFECT_UI_SERVE_BASE,
     get_current_settings,
 )
-from prefect.settings.profiles import ensure_profile_is_valid_for_server
+from prefect.settings.profiles import _ensure_profile_is_valid_for_server
 from prefect.utilities.hashing import hash_objects
 
 logfire: Any | None = configure_logfire()
@@ -893,7 +893,7 @@ def create_app(
     if cache_key in APP_CACHE and not ignore_cache:
         return APP_CACHE[cache_key]
 
-    ensure_profile_is_valid_for_server(prefect.context.get_settings_context().profile)
+    _ensure_profile_is_valid_for_server(prefect.context.get_settings_context().profile)
 
     # TODO: Move these startup functions out of this closure into the top-level or
     #       another dedicated location
@@ -1126,6 +1126,10 @@ class SubprocessASGIServer:
             timeout: The maximum time to wait for the server to start
         """
         if not self.running:
+            # The subprocess loads its own profile, not one chosen with `--profile`.
+            _ensure_profile_is_valid_for_server(
+                prefect.context.get_settings_context().profile
+            )
             if self.port is None:
                 self.port = self.find_available_port()
             assert self.port is not None, "Port must be provided or available"

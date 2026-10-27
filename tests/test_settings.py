@@ -2611,24 +2611,24 @@ class TestInvalidProfileValues:
         with pytest.warns(UserWarning, match="PREFECT_SERVER_API_PORT") as record:
             settings = Settings()
 
-        assert "prefect config unset PREFECT_SERVER_API_PORT" in str(record[0].message)
+        assert "prefect --profile foo config unset PREFECT_SERVER_API_PORT" in str(
+            record[0].message
+        )
         # The invalid value falls back to the default...
         assert settings.server.api.port == 4200
         # ...and the valid values in the same profile still load.
         assert settings.api.url == "http://localhost:4200/api"
 
+    @pytest.mark.parametrize(
+        "toml_value",
+        ['"{not-json secret-token"', '{ X-Secret = "secret-token" }'],
+    )
     def test_undecodable_profile_value_is_ignored_with_a_warning(
-        self, profiles_path: Path
+        self, profiles_path: Path, toml_value: str
     ):
         profiles_path.write_text(
-            textwrap.dedent(
-                """
-                active = "foo"
-
-                [profiles.foo]
-                PREFECT_CLIENT_CUSTOM_HEADERS = "{not-json secret-token"
-                """
-            )
+            'active = "foo"\n\n'
+            f"[profiles.foo]\nPREFECT_CLIENT_CUSTOM_HEADERS = {toml_value}\n"
         )
 
         with pytest.warns(UserWarning, match="PREFECT_CLIENT_CUSTOM_HEADERS") as record:

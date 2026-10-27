@@ -176,7 +176,7 @@ The `prefect profile` CLI commands enable you to create, review, and manage prof
 vim ~/.prefect/profiles.toml
 ```
 
-If a value in the active profile is invalid, Prefect prints a warning that names the setting and ignores that value, so the setting falls back to its default until you fix it with `prefect config set` or remove it with `prefect config unset`.
+If a value in the active profile is invalid, Prefect prints a warning that names the setting and ignores that value, so the setting falls back to its default until you fix it with `prefect config set` or remove it with `prefect config unset`. The server is the exception: it refuses to start until the profile is fixed, so it never runs without a setting such as its authentication string.
 
 #### Configure settings for the active profile
 

@@ -240,8 +240,10 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
                     prepared_value = self.prepare_field_value(
                         field_name, field, value, is_complex
                     )
-                except ValueError:
-                    self._warn_invalid_value(field, field_name, "invalid JSON")
+                except (ValueError, TypeError):
+                    self._warn_invalid_value(
+                        field, field_name, "not a valid JSON string"
+                    )
                     continue
                 if not self._is_valid_value(field, field_name, prepared_value):
                     continue
@@ -292,17 +294,18 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         self, field: FieldInfo, field_name: str, problems: str
     ) -> None:
         name = self._profile_key(field, field_name)
-        where = (
-            f"profile {self._profile_name!r}"
-            if self._profile_name
-            else "the active profile"
-        )
+        if self._profile_name:
+            where = f"profile {self._profile_name!r}"
+            command = f"prefect --profile {self._profile_name} config"
+        else:
+            where = "the active profile"
+            command = "prefect config"
         # The value itself is left out of the message, since it may be a
         # secret such as an API key.
         warnings.warn(
             f"Ignoring invalid value for setting {name} in {where}: "
-            f"{problems}. Fix it with `prefect config set {name}=<value>` or "
-            f"remove it with `prefect config unset {name}`.",
+            f"{problems}. Fix it with `{command} set {name}=<value>` or "
+            f"remove it with `{command} unset {name}`.",
             stacklevel=3,
         )
 

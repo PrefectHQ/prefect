@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import warnings
 from collections.abc import Mapping
@@ -11,6 +12,7 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
+    cast,
 )
 
 import toml
@@ -21,6 +23,7 @@ from pydantic import (
     Field,
     ValidationError,
 )
+from pydantic_settings import EnvSettingsSource
 from typing_extensions import Self
 
 from prefect._internal.compatibility.backports import tomllib
@@ -516,22 +519,40 @@ def load_profile(name: str) -> Profile:
         raise ValueError(f"Profile {name!r} not found.")
 
 
-def ensure_profile_is_valid_for_server(profile: Profile) -> None:
+def _decode_json_value(source: EnvSettingsSource, setting: Setting, value: Any) -> Any:
+    """Decode a JSON string the way the profile loader does for the setting's field."""
+    if not isinstance(value, str):
+        return value
+    model: type[BaseModel] = Settings
+    *parents, name = setting.accessor.split(".")
+    for parent in parents:
+        model = cast(type[BaseModel], model.model_fields[parent].annotation)
+    if not source.field_is_complex(model.model_fields[name]):
+        return value
+    try:
+        return json.loads(value)
+    except ValueError:
+        return value
+
+
+def _ensure_profile_is_valid_for_server(profile: Profile) -> None:
     """
     Raise a `ValueError` if a value the profile applies is invalid.
 
     Commands skip an invalid profile value with a warning so the profile can be
     repaired, but the server must not start without a setting it was configured
     with, such as its authentication string. Values overridden by environment
-    variables are not checked.
+    variables are not checked; values overridden by other sources, such as
+    `prefect.toml`, still are, so the server errs on the side of refusing.
     """
     overridden = {
         setting.name
         for key, setting in _get_settings_fields(Settings).items()
         if key in os.environ
     }
+    source = EnvSettingsSource(Settings)
     applied = {
-        setting: value
+        setting: _decode_json_value(source, setting, value)
         for setting, value in profile.settings.items()
         if setting.name not in overridden
     }

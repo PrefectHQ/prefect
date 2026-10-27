@@ -322,21 +322,29 @@ def test_unset_retains_other_keys():
         ("PREFECT_CLIENT_CUSTOM_HEADERS", '"{not-json secret-token"', "secret-token"),
     ],
 )
-def test_unset_repairs_profile_with_invalid_value(
-    temporary_profiles_path: Path, setting: str, toml_value: str, secret: str
+def test_unset_repairs_active_profile_with_invalid_value(
+    tmp_path: Path, setting: str, toml_value: str, secret: str
 ):
-    temporary_profiles_path.write_text(f"[profiles.foo]\n{setting} = {toml_value}\n")
+    # The profile loader is off in test mode, so this runs the CLI without it.
+    profiles_path = tmp_path / "profiles.toml"
+    profiles_path.write_text(
+        f'active = "foo"\n\n[profiles.foo]\n{setting} = {toml_value}\n'
+    )
+    env = {key: value for key, value in os.environ.items() if "PREFECT" not in key}
+    env.update(PREFECT_PROFILES_PATH=str(profiles_path), PREFECT_HOME=str(tmp_path))
 
-    with pytest.warns(UserWarning, match=setting) as record:
-        result = invoke_and_assert(
-            ["--profile", "foo", "config", "unset", setting],
-            user_input="y",
-            expected_output_contains=f"Unset {setting!r}.",
-        )
+    result = subprocess.run(
+        [sys.executable, "-m", "prefect", "config", "unset", setting, "-y"],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
 
-    assert all(secret not in str(warning.message) for warning in record)
-    assert secret not in result.stdout + result.stderr
-    assert load_profiles()["foo"].settings == {}
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+    assert f"Unset {setting!r}." in output
+    assert secret not in output
+    assert setting not in profiles_path.read_text()
 
 
 def test_unset_warns_if_present_in_environment(monkeypatch):

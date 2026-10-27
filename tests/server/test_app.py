@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 import prefect
 from prefect.context import SettingsContext
-from prefect.server.api.server import create_app
+from prefect.server.api.server import SubprocessASGIServer, create_app
 from prefect.settings import (
     PREFECT_SERVER_API_AUTH_STRING,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
@@ -106,6 +106,29 @@ class TestInvalidProfileValue:
         monkeypatch.setenv("PREFECT_SERVER_API_AUTH_STRING", "admin:test")
         with SettingsContext(profile=profile, settings=get_current_settings()):
             create_app(ignore_cache=True)
+
+    def test_json_string_for_a_dict_setting_is_valid(self):
+        # The profile loader decodes it, so the server must not refuse it.
+        profile = Profile(
+            name="foo",
+            settings={
+                "PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES": (
+                    '{"prefect.flow-run.heartbeat": 3600}'
+                )
+            },
+        )
+        with SettingsContext(profile=profile, settings=get_current_settings()):
+            create_app(ignore_cache=True)
+
+    def test_ephemeral_server_is_not_started(
+        self, profile: Profile, unused_tcp_port: int
+    ):
+        server = SubprocessASGIServer(port=unused_tcp_port)
+        with SettingsContext(profile=profile, settings=get_current_settings()):
+            with pytest.raises(ValueError, match="PREFECT_SERVER_API_AUTH_STRING"):
+                server.start()
+
+        assert server.server_process is None
 
 
 class TestAuthMiddleware:
