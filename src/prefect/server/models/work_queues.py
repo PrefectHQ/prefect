@@ -717,16 +717,30 @@ async def record_work_queue_polls(
     if not ready_work_queue_ids:
         return []
 
-    result = await session.execute(
-        sa.update(db.WorkQueue)
-        .where(
-            db.WorkQueue.id.in_(ready_work_queue_ids),
-            db.WorkQueue.status != WorkQueueStatus.READY,
+    # The `last_polled` update above already holds the row locks, so concurrent
+    # calls see each other's status changes here. (No `RETURNING`: it needs
+    # SQLite 3.35+.)
+    newly_ready_work_queue_ids = list(
+        (
+            await session.execute(
+                sa.select(db.WorkQueue.id)
+                .where(
+                    db.WorkQueue.id.in_(ready_work_queue_ids),
+                    db.WorkQueue.status != WorkQueueStatus.READY,
+                )
+                .with_for_update()
+            )
         )
-        .values(status=WorkQueueStatus.READY)
-        .returning(db.WorkQueue.id)
+        .scalars()
+        .all()
     )
-    return list(result.scalars().all())
+    if newly_ready_work_queue_ids:
+        await session.execute(
+            sa.update(db.WorkQueue)
+            .where(db.WorkQueue.id.in_(newly_ready_work_queue_ids))
+            .values(status=WorkQueueStatus.READY)
+        )
+    return newly_ready_work_queue_ids
 
 
 async def mark_work_queues_ready(
