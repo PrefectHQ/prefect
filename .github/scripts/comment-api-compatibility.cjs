@@ -25,9 +25,21 @@ module.exports = async ({github, context, core}) => {
 
   let report = {status: 'unavailable'};
   try {
-    const path = process.env.COMPATIBILITY_REPORT;
-    if (fs.statSync(path).size > 1024 * 1024) throw new Error('Report exceeds size limit');
-    report = JSON.parse(fs.readFileSync(path, 'utf8'));
+    const fd = fs.openSync(process.env.COMPATIBILITY_REPORT, 'r');
+    try {
+      const limit = 1024 * 1024;
+      const buffer = Buffer.alloc(limit + 1);
+      let bytesRead = 0;
+      while (bytesRead < buffer.length) {
+        const count = fs.readSync(fd, buffer, bytesRead, buffer.length - bytesRead, null);
+        if (count === 0) break;
+        bytesRead += count;
+      }
+      if (bytesRead > limit) throw new Error('Report exceeds size limit');
+      report = JSON.parse(buffer.toString('utf8', 0, bytesRead));
+    } finally {
+      fs.closeSync(fd);
+    }
     if (!['compatible', 'incompatible', 'unavailable'].includes(report.status) ||
         (report.status !== 'unavailable' && (!Array.isArray(report.new_failures) ||
           report.new_failures.length > 10000 || report.new_failures.some(name =>

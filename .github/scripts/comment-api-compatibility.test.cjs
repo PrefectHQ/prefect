@@ -82,3 +82,45 @@ test('escapes report content instead of posting markup or mentions', async t => 
   assert.match(writes[0].body, /&lt;\/code&gt;&#64;someone &amp; &lt;img&gt;/);
   assert.doesNotMatch(writes[0].body, /@someone|<img>/);
 });
+
+test('uses the opened report when its path is replaced before partial reads', async t => {
+  let replaced = false;
+  const replace = () => {
+    if (replaced) return;
+    const reportPath = process.env.COMPATIBILITY_REPORT;
+    const replacement = `${reportPath}.replacement`;
+    fs.writeFileSync(replacement, JSON.stringify({status: 'incompatible', new_failures: ['replacement']}) + ' '.repeat(1024 * 1024));
+    fs.renameSync(replacement, reportPath);
+    replaced = true;
+  };
+  const readFile = fs.readFileSync;
+  t.mock.method(fs, 'readFileSync', (file, ...args) => {replace(); return readFile(file, ...args);});
+  const read = fs.readSync;
+  t.mock.method(fs, 'readSync', (fd, buffer, offset, length, position) => {
+    replace();
+    return read(fd, buffer, offset, Math.min(length, 13), position);
+  });
+  const writes = await run(t, {status: 'compatible', new_failures: [], padding: '🚀'}, {previous: true});
+  assert.equal(replaced, true);
+  assert.match(writes[0].body, /no new compatibility failures/);
+});
+
+for (const bytes of [1024 * 1024, 1024 * 1024 + 1]) {
+  test(`enforces the ${bytes}-byte report boundary and closes its descriptor`, async t => {
+    const report = {status: 'incompatible', new_failures: ['test_route'], padding: '🚀'};
+    report.padding += ' '.repeat(bytes - Buffer.byteLength(JSON.stringify(report)));
+    let descriptor;
+    let bytesRead = 0;
+    const read = fs.readSync;
+    t.mock.method(fs, 'readSync', (...args) => {
+      descriptor = args[0];
+      const count = read(...args);
+      bytesRead += count;
+      return count;
+    });
+    const writes = await run(t, report, {previous: true});
+    assert.match(writes[0].body, bytes === 1024 * 1024 ? /new or changed failures/ : /could not be evaluated/);
+    assert.ok(bytesRead <= 1024 * 1024 + 1);
+    assert.throws(() => fs.fstatSync(descriptor), {code: 'EBADF'});
+  });
+}
