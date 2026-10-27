@@ -4,10 +4,11 @@ Routes for interacting with work queue objects.
 
 from dataclasses import dataclass
 from logging import Logger
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional, ParamSpec
 from uuid import UUID
 
 import sqlalchemy as sa
+from docket import Docket, Execution
 from fastapi import (
     Body,
     Depends,
@@ -66,6 +67,30 @@ router: PrefectRouter = PrefectRouter(
     tags=["Work Pools"],
 )
 logger: Logger = get_logger("prefect.server.api.workers")
+
+P = ParamSpec("P")
+
+
+def schedule_readiness_update(
+    docket: Docket,
+    function: Callable[P, Awaitable[None]],
+    key: str,
+    *,
+    becoming_ready: bool,
+) -> Callable[P, Awaitable[Execution]]:
+    """
+    Schedule a keyed readiness update from a poll.
+
+    Polls are deduplicated by `key` so repeated polls don't pile up tasks. When
+    the poll would move something to READY, any pending task is replaced
+    instead: a previous attempt can be left pending with its key still known
+    (for example, when a worker's claim fails during a Redis disruption) and
+    would otherwise block every later poll until docket's `redelivery_timeout`.
+    """
+    if becoming_ready:
+        return docket.replace(function, now("UTC"), key)
+    return docket.add(function, key=key)
+
 
 _OSS_WORKER_CHANNEL_REQUIRED_CAPABILITIES: list[WorkerChannelCapability] = [
     WORKER_HEARTBEAT_CAPABILITY,
@@ -861,21 +886,27 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-    await docket.add(
+    ready_work_queue_ids = [
+        wq.id for wq in work_queues if wq.status == WorkQueueStatus.NOT_READY
+    ]
+
+    await schedule_readiness_update(
+        docket,
         mark_work_queues_ready,
         key=f"mark_work_queues_ready:work_pool:{work_pool_id}",
+        becoming_ready=bool(ready_work_queue_ids),
     )(
         polled_work_queue_ids=[
             wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
         ],
-        ready_work_queue_ids=[
-            wq.id for wq in work_queues if wq.status == WorkQueueStatus.NOT_READY
-        ],
+        ready_work_queue_ids=ready_work_queue_ids,
     )
 
-    await docket.add(
+    await schedule_readiness_update(
+        docket,
         mark_deployments_ready,
         key=f"mark_deployments_ready:work_pool:{work_pool_id}",
+        becoming_ready=bool(ready_work_queue_ids),
     )(
         work_queue_ids=[wq.id for wq in work_queues],
     )

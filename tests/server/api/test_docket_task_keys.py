@@ -15,13 +15,15 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from docket import Docket
+from docket import Docket, Worker
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.compatibility.starlette import status
 from prefect.server import models, schemas
+from prefect.server.models.deployments import mark_deployments_ready
+from prefect.server.models.work_queues import mark_work_queues_ready
 from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.server.services.cancellation_cleanup import cancelling_timeout_check_key
 from prefect.settings import (
@@ -459,3 +461,128 @@ class TestDocketAtMostOnceExecution:
         task_keys = {task.key for task in final_snapshot.future}
         task_keys.update(task.key for task in final_snapshot.running)
         assert expected_key in task_keys
+
+
+class TestReadinessRecoversFromStuckTask:
+    """
+    A keyed readiness task can be left pending with its key still known, e.g. when
+    a worker's claim fails during a Redis disruption. A poll that would mark
+    something READY must not be deduplicated against that stuck task.
+
+    See: https://github.com/PrefectHQ/prefect/issues/23643
+    """
+
+    @pytest.fixture
+    async def work_pool(self, session: AsyncSession):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name=f"test-pool-{uuid4().hex[:8]}",
+                type="test",
+            ),
+        )
+        await session.commit()
+        return work_pool
+
+    @pytest.fixture
+    async def work_queue(self, session: AsyncSession):
+        work_queue = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name=f"test-wq-{uuid4().hex[:8]}"
+            ),
+        )
+        await session.commit()
+        return work_queue
+
+    @pytest.fixture
+    async def not_ready_deployment(self, session: AsyncSession):
+        flow = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name=f"test-flow-{uuid4().hex[:8]}"),
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name=f"test-deployment-{uuid4().hex[:8]}",
+                flow_id=flow.id,
+                status=DeploymentStatus.NOT_READY,
+            ),
+        )
+        await session.commit()
+        return deployment
+
+    async def _run_tasks(self, docket: Docket) -> None:
+        async with Worker(docket) as worker:
+            await worker.run_until_finished()
+
+    async def test_work_pool_poll_marks_not_ready_queue_ready(
+        self,
+        work_pool,
+        real_docket: Docket,
+        client_with_real_docket: AsyncClient,
+    ):
+        queue_id = work_pool.default_queue_id
+        await models.work_queues.mark_work_queues_not_ready(work_queue_ids=[queue_id])
+        await real_docket.add(
+            mark_work_queues_ready,
+            key=f"mark_work_queues_ready:work_pool:{work_pool.id}",
+        )(polled_work_queue_ids=[], ready_work_queue_ids=[])
+
+        response = await client_with_real_docket.post(
+            f"/work_pools/{work_pool.name}/get_scheduled_flow_runs", json={}
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        await self._run_tasks(real_docket)
+
+        response = await client_with_real_docket.get(f"/work_queues/{queue_id}")
+        assert response.json()["status"] == "READY"
+
+    async def test_work_queue_poll_marks_not_ready_queue_ready(
+        self,
+        work_queue,
+        real_docket: Docket,
+        client_with_real_docket: AsyncClient,
+    ):
+        await models.work_queues.mark_work_queues_not_ready(
+            work_queue_ids=[work_queue.id]
+        )
+        await real_docket.add(
+            mark_work_queues_ready,
+            key=f"mark_work_queues_ready:{work_queue.id}",
+        )(polled_work_queue_ids=[], ready_work_queue_ids=[])
+
+        response = await client_with_real_docket.post(
+            f"/work_queues/{work_queue.id}/get_runs"
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        await self._run_tasks(real_docket)
+
+        response = await client_with_real_docket.get(f"/work_queues/{work_queue.id}")
+        assert response.json()["status"] == "READY"
+
+    async def test_deployment_poll_marks_not_ready_deployment_ready(
+        self,
+        not_ready_deployment,
+        real_docket: Docket,
+        client_with_real_docket: AsyncClient,
+    ):
+        await real_docket.add(
+            mark_deployments_ready,
+            key=f"mark_deployments_ready:deployments:{not_ready_deployment.id}",
+        )(deployment_ids=[])
+
+        response = await client_with_real_docket.post(
+            "/deployments/get_scheduled_flow_runs",
+            json={"deployment_ids": [str(not_ready_deployment.id)]},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        await self._run_tasks(real_docket)
+
+        response = await client_with_real_docket.get(
+            f"/deployments/{not_ready_deployment.id}"
+        )
+        assert response.json()["status"] == "READY"

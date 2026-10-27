@@ -20,7 +20,7 @@ from prefect.server.api.validation import (
     validate_job_variables_for_deployment,
     validate_job_variables_for_deployment_flow_run,
 )
-from prefect.server.api.workers import WorkerLookups
+from prefect.server.api.workers import WorkerLookups, schedule_readiness_update
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
@@ -31,6 +31,7 @@ from prefect.server.schemas.responses import (
     FlowRunBulkCreateResponse,
     FlowRunCreateResult,
 )
+from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.types._datetime import now
@@ -656,10 +657,24 @@ async def get_scheduled_flow_runs_for_deployments(
             for orm_flow_run in orm_flow_runs
         ]
 
+        becoming_ready = (
+            await session.scalar(
+                sa.select(db.Deployment.id)
+                .where(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.status == DeploymentStatus.NOT_READY,
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
     sorted_deployment_ids = ",".join(str(d) for d in sorted(deployment_ids))
-    await docket.add(
+    await schedule_readiness_update(
+        docket,
         mark_deployments_ready,
         key=f"mark_deployments_ready:deployments:{sorted_deployment_ids}",
+        becoming_ready=becoming_ready,
     )(
         deployment_ids=deployment_ids,
     )
