@@ -21,11 +21,9 @@ from uuid import UUID
 from pydantic import (
     AfterValidator,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
-    StrictBool,
-    StrictFloat,
-    StrictInt,
     field_validator,
     model_validator,
 )
@@ -55,6 +53,7 @@ from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
     DateTime,
+    KeyValueLabelValue,
     LaxUrl,
     Name,
     NameOrEmpty,
@@ -62,6 +61,7 @@ from prefect.types import (
     NonNegativeInteger,
     PositiveInteger,
     StrictVariableValue,
+    drop_null_label_values,
 )
 from prefect.types._datetime import now
 from prefect.types.names import raise_on_name_alphanumeric_dashes_only
@@ -77,7 +77,9 @@ if TYPE_CHECKING:
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
 
-KeyValueLabels = dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
+KeyValueLabels = Annotated[
+    dict[str, KeyValueLabelValue], BeforeValidator(drop_null_label_values)
+]
 
 
 class Flow(ORMBaseModel):

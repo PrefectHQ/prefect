@@ -56,7 +56,7 @@ from prefect.server.schemas.responses import (
 from prefect.server.services.cancellation_cleanup import (
     maybe_schedule_cancelling_timeout_check_for_state,
 )
-from prefect.server.utilities.server import PrefectRouter
+from prefect.server.utilities.server import PrefectRouter, model_json_response
 from prefect.types import DateTime
 from prefect.types._datetime import earliest_possible_datetime, now
 from prefect.utilities import schema_tools
@@ -383,8 +383,10 @@ async def read_flow_run(
         )
         if not flow_run:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
-        return schemas.responses.FlowRunResponse.model_validate(
-            flow_run, from_attributes=True
+        return model_json_response(
+            schemas.responses.FlowRunResponse.model_validate(
+                flow_run, from_attributes=True
+            )
         )
 
 
@@ -615,15 +617,13 @@ async def read_flow_runs(
         # response to JSON, we do so more efficiently ourselves.
         # In particular, the FastAPI encoder is very slow for large, nested objects.
         # See: https://github.com/tiangolo/fastapi/issues/1224
-        encoded = [
-            schemas.responses.FlowRunResponse.model_validate(
-                fr, from_attributes=True
-            ).model_dump(mode="json")
-            for fr in db_flow_runs
-        ]
-        return Response(
-            content=orjson.dumps(encoded),
-            media_type="application/json",
+        return model_json_response(
+            [
+                schemas.responses.FlowRunResponse.model_validate(
+                    fr, from_attributes=True
+                )
+                for fr in db_flow_runs
+            ]
         )
 
 
@@ -1039,17 +1039,14 @@ async def paginate_flow_runs(
         for run in runs
     ]
 
-    response = FlowRunPaginationResponse(
-        results=results,
-        count=count,
-        limit=limit,
-        pages=(count + limit - 1) // limit if limit > 0 else 0,
-        page=page,
-    ).model_dump(mode="json")
-
-    return Response(
-        content=orjson.dumps(response),
-        media_type="application/json",
+    return model_json_response(
+        FlowRunPaginationResponse(
+            results=results,
+            count=count,
+            limit=limit,
+            pages=(count + limit - 1) // limit if limit > 0 else 0,
+            page=page,
+        )
     )
 
 

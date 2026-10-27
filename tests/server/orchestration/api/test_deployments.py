@@ -4418,3 +4418,84 @@ class TestDeploymentCRUDEvents:
                 },
             ],
         )
+
+
+class TestUnserializableDeploymentValues:
+    @staticmethod
+    def _nested_list(depth: int) -> list:
+        value: list = []
+        for _ in range(depth - 1):
+            value = [value]
+        return value
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            '"parameters": {"x": %s}' % ("[" * 300 + "]" * 300),
+            '"parameters": {"x": "\\ud800"}',
+            '"job_variables": {"x": "\\ud800"}',
+            '"labels": {"x": NaN}',
+        ],
+        ids=["nested-parameter", "lone-surrogate-parameter", "job-variable", "label"],
+    )
+    async def test_create_deployment_rejects_unserializable_values(
+        self, flow, client, session, fields: str
+    ):
+        response = await client.post(
+            "/deployments/",
+            content=('{"name": "d", "flow_id": "%s", %s}' % (flow.id, fields)).encode(),
+            headers={"content-type": "application/json"},
+        )
+        assert response.status_code == 422
+
+        count = await models.deployments.count_deployments(session=session)
+        assert count == 0
+
+    @pytest.fixture
+    async def bad_and_good_deployments(self, flow, session, db):
+        bad_values: list[dict] = [
+            {"parameters": {"x": self._nested_list(300)}},
+            {"labels": {"x": None, "y": "keep"}},
+        ]
+        if session.get_bind().dialect.name == "sqlite":
+            bad_values.append({"job_variables": {"x": "\ud800"}})
+
+        bad_ids = []
+        for values in bad_values:
+            bad = db.Deployment(name=f"bad-{uuid4()}", flow_id=flow.id, **values)
+            session.add(bad)
+            await session.flush()
+            bad_ids.append(bad.id)
+
+        good = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="good", flow_id=flow.id, parameters={"x": 1}
+            ),
+        )
+        await session.commit()
+        return bad_ids, good.id
+
+    async def test_read_deployments_with_stored_unserializable_values(
+        self, flow, client, bad_and_good_deployments
+    ):
+        bad_ids, good_id = bad_and_good_deployments
+
+        for bad_id in bad_ids:
+            response = await client.get(f"/deployments/{bad_id}")
+            assert response.status_code == status.HTTP_200_OK, response.text
+
+        response = await client.get(f"/deployments/name/{flow.name}/good")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        expected = response.json()
+
+        response = await client.post("/deployments/filter")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        deployments = {d["id"]: d for d in response.json()}
+        assert set(deployments) == {str(i) for i in [*bad_ids, good_id]}
+        assert deployments[str(good_id)] == expected
+        assert deployments[str(bad_ids[1])]["labels"] == {"y": "keep"}
+
+        response = await client.post("/deployments/paginate")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["count"] == len(bad_ids) + 1

@@ -20,6 +20,7 @@ from .names import (
 )
 from pydantic import (
     AfterValidator,
+    AllowInfNan,
     BeforeValidator,
     Field,
     StrictBool,
@@ -159,8 +160,24 @@ def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
     return value
 
 
+def drop_null_label_values(value: Any) -> Any:
+    """
+    Drop labels whose value is `None`.
+
+    Older servers stored `NaN` and `Infinity` label values as `null`, which isn't a
+    valid label value, so they're dropped when read back rather than failing validation.
+    """
+    if isinstance(value, dict):
+        return {k: v for k, v in value.items() if v is not None}
+    return value
+
+
+KeyValueLabelValue = Union[
+    StrictBool, StrictInt, Annotated[StrictFloat, AllowInfNan(False)], str
+]
+
 KeyValueLabels = Annotated[
-    dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
+    dict[str, KeyValueLabelValue],
     BeforeValidator(cast_none_to_empty_dict),
 ]
 
@@ -261,7 +278,7 @@ LogLevel = Annotated[
 
 
 def convert_none_to_empty_dict(v: Optional[KeyValueLabels]) -> KeyValueLabels:
-    return v or {}
+    return drop_null_label_values(v or {})
 
 
 KeyValueLabelsField = Annotated[

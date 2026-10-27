@@ -21,6 +21,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import jsonschema
+import pydantic_core
 import referencing.exceptions
 
 from prefect._internal.schemas._registry import non_fetching_registry
@@ -95,6 +96,24 @@ def validate_parameter_size(parameters: dict[str, Any], max_size: int) -> None:
         raise ValueError(
             f"Flow run parameters must be less than {max_size:,} bytes when serialized (got {size:,} bytes)."
         )
+
+
+def validate_json_serializable(value: T) -> T:
+    """
+    Raise ValueError if `value` can't be serialized to JSON.
+
+    Free-form values like parameters are read back and rendered as JSON in API
+    responses, so values that can't be rendered (lists or dicts nested too deeply,
+    or strings containing lone surrogates) must be rejected when they're written.
+    """
+    try:
+        pydantic_core.to_json(value)
+    except pydantic_core.PydanticSerializationError as exc:
+        raise ValueError(
+            "Value must be serializable to JSON: it may be nested too deeply or"
+            " contain invalid unicode (such as lone surrogates)."
+        ) from exc
+    return value
 
 
 def validate_parameter_size_field(
