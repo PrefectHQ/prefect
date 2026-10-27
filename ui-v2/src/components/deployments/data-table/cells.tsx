@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { subSeconds } from "date-fns";
 import { secondsInWeek } from "date-fns/constants";
@@ -19,6 +19,7 @@ import {
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Icon } from "@/components/ui/icons";
 import useDebounce from "@/hooks/use-debounce";
+import { useNow } from "@/hooks/use-now";
 import type { CellContext } from "@/lib/tanstack-table";
 
 type ActionsCellProps = CellContext<DeploymentWithFlow, unknown> & {
@@ -125,19 +126,31 @@ export const ActivityCell = ({
 		};
 	}, []);
 
-	const { data: flowRuns } = useQuery(
-		buildFilterFlowRunsQuery({
+	const now = useNow({ interval: 60_000 });
+	const startDate = subSeconds(now, secondsInWeek);
+
+	const { data: flowRuns } = useQuery({
+		...buildFilterFlowRunsQuery({
 			deployments: {
 				operator: "and_",
 				id: {
 					any_: [row.original.id],
 				},
 			},
+			// Bound to the charted window so future scheduled runs don't crowd out recent runs
+			flow_runs: {
+				operator: "and_",
+				expected_start_time: {
+					after_: startDate.toISOString(),
+					before_: now.toISOString(),
+				},
+			},
 			sort: "START_TIME_DESC",
 			limit: debouncedNumberOfBars || numberOfBars,
 			offset: 0,
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 
 	const { flow, ...deployment } = row.original;
 	const enrichedFlowRuns =
@@ -150,8 +163,8 @@ export const ActivityCell = ({
 	return (
 		<div className="w-full" ref={chartRef}>
 			<FlowRunActivityBarChart
-				startDate={subSeconds(new Date(), secondsInWeek)}
-				endDate={new Date()}
+				startDate={startDate}
+				endDate={now}
 				// If debouncedNumberOfBars is 0, use numberOfBars for an asymmetric debounce to avoid rendering an empty chart on initial paint.
 				numberOfBars={debouncedNumberOfBars || numberOfBars}
 				barWidth={BAR_WIDTH}

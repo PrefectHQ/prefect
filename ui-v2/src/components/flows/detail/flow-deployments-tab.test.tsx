@@ -66,6 +66,37 @@ describe("FlowDeploymentsTab", () => {
 		});
 	});
 
+	it("limits deployment activity runs to the charted window so future scheduled runs don't crowd out recent runs", async () => {
+		const activityRequests: {
+			flow_runs?: {
+				expected_start_time?: { after_?: string; before_?: string };
+			};
+		}[] = [];
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
+				const body = (await request.json()) as {
+					deployments?: { id?: { any_?: string[] } };
+				};
+				if (body.deployments?.id?.any_?.includes(deployment.id)) {
+					activityRequests.push(body as (typeof activityRequests)[number]);
+				}
+				return HttpResponse.json([]);
+			}),
+		);
+
+		const before = Date.now();
+		renderTab();
+
+		await waitFor(() => expect(activityRequests.length).toBeGreaterThan(0));
+
+		const window = activityRequests[0].flow_runs?.expected_start_time;
+		const after = new Date(window?.after_ ?? "").getTime();
+		const beforeTime = new Date(window?.before_ ?? "").getTime();
+		expect(beforeTime).toBeGreaterThanOrEqual(before - 1000);
+		expect(beforeTime).toBeLessThanOrEqual(Date.now());
+		expect(beforeTime - after).toBe(7 * 24 * 60 * 60 * 1000);
+	});
+
 	it("shows NOT_READY status even when paused is true", async () => {
 		const pausedDeployment = createFakeDeployment({
 			paused: true,
