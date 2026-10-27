@@ -18,9 +18,7 @@ describe("DateTimePicker", () => {
 			await user.click(screen.getByRole("button"));
 
 			for (const period of ["PM", "PM", "AM", "AM"]) {
-				await user.click(
-					screen.getByRole("button", { name: period, exact: true }),
-				);
+				await user.click(screen.getByRole("button", { name: period }));
 				const expected = new Date(
 					2026,
 					9,
