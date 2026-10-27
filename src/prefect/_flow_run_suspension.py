@@ -87,8 +87,8 @@ def raise_if_flow_run_suspension_requested() -> None:
         flow_run_context.flow_run_suspension_request.raise_if_requested()
 
 
-# Upper bound on how long leaving the observation context waits for the observer
-# to shut down.
+# Upper bound on how long leaving `observe_flow_run_suspension` waits for the
+# observer to shut down.
 _OBSERVER_SHUTDOWN_TIMEOUT = 2.0
 
 
@@ -121,7 +121,6 @@ class _FlowRunSuspensionObserverThread:
         self._suspension_request = suspension_request
         self._polling_interval = polling_interval
         self._ready = ready
-        self.exited = Event()
         self._lock = threading.Lock()
         self._stop_requested = False
         self._cancel_observer: Callable[[], object] | None = None
@@ -133,8 +132,9 @@ class _FlowRunSuspensionObserverThread:
 
     def stop(self) -> None:
         """
-        Ask the observer to shut down, including during its initial state check;
-        `exited` is set once it has.
+        Ask the observer to shut down, including during its initial state check.
+
+        Returns without waiting for the observer to shut down; `join` waits.
         """
         with self._lock:
             self._stop_requested = True
@@ -177,8 +177,13 @@ class _FlowRunSuspensionObserverThread:
         try:
             self._context.run(lambda: asyncio.run(self._observe()))
         except asyncio.CancelledError:
-            # `stop` cancelled the observer.
-            pass
+            # `stop` shuts the observer down by cancelling it; any other
+            # cancellation is unexpected.
+            if not self._stop_requested:
+                get_logger("flow_run_suspension").debug(
+                    "Flow run suspension observer was cancelled before it was stopped",
+                    exc_info=True,
+                )
         except Exception:
             get_logger("flow_run_suspension").debug(
                 "Flow run suspension observer exited with an exception",
@@ -186,7 +191,6 @@ class _FlowRunSuspensionObserverThread:
             )
         finally:
             self._ready.set()
-            self.exited.set()
 
 
 @contextmanager
@@ -200,9 +204,10 @@ def observe_flow_run_suspension(
         flow_run_id, suspension_request, polling_interval, ready=ready
     )
     observer.start()
-    ready.wait()
 
     try:
+        # A signal, such as SIGTERM, can interrupt this wait.
+        ready.wait()
         yield
     finally:
         observer.stop()
@@ -218,9 +223,10 @@ async def observe_flow_run_suspension_async(
     """
     Async counterpart of `observe_flow_run_suspension`.
 
-    Waits for the observer to start and to shut down without blocking the event
-    loop, so other work on the loop, such as other flow runs, keeps running
-    meanwhile.
+    Waits for the initial state check without blocking the event loop, so other
+    work on the loop, such as other flow runs, keeps running meanwhile. Leaving
+    the context stops the observer without waiting for it to shut down, so its
+    daemon thread can still be closing its connections after the context exits.
     """
     ready = Event()
     observer = _FlowRunSuspensionObserverThread(
@@ -233,37 +239,3 @@ async def observe_flow_run_suspension_async(
         yield
     finally:
         observer.stop()
-        await _wait_for_observer_exit(observer)
-
-
-async def _wait_for_observer_exit(observer: _FlowRunSuspensionObserverThread) -> None:
-    """
-    Wait up to `_OBSERVER_SHUTDOWN_TIMEOUT` seconds for the observer to shut down.
-
-    The context often exits because of an exception, such as `Pause`, that the
-    engine must receive. A cancellation raised during this wait would replace that
-    exception, so it is held back until the wait is over and then requested again,
-    which raises it at the caller's next `await`. This matches
-    `observe_flow_run_suspension`, whose blocking join a cancellation cannot
-    interrupt.
-    """
-    loop = asyncio.get_running_loop()
-    deadline = loop.time() + _OBSERVER_SHUTDOWN_TIMEOUT
-    cancel_message: str | None = None
-    cancelled = False
-    while not observer.exited.is_set() and (remaining := deadline - loop.time()) > 0:
-        try:
-            await asyncio.wait_for(observer.exited.wait(), remaining)
-        except TimeoutError:
-            break
-        except asyncio.CancelledError as exc:
-            cancelled = True
-            cancel_message = exc.args[0] if exc.args else None
-
-    if cancelled:
-        task = asyncio.current_task()
-        assert task is not None
-        # Withdraw the request this wait absorbed before making it again, so the
-        # task's count of cancellation requests is unchanged.
-        task.uncancel()
-        task.cancel(cancel_message)

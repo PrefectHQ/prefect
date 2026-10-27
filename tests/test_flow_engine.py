@@ -4624,16 +4624,7 @@ class TestSuspendFlowRun:
     ):
         test_loop = asyncio.get_running_loop()
         loop_ran_during_start = False
-        loop_ran_during_shutdown = False
-
-        async def run_on_test_loop() -> None:
-            # Completes only if the engine's event loop keeps running.
-            await asyncio.wait_for(
-                asyncio.wrap_future(
-                    asyncio.run_coroutine_threadsafe(asyncio.sleep(0), test_loop)
-                ),
-                timeout=10,
-            )
+        observer_stopped = threading.Event()
 
         class FakeFlowRunSuspendingObserver:
             def __init__(self, *args: Any, **kwargs: Any):
@@ -4643,13 +4634,17 @@ class TestSuspendFlowRun:
                 return self
 
             async def __aexit__(self, *exc_info: Any):
-                nonlocal loop_ran_during_shutdown
-                await run_on_test_loop()
-                loop_ran_during_shutdown = True
+                observer_stopped.set()
 
             async def watch_flow_run_id(self, flow_run_id: UUID):
                 nonlocal loop_ran_during_start
-                await run_on_test_loop()
+                # Completes only if the engine's event loop keeps running.
+                await asyncio.wait_for(
+                    asyncio.wrap_future(
+                        asyncio.run_coroutine_threadsafe(asyncio.sleep(0), test_loop)
+                    ),
+                    timeout=10,
+                )
                 loop_ran_during_start = True
 
         monkeypatch.setattr(
@@ -4667,7 +4662,8 @@ class TestSuspendFlowRun:
 
         assert await run_flow_async(deployment_flow, flow_run=flow_run) == 42
         assert loop_ran_during_start
-        assert loop_ran_during_shutdown
+        # The engine stops the observer without waiting for it to shut down.
+        assert await asyncio.to_thread(observer_stopped.wait, 10)
 
     @pytest.mark.parametrize("engine_type", ["sync", "async"])
     async def test_task_call_stops_at_suspension_boundary(
