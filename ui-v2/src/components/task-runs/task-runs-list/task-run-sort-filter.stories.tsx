@@ -31,6 +31,20 @@ export const OldestToNewest: Story = {
 	},
 };
 
+export const LongestToShortest: Story = {
+	args: {
+		value: "DURATION_DESC",
+		onSelect: fn(),
+	},
+};
+
+export const ShortestToLongest: Story = {
+	args: {
+		value: "DURATION_ASC",
+		onSelect: fn(),
+	},
+};
+
 export const WithDefaultValue: Story = {
 	args: {
 		defaultValue: "EXPECTED_START_TIME_DESC",
