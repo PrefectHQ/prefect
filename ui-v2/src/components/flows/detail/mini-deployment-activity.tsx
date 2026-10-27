@@ -51,7 +51,7 @@ export const MiniDeploymentActivity = ({
 			// Bound to the charted window so future scheduled runs don't crowd out recent runs
 			flow_runs: {
 				operator: "and_",
-				expected_start_time: {
+				start_time: {
 					after_: startDate.toISOString(),
 					before_: now.toISOString(),
 				},

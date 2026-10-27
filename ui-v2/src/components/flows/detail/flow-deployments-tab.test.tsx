@@ -69,7 +69,7 @@ describe("FlowDeploymentsTab", () => {
 	it("limits deployment activity runs to the charted window so future scheduled runs don't crowd out recent runs", async () => {
 		const activityRequests: {
 			flow_runs?: {
-				expected_start_time?: { after_?: string; before_?: string };
+				start_time?: { after_?: string; before_?: string };
 			};
 		}[] = [];
 		server.use(
@@ -89,7 +89,7 @@ describe("FlowDeploymentsTab", () => {
 
 		await waitFor(() => expect(activityRequests.length).toBeGreaterThan(0));
 
-		const window = activityRequests[0].flow_runs?.expected_start_time;
+		const window = activityRequests[0].flow_runs?.start_time;
 		const after = new Date(window?.after_ ?? "").getTime();
 		const beforeTime = new Date(window?.before_ ?? "").getTime();
 		expect(beforeTime).toBeGreaterThanOrEqual(before - 1000);
