@@ -108,6 +108,6 @@ Element.prototype.getBoundingClientRect = vi.fn(() => ({
 Object.defineProperties(HTMLElement.prototype, {
 	offsetWidth: { configurable: true, value: 500 },
 	offsetHeight: { configurable: true, value: 300 },
-	clientWidth: { configurable: true, value: 500 },
+	// Vertical virtualizers read clientHeight; leave clientWidth to layout mocks.
 	clientHeight: { configurable: true, value: 300 },
 });
