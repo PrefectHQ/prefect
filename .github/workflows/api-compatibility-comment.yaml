@@ -1,0 +1,43 @@
+---
+name: Cloud API Compatibility Comment
+on:
+  workflow_run:
+    workflows: [Cloud API Compatibility]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: cloud-api-comment-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  comment:
+    if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion != 'cancelled' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Only trusted default-branch code runs with permission to comment.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the report as untrusted data
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: cloud-api-compatibility
+          path: ${{ runner.temp }}/cloud-api-compatibility
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/github-script@v8
+        env:
+          COMPATIBILITY_REPORT: ${{ runner.temp }}/cloud-api-compatibility/report.json
+        with:
+          script: |
+            const comment = require('./.github/scripts/comment-api-compatibility.cjs');
+            await comment({github, context, core});
