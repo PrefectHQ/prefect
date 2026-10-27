@@ -8,13 +8,25 @@ from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute, APIWebSocketRoute
 from fastapi.testclient import TestClient
 
-from prefect.server.api.dependencies import get_prefect_client_version
+from prefect.server.api.dependencies import (
+    aget_prefect_client_version,
+    docket,
+    get_created_by,
+    get_prefect_client_version,
+    get_updated_by,
+    is_ephemeral_request,
+    provide_request_api_version,
+)
+from prefect.server.api.events import verified_page_token
 from prefect.server.api.server import API_ROUTERS
 from prefect.server.database import aprovide_database_interface
 
 pytestmark = pytest.mark.clear_db
 
 
+@pytest.mark.parametrize(
+    "dependency", [get_prefect_client_version, aget_prefect_client_version]
+)
 @pytest.mark.parametrize(
     "header,expected",
     [
@@ -32,13 +44,13 @@ pytestmark = pytest.mark.clear_db
     ],
 )
 def test_get_prefect_client_version_correctly_extracts_from_header(
-    header: str, expected: str
+    dependency: Callable[..., Any], header: str, expected: str
 ):
     app = FastAPI()
 
     @app.get("/version")
     async def get_version(
-        prefect_client_version: Optional[str] = Depends(get_prefect_client_version),
+        prefect_client_version: Optional[str] = Depends(dependency),
     ):
         return prefect_client_version
 
@@ -48,6 +60,26 @@ def test_get_prefect_client_version_correctly_extracts_from_header(
         )
         assert response.status_code == 200
         assert response.json() == expected
+
+
+@pytest.mark.parametrize(
+    "helper",
+    [
+        provide_request_api_version,
+        get_created_by,
+        get_updated_by,
+        is_ephemeral_request,
+        get_prefect_client_version,
+        docket,
+        verified_page_token,
+    ],
+)
+def test_dependency_helpers_stay_synchronous(helper: Callable[..., Any]):
+    """
+    API routes depend on async variants of these helpers. Code that calls a
+    helper directly still receives its result, not a coroutine.
+    """
+    assert not inspect.iscoroutinefunction(helper)
 
 
 def _dependency_calls(dependant: Dependant) -> Iterator[Callable[..., Any]]:

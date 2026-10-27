@@ -1,5 +1,9 @@
 """
 Utilities for injecting FastAPI dependencies.
+
+FastAPI runs a sync dependency in a worker thread on every request. API routes
+depend on the `a`-prefixed async variants of these helpers, which call the sync
+helpers on the event loop.
 """
 
 from __future__ import annotations
@@ -20,7 +24,7 @@ from prefect.server import schemas
 from prefect.settings import PREFECT_SERVER_API_DEFAULT_LIMIT
 
 
-async def provide_request_api_version(
+def provide_request_api_version(
     x_prefect_api_version: str = Header(None),
 ) -> Version | None:
     if not x_prefect_api_version:
@@ -38,6 +42,13 @@ async def provide_request_api_version(
             ),
         )
     return Version(x_prefect_api_version)
+
+
+async def aprovide_request_api_version(
+    x_prefect_api_version: str = Header(None),
+) -> Version | None:
+    """Async variant of `provide_request_api_version` for API routes."""
+    return provide_request_api_version(x_prefect_api_version)
 
 
 class EnforceMinimumAPIVersion:
@@ -131,7 +142,7 @@ def LimitBody() -> Any:
     return Depends(get_limit)
 
 
-async def get_created_by(
+def get_created_by(
     prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False),
     prefect_automation_name: Optional[str] = Header(None, include_in_schema=False),
 ) -> Optional[schemas.core.CreatedBy]:
@@ -153,7 +164,15 @@ async def get_created_by(
     return None
 
 
-async def get_updated_by(
+async def aget_created_by(
+    prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False),
+    prefect_automation_name: Optional[str] = Header(None, include_in_schema=False),
+) -> Optional[schemas.core.CreatedBy]:
+    """Async variant of `get_created_by` for API routes."""
+    return get_created_by(prefect_automation_id, prefect_automation_name)
+
+
+def get_updated_by(
     prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False),
     prefect_automation_name: Optional[str] = Header(None, include_in_schema=False),
 ) -> Optional[schemas.core.UpdatedBy]:
@@ -169,11 +188,24 @@ async def get_updated_by(
     return None
 
 
-async def is_ephemeral_request(request: Request) -> bool:
+async def aget_updated_by(
+    prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False),
+    prefect_automation_name: Optional[str] = Header(None, include_in_schema=False),
+) -> Optional[schemas.core.UpdatedBy]:
+    """Async variant of `get_updated_by` for API routes."""
+    return get_updated_by(prefect_automation_id, prefect_automation_name)
+
+
+def is_ephemeral_request(request: Request) -> bool:
     """
     A dependency that returns whether the request is to an ephemeral server.
     """
     return "ephemeral-prefect" in str(request.base_url)
+
+
+async def ais_ephemeral_request(request: Request) -> bool:
+    """Async variant of `is_ephemeral_request` for API routes."""
+    return is_ephemeral_request(request)
 
 
 PREFECT_CLIENT_USER_AGENT_PATTERN = re.compile(
@@ -181,7 +213,7 @@ PREFECT_CLIENT_USER_AGENT_PATTERN = re.compile(
 )
 
 
-async def get_prefect_client_version(
+def get_prefect_client_version(
     user_agent: Annotated[Optional[str], Header(include_in_schema=False)] = None,
 ) -> Optional[str]:
     """
@@ -198,8 +230,20 @@ async def get_prefect_client_version(
     return None
 
 
-async def docket(request: Request) -> Docket_:
+async def aget_prefect_client_version(
+    user_agent: Annotated[Optional[str], Header(include_in_schema=False)] = None,
+) -> Optional[str]:
+    """Async variant of `get_prefect_client_version` for API routes."""
+    return get_prefect_client_version(user_agent)
+
+
+def docket(request: Request) -> Docket_:
     return request.app.state.docket
 
 
-Docket = Annotated[Docket_, Depends(docket)]
+async def adocket(request: Request) -> Docket_:
+    """Async variant of `docket` for API routes."""
+    return docket(request)
+
+
+Docket = Annotated[Docket_, Depends(adocket)]

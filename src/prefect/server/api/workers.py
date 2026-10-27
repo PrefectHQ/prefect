@@ -472,7 +472,7 @@ async def create_work_pool(
     work_pool: schemas.actions.WorkPoolCreate,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
     prefect_client_version: Optional[str] = Depends(
-        dependencies.get_prefect_client_version
+        dependencies.aget_prefect_client_version
     ),
 ) -> schemas.responses.WorkPoolResponse:
     """
@@ -529,7 +529,7 @@ async def read_work_pool(
     worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
     prefect_client_version: Optional[str] = Depends(
-        dependencies.get_prefect_client_version
+        dependencies.aget_prefect_client_version
     ),
 ) -> schemas.responses.WorkPoolResponse:
     """
@@ -569,7 +569,7 @@ async def read_work_pools(
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
     prefect_client_version: Optional[str] = Depends(
-        dependencies.get_prefect_client_version
+        dependencies.aget_prefect_client_version
     ),
 ) -> List[schemas.responses.WorkPoolResponse]:
     """

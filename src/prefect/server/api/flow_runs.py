@@ -106,11 +106,13 @@ async def create_flow_run(
     request: Request,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
     response: Response = None,  # type: ignore
-    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
+    created_by: Optional[schemas.core.CreatedBy] = Depends(
+        dependencies.aget_created_by
+    ),
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    api_version: str = Depends(dependencies.provide_request_api_version),
+    api_version: str = Depends(dependencies.aprovide_request_api_version),
     worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
 ) -> schemas.responses.FlowRunResponse:
     """
@@ -443,8 +445,8 @@ async def resume_flow_run(
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    api_version: str = Depends(dependencies.provide_request_api_version),
-    client_version: Optional[str] = Depends(dependencies.get_prefect_client_version),
+    api_version: str = Depends(dependencies.aprovide_request_api_version),
+    client_version: Optional[str] = Depends(dependencies.aget_prefect_client_version),
 ) -> OrchestrationResult:
     """
     Resume a paused flow run.
@@ -743,8 +745,8 @@ async def bulk_set_flow_run_state(
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    api_version: str = Depends(dependencies.provide_request_api_version),
-    client_version: Optional[str] = Depends(dependencies.get_prefect_client_version),
+    api_version: str = Depends(dependencies.aprovide_request_api_version),
+    client_version: Optional[str] = Depends(dependencies.aget_prefect_client_version),
 ) -> FlowRunBulkSetStateResponse:
     """
     Bulk set state for flow runs matching the specified filter criteria.
@@ -836,8 +838,8 @@ async def set_flow_run_state(
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    api_version: str = Depends(dependencies.provide_request_api_version),
-    client_version: Optional[str] = Depends(dependencies.get_prefect_client_version),
+    api_version: str = Depends(dependencies.aprovide_request_api_version),
+    client_version: Optional[str] = Depends(dependencies.aget_prefect_client_version),
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 

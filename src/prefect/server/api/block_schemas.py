@@ -73,7 +73,7 @@ async def create_block_schema(
 async def delete_block_schema(
     block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
-    api_version: str = Depends(dependencies.provide_request_api_version),
+    api_version: str = Depends(dependencies.aprovide_request_api_version),
 ) -> None:
     """
     Delete a block schema by id.

@@ -67,8 +67,12 @@ async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
     worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
-    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
-    updated_by: Optional[schemas.core.UpdatedBy] = Depends(dependencies.get_updated_by),
+    created_by: Optional[schemas.core.CreatedBy] = Depends(
+        dependencies.aget_created_by
+    ),
+    updated_by: Optional[schemas.core.UpdatedBy] = Depends(
+        dependencies.aget_updated_by
+    ),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
@@ -856,7 +860,9 @@ async def pause_deployment(
 async def create_flow_run_from_deployment(
     flow_run: schemas.actions.DeploymentFlowRunCreate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
+    created_by: Optional[schemas.core.CreatedBy] = Depends(
+        dependencies.aget_created_by
+    ),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
     worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
     response: Response = None,
@@ -999,7 +1005,9 @@ async def bulk_create_flow_runs_from_deployment(
         ..., description="List of flow run configurations to create"
     ),
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
+    created_by: Optional[schemas.core.CreatedBy] = Depends(
+        dependencies.aget_created_by
+    ),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
     worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
 ) -> FlowRunBulkCreateResponse:
