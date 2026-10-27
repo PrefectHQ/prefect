@@ -145,7 +145,7 @@ dev = [
     "moto>=5",
     # numpy 2.5+ stubs use `type` statements mypy can't parse with
     # python_version = "3.11"; only 2.5+ publishes cp315 wheels
-    "numpy<2.6; python_version<'3.15'",
+    "numpy<2.5; python_version<'3.15'",
     "numpy>=2.5.4; python_version>='3.15'",
     "pendulum[test]>=3.1.0,<4; python_version<'3.13'",
     "pillow>=11.1.0; python_version<'3.14'",
