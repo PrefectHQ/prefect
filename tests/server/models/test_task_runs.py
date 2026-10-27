@@ -696,6 +696,111 @@ class TestReadTaskRuns:
         )
         assert result[0].id == task_run_2.id
 
+    @pytest.mark.parametrize(
+        "sort,expected_order",
+        [
+            (
+                schemas.sorting.TaskRunSort.DURATION_DESC,
+                ["running", "long", "short"],
+            ),
+            (
+                schemas.sorting.TaskRunSort.DURATION_ASC,
+                ["short", "long", "running"],
+            ),
+        ],
+    )
+    async def test_read_task_runs_sorts_by_duration(
+        self, flow_run, session, sort, expected_order
+    ):
+        short = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                dynamic_key="short",
+                total_run_time=timedelta(seconds=5),
+            ),
+        )
+        long = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                dynamic_key="long",
+                total_run_time=timedelta(minutes=10),
+            ),
+        )
+        # a running task run has no accumulated `total_run_time` yet, but its
+        # estimated run time includes the time spent in its current RUNNING state
+        running = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                dynamic_key="running",
+            ),
+        )
+        running.state_type = schemas.states.StateType.RUNNING
+        running.state_timestamp = now("UTC") - timedelta(hours=1)
+        await session.flush()
+
+        result = await models.task_runs.read_task_runs(session=session, sort=sort)
+
+        ids_by_name = {"short": short.id, "long": long.id, "running": running.id}
+        assert [task_run.id for task_run in result] == [
+            ids_by_name[name] for name in expected_order
+        ]
+
+    @pytest.mark.parametrize(
+        "sort",
+        [
+            schemas.sorting.TaskRunSort.DURATION_DESC,
+            schemas.sorting.TaskRunSort.DURATION_ASC,
+        ],
+    )
+    async def test_read_task_runs_breaks_duration_ties(self, flow_run, session, sort):
+        # task runs that haven't started yet all have the same (zero) run time,
+        # so ties need a deterministic order for pagination to be stable
+        now_dt = now("UTC")
+        not_started = []
+        for i, expected_start_time in enumerate(
+            [now_dt - timedelta(minutes=5), now_dt, now_dt]
+        ):
+            not_started.append(
+                await models.task_runs.create_task_run(
+                    session=session,
+                    task_run=schemas.core.TaskRun(
+                        flow_run_id=flow_run.id,
+                        task_key="my-key",
+                        dynamic_key=f"not-started-{i}",
+                        expected_start_time=expected_start_time,
+                    ),
+                )
+            )
+        long = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                dynamic_key="long",
+                total_run_time=timedelta(minutes=10),
+            ),
+        )
+        older, *same_start_time = not_started
+        # newest expected start time first, then by id when that ties too
+        ties = [
+            *sorted((t.id for t in same_start_time), reverse=True),
+            older.id,
+        ]
+
+        result = await models.task_runs.read_task_runs(session=session, sort=sort)
+
+        if sort == schemas.sorting.TaskRunSort.DURATION_DESC:
+            expected = [long.id, *ties]
+        else:
+            expected = [*ties, long.id]
+        assert [task_run.id for task_run in result] == expected
+
 
 class TestDeleteTaskRun:
     async def test_delete_task_run(self, task_run, session):

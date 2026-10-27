@@ -272,6 +272,7 @@ class MinimalFlowPolicy(FlowRunOrchestrationPolicy):
         ]
     ]:
         return [
+            PreserveDeploymentConcurrencyLeaseId,
             PreventResultDataLoss,
             BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
             InstrumentFlowRunStateTransitions,

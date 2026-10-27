@@ -1,0 +1,54 @@
+# Called only after PyPI publication succeeds; scheduled runs cover missed releases.
+name: Update uv.lock integration pins
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+  schedule:
+    - cron: "0 15 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize releases and sweeps so they cannot race over automation branches.
+concurrency:
+  group: update-uv-lock-integrations
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate prefect-ci-bot-public token
+        id: app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.PREFECT_CI_BOT_PUBLIC_CLIENT_ID }}
+          private-key: ${{ secrets.PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app_token.outputs.token }}
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.15"
+
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: latest
+
+      - name: Update integration pins and recover or open a PR
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: uv run --no-project --with packaging scripts/update_uv_lock_integrations.py

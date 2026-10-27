@@ -201,6 +201,7 @@ def apply_values(
                 )
             return value
         else:
+            replacements: dict[str, str] = {}
             for full_match, name, placeholder_type in placeholders:
                 if placeholder_type is PlaceholderType.STANDARD:
                     value = get_from_dict(values, name, NotSet)
@@ -217,11 +218,16 @@ def apply_values(
                             "the placeholder is spelled correctly and that the corresponding value is provided.",
                         )
                     if remove_notset:
-                        template = template.replace(full_match, "")
+                        replacements[full_match] = ""
                 else:
-                    template = template.replace(full_match, str(value))
+                    replacements[full_match] = str(value)
 
-            return template
+            # Substitute in a single pass over the original template so that
+            # inserted values are never themselves treated as placeholders.
+            return PLACEHOLDER_CAPTURE_REGEX.sub(
+                lambda match: replacements.get(match.group(1), match.group(1)),
+                template,
+            )
     elif isinstance(template, dict):
         updated_template: dict[str, Any] = {}
         for key, value in template.items():

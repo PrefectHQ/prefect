@@ -7,8 +7,10 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
+import { buildApiUrl, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
 import { createContext, type ReactNode, useContext } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeFlow } from "@/mocks";
 import { FlowPageHeader } from "./flow-page-header";
 
@@ -60,6 +62,13 @@ const renderWithProviders = async (ui: ReactNode) => {
 };
 
 describe("FlowPageHeader", () => {
+	beforeEach(() => {
+		server.use(
+			http.post(buildApiUrl("/ui/flows/count-deployments"), () =>
+				HttpResponse.json({}),
+			),
+		);
+	});
 	describe("breadcrumb rendering", () => {
 		it("renders breadcrumb with 'Flows' link", async () => {
 			const flow = createFakeFlow({
@@ -121,6 +130,44 @@ describe("FlowPageHeader", () => {
 				'[data-slot="breadcrumb-separator"]',
 			);
 			expect(separator).toBeInTheDocument();
+		});
+	});
+
+	describe("Run action", () => {
+		it("shows a disabled Run button when the flow has no deployments", async () => {
+			const flow = createFakeFlow();
+			server.use(
+				http.post(buildApiUrl("/ui/flows/count-deployments"), () =>
+					HttpResponse.json({ [flow.id]: 0 }),
+				),
+			);
+			await renderWithProviders(
+				<FlowPageHeader flow={flow} onDelete={mockOnDelete} />,
+			);
+
+			const button = screen.getByRole("button", { name: /run/i });
+			await waitFor(() =>
+				expect(button).toHaveAccessibleDescription(
+					"Create a deployment to run this flow from the UI.",
+				),
+			);
+			expect(button).toBeDisabled();
+		});
+
+		it("shows an enabled Run button when the flow has a deployment", async () => {
+			const flow = createFakeFlow();
+			server.use(
+				http.post(buildApiUrl("/ui/flows/count-deployments"), () =>
+					HttpResponse.json({ [flow.id]: 1 }),
+				),
+			);
+			await renderWithProviders(
+				<FlowPageHeader flow={flow} onDelete={mockOnDelete} />,
+			);
+
+			await waitFor(() =>
+				expect(screen.getByRole("button", { name: /run/i })).toBeEnabled(),
+			);
 		});
 	});
 });

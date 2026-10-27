@@ -1,10 +1,12 @@
 import {
+	cleanupDeployments,
 	cleanupFlowRuns,
 	cleanupFlows,
 	createDeployment,
 	createFlow,
 	createFlowRun,
 	expect,
+	listFlowRuns,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
@@ -22,6 +24,7 @@ test.describe("Flow Detail Page", () => {
 		try {
 			await cleanupFlows(apiClient, TEST_PREFIX);
 			await cleanupFlowRuns(apiClient, TEST_PREFIX);
+			await cleanupDeployments(apiClient, TEST_PREFIX);
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -31,6 +34,7 @@ test.describe("Flow Detail Page", () => {
 		try {
 			await cleanupFlows(apiClient, TEST_PREFIX);
 			await cleanupFlowRuns(apiClient, TEST_PREFIX);
+			await cleanupDeployments(apiClient, TEST_PREFIX);
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -130,5 +134,53 @@ test.describe("Flow Detail Page", () => {
 		await expect(page.getByText(deploymentName)).toBeVisible({
 			timeout: 10000,
 		});
+	});
+
+	test("Header Run button runs the flow's only deployment", async ({
+		page,
+		apiClient,
+	}) => {
+		const timestamp = Date.now();
+		const flowName = `${TEST_PREFIX}run-${timestamp}`;
+		const flow = await createFlow(apiClient, flowName);
+		const deploymentName = `${TEST_PREFIX}dep-${timestamp}`;
+		const deployment = await createDeployment(apiClient, {
+			name: deploymentName,
+			flowId: flow.id,
+		});
+
+		await page.goto(`/flows/flow/${flow.id}`);
+		await expect(page.getByText(flowName)).toBeVisible({ timeout: 10000 });
+
+		const runButton = page.getByRole("button", { name: "Run", exact: true });
+		await expect(runButton).toBeEnabled({ timeout: 10000 });
+		await runButton.click();
+
+		const dialog = page.getByRole("dialog", { name: `Run ${flowName}` });
+		await expect(dialog).toBeVisible();
+		await expect(
+			dialog.getByRole("button", { name: "Select a deployment" }),
+		).toHaveText(deploymentName, { timeout: 10000 });
+
+		await dialog.getByRole("button", { name: "Run" }).click();
+		await page.getByRole("menuitem", { name: "Quick run" }).click();
+
+		await expect(page.getByRole("button", { name: /view run/i })).toBeVisible({
+			timeout: 10000,
+		});
+		await expect(dialog).not.toBeVisible();
+
+		await expect
+			.poll(
+				async () => {
+					const flowRuns = await listFlowRuns(apiClient);
+					return flowRuns.find(
+						(fr) =>
+							fr.deployment_id === deployment.id && fr.flow_id === flow.id,
+					);
+				},
+				{ timeout: 10000 },
+			)
+			.toBeTruthy();
 	});
 });

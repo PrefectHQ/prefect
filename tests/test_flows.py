@@ -29,6 +29,7 @@ from prefect import flow, tags, task
 from prefect._internal.versioning import GitVersionInfo, VersionInfo, VersionType
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
     TaskRunResult,
@@ -73,10 +74,13 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import (
+    AwaitingRetry,
     Cancelled,
     Cancelling,
+    Failed,
     Paused,
     PausedRun,
+    Scheduled,
     State,
     StateType,
     raise_state_exception,
@@ -2122,11 +2126,19 @@ async def _wait_for_logs(
     prefect_client: PrefectClient,
     expected_num_logs: Optional[int] = None,
     timeout: int = 10,
+    flow_run_ids: list[uuid.UUID] | None = None,
 ):
+    # Filter by flow run so logs persisted by earlier tests sharing the database
+    # don't satisfy `expected_num_logs` before this test's logs are flushed.
+    log_filter = (
+        LogFilter(flow_run_id=LogFilterFlowRunId(any_=flow_run_ids))
+        if flow_run_ids
+        else None
+    )
     logs = []
     start_time = time.time()
     while True:
-        logs = await prefect_client.read_logs()
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         if logs:
             if expected_num_logs is None:
                 break
@@ -2147,10 +2159,12 @@ class TestFlowRunLogs:
             logger = get_run_logger()
             logger.info("Hello world!")
 
-        my_flow()
-        await _wait_for_logs(prefect_client, expected_num_logs=3)
-
-        logs = await prefect_client.read_logs()
+        state = my_flow(return_state=True)
+        logs = await _wait_for_logs(
+            prefect_client,
+            expected_num_logs=3,
+            flow_run_ids=[state.state_details.flow_run_id],
+        )
         assert "Hello world!" in {log.message for log in logs}
 
     async def test_repeated_flow_calls_send_logs_to_orion(self, prefect_client):
@@ -2159,10 +2173,17 @@ class TestFlowRunLogs:
             logger = get_run_logger()
             logger.info(f"Hello {i}")
 
-        await my_flow(1)
-        await my_flow(2)
+        state_1 = await my_flow(1, return_state=True)
+        state_2 = await my_flow(2, return_state=True)
 
-        logs = await _wait_for_logs(prefect_client, expected_num_logs=6)
+        logs = await _wait_for_logs(
+            prefect_client,
+            expected_num_logs=6,
+            flow_run_ids=[
+                state_1.state_details.flow_run_id,
+                state_2.state_details.flow_run_id,
+            ],
+        )
         assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})
 
     @pytest.mark.clear_db
@@ -2319,6 +2340,132 @@ class TestFlowRetries:
 
         assert foo() == "hello"
         assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_state(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            return [Failed(message="boom")]
+
+        state = foo(return_state=True)
+        assert state.is_failed()
+        assert run_count == 2
+
+    async def test_async_flow_retry_with_returned_failed_state(self):
+        run_count = 0
+
+        @flow(retries=1)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            return Failed(message="boom")
+
+        state = await foo(return_state=True)
+        assert state.is_failed()
+        assert run_count == 2
+
+    @pytest.mark.parametrize("returned_state", [Scheduled, AwaitingRetry])
+    @pytest.mark.parametrize("retries", [0, 1])
+    def test_flow_returning_scheduled_state_is_not_retried(
+        self, returned_state, retries
+    ):
+        run_count = 0
+
+        @flow(retries=retries)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            return returned_state()
+
+        state = foo(return_state=True)
+        assert state.is_scheduled()
+        assert run_count == 1
+
+    @pytest.mark.parametrize("returned_state", [Scheduled, AwaitingRetry])
+    @pytest.mark.parametrize("retries", [0, 1])
+    async def test_async_flow_returning_scheduled_state_is_not_retried(
+        self, returned_state, retries
+    ):
+        run_count = 0
+
+        @flow(retries=retries)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            return returned_state()
+
+        state = await foo(return_state=True)
+        assert state.is_scheduled()
+        assert run_count == 1
+
+    def test_flow_retry_with_returned_failed_state_then_success(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            return "hello"
+
+        assert foo() == "hello"
+        assert run_count == 2
+
+    async def test_async_flow_retry_with_returned_failed_state_then_success(self):
+        run_count = 0
+
+        @flow(retries=1)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            return "hello"
+
+        assert await foo() == "hello"
+        assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_state_then_error(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            raise ValueError("second attempt")
+
+        with pytest.raises(ValueError, match="second attempt"):
+            foo()
+        assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_task_future(self):
+        flow_run_count = 0
+        task_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+            if flow_run_count == 1:
+                raise ValueError()
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            return my_task.submit()
+
+        state = foo(return_state=True)
+        assert state.is_completed()
+        assert flow_run_count == 2
+        assert task_run_count == 2
 
     async def test_flow_retry_with_error_in_flow_and_successful_task(self):
         task_run_count = 0

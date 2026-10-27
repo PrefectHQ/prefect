@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
 
 import anyio
+import pydantic
 import pytest
 
 from prefect import Task, flow, tags, task
@@ -66,7 +67,7 @@ from prefect.transactions import (
     transaction,
 )
 from prefect.types._datetime import now
-from prefect.utilities.annotations import opaque
+from prefect.utilities.annotations import opaque, quote
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 from prefect.utilities.math import clamped_poisson_interval
@@ -2571,6 +2572,37 @@ class TestCachePolicy:
             assert not record.is_persisted
             assert not list(tmp_path.iterdir())
 
+    def test_tasks_without_source_reuse_their_own_cached_results(self, tmp_path: Path):
+        tasks = []
+        for fee in (1, 100):
+            namespace: dict[str, Any] = {}
+            exec(  # noqa: S102
+                f"def calculate_total(amount):\n    return amount + {fee}\n",
+                namespace,
+            )
+            dynamic_task = task(persist_result=True, result_storage=tmp_path)(
+                namespace["calculate_total"]
+            )
+            assert dynamic_task.source_code is None
+            tasks.append(dynamic_task)
+
+        @flow
+        def calculate_totals() -> list[State]:
+            return [
+                dynamic_task(10, return_state=True)
+                for _ in range(2)
+                for dynamic_task in tasks
+            ]
+
+        states = calculate_totals()
+
+        assert [(state.result(), state.name) for state in states] == [
+            (11, "Completed"),
+            (110, "Completed"),
+            (11, "Cached"),
+            (110, "Cached"),
+        ]
+
     async def test_result_stored_with_storage_key_if_no_policy_set(
         self, prefect_client
     ):
@@ -4342,6 +4374,36 @@ class TestWaitUntilReadySync:
 
             # State should now be Retrying (not Running)
             assert engine.state.name == "Retrying"
+
+
+class TestPydanticTaskArgumentWithUnsetPrivateAttributes:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/23514"""
+
+    class Document(pydantic.BaseModel):
+        text: Any
+        _cache: dict[str, Any] = pydantic.PrivateAttr()
+
+    def test_sync_task(self):
+        @task
+        def read(document: Any) -> tuple[str, bool]:
+            return document.text, hasattr(document, "_cache")
+
+        @flow
+        def my_flow() -> tuple[str, bool]:
+            return read(self.Document(text=quote("parsed text")))
+
+        assert my_flow() == ("parsed text", False)
+
+    async def test_async_task(self):
+        @task
+        async def read(document: Any) -> tuple[str, bool]:
+            return document.text, hasattr(document, "_cache")
+
+        @flow
+        async def my_flow() -> tuple[str, bool]:
+            return await read(self.Document(text=quote("parsed text")))
+
+        assert await my_flow() == ("parsed text", False)
 
 
 class TestRunSchemaObjectAsTaskArgument:

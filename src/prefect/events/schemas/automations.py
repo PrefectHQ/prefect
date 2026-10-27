@@ -290,9 +290,16 @@ class MetricTriggerQuery(PrefectBaseModel):
     to Metric automations, that specify the query configurations
     and breaching conditions for the Automation"""
 
-    name: PrefectMetric = Field(
+    # Prefect Cloud can add metrics before a client release knows about them.
+    # Reading an automation that uses one keeps its name as a string instead of
+    # failing, so updating the automation sends the name back unchanged.
+    name: Union[PrefectMetric, str] = Field(
         ...,
-        description="The name of the metric to query.",
+        union_mode="left_to_right",
+        description=(
+            "The name of the metric to query. Names this version of Prefect does "
+            "not recognize are kept as strings."
+        ),
     )
     threshold: float = Field(
         ...,
@@ -357,7 +364,8 @@ class MetricTrigger(ResourceTrigger):
         return textwrap.indent(
             "\n".join(
                 [
-                    f"Metric: {m.name.value} {m.operator.value} {m.threshold} for {m.range}",
+                    f"Metric: {m.name.value if isinstance(m.name, PrefectMetric) else m.name} "
+                    f"{m.operator.value} {m.threshold} for {m.range}",
                 ]
             ),
             prefix="  " * indent,

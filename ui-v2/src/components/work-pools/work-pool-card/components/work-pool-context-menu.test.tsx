@@ -9,7 +9,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { Toaster } from "@/components/ui/sonner";
 import { createFakeWorkPool } from "@/mocks/create-fake-work-pool";
 import {
@@ -17,22 +17,20 @@ import {
 	type WorkPoolContextMenuProps,
 } from "./work-pool-context-menu";
 
+// Mocks away getRouteApi dependency in `useDeleteDeploymentConfirmationDialog`
+// @ts-expect-error Ignoring error until @tanstack/react-router has better testing documentation. Ref: https://vitest.dev/api/vi.html#vi-mock
+vi.mock(import("@tanstack/react-router"), async (importOriginal) => {
+	const mod = await importOriginal();
+	return {
+		...mod,
+		getRouteApi: () => ({
+			useNavigate: vi.fn,
+		}),
+	};
+});
+
 describe("WorkPoolContextMenu", () => {
 	beforeAll(mockPointerEvents);
-
-	beforeEach(() => {
-		// Mocks away getRouteApi dependency in `useDeleteDeploymentConfirmationDialog`
-		// @ts-expect-error Ignoring error until @tanstack/react-router has better testing documentation. Ref: https://vitest.dev/api/vi.html#vi-mock
-		vi.mock(import("@tanstack/react-router"), async (importOriginal) => {
-			const mod = await importOriginal();
-			return {
-				...mod,
-				getRouteApi: () => ({
-					useNavigate: vi.fn,
-				}),
-			};
-		});
-	});
 
 	// Wraps component in test with a Tanstack router provider
 	const WorkPoolContextMenuRouter = (props: WorkPoolContextMenuProps) => {
