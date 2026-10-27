@@ -760,8 +760,11 @@ class CronSchedule(PrefectBaseModel):
             # if the end date was exceeded, exit
             if end_utc and next_utc > end_utc:
                 break
-            # ensure no duplicates; weird things can happen with DST
-            if next_utc >= start_utc and next_utc not in dates:
+            # ensure no duplicates; weird things can happen with DST. Merged
+            # gap streams can repeat an instant, so repeats don't count as attempts.
+            if next_utc in dates:
+                continue
+            if next_utc >= start_utc:
                 dates.add(next_utc)
                 yield create_datetime_instance(next_date)
 

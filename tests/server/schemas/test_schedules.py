@@ -1264,6 +1264,18 @@ class TestCronScheduleDaylightSavingsTime:
             == []
         )
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13),
+        reason="Corrected DST resolution applies to the Python 3.13+ whenever engine",
+    )
+    async def test_cron_gap_lookback_duplicates_do_not_use_attempts(self):
+        schedule = CronSchedule(cron="* * * * *", timezone="America/New_York")
+        start = datetime.fromisoformat("2024-03-10T03:00:00-04:00")
+
+        dates = await schedule.get_dates(n=MAX_ITERATIONS, start=start)
+
+        assert len({value.timestamp() for value in dates}) == MAX_ITERATIONS
+
     async def test_berlin_fall_runs_only_at_first_occurrence(self):
         zone = ZoneInfo("Europe/Berlin")
         schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
