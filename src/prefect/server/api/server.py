@@ -11,7 +11,9 @@ import contextlib
 import gc
 import hmac
 import importlib.metadata
+import json
 import logging
+import math
 import mimetypes
 import os
 import random
@@ -292,14 +294,32 @@ async def validation_exception_handler(
     """Provide a detailed message for request validation errors."""
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=jsonable_encoder(
-            {
-                "exception_message": "Invalid request received.",
-                "exception_detail": exc.errors(),
-                "request_body": exc.body,
-            }
+        content=_json_safe(
+            jsonable_encoder(
+                {
+                    "exception_message": "Invalid request received.",
+                    "exception_detail": exc.errors(),
+                    "request_body": exc.body,
+                }
+            )
         ),
     )
+
+
+def _json_safe(value: Any) -> Any:
+    """
+    Replace values that cannot be rendered as strict JSON, such as `NaN` or strings
+    containing unpaired surrogates, so that invalid input can be echoed back.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return json.dumps(value)
+    if isinstance(value, str):
+        return value.encode("utf-8", "backslashreplace").decode("utf-8")
+    if isinstance(value, dict):
+        return {_json_safe(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    return value
 
 
 async def integrity_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -317,7 +337,20 @@ async def integrity_exception_handler(request: Request, exc: Exception) -> JSONR
     )
 
 
+def is_invalid_data_exception(exc: Exception) -> bool:
+    """
+    Whether the database rejected a value as invalid (SQLSTATE class 22, "data
+    exception"), e.g. a NUL character or `NaN` in a PostgreSQL JSON value.
+    """
+    orig = exc.orig if isinstance(exc, sqlalchemy.exc.DBAPIError) else exc
+    sqlstate = getattr(orig, "sqlstate", None)
+    return isinstance(sqlstate, str) and sqlstate.startswith("22")
+
+
 def is_client_retryable_exception(exc: Exception) -> bool:
+    if is_invalid_data_exception(exc):
+        return False
+
     if isinstance(exc, sqlalchemy.exc.OperationalError) and isinstance(
         exc.orig, sqlite3.OperationalError
     ):
@@ -399,8 +432,29 @@ async def custom_internal_exception_handler(
     """
     Log a detailed exception for internal server errors before returning.
 
-    Send 503 for errors clients can retry on.
+    Send 422 for values the database rejected and 503 for errors clients can retry on.
     """
+    if is_invalid_data_exception(exc):
+        logger.warning("Database rejected a value in request:", exc_info=True)
+        return JSONResponse(
+            content={
+                "exception_message": "Invalid request received.",
+                "exception_detail": [
+                    {
+                        "type": "value_error",
+                        "loc": ["body"],
+                        "msg": (
+                            "The database rejected a value in the request. This "
+                            "usually means a string contains a NUL character or a "
+                            "JSON value contains NaN or Infinity. See server logs "
+                            "for details."
+                        ),
+                    }
+                ],
+            },
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
     if is_client_retryable_exception(exc):
         if PREFECT_API_LOG_RETRYABLE_ERRORS.value():
             logger.error("Encountered retryable exception in request:", exc_info=True)
