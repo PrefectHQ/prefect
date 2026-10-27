@@ -45,9 +45,10 @@ def _register_stable_transforms() -> None:
     if sys.modules.get("pandas") is not None:
         import pandas as pd  # pyright: ignore
 
-        STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [  # pyright: ignore
-            df[col] for col in sorted(df.columns)
-        ]
+        STABLE_TRANSFORMS[pd.DataFrame] = lambda df: (  # pyright: ignore
+            list(df.columns),
+            [df.iloc[:, i] for i in range(len(df.columns))],
+        )
 
 
 @dataclass
