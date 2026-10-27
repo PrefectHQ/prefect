@@ -9,7 +9,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { delay, HttpResponse, http } from "msw";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildUiSettingsQuery } from "@/api/ui-settings";
 import { AuthContext, type AuthState } from "@/auth";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import * as uiVersionSwitch from "@/components/ui-version-switch";
@@ -37,11 +38,52 @@ const createTestRouter = (authState: AuthState | null) => {
 };
 
 describe("AppSidebar", () => {
+	beforeEach(() => {
+		const items = new Map<string, string>();
+		vi.spyOn(localStorage, "getItem").mockImplementation(
+			(key) => items.get(key) ?? null,
+		);
+		vi.spyOn(localStorage, "setItem").mockImplementation((key, value) => {
+			items.set(key, value);
+		});
+	});
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
 
 	describe("ui switching", () => {
+		it("dismisses the shortcut without switching UIs and remembers it after remount", async () => {
+			const user = userEvent.setup();
+			const switchToV1UiSpy = vi.spyOn(uiVersionSwitch, "switchToV1Ui");
+			const { unmount } = render(
+				<RouterProvider router={createTestRouter(null)} />,
+				{ wrapper: createWrapper() },
+			);
+
+			await user.click(
+				await screen.findByRole("button", {
+					name: "Hide Switch to V1 UI shortcut",
+				}),
+			);
+
+			expect(screen.queryByText("Switch to V1 UI")).not.toBeInTheDocument();
+			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+			expect(switchToV1UiSpy).not.toHaveBeenCalled();
+			expect(
+				screen.getByRole("link", { name: "Settings" }),
+			).toBeInTheDocument();
+
+			unmount();
+			const queryClient = new QueryClient();
+			await queryClient.ensureQueryData(buildUiSettingsQuery());
+			render(<RouterProvider router={createTestRouter(null)} />, {
+				wrapper: createWrapper({ queryClient }),
+			});
+
+			await screen.findByRole("link", { name: "Settings" });
+			expect(screen.queryByText("Switch to V1 UI")).not.toBeInTheDocument();
+		});
+
 		it("renders the switch-back action when the current UI is available", async () => {
 			const router = createTestRouter(null);
 
