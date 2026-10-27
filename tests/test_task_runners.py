@@ -881,30 +881,29 @@ class TestProcessPoolTaskRunner:
         result = test_flow()
         assert result == (3, 7, 10)
 
-    def test_submit_remains_non_blocking(self):
+    def test_submit_remains_non_blocking(self, tmp_path: Path):
         """
         Test that submit() returns immediately even when waiting for futures.
         This ensures the fix maintains non-blocking behavior.
         """
+        # The task can't finish until the flow creates `release`, which only
+        # happens after both submit() calls return. If submit() blocked on
+        # `wait_for`, the flow would deadlock instead of relying on a
+        # load-sensitive wall-clock threshold.
+        release = tmp_path / "release"
 
         @task
-        def slow_add(x: int, y: int) -> int:
-            time.sleep(0.5)
+        def gated_add(x: int, y: int, release: str) -> int:
+            while not Path(release).exists():
+                time.sleep(0.05)
             return x + y
 
         @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
         def test_flow():
-            import time
+            future_a = gated_add.submit(1, 2, str(release))
+            future_b = gated_add.submit(3, 4, str(release), wait_for=[future_a])
 
-            start = time.time()
-            future_a = slow_add.submit(1, 2)
-            future_b = slow_add.submit(3, 4, wait_for=[future_a])
-
-            # submit() should return quickly, even though future_a hasn't completed
-            submit_duration = time.time() - start
-            assert submit_duration < 0.5, "submit() should be non-blocking"
-
-            # Now wait for results
+            release.touch()
             return future_a.result(), future_b.result()
 
         result = test_flow()
