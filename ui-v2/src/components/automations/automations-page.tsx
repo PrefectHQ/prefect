@@ -1,6 +1,9 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { type Automation, buildListAutomationsQuery } from "@/api/automations";
+import {
+	type Automation,
+	buildListAllAutomationsQuery,
+} from "@/api/automations";
 import type { components } from "@/api/prefect";
 import {
 	Breadcrumb,
@@ -37,10 +40,9 @@ export const AutomationsPage = () => {
 	const [sort, setSort] = useState<AutomationSort>("ENABLED_DESC");
 	const [dialogState, confirmDelete] = useDeleteAutomationConfirmationDialog();
 	const { data } = useSuspenseQuery(
-		buildListAutomationsQuery({
-			sort: sort === "ENABLED_DESC" ? "CREATED_DESC" : sort,
-			offset: 0,
-		}),
+		buildListAllAutomationsQuery(
+			sort === "ENABLED_DESC" ? "CREATED_DESC" : sort,
+		),
 	);
 	const filteredAutomations = data
 		.filter((automation) =>

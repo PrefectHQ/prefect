@@ -9,6 +9,7 @@ import { createFakeAutomation } from "@/mocks";
 import {
 	type Automation,
 	buildGetAutomationQuery,
+	buildListAllAutomationsQuery,
 	buildListAutomationsQuery,
 	buildListAutomationsRelatedQuery,
 	queryKeyFactory,
@@ -51,6 +52,27 @@ describe("automations queries and mutations", () => {
 	};
 
 	const filter = { sort: "CREATED_DESC", offset: 0 } as const;
+
+	it("does not return partial results when a later page fails", async () => {
+		server.use(
+			http.post(buildApiUrl("/automations/filter"), async ({ request }) => {
+				const { offset } = (await request.json()) as { offset: number };
+				return offset === 0
+					? HttpResponse.json(seedAutomationsData())
+					: HttpResponse.json(
+							{ detail: "Later page unavailable" },
+							{ status: 500 },
+						);
+			}),
+		);
+		const queryClient = new QueryClient();
+		await expect(
+			queryClient.fetchQuery({
+				...buildListAllAutomationsQuery(),
+				retry: false,
+			}),
+		).rejects.toThrow("Later page unavailable");
+	});
 
 	it("is stores automation list data", async () => {
 		// ------------ Mock API requests when cache is empty
