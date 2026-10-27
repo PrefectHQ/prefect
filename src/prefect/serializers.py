@@ -61,37 +61,47 @@ def _get_importable_class(cls: type) -> type:
 # carrying one is not given back as a dictionary, so it cannot travel in `__exc_args__`.
 _DECODER_MARKER_KEYS = frozenset({"__class__", "__exc_type__"})
 
+# How deeply lists and dictionaries may nest inside an exception argument that is
+# carried in `__exc_args__`. Anything nested deeper is left out, which keeps the check
+# and the JSON encoder and decoder well inside the interpreter's recursion limit.
+_MAX_EXC_ARG_DEPTH = 100
 
-def _is_json_native(value: Any, _parents: Optional[frozenset[int]] = None) -> bool:
+
+def _is_json_native(value: Any) -> bool:
     """
     Whether `value` survives a JSON round trip unchanged.
 
     Stricter than "the JSON encoder accepts it": tuples come back as lists, non-finite
-    floats are either rejected or written as invalid JSON, a container that contains
-    itself has no JSON form at all, and a dictionary holding one of the decoder's
-    marker keys comes back as whatever that marker names.
+    floats are either rejected or written as invalid JSON, and a dictionary holding one
+    of the decoder's marker keys comes back as whatever that marker names.
+
+    The walk is iterative and stops at `_MAX_EXC_ARG_DEPTH`, so it cannot exhaust the
+    recursion limit however deep the value is. A container that contains itself is
+    infinitely deep, so it is rejected by the same bound.
     """
-    if isinstance(value, (str, bool, type(None))):
-        return True
-    if isinstance(value, float):
-        return math.isfinite(value)
-    if isinstance(value, int):
-        return True
-    if isinstance(value, (list, dict)):
-        if _parents is None:
-            _parents = frozenset()
-        if id(value) in _parents:
+    pending: list[tuple[Any, int]] = [(value, 0)]
+    while pending:
+        item, depth = pending.pop()
+        if isinstance(item, (str, bool, type(None))):
+            continue
+        if isinstance(item, float):
+            if not math.isfinite(item):
+                return False
+            continue
+        if isinstance(item, int):
+            continue
+        if not isinstance(item, (list, dict)) or depth >= _MAX_EXC_ARG_DEPTH:
             return False
-        _parents = _parents | {id(value)}
-        if isinstance(value, list):
-            return all(_is_json_native(item, _parents) for item in value)
-        return all(
-            isinstance(key, str)
-            and key not in _DECODER_MARKER_KEYS
-            and _is_json_native(item, _parents)
-            for key, item in value.items()
-        )
-    return False
+        if isinstance(item, dict):
+            if not all(
+                isinstance(key, str) and key not in _DECODER_MARKER_KEYS for key in item
+            ):
+                return False
+            children = item.values()
+        else:
+            children = item
+        pending.extend((child, depth + 1) for child in children)
+    return True
 
 
 def prefect_json_object_encoder(obj: Any) -> Any:

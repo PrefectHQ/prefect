@@ -11,6 +11,7 @@ import pytest
 from pydantic import BaseModel, ValidationError, field_validator
 
 from prefect.serializers import (
+    _MAX_EXC_ARG_DEPTH,
     CompressedSerializer,
     JSONSerializer,
     PickleSerializer,
@@ -561,6 +562,31 @@ class TestJSONExceptionArguments:
         blob = serializer.dumps(Exception(payload))
 
         assert "__exc_args__" not in json.loads(blob)
+
+    def test_deeply_nested_argument_falls_back_to_the_message(self):
+        values: list[Any] = []
+        for _ in range(500):
+            values = [values]
+        exc = Exception(values)
+        serializer = JSONSerializer()
+
+        blob = serializer.dumps(exc)
+
+        assert "__exc_args__" not in json.loads(blob)
+        assert serializer.loads(blob).args == (str(exc),)
+
+    def test_argument_nesting_is_carried_up_to_the_depth_limit(self):
+        serializer = JSONSerializer()
+        at_limit: list[Any] = []
+        for _ in range(_MAX_EXC_ARG_DEPTH - 1):
+            at_limit = [at_limit]
+        past_limit = [at_limit]
+
+        carried = json.loads(serializer.dumps(Exception(at_limit)))
+        omitted = json.loads(serializer.dumps(Exception(past_limit)))
+
+        assert carried["__exc_args__"] == [at_limit]
+        assert "__exc_args__" not in omitted
 
     def test_repeated_sibling_container_is_still_carried(self):
         shared = ["a"]
