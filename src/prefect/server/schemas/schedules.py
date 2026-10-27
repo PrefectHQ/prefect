@@ -7,7 +7,9 @@ from __future__ import annotations
 import calendar
 import datetime
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from heapq import merge
+from itertools import takewhile
 from math import gcd
 from typing import (
     Annotated,
@@ -47,6 +49,13 @@ from prefect.types._datetime import (
 )
 
 MAX_ITERATIONS = 1000
+
+
+def _whenever_delta_seconds(delta: Any) -> float:
+    # whenever >= 0.10.0 exposes `total("seconds")`; older versions
+    # expose `in_seconds()`
+    return delta.total("seconds") if hasattr(delta, "total") else delta.in_seconds()
+
 
 # Whenever 0.11 renamed this keyword. Keep the existing gap/fold policy explicit
 # on both supported versions, without suppressing disambiguation warnings.
@@ -707,6 +716,36 @@ class CronSchedule(PrefectBaseModel):
 
         cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
         wall_times = iter(lambda: cron.get_next(datetime.datetime), None)
+        candidate_dates: Iterator[datetime.datetime] = map(localize, wall_times)
+
+        start_zdt = _whenever_zdt_from_py(start)
+        # Transition lookup excludes the current second, including its fractions.
+        transition = start_zdt.add(seconds=1).prev_transition()
+        if transition is not None:
+            gap = _whenever_delta_seconds(
+                transition.offset - transition.subtract(seconds=1).offset
+            )
+            if 0 <= _whenever_delta_seconds(start_zdt - transition) < gap:
+                # `start` is within `gap` of a spring-forward transition, so
+                # nonexistent wall times before `start_naive_tz` may have been
+                # shifted to instants that are still ahead. Recover them and
+                # merge with ordinary times, which can interleave for non-hour
+                # gaps like Lord Howe's.
+                lookback = croniter(
+                    self.cron,
+                    start_naive_tz - datetime.timedelta(seconds=gap),
+                    day_or=self.day_or,
+                )
+                gap_end = _whenever_to_stdlib(transition).replace(tzinfo=None)
+                shifted_times = takewhile(
+                    lambda wall: wall < gap_end,
+                    iter(lambda: lookback.get_next(datetime.datetime), None),
+                )
+                candidate_dates = merge(
+                    map(localize, shifted_times),
+                    candidate_dates,
+                    key=lambda date: date.astimezone(datetime.timezone.utc),
+                )
 
         # Compare on the instant timeline: datetimes sharing a `tzinfo` compare
         # by wall clock and ignore `fold`.
@@ -715,7 +754,7 @@ class CronSchedule(PrefectBaseModel):
         dates = set()
         counter = 0
 
-        for next_date in map(localize, wall_times):
+        for next_date in candidate_dates:
             next_utc = next_date.astimezone(datetime.timezone.utc)
 
             # if the end date was exceeded, exit

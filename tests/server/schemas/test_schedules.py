@@ -1127,6 +1127,143 @@ class TestCronScheduleDaylightSavingsTime:
         ]
         assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [4, 4, 4, 4, 4]
 
+    async def test_berlin_spring_gap_resolution(self):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+
+        dates = await schedule.get_dates(n=3, start=datetime(2027, 3, 28, tzinfo=zone))
+
+        expected_first = (
+            "2027-03-28T01:30:00+01:00"
+            if sys.version_info < (3, 13)
+            else "2027-03-28T03:30:00+02:00"
+        )
+        assert [value.isoformat() for value in dates] == [
+            expected_first,
+            "2027-03-29T02:30:00+02:00",
+            "2027-03-30T02:30:00+02:00",
+        ]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    @pytest.mark.parametrize(
+        "start_time, expected",
+        [
+            ("01:45:00", ["2027-03-28T03:30:00+02:00"]),
+            ("03:00:00", ["2027-03-28T03:30:00+02:00"]),
+            ("03:30:00", ["2027-03-28T03:30:00+02:00"]),
+            ("03:30:00.000001", []),
+            ("04:00:00", []),
+        ],
+    )
+    async def test_berlin_spring_gap_seek(self, start_time: str, expected: list[str]):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+        start = datetime.fromisoformat(f"2027-03-28T{start_time}").replace(tzinfo=zone)
+        end = datetime(2027, 3, 28, 4, tzinfo=zone)
+
+        dates = await schedule.get_dates(start=start, end=end)
+
+        assert [value.isoformat() for value in dates] == expected
+        assert all(
+            start.timestamp() <= value.timestamp() <= end.timestamp() for value in dates
+        )
+        next_dates = await schedule.get_dates(n=2, start=start)
+        assert next_dates[0].isoformat() == (
+            expected[0] if expected else "2027-03-29T02:30:00+02:00"
+        )
+
+    @pytest.mark.parametrize(
+        "start_hour, start_minute", [(0, 0), (1, 45), (3, 0), (3, 15), (3, 30)]
+    )
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13),
+        reason="Corrected DST resolution applies to the Python 3.13+ whenever engine",
+    )
+    async def test_cron_schedule_nonexistent_time_moves_forward(
+        self, start_hour: int, start_minute: int
+    ):
+        schedule = CronSchedule(cron="30 2 * * *", timezone="America/New_York")
+        start = datetime(
+            2024,
+            3,
+            10,
+            start_hour,
+            start_minute,
+            tzinfo=ZoneInfo("America/New_York"),
+        )
+
+        dates = await schedule.get_dates(n=2, start=start)
+
+        assert [d.astimezone(ZoneInfo("UTC")) for d in dates] == [
+            datetime(2024, 3, 10, 7, 30, tzinfo=ZoneInfo("UTC")),
+            datetime(2024, 3, 11, 6, 30, tzinfo=ZoneInfo("UTC")),
+        ]
+
+    @pytest.mark.parametrize(
+        "cron, timezone, start, expected",
+        [
+            (
+                "20,40 2 * * *",
+                "Australia/Lord_Howe",
+                "2024-10-06T02:30:00+11:00",
+                [
+                    "2024-10-06T02:40:00+11:00",
+                    "2024-10-06T02:50:00+11:00",
+                    "2024-10-07T02:20:00+11:00",
+                ],
+            ),
+            (
+                "0 12 * * 5",
+                "Pacific/Apia",
+                "2011-12-31T00:00:00+14:00",
+                [
+                    "2011-12-31T12:00:00+14:00",
+                    "2012-01-06T12:00:00+14:00",
+                    "2012-01-13T12:00:00+14:00",
+                ],
+            ),
+        ],
+    )
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13),
+        reason="Corrected DST resolution applies to the Python 3.13+ whenever engine",
+    )
+    async def test_cron_gap_lookback_preserves_order(
+        self, cron: str, timezone: str, start: str, expected: list[str]
+    ):
+        schedule = CronSchedule(cron=cron, timezone=timezone)
+        start_date = datetime.fromisoformat(start)
+
+        dates = await schedule.get_dates(n=3, start=start_date)
+
+        assert [value.astimezone(ZoneInfo("UTC")) for value in dates] == [
+            datetime.fromisoformat(value).astimezone(ZoneInfo("UTC"))
+            for value in expected
+        ]
+        assert await schedule.get_dates(n=1, start=start_date) == dates[:1]
+
+    @pytest.mark.parametrize("start", ["03:30:00.000001", "04:00:00"])
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13),
+        reason="Corrected DST resolution applies to the Python 3.13+ whenever engine",
+    )
+    async def test_cron_gap_lookback_does_not_return_past_dates(self, start: str):
+        schedule = CronSchedule(cron="30 2 * * *", timezone="America/New_York")
+        start_date = datetime.fromisoformat(f"2024-03-10T{start}-04:00")
+
+        assert await schedule.get_dates(n=1, start=start_date) == [
+            datetime(2024, 3, 11, 6, 30, tzinfo=ZoneInfo("UTC"))
+        ]
+        assert (
+            await schedule.get_dates(
+                start=datetime.fromisoformat("2024-03-10T03:00:00-04:00"),
+                end=datetime.fromisoformat("2024-03-10T03:20:00-04:00"),
+            )
+            == []
+        )
+
     async def test_berlin_fall_runs_only_at_first_occurrence(self):
         zone = ZoneInfo("Europe/Berlin")
         schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
