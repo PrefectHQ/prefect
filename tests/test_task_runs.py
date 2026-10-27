@@ -11,6 +11,7 @@ from websockets.exceptions import ConnectionClosedError
 
 from prefect import task
 from prefect.client.schemas.filters import TaskRunFilter
+from prefect.client.schemas.sorting import TaskRunSort
 from prefect.states import Completed, State
 from prefect.task_engine import run_task_async
 from prefect.task_runs import TaskRunWaiter
@@ -164,6 +165,7 @@ class FakeTaskRunsAPI:
     def __init__(self):
         self.final_states: dict[uuid.UUID, State] = {}
         self.failing = False
+        self.page_size = 200
 
     async def __aenter__(self) -> Self:
         return self
@@ -172,16 +174,17 @@ class FakeTaskRunsAPI:
         pass
 
     async def read_task_runs(
-        self, task_run_filter: TaskRunFilter, limit: int
+        self, task_run_filter: TaskRunFilter, sort: TaskRunSort, offset: int = 0
     ) -> list[MagicMock]:
         if self.failing:
             raise httpx.ConnectError("down")
         assert task_run_filter.id is not None and task_run_filter.id.any_ is not None
-        return [
+        matching = [
             MagicMock(id=task_run_id, state=self.final_states[task_run_id])
-            for task_run_id in task_run_filter.id.any_
+            for task_run_id in sorted(task_run_filter.id.any_, reverse=True)
             if task_run_id in self.final_states
         ]
+        return matching[offset : offset + self.page_size]
 
 
 class TestTaskRunWaiterRecovery:
@@ -263,3 +266,40 @@ class TestTaskRunWaiterRecovery:
             api.failing = False
 
             assert await asyncio.wait_for(waiting, timeout=10) is final_state
+
+    @pytest.mark.timeout(20)
+    async def test_polling_pages_through_waited_task_runs(self, api: FakeTaskRunsAPI):
+        api.page_size = 2
+        task_run_ids = [uuid.uuid4() for _ in range(5)]
+        with patch("prefect.task_runs.get_events_subscriber", EndingEventStream()):
+            waiting = [
+                asyncio.create_task(TaskRunWaiter.wait_for_task_run(task_run_id))
+                for task_run_id in task_run_ids
+            ]
+            await asyncio.sleep(0.1)
+            final_states = {task_run_id: Completed() for task_run_id in task_run_ids}
+            api.final_states.update(final_states)
+
+            results = await asyncio.wait_for(asyncio.gather(*waiting), timeout=10)
+
+        assert results == [final_states[task_run_id] for task_run_id in task_run_ids]
+
+    @pytest.mark.timeout(20)
+    async def test_raising_done_callback_does_not_stop_polling(
+        self, api: FakeTaskRunsAPI, caplog: pytest.LogCaptureFixture
+    ):
+        failing_id, waited_id = uuid.uuid4(), uuid.uuid4()
+        with patch("prefect.task_runs.get_events_subscriber", EndingEventStream()):
+            TaskRunWaiter.add_done_callback(
+                failing_id, MagicMock(side_effect=RuntimeError("boom"))
+            )
+            api.final_states[failing_id] = Completed()
+            await asyncio.sleep(0.1)
+
+            waiting = asyncio.create_task(TaskRunWaiter.wait_for_task_run(waited_id))
+            final_state = Completed()
+            api.final_states[waited_id] = final_state
+
+            assert await asyncio.wait_for(waiting, timeout=10) is final_state
+        assert "Error in done callback" in caplog.text
+        assert "TaskRunWaiter lost both" not in caplog.text

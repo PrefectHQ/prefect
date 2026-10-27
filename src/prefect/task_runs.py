@@ -25,6 +25,7 @@ from prefect.client.schemas.filters import (
     TaskRunFilterStateType,
 )
 from prefect.client.schemas.objects import TERMINAL_STATES
+from prefect.client.schemas.sorting import TaskRunSort
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.events.schemas.events import Event
@@ -36,7 +37,6 @@ if TYPE_CHECKING:
 
 # How often to read the task runs being waited on while the events stream is down
 TASK_RUN_POLLING_INTERVAL_SECONDS = 10.0
-TASK_RUN_READ_BATCH_SIZE = 200
 
 
 class TaskRunWaiter:
@@ -214,18 +214,18 @@ class TaskRunWaiter:
         if not task_run_ids:
             return
 
+        task_run_filter = TaskRunFilter(
+            id=TaskRunFilterId(any_=task_run_ids),
+            state=TaskRunFilterState(
+                type=TaskRunFilterStateType(any_=list(TERMINAL_STATES))
+            ),
+        )
         async with get_client() as client:
-            for i in range(0, len(task_run_ids), TASK_RUN_READ_BATCH_SIZE):
-                batch = task_run_ids[i : i + TASK_RUN_READ_BATCH_SIZE]
-                task_runs = await client.read_task_runs(
-                    task_run_filter=TaskRunFilter(
-                        id=TaskRunFilterId(any_=batch),
-                        state=TaskRunFilterState(
-                            type=TaskRunFilterStateType(any_=list(TERMINAL_STATES))
-                        ),
-                    ),
-                    limit=len(batch),
-                )
+            offset = 0
+            while task_runs := await client.read_task_runs(
+                task_run_filter=task_run_filter, sort=TaskRunSort.ID_DESC, offset=offset
+            ):
+                offset += len(task_runs)
                 for task_run in task_runs:
                     if task_run.state is not None and task_run.state.is_final():
                         self._mark_task_run_finished(task_run.id, task_run.state)
@@ -244,7 +244,12 @@ class TaskRunWaiter:
                 self._completion_events[task_run_id].set()
             callback = self._completion_callbacks.pop(task_run_id, None)
         if callback is not None:
-            callback()
+            try:
+                callback()
+            except Exception:
+                self.logger.exception(
+                    "Error in done callback for task run %s", task_run_id
+                )
 
     def stop(self) -> None:
         """
