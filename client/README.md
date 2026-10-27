@@ -94,7 +94,7 @@ describing the functionality you are interested in using and we will do our best
 ## Next steps
 
 There's lots more you can do to orchestrate and observe your workflows with Prefect!
-Start with our [friendly tutorial](https://docs.prefect.io/tutorials) or explore the [core concepts of Prefect workflows](https://docs.prefect.io/concepts/).
+Start with our [friendly tutorial](https://www.prefect.io/docs/tutorials) or explore the [core concepts of Prefect workflows](https://www.prefect.io/docs/concepts/).
 
 ## Join the community
 
@@ -104,6 +104,6 @@ All community forums, including code contributions, issue discussions, and Slack
 
 ## Contribute
 
-See our [documentation on contributing to Prefect](https://docs.prefect.io/contributing/overview/).
+See our [documentation on contributing to Prefect](https://www.prefect.io/docs/contributing/overview/).
 
 Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**

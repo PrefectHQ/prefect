@@ -322,7 +322,7 @@ test.describe("Artifact Detail and Navigation", () => {
 		const linkKey = `${DETAIL_PREFIX}render-link-${timestamp}`;
 		const linkArtifact = await createLinkArtifact(apiClient, {
 			key: linkKey,
-			link: "https://docs.prefect.io",
+			link: "https://www.prefect.io/docs",
 			linkText: "Prefect Docs",
 		});
 
@@ -348,7 +348,7 @@ test.describe("Artifact Detail and Navigation", () => {
 		await expect(linkDisplay).toBeVisible({ timeout: 10000 });
 		const anchor = linkDisplay.getByRole("link", { name: "Prefect Docs" });
 		await expect(anchor).toBeVisible();
-		await expect(anchor).toHaveAttribute("href", "https://docs.prefect.io");
+		await expect(anchor).toHaveAttribute("href", "https://www.prefect.io/docs");
 	});
 
 	test("Navigate to flow run from artifact", async ({ page, apiClient }) => {

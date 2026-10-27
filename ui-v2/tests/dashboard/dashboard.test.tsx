@@ -132,7 +132,7 @@ describe("Dashboard page", () => {
 			const docsLink = screen.getByRole("link", { name: "View Docs" });
 			expect(docsLink).toHaveAttribute(
 				"href",
-				"https://docs.prefect.io/v3/get-started/quickstart#open-source",
+				"https://www.prefect.io/docs/v3/get-started/quickstart#open-source",
 			);
 		});
 	});

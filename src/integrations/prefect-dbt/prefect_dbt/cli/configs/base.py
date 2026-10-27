@@ -36,7 +36,7 @@ class DbtConfigs(Block, abc.ABC):
             "fields provided in extras and credentials."
         ),
     )
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-dbt"  # noqa
 
     def _populate_configs_json(
         self,
@@ -163,7 +163,7 @@ class TargetConfigs(BaseTargetConfigs):
 
     _block_type_name = "dbt CLI Target Configs"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-dbt"  # noqa
 
     @classmethod
     def from_profiles_yml(
@@ -285,7 +285,7 @@ class GlobalConfigs(DbtConfigs):
 
     _block_type_name = "dbt CLI Global Configs"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-dbt"  # noqa
 
     send_anonymous_usage_stats: bool | None = Field(
         default=None,

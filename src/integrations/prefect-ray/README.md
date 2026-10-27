@@ -9,4 +9,4 @@
         <img src="https://img.shields.io/pypi/dm/prefect-ray?color=26272B&labelColor=090422" /></a>
 </p>
 
-See the docs at [https://docs.prefect.io/integrations/prefect-ray](https://docs.prefect.io/integrations/prefect-ray) for more information.
+See the docs at [https://www.prefect.io/docs/integrations/prefect-ray](https://www.prefect.io/docs/integrations/prefect-ray) for more information.
