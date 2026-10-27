@@ -41,6 +41,7 @@ from prefect.types._datetime import (
     PositiveInterval,
     _pendulum_call,
     _whenever_to_stdlib,
+    _whenever_zdt_from_py,
     create_datetime_instance,
     now,
 )
@@ -647,6 +648,111 @@ class CronSchedule(PrefectBaseModel):
         Returns:
             List[DateTime]: a list of dates
         """
+        if sys.version_info < (3, 13):
+            yield from self._pendulum_dates_generator(n=n, start=start, end=end)
+            return
+
+        if start is None:
+            start = now("UTC")
+
+        start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
+
+        if n is None:
+            # if an end was supplied, we do our best to supply all matching dates (up to
+            # MAX_ITERATIONS)
+            if end is not None:
+                n = MAX_ITERATIONS
+            else:
+                n = 1
+
+        start = datetime.datetime.combine(start, start.timetz())
+        if self.timezone:
+            start = start.astimezone(ZoneInfo(self.timezone))
+
+        # subtract one second from the start date, so that croniter returns it
+        # as an event (if it meets the cron criteria). The croniter anchor is
+        # wall-clock time, while the instant anchor is used to pick the fold of
+        # each candidate. Aware `datetime` arithmetic is wall-clock arithmetic
+        # that resets `fold`, so the instant anchor is computed in UTC.
+        start_naive_tz = start.replace(tzinfo=None) - datetime.timedelta(seconds=1)
+        start_localized = (
+            start.astimezone(datetime.timezone.utc) - datetime.timedelta(seconds=1)
+        ).astimezone(start.tzinfo)
+
+        # Respect microseconds by rounding up
+        if start.microsecond > 0:
+            start_naive_tz += datetime.timedelta(seconds=1)
+            start_localized = start
+
+        start_instant = _whenever_zdt_from_py(start_localized)
+
+        def localize(next_wall: datetime.datetime) -> datetime.datetime:
+            # Resolve the wall time to the earliest fold on or after the start
+            # instant. Nonexistent wall times are shifted forward by `whenever`.
+            first = _whenever_zdt_from_py(
+                next_wall.replace(tzinfo=start_localized.tzinfo, fold=0)
+            )
+            candidates = {first}
+            if _whenever_to_stdlib(first).replace(tzinfo=None) == next_wall:
+                candidates.add(
+                    _whenever_zdt_from_py(
+                        next_wall.replace(tzinfo=start_localized.tzinfo, fold=1)
+                    )
+                )
+            viable = [c for c in candidates if c >= start_instant]
+            zdt = (min(viable) if viable else min(candidates)).to_tz(
+                self.timezone or "UTC"
+            )
+            return _whenever_to_stdlib(zdt)
+
+        cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
+        wall_times = iter(lambda: cron.get_next(datetime.datetime), None)
+
+        # Compare on the instant timeline: datetimes sharing a `tzinfo` compare
+        # by wall clock and ignore `fold`.
+        start_utc = start.astimezone(datetime.timezone.utc)
+        end_utc = end.astimezone(datetime.timezone.utc) if end else None
+        dates = set()
+        counter = 0
+
+        for next_date in map(localize, wall_times):
+            next_utc = next_date.astimezone(datetime.timezone.utc)
+
+            # if the end date was exceeded, exit
+            if end_utc and next_utc > end_utc:
+                break
+            # ensure no duplicates; weird things can happen with DST
+            if next_utc >= start_utc and next_utc not in dates:
+                dates.add(next_utc)
+                yield create_datetime_instance(next_date)
+
+            # if enough dates have been collected or enough attempts were made, exit
+            if len(dates) >= n or counter > MAX_ITERATIONS:
+                break
+
+            counter += 1
+
+    def _pendulum_dates_generator(
+        self,
+        n: Optional[int] = None,
+        start: Optional[datetime.datetime] = None,
+        end: Optional[datetime.datetime] = None,
+    ) -> Generator[DateTime, None, None]:
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to the current date. If a timezone-naive
+                datetime is provided, it is assumed to be in the schedule's timezone.
+            end (datetime.datetime, optional): No returned date will exceed this date.
+                If a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
+
+        Returns:
+            List[DateTime]: a list of dates
+        """
         if start is None:
             start = now("UTC")
 
@@ -661,10 +767,7 @@ class CronSchedule(PrefectBaseModel):
                 n = 1
 
         if self.timezone:
-            if sys.version_info >= (3, 13):
-                start = start.astimezone(ZoneInfo(self.timezone or "UTC"))
-            else:
-                start = _pendulum_call(start, "in_tz", self.timezone)
+            start = _pendulum_call(start, "in_tz", self.timezone)
 
         # subtract one second from the start date, so that croniter returns it
         # as an event (if it meets the cron criteria)
@@ -675,22 +778,18 @@ class CronSchedule(PrefectBaseModel):
             start += datetime.timedelta(seconds=1)
 
         # croniter's DST logic interferes with all other datetime libraries except pytz
-        if sys.version_info >= (3, 13):
-            start_localized = start.astimezone(ZoneInfo(self.timezone or "UTC"))
-            start_naive_tz = start.replace(tzinfo=None)
-        else:
-            start_localized = pytz.timezone(start.tz.name).localize(
-                datetime.datetime(
-                    year=start.year,
-                    month=start.month,
-                    day=start.day,
-                    hour=start.hour,
-                    minute=start.minute,
-                    second=start.second,
-                    microsecond=start.microsecond,
-                )
+        start_localized = pytz.timezone(start.tz.name).localize(
+            datetime.datetime(
+                year=start.year,
+                month=start.month,
+                day=start.day,
+                hour=start.hour,
+                minute=start.minute,
+                second=start.second,
+                microsecond=start.microsecond,
             )
-            start_naive_tz = _pendulum_call(start, "naive")
+        )
+        start_naive_tz = _pendulum_call(start, "naive")
 
         cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
         dates = set()
@@ -703,25 +802,7 @@ class CronSchedule(PrefectBaseModel):
             # add that time to the original scheduling anchor.
             next_time = cron.get_next(datetime.datetime)
             delta = next_time - start_naive_tz
-            if sys.version_info >= (3, 13):
-                from whenever import ZonedDateTime
-
-                # Use `whenever` to handle DST correctly
-                _zdt_from_dt = (
-                    ZonedDateTime
-                    if hasattr(ZonedDateTime, "to_stdlib")
-                    else ZonedDateTime.from_py_datetime
-                )
-                _zdt = _zdt_from_dt(start_localized + delta).to_tz(
-                    self.timezone or "UTC"
-                )
-                next_date = (
-                    _zdt.to_stdlib()
-                    if hasattr(_zdt, "to_stdlib")
-                    else _zdt.py_datetime()
-                )
-            else:
-                next_date = create_datetime_instance(start_localized + delta)
+            next_date = create_datetime_instance(start_localized + delta)
 
             # if the end date was exceeded, exit
             if end and next_date > end:

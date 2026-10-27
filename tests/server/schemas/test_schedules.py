@@ -1127,6 +1127,115 @@ class TestCronScheduleDaylightSavingsTime:
         ]
         assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [4, 4, 4, 4, 4]
 
+    async def test_berlin_fall_runs_only_at_first_occurrence(self):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+
+        dates = await schedule.get_dates(n=3, start=datetime(2026, 10, 25, tzinfo=zone))
+
+        assert [value.isoformat() for value in dates] == [
+            "2026-10-25T02:30:00+02:00",
+            "2026-10-26T02:30:00+01:00",
+            "2026-10-27T02:30:00+01:00",
+        ]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    @pytest.mark.parametrize(
+        "minute, microsecond, expected",
+        [
+            (15, 0, "2026-10-25T02:30:00+01:00"),
+            (30, 0, "2026-10-25T02:30:00+01:00"),
+            (30, 1, "2026-10-26T02:30:00+01:00"),
+            (45, 0, "2026-10-26T02:30:00+01:00"),
+        ],
+    )
+    async def test_berlin_fall_second_fold_start(
+        self, minute: int, microsecond: int, expected: str
+    ):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+        start = datetime(
+            2026, 10, 25, 2, minute, microsecond=microsecond, tzinfo=zone, fold=1
+        )
+
+        dates = await schedule.get_dates(n=3, start=start)
+
+        assert dates[0].isoformat() == expected
+        assert all(value.timestamp() >= start.timestamp() for value in dates)
+        assert len({value.timestamp() for value in dates}) == 3
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    async def test_berlin_fall_second_fold_start_with_end(self):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+        start = datetime(2026, 10, 25, 2, 15, tzinfo=zone, fold=1)
+        end = datetime(2026, 10, 25, 2, 45, tzinfo=zone, fold=1)
+
+        dates = await schedule.get_dates(start=start, end=end)
+
+        assert [value.isoformat() for value in dates] == ["2026-10-25T02:30:00+01:00"]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    async def test_cron_schedule_start_in_second_dst_fold(self):
+        """
+        On 11/4/2018, America/New_York repeated 1am-2am when clocks fell back.
+        A start in the second fold (-05:00) must not yield dates from the
+        first fold, which would land before `start`.
+        """
+        dt = datetime(2018, 11, 4, 1, 30, tzinfo=ZoneInfo("America/New_York"), fold=1)
+        s = CronSchedule(cron="* * * * *", timezone="America/New_York")
+        dates = await s.get_dates(n=3, start=dt)
+
+        assert [d.utcoffset() for d in dates] == [timedelta(hours=-5)] * 3
+        assert [d.astimezone(ZoneInfo("UTC")) for d in dates] == [
+            datetime(2018, 11, 4, 6, 30, tzinfo=ZoneInfo("UTC")),
+            datetime(2018, 11, 4, 6, 31, tzinfo=ZoneInfo("UTC")),
+            datetime(2018, 11, 4, 6, 32, tzinfo=ZoneInfo("UTC")),
+        ]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    async def test_cron_schedule_hourly_start_in_second_dst_fold(self):
+        dt = datetime(2018, 11, 4, 1, 0, tzinfo=ZoneInfo("America/New_York"), fold=1)
+        s = CronSchedule(cron="0 * * * *", timezone="America/New_York")
+        dates = await s.get_dates(n=3, start=dt)
+
+        assert [d.astimezone(ZoneInfo("UTC")) for d in dates] == [
+            datetime(2018, 11, 4, 6, 0, tzinfo=ZoneInfo("UTC")),
+            datetime(2018, 11, 4, 7, 0, tzinfo=ZoneInfo("UTC")),
+            datetime(2018, 11, 4, 8, 0, tzinfo=ZoneInfo("UTC")),
+        ]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    async def test_cron_schedule_subsecond_start_in_second_dst_fold(self):
+        dt = datetime(
+            2018,
+            11,
+            4,
+            1,
+            30,
+            0,
+            500000,
+            tzinfo=ZoneInfo("America/New_York"),
+            fold=1,
+        )
+        s = CronSchedule(cron="* * * * *", timezone="America/New_York")
+        dates = await s.get_dates(n=2, start=dt)
+
+        assert [d.astimezone(ZoneInfo("UTC")) for d in dates] == [
+            datetime(2018, 11, 4, 6, 31, tzinfo=ZoneInfo("UTC")),
+            datetime(2018, 11, 4, 6, 32, tzinfo=ZoneInfo("UTC")),
+        ]
+
 
 class TestRRuleScheduleDaylightSavingsTime:
     async def test_rrule_schedule_hourly_daylight_savings_time_forward_with_UTC(
