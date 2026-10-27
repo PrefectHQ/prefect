@@ -2471,36 +2471,35 @@ async def test_worker_set_last_polled_time(work_pool: WorkPool):
 
 
 async def test_worker_last_polled_health_check(work_pool: WorkPool):
-    now = now_fn("UTC")
-
     try:
-        with travel_to(now):
-            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            now = worker._last_polled_time
+            with travel_to(now):
                 resp = worker.is_worker_still_polling(query_interval_seconds=10)
                 assert resp is True
 
-                with travel_to(now + timedelta(seconds=299)):
-                    resp = worker.is_worker_still_polling(query_interval_seconds=10)
-                    assert resp is True
+            with travel_to(now + timedelta(seconds=299)):
+                resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                assert resp is True
 
-                with travel_to(now + timedelta(seconds=301)):
-                    resp = worker.is_worker_still_polling(query_interval_seconds=10)
-                    assert resp is False
+            with travel_to(now + timedelta(seconds=301)):
+                resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                assert resp is False
 
-                with travel_to(now + timedelta(minutes=30)):
-                    resp = worker.is_worker_still_polling(query_interval_seconds=60)
-                    assert resp is True
+            with travel_to(now + timedelta(minutes=30)):
+                resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                assert resp is True
 
-                with travel_to(now + timedelta(minutes=30, seconds=1)):
-                    resp = worker.is_worker_still_polling(query_interval_seconds=60)
-                    assert resp is False
+            with travel_to(now + timedelta(minutes=30, seconds=1)):
+                resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                assert resp is False
 
-                # a day-scale gap must not report healthy: timedelta.seconds
-                # discards the days component, so a worker dead for a day and
-                # 30 seconds used to pass the 300 second threshold again
-                with travel_to(now + timedelta(days=1, seconds=30)):
-                    resp = worker.is_worker_still_polling(query_interval_seconds=10)
-                    assert resp is False
+            # a day-scale gap must not report healthy: timedelta.seconds
+            # discards the days component, so a worker dead for a day and
+            # 30 seconds used to pass the 300 second threshold again
+            with travel_to(now + timedelta(days=1, seconds=30)):
+                resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                assert resp is False
     except ExceptionGroup as e:
         raise e.exceptions[0]
 
