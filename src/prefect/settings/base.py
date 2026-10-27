@@ -17,7 +17,6 @@ from pydantic_settings import (
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
-from pydantic_settings.sources import DotenvType
 
 from prefect.settings.sources import (
     EnvFilterSettingsSource,
@@ -27,6 +26,19 @@ from prefect.settings.sources import (
     PyprojectTomlConfigSettingsSource,
 )
 from prefect.utilities.collections import visit_collection
+
+
+class _DefaultEnvFile(tuple[str, ...]):
+    """The `env_file` value set by `build_settings_config`.
+
+    It is empty, so the dotenv source that pydantic-settings builds (and
+    Prefect discards) does not read `.env`. `FilteredDotEnvSettingsSource`
+    reads `.env` in its place. Subclasses can still set `env_file` to another
+    path, or to `None` to not load a dotenv file.
+    """
+
+
+_DEFAULT_ENV_FILE = _DefaultEnvFile()
 
 
 class PrefectBaseSettings(BaseSettings):
@@ -74,9 +86,11 @@ class PrefectBaseSettings(BaseSettings):
             FilteredDotEnvSettingsSource(
                 settings_cls,
                 env_file=(
-                    env_file
-                    if (env_file := cls.model_config.get("env_file")) is not None
-                    else cls.model_config.get("prefect_env_file")
+                    ".env"
+                    if isinstance(
+                        env_file := cls.model_config.get("env_file"), _DefaultEnvFile
+                    )
+                    else env_file
                 ),
                 env_file_encoding=cls.model_config.get("env_file_encoding"),
                 case_sensitive=cls.model_config.get("case_sensitive"),
@@ -230,14 +244,6 @@ class PrefectSettingsConfigDict(SettingsConfigDict, total=False):
     To use the root table, exclude this config setting or provide an empty tuple.
     """
 
-    prefect_env_file: DotenvType | None
-    """
-    Default dotenv file(s) to load settings from. Used instead of `env_file`,
-    which pydantic-settings reads with its own dotenv source that Prefect
-    discards, so `.env` is only read by Prefect's cached dotenv source.
-    An `env_file` set by a subclass takes precedence.
-    """
-
 
 def _add_environment_variables(
     schema: dict[str, Any], model: type[PrefectBaseSettings]
@@ -265,7 +271,7 @@ def build_settings_config(
     env_prefix = f"PREFECT_{'_'.join(path).upper()}_" if path else "PREFECT_"
     return PrefectSettingsConfigDict(
         env_prefix=env_prefix,
-        prefect_env_file=".env",
+        env_file=_DEFAULT_ENV_FILE,
         extra="ignore",
         toml_file="prefect.toml",
         prefect_toml_table_header=path,

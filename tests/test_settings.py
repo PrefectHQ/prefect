@@ -1868,26 +1868,41 @@ class TestSettingsSources:
 
         assert len(dotenv_opens) == 1
 
-    def test_env_file_set_by_subclass_takes_precedence(
+    def test_env_file_can_be_overridden(
         self, temporary_env_file: Callable[[str], None]
     ):
         temporary_env_file("PREFECT_DOTENV_TEST_VALUE=from-dotenv")
         Path("custom.env").write_text("PREFECT_DOTENV_TEST_VALUE=from-custom")
 
-        class BaseDotenvSettings(PrefectBaseSettings):
+        class DefaultEnvFileSettings(PrefectBaseSettings):
             model_config: ClassVar[SettingsConfigDict] = build_settings_config(
                 ("dotenv_test",)
             )
 
             value: str = "default"
 
-        class CustomEnvFileSettings(BaseDotenvSettings):
+        class CustomEnvFileSettings(DefaultEnvFileSettings):
             model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
                 env_file="custom.env"
             )
 
-        assert BaseDotenvSettings().value == "from-dotenv"
+        class SubclassNoEnvFileSettings(DefaultEnvFileSettings):
+            model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+                env_file=None
+            )
+
+        class NoEnvFileSettings(PrefectBaseSettings):
+            model_config: ClassVar[SettingsConfigDict] = {
+                **build_settings_config(("dotenv_test",)),
+                "env_file": None,
+            }
+
+            value: str = "default"
+
+        assert DefaultEnvFileSettings().value == "from-dotenv"
         assert CustomEnvFileSettings().value == "from-custom"
+        assert SubclassNoEnvFileSettings().value == "default"
+        assert NoEnvFileSettings().value == "default"
 
     def test_resolution_order(
         self,
