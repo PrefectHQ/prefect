@@ -6,12 +6,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 import prefect
+from prefect.context import SettingsContext
 from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_SERVER_API_AUTH_STRING,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     PREFECT_UI_API_URL,
     PREFECT_UI_STATIC_DIRECTORY,
+    Profile,
+    get_current_settings,
     temporary_settings,
 )
 
@@ -81,6 +84,28 @@ def test_app_add_csrf_middleware_when_enabled(enabled: bool):
             if "CsrfMiddleware" in str(middleware)
         ]
         assert len(matching) == (1 if enabled else 0)
+
+
+class TestInvalidProfileValue:
+    @pytest.fixture
+    def profile(self) -> Profile:
+        return Profile(name="foo", settings={"PREFECT_SERVER_API_AUTH_STRING": 12345})
+
+    def test_app_is_not_created(self, profile: Profile):
+        with SettingsContext(profile=profile, settings=get_current_settings()):
+            with pytest.raises(
+                ValueError, match="PREFECT_SERVER_API_AUTH_STRING"
+            ) as exc:
+                create_app(ignore_cache=True)
+
+        assert "12345" not in str(exc.value)
+
+    def test_value_overridden_by_the_environment_is_not_checked(
+        self, profile: Profile, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("PREFECT_SERVER_API_AUTH_STRING", "admin:test")
+        with SettingsContext(profile=profile, settings=get_current_settings()):
+            create_app(ignore_cache=True)
 
 
 class TestAuthMiddleware:

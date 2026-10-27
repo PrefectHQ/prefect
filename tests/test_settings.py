@@ -2617,6 +2617,26 @@ class TestInvalidProfileValues:
         # ...and the valid values in the same profile still load.
         assert settings.api.url == "http://localhost:4200/api"
 
+    def test_undecodable_profile_value_is_ignored_with_a_warning(
+        self, profiles_path: Path
+    ):
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_CUSTOM_HEADERS = "{not-json secret-token"
+                """
+            )
+        )
+
+        with pytest.warns(UserWarning, match="PREFECT_CLIENT_CUSTOM_HEADERS") as record:
+            settings = Settings()
+
+        assert all("secret-token" not in str(warning.message) for warning in record)
+        assert settings.client.custom_headers == {}
+
     def test_invalid_profile_value_violating_a_field_constraint_is_ignored(
         self, profiles_path: Path
     ):

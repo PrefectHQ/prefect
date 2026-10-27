@@ -127,6 +127,7 @@ def start(
         generate_welcome_blurb,
         prestart_check,
     )
+    from prefect.context import get_settings_context
     from prefect.settings import (
         PREFECT_HOME,
         PREFECT_SERVER_ANALYTICS_ENABLED,
@@ -140,6 +141,12 @@ def start(
         PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED,
         PREFECT_SERVER_UI_ENABLED,
     )
+    from prefect.settings.profiles import ensure_profile_is_valid_for_server
+
+    try:
+        ensure_profile_is_valid_for_server(get_settings_context().profile)
+    except ValueError as exc:
+        exit_with_error(str(exc))
 
     # Resolve settings-backed defaults
     if host is None:

@@ -315,6 +315,30 @@ def test_unset_retains_other_keys():
     assert profiles["foo"].settings == {PREFECT_TEST_SETTING: "DEBUG"}
 
 
+@pytest.mark.parametrize(
+    "setting, toml_value, secret",
+    [
+        ("PREFECT_SERVER_API_AUTH_STRING", "12345", "12345"),
+        ("PREFECT_CLIENT_CUSTOM_HEADERS", '"{not-json secret-token"', "secret-token"),
+    ],
+)
+def test_unset_repairs_profile_with_invalid_value(
+    temporary_profiles_path: Path, setting: str, toml_value: str, secret: str
+):
+    temporary_profiles_path.write_text(f"[profiles.foo]\n{setting} = {toml_value}\n")
+
+    with pytest.warns(UserWarning, match=setting) as record:
+        result = invoke_and_assert(
+            ["--profile", "foo", "config", "unset", setting],
+            user_input="y",
+            expected_output_contains=f"Unset {setting!r}.",
+        )
+
+    assert all(secret not in str(warning.message) for warning in record)
+    assert secret not in result.stdout + result.stderr
+    assert load_profiles()["foo"].settings == {}
+
+
 def test_unset_warns_if_present_in_environment(monkeypatch):
     monkeypatch.setenv("PREFECT_API_KEY", "TEST")
     save_profiles(

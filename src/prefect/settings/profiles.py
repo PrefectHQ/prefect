@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import warnings
 from collections.abc import Mapping
 from pathlib import Path
@@ -513,6 +514,37 @@ def load_profile(name: str) -> Profile:
         return profiles[name]
     except KeyError:
         raise ValueError(f"Profile {name!r} not found.")
+
+
+def ensure_profile_is_valid_for_server(profile: Profile) -> None:
+    """
+    Raise a `ValueError` if a value the profile applies is invalid.
+
+    Commands skip an invalid profile value with a warning so the profile can be
+    repaired, but the server must not start without a setting it was configured
+    with, such as its authentication string. Values overridden by environment
+    variables are not checked.
+    """
+    overridden = {
+        setting.name
+        for key, setting in _get_settings_fields(Settings).items()
+        if key in os.environ
+    }
+    applied = {
+        setting: value
+        for setting, value in profile.settings.items()
+        if setting.name not in overridden
+    }
+    try:
+        Profile(name=profile.name, settings=applied).validate_settings()
+    except ProfileSettingsValidationError as exc:
+        names = ", ".join(setting.name for setting, _ in exc.errors)
+        raise ValueError(
+            f"Profile {profile.name!r} has invalid values for {names}. Fix them with "
+            f"`prefect --profile {profile.name} config set` or remove them with "
+            f"`prefect --profile {profile.name} config unset` before starting the "
+            "server."
+        ) from None
 
 
 def update_current_profile(

@@ -236,9 +236,13 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         for field_name, field in self.settings_cls.model_fields.items():
             value, key, is_complex = self.get_field_value(field, field_name)
             if value is not None:
-                prepared_value = self.prepare_field_value(
-                    field_name, field, value, is_complex
-                )
+                try:
+                    prepared_value = self.prepare_field_value(
+                        field_name, field, value, is_complex
+                    )
+                except ValueError:
+                    self._warn_invalid_value(field, field_name, "invalid JSON")
+                    continue
                 if not self._is_valid_value(field, field_name, prepared_value):
                     continue
                 profile_settings[key] = prepared_value
@@ -274,21 +278,8 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         try:
             adapter.validate_python(value)
         except ValidationError as exc:
-            name = self._profile_key(field, field_name)
             problems = "; ".join(error["msg"] for error in exc.errors())
-            where = (
-                f"profile {self._profile_name!r}"
-                if self._profile_name
-                else "the active profile"
-            )
-            # The value itself is left out of the message, since it may be a
-            # secret such as an API key.
-            warnings.warn(
-                f"Ignoring invalid value for setting {name} in {where}: "
-                f"{problems}. Fix it with `prefect config set {name}=<value>` or "
-                f"remove it with `prefect config unset {name}`.",
-                stacklevel=2,
-            )
+            self._warn_invalid_value(field, field_name, problems)
             return False
         except Exception:
             # Some validators need the model's other values (for example
@@ -296,6 +287,24 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
             # not have. Leave those to the model's validation.
             return True
         return True
+
+    def _warn_invalid_value(
+        self, field: FieldInfo, field_name: str, problems: str
+    ) -> None:
+        name = self._profile_key(field, field_name)
+        where = (
+            f"profile {self._profile_name!r}"
+            if self._profile_name
+            else "the active profile"
+        )
+        # The value itself is left out of the message, since it may be a
+        # secret such as an API key.
+        warnings.warn(
+            f"Ignoring invalid value for setting {name} in {where}: "
+            f"{problems}. Fix it with `prefect config set {name}=<value>` or "
+            f"remove it with `prefect config unset {name}`.",
+            stacklevel=3,
+        )
 
     def _profile_key(self, field: FieldInfo, field_name: str) -> str:
         """
