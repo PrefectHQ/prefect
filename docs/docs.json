@@ -1493,6 +1493,7 @@
                           {
                             "group": "models",
                             "pages": [
+                              "v3/api-ref/python/prefect-server-events-models-automation_held_events",
                               "v3/api-ref/python/prefect-server-events-models-automations",
                               "v3/api-ref/python/prefect-server-events-models-composite_trigger_child_firing"
                             ]
@@ -1816,6 +1817,7 @@
           {
             "group": "OSS",
             "pages": [
+              "v3/release-notes/oss/version-3-9",
               "v3/release-notes/oss/version-3-8",
               "v3/release-notes/oss/version-3-7",
               "v3/release-notes/oss/version-3-6",
