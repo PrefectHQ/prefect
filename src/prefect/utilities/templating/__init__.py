@@ -152,13 +152,14 @@ def apply_values(
 
     If a template contains a placeholder that is not in `values`, NotSet will
     be returned to signify that no placeholder replacement occurred. If
-    `template` is a dictionary that contains a key with a value of NotSet,
-    the key will be removed in the return value unless `remove_notset` is set to False.
+    `template` is a dictionary or list that contains a value of NotSet, the
+    key or item will be removed in the return value unless `remove_notset` is
+    set to False, in which case the original value is kept.
 
     Args:
         template: template to discover and replace values in
         values: The values to apply to placeholders in the template
-        remove_notset: If True, remove keys with an unset value
+        remove_notset: If True, remove keys and list items with an unset value
         warn_on_notset: If True, warn when a placeholder is not found in `values`
         skip_prefixes: If provided, placeholders whose names start with any of
             these prefixes will be left untouched in the template.
@@ -200,6 +201,7 @@ def apply_values(
                 )
             return value
         else:
+            replacements: dict[str, str] = {}
             for full_match, name, placeholder_type in placeholders:
                 if placeholder_type is PlaceholderType.STANDARD:
                     value = get_from_dict(values, name, NotSet)
@@ -216,11 +218,16 @@ def apply_values(
                             "the placeholder is spelled correctly and that the corresponding value is provided.",
                         )
                     if remove_notset:
-                        template = template.replace(full_match, "")
+                        replacements[full_match] = ""
                 else:
-                    template = template.replace(full_match, str(value))
+                    replacements[full_match] = str(value)
 
-            return template
+            # Substitute in a single pass over the original template so that
+            # inserted values are never themselves treated as placeholders.
+            return PLACEHOLDER_CAPTURE_REGEX.sub(
+                lambda match: replacements.get(match.group(1), match.group(1)),
+                template,
+            )
     elif isinstance(template, dict):
         updated_template: dict[str, Any] = {}
         for key, value in template.items():
@@ -249,6 +256,8 @@ def apply_values(
             )
             if updated_value is not NotSet:
                 updated_list.append(updated_value)
+            elif not remove_notset:
+                updated_list.append(value)
         return cast(T, updated_list)
     else:
         raise ValueError(f"Unexpected template type {type(template).__name__!r}")
@@ -401,8 +410,15 @@ async def resolve_block_document_references(
         value: Any = data
 
         if len(data) == 1 and "value" in data:
-            # only resolve the value if the keypath is not already pointing to "value"
-            if not (value_keypath and value_keypath[0].startswith("value")):
+            # only resolve the value if the keypath is not already pointing to "value";
+            # a key that merely starts with "value" (e.g. "values") is inside it
+            if not (
+                value_keypath
+                and (
+                    value_keypath[0] == "value"
+                    or value_keypath[0].startswith(("value.", "value["))
+                )
+            ):
                 data = value = value["value"]
 
         if value_keypath:

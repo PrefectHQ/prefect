@@ -416,6 +416,34 @@ describe("trigger-utils", () => {
 		});
 
 		describe("isFlowRunStateTrigger", () => {
+			it.each([
+				"heartbeat",
+				"pull-step.executed",
+				"pull-step.failed",
+				"Data*",
+				"Data?",
+				"Data[12]",
+			])("keeps %s events in the custom editor", (name) => {
+				const trigger = createFlowRunStateTrigger({
+					expect: [`prefect.flow-run.${name}`],
+				});
+				expect(getAutomationTriggerTemplate(trigger)).toBe("custom");
+			});
+
+			it("keeps proactive triggers with a state type match in the custom editor", () => {
+				const trigger = createFlowRunStateTrigger({
+					posture: "Proactive",
+					match: {
+						"prefect.resource.id": "prefect.flow-run.*",
+						"prefect.state-type": ["RUNNING"],
+					},
+					after: ["prefect.flow-run.Running"],
+					expect: [],
+					within: 60,
+				});
+				expect(getAutomationTriggerTemplate(trigger)).toBe("custom");
+			});
+
 			it("should return true for valid flow-run-state trigger", () => {
 				const trigger = createFlowRunStateTrigger();
 				expect(isFlowRunStateTrigger(trigger)).toBe(true);
@@ -592,6 +620,41 @@ describe("trigger-utils", () => {
 				});
 				expect(isFlowRunStateTrigger(trigger)).toBe(false);
 			});
+
+			it("should return true with wildcard after and expect events", () => {
+				const trigger = createFlowRunStateTrigger({
+					after: ["prefect.flow-run.*"],
+					expect: ["prefect.flow-run.*"],
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(true);
+			});
+
+			it("should return false when after events are flow run events but not state names", () => {
+				const trigger = createFlowRunStateTrigger({
+					posture: "Proactive",
+					after: ["prefect.flow-run.heartbeat"],
+					expect: ["prefect.flow-run.*"],
+					within: 90,
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(false);
+			});
+
+			it("accepts custom state names", () => {
+				expect(
+					isFlowRunStateTrigger(
+						createFlowRunStateTrigger({
+							expect: ["prefect.flow-run.Baseline NOT Met"],
+						}),
+					),
+				).toBe(true);
+			});
+
+			it("should return false when expect events are flow run events but not state names", () => {
+				const trigger = createFlowRunStateTrigger({
+					expect: ["prefect.flow-run.heartbeat"],
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(false);
+			});
 		});
 
 		describe("isWorkPoolStatusTrigger", () => {
@@ -698,6 +761,16 @@ describe("trigger-utils", () => {
 
 			it("should return custom when threshold is not 1", () => {
 				const trigger = createDeploymentStatusTrigger({ threshold: 5 });
+				expect(getAutomationTriggerTemplate(trigger)).toBe("custom");
+			});
+
+			it("should return custom for the heartbeat-based zombie flow trigger", () => {
+				const trigger = createFlowRunStateTrigger({
+					posture: "Proactive",
+					after: ["prefect.flow-run.heartbeat"],
+					expect: ["prefect.flow-run.*"],
+					within: 90,
+				});
 				expect(getAutomationTriggerTemplate(trigger)).toBe("custom");
 			});
 		});

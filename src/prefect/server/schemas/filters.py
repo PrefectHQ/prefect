@@ -1551,14 +1551,16 @@ class LogFilterTextSearch(PrefectFilterBaseModel):
         parsed = parse_text_search_query(self.query)
 
         # Build combined searchable text field (message + name)
-        searchable_field = sa.func.concat(db.Log.message, " ", db.Log.name)
+        searchable_field = db.Log.message + " " + db.Log.name
 
         # Handle include terms (OR logic)
         if parsed.include:
             include_conditions = []
             for term in parsed.include:
                 include_conditions.append(
-                    sa.func.lower(searchable_field).contains(term.lower())
+                    sa.func.lower(searchable_field).contains(
+                        term.lower(), autoescape=True
+                    )
                 )
 
             if include_conditions:
@@ -1569,7 +1571,9 @@ class LogFilterTextSearch(PrefectFilterBaseModel):
             exclude_conditions = []
             for term in parsed.exclude:
                 exclude_conditions.append(
-                    ~sa.func.lower(searchable_field).contains(term.lower())
+                    ~sa.func.lower(searchable_field).contains(
+                        term.lower(), autoescape=True
+                    )
                 )
 
             if exclude_conditions:
@@ -1580,7 +1584,9 @@ class LogFilterTextSearch(PrefectFilterBaseModel):
             required_conditions = []
             for term in parsed.required:
                 required_conditions.append(
-                    sa.func.lower(searchable_field).contains(term.lower())
+                    sa.func.lower(searchable_field).contains(
+                        term.lower(), autoescape=True
+                    )
                 )
 
             if required_conditions:

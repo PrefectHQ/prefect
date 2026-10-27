@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import dateutil
+import jsonschema
 import pytest
 from dateutil import rrule
 from pydantic import ValidationError
@@ -15,14 +16,33 @@ from prefect.server.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
+    _seek_calendar_interval,
 )
-from prefect.types._datetime import now, parse_datetime
+from prefect.types._datetime import _whenever_to_stdlib, now, parse_datetime
 
 dt = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
 RRDaily = "FREQ=DAILY"
 
 
 class TestCreateIntervalSchedule:
+    @pytest.mark.parametrize("interval", [60, 0.5, "PT1M"])
+    def test_interval_schema_accepts_supported_inputs(self, interval: float | str):
+        schedule = IntervalSchedule.model_validate({"interval": interval})
+        jsonschema.validate(
+            {"interval": interval}, IntervalSchedule.model_json_schema()
+        )
+        jsonschema.validate(
+            schedule.model_dump(mode="json"),
+            IntervalSchedule.model_json_schema(mode="serialization"),
+        )
+
+    @pytest.mark.parametrize("interval", [0, -60])
+    def test_interval_schema_rejects_nonpositive_seconds(self, interval: int):
+        validator = jsonschema.Draft202012Validator(
+            IntervalSchedule.model_json_schema()
+        )
+        assert not validator.is_valid({"interval": interval})
+
     def test_interval_is_required(self):
         with pytest.raises(ValidationError):
             IntervalSchedule()
@@ -583,6 +603,115 @@ class TestIntervalScheduleDaylightSavingsTime:
             14,
         ]
 
+    @pytest.mark.parametrize(
+        "anchor, start, utc_hour",
+        [
+            # anchored in EDT, start after clocks fall back to EST
+            (datetime(2026, 10, 1, 9), datetime(2026, 11, 5, 12), 14),
+            # anchored in EST, start after clocks spring forward to EDT
+            (datetime(2026, 1, 1, 9), datetime(2026, 3, 20, 12), 13),
+            # anchored in EDT, start over a year later in EST
+            (datetime(2025, 7, 1, 9), datetime(2026, 12, 1, 12), 14),
+        ],
+    )
+    async def test_interval_schedule_daily_start_after_daylight_savings_change(
+        self, anchor: datetime, start: datetime, utc_hour: int
+    ):
+        """
+        A daily schedule anchored at 9am America/New_York must return 9am dates
+        even when the start date is on the other side of a DST change from the
+        anchor, so the jump from the anchor to the start must not be done in
+        exact seconds.
+        """
+        ny = ZoneInfo("America/New_York")
+        s = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=anchor.replace(tzinfo=ny),
+            timezone="America/New_York",
+        )
+        dates = await s.get_dates(n=3, start=start.replace(tzinfo=ny))
+
+        assert [d.astimezone(ny).hour for d in dates] == [9, 9, 9]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [utc_hour] * 3
+
+    async def test_interval_schedule_dates_are_consistent_across_start_dates(self):
+        """
+        The dates returned for a start date after a DST change must be the same
+        dates returned when stepping through the change from an earlier start.
+        """
+        ny = ZoneInfo("America/New_York")
+        s = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=datetime(2026, 10, 1, 9, tzinfo=ny),
+            timezone="America/New_York",
+        )
+        before = await s.get_dates(n=10, start=datetime(2026, 10, 30, 12, tzinfo=ny))
+        after = await s.get_dates(n=3, start=datetime(2026, 11, 5, 12, tzinfo=ny))
+
+        assert after == before[6:9]
+
+    async def test_daily_schedule_keeps_its_series_after_nonexistent_local_time(self):
+        ny = ZoneInfo("America/New_York")
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=datetime(2026, 3, 7, 2, 30, tzinfo=ny),
+            timezone="America/New_York",
+        )
+
+        from_anchor = await schedule.get_dates(
+            n=5, start=datetime(2026, 3, 7, 2, 30, tzinfo=ny)
+        )
+        from_after_gap = await schedule.get_dates(
+            n=2, start=datetime(2026, 3, 9, 12, tzinfo=ny)
+        )
+
+        assert [date.astimezone(ny).hour for date in from_anchor] == [2, 3, 3, 3, 3]
+        assert from_after_gap == from_anchor[3:5]
+
+    async def test_future_daily_anchor_remains_in_series_across_dst_gap(self):
+        ny = ZoneInfo("America/New_York")
+        anchor = datetime(2026, 3, 10, 2, 30, tzinfo=ny)
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=anchor,
+            timezone="America/New_York",
+        )
+
+        from_before_gap = await schedule.get_dates(
+            n=4, start=datetime(2026, 3, 7, 12, tzinfo=ny)
+        )
+        from_after_gap = await schedule.get_dates(
+            n=2, start=datetime(2026, 3, 9, 12, tzinfo=ny)
+        )
+
+        assert [d.astimezone(ny).strftime("%m-%d %H:%M") for d in from_before_gap] == [
+            "03-08 03:30",
+            "03-09 02:30",
+            "03-10 02:30",
+            "03-11 02:30",
+        ]
+        assert from_after_gap == from_before_gap[2:]
+
+    async def test_interval_schedule_mixed_interval_advances_sequentially(self):
+        """
+        An interval mixing calendar days and exact hours is applied one step at a
+        time, so each step across a DST change shifts the local time by the hours
+        component (the pre-existing behavior for such intervals).
+        """
+        ny = ZoneInfo("America/New_York")
+        s = IntervalSchedule(
+            interval=timedelta(days=1, hours=2),
+            anchor_date=datetime(2026, 3, 7, tzinfo=ny),
+            timezone="America/New_York",
+        )
+        dates = await s.get_dates(n=3, start=datetime(2026, 3, 7, tzinfo=ny))
+
+        assert [d.astimezone(ny).strftime("%m-%d %H:%M") for d in dates] == [
+            "03-07 00:00",
+            "03-08 03:00",
+            "03-09 05:00",
+        ]
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 13),
@@ -695,6 +824,190 @@ class TestIntervalScheduleDateTimeDelta:
 
         with pytest.raises(ValidationError, match="interval must be positive"):
             IntervalSchedule(interval=ItemizedDelta(hours=-1))
+
+    async def test_daily_itemized_delta_start_after_daylight_savings_change(self):
+        """A daily ItemizedDelta anchored at 9am stays at 9am when the start
+        date is after the clocks fall back."""
+        from whenever import ItemizedDelta
+
+        ny = ZoneInfo("America/New_York")
+        s = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(2026, 10, 1, 9, tzinfo=ny),
+            timezone="America/New_York",
+        )
+        dates = await s.get_dates(n=3, start=datetime(2026, 11, 5, 12, tzinfo=ny))
+
+        assert [d.astimezone(ny).hour for d in dates] == [9, 9, 9]
+
+    async def test_daily_itemized_delta_keeps_its_series_after_nonexistent_time(self):
+        from whenever import ItemizedDelta
+
+        ny = ZoneInfo("America/New_York")
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(2026, 3, 7, 2, 30, tzinfo=ny),
+            timezone="America/New_York",
+        )
+
+        dates = await schedule.get_dates(n=2, start=datetime(2026, 3, 9, 12, tzinfo=ny))
+
+        assert [date.astimezone(ny).strftime("%m-%d %H:%M") for date in dates] == [
+            "03-10 03:30",
+            "03-11 03:30",
+        ]
+
+    async def test_future_daily_itemized_delta_anchor_across_dst_gap(self):
+        from whenever import ItemizedDelta
+
+        ny = ZoneInfo("America/New_York")
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(days=1),
+            anchor_date=datetime(2026, 3, 10, 2, 30, tzinfo=ny),
+            timezone="America/New_York",
+        )
+
+        dates = await schedule.get_dates(n=3, start=datetime(2026, 3, 7, 12, tzinfo=ny))
+
+        assert [d.astimezone(ny).strftime("%m-%d %H:%M") for d in dates] == [
+            "03-08 03:30",
+            "03-09 02:30",
+            "03-10 02:30",
+        ]
+
+    async def test_monthly_itemized_delta_clamps_to_month_end_sequentially(self):
+        """A monthly ItemizedDelta advances one month at a time, so a
+        January 31 anchor clamps to February 28 and stays on the 28th."""
+        from whenever import ItemizedDelta
+
+        ny = ZoneInfo("America/New_York")
+        s = IntervalSchedule(
+            interval=ItemizedDelta(months=1),
+            anchor_date=datetime(2026, 1, 31, 9, tzinfo=ny),
+            timezone="America/New_York",
+        )
+        dates = await s.get_dates(n=3, start=datetime(2026, 1, 31, 9, tzinfo=ny))
+
+        assert [d.astimezone(ny).strftime("%m-%d") for d in dates] == [
+            "01-31",
+            "02-28",
+            "03-28",
+        ]
+
+        later_dates = await s.get_dates(n=2, start=datetime(2026, 3, 15, 9, tzinfo=ny))
+        assert [d.astimezone(ny).strftime("%m-%d") for d in later_dates] == [
+            "03-28",
+            "04-28",
+        ]
+
+    async def test_monthly_itemized_delta_start_after_dst_keeps_anchor_series(self):
+        from whenever import ItemizedDelta
+
+        ny = ZoneInfo("America/New_York")
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(months=1),
+            anchor_date=datetime(2026, 1, 1, 9, tzinfo=ny),
+            timezone="America/New_York",
+        )
+
+        dates = await schedule.get_dates(n=2, start=datetime(2026, 9, 15, tzinfo=ny))
+
+        assert [date.astimezone(ny).strftime("%Y-%m-%d %H:%M") for date in dates] == [
+            "2026-10-01 09:00",
+            "2026-11-01 09:00",
+        ]
+
+
+class TestCalendarIntervalSeeking:
+    @pytest.mark.parametrize("days", [1, 2, 7])
+    @pytest.mark.parametrize(
+        "timezone, anchor",
+        [
+            ("America/New_York", datetime(2026, 3, 6, 2, 30)),
+            ("America/New_York", datetime(2026, 10, 28, 1, 30)),
+            ("Australia/Lord_Howe", datetime(2026, 10, 2, 2, 15)),
+            ("Pacific/Apia", datetime(2011, 12, 28, 9)),
+            # Recurring rules beyond the explicit TZif transition table.
+            ("America/New_York", datetime(2050, 3, 10, 2, 30)),
+        ],
+    )
+    async def test_seek_matches_repeated_calendar_additions(
+        self, timezone, anchor, days
+    ):
+        anchor = anchor.replace(tzinfo=ZoneInfo(timezone))
+        schedule = IntervalSchedule(
+            interval=timedelta(days=days), anchor_date=anchor, timezone=timezone
+        )
+        reference = await schedule.get_dates(n=400, start=anchor)
+        later_start = reference[200] + timedelta(minutes=1)
+        assert await schedule.get_dates(n=3, start=later_start) == reference[201:204]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Calendar months require whenever"
+    )
+    @pytest.mark.parametrize("months", [1, 2, 12])
+    @pytest.mark.parametrize("timezone", ["UTC", "America/New_York"])
+    @pytest.mark.parametrize(
+        "anchor", [datetime(2000, 2, 29, 9), datetime(2001, 1, 31, 2, 30)]
+    )
+    async def test_month_seek_preserves_cumulative_clamping(
+        self, months, timezone, anchor
+    ):
+        from whenever import ItemizedDelta
+
+        anchor = anchor.replace(tzinfo=ZoneInfo(timezone))
+        schedule = IntervalSchedule(
+            interval=ItemizedDelta(months=months), anchor_date=anchor, timezone=timezone
+        )
+        reference = await schedule.get_dates(n=180, start=anchor)
+        later_start = reference[110] + timedelta(minutes=1)
+        assert await schedule.get_dates(n=3, start=later_start) == reference[111:114]
+
+    def test_old_daily_anchor_seeks_by_transitions_not_days(self):
+        timezone = "America/New_York"
+        anchor = datetime(1880, 1, 1, 9, tzinfo=ZoneInfo(timezone))
+        start = datetime(2026, 10, 24, 9, tzinfo=ZoneInfo(timezone))
+        steps = []
+
+        def advance(dt, count, _clamped_day):
+            steps.append(count)
+            return _whenever_to_stdlib(
+                Instant.from_timestamp(dt.timestamp()).to_tz(timezone).add(days=count)
+            )
+
+        result = _seek_calendar_interval(
+            anchor, start, timezone, days=1, advance=advance
+        )
+        assert result == start
+        # A deterministic work budget, independent of machine speed.
+        assert sum(steps) > 50_000
+        assert len(steps) < 2_000
+        assert max(steps) > 1_000
+
+    @pytest.mark.parametrize("months, expected_day", [(1, 28), (2, 30), (12, 31)])
+    def test_old_monthly_anchor_seeks_without_replaying_months(
+        self, months, expected_day
+    ):
+        anchor = datetime(1700, 1, 31, 9, tzinfo=ZoneInfo("UTC"))
+        start = datetime(2026, 1, 1, tzinfo=ZoneInfo("UTC"))
+        steps = []
+
+        def advance(dt, count, clamped_day):
+            steps.append(count)
+            result = (
+                Instant.from_timestamp(dt.timestamp())
+                .to_tz("UTC")
+                .add(months=months * count)
+            )
+            if clamped_day is not None:
+                result = result.replace(day=clamped_day)
+            return _whenever_to_stdlib(result)
+
+        result = _seek_calendar_interval(
+            anchor, start, "UTC", months=months, advance=advance
+        )
+        assert result == datetime(2026, 1, expected_day, 9, tzinfo=ZoneInfo("UTC"))
+        assert len(steps) <= 2
 
 
 class TestCronScheduleDaylightSavingsTime:

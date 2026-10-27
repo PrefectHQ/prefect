@@ -1,6 +1,7 @@
 import concurrent.futures
 import socket
 import threading
+import urllib.parse
 import uuid
 from datetime import timedelta
 from typing import Any, Literal, cast
@@ -11,6 +12,7 @@ import httpx
 import pytest
 
 from prefect.blocks.webhook import Webhook
+from prefect.client.schemas.objects import WorkPool
 from prefect.events.schemas.automations import Automation, EventTrigger, Posture
 from prefect.events.schemas.events import ReceivedEvent, Resource
 from prefect.futures import PrefectConcurrentFuture, PrefectDistributedFuture
@@ -470,6 +472,42 @@ def test_url_for_with_additional_format_kwargs():
             url
             == f"{MOCK_PREFECT_UI_URL}/work-pools/work-pool/my-work-pool/worker/123e4567-e89b-12d3-a456-426614174000"
         )
+
+
+@pytest.mark.parametrize(
+    "url_type, base_url, expected_path",
+    [
+        ("ui", MOCK_PREFECT_UI_URL, "work-pools/work-pool/gpu%23west%3Fblue"),
+        ("api", MOCK_PREFECT_API_URL, "work_pools/gpu%23west%3Fblue"),
+    ],
+)
+def test_url_for_work_pool_encodes_name_as_single_path_segment(
+    url_type: Literal["ui", "api"], base_url: str, expected_path: str
+):
+    work_pool = WorkPool(name="gpu#west?blue", type="process")
+    with temporary_settings(
+        {PREFECT_UI_URL: MOCK_PREFECT_UI_URL, PREFECT_API_URL: MOCK_PREFECT_API_URL}
+    ):
+        url = url_for(obj=work_pool, url_type=url_type)
+
+    assert url == f"{base_url}/{expected_path}"
+    parsed = urllib.parse.urlparse(url)
+    assert parsed.query == ""
+    assert parsed.fragment == ""
+
+
+def test_url_for_worker_encodes_work_pool_name():
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+        url = url_for(
+            obj="worker",
+            obj_id="123e4567-e89b-12d3-a456-426614174000",
+            work_pool_name="gpu#west?blue",
+        )
+
+    assert (
+        url
+        == f"{MOCK_PREFECT_UI_URL}/work-pools/work-pool/gpu%23west%3Fblue/worker/123e4567-e89b-12d3-a456-426614174000"
+    )
 
 
 def test_url_for_with_additional_format_kwargs_raises_if_placeholder_not_replaced():

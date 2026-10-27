@@ -1,11 +1,16 @@
 """Tests for the pause_expirations docket task functions."""
 
 from datetime import datetime, timedelta, timezone
+from uuid import UUID, uuid4
 
 import pytest
+from docket import Docket
 
 from prefect.server import models, schemas
-from prefect.server.services.pause_expirations import fail_expired_pause
+from prefect.server.services.pause_expirations import (
+    fail_expired_pause,
+    monitor_expired_pauses,
+)
 
 pytestmark = pytest.mark.clear_db
 
@@ -101,3 +106,33 @@ async def test_ignores_non_paused_flow_run(session, flow, db):
     await fail_expired_pause(running_flow_run.id, str(THE_PAST), db=db)
     await session.refresh(running_flow_run)
     assert running_flow_run.state.type == "RUNNING"
+
+
+async def test_monitor_finds_expired_pause_past_first_batch(session, flow, db):
+    async with session.begin():
+        for _ in range(200):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    state=schemas.states.Paused(pause_expiration_time=THE_FUTURE),
+                ),
+            )
+        # sorts after every other run, so it can't land in the first batch
+        expired = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                id=UUID(int=2**128 - 1),
+                flow_id=flow.id,
+                state=schemas.states.Paused(pause_expiration_time=THE_PAST),
+            ),
+        )
+
+    async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+        # the second pass checks that a pending failure isn't enqueued again
+        for _ in range(2):
+            await monitor_expired_pauses(docket=docket, db=db)
+        snapshot = await docket.snapshot()
+
+    scheduled_ids = [execution.args[0] for execution in snapshot.future]
+    assert scheduled_ids == [expired.id]

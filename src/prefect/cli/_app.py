@@ -83,7 +83,9 @@ def _setup_and_run(
         if not settings.testing.test_mode:
             setup_logging()
 
-        if sys.platform == "win32":
+        # asyncio's default policy already uses ProactorEventLoop on Windows;
+        # the policy classes are deprecated in 3.14+ and removed in 3.16
+        if sys.platform == "win32" and sys.version_info < (3, 14):
             asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
         if tokens == ("--help",):

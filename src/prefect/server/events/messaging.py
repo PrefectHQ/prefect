@@ -52,6 +52,7 @@ class EventPublisher(Publisher):
         if len(encoded) > PREFECT_EVENTS_MAXIMUM_SIZE_BYTES.value():
             logger.warning(
                 "Refusing to publish event of size %s",
+                len(encoded),
                 extra={
                     "event_id": str(event.id),
                     "event": event.event[:100],

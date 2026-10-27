@@ -80,6 +80,27 @@ def _install_termination_handler(handler: Callable[[], None]) -> bool:
     return True
 
 
+async def _final_state_blocking_reschedule(
+    client: PrefectClient, flow_run_id: UUID
+) -> State | None:
+    """Return the run's state if the server already finished it, so a SIGTERM
+    reschedule must leave it alone.
+
+    `Crashed` does not block, since an eviction observer can mark the run `Crashed`
+    before the reschedule lands. A failed read does not block either.
+    """
+    try:
+        state = (await client.read_flow_run(flow_run_id)).state
+    except Exception:
+        logger.warning(
+            "Failed to read flow run state; rescheduling anyway.", exc_info=True
+        )
+        return None
+    if state is not None and state.is_final() and not state.is_crashed():
+        return state
+    return None
+
+
 flow_run_app: cyclopts.App = cyclopts.App(
     name="flow-run",
     alias="flow-runs",
@@ -156,11 +177,8 @@ async def inspect(
     async with get_client() as client:
         try:
             flow_run = await client.read_flow_run(id)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                exit_with_error(f"Flow run {id!r} not found!")
-            else:
-                raise
+        except ObjectNotFound:
+            exit_with_error(f"Flow run '{id}' not found!")
 
     if web:
         flow_run_url = url_for("flow-run", obj_id=id)
@@ -760,6 +778,7 @@ async def execute(
 
     intent = _termination_intent()
     terminated = False
+    rescheduled = False
 
     with tempfile.TemporaryDirectory(prefix="prefect-flow-run-") as workspace_root:
         async with FlowRunExecutorContext() as ctx:
@@ -785,7 +804,7 @@ async def execute(
             async with anyio.create_task_group() as tg:
 
                 async def _terminate_on_signal() -> None:
-                    nonlocal terminated
+                    nonlocal terminated, rescheduled
                     await terminating.wait()
                     logger.info("SIGTERM received, initiating graceful shutdown...")
 
@@ -808,14 +827,25 @@ async def execute(
                         )
 
                     if intent == "reschedule":
-                        try:
-                            await propose_state(
-                                ctx.client, AwaitingRetry(), flow_run_id=id
+                        already_final = await _final_state_blocking_reschedule(
+                            ctx.client, id
+                        )
+                        if already_final is not None:
+                            logger.info(
+                                "Flow run is already in final state %r; not"
+                                " rescheduling.",
+                                already_final.name,
                             )
-                        except (Abort, Pause):
-                            pass
-                        except Exception:
-                            logger.exception("Failed to reschedule flow run")
+                        else:
+                            try:
+                                state = await propose_state(
+                                    ctx.client, AwaitingRetry(), flow_run_id=id
+                                )
+                                rescheduled = state.is_scheduled()
+                            except (Abort, Pause):
+                                pass
+                            except Exception:
+                                logger.exception("Failed to reschedule flow run")
 
                     await ctx.process_manager.kill(id, force=not acknowledged)
                     terminated = True
@@ -835,6 +865,10 @@ async def execute(
     # anyio task group gets wrapped in an exception group, losing the exit code.
     if terminated:
         if intent == "reschedule":
-            exit_with_success("Flow run successfully rescheduled.")
+            exit_with_success(
+                "Flow run successfully rescheduled."
+                if rescheduled
+                else "Flow run was not rescheduled."
+            )
         # Non-zero so the terminating infrastructure retries this attempt.
         exit_with_error("Flow run relinquished to infrastructure retry.")

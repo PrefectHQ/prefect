@@ -4,6 +4,7 @@ on:
     branches:
       - main
     paths:
+      - ".github/workflows/validate_worker_metadata.yaml"
       - "src/prefect/server/api/collections_data/views/*.json"
 jobs:
   submit-update-pr:
@@ -16,7 +17,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Install dependencies
         run: |

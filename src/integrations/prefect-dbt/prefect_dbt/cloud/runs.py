@@ -301,5 +301,5 @@ async def wait_for_dbt_cloud_job_run(
 
     raise DbtCloudJobRunTimedOut(
         f"Max wait time of {max_wait_seconds} seconds exceeded while waiting "
-        "for job run with ID {run_id}"
+        f"for job run with ID {run_id}"
     )

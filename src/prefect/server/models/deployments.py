@@ -164,7 +164,7 @@ async def create_deployment(
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
     job_variables = insert_values.pop("job_variables", None)
-    if job_variables:
+    if job_variables is not None:
         insert_values["infra_overrides"] = job_variables
 
     conflict_update_fields = deployment.model_dump_for_orm(
@@ -179,7 +179,7 @@ async def create_deployment(
             "version_info",
         },
     )
-    if job_variables:
+    if job_variables is not None:
         conflict_update_fields["infra_overrides"] = job_variables
 
     insert_stmt = (
@@ -326,7 +326,7 @@ async def update_deployment(
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
     job_variables = update_data.pop("job_variables", None)
-    if job_variables:
+    if job_variables is not None:
         update_data["infra_overrides"] = job_variables
 
     should_update_schedules = update_data.pop("schedules", None) is not None
@@ -1005,12 +1005,14 @@ async def _insert_scheduled_flow_runs(
 
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
-    # because it uses a single bind parameter
+    # because it uses a single bind parameter. The `state` is a hybrid
+    # property backed by a separate table, so it is inserted below rather
+    # than as part of the flow run rows.
     await session.execute(
         db.queries.insert(db.FlowRun).on_conflict_do_nothing(
             index_elements=db.orm.flow_run_unique_upsert_columns
         ),
-        runs,
+        [{k: v for k, v in run.items() if k != "state"} for run in runs],
     )
 
     # query for the rows that were newly inserted (by checking for any flow runs with

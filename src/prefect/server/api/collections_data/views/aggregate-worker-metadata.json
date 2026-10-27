@@ -59,7 +59,7 @@
       "documentation_url": "https://docs.prefect.io/latest/api-ref/prefect/workers/process/",
       "install_command": "pip install prefect",
       "is_beta": false,
-      "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/356e6766a91baf20e1d08bbe16e8b5aaef4d8643-48x48.png",
+      "logo_url": "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/process.png",
       "type": "process"
     }
   },
@@ -409,7 +409,7 @@
       "documentation_url": "https://prefecthq.github.io/prefect-aws/ecs_worker/",
       "install_command": "pip install prefect-aws",
       "is_beta": false,
-      "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png",
+      "logo_url": "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/aws.png",
       "type": "ecs"
     }
   },
@@ -740,7 +740,7 @@
       "documentation_url": "https://prefecthq.github.io/prefect-azure/container_instance_worker/",
       "install_command": "pip install prefect-azure",
       "is_beta": false,
-      "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png",
+      "logo_url": "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-azure.png",
       "type": "azure-container-instance"
     }
   },
@@ -760,6 +760,7 @@
           "auto_remove": "{{ auto_remove }}",
           "volumes": "{{ volumes }}",
           "stream_output": "{{ stream_output }}",
+          "container_wait_timeout": "{{ container_wait_timeout }}",
           "mem_limit": "{{ mem_limit }}",
           "memswap_limit": "{{ memswap_limit }}",
           "privileged": "{{ privileged }}"
@@ -856,6 +857,12 @@
               "default": true,
               "type": "boolean"
             },
+            "container_wait_timeout": {
+              "title": "Container Wait Timeout",
+              "description": "Maximum number of seconds the worker waits for a created container to exit. If the container has not exited within this time, the worker stops watching it; the container itself is not stopped. If not set, the worker waits indefinitely.",
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
             "mem_limit": {
               "title": "Memory Limit",
               "description": "Memory limit of created containers. Accepts a value with a unit identifier (e.g. 100000b, 1000k, 128m, 1g.) If a value is given without a unit, bytes are assumed.",
@@ -923,7 +930,7 @@
       "documentation_url": "https://prefecthq.github.io/prefect-docker/worker/",
       "install_command": "pip install prefect-docker",
       "is_beta": false,
-      "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/14a315b79990200db7341e42553e23650b34bb96-250x250.png",
+      "logo_url": "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/docker.png",
       "type": "docker"
     }
   },
@@ -1112,7 +1119,7 @@
       "documentation_url": "https://prefecthq.github.io/prefect-gcp/cloud_run_worker/",
       "install_command": "pip install prefect-gcp",
       "is_beta": false,
-      "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png",
+      "logo_url": "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/googlecloud.png",
       "type": "cloud-run"
     },
     "cloud-run-v2": {
@@ -1313,7 +1320,7 @@
       "documentation_url": "https://prefecthq.github.io/prefect-gcp/worker_v2/",
       "install_command": "pip install prefect-gcp",
       "is_beta": false,
-      "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png",
+      "logo_url": "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/googlecloud.png",
       "type": "cloud-run-v2"
     },
     "vertex-ai": {
@@ -1505,7 +1512,7 @@
       "documentation_url": "https://prefecthq.github.io/prefect-gcp/vertex_worker/",
       "install_command": "pip install prefect-gcp",
       "is_beta": false,
-      "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png",
+      "logo_url": "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/googlecloud.png",
       "type": "vertex-ai"
     }
   },
@@ -1706,7 +1713,7 @@
       "documentation_url": "https://prefecthq.github.io/prefect-kubernetes/worker/",
       "install_command": "pip install prefect-kubernetes",
       "is_beta": false,
-      "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png",
+      "logo_url": "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/kubernetes.png",
       "type": "kubernetes"
     }
   }

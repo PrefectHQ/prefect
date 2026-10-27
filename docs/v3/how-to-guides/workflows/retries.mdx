@@ -6,7 +6,8 @@ keywords: ["retry", "failure", "error handling", "resilience", "automatic rerun"
 
 ### Set the number of retries
 
-To rerun your workflow when an exception is raised, set the `retries` parameter to an integer.
+To rerun your workflow when it fails, set the `retries` parameter to an integer.
+A flow run is retried when the flow raises an exception or returns a `Failed` state, such as a failed task state or future.
 
 ```python
 from prefect import flow
@@ -16,6 +17,16 @@ from prefect import flow
 def troublesome_workflow():
     raise Exception("oopsie daisy")
 ```
+
+### Retry nested flows
+
+When a parent flow retries a direct call to a [nested flow](/v3/concepts/flows#organize-flows-with-subflows-and-tasks),
+Prefect reuses the child's completed result if it was [persisted](/v3/advanced/results).
+Set `persist_result=True` on the child flow to enable result persistence.
+
+If the child failed or completed without a persisted result, the parent retry creates a new child flow run.
+The new run has its own retry budget, while the previous run keeps its state and history.
+Because the child has a new flow-run ID, task caches that include the flow-run ID do not carry over from the previous child run.
 
 ### Wait between retries
 

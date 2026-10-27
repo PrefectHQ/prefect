@@ -31,7 +31,7 @@ class Webhook(Block):
     """
 
     _block_type_name = "Webhook"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c7247cb359eb6cf276734d4b1fbf00fb8930e89e-250x250.png"  # type: ignore
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/webhook.png"  # type: ignore
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/webhook-triggers"
     )

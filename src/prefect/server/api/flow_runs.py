@@ -23,7 +23,6 @@ from fastapi import (
     Request,
     Response,
 )
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy.exc import IntegrityError
 
@@ -407,7 +406,7 @@ async def read_flow_run_graph_v1(
 async def read_flow_run_graph_v2(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     since: datetime.datetime = Query(
-        default=jsonable_encoder(earliest_possible_datetime()),
+        default=earliest_possible_datetime(),
         description="Only include runs that start or end after this time.",
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),

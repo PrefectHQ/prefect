@@ -2199,3 +2199,57 @@ class TestPreprocessSchemaPydanticV2Tuples:
         # no change
         preprocessed_schema = preprocess_schema(schema)
         assert preprocessed_schema == schema
+
+
+class TestPreprocessSchemaNestedRequired:
+    @staticmethod
+    def _schema(
+        nested_first: bool, parent_required: list[str], nested_required: list[str]
+    ) -> dict[str, Any]:
+        nested: dict[str, Any] = {
+            "type": "object",
+            "properties": {
+                "inner": {"type": "string"},
+                "plain": {"type": "string"},
+            },
+            "required": nested_required,
+        }
+        plain: dict[str, Any] = {"type": "string"}
+        props = (
+            {"nested": nested, "plain": plain}
+            if nested_first
+            else {"plain": plain, "nested": nested}
+        )
+        return {"type": "object", "properties": props, "required": parent_required}
+
+    @pytest.mark.parametrize("nested_first", [True, False])
+    def test_optional_sibling_accepts_none_regardless_of_order(
+        self, nested_first: bool
+    ):
+        schema = self._schema(nested_first, ["nested"], ["plain"])
+        obj = {"nested": {"plain": "Example"}, "plain": None}
+        assert validate(obj, schema) == []
+
+    @pytest.mark.parametrize("nested_first", [True, False])
+    def test_required_sibling_rejects_none_regardless_of_order(
+        self, nested_first: bool
+    ):
+        schema = self._schema(nested_first, ["nested", "plain"], ["inner"])
+        obj = {"nested": {"inner": "Example"}, "plain": None}
+        errors = validate(obj, schema)
+        assert [e.message for e in errors] == ["None is not of type 'string'"]
+
+    def test_allow_none_with_default_is_forwarded_to_nested_properties(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "top": {"type": "string", "default": "abc"},
+                "nested": {
+                    "type": "object",
+                    "properties": {"inner": {"type": "string", "default": "abc"}},
+                },
+            },
+        }
+        obj = {"top": None, "nested": {"inner": None}}
+        assert validate(obj, schema, allow_none_with_default=True) == []
+        assert len(validate(obj, schema)) == 2
