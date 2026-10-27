@@ -13,6 +13,7 @@ import time
 import warnings
 import weakref
 from collections.abc import Callable, Generator
+from contextlib import AsyncExitStack
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
@@ -23,6 +24,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
 
 import anyio
+import pydantic
 import pytest
 
 import prefect.task_engine
@@ -58,6 +60,7 @@ from prefect.states import (
     Running,
     State,
     Suspended,
+    to_state_create,
 )
 from prefect.task_engine import (
     _TIMEOUT_WATCHDOG_MIN_COMPACT_SIZE,
@@ -70,9 +73,16 @@ from prefect.task_engine import (
 )
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
-from prefect.transactions import transaction
+from prefect.transactions import (
+    AsyncTransaction,
+    CommitMode,
+    Transaction,
+    atransaction,
+    get_transaction,
+    transaction,
+)
 from prefect.types._datetime import now
-from prefect.utilities.annotations import opaque
+from prefect.utilities.annotations import opaque, quote
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 from prefect.utilities.math import clamped_poisson_interval
@@ -3272,6 +3282,32 @@ class TestTaskTimeoutExceededWarning:
 
 
 class TestPersistence:
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_returned_failure_survives_persistence_error(
+        self, is_async: bool, caplog: pytest.LogCaptureFixture
+    ):
+        @task(persist_result=True)
+        def fail() -> State:
+            return Failed(data=ValueError("original failure"))
+
+        @task(persist_result=True)
+        async def async_fail() -> State:
+            return Failed(data=ValueError("original failure"))
+
+        method = "apersist_result_record" if is_async else "persist_result_record"
+        with patch.object(
+            ResultStore, method, side_effect=OSError("storage unavailable")
+        ):
+            state = (
+                await async_fail(return_state=True)
+                if is_async
+                else fail(return_state=True)
+            )
+        assert state.is_failed()
+        with pytest.raises(ValueError, match="original failure"):
+            await state.result()
+        assert "storage unavailable" in caplog.text
+
     async def test_task_can_return_result_record(self):
         @task
         async def async_task():
@@ -3315,6 +3351,203 @@ class TestPersistence:
 
 
 class TestCachePolicy:
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("retries", [0, 1])
+    @pytest.mark.parametrize("aggregate", [False, True])
+    @pytest.mark.parametrize("named_result", [False, True])
+    async def test_returned_failed_state_is_not_cached(
+        self,
+        tmp_path: Path,
+        is_async: bool,
+        retries: int,
+        aggregate: bool,
+        named_result: bool,
+    ):
+        # Aggregate states do not participate in the explicit-state retry path.
+        retries = 0 if aggregate else retries
+        attempts = 0
+
+        def flaky(order_id: int) -> State | list[State] | str:
+            nonlocal attempts
+            attempts += 1
+            if attempts <= retries + 1:
+                failure = Failed(data=ValueError("temporary"))
+                return [failure] if aggregate else failure
+            return "recovered"
+
+        async def async_flaky(order_id: int) -> State | list[State] | str:
+            return flaky(order_id)
+
+        flaky_task = task(
+            async_flaky if is_async else flaky,
+            cache_policy=None if named_result else INPUTS,
+            result_storage_key="named-result" if named_result else None,
+            persist_result=True,
+            result_storage=tmp_path,
+            retries=retries,
+        )
+        run = run_task_async if is_async else run_task_sync
+
+        first = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            first = await first
+        assert first.is_failed()
+        assert attempts == retries + 1
+
+        second = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            second = await second
+        assert second.is_completed()
+        assert second.name == "Completed"
+        assert await second.result() == "recovered"
+        assert attempts == retries + 2
+
+        third = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            third = await third
+        assert third.name == "Cached"
+        assert await third.result() == "recovered"
+        assert attempts == retries + 2
+
+        # The original failure must remain persisted after a successful call.
+        persisted_failure = ResultStore(
+            result_storage=LocalFileSystem(basepath=tmp_path)
+        )
+        record = await persisted_failure.aread(first.data.metadata.storage_key)
+        failure = record.result[0].data if aggregate else record.result
+        assert isinstance(failure, ValueError)
+        assert str(failure) == "temporary"
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("persist_result", [False, True])
+    @pytest.mark.parametrize("data_type", ["metadata", "record"])
+    async def test_returned_failure_preserves_persisted_result(
+        self, tmp_path: Path, is_async: bool, persist_result: bool, data_type: str
+    ):
+        store = ResultStore(result_storage=LocalFileSystem(basepath=tmp_path))
+        record = store.create_result_record(ValueError("temporary"), key="failure")
+        await store.apersist_result_record(record)
+        data = record.metadata if data_type == "metadata" else record
+        attempts = 0
+
+        def flaky(order_id: int) -> State | str:
+            nonlocal attempts
+            attempts += 1
+            return Failed(data=data) if attempts == 1 else "recovered"
+
+        async def async_flaky(order_id: int) -> State | str:
+            return flaky(order_id)
+
+        flaky_task = task(
+            async_flaky if is_async else flaky,
+            cache_policy=INPUTS,
+            persist_result=persist_result,
+            result_storage=tmp_path,
+        )
+        run = run_task_async if is_async else run_task_sync
+        first = run(flaky_task, parameters={"order_id": 42}, return_type="state")
+        if is_async:
+            first = await first
+        assert first.is_failed()
+        assert first.data is data
+        assert attempts == 1
+        assert list(tmp_path.iterdir()) == [tmp_path / "failure"]
+        with pytest.raises(ValueError, match="temporary"):
+            await first.result()
+        if data_type == "record":
+            assert first.data.is_persisted
+            assert to_state_create(first).data == record.metadata
+
+        second = run(flaky_task, parameters={"order_id": 42}, return_type="state")
+        if is_async:
+            second = await second
+        assert second.name == "Completed"
+        assert await second.result() == "recovered"
+        assert attempts == 2
+        stored = await store.aread(record.metadata.storage_key)
+        assert isinstance(stored.result, ValueError)
+        assert str(stored.result) == "temporary"
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("commit_mode", list(CommitMode))
+    @pytest.mark.parametrize("persist_result", [False, True])
+    @pytest.mark.parametrize("cache_enabled", [False, True])
+    async def test_returned_failure_diagnostics_survive_parent_rollback(
+        self,
+        tmp_path: Path,
+        is_async: bool,
+        commit_mode: CommitMode,
+        persist_result: bool,
+        cache_enabled: bool,
+    ):
+        def fail() -> State:
+            return Failed(data=ValueError("temporary"))
+
+        async def async_fail() -> State:
+            return fail()
+
+        failing_task = task(
+            async_fail if is_async else fail,
+            cache_policy=INPUTS if cache_enabled else None,
+            persist_result=persist_result,
+            result_storage=tmp_path,
+        )
+        async with AsyncExitStack() as stack:
+            if is_async:
+                parent = await stack.enter_async_context(
+                    atransaction(commit_mode=commit_mode)
+                )
+                state = await run_task_async(failing_task, return_type="state")
+            else:
+                parent = stack.enter_context(transaction(commit_mode=commit_mode))
+                state = run_task_sync(failing_task, return_type="state")
+            assert state.is_failed()
+            assert parent.is_rolled_back()
+            record = state.data
+            assert record.is_persisted is persist_result
+
+        if persist_result:
+            assert record.is_persisted
+            stored = await ResultStore(
+                result_storage=LocalFileSystem(basepath=tmp_path)
+            ).aread(record.metadata.storage_key)
+            assert isinstance(stored.result, ValueError)
+            assert str(stored.result) == "temporary"
+        else:
+            assert not record.is_persisted
+            assert not list(tmp_path.iterdir())
+
+    def test_tasks_without_source_reuse_their_own_cached_results(self, tmp_path: Path):
+        tasks = []
+        for fee in (1, 100):
+            namespace: dict[str, Any] = {}
+            exec(  # noqa: S102
+                f"def calculate_total(amount):\n    return amount + {fee}\n",
+                namespace,
+            )
+            dynamic_task = task(persist_result=True, result_storage=tmp_path)(
+                namespace["calculate_total"]
+            )
+            assert dynamic_task.source_code is None
+            tasks.append(dynamic_task)
+
+        @flow
+        def calculate_totals() -> list[State]:
+            return [
+                dynamic_task(10, return_state=True)
+                for _ in range(2)
+                for dynamic_task in tasks
+            ]
+
+        states = calculate_totals()
+
+        assert [(state.result(), state.name) for state in states] == [
+            (11, "Completed"),
+            (110, "Completed"),
+            (11, "Cached"),
+            (110, "Cached"),
+        ]
+
     async def test_result_stored_with_storage_key_if_no_policy_set(
         self, prefect_client
     ):
@@ -4428,6 +4661,108 @@ class TestRunStateIsDenormalized:
 
 
 class TestTransactionHooks:
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_returned_failure_keeps_failed_state_after_rollback(
+        self, is_async: bool, prefect_client: PrefectClient, events_pipeline: Any
+    ):
+        @task
+        def fail() -> State:
+            return Failed(data=ValueError("temporary"))
+
+        @task
+        async def async_fail() -> State:
+            return Failed(data=ValueError("temporary"))
+
+        state = (
+            await async_fail(return_state=True) if is_async else fail(return_state=True)
+        )
+        await events_pipeline.process_events()
+        states = await prefect_client.read_task_run_states(
+            state.state_details.task_run_id
+        )
+        assert [s.name for s in states] == ["Pending", "Running", "Failed"]
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("return_state", [False, True])
+    @pytest.mark.parametrize("has_parent", [False, True])
+    @pytest.mark.parametrize("retries,recover", [(0, False), (1, False), (1, True)])
+    async def test_returned_failure_transaction_hooks(
+        self,
+        is_async: bool,
+        return_state: bool,
+        has_parent: bool,
+        retries: int,
+        recover: bool,
+    ):
+        attempts = 0
+        events: list[str] = []
+        transactions: list[Transaction | AsyncTransaction] = []
+
+        def fail() -> State | str:
+            nonlocal attempts
+            attempts += 1
+            txn = get_transaction()
+            assert txn is not None
+            transactions.append(txn)
+            if recover and attempts > 1:
+                return "recovered"
+            return Failed(data=ValueError("temporary"))
+
+        async def async_fail() -> State | str:
+            return fail()
+
+        failing_task = task(
+            async_fail if is_async else fail,
+            retries=retries,
+            persist_result=False,
+        )
+
+        @failing_task.on_commit
+        def commit(txn: Transaction) -> None:
+            events.append("task_commit")
+
+        @failing_task.on_rollback
+        def rollback(txn: Transaction) -> None:
+            events.append("task_rollback")
+
+        async with AsyncExitStack() as stack:
+            if has_parent:
+                parent = (
+                    await stack.enter_async_context(atransaction())
+                    if is_async
+                    else stack.enter_context(transaction())
+                )
+                parent.stage(
+                    None,
+                    on_commit_hooks=[lambda txn: events.append("parent_commit")],
+                    on_rollback_hooks=[lambda txn: events.append("parent_rollback")],
+                )
+            result = (
+                await failing_task(return_state=return_state)
+                if is_async
+                else failing_task(return_state=return_state)
+            )
+            assert attempts == retries + 1
+            if recover:
+                assert not transactions[-1].is_rolled_back()
+                if return_state:
+                    assert result.is_completed()
+                    assert await result.result() == "recovered"
+                else:
+                    assert result == "recovered"
+            else:
+                assert transactions[-1].is_rolled_back()
+                assert result.is_failed()
+                with pytest.raises(ValueError, match="temporary"):
+                    await result.result()
+            if has_parent:
+                assert parent.is_rolled_back() is (not recover)
+
+        expected = ["task_commit" if recover else "task_rollback"]
+        if has_parent:
+            expected.append("parent_commit" if recover else "parent_rollback")
+        assert events == expected
+
     async def test_task_transitions_to_rolled_back_on_transaction_rollback(
         self,
         events_pipeline,
@@ -4984,6 +5319,36 @@ class TestWaitUntilReadySync:
 
             # State should now be Retrying (not Running)
             assert engine.state.name == "Retrying"
+
+
+class TestPydanticTaskArgumentWithUnsetPrivateAttributes:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/23514"""
+
+    class Document(pydantic.BaseModel):
+        text: Any
+        _cache: dict[str, Any] = pydantic.PrivateAttr()
+
+    def test_sync_task(self):
+        @task
+        def read(document: Any) -> tuple[str, bool]:
+            return document.text, hasattr(document, "_cache")
+
+        @flow
+        def my_flow() -> tuple[str, bool]:
+            return read(self.Document(text=quote("parsed text")))
+
+        assert my_flow() == ("parsed text", False)
+
+    async def test_async_task(self):
+        @task
+        async def read(document: Any) -> tuple[str, bool]:
+            return document.text, hasattr(document, "_cache")
+
+        @flow
+        async def my_flow() -> tuple[str, bool]:
+            return await read(self.Document(text=quote("parsed text")))
+
+        assert await my_flow() == ("parsed text", False)
 
 
 class TestRunSchemaObjectAsTaskArgument:

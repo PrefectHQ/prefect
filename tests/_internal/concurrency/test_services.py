@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import multiprocessing
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -322,6 +323,40 @@ def test_instance_cache_lock_is_reset_after_fork(monkeypatch: pytest.MonkeyPatch
     instance.send(1)
     instance.drain()
     instance.mock.assert_called_once_with(instance, 1)
+
+
+def test_drain_after_reset_for_fork_does_not_error():
+    instance = MockService.instance()
+    instance.send(1)
+    instance.drain()
+
+    # Simulates the state of an inherited service in a forked child process
+    instance.reset_for_fork()
+
+    assert instance.drain(at_exit=True) is False
+
+
+@pytest.mark.skipif(
+    "fork" not in multiprocessing.get_all_start_methods(),
+    reason="Requires the fork start method",
+)
+@pytest.mark.filterwarnings(
+    # Python 3.15 warns when a multi-threaded process calls fork(); the running
+    # service thread makes this process multi-threaded by design
+    "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning"
+)
+def test_forked_child_exits_cleanly_with_running_service():
+    instance = MockService.instance()
+    instance.send(1)
+
+    try:
+        process = multiprocessing.get_context("fork").Process(target=int)
+        process.start()
+        process.join(timeout=10)
+
+        assert process.exitcode == 0
+    finally:
+        instance.drain()
 
 
 def test_send_one():

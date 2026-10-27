@@ -74,7 +74,10 @@ export const ColorModeSelect = () => {
 			<label htmlFor="color-mode-select">Color Mode</label>
 			<Select
 				value={colorMode}
-				onValueChange={(value: ColorMode) => setColorMode(value)}
+				onValueChange={(value) => {
+					const mode = colorModes.find((mode) => mode === value);
+					if (mode) setColorMode(mode);
+				}}
 			>
 				<SelectTrigger className="w-96" id="color-mode-select">
 					<SelectValue placeholder="Select a color mode">

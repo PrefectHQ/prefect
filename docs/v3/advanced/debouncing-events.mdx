@@ -132,12 +132,10 @@ Test with your actual event patterns to find the optimal window.
 <Warning>
 **Time format requirements**
 
-The `schedule_after` parameter accepts:
+The `schedule_after` and `within` parameters accept:
 - **ISO 8601 duration format**: `"PT1M"` (1 minute), `"PT30S"` (30 seconds), `"PT2H"` (2 hours)
 - **Integer seconds**: `60` (60 seconds)
 - **Python timedelta objects**: `timedelta(minutes=1)` (in code)
-
-The `within` parameter accepts integer seconds only.
 </Warning>
 
 ## Design flows for batch processing

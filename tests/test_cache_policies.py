@@ -4,13 +4,15 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Callable
+from typing import Any, Callable
 from unittest.mock import MagicMock
 
 import pytest
 
+from prefect import task
 from prefect.cache_policies import (
     DEFAULT,
+    INPUTS,
     CachePolicy,
     CompoundCachePolicy,
     Inputs,
@@ -19,6 +21,7 @@ from prefect.cache_policies import (
     _None,
 )
 from prefect.context import TaskRunContext
+from prefect.utilities.hashing import hash_objects
 
 
 class TestBaseClass:
@@ -127,13 +130,14 @@ class TestInputsPolicy:
         class FakeDataFrame:
             def __init__(self, columns: dict[str, str]):
                 self._columns = columns
+                self.iloc = self
 
             @property
             def columns(self) -> list[str]:
                 return list(self._columns)
 
-            def __getitem__(self, column: str) -> str:
-                return self._columns[column]
+            def __getitem__(self, key: tuple[slice, int]) -> str:
+                return self._columns[self.columns[key[1]]]
 
         fake_pandas = ModuleType("pandas")
         fake_pandas.DataFrame = FakeDataFrame  # type: ignore[attr-defined]
@@ -142,7 +146,7 @@ class TestInputsPolicy:
 
         policy = Inputs()
 
-        # column ordering is stabilized by the registered transform
+        # Identical column ordering yields stable keys; reordering changes the key.
         key = policy.compute_key(
             task_ctx=None,
             inputs={"df": FakeDataFrame({"a": "1", "b": "2"})},
@@ -154,7 +158,75 @@ class TestInputsPolicy:
             flow_parameters=None,
         )
 
-        assert key == other_key
+        assert key != other_key
+        assert key == policy.compute_key(
+            task_ctx=None,
+            inputs={"df": FakeDataFrame({"a": "1", "b": "2"})},
+            flow_parameters=None,
+        )
+
+    @pytest.mark.parametrize("columns", [["a", "b"], ["a", "a"]])
+    def test_dataframe_cache_preserves_order_and_ignores_legacy_results(
+        self, tmp_path: Path, columns: list[str]
+    ):
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame([[1, 10], [2, 20]], columns=columns)
+        reordered = df.iloc[:, ::-1]
+        executions = []
+
+        for frame in (df, reordered):
+            assert INPUTS.compute_key(None, {"df": frame}, {}) != hash_objects(
+                {"df": [frame[col] for col in sorted(frame.columns)]}
+            )
+
+        @task(cache_policy=INPUTS, persist_result=True, result_storage=tmp_path)
+        def first_column(df) -> list[int]:
+            executions.append(list(df.columns))
+            return df.iloc[:, 0].tolist()
+
+        # Persist a result using the pre-fix transform, as an older version would.
+        legacy_task = first_column.with_options(
+            cache_key_fn=lambda _, inputs: hash_objects(
+                {"df": [inputs["df"][col] for col in sorted(inputs["df"].columns)]}
+            )
+        )
+        legacy = legacy_task(reordered, return_state=True)
+        original = first_column(df, return_state=True)
+        changed = first_column(reordered, return_state=True)
+        repeated = first_column(df.copy(), return_state=True)
+
+        assert legacy.result() == [10, 20]
+        assert original.name == "Completed"
+        assert original.result() == [1, 2]
+        assert changed.name == "Completed"
+        assert changed.result() == [10, 20]
+        assert repeated.name == "Cached"
+        assert repeated.result() == [1, 2]
+        assert executions == [
+            list(reordered.columns),
+            list(df.columns),
+            list(reordered.columns),
+        ]
+
+    def test_dataframe_key_is_stable_across_processes(self):
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame({"b": [10, 20], "a": [1, 2]})
+        key = INPUTS.compute_key(task_ctx=None, inputs={"df": df}, flow_parameters={})
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import pandas as pd; from prefect.cache_policies import INPUTS; "
+                    "df = pd.DataFrame({'b': [10, 20], 'a': [1, 2]}); "
+                    "print(INPUTS.compute_key(None, {'df': df}, {}))"
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert key == result.stdout.strip()
 
     def test_importing_module_does_not_import_optional_dependencies(
         self, tmp_path: Path
@@ -339,6 +411,58 @@ class TestTaskSourcePolicy:
     def test_initializes(self):
         policy = TaskSource()
         assert isinstance(policy, CachePolicy)
+
+    @pytest.mark.parametrize(
+        "expression_a, expression_b",
+        [
+            ("x + 1", "x + 100"),
+            ("left(x)", "right(x)"),
+            ("(lambda: x + 1)()", "(lambda: x + 100)()"),
+        ],
+    )
+    def test_distinguishes_code_without_source(
+        self, expression_a: str, expression_b: str
+    ):
+        policy = TaskSource()
+        keys = []
+        for expression in (expression_a, expression_b, expression_a):
+            namespace: dict[str, Any] = {}
+            exec(f"def dynamic(x):\n    return {expression}", namespace)  # noqa: S102
+            dynamic_task = task(namespace["dynamic"])
+            assert dynamic_task.source_code is None
+            ctx = TaskRunContext.model_construct(task=dynamic_task)
+            keys.append(policy.compute_key(ctx, inputs=None, flow_parameters=None))
+
+        assert keys[0] is not None
+        assert keys[0] == keys[2]
+        assert keys[0] != keys[1]
+
+    @pytest.mark.parametrize("expression", ["x + 1", "(lambda: x + 1)()"])
+    @pytest.mark.parametrize(
+        "filename, prefix, indent",
+        [("job-2", "", "    "), ("job-1", "\n\n", "    "), ("job-2", "\n", "        ")],
+    )
+    def test_code_without_source_ignores_compilation_location(
+        self, expression: str, filename: str, prefix: str, indent: str
+    ):
+        policy = TaskSource()
+        keys = []
+        for name, padding, spacing in [
+            ("job-1", "", "    "),
+            (filename, prefix, indent),
+        ]:
+            namespace: dict[str, Any] = {}
+            code = compile(
+                f"{padding}def dynamic(x):\n{spacing}return {expression}", name, "exec"
+            )
+            exec(code, namespace)  # noqa: S102
+            dynamic_task = task(namespace["dynamic"])
+            assert dynamic_task.source_code is None
+            ctx = TaskRunContext.model_construct(task=dynamic_task)
+            keys.append(policy.compute_key(ctx, inputs=None, flow_parameters=None))
+
+        assert keys[0] is not None
+        assert keys[0] == keys[1]
 
     def test_changes_in_def_change_key(self):
         policy = TaskSource()

@@ -26,7 +26,7 @@ Shared fixtures live in `fixtures/` (see fixtures/AGENTS.md) and root `conftest.
 - **Client-side tests** use `prefect_client` (full SDK client). Do not use in server tests.
 - **Server API tests** use `client` / `test_client` (raw httpx/FastAPI against an ephemeral server)
 - **Server model/orchestration tests** use `session` (async SQLAlchemy) and pre-built ORM fixtures (`flow`, `flow_run`, `task_run`, `deployment`, etc.)
-- `test-projects/` — Sample projects used by CLI/deploy tests
+- `test-projects/` — Sample projects used by CLI/deploy tests. Treat as read-only shared state: under xdist, other tests import and execute modules in these directories (writing `__pycache__`), so copy into `tmp_path` (`shutil.copytree` with `ignore=shutil.ignore_patterns("__pycache__")`) before writing to a project or asserting on its directory contents
 
 ## Testing Guidelines
 
@@ -80,6 +80,8 @@ async def test_flows_fail_with_timeout(self): ...
 ```
 
 When combining `timeout_seconds` flows with concurrency, use a generous timeout (≥ 2s): the heartbeat-thread setup runs inside the flow's timeout scope and can exhaust a tight timeout before the flow body starts, causing pre-`yield` cancellation on contended CI runners.
+
+**CLI tests that disable test mode leak logging config**: the CLI entrypoint calls `setup_logging()` whenever `settings.testing.test_mode` is false (e.g. a fresh profile), which resets the process-wide `prefect` logger levels (dropping DEBUG logs) for unrelated later tests on the same xdist worker. Add an autouse fixture that calls `setup_logging(incremental=False)` on teardown (see `tests/cli/test_config.py`).
 
 Use `retry_asserts` from `prefect._internal.testing` to handle timing-sensitive assertions. Two patterns:
 

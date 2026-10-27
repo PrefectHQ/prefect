@@ -271,8 +271,9 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
 
         self._stop(at_exit=at_exit)
 
-        assert self._done_event is not None
-        if self._done_event.is_set():
+        # `_done_event` is unset if the service never started in this process, e.g.
+        # in a child process after `reset_for_fork`
+        if self._done_event is None or self._done_event.is_set():
             future: concurrent.futures.Future[bool] = concurrent.futures.Future()
             future.set_result(False)
             return future
