@@ -21,8 +21,9 @@ from zoneinfo import ZoneInfo
 import dateutil
 import dateutil.rrule
 import pytz
+import whenever
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
-from whenever import DateTimeDelta, ZonedDateTime
+from whenever import ZonedDateTime
 
 from prefect._internal.schemas.validators import (
     default_anchor_date,
@@ -45,11 +46,17 @@ from prefect.types._datetime import (
 
 MAX_ITERATIONS = 1000
 
+_CALENDAR_DISAMBIGUATION: dict[str, Any] = {
+    "disambiguation" if hasattr(whenever, "SYSTEM_TZ") else "disambiguate": "compatible"
+}
+
 try:
     from whenever import ItemizedDelta as _ItemizedDelta
 
     _WHENEVER_DELTA_TYPES: tuple[type, ...] = (_ItemizedDelta,)
 except ImportError:
+    from whenever import DateTimeDelta
+
     _ItemizedDelta = None  # type: ignore[assignment]
     _WHENEVER_DELTA_TYPES = (DateTimeDelta,)
 
@@ -202,7 +209,9 @@ class IntervalSchedule(PrefectBaseModel):
             if dt is None:
                 return None
             if dt.tzinfo is None:
-                return _whenever_pdt_from_py(dt).assume_tz(target_timezone)
+                return _whenever_pdt_from_py(dt).assume_tz(
+                    target_timezone, **_CALENDAR_DISAMBIGUATION
+                )
             if isinstance(dt.tzinfo, ZoneInfo):
                 return _whenever_zdt_from_py(dt).to_tz(target_timezone)
             # For offset-based tzinfo instances (e.g. datetime.timezone(+09:00)),
@@ -231,7 +240,7 @@ class IntervalSchedule(PrefectBaseModel):
             # whenever delta types distinguish calendar days from exact hours,
             # so we can use them directly. We still need an approximate
             # total-seconds value for the initial offset jump.
-            if isinstance(interval, DateTimeDelta):
+            if _ItemizedDelta is None:
                 _months, _days, _secs, _nanos = interval.in_months_days_secs_nanos()
                 has_day_or_time_parts = bool(_days or _secs or _nanos)
                 approx_total_seconds = (
@@ -254,7 +263,7 @@ class IntervalSchedule(PrefectBaseModel):
             has_calendar_parts = bool(_years or _months or _weeks or _days)
 
             def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
-                return zdt + interval
+                return zdt.add(interval, **_CALENDAR_DISAMBIGUATION)
 
             def _scaled_date_delta(k: int) -> _ItemizedDelta | None:
                 if _date is None:
@@ -270,11 +279,11 @@ class IntervalSchedule(PrefectBaseModel):
                 # `zdt - k * interval` as a single calendar step so the
                 # result keeps the anchor's phase — repeated subtraction
                 # compounds clamping (Mar 31 -> Feb 28 -> Jan 28).
-                if isinstance(interval, DateTimeDelta):
+                if _ItemizedDelta is None:
                     return zdt - interval * k
                 result = zdt
                 if (_dd := _scaled_date_delta(k)) is not None:
-                    result = result - _dd
+                    result = result.subtract(_dd, **_CALENDAR_DISAMBIGUATION)
                 if _time is not None:
                     result = result - _time * k
                 return result
@@ -284,11 +293,11 @@ class IntervalSchedule(PrefectBaseModel):
                 # advancing `interval` k times only when no month-end clamping
                 # can occur along the way (iterating Jan 31 + 1 month drifts
                 # to Feb 28/29 -> Mar 28/29, while one step stays at day 31).
-                if isinstance(interval, DateTimeDelta):
+                if _ItemizedDelta is None:
                     return zdt + interval * k
                 result = zdt
                 if (_dd := _scaled_date_delta(k)) is not None:
-                    result = result + _dd
+                    result = result.add(_dd, **_CALENDAR_DISAMBIGUATION)
                 if _time is not None:
                     result = result + _time * k
                 return result
@@ -327,7 +336,11 @@ class IntervalSchedule(PrefectBaseModel):
             )
 
             def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
-                return zdt.add(days=_interval_days, seconds=_interval_seconds)
+                return zdt.add(
+                    days=_interval_days,
+                    seconds=_interval_seconds,
+                    **_CALENDAR_DISAMBIGUATION,
+                )
 
         _diff_secs = _whenever_delta_seconds(local_start - anchor_zdt)
         if has_calendar_parts:

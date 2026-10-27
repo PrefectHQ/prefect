@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING, Annotated, Any, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import humanize
+import whenever
 from dateutil.parser import parse
 from pydantic import AfterValidator, GetCoreSchemaHandler, WithJsonSchema
 from pydantic_core import core_schema as _core_schema
 from typing_extensions import TypeAlias
 from whenever import (
-    DateTimeDelta,
     Instant,
     PlainDateTime,
     Weekday,
@@ -25,6 +25,8 @@ from whenever import ZonedDateTime as _ZDTProbe
 # start_of("day"), and to_stdlib(). False on 0.7.x–0.9.x.
 _WHENEVER_NEW_API: bool = hasattr(_ZDTProbe, "to_stdlib")
 del _ZDTProbe
+
+_SYSTEM_TZ = getattr(whenever, "SYSTEM_TZ", None)
 
 
 class _DateTime(datetime.datetime):
@@ -474,7 +476,12 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
             )
         )
     if dt.tzinfo is None:
-        wdt = _whenever_pdt_from_py(dt).assume_system_tz()
+        pdt = _whenever_pdt_from_py(dt)
+        wdt = (
+            pdt.assume_tz(_SYSTEM_TZ)
+            if _SYSTEM_TZ is not None
+            else pdt.assume_system_tz()
+        )
     else:
         if not isinstance(dt.tzinfo, ZoneInfo):
             if key := getattr(dt.tzinfo, "key", None):
@@ -483,7 +490,8 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
                 utc_dt = dt.astimezone(datetime.UTC)
                 dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
 
-        wdt = _whenever_zdt_from_py(dt).to_system_tz()
+        zdt = _whenever_zdt_from_py(dt)
+        wdt = zdt.to_tz(_SYSTEM_TZ) if _SYSTEM_TZ is not None else zdt.to_system_tz()
 
     return create_datetime_instance(_whenever_to_stdlib(wdt))
 
@@ -509,7 +517,7 @@ def _validate_positive_interval(v: Interval) -> Interval:
             )
             if not has_calendar_units and time and time.total("nanoseconds") < 1000:
                 raise ValueError("interval must be at least one microsecond")
-    elif isinstance(v, DateTimeDelta):
+    elif isinstance(v, ItemizedDelta):
         _months, _days, _secs, _nanos = v.in_months_days_secs_nanos()
         if _months <= 0 and _days <= 0 and _secs <= 0 and _nanos <= 0:
             raise ValueError("interval must be positive")

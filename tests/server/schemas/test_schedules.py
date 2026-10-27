@@ -1056,6 +1056,92 @@ class TestCronScheduleDaylightSavingsTime:
     Tests that DST boundaries are respected
     """
 
+    async def test_berlin_spring_gap_resolution(self):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+
+        dates = await schedule.get_dates(n=3, start=datetime(2027, 3, 28, tzinfo=zone))
+
+        expected_first = (
+            "2027-03-28T01:30:00+01:00"
+            if sys.version_info < (3, 13)
+            else "2027-03-28T03:30:00+02:00"
+        )
+        assert [value.isoformat() for value in dates] == [
+            expected_first,
+            "2027-03-29T02:30:00+02:00",
+            "2027-03-30T02:30:00+02:00",
+        ]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    @pytest.mark.parametrize(
+        "start_time, expected",
+        [
+            ("01:45:00", ["2027-03-28T03:30:00+02:00"]),
+            ("03:00:00", ["2027-03-28T03:30:00+02:00"]),
+            ("03:30:00", ["2027-03-28T03:30:00+02:00"]),
+            ("03:30:00.000001", []),
+            ("04:00:00", []),
+        ],
+    )
+    async def test_berlin_spring_gap_seek(self, start_time: str, expected: list[str]):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+        start = datetime.fromisoformat(f"2027-03-28T{start_time}").replace(tzinfo=zone)
+        end = datetime(2027, 3, 28, 4, tzinfo=zone)
+
+        dates = await schedule.get_dates(start=start, end=end)
+
+        assert [value.isoformat() for value in dates] == expected
+        assert all(
+            start.timestamp() <= value.timestamp() <= end.timestamp() for value in dates
+        )
+        next_dates = await schedule.get_dates(n=2, start=start)
+        assert next_dates[0].isoformat() == (
+            expected[0] if expected else "2027-03-29T02:30:00+02:00"
+        )
+
+    async def test_berlin_fall_runs_only_at_first_occurrence(self):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+
+        dates = await schedule.get_dates(n=3, start=datetime(2026, 10, 25, tzinfo=zone))
+
+        assert [value.isoformat() for value in dates] == [
+            "2026-10-25T02:30:00+02:00",
+            "2026-10-26T02:30:00+01:00",
+            "2026-10-27T02:30:00+01:00",
+        ]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    @pytest.mark.parametrize(
+        "minute, microsecond, expected",
+        [
+            (15, 0, "2026-10-25T02:30:00+01:00"),
+            (30, 0, "2026-10-25T02:30:00+01:00"),
+            (30, 1, "2026-10-26T02:30:00+01:00"),
+            (45, 0, "2026-10-26T02:30:00+01:00"),
+        ],
+    )
+    async def test_berlin_fall_second_fold_start(
+        self, minute: int, microsecond: int, expected: str
+    ):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+        start = datetime(
+            2026, 10, 25, 2, minute, microsecond=microsecond, tzinfo=zone, fold=1
+        )
+
+        dates = await schedule.get_dates(n=3, start=start)
+
+        assert dates[0].isoformat() == expected
+        assert all(value.timestamp() >= start.timestamp() for value in dates)
+        assert len({value.timestamp() for value in dates}) == 3
+
     @pytest.mark.parametrize(
         "start_hour, start_minute", [(0, 0), (1, 45), (3, 0), (3, 15), (3, 30)]
     )
