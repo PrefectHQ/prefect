@@ -69,7 +69,7 @@ def _find_unpaired_surrogate(
 
 async def _reject_unpaired_surrogates(request: Request) -> None:
     """
-    Reject JSON bodies containing unpaired surrogates (e.g. `"\ud800"`), which
+    Reject JSON bodies containing unpaired surrogates (e.g. `"\\ud800"`), which
     cannot be encoded as UTF-8 and so can neither be stored nor returned.
     """
     if "json" not in request.headers.get("content-type", "application/json"):
