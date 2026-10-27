@@ -116,7 +116,7 @@ async def _get_deployment(
     if name is None and deployment_id is not None:
         try:
             deployment = await client.read_deployment(deployment_id)
-        except PrefectHTTPStatusError:
+        except ObjectNotFound:
             exit_with_error(f"Deployment {deployment_id!r} not found!")
     elif name is not None and deployment_id is None:
         try:

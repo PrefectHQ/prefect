@@ -180,7 +180,18 @@ export const VariablesDataTable = ({
 					/>
 				</div>
 				<div className="sm:col-span-2 md:col-span-3 lg:col-span-2">
-					<Select value={sorting} onValueChange={onSortingChange}>
+					<Select
+						value={sorting}
+						onValueChange={(value) => {
+							if (
+								value === "CREATED_DESC" ||
+								value === "UPDATED_DESC" ||
+								value === "NAME_ASC" ||
+								value === "NAME_DESC"
+							)
+								onSortingChange(value);
+						}}
+					>
 						<SelectTrigger aria-label="Variable sort order" className="w-full">
 							<SelectValue placeholder="Sort by" />
 						</SelectTrigger>

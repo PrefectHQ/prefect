@@ -615,7 +615,13 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
 
             bucketing_key = trigger.bucketing_key(event)
 
-            async with automations_session(begin_transaction=True) as session:
+            # `with_for_update=True` makes SQLite start with `BEGIN IMMEDIATE` so the
+            # write lock is held before the bucket is read; a deferred transaction
+            # that reads first cannot be upgraded to a write if another connection
+            # commits in between and fails immediately with "database is locked".
+            async with automations_session(
+                begin_transaction=True, with_for_update=True
+            ) as session:
                 try:
                     bucket: Optional["ORMAutomationBucket"] = None
 
@@ -1005,17 +1011,17 @@ async def read_bucket_by_trigger_id(
 ) -> "ORMAutomationBucket | None":
     """Gets the bucket this event would fall into for the given Automation, if there is
     one currently"""
-    query = sa.select(db.AutomationBucket).where(
-        db.AutomationBucket.automation_id == automation_id,
-        db.AutomationBucket.trigger_id == trigger_id,
-        db.AutomationBucket.bucketing_key == bucketing_key,
+    query = (
+        sa.select(db.AutomationBucket)
+        .where(
+            db.AutomationBucket.automation_id == automation_id,
+            db.AutomationBucket.trigger_id == trigger_id,
+            db.AutomationBucket.bucketing_key == bucketing_key,
+        )
+        .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
-    bucket = result.scalars().first()
-    if bucket:
-        await session.refresh(bucket)
-
-    return bucket
+    return result.scalars().first()
 
 
 async def hold_expect_event(

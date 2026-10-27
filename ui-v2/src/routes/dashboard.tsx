@@ -143,8 +143,7 @@ const searchParams = z.object({
 	rangeType: z
 		.enum(["span", "range", "around", "period"])
 		.optional()
-		.default("span")
-		.catch("span"),
+		.catch(undefined),
 	seconds: z.number().optional().default(-86400).catch(-86400), // default 24h
 	start: z.string().datetime().optional(), // for range
 	end: z.string().datetime().optional(),
@@ -172,15 +171,16 @@ function roundToMinute(date: Date): Date {
 	return rounded;
 }
 
-function getDateRangeFromSearch(search: DashboardSearch): {
+export function getDateRangeFromSearch(search: DashboardSearch): {
 	from: string;
 	to: string;
 } {
-	if (search.from && search.to) {
+	// Legacy absolute URLs have from/to without a range type.
+	if (!search.rangeType && search.from && search.to) {
 		return { from: search.from, to: search.to };
 	}
 
-	switch (search.rangeType) {
+	switch (search.rangeType ?? "span") {
 		case "span": {
 			const now = roundToMinute(new Date());
 			const seconds = search.seconds ?? -86400;
@@ -218,6 +218,10 @@ function getDateRangeFromSearch(search: DashboardSearch): {
 			end.setHours(23, 59, 59, 999);
 			return { from: start.toISOString(), to: end.toISOString() };
 		}
+	}
+
+	if (search.from && search.to) {
+		return { from: search.from, to: search.to };
 	}
 
 	const now = roundToMinute(new Date());
@@ -786,7 +790,15 @@ export function RouteComponent() {
 	const hideSubflows = search.hideSubflows ?? false;
 	const tags = search.tags ?? [];
 	const dateRangeValue = useMemo<DateRangeSelectValue>(() => {
-		switch (search.rangeType) {
+		if (!search.rangeType && search.from && search.to) {
+			return {
+				type: "range",
+				startDate: new Date(search.from),
+				endDate: new Date(search.to),
+			};
+		}
+
+		switch (search.rangeType ?? "span") {
 			case "span": {
 				const seconds = search.seconds ?? -86400; // default 24h
 				return { type: "span", seconds };
@@ -820,6 +832,8 @@ export function RouteComponent() {
 		}
 	}, [
 		search.rangeType,
+		search.from,
+		search.to,
 		search.seconds,
 		search.start,
 		search.end,
@@ -965,19 +979,12 @@ export function RouteComponent() {
 					let toIso: string | undefined;
 					switch (next.type) {
 						case "span": {
-							const now = new Date();
-							const then = new Date(now.getTime() + next.seconds * 1000);
-							const [a, b] = [now, then].sort(
-								(x, y) => x.getTime() - y.getTime(),
-							);
-							fromIso = a.toISOString();
-							toIso = b.toISOString();
 							return {
 								...prev,
 								rangeType: "span",
 								seconds: next.seconds,
-								from: fromIso,
-								to: toIso,
+								from: undefined,
+								to: undefined,
 								flow: undefined,
 								page: undefined,
 							};
@@ -1022,20 +1029,14 @@ export function RouteComponent() {
 							};
 						}
 						case "period": {
-							// Only Today supported; normalize to today's start/end
-							const now = new Date();
-							const start = new Date(now);
-							start.setHours(0, 0, 0, 0);
-							const end = new Date(now);
-							end.setHours(23, 59, 59, 999);
-							fromIso = start.toISOString();
-							toIso = end.toISOString();
+							// Only Today supported; is relative so revisiting the URL
+							// on a later day resolves to that day
 							return {
 								...prev,
 								rangeType: "period",
 								period: next.period,
-								from: fromIso,
-								to: toIso,
+								from: undefined,
+								to: undefined,
 								flow: undefined,
 								page: undefined,
 							};

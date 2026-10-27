@@ -156,10 +156,33 @@ class TestApplyValues:
             == "Hello, Alice Smith!"
         )
 
+    def test_apply_values_does_not_substitute_inserted_placeholders(self):
+        assert (
+            apply_values(
+                "prefix {{ first }} / {{ second }}",
+                {"first": "{{ second }}", "second": "resolved"},
+            )
+            == "prefix {{ second }} / resolved"
+        )
+
+    def test_apply_values_does_not_substitute_placeholders_inserted_from_env_vars(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("TEMPLATED_ENV_VAR", "{{ name }}")
+        assert (
+            apply_values("{{ $TEMPLATED_ENV_VAR }} and {{ name }}", {"name": "Alice"})
+            == "{{ name }} and Alice"
+        )
+
     def test_apply_values_dictionary_with_placeholders(self):
         template = {"name": "{{first_name}} {{last_name}}", "age": "{{age}}"}
         values = {"first_name": "Alice", "last_name": "Smith", "age": 30}
         assert apply_values(template, values) == {"name": "Alice Smith", "age": 30}
+
+    def test_apply_values_with_numeric_string_dict_key(self):
+        values = {"years": {"2026": 42}}
+        assert apply_values({"year": "{{ years.2026 }}"}, values) == {"year": 42}
+        assert apply_values("FY{{ years.2026 }}", values) == "FY42"
 
     def test_apply_values_dictionary_with_unset_value(self):
         template = {"last_name": "{{last_name}}", "age": "{{age}}"}

@@ -3494,14 +3494,11 @@ class TestWorkerChannelClient:
 
         async with anyio.create_task_group() as task_group:
             await channel.sync(task_group)
+            # `stop()` cancels the channel's run loop, so the task group exits
+            # once the session is closed; no wall-clock deadline is needed.
             channel.stop()
 
-            with anyio.fail_after(1):
-                while not connect_context_by_ref["connect_context"].exited:
-                    await anyio.sleep(0)
-
-            task_group.cancel_scope.cancel()
-
+        assert connect_context_by_ref["connect_context"].exited
         client.read_work_pool.assert_not_awaited()
         client.send_worker_heartbeat.assert_not_awaited()
 
@@ -3882,11 +3879,10 @@ class TestWorkerChannelClient:
         channel_by_ref["channel"] = channel
 
         async with anyio.create_task_group() as task_group:
+            # The channel's run loop exits on its own once the reconnect attempt
+            # is terminal, so let the task group wait for it instead of racing
+            # a wall-clock deadline that a loaded CI runner can exceed.
             await channel.sync(task_group)
-            with anyio.fail_after(1):
-                while not channel.state.terminal:
-                    await anyio.sleep(0)
-            task_group.cancel_scope.cancel()
 
         assert attempts == 2
         assert first_connect is not None
