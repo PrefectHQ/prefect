@@ -197,6 +197,7 @@ Automation: {{ automation.name }}
 Description: {{ automation.description }}
 
 Event: {{ event.id }}
+Event URL: {{ event.url }}
 Resource:
 {% for label, value in event.resource %}
 {{ label }}: {{ value }}
