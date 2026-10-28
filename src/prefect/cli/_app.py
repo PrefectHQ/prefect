@@ -16,6 +16,9 @@ _app = cyclopts.App(
     help="Prefect CLI for workflow orchestration.",
     help_flags=["--help"],
     version_flags=[],
+    # cyclopts exits with code 2 on usage errors. Raise them to `_run_cli`
+    # instead, which keeps the CLI's exit code for usage errors at 1.
+    exit_on_error=False,
 )
 
 _app.meta.group_parameters = cyclopts.Group("Session Parameters", sort_key=0)
@@ -145,6 +148,15 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
     return result
 
 
+def _run_cli(args: list[str]) -> None:
+    """Run the CLI with `args`, exiting with code 1 on usage errors."""
+    try:
+        _app.meta(_normalize_top_level_flags(args))
+    except cyclopts.CycloptsError:
+        # cyclopts prints the error before raising it
+        raise SystemExit(1)
+
+
 def app() -> None:
     """Entry point that invokes the meta app for global option handling."""
     args = sys.argv[1:]
@@ -164,7 +176,7 @@ def app() -> None:
     from pydantic_settings.exceptions import SettingsError
 
     try:
-        _app.meta(_normalize_top_level_flags(args))
+        _run_cli(args)
     except SettingsError as exc:
         console.print(f"[red]{exc}[/red]")
         raise SystemExit(1)

@@ -4403,7 +4403,7 @@ requires-dist = [
     { name = "cloudpickle", specifier = ">=2.0,<4.0" },
     { name = "coolname", specifier = ">=1.0.4,<6.0.0" },
     { name = "cryptography", specifier = ">=36.0.1" },
-    { name = "cyclopts", specifier = ">=5.0.0" },
+    { name = "cyclopts", specifier = ">=4.8.0" },
     { name = "dateparser", specifier = ">=1.1.1,<2.0.0" },
     { name = "docker", specifier = ">=4.0,<8.0" },
     { name = "exceptiongroup", specifier = ">=1.0.0" },
