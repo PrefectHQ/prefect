@@ -977,14 +977,16 @@ class TestFlowRunSuspendingObserver:
             "prefect._flow_run_suspension._OBSERVER_SHUTDOWN_TIMEOUT", 60
         )
 
-        async with observe_flow_run_suspension_async(
-            uuid.uuid4(), FlowRunSuspensionRequest()
-        ):
-            pass
+        try:
+            async with observe_flow_run_suspension_async(
+                uuid.uuid4(), FlowRunSuspensionRequest()
+            ):
+                pass
 
-        assert not observer_exited.is_set()
+            assert not observer_exited.is_set()
+        finally:
+            release_shutdown.set()
 
-        release_shutdown.set()
         assert await asyncio.to_thread(observer_exited.wait, 10)
 
     async def test_observe_flow_run_suspension_async_marks_suspension_request(
