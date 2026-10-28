@@ -2226,6 +2226,10 @@
       "source": "/cloud/:slug*"
     },
     {
+      "destination": "/v3/api-ref/python",
+      "source": "/api-ref/prefect/:slug*"
+    },
+    {
       "destination": "/v3/api-ref/:slug*",
       "source": "/api-ref/:slug*"
     },
@@ -2864,10 +2868,6 @@
     {
       "destination": "/v3/api-ref/python",
       "source": "/latest/api-ref/prefect/:slug*"
-    },
-    {
-      "destination": "/v3/api-ref/python",
-      "source": "/api-ref/prefect/:slug*"
     },
     {
       "destination": "/v3/:slug*",
