@@ -46,7 +46,7 @@
   },
   "logo": {
     "dark": "/logos/logo-wordmark-light.svg",
-    "href": "https://docs.prefect.io",
+    "href": "https://www.prefect.io/docs",
     "light": "/logos/logo-wordmark-dark.svg"
   },
   "name": "Prefect",
@@ -3134,5 +3134,10 @@
       "source": "/v3/manage/server/examples/helm"
     }
   ],
+  "seo": {
+    "metatags": {
+      "canonical": "https://www.prefect.io/docs"
+    }
+  },
   "theme": "mint"
 }

@@ -48,7 +48,7 @@ describe("TriggerJsonInput", () => {
 		).toBeVisible();
 		expect(screen.getByText("View documentation")).toHaveAttribute(
 			"href",
-			"https://docs.prefect.io/v3/automate/events/automations-triggers",
+			"https://www.prefect.io/docs/v3/automate/events/automations-triggers",
 		);
 	});
 

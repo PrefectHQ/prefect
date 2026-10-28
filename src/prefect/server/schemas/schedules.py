@@ -7,7 +7,9 @@ from __future__ import annotations
 import calendar
 import datetime
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from heapq import merge
+from itertools import islice, takewhile
 from math import gcd
 from typing import (
     Annotated,
@@ -41,6 +43,7 @@ from prefect.types._datetime import (
     PositiveInterval,
     _pendulum_call,
     _whenever_to_stdlib,
+    _whenever_zdt_from_py,
     create_datetime_instance,
     now,
 )
@@ -660,11 +663,12 @@ class CronSchedule(PrefectBaseModel):
             else:
                 n = 1
 
+        if sys.version_info >= (3, 13):
+            yield from self._get_dates_whenever(n, start, end)
+            return
+
         if self.timezone:
-            if sys.version_info >= (3, 13):
-                start = start.astimezone(ZoneInfo(self.timezone or "UTC"))
-            else:
-                start = _pendulum_call(start, "in_tz", self.timezone)
+            start = _pendulum_call(start, "in_tz", self.timezone)
 
         # subtract one second from the start date, so that croniter returns it
         # as an event (if it meets the cron criteria)
@@ -675,23 +679,18 @@ class CronSchedule(PrefectBaseModel):
             start += datetime.timedelta(seconds=1)
 
         # croniter's DST logic interferes with all other datetime libraries except pytz
-        if sys.version_info >= (3, 13):
-            start_localized = start.astimezone(ZoneInfo(self.timezone or "UTC"))
-            start_naive_tz = start.replace(tzinfo=None)
-        else:
-            start_localized = pytz.timezone(start.tz.name).localize(
-                datetime.datetime(
-                    year=start.year,
-                    month=start.month,
-                    day=start.day,
-                    hour=start.hour,
-                    minute=start.minute,
-                    second=start.second,
-                    microsecond=start.microsecond,
-                )
+        start_localized = pytz.timezone(start.tz.name).localize(
+            datetime.datetime(
+                year=start.year,
+                month=start.month,
+                day=start.day,
+                hour=start.hour,
+                minute=start.minute,
+                second=start.second,
+                microsecond=start.microsecond,
             )
-            start_naive_tz = _pendulum_call(start, "naive")
-
+        )
+        start_naive_tz = _pendulum_call(start, "naive")
         cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
         dates = set()
         counter = 0
@@ -703,25 +702,7 @@ class CronSchedule(PrefectBaseModel):
             # add that time to the original scheduling anchor.
             next_time = cron.get_next(datetime.datetime)
             delta = next_time - start_naive_tz
-            if sys.version_info >= (3, 13):
-                from whenever import ZonedDateTime
-
-                # Use `whenever` to handle DST correctly
-                _zdt_from_dt = (
-                    ZonedDateTime
-                    if hasattr(ZonedDateTime, "to_stdlib")
-                    else ZonedDateTime.from_py_datetime
-                )
-                _zdt = _zdt_from_dt(start_localized + delta).to_tz(
-                    self.timezone or "UTC"
-                )
-                next_date = (
-                    _zdt.to_stdlib()
-                    if hasattr(_zdt, "to_stdlib")
-                    else _zdt.py_datetime()
-                )
-            else:
-                next_date = create_datetime_instance(start_localized + delta)
+            next_date = create_datetime_instance(start_localized + delta)
 
             # if the end date was exceeded, exit
             if end and next_date > end:
@@ -736,6 +717,70 @@ class CronSchedule(PrefectBaseModel):
                 break
 
             counter += 1
+
+    def _get_dates_whenever(
+        self, n: int, start: datetime.datetime, end: Optional[datetime.datetime]
+    ) -> Generator[DateTime, None, None]:
+        """Generate cron dates with instant bounds and explicit fold selection."""
+        start = datetime.datetime.combine(start, start.timetz())
+        start_naive = start.replace(tzinfo=None) - datetime.timedelta(seconds=1)
+        if start.microsecond > 0:
+            start_naive += datetime.timedelta(seconds=1)
+        start_instant = _whenever_zdt_from_py(start)
+
+        def localize(wall_time: datetime.datetime) -> datetime.datetime:
+            first = _whenever_zdt_from_py(
+                wall_time.replace(tzinfo=start.tzinfo, fold=0)
+            )
+            candidates = {first}
+            if _whenever_to_stdlib(first).replace(tzinfo=None) == wall_time:
+                candidates.add(
+                    _whenever_zdt_from_py(
+                        wall_time.replace(tzinfo=start.tzinfo, fold=1)
+                    )
+                )
+            viable = [
+                candidate for candidate in candidates if candidate >= start_instant
+            ]
+            return _whenever_to_stdlib(min(viable) if viable else min(candidates))
+
+        cron = croniter(self.cron, start_naive, day_or=self.day_or)  # type: ignore
+        wall_times = iter(lambda: cron.get_next(datetime.datetime), None)
+        candidate_dates: Iterator[datetime.datetime] = map(localize, wall_times)
+        transition = start_instant.add(seconds=1).prev_transition()
+        if transition is not None:
+            gap = (transition.offset - transition.subtract(seconds=1).offset).total(
+                "seconds"
+            )
+            if 0 <= (start_instant - transition).total("seconds") < gap:
+                lookback = croniter(
+                    self.cron,
+                    start_naive - datetime.timedelta(seconds=gap),
+                    day_or=self.day_or,
+                )
+                gap_end = _whenever_to_stdlib(transition).replace(tzinfo=None)
+                shifted_times = takewhile(
+                    lambda wall: wall < gap_end,
+                    iter(lambda: lookback.get_next(datetime.datetime), None),
+                )
+                candidate_dates = merge(
+                    map(localize, shifted_times),
+                    candidate_dates,
+                    key=lambda date: date.astimezone(datetime.timezone.utc),
+                )
+
+        start_utc = start.astimezone(datetime.timezone.utc)
+        end_utc = end.astimezone(datetime.timezone.utc) if end else None
+        dates = set()
+        for next_date in islice(candidate_dates, MAX_ITERATIONS + 2):
+            next_utc = next_date.astimezone(datetime.timezone.utc)
+            if end_utc and next_utc > end_utc:
+                break
+            if next_utc >= start_utc and next_utc not in dates:
+                dates.add(next_utc)
+                yield create_datetime_instance(next_date)
+            if len(dates) >= n:
+                break
 
 
 DEFAULT_ANCHOR_DATE = datetime.date(2020, 1, 1)

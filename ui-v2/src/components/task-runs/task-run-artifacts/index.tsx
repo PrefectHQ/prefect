@@ -37,7 +37,7 @@ export const TaskRunArtifacts = ({ taskRun }: TaskRunArtifactsProps) => {
 						This task run did not produce any artifacts; for more information on
 						creating artifacts, see the{" "}
 						<a
-							href="https://docs.prefect.io/v3/develop/artifacts"
+							href="https://www.prefect.io/docs/v3/develop/artifacts"
 							target="_blank"
 							rel="noopener noreferrer"
 							className="text-link hover:text-link-hover"

@@ -47,7 +47,7 @@ class Secret(Block, Generic[T]):
     _logo_url = HttpUrl(
         "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/secret.png"
     )
-    _documentation_url = HttpUrl("https://docs.prefect.io/latest/develop/blocks")
+    _documentation_url = HttpUrl("https://www.prefect.io/docs/latest/develop/blocks")
     _description = "A block that represents a secret value. The value stored in this block will be obfuscated when this block is viewed or edited in the UI."
 
     value: Union[SecretStr, PydanticSecret[T]] = Field(

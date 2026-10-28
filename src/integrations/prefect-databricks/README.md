@@ -8,4 +8,4 @@
     <a href="https://github.com/PrefectHQ/prefect-databricks/pulse" alt="Activity">
 </p>
 
-See the docs at [https://docs.prefect.io/integrations/prefect-databricks](https://docs.prefect.io/integrations/prefect-databricks) for more information.
+See the docs at [https://www.prefect.io/docs/integrations/prefect-databricks](https://www.prefect.io/docs/integrations/prefect-databricks) for more information.

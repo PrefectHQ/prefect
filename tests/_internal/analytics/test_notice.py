@@ -71,4 +71,4 @@ class TestTelemetryNotice:
             maybe_show_telemetry_notice()
 
             captured = capsys.readouterr()
-            assert "https://docs.prefect.io/concepts/telemetry" in captured.err
+            assert "https://www.prefect.io/docs/concepts/telemetry" in captured.err
