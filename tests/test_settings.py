@@ -270,6 +270,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_EVENTS_WORKER_MAX_QUEUE_SIZE": {"test_value": 5000},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
+    "PREFECT_EXPERIMENTS_AGGREGATE_NESTED_STATES": {"test_value": True},
     "PREFECT_EXPERIMENTS_PLUGINS_ALLOW": {
         "test_value": "plugin1,plugin2",
         "expected_value": {"plugin1", "plugin2"},
