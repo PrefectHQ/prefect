@@ -34,7 +34,7 @@ from prefect.states import (
     Crashed,
     Failed,
     StateGroup,
-    _flatten_nested_states,
+    _get_states_to_aggregate,
     format_exception,
 )
 
@@ -238,7 +238,7 @@ def return_value_to_state_sync(
         return state
 
     # Determine a new state from the aggregate of contained states
-    if contained_states := _flatten_nested_states(retval):
+    if contained_states := _get_states_to_aggregate(retval):
         states = StateGroup(contained_states)
 
         # Determine the new state type

@@ -29,6 +29,7 @@ from prefect.exceptions import (
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.types._datetime import now
 from prefect.utilities.annotations import BaseAnnotation
+from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
     import logging
@@ -368,7 +369,7 @@ async def return_value_to_state(
         return state
 
     # Determine a new state from the aggregate of contained states
-    if contained_states := _flatten_nested_states(retval):
+    if contained_states := _get_states_to_aggregate(retval):
         states = StateGroup(contained_states)
 
         # Determine the new state type
@@ -513,6 +514,12 @@ async def aget_state_exception(state: State) -> BaseException:
         # Return the exception from the inner state
         return await aget_state_exception(result)
 
+    # Nested collections are understood here regardless of the
+    # `experiments.aggregate_nested_states` setting: once a run's final
+    # state has been aggregated, the nested states are part of the persisted
+    # result, and the failure must stay retrievable even if the setting is
+    # later disabled. The setting only controls whether nested collections
+    # are aggregated into a terminal state in the first place.
     elif nested_states := _flatten_nested_states(result):
         # Return the first failure
         for state in nested_states:
@@ -614,6 +621,12 @@ def get_state_exception(state: State) -> BaseException:
         # Return the exception from the inner state
         return get_state_exception(result)
 
+    # Nested collections are understood here regardless of the
+    # `experiments.aggregate_nested_states` setting: once a run's final
+    # state has been aggregated, the nested states are part of the persisted
+    # result, and the failure must stay retrievable even if the setting is
+    # later disabled. The setting only controls whether nested collections
+    # are aggregated into a terminal state in the first place.
     elif nested_states := _flatten_nested_states(result):
         # Return the first failure
         for state in nested_states:
@@ -673,6 +686,36 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
         return all([isinstance(o, State) for o in obj])
     else:
         return False
+
+
+def _nested_state_aggregation_enabled() -> bool:
+    """
+    Whether nested collections of states should be aggregated when
+    determining a run's final state.
+
+    Controlled by the `experiments.aggregate_nested_states` setting, which
+    is disabled by default.
+    """
+    from prefect.settings.context import get_current_settings
+
+    return get_current_settings().experiments.aggregate_nested_states
+
+
+def _get_states_to_aggregate(retval: Any) -> list[State] | None:
+    """
+    Return the states to aggregate from a run's return value, or `None` if
+    the value should be treated as plain data.
+
+    Nested collections of states are only aggregated when the
+    `experiments.aggregate_nested_states` setting is enabled. When it is
+    disabled, only a single state or a flat collection of states is
+    aggregated, preserving the historical behavior.
+    """
+    if _nested_state_aggregation_enabled():
+        return _flatten_nested_states(retval)
+    if isinstance(retval, State) or is_state_iterable(retval):
+        return list(ensure_iterable(retval))
+    return None
 
 
 # Maximum nesting depth `_flatten_nested_states` will descend into a value
