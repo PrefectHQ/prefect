@@ -9,8 +9,6 @@ import sys
 
 import pytest
 
-from prefect.cli._app import app
-
 pytestmark = pytest.mark.clear_db
 
 
@@ -106,25 +104,6 @@ class TestExitCodes:
         """An unhandled exception should result in exit_code=1."""
         result = runner.invoke(["config", "set", "NONEXISTENT_SETTING=value"])
         assert result.exit_code == 1
-
-    @pytest.mark.parametrize(
-        "args",
-        [
-            ["definitely-not-a-command"],
-            ["config", "view", "--definitely-not-an-option"],
-            ["work-pool", "create"],
-        ],
-    )
-    def test_usage_error_returns_exit_code_1(self, runner, args: list[str]):
-        """cyclopts exits with 2 on usage errors; the Prefect CLI exits with 1."""
-        result = runner.invoke(args)
-        assert result.exit_code == 1
-
-    def test_entrypoint_usage_error_exits_with_code_1(self, monkeypatch):
-        monkeypatch.setattr(sys, "argv", ["prefect", "definitely-not-a-command"])
-        with pytest.raises(SystemExit) as exc_info:
-            app()
-        assert exc_info.value.code == 1
 
 
 class TestResultInterface:

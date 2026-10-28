@@ -95,7 +95,7 @@ def _setup_and_run(
             _app(())
             return
 
-        _app(tokens)
+        _app(_normalize_command_names(tokens))
 
     if profile and prefect.context.get_settings_context().profile.name != profile:
         try:
@@ -146,6 +146,37 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
         else:
             result.append(token)
     return result
+
+
+def _command_name_key(name: str) -> str:
+    return name.replace("-", "").replace("_", "").lower()
+
+
+def _normalize_command_names(tokens: tuple[str, ...]) -> tuple[str, ...]:
+    """Rewrite each command name to the registered name it matches.
+
+    cyclopts 4 matched command names with `-` and `_` removed and case
+    ignored, so `prefect work_pool ls` ran `prefect work-pool ls`. cyclopts 5
+    requires exact names, so the CLI does this matching itself. Matching stops
+    at the first token that is an option or does not match a command.
+    """
+    result = list(tokens)
+    app = _app
+    for i, token in enumerate(result):
+        if token.startswith("-"):
+            break
+        names = [name for name in app if not name.startswith("-")]
+        if token not in names:
+            matches = [
+                name
+                for name in names
+                if _command_name_key(name) == _command_name_key(token)
+            ]
+            if len(matches) != 1:
+                break
+            result[i] = token = matches[0]
+        app = app[token]
+    return tuple(result)
 
 
 def _run_cli(args: list[str]) -> None:
