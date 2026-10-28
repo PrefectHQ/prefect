@@ -334,7 +334,7 @@ async def block_delete(
         if slug is None and block_id is not None:
             try:
                 if _cli.is_interactive() and not confirm(
-                    f"Are you sure you want to delete block with id {block_id!r}?",
+                    f"Are you sure you want to delete block with id '{block_id}'?",
                     default=False,
                     console=_cli.console,
                 ):
@@ -342,7 +342,7 @@ async def block_delete(
                 await client.delete_block_document(block_id)
                 exit_with_success(f"Deleted Block '{block_id}'.")
             except ObjectNotFound:
-                exit_with_error(f"Block {block_id!r} not found!")
+                exit_with_error(f"Block '{block_id}' not found!")
         elif slug is not None:
             if "/" not in slug:
                 exit_with_error(
@@ -445,7 +445,7 @@ async def block_inspect(
                     block_id, include_secrets=False
                 )
             except ObjectNotFound:
-                exit_with_error(f"Block {block_id!r} not found!")
+                exit_with_error(f"Block '{block_id}' not found!")
         elif slug is not None:
             if "/" not in slug:
                 exit_with_error(

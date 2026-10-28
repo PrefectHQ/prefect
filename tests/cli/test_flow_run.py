@@ -168,7 +168,7 @@ def test_inspect_flow_run_with_web_flag(flow_run: FlowRun, mock_webbrowser: Magi
     invoke_and_assert(
         command=["flow-run", "inspect", str(flow_run.id), "--web"],
         expected_code=0,
-        expected_output_contains=f"Opened flow run {flow_run.id!r} in browser.",
+        expected_output_contains=f"Opened flow run '{flow_run.id}' in browser.",
     )
 
     mock_webbrowser.open_new_tab.assert_called_once()

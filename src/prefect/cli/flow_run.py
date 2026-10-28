@@ -188,7 +188,7 @@ async def inspect(
             )
 
         await run_sync_in_worker_thread(webbrowser.open_new_tab, flow_run_url)
-        exit_with_success(f"Opened flow run {id!r} in browser.")
+        exit_with_success(f"Opened flow run '{id}' in browser.")
     else:
         if output and output.lower() == "json":
             flow_run_json = flow_run.model_dump(mode="json")
@@ -345,7 +345,7 @@ async def delete(id: UUID):
     async with get_client() as client:
         try:
             if _cli.is_interactive() and not confirm(
-                f"Are you sure you want to delete flow run with id {id!r}?",
+                f"Are you sure you want to delete flow run with id '{id}'?",
                 default=False,
             ):
                 exit_with_error("Deletion aborted.")
