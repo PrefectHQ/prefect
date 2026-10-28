@@ -30,6 +30,7 @@ SettingAccessor: TypeAlias = Literal[
     "deployments.default_docker_build_namespace",
     "deployments.default_work_pool_name",
     "events.worker_max_queue_size",
+    "experiments.aggregate_nested_states",
     "experiments.warn",
     "flows.default_retries",
     "flows.default_retry_delay_seconds",
