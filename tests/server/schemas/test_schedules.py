@@ -1015,6 +1015,90 @@ class TestCronScheduleDaylightSavingsTime:
     Tests that DST boundaries are respected
     """
 
+    async def test_berlin_fall_runs_only_at_first_occurrence(self):
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
+
+        dates = await schedule.get_dates(n=3, start=datetime(2026, 10, 25, tzinfo=zone))
+
+        assert [value.isoformat() for value in dates] == [
+            "2026-10-25T02:30:00+02:00",
+            "2026-10-26T02:30:00+01:00",
+            "2026-10-27T02:30:00+01:00",
+        ]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    @pytest.mark.parametrize(
+        "cron, timezone, start_text, expected_first",
+        [
+            (
+                "0 * * * *",
+                "America/New_York",
+                "2018-11-04T01:00:00",
+                "2018-11-04T06:00:00+00:00",
+            ),
+            (
+                "* * * * *",
+                "America/New_York",
+                "2018-11-04T01:30:00",
+                "2018-11-04T06:30:00+00:00",
+            ),
+            (
+                "* * * * *",
+                "America/New_York",
+                "2018-11-04T01:30:00.500000",
+                "2018-11-04T06:31:00+00:00",
+            ),
+            (
+                "30 2 * * *",
+                "Europe/Berlin",
+                "2026-10-25T02:15:00",
+                "2026-10-25T01:30:00+00:00",
+            ),
+            (
+                "30 2 * * *",
+                "Europe/Berlin",
+                "2026-10-25T02:30:00",
+                "2026-10-25T01:30:00+00:00",
+            ),
+            (
+                "30 2 * * *",
+                "Europe/Berlin",
+                "2026-10-25T02:30:00.000001",
+                "2026-10-26T01:30:00+00:00",
+            ),
+            (
+                "30 2 * * *",
+                "Europe/Berlin",
+                "2026-10-25T02:45:00",
+                "2026-10-26T01:30:00+00:00",
+            ),
+        ],
+    )
+    async def test_cron_second_fold_start_bounds(
+        self, cron: str, timezone: str, start_text: str, expected_first: str
+    ):
+        start = datetime.fromisoformat(start_text).replace(
+            tzinfo=ZoneInfo(timezone), fold=1
+        )
+        schedule = CronSchedule(cron=cron, timezone=timezone)
+        start_utc = start.astimezone(ZoneInfo("UTC"))
+        expected = datetime.fromisoformat(expected_first)
+
+        dates = await schedule.get_dates(n=3, start=start)
+
+        assert dates[0].astimezone(ZoneInfo("UTC")) == expected
+        assert all(value.timestamp() >= start.timestamp() for value in dates)
+        assert len({value.timestamp() for value in dates}) == 3
+        end = start_utc + timedelta(minutes=20)
+        bounded = await schedule.get_dates(start=start, end=end)
+        assert bool(bounded) == (expected <= end)
+        assert all(
+            start_utc <= value.astimezone(ZoneInfo("UTC")) <= end for value in bounded
+        )
+
     async def test_cron_schedule_hourly_daylight_savings_time_forward(self):
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
