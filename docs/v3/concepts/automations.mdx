@@ -180,7 +180,7 @@ than its state when the event occurred. `state` on `flow_run` and `task_run` can
 when the triggering event's resource carries all four of `prefect.state-message`,
 `prefect.state-name`, `prefect.state-timestamp`, and `prefect.state-type`, and they parse
 successfully, Prefect rebuilds `state` from the event so a notification reports the state that
-actually fired the automation. If any of those labels is missing or unparseable, the freshly
+actually fired the automation. If any of those labels is missing or unparsable, the freshly
 fetched API state is left in place and `state` is as current as every other property.
 
 <Note>
