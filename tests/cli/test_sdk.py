@@ -84,7 +84,7 @@ class TestSDKGenerate:
         invoke_and_assert(
             ["sdk", "generate"],
             expected_output_contains="--output",
-            expected_code=1,
+            expected_code=2,
         )
 
     def test_sdk_generate_basic(self, tmp_path: Path) -> None:

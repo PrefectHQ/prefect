@@ -727,5 +727,5 @@ def test_webhook_methods_with_invalid_uuid():
         for cmd in ["delete", "toggle", "update", "rotate", "get"]:
             invoke_and_assert(
                 ["cloud", "webhook", cmd, bad_webhook_id],
-                expected_code=1,
+                expected_code=2,
             )

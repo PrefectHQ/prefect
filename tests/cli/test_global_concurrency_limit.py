@@ -604,7 +604,7 @@ async def test_create_gcl_no_fields():
             "create",
             "test",
         ],
-        expected_code=1,
+        expected_code=2,
     )
 
 
