@@ -98,6 +98,14 @@ def test_run_deployment_by_id_not_found():
     )
 
 
+def test_run_deployment_by_invalid_id():
+    invoke_and_assert(
+        command=["deployment", "run", "--id", "not-a-uuid"],
+        expected_output_contains="Invalid deployment ID: 'not-a-uuid'",
+        expected_code=1,
+    )
+
+
 @pytest.mark.parametrize(
     "start_at,expected_output",
     [
