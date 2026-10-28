@@ -14,7 +14,7 @@ export const DOCS_LINKS = {
 		"https://www.prefect.io/docs/v3/develop/task-run-limits",
 	"variables-guide": "https://www.prefect.io/docs/latest/guides/variables/",
 	"work-pools-guide":
-		"https://www.prefect.io/docs/latest/deploy/infrastructure-concepts/work-pools",
+		"https://www.prefect.io/docs/v3/concepts/work-pools",
 } as const;
 
 export type DocsID = keyof typeof DOCS_LINKS;

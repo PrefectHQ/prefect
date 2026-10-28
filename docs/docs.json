@@ -22,7 +22,7 @@
   },
   "errors": {
     "404": {
-      "redirect": true
+      "redirect": false
     }
   },
   "favicon": "/logos/favicon.svg",
