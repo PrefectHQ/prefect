@@ -1154,6 +1154,39 @@ class TestCronScheduleDaylightSavingsTime:
         sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
     )
     @pytest.mark.parametrize(
+        "timezone, start, expected",
+        [
+            (
+                "Europe/Berlin",
+                "2026-10-25T02:00:00+01:00",
+                "2026-10-25T03:00:00+01:00",
+            ),
+            (
+                "Australia/Lord_Howe",
+                "2026-04-05T01:30:00+10:30",
+                "2026-04-05T02:00:00+10:30",
+            ),
+        ],
+    )
+    async def test_second_fold_seek_preserves_candidate_budget(
+        self, timezone: str, start: str, expected: str
+    ):
+        """An every-second cron skips a fold without exhausting its candidate budget."""
+        schedule = CronSchedule(cron="* * * * * *", timezone=timezone)
+        dates = await schedule.get_dates(
+            n=MAX_ITERATIONS, start=datetime.fromisoformat(start)
+        )
+        expected_start = datetime.fromisoformat(expected)
+
+        assert len(dates) == MAX_ITERATIONS
+        assert [date.timestamp() for date in dates] == [
+            expected_start.timestamp() + second for second in range(MAX_ITERATIONS)
+        ]
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
+    @pytest.mark.parametrize(
         "cron, timezone, start_text, expected_first",
         [
             (

@@ -727,6 +727,18 @@ class CronSchedule(PrefectBaseModel):
         if start.microsecond > 0:
             start_naive += datetime.timedelta(seconds=1)
         start_instant = _whenever_zdt_from_py(start)
+        transition = start_instant.add(seconds=1).prev_transition()
+        gap = 0.0
+        if transition is not None:
+            gap = (transition.offset - transition.subtract(seconds=1).offset).total(
+                "seconds"
+            )
+            if 0 <= (start_instant - transition).total("seconds") < -gap:
+                # Seek past repeated wall times without consuming the candidate budget.
+                fold_end = _whenever_to_stdlib(transition).replace(
+                    tzinfo=None
+                ) - datetime.timedelta(seconds=gap)
+                start_naive = fold_end - datetime.timedelta(seconds=1)
 
         def localize(wall_time: datetime.datetime) -> datetime.datetime:
             # Resolve independently of start so scheduler refills cannot add repeats.
@@ -737,11 +749,7 @@ class CronSchedule(PrefectBaseModel):
         cron = croniter(self.cron, start_naive, day_or=self.day_or)  # type: ignore
         wall_times = iter(lambda: cron.get_next(datetime.datetime), None)
         candidate_dates: Iterator[datetime.datetime] = map(localize, wall_times)
-        transition = start_instant.add(seconds=1).prev_transition()
         if transition is not None:
-            gap = (transition.offset - transition.subtract(seconds=1).offset).total(
-                "seconds"
-            )
             if 0 <= (start_instant - transition).total("seconds") < gap:
                 lookback = croniter(
                     self.cron,
