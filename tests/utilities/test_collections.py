@@ -130,6 +130,15 @@ class FrozenDataclassWithNonInitField:
     y: int = dataclasses.field(init=False, default=0)
 
 
+@dataclass
+class DataclassWithPostInitField:
+    x: int
+    doubled: int = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.doubled = self.x * 2
+
+
 class SimplePydantic(pydantic.BaseModel):
     x: int
     y: int
@@ -284,6 +293,19 @@ class TestVisitCollection:
         result = visit_collection(inp, visit_fn=negative_even_numbers, return_data=True)
 
         assert result.y == -4
+
+    def test_visit_collection_keeps_visited_non_init_field_over_post_init(self):
+        inp = DataclassWithPostInitField(x=2)
+        assert inp.doubled == 4
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: -2 if v == 2 else v, return_data=True
+        )
+
+        # rebuilding with x=-2 runs __post_init__ (doubled=-4), but the stored
+        # value is kept
+        assert result.x == -2
+        assert result.doubled == 4
 
     def test_visit_collection_does_not_consume_generators(self):
         def f():
