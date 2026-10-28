@@ -721,7 +721,7 @@ class CronSchedule(PrefectBaseModel):
     def _get_dates_whenever(
         self, n: int, start: datetime.datetime, end: Optional[datetime.datetime]
     ) -> Generator[DateTime, None, None]:
-        """Generate cron dates with instant bounds and explicit fold selection."""
+        """Generate cron dates with instant bounds and first-occurrence fold resolution."""
         start = datetime.datetime.combine(start, start.timetz())
         start_naive = start.replace(tzinfo=None) - datetime.timedelta(seconds=1)
         if start.microsecond > 0:
@@ -729,20 +729,10 @@ class CronSchedule(PrefectBaseModel):
         start_instant = _whenever_zdt_from_py(start)
 
         def localize(wall_time: datetime.datetime) -> datetime.datetime:
-            first = _whenever_zdt_from_py(
-                wall_time.replace(tzinfo=start.tzinfo, fold=0)
+            # Resolve independently of start so scheduler refills cannot add repeats.
+            return _whenever_to_stdlib(
+                _whenever_zdt_from_py(wall_time.replace(tzinfo=start.tzinfo, fold=0))
             )
-            candidates = {first}
-            if _whenever_to_stdlib(first).replace(tzinfo=None) == wall_time:
-                candidates.add(
-                    _whenever_zdt_from_py(
-                        wall_time.replace(tzinfo=start.tzinfo, fold=1)
-                    )
-                )
-            viable = [
-                candidate for candidate in candidates if candidate >= start_instant
-            ]
-            return _whenever_to_stdlib(min(viable) if viable else min(candidates))
 
         cron = croniter(self.cron, start_naive, day_or=self.day_or)  # type: ignore
         wall_times = iter(lambda: cron.get_next(datetime.datetime), None)

@@ -1129,6 +1129,30 @@ class TestCronScheduleDaylightSavingsTime:
     @pytest.mark.skipif(
         sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
     )
+    @pytest.mark.parametrize("minute", [0, 1, 16, 31, 46])
+    async def test_berlin_fall_query_partition_preserves_occurrences(self, minute: int):
+        """Splitting a query during the second hour cannot introduce occurrences."""
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="*/15 * * * *", timezone=zone.key)
+        start = datetime(2026, 10, 25, tzinfo=zone)
+        split = datetime(2026, 10, 25, 2, minute, tzinfo=zone, fold=1).astimezone(
+            ZoneInfo("UTC")
+        )
+        end = datetime(2026, 10, 25, 4, tzinfo=zone)
+
+        whole = await schedule.get_dates(start=start, end=end)
+        before = await schedule.get_dates(start=start, end=split)
+        after = await schedule.get_dates(start=split, end=end)
+
+        assert {date.timestamp() for date in whole} == {
+            date.timestamp() for date in before + after
+        }
+        assert all(date.timestamp() >= split.timestamp() for date in after)
+        assert not any(date.fold for date in whole + after)
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    )
     @pytest.mark.parametrize(
         "cron, timezone, start_text, expected_first",
         [
@@ -1136,31 +1160,31 @@ class TestCronScheduleDaylightSavingsTime:
                 "0 * * * *",
                 "America/New_York",
                 "2018-11-04T01:00:00",
-                "2018-11-04T06:00:00+00:00",
+                "2018-11-04T07:00:00+00:00",
             ),
             (
                 "* * * * *",
                 "America/New_York",
                 "2018-11-04T01:30:00",
-                "2018-11-04T06:30:00+00:00",
+                "2018-11-04T07:00:00+00:00",
             ),
             (
                 "* * * * *",
                 "America/New_York",
                 "2018-11-04T01:30:00.500000",
-                "2018-11-04T06:31:00+00:00",
+                "2018-11-04T07:00:00+00:00",
             ),
             (
                 "30 2 * * *",
                 "Europe/Berlin",
                 "2026-10-25T02:15:00",
-                "2026-10-25T01:30:00+00:00",
+                "2026-10-26T01:30:00+00:00",
             ),
             (
                 "30 2 * * *",
                 "Europe/Berlin",
                 "2026-10-25T02:30:00",
-                "2026-10-25T01:30:00+00:00",
+                "2026-10-26T01:30:00+00:00",
             ),
             (
                 "30 2 * * *",
