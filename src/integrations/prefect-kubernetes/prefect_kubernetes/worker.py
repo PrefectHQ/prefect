@@ -1336,9 +1336,20 @@ class KubernetesWorker(
                 metadata=metadata,
                 data={"value": encoded_value},
             )
-            secret = await core_client.create_namespaced_secret(
-                namespace=namespace, body=secret
-            )
+            try:
+                secret = await core_client.create_namespaced_secret(
+                    namespace=namespace, body=secret
+                )
+            except ApiException as create_exc:
+                if create_exc.status != 409:
+                    raise
+                # A concurrent submission created the secret after our read.
+                # Use it as long as it holds the same value.
+                secret = await core_client.read_namespaced_secret(
+                    name=name, namespace=namespace
+                )
+                if (secret.data or {}).get("value") != encoded_value:
+                    raise
         return secret
 
     @asynccontextmanager

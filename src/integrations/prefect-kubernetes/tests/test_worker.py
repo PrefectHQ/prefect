@@ -2044,6 +2044,120 @@ class TestKubernetesWorker:
                     ),
                 )
 
+    async def test_store_api_key_in_secret_created_concurrently(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        enable_store_api_key_in_secret,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
+        )
+        with temporary_settings(updates={PREFECT_API_KEY: "fake"}):
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                secret_name = f"prefect-{_slugify_name(k8s_worker.name)}-api-key"
+                # Another submission creates the secret between our read and create
+                mock_core_client.return_value.read_namespaced_secret.side_effect = [
+                    ApiException(status=404),
+                    V1Secret(
+                        metadata=V1ObjectMeta(
+                            name=secret_name, namespace=configuration.namespace
+                        ),
+                        data={"value": base64.b64encode(b"fake").decode("utf-8")},
+                    ),
+                ]
+                mock_core_client.return_value.create_namespaced_secret.side_effect = (
+                    ApiException(status=409, reason="AlreadyExists")
+                )
+
+                configuration.prepare_for_flow_run(flow_run=flow_run)
+                await k8s_worker.run(flow_run, configuration)
+
+                mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+                env = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+                    1
+                ]["spec"]["template"]["spec"]["containers"][0]["env"]
+                assert {
+                    "name": "PREFECT_API_KEY",
+                    "valueFrom": {
+                        "secretKeyRef": {"name": secret_name, "key": "value"}
+                    },
+                } in env
+                mock_core_client.return_value.replace_namespaced_secret.assert_not_called()
+
+    async def test_store_api_key_raises_if_concurrent_secret_has_different_value(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        enable_store_api_key_in_secret,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
+        )
+        with temporary_settings(updates={PREFECT_API_KEY: "fake"}):
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                mock_core_client.return_value.read_namespaced_secret.side_effect = [
+                    ApiException(status=404),
+                    V1Secret(
+                        metadata=V1ObjectMeta(
+                            name=f"prefect-{_slugify_name(k8s_worker.name)}-api-key",
+                            namespace=configuration.namespace,
+                        ),
+                        data={"value": base64.b64encode(b"other-key").decode("utf-8")},
+                    ),
+                ]
+                mock_core_client.return_value.create_namespaced_secret.side_effect = (
+                    ApiException(status=409, reason="AlreadyExists")
+                )
+
+                configuration.prepare_for_flow_run(flow_run=flow_run)
+                with pytest.raises(ApiException) as exc_info:
+                    await k8s_worker.run(flow_run, configuration)
+
+                assert exc_info.value.status == 409
+                mock_batch_client.return_value.create_namespaced_job.assert_not_called()
+                mock_core_client.return_value.replace_namespaced_secret.assert_not_called()
+
+    async def test_store_api_key_propagates_non_conflict_secret_create_errors(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        enable_store_api_key_in_secret,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+        mock_core_client.return_value.read_namespaced_secret.side_effect = ApiException(
+            status=404
+        )
+        mock_core_client.return_value.create_namespaced_secret.side_effect = (
+            ApiException(status=403, reason="Forbidden")
+        )
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
+        )
+        with temporary_settings(updates={PREFECT_API_KEY: "fake"}):
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                configuration.prepare_for_flow_run(flow_run=flow_run)
+                with pytest.raises(ApiException) as exc_info:
+                    await k8s_worker.run(flow_run, configuration)
+
+                assert exc_info.value.status == 403
+                mock_core_client.return_value.read_namespaced_secret.assert_called_once()
+                mock_batch_client.return_value.create_namespaced_job.assert_not_called()
+
     async def test_use_existing_secret_name(
         self,
         flow_run,
