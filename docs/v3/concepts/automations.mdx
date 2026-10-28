@@ -166,15 +166,22 @@ the API when it renders the action:
 | `work_queue` | Work queue, including its `status` | `prefect.work-queue.<id>` |
 | `work_pool` | Work pool | `prefect.work-pool.<id>` |
 | `concurrency_limit` | Global concurrency limit | `prefect.concurrency-limit.<id>` |
-| `variables` | A dictionary of all [variables](/v3/concepts/variables) in the workspace, for example `{{ variables.my_variable }}` | n/a — always loaded when referenced |
+| `variables` | A dictionary of all [variables](/v3/concepts/variables) in the workspace, for example `{{ variables.my_variable }}` | no particular resource, but the action must have a triggering event |
 
-In addition to its native properties, each object includes an `id` along with `created` and
-`updated` timestamps.
+All of these shortcuts — `variables` included — require a triggering event. A proactive trigger
+that fires without one loads none of them, so they all render empty, regardless of the template.
+
+In addition to its native properties, each object fetched from the API includes an `id` along with
+`created` and `updated` timestamps. This does not apply to `variables`, which is a plain
+dictionary of variable names to values rather than an API object.
 
 Because the objects are read at render time, they reflect the current state of the object rather
-than its state when the event occurred. The one exception is `state` on `flow_run` and `task_run`,
-which Prefect rebuilds from the triggering event so a notification reports the state that actually
-fired the automation.
+than its state when the event occurred. `state` on `flow_run` and `task_run` can be the exception:
+when the triggering event's resource carries all four of `prefect.state-message`,
+`prefect.state-name`, `prefect.state-timestamp`, and `prefect.state-type`, and they parse
+successfully, Prefect rebuilds `state` from the event so a notification reports the state that
+actually fired the automation. If any of those labels is missing or unparseable, the freshly
+fetched API state is left in place and `state` is as current as every other property.
 
 <Note>
 Undefined values render as an empty string instead of raising an error, and attribute access on
