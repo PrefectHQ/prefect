@@ -147,6 +147,63 @@ describe("SchemaFormInputArrayList", () => {
 				expect(spy).toHaveBeenLastCalledWith({ items: ["foo"] });
 			});
 		});
+
+		test("'Use default value' replaces the displayed items", async () => {
+			const user = userEvent.setup();
+			const spy = vi.fn();
+
+			function Wrapper() {
+				const [values, setValues] = useState<Record<string, unknown>>({
+					names: ["Alice", "Bob"],
+				});
+				spy.mockImplementation((value: Record<string, unknown>) =>
+					setValues(value),
+				);
+
+				const schema: SchemaObject = {
+					type: "object",
+					properties: {
+						names: {
+							type: "array",
+							items: { type: "string" },
+							default: ["Alice", "Bob"],
+						},
+					},
+				};
+
+				return (
+					<TestSchemaForm
+						schema={schema}
+						values={values}
+						onValuesChange={spy}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+
+			const [first] = screen.getAllByRole("textbox");
+			await user.clear(first);
+			await user.type(first, "Charlie");
+
+			await waitFor(() => {
+				expect(spy).toHaveBeenLastCalledWith({ names: ["Charlie", "Bob"] });
+			});
+
+			await user.click(screen.getAllByRole("button", { name: "Open menu" })[0]);
+			await user.click(
+				screen.getByRole("menuitem", { name: "Use default value" }),
+			);
+
+			await waitFor(() => {
+				expect(spy).toHaveBeenLastCalledWith({ names: ["Alice", "Bob"] });
+			});
+			expect(
+				screen
+					.getAllByRole("textbox")
+					.map((input) => (input as HTMLInputElement).value),
+			).toEqual(["Alice", "Bob"]);
+		});
 	});
 
 	describe("move up/down menu options", () => {
