@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager, contextmanager
 from typing import TYPE_CHECKING, AsyncGenerator, Generator
 from uuid import UUID
 
+import httpx
+
 from prefect._internal.concurrency.cancellation import (
     AsyncCancelScope,
     WatcherThreadCancelScope,
@@ -90,6 +92,45 @@ def _lease_renewal_loop(
             stop_event.wait(lease_duration * _RENEWAL_FRACTION)
 
 
+def _lease_released_by_final_flow_run(
+    exc: BaseException, lease_id: UUID, flow_run_id: UUID | None
+) -> bool:
+    """
+    Check whether a lease renewal failure is explained by the flow run having
+    reached a final state on the server, which releases the lease before the
+    engine has received the response to its terminal state proposal.
+    """
+    if flow_run_id is None or not (
+        isinstance(exc, httpx.HTTPStatusError)
+        and exc.response.status_code == httpx.codes.GONE
+    ):
+        return False
+
+    logger = get_logger("concurrency")
+    try:
+        with get_client(sync_client=True) as client:
+            flow_run = client.read_flow_run(flow_run_id)
+    except Exception:
+        logger.debug(
+            "Failed to read flow run %s after its concurrency lease was not found",
+            flow_run_id,
+            exc_info=True,
+        )
+        return False
+
+    if flow_run.state is None or not flow_run.state.is_final():
+        return False
+
+    logger.debug(
+        "Concurrency lease %s was released because flow run %s reached final "
+        "state %s; stopping lease renewal",
+        lease_id,
+        flow_run_id,
+        flow_run.state.type.value,
+    )
+    return True
+
+
 def _handle_lease_renewal_failure(
     exc: BaseException,
     lease_id: UUID,
@@ -139,6 +180,7 @@ def _start_lease_renewal_thread(
     raise_on_lease_renewal_failure: bool,
     suppress_warnings: bool,
     cancel_scope: AsyncCancelScope | WatcherThreadCancelScope,
+    flow_run_id: UUID | None = None,
 ) -> tuple[threading.Event, threading.Thread]:
     stop_event = threading.Event()
     renewal_ctx = contextvars.copy_context()
@@ -152,14 +194,17 @@ def _start_lease_renewal_thread(
         try:
             _lease_renewal_loop(lease_id, lease_duration, stop_event)
         except Exception as exc:
-            if not stop_event.is_set():
-                _handle_lease_renewal_failure(
-                    exc,
-                    lease_id,
-                    raise_on_lease_renewal_failure,
-                    suppress_warnings,
-                    cancel_scope,
-                )
+            if stop_event.is_set() or _lease_released_by_final_flow_run(
+                exc, lease_id, flow_run_id
+            ):
+                return
+            _handle_lease_renewal_failure(
+                exc,
+                lease_id,
+                raise_on_lease_renewal_failure,
+                suppress_warnings,
+                cancel_scope,
+            )
 
     def renewal_loop() -> None:
         renewal_ctx.run(_run_with_failure_handler)
@@ -179,6 +224,7 @@ def maintain_concurrency_lease(
     lease_duration: float,
     raise_on_lease_renewal_failure: bool = False,
     suppress_warnings: bool = False,
+    flow_run_id: UUID | None = None,
 ) -> Generator[None, None, None]:
     """
     Maintain a concurrency lease for the given lease ID.
@@ -187,6 +233,9 @@ def maintain_concurrency_lease(
         lease_id: The ID of the lease to maintain.
         lease_duration: The duration of the lease in seconds.
         raise_on_lease_renewal_failure: A boolean specifying whether to raise an error if the lease renewal fails.
+        flow_run_id: The ID of the flow run holding the lease. When the lease is
+            not found and this flow run is final on the server, the lease was
+            released by the terminal transition and execution is not terminated.
     """
     with WatcherThreadCancelScope() as cancel_scope:
         stop_event: threading.Event | None = None
@@ -198,6 +247,7 @@ def maintain_concurrency_lease(
                 raise_on_lease_renewal_failure,
                 suppress_warnings,
                 cancel_scope,
+                flow_run_id,
             )
             yield
         finally:
@@ -213,6 +263,7 @@ async def amaintain_concurrency_lease(
     lease_duration: float,
     raise_on_lease_renewal_failure: bool = False,
     suppress_warnings: bool = False,
+    flow_run_id: UUID | None = None,
 ) -> AsyncGenerator[None, None]:
     """
     Maintain a concurrency lease for the given lease ID.
@@ -221,6 +272,9 @@ async def amaintain_concurrency_lease(
         lease_id: The ID of the lease to maintain.
         lease_duration: The duration of the lease in seconds.
         raise_on_lease_renewal_failure: A boolean specifying whether to raise an error if the lease renewal fails.
+        flow_run_id: The ID of the flow run holding the lease. When the lease is
+            not found and this flow run is final on the server, the lease was
+            released by the terminal transition and execution is not terminated.
     """
     with AsyncCancelScope() as cancel_scope:
         stop_event: threading.Event | None = None
@@ -231,6 +285,7 @@ async def amaintain_concurrency_lease(
                 raise_on_lease_renewal_failure,
                 suppress_warnings,
                 cancel_scope,
+                flow_run_id,
             )
             yield
         finally:
