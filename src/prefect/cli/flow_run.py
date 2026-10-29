@@ -42,7 +42,10 @@ from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import Abort, FlowRunWatchError, ObjectNotFound, Pause
 from prefect.logging import get_logger
 from prefect.runner._control_channel import ControlSignalStatus
-from prefect.runner._flow_run_executor import FlowRunExecutorContext
+from prefect.runner._flow_run_executor import (
+    FlowRunExecutionResult,
+    FlowRunExecutorContext,
+)
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.states import AwaitingRetry, State, exception_to_crashed_state
 from prefect.types._datetime import human_friendly_diff
@@ -779,6 +782,7 @@ async def execute(
     intent = _termination_intent()
     terminated = False
     rescheduled = False
+    result: FlowRunExecutionResult | None = None
 
     with tempfile.TemporaryDirectory(prefix="prefect-flow-run-") as workspace_root:
         async with FlowRunExecutorContext() as ctx:
@@ -798,68 +802,67 @@ async def execute(
 
             terminating = anyio.Event()
             if intent is None or not _install_termination_handler(terminating.set):
-                await executor.submit()
-                return
+                result = await executor.submit()
+            else:
+                async with anyio.create_task_group() as tg:
 
-            async with anyio.create_task_group() as tg:
+                    async def _terminate_on_signal() -> None:
+                        nonlocal terminated, rescheduled
+                        await terminating.wait()
+                        logger.info("SIGTERM received, initiating graceful shutdown...")
 
-                async def _terminate_on_signal() -> None:
-                    nonlocal terminated, rescheduled
-                    await terminating.wait()
-                    logger.info("SIGTERM received, initiating graceful shutdown...")
-
-                    # The engine must learn the intent before it sees a SIGTERM so it
-                    # exits without proposing a state we then override; one that never
-                    # acknowledged gets no chance to propose at all.
-                    signal_status = await ctx.control_channel.signal(id, intent)
-                    if signal_status is ControlSignalStatus.ALREADY_CONCLUDED:
-                        logger.info(
-                            "Engine already reported a final state; leaving it unchanged."
-                        )
-                        return
-
-                    acknowledged = signal_status is ControlSignalStatus.ACKNOWLEDGED
-                    if not acknowledged:
-                        logger.warning(
-                            "Engine did not acknowledge %s intent; stopping it without"
-                            " a graceful signal.",
-                            intent,
-                        )
-
-                    if intent == "reschedule":
-                        already_final = await _final_state_blocking_reschedule(
-                            ctx.client, id
-                        )
-                        if already_final is not None:
+                        # The engine must learn the intent before it sees a SIGTERM so it
+                        # exits without proposing a state we then override; one that never
+                        # acknowledged gets no chance to propose at all.
+                        signal_status = await ctx.control_channel.signal(id, intent)
+                        if signal_status is ControlSignalStatus.ALREADY_CONCLUDED:
                             logger.info(
-                                "Flow run is already in final state %r; not"
-                                " rescheduling.",
-                                already_final.name,
+                                "Engine already reported a final state; leaving it unchanged."
                             )
-                        else:
-                            try:
-                                state = await propose_state(
-                                    ctx.client, AwaitingRetry(), flow_run_id=id
+                            return
+
+                        acknowledged = signal_status is ControlSignalStatus.ACKNOWLEDGED
+                        if not acknowledged:
+                            logger.warning(
+                                "Engine did not acknowledge %s intent; stopping it without"
+                                " a graceful signal.",
+                                intent,
+                            )
+
+                        if intent == "reschedule":
+                            already_final = await _final_state_blocking_reschedule(
+                                ctx.client, id
+                            )
+                            if already_final is not None:
+                                logger.info(
+                                    "Flow run is already in final state %r; not"
+                                    " rescheduling.",
+                                    already_final.name,
                                 )
-                                rescheduled = state.is_scheduled()
-                            except (Abort, Pause):
-                                pass
-                            except Exception:
-                                logger.exception("Failed to reschedule flow run")
+                            else:
+                                try:
+                                    state = await propose_state(
+                                        ctx.client, AwaitingRetry(), flow_run_id=id
+                                    )
+                                    rescheduled = state.is_scheduled()
+                                except (Abort, Pause):
+                                    pass
+                                except Exception:
+                                    logger.exception("Failed to reschedule flow run")
 
-                    await ctx.process_manager.kill(id, force=not acknowledged)
-                    terminated = True
-                    # We own the run's next state now, so stop the executor before it
-                    # can start a process or propose a state of its own. Do not await
-                    # between the kill and this cancel, or the executor will observe
-                    # the exit code and propose `Crashed` from it.
-                    tg.cancel_scope.cancel()
+                        await ctx.process_manager.kill(id, force=not acknowledged)
+                        terminated = True
+                        # We own the run's next state now, so stop the executor before it
+                        # can start a process or propose a state of its own. Do not await
+                        # between the kill and this cancel, or the executor will observe
+                        # the exit code and propose `Crashed` from it.
+                        tg.cancel_scope.cancel()
 
-                tg.start_soon(_terminate_on_signal)
-                await executor.submit()
-                # Leave a shutdown already in flight alone; it cancels the group itself.
-                if not terminating.is_set():
-                    tg.cancel_scope.cancel()
+                    tg.start_soon(_terminate_on_signal)
+                    result = await executor.submit()
+                    # Leave a shutdown already in flight alone; it cancels the group itself.
+                    if not terminating.is_set():
+                        tg.cancel_scope.cancel()
 
     # Exits go here, not inside the context: a `SystemExit` unwinding through an
     # anyio task group gets wrapped in an exception group, losing the exit code.
@@ -872,3 +875,16 @@ async def execute(
             )
         # Non-zero so the terminating infrastructure retries this attempt.
         exit_with_error("Flow run relinquished to infrastructure retry.")
+
+    if result is not None and result.crash_unreported:
+        # Surface the crash through the exit code so infrastructure-level crash
+        # detection can record it instead. Negative codes are signals; report them
+        # the way a shell would.
+        status_code = result.status_code
+        exit_with_error(
+            f"Flow run process crashed (status code {status_code}) and its crash"
+            " could not be reported.",
+            code=(128 - status_code if status_code < 0 else status_code)
+            if status_code
+            else 1,
+        )
