@@ -85,7 +85,7 @@ export function SchemaFormInputStringFormatDate({
 					{date ? format(date, "PPP") : <span>Pick a date</span>}
 				</Button>
 			</PopoverTrigger>
-			<PopoverContent className="w-auto p-0">
+			<PopoverContent className="w-auto p-0" align="start">
 				<div className="p-3 space-y-2">
 					<Input
 						ref={inputRef}
