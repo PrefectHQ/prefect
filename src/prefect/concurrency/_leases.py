@@ -6,6 +6,7 @@ from uuid import UUID
 
 import httpx
 
+from prefect._internal.compatibility.starlette import status
 from prefect._internal.concurrency.cancellation import (
     AsyncCancelScope,
     WatcherThreadCancelScope,
@@ -102,7 +103,7 @@ def _lease_released_by_final_flow_run(
     """
     if flow_run_id is None or not (
         isinstance(exc, httpx.HTTPStatusError)
-        and exc.response.status_code == httpx.codes.GONE
+        and exc.response.status_code == status.HTTP_410_GONE
     ):
         return False
 
