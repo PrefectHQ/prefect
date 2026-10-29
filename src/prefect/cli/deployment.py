@@ -115,8 +115,12 @@ async def _get_deployment(
 ) -> DeploymentResponse:
     if name is None and deployment_id is not None:
         try:
+            UUID(deployment_id)
+        except ValueError:
+            exit_with_error(f"Invalid deployment ID: {deployment_id!r}")
+        try:
             deployment = await client.read_deployment(deployment_id)
-        except PrefectHTTPStatusError:
+        except ObjectNotFound:
             exit_with_error(f"Deployment {deployment_id!r} not found!")
     elif name is not None and deployment_id is None:
         try:

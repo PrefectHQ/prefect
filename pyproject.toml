@@ -88,7 +88,7 @@ dependencies = [
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
-Documentation = "https://docs.prefect.io"
+Documentation = "https://www.prefect.io/docs"
 Source = "https://github.com/PrefectHQ/prefect"
 Tracker = "https://github.com/PrefectHQ/prefect/issues"
 
@@ -176,8 +176,8 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.3",
-    "ruff==0.16.2",
-    "mypy==2.3.0",
+    "ruff==0.17.1",
+    "mypy==2.4.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
     "types-dateparser>=1.2.0",

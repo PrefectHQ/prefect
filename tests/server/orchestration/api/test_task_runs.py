@@ -658,6 +658,53 @@ class TestPaginateTaskRuns:
         assert data["results"][0]["id"] == str(task_run_2.id)
 
     @pytest.mark.parametrize(
+        "sort,expected_order",
+        [
+            (schemas.sorting.TaskRunSort.DURATION_DESC, ["long", "medium", "short"]),
+            (schemas.sorting.TaskRunSort.DURATION_ASC, ["short", "medium", "long"]),
+        ],
+    )
+    async def test_paginate_task_runs_sorts_by_duration_across_pages(
+        self,
+        flow_run: FlowRun,
+        session: AsyncSession,
+        client: AsyncClient,
+        sort: schemas.sorting.TaskRunSort,
+        expected_order: list[str],
+    ):
+        """The duration order holds across pages, not just within the first one."""
+        ids_by_name = {}
+        for name, total_run_time in [
+            ("medium", datetime.timedelta(minutes=1)),
+            ("short", datetime.timedelta(seconds=5)),
+            ("long", datetime.timedelta(minutes=10)),
+        ]:
+            task_run = await models.task_runs.create_task_run(
+                session=session,
+                task_run=schemas.core.TaskRun(
+                    flow_run_id=flow_run.id,
+                    task_key="my-key",
+                    dynamic_key=name,
+                    total_run_time=total_run_time,
+                ),
+            )
+            ids_by_name[name] = str(task_run.id)
+        await session.commit()
+
+        page_ids = []
+        for page in [1, 2, 3]:
+            response = await client.post(
+                "/task_runs/paginate",
+                json=dict(limit=1, page=page, sort=sort.value),
+            )
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["pages"] == 3
+            page_ids.extend(result["id"] for result in data["results"])
+
+        assert page_ids == [ids_by_name[name] for name in expected_order]
+
+    @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]
     )
     async def test_paginate_task_runs_succeeds_for_all_sort_values(

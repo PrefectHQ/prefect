@@ -14,7 +14,7 @@ from prefect.settings import get_current_settings
 NOTICE_TEXT = """
 Prefect collects anonymous usage data to improve the product.
 To opt out: set PREFECT_SERVER_ANALYTICS_ENABLED=false on the server, or DO_NOT_TRACK=1 in the client.
-Learn more: https://docs.prefect.io/concepts/telemetry
+Learn more: https://www.prefect.io/docs/concepts/telemetry
 """
 
 

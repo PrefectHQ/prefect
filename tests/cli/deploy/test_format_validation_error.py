@@ -29,7 +29,10 @@ def test_format_validation_error_with_invalid_schedule():
 
     assert "Invalid fields in deployments:" in result
     assert f"{deployment_name}: schedule" in result
-    assert "https://docs.prefect.io/v3/concepts/deployments#deployment-schema" in result
+    assert (
+        "https://www.prefect.io/docs/v3/concepts/deployments#deployment-schema"
+        in result
+    )
 
 
 def test_format_validation_error_with_multiple_invalid_fields():
@@ -192,7 +195,10 @@ def test_format_validation_error_with_top_level_field_error():
 
     assert "Invalid top-level fields in config file:" in result
     assert "prefect-version: Input should be a valid string" in result
-    assert "https://docs.prefect.io/v3/how-to-guides/deployments/prefect-yaml" in result
+    assert (
+        "https://www.prefect.io/docs/v3/how-to-guides/deployments/prefect-yaml"
+        in result
+    )
     # Should not include deployment error section
     assert "Invalid fields in deployments:" not in result
 
@@ -222,8 +228,14 @@ def test_format_validation_error_with_both_top_level_and_deployment_errors():
     assert "Invalid fields in deployments:" in result
     assert f"{deployment_name}: tags" in result
     # Should have both links
-    assert "https://docs.prefect.io/v3/how-to-guides/deployments/prefect-yaml" in result
-    assert "https://docs.prefect.io/v3/concepts/deployments#deployment-schema" in result
+    assert (
+        "https://www.prefect.io/docs/v3/how-to-guides/deployments/prefect-yaml"
+        in result
+    )
+    assert (
+        "https://www.prefect.io/docs/v3/concepts/deployments#deployment-schema"
+        in result
+    )
 
 
 def test_trigger_with_templated_enabled_field_should_not_raise():

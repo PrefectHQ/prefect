@@ -52,7 +52,7 @@ export interface paths {
          * @description Creates a new flow from the provided schema. If a flow with the
          *     same name already exists, the existing flow is returned.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/flows.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/flows.
          */
         post: operations["create_flow_flows__post"];
         delete?: never;
@@ -209,7 +209,7 @@ export interface paths {
          *
          *     If no state is provided, the flow run will be created in a PENDING state.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/flows.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/flows.
          */
         post: operations["create_flow_run_flow_runs__post"];
         delete?: never;
@@ -591,7 +591,7 @@ export interface paths {
          *
          *     If no state is provided, the task run will be created in a PENDING state.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/tasks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/tasks.
          */
         post: operations["create_task_run_task_runs__post"];
         delete?: never;
@@ -739,7 +739,7 @@ export interface paths {
          * Read Flow Run State
          * @description Get a flow run state by id.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/flows#final-state-determination.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/flows#final-state-determination.
          */
         get: operations["read_flow_run_state_flow_run_states__id__get"];
         put?: never;
@@ -781,7 +781,7 @@ export interface paths {
          * Read Task Run State
          * @description Get a task run state by id.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/tasks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/tasks.
          */
         get: operations["read_task_run_state_task_run_states__id__get"];
         put?: never;
@@ -852,7 +852,7 @@ export interface paths {
          *     If the deployment has an active schedule, flow runs will be scheduled.
          *     When upserting, any scheduled runs from the existing deployment will be deleted.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/deployments.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/deployments.
          */
         post: operations["create_deployment_deployments__post"];
         delete?: never;
@@ -1272,7 +1272,7 @@ export interface paths {
          * Create Logs
          * @description Create new logs from the provided schema.
          *
-         *     For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/add-logging.
+         *     For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/add-logging.
          */
         post: operations["create_logs_logs__post"];
         delete?: never;
@@ -1314,7 +1314,7 @@ export interface paths {
          * Create Concurrency Limit
          * @description Create a task run concurrency limit.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/tag-based-concurrency-limits.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/tag-based-concurrency-limits.
          */
         post: operations["create_concurrency_limit_concurrency_limits__post"];
         delete?: never;
@@ -1470,7 +1470,7 @@ export interface paths {
          * Create Concurrency Limit V2
          * @description Create a task run concurrency limit.
          *
-         *     For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/global-concurrency-limits.
+         *     For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/global-concurrency-limits.
          */
         post: operations["create_concurrency_limit_v2_v2_concurrency_limits__post"];
         delete?: never;
@@ -1613,7 +1613,7 @@ export interface paths {
          * Create Block Type
          * @description Create a new block type.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/blocks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
         post: operations["create_block_type_block_types__post"];
         delete?: never;
@@ -1751,7 +1751,7 @@ export interface paths {
          * Create Block Document
          * @description Create a new block document.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/blocks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
         post: operations["create_block_document_block_documents__post"];
         delete?: never;
@@ -1833,7 +1833,7 @@ export interface paths {
          * @description Creates a new work pool. If a work pool with the same
          *     name already exists, an error will be raised.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/work-pools.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/work-pools.
          */
         post: operations["create_work_pool_work_pools__post"];
         delete?: never;
@@ -1966,7 +1966,7 @@ export interface paths {
          * @description Creates a new work pool queue. If a work pool queue with the same
          *     name already exists, an error will be raised.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.
          */
         post: operations["create_work_queue_work_pools__work_pool_name__queues_post"];
         delete?: never;
@@ -2093,7 +2093,7 @@ export interface paths {
          * Read Task Workers
          * @description Read active task workers. Optionally filter by task keys.
          *
-         *     For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/run-background-tasks.
+         *     For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/run-background-tasks.
          */
         post: operations["read_task_workers_task_workers_filter_post"];
         delete?: never;
@@ -2118,7 +2118,7 @@ export interface paths {
          *     If a work queue with the same name already exists, an error
          *     will be raised.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.
          */
         post: operations["create_work_queue_work_queues__post"];
         delete?: never;
@@ -2269,7 +2269,7 @@ export interface paths {
          * Create Artifact
          * @description Create an artifact.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/artifacts.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/artifacts.
          */
         post: operations["create_artifact_artifacts__post"];
         delete?: never;
@@ -2419,7 +2419,7 @@ export interface paths {
          * Create Block Schema
          * @description Create a block schema.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/blocks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
         post: operations["create_block_schema_block_schemas__post"];
         delete?: never;
@@ -2500,7 +2500,7 @@ export interface paths {
          * Read Available Block Capabilities
          * @description Get available block capabilities.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/blocks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
         get: operations["read_available_block_capabilities_block_capabilities__get"];
         put?: never;
@@ -2544,7 +2544,7 @@ export interface paths {
          * Create Variable
          * @description Create a variable.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/variables.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/variables.
          */
         post: operations["create_variable_variables__post"];
         delete?: never;
@@ -2658,7 +2658,7 @@ export interface paths {
          * Create Events
          * @description Record a batch of Events.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/events.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/events.
          */
         post: operations["create_events_events_post"];
         delete?: never;
@@ -2745,7 +2745,7 @@ export interface paths {
          * Create Automation
          * @description Create an automation.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/automations.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/automations.
          */
         post: operations["create_automation_automations__post"];
         delete?: never;
@@ -11796,7 +11796,7 @@ export interface components {
          * @description Defines task run sorting options.
          * @enum {string}
          */
-        TaskRunSort: "ID_DESC" | "EXPECTED_START_TIME_ASC" | "EXPECTED_START_TIME_DESC" | "NAME_ASC" | "NAME_DESC" | "NEXT_SCHEDULED_START_TIME_ASC" | "END_TIME_DESC";
+        TaskRunSort: "ID_DESC" | "EXPECTED_START_TIME_ASC" | "EXPECTED_START_TIME_DESC" | "NAME_ASC" | "NAME_DESC" | "NEXT_SCHEDULED_START_TIME_ASC" | "END_TIME_DESC" | "DURATION_DESC" | "DURATION_ASC";
         /**
          * TaskRunUpdate
          * @description Data used by the Prefect REST API to update a task run

@@ -7,4 +7,4 @@
         <img src="https://img.shields.io/pypi/dm/prefect-gitlab?color=26272B&labelColor=090422" /></a>
 </p>
 
-See the docs at [https://docs.prefect.io/integrations/prefect-gitlab](https://docs.prefect.io/integrations/prefect-gitlab) for more information.
+See the docs at [https://www.prefect.io/docs/integrations/prefect-gitlab](https://www.prefect.io/docs/integrations/prefect-gitlab) for more information.
