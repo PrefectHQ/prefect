@@ -6,7 +6,7 @@ import { DateTimePicker } from "./date-time-picker";
 describe("DateTimePicker", () => {
 	it("aligns the popover to the start of the input", async () => {
 		const user = userEvent.setup();
-		render(<DateTimePicker onValueChange={vi.fn()} />);
+		render(<DateTimePicker value={undefined} onValueChange={vi.fn()} />);
 		await user.click(screen.getByRole("button"));
 		expect(screen.getByRole("dialog")).toHaveAttribute("data-align", "start");
 	});
