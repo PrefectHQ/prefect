@@ -1671,14 +1671,14 @@ async def adeploy(
                 " or specify a remote storage location for the flow with `.from_source`."
                 " If you are attempting to deploy a flow to a local process work pool,"
                 " consider using `flow.serve` instead. See the documentation for more"
-                " information: https://www.prefect.io/docs/latest/how-to-guides/deployments/run-flows-in-local-processes"
+                " information: https://www.prefect.io/docs/v3/how-to-guides/deployment_infra/run-flows-in-local-processes"
             )
         elif work_pool.type == "process" and not ignore_warnings:
             console.print(
                 "Looks like you're deploying to a process work pool. If you're creating a"
                 " deployment for local development, calling `.serve` on your flow is a great"
                 " way to get started. See the documentation for more information:"
-                " https://www.prefect.io/docs/latest/how-to-guides/deployments/run-flows-in-local-processes "
+                " https://www.prefect.io/docs/v3/how-to-guides/deployment_infra/run-flows-in-local-processes "
                 " Set `ignore_warnings=True` to suppress this message.",
                 style="yellow",
             )
@@ -1912,14 +1912,14 @@ def deploy(
                 " or specify a remote storage location for the flow with `.from_source`."
                 " If you are attempting to deploy a flow to a local process work pool,"
                 " consider using `flow.serve` instead. See the documentation for more"
-                " information: https://www.prefect.io/docs/latest/how-to-guides/deployments/run-flows-in-local-processes"
+                " information: https://www.prefect.io/docs/v3/how-to-guides/deployment_infra/run-flows-in-local-processes"
             )
         elif work_pool.type == "process" and not ignore_warnings:
             console.print(
                 "Looks like you're deploying to a process work pool. If you're creating a"
                 " deployment for local development, calling `.serve` on your flow is a great"
                 " way to get started. See the documentation for more information:"
-                " https://www.prefect.io/docs/latest/how-to-guides/deployments/run-flows-in-local-processes "
+                " https://www.prefect.io/docs/v3/how-to-guides/deployment_infra/run-flows-in-local-processes "
                 " Set `ignore_warnings=True` to suppress this message.",
                 style="yellow",
             )
