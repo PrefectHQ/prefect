@@ -1100,6 +1100,11 @@ CSRF_TEST_API_URL = "http://prefect.test/api"
 CSRF_TOKEN_URL = f"{CSRF_TEST_API_URL}/csrf-token"
 CHANGE_REQUEST_URL = f"{CSRF_TEST_API_URL}/flows/filter"
 
+# Upper bound for the handoffs between threads in the sync CSRF tests. Reaching it
+# means the test has already failed, so it only has to be shorter than the session's
+# pytest-timeout.
+WAIT_TIMEOUT = 30
+
 
 class CsrfTokenServer:
     """
@@ -1341,8 +1346,8 @@ class TestSyncClientSharedCsrfToken:
 
         def handle_change(request: Request) -> Response:
             if not responses_released.is_set():
-                all_in_flight.wait()
-                responses_released.wait()
+                all_in_flight.wait(WAIT_TIMEOUT)
+                responses_released.wait(WAIT_TIMEOUT)
             return server.handle_change(request)
 
         respx_mock.get(CSRF_TOKEN_URL).mock(side_effect=server.issue_token)
@@ -1353,11 +1358,15 @@ class TestSyncClientSharedCsrfToken:
             client.csrf_token_expiration = now + timedelta(days=1)
 
             futures = [executor.submit(client.post, "/flows/filter") for _ in range(5)]
-            all_in_flight.wait()
-            # The server no longer accepts the token they carry, as when the token
-            # expires on the server before the client notices
-            server.token = None
-            responses_released.set()
+            try:
+                all_in_flight.wait(WAIT_TIMEOUT)
+                # The server no longer accepts the token they carry, as when the token
+                # expires on the server before the client notices
+                server.token = None
+            finally:
+                # Release the parked threads even on failure, so the executor can
+                # shut down instead of hanging the session
+                responses_released.set()
             for future in futures:
                 future.result()
 
@@ -1374,7 +1383,7 @@ class TestSyncClientSharedCsrfToken:
         def handle_change(request: Request) -> Response:
             if not first_request_arrived.is_set():
                 first_request_arrived.set()
-                first_request_released.wait()
+                first_request_released.wait(WAIT_TIMEOUT)
             return server.handle_change(request)
 
         respx_mock.get(CSRF_TOKEN_URL).mock(side_effect=server.issue_token)
@@ -1385,12 +1394,16 @@ class TestSyncClientSharedCsrfToken:
             client.csrf_token_expiration = now + timedelta(days=1)
 
             future = executor.submit(client.post, "/flows/filter")
-            first_request_arrived.wait()
-            # While the first request is in flight, its token expires and another
-            # request replaces it
-            client.csrf_token_expiration = now - timedelta(days=1)
-            client.post("/flows/filter")
-            first_request_released.set()
+            try:
+                assert first_request_arrived.wait(WAIT_TIMEOUT)
+                # While the first request is in flight, its token expires and another
+                # request replaces it
+                client.csrf_token_expiration = now - timedelta(days=1)
+                client.post("/flows/filter")
+            finally:
+                # Release the parked thread even on failure, so the executor can
+                # shut down instead of hanging the session
+                first_request_released.set()
             future.result()
 
         assert server.token_requests == 1
@@ -1407,7 +1420,7 @@ class TestSyncClientSharedCsrfToken:
         def handle_change(request: Request) -> Response:
             if not first_request_arrived.is_set():
                 first_request_arrived.set()
-                first_request_released.wait()
+                first_request_released.wait(WAIT_TIMEOUT)
                 return Response(status.HTTP_503_SERVICE_UNAVAILABLE)
             return server.handle_change(request)
 
@@ -1419,12 +1432,16 @@ class TestSyncClientSharedCsrfToken:
             client.csrf_token_expiration = now + timedelta(days=1)
 
             future = executor.submit(client.post, "/flows/filter")
-            first_request_arrived.wait()
-            # Before the first request retries, its token expires and another
-            # request replaces it
-            client.csrf_token_expiration = now - timedelta(days=1)
-            client.post("/flows/filter")
-            first_request_released.set()
+            try:
+                assert first_request_arrived.wait(WAIT_TIMEOUT)
+                # Before the first request retries, its token expires and another
+                # request replaces it
+                client.csrf_token_expiration = now - timedelta(days=1)
+                client.post("/flows/filter")
+            finally:
+                # Release the parked thread even on failure, so the executor can
+                # shut down instead of hanging the session
+                first_request_released.set()
             future.result()
 
         assert server.token_requests == 1
