@@ -30,6 +30,18 @@ async def other_concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
 
 
 @pytest.fixture
+async def inactive_concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
+    concurrency_limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(name="inactive", limit=1, active=False),
+    )
+
+    await session.commit()
+
+    return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)
+
+
+@pytest.fixture
 async def concurrency_limit_with_decay(session: AsyncSession) -> ConcurrencyLimitV2:
     concurrency_limit = await create_concurrency_limit(
         session=session,
