@@ -46,6 +46,7 @@ title: 3.9
 * Recover cron occurrences shifted through DST gaps by [@zzstoatzz](https://github.com/zzstoatzz) in [#23636](https://github.com/PrefectHQ/prefect/pull/23636)
 * Exit non-zero from `flow-run execute` when a crash cannot be reported by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23393](https://github.com/PrefectHQ/prefect/pull/23393)
 * Skip repeated cron occurrences during scheduler refills by [@zzstoatzz](https://github.com/zzstoatzz) in [#23652](https://github.com/PrefectHQ/prefect/pull/23652)
+* Stop extra cron runs during DST refills on Python 3.11 and 3.12 by [@desertaxle](https://github.com/desertaxle) in [#23672](https://github.com/PrefectHQ/prefect/pull/23672)
 * Fall back to placeholder for any `jsonable_encoder` error in `Flow.serialize_parameters` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23630](https://github.com/PrefectHQ/prefect/pull/23630)
 * Fix 500 from flow run list endpoints when a parameter exceeds 64 bits by [@DEVJHAWAR11](https://github.com/DEVJHAWAR11) in [#23429](https://github.com/PrefectHQ/prefect/pull/23429)
 * Reset pause keys when a blocking pause is rescheduled by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23399](https://github.com/PrefectHQ/prefect/pull/23399)
