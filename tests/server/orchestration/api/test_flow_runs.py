@@ -23,7 +23,7 @@ from prefect.server import models, schemas
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
-from prefect.server.database.orm_models import Flow, WorkPool, WorkQueue
+from prefect.server.database.orm_models import Deployment, Flow, WorkPool, WorkQueue
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
@@ -1916,6 +1916,158 @@ class TestSetFlowRunState:
             session=session, flow_run_id=flow_run_id
         )
         assert run.state.type == StateType.CANCELLING
+
+    async def test_pauses_fire_again_after_blocking_pause_is_rescheduled(
+        self,
+        deployment: Deployment,
+        client: AsyncClient,
+        session: AsyncSession,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23398
+
+        When a process waiting on a blocking pause is terminated and the run is
+        rescheduled, the new attempt restarts from the top and reuses the same
+        auto-generated pause keys. Those pauses must not be skipped."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id, deployment_id=deployment.id
+            ),
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+
+        async def set_state(type: StateType, **kwargs: Any) -> OrchestrationResult:
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=dict(type=type.value, **kwargs)),
+            )
+            assert response.status_code == 201, response.text
+            return OrchestrationResult.model_validate(response.json())
+
+        def paused(pause_key: str) -> dict[str, Any]:
+            return dict(
+                name="Paused",
+                state_details=dict(
+                    pause_key=pause_key,
+                    pause_timeout=(
+                        now("UTC") + datetime.timedelta(hours=1)
+                    ).isoformat(),
+                ),
+            )
+
+        # first attempt: pause, get resumed, pause again
+        await set_state(StateType.PENDING)
+        await set_state(StateType.RUNNING)
+        await set_state(StateType.PAUSED, **paused("1"))
+        await set_state(StateType.RUNNING)
+        await set_state(StateType.PAUSED, **paused("2"))
+
+        # process is terminated while paused and the run is rescheduled
+        result = await set_state(StateType.SCHEDULED, name="AwaitingRetry")
+        assert result.status == responses.SetStateStatus.ACCEPT
+
+        # second attempt restarts from the top with the same pause keys
+        await set_state(StateType.PENDING)
+        await set_state(StateType.RUNNING)
+        result = await set_state(StateType.PAUSED, **paused("1"))
+
+        assert result.status == responses.SetStateStatus.ACCEPT
+        assert result.state is not None
+        assert result.state.type == StateType.PAUSED
+
+        session.expire_all()
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run is not None
+        assert run.run_count == 3
+
+    async def test_input_pauses_can_be_replayed_after_blocking_pause_is_rescheduled(
+        self,
+        deployment: Deployment,
+        client: AsyncClient,
+        session: AsyncSession,
+    ):
+        """A replayed `wait_for_input` pause must be able to save its schema and
+        receive a fresh response instead of colliding with the earlier attempt's
+        input records."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id, deployment_id=deployment.id
+            ),
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+        keyset = {
+            "description": "paused-1-description",
+            "response": "paused-1-response",
+            "schema": "paused-1-schema",
+        }
+        schema = {"type": "object", "properties": {"x": {"type": "integer"}}}
+
+        async def set_state(type: StateType, **kwargs: Any) -> OrchestrationResult:
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=dict(type=type.value, **kwargs)),
+            )
+            assert response.status_code == 201, response.text
+            return OrchestrationResult.model_validate(response.json())
+
+        async def pause_for_input() -> None:
+            await set_state(StateType.PENDING)
+            await set_state(StateType.RUNNING)
+            result = await set_state(
+                StateType.PAUSED,
+                name="Paused",
+                state_details=dict(
+                    pause_key="1",
+                    pause_timeout=(
+                        now("UTC") + datetime.timedelta(hours=1)
+                    ).isoformat(),
+                    run_input_keyset=keyset,
+                ),
+            )
+            assert result.status == responses.SetStateStatus.ACCEPT
+            assert result.state is not None
+            assert result.state.type == StateType.PAUSED
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/input",
+                json=dict(key=keyset["schema"], value=orjson.dumps(schema).decode()),
+            )
+            assert response.status_code == 201, response.text
+
+        # first attempt pauses for input and is resumed with a response
+        await pause_for_input()
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume", json=dict(run_input={"x": 1})
+        )
+        assert response.json()["status"] == "ACCEPT", response.text
+
+        # the run is later terminated mid-run and rescheduled
+        await set_state(
+            StateType.PAUSED, name="Paused", state_details=dict(pause_key="2")
+        )
+        await set_state(StateType.SCHEDULED, name="AwaitingRetry")
+
+        # the second attempt replays the input pause and gets a new response
+        await pause_for_input()
+        response = await client.get(
+            f"/flow_runs/{flow_run_id}/input/{keyset['response']}"
+        )
+        assert response.status_code == 404
+
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume", json=dict(run_input={"x": 2})
+        )
+        assert response.json()["status"] == "ACCEPT", response.text
+        response = await client.get(
+            f"/flow_runs/{flow_run_id}/input/{keyset['response']}"
+        )
+        assert response.status_code == 200
+        assert response.json() == {"x": 2}
 
     async def test_cancelling_a_paused_flow_run_with_expired_timeout_is_accepted(
         self, flow: Flow, client: AsyncClient, session: AsyncSession
