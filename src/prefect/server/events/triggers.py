@@ -386,10 +386,15 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
 
     # Otherwise we need N child firings. We'll upsert this firing and then check
     # what the current state of the world is. If we have enough firings, we'll
-    # fire the parent trigger.
-    await upsert_child_firing(session, firing)
+    # fire the parent trigger.  When the trigger has a `for_each`, we group firings
+    # by the resolved label values so that only children sharing the same group are
+    # paired together; without one, every firing resolves to an empty key and the
+    # grouping is a no-op.
+    bucketing_key = trigger.bucketing_key(firing)
+    await upsert_child_firing(session, firing, bucketing_key=bucketing_key)
     firings: list[Firing] = [
-        cf.child_firing for cf in await get_child_firings(session, trigger)
+        cf.child_firing
+        for cf in await get_child_firings(session, trigger, bucketing_key=bucketing_key)
     ]
     firing_ids: set[UUID] = {f.id for f in firings}
 

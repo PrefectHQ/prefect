@@ -387,6 +387,18 @@ class CompositeTrigger(Trigger, abc.ABC):
             "Proactive triggers"
         ),
     )
+    for_each: Set[str] = Field(
+        default_factory=set,
+        description=(
+            "Evaluate the composite trigger separately for each distinct value of "
+            "these labels on the event that caused each child trigger to fire.  Child "
+            "firings are only paired together when they share the same value for every "
+            "label, rather than being paired by timing alone.  By default, labels refer "
+            "to the primary resource of the triggering event.  You may also refer to "
+            "labels from related resources by specifying `related:<role>:<label>`, "
+            "matching the `for_each` syntax of `EventTrigger`."
+        ),
+    )
 
 
 class CompoundTrigger(CompositeTrigger):

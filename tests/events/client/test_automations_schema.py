@@ -374,3 +374,28 @@ def test_compound_trigger_within_schema_allows_negative_seconds(mode: str):
     within = schema["$defs"]["CompoundTrigger"]["properties"]["within"]
     assert {"type": "number"} in within["anyOf"]
     assert "minimum" not in within
+
+
+def test_compound_trigger_for_each_defaults_empty_and_round_trips():
+    trigger = CompoundTrigger.model_validate(
+        {
+            "triggers": [{"type": "event", "posture": "Reactive"}],
+            "require": "all",
+        }
+    )
+    assert trigger.for_each == set()
+
+    trigger = CompoundTrigger.model_validate(
+        {
+            "triggers": [{"type": "event", "posture": "Reactive"}],
+            "require": "all",
+            "for_each": ["task.slot", "related:deployment:prefect.resource.id"],
+        }
+    )
+    assert trigger.for_each == {
+        "task.slot",
+        "related:deployment:prefect.resource.id",
+    }
+
+    reloaded = CompoundTrigger.model_validate_json(trigger.model_dump_json())
+    assert reloaded.for_each == trigger.for_each
