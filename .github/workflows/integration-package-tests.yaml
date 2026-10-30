@@ -131,6 +131,55 @@ jobs:
           --only-rerun "ConnectionAbortedError"
           --only-rerun "RaySystemError"
 
+  run-storage-path-tests-windows:
+    name: "Storage path contracts for ${{ matrix.package }} on Windows"
+    needs: prepare-matrix
+    if: >-
+      contains(toJSON(needs.prepare-matrix.outputs.matrix), 'prefect-aws') ||
+      contains(toJSON(needs.prepare-matrix.outputs.matrix), 'prefect-azure') ||
+      contains(toJSON(needs.prepare-matrix.outputs.matrix), 'prefect-gcp')
+    runs-on: windows-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: prefect-aws
+            requirement: "."
+            test-dependency: "moto[s3]"
+            tests: "tests/test_s3.py tests/deployments/test_steps.py"
+            filter: "test_put_directory_with_ignore_file or test_push_to_s3"
+          - package: prefect-azure
+            requirement: ".[blob_storage]"
+            test-dependency: "azure-cosmos"
+            tests: "tests/test_blob_storage.py tests/deployments/test_steps.py"
+            filter: "test_put_directory or test_push_to_azure_blob_storage_with_connection_string"
+          - package: prefect-gcp
+            requirement: ".[bigquery,aiplatform]"
+            test-dependency: "pandas"
+            tests: "tests/test_cloud_storage.py tests/projects/test_steps.py"
+            filter: "test_put_directory or test_push_to_gcs"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: blob:none
+
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "src/integrations/${{ matrix.package }}/pyproject.toml"
+
+      - name: Test native and POSIX filter results against released Prefect
+        working-directory: src/integrations/${{ matrix.package }}
+        run: >-
+          uv run --no-project --no-sources --with "${{ matrix.requirement }}"
+          --with "${{ matrix.test-dependency }}"
+          --with pytest --with pytest-asyncio --with pytest-env
+          pytest ${{ matrix.tests }} -k "${{ matrix.filter }}" -vv
+
   run-prefect-dbt-integration-tests:
     timeout-minutes: 20
 
