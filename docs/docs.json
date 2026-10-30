@@ -896,6 +896,12 @@
                         ]
                       },
                       {
+                        "group": "Observed States",
+                        "pages": [
+                          "v3/api-ref/rest-api/server/observed-states/read-observed-states"
+                        ]
+                      },
+                      {
                         "group": "Deployments",
                         "pages": [
                           "v3/api-ref/rest-api/server/deployments/create-deployment",
@@ -1446,6 +1452,7 @@
                           "v3/api-ref/python/prefect-server-api-flows",
                           "v3/api-ref/python/prefect-server-api-logs",
                           "v3/api-ref/python/prefect-server-api-middleware",
+                          "v3/api-ref/python/prefect-server-api-observed_states",
                           "v3/api-ref/python/prefect-server-api-root",
                           "v3/api-ref/python/prefect-server-api-run_history",
                           "v3/api-ref/python/prefect-server-api-saved_searches",
@@ -1563,6 +1570,7 @@
                           "v3/api-ref/python/prefect-server-models-flow_runs",
                           "v3/api-ref/python/prefect-server-models-flows",
                           "v3/api-ref/python/prefect-server-models-logs",
+                          "v3/api-ref/python/prefect-server-models-observed_states",
                           "v3/api-ref/python/prefect-server-models-saved_searches",
                           "v3/api-ref/python/prefect-server-models-storage_defaults",
                           "v3/api-ref/python/prefect-server-models-task_run_states",
@@ -1592,6 +1600,7 @@
                           "v3/api-ref/python/prefect-server-schemas-filters",
                           "v3/api-ref/python/prefect-server-schemas-graph",
                           "v3/api-ref/python/prefect-server-schemas-internal",
+                          "v3/api-ref/python/prefect-server-schemas-observed_states",
                           "v3/api-ref/python/prefect-server-schemas-responses",
                           "v3/api-ref/python/prefect-server-schemas-schedules",
                           "v3/api-ref/python/prefect-server-schemas-sorting",

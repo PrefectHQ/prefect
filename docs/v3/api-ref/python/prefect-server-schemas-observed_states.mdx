@@ -1,0 +1,54 @@
+---
+title: observed_states
+sidebarTitle: observed_states
+---
+
+# `prefect.server.schemas.observed_states`
+
+
+Discovery of state types and exact names in retained run history.
+
+## Classes
+
+### `ObservedStateSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/observed_states.py#L10" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Supported ordering for observed state discovery.
+
+
+**Methods:**
+
+#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+auto() -> str
+```
+
+Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
+
+
+### `ObservedState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/observed_states.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+An exact state type/name pair and the bounds of its retained transitions.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+

@@ -2464,6 +2464,91 @@
                 }
             }
         },
+        "/observed-states": {
+            "get": {
+                "tags": [
+                    "Observed States"
+                ],
+                "summary": "Read Observed States",
+                "description": "Discover exact state names and types from retained run transitions.\n\nSearch by case-insensitive name or type prefix. Timestamps describe retained\nhistory; deleting runs can change them or remove a state from the results.",
+                "operationId": "read_observed_states_observed_states_get",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "maxLength": 100
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Query"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/ObservedStateSort",
+                            "default": "LAST_SEEN_DESC"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 200,
+                            "minimum": 1,
+                            "default": 200,
+                            "title": "Limit"
+                        }
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ObservedState"
+                                    },
+                                    "title": "Response Read Observed States Observed States Get"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/deployments/": {
             "post": {
                 "tags": [
@@ -22953,6 +23038,50 @@
                 ],
                 "title": "Node"
             },
+            "ObservedState": {
+                "properties": {
+                    "state_type": {
+                        "type": "string",
+                        "title": "State Type",
+                        "description": "The state type."
+                    },
+                    "state_name": {
+                        "type": "string",
+                        "title": "State Name",
+                        "description": "The exact state name."
+                    },
+                    "first_seen": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "First Seen",
+                        "description": "Earliest retained transition timestamp."
+                    },
+                    "last_seen": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Last Seen",
+                        "description": "Latest retained transition timestamp."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "state_type",
+                    "state_name",
+                    "first_seen",
+                    "last_seen"
+                ],
+                "title": "ObservedState",
+                "description": "An exact state type/name pair and the bounds of its retained transitions."
+            },
+            "ObservedStateSort": {
+                "type": "string",
+                "enum": [
+                    "NAME_ASC",
+                    "LAST_SEEN_DESC"
+                ],
+                "title": "ObservedStateSort",
+                "description": "Supported ordering for observed state discovery."
+            },
             "Operator": {
                 "type": "string",
                 "enum": [
@@ -28143,7 +28272,9 @@
                     "NAME_ASC",
                     "NAME_DESC",
                     "NEXT_SCHEDULED_START_TIME_ASC",
-                    "END_TIME_DESC"
+                    "END_TIME_DESC",
+                    "DURATION_DESC",
+                    "DURATION_ASC"
                 ],
                 "title": "TaskRunSort",
                 "description": "Defines task run sorting options."
