@@ -290,16 +290,27 @@ async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Provide a detailed message for request validation errors."""
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=jsonable_encoder(
-            {
-                "exception_message": "Invalid request received.",
-                "exception_detail": exc.errors(),
-                "request_body": exc.body,
-            }
-        ),
+    content = jsonable_encoder(
+        {
+            "exception_message": "Invalid request received.",
+            "exception_detail": exc.errors(),
+            "request_body": exc.body,
+        }
     )
+    try:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=content
+        )
+    except ValueError:
+        # The request contains values that can't be rendered as JSON, like `NaN` or
+        # lone surrogates, so leave the request's values out of the response
+        content["request_body"] = None
+        for error in content["exception_detail"]:
+            error.pop("input", None)
+            error.pop("ctx", None)
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=content
+        )
 
 
 async def integrity_exception_handler(request: Request, exc: Exception) -> JSONResponse:

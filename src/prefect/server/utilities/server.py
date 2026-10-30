@@ -2,13 +2,50 @@
 Utilities for the Prefect REST API server.
 """
 
+import json
 from collections.abc import Coroutine, Sequence
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any, Callable, get_type_hints
+from functools import partial
+from typing import TYPE_CHECKING, Any, Callable, Literal, get_type_hints
 
+import orjson
 from fastapi import APIRouter, Request, Response, status
 from fastapi.routing import APIRoute
+from pydantic import BaseModel
+from pydantic_core import to_jsonable_python
 from starlette.routing import BaseRoute
+
+
+def _dump_models(
+    content: BaseModel | Sequence[BaseModel], mode: Literal["json", "python"]
+) -> Any:
+    if isinstance(content, BaseModel):
+        return content.model_dump(mode=mode)
+    return [model.model_dump(mode=mode) for model in content]
+
+
+def model_json_response(content: BaseModel | Sequence[BaseModel]) -> Response:
+    """
+    Render one or more models as a JSON response.
+
+    Free-form values stored by older servers (like parameters nested too deeply or
+    containing lone surrogates) can't be rendered by `orjson` or pydantic's JSON
+    mode, so this falls back to the standard library rather than failing every
+    request that reads them.
+    """
+    try:
+        body = orjson.dumps(_dump_models(content, "json"))
+    except (TypeError, ValueError):
+        try:
+            data = _dump_models(content, "json")
+        except ValueError:
+            data = _dump_models(content, "python")
+        body = json.dumps(
+            data,
+            default=partial(to_jsonable_python, timedelta_mode="float"),
+            separators=(",", ":"),
+        ).encode()
+    return Response(content=body, media_type="application/json")
 
 
 def method_paths_from_routes(routes: Sequence[BaseRoute]) -> set[str]:

@@ -24,6 +24,7 @@ from prefect._internal.schemas.validators import (
     normalize_schedule_rrule,
     remove_old_deployment_fields,
     validate_cache_key_length,
+    validate_json_serializable,
     validate_max_metadata_length,
     validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
@@ -55,8 +56,12 @@ from prefect.types.names import (
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
 
+JsonSerializableDict = Annotated[
+    Dict[str, Any], AfterValidator(validate_json_serializable)
+]
+
 SizedParameters = Annotated[
-    Dict[str, Any], AfterValidator(validate_parameter_size_field)
+    JsonSerializableDict, AfterValidator(validate_parameter_size_field)
 ]
 
 
@@ -118,7 +123,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
-    parameters: dict[str, Any] = Field(
+    parameters: JsonSerializableDict = Field(
         default_factory=dict, description="A dictionary of parameter value overrides."
     )
     slug: Optional[str] = Field(
@@ -152,7 +157,7 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
-    parameters: dict[str, Any] = Field(
+    parameters: JsonSerializableDict = Field(
         default_factory=dict, description="A dictionary of parameter value overrides."
     )
     slug: Optional[str] = Field(
@@ -242,7 +247,7 @@ class DeploymentCreate(ActionBaseModel):
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
     entrypoint: Optional[str] = Field(None)
-    job_variables: Dict[str, Any] = Field(
+    job_variables: JsonSerializableDict = Field(
         default_factory=dict,
         description="Overrides for the flow's infrastructure configuration.",
         json_schema_extra={"additionalProperties": True},
@@ -354,7 +359,7 @@ class DeploymentUpdate(ActionBaseModel):
         examples=["my-work-pool"],
     )
     path: Optional[str] = Field(default=None)
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Optional[JsonSerializableDict] = Field(
         default=None,
         description="Overrides for the flow's infrastructure configuration.",
     )
@@ -424,7 +429,7 @@ class FlowRunUpdate(ActionBaseModel):
     )
     tags: List[str] = Field(default_factory=list)
     infrastructure_pid: Optional[str] = Field(None)
-    job_variables: Optional[Dict[str, Any]] = Field(None)
+    job_variables: Optional[JsonSerializableDict] = Field(None)
 
     @field_validator("name", mode="before")
     @classmethod
@@ -624,7 +629,7 @@ class FlowRunCreate(ActionBaseModel):
         default=None,
         description="The name of the work queue to place the flow run in.",
     )
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Optional[JsonSerializableDict] = Field(
         default=None,
         description="The job variables to use when setting up flow run infrastructure.",
     )
@@ -694,7 +699,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     )
     parent_task_run_id: Optional[UUID] = Field(None)
     work_queue_name: Optional[str] = Field(None)
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Optional[JsonSerializableDict] = Field(
         default_factory=dict,
         json_schema_extra={"additionalProperties": True},
     )
@@ -920,7 +925,7 @@ class WorkPoolCreate(ActionBaseModel):
         default=None, description="The work pool description."
     )
     type: str = Field(description="The work pool type.", default="prefect-agent")
-    base_job_template: Dict[str, Any] = Field(
+    base_job_template: JsonSerializableDict = Field(
         default_factory=dict, description="The work pool's base job template."
     )
     is_paused: bool = Field(
@@ -946,7 +951,7 @@ class WorkPoolUpdate(ActionBaseModel):
 
     description: Optional[str] = Field(default=None)
     is_paused: Optional[bool] = Field(default=None)
-    base_job_template: Optional[Dict[str, Any]] = Field(default=None)
+    base_job_template: Optional[JsonSerializableDict] = Field(default=None)
     concurrency_limit: Optional[NonNegativeInteger] = Field(default=None)
     storage_configuration: Optional[schemas.core.WorkPoolStorageConfiguration] = Field(
         default=None,

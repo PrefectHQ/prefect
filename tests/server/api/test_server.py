@@ -69,6 +69,23 @@ async def test_validation_error_handler_422(client):
     assert response.json()["request_body"] == bad_flow_data
 
 
+@pytest.mark.parametrize(
+    "body",
+    ['{"name": "\\ud800", "tags": "x"}', '{"name": "my-flow", "labels": {"x": NaN}}'],
+    ids=["lone-surrogate", "nan"],
+)
+async def test_validation_error_handler_422_with_unrenderable_input(client, body: str):
+    response = await client.post(
+        "/flows/",
+        content=body.encode(),
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.json()["exception_message"] == "Invalid request received."
+    assert response.json()["request_body"] is None
+    assert all("input" not in error for error in response.json()["exception_detail"])
+
+
 async def test_validation_error_handler_409(client):
     # generate deployment with invalid foreign key
     bad_deployment_data = {

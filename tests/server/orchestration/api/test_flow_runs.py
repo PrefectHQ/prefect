@@ -3685,3 +3685,112 @@ class TestDownloadFlowRunLogs:
             assert line_count == expected_line_count, (
                 f"Expected {expected_line_count} lines, got {line_count}"
             )
+
+
+def _nested_list(depth: int) -> list[Any]:
+    value: list[Any] = []
+    for _ in range(depth - 1):
+        value = [value]
+    return value
+
+
+class TestUnserializableFlowRunValues:
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            '"parameters": {"x": %s}' % ("[" * 300 + "]" * 300),
+            '"parameters": {"x": "\\ud800"}',
+            '"labels": {"x": NaN}',
+            '"labels": {"x": Infinity}',
+        ],
+        ids=["nested-parameter", "lone-surrogate-parameter", "nan-label", "inf-label"],
+    )
+    async def test_create_flow_run_rejects_unserializable_values(
+        self, flow, client, session, fields: str
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            content=('{"flow_id": "%s", %s}' % (flow.id, fields)).encode(),
+            headers={"content-type": "application/json"},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(id={"any_": [flow.id]}),
+        )
+        assert count == 0
+
+    @pytest.fixture
+    async def bad_and_good_flow_runs(
+        self, flow, session: AsyncSession, db
+    ) -> tuple[list[UUID], UUID]:
+        bad_values: list[dict[str, Any]] = [
+            {"parameters": {"x": _nested_list(300)}},
+            # `NaN` and `Infinity` label values were stored as `null`
+            {"labels": {"x": None, "y": "keep"}},
+        ]
+        if session.get_bind().dialect.name == "sqlite":
+            bad_values.append({"parameters": {"x": "\ud800"}})
+
+        bad_ids: list[UUID] = []
+        for values in bad_values:
+            bad_run = db.FlowRun(flow_id=flow.id, name=f"bad-{uuid4()}", **values)
+            session.add(bad_run)
+            await session.flush()
+            bad_ids.append(bad_run.id)
+
+        good_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, parameters={"x": 1}),
+        )
+        await session.commit()
+        return bad_ids, good_run.id
+
+    async def test_read_flow_run_with_stored_unserializable_values(
+        self, client, bad_and_good_flow_runs: tuple[list[UUID], UUID]
+    ):
+        bad_ids, _ = bad_and_good_flow_runs
+        for bad_id in bad_ids:
+            response = await client.get(f"/flow_runs/{bad_id}")
+            assert response.status_code == status.HTTP_200_OK, response.text
+            assert response.json()["id"] == str(bad_id)
+
+    async def test_read_flow_runs_with_stored_unserializable_values(
+        self, client, bad_and_good_flow_runs: tuple[list[UUID], UUID]
+    ):
+        bad_ids, good_id = bad_and_good_flow_runs
+        response = await client.post("/flow_runs/filter")
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        runs = {UUID(run["id"]): run for run in response.json()}
+        assert set(runs) == {*bad_ids, good_id}
+        assert runs[good_id]["parameters"] == {"x": 1}
+        assert runs[bad_ids[0]]["parameters"] == {"x": _nested_list(300)}
+        assert runs[bad_ids[1]]["labels"] == {"y": "keep"}
+        if len(bad_ids) == 3:
+            assert runs[bad_ids[2]]["parameters"] == {"x": "\ud800"}
+
+    async def test_paginate_flow_runs_with_stored_unserializable_values(
+        self, client, bad_and_good_flow_runs: tuple[list[UUID], UUID]
+    ):
+        bad_ids, good_id = bad_and_good_flow_runs
+        response = await client.post("/flow_runs/paginate")
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        json = response.json()
+        assert json["count"] == len(bad_ids) + 1
+        assert {UUID(run["id"]) for run in json["results"]} == {*bad_ids, good_id}
+
+    async def test_fallback_serialization_matches_default(
+        self, client, bad_and_good_flow_runs: tuple[list[UUID], UUID]
+    ):
+        bad_ids, good_id = bad_and_good_flow_runs
+        default = await client.post(
+            "/flow_runs/filter", json={"flow_runs": {"id": {"any_": [str(good_id)]}}}
+        )
+        fallback = await client.post("/flow_runs/filter")
+
+        (expected,) = default.json()
+        (actual,) = [run for run in fallback.json() if run["id"] == str(good_id)]
+        assert actual == expected

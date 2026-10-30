@@ -31,7 +31,7 @@ from prefect.server.schemas.responses import (
     FlowRunBulkCreateResponse,
     FlowRunCreateResult,
 )
-from prefect.server.utilities.server import PrefectRouter
+from prefect.server.utilities.server import PrefectRouter, model_json_response
 from prefect.types import DateTime
 from prefect.types._datetime import now
 from prefect.utilities.schema_tools.hydration import (
@@ -489,8 +489,10 @@ async def read_deployment_by_name(
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
-        return schemas.responses.DeploymentResponse.model_validate(
-            deployment, from_attributes=True
+        return model_json_response(
+            schemas.responses.DeploymentResponse.model_validate(
+                deployment, from_attributes=True
+            )
         )
 
 
@@ -510,8 +512,10 @@ async def read_deployment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
-        return schemas.responses.DeploymentResponse.model_validate(
-            deployment, from_attributes=True
+        return model_json_response(
+            schemas.responses.DeploymentResponse.model_validate(
+                deployment, from_attributes=True
+            )
         )
 
 
@@ -546,12 +550,14 @@ async def read_deployments(
             work_pool_filter=work_pools,
             work_queue_filter=work_pool_queues,
         )
-        return [
-            schemas.responses.DeploymentResponse.model_validate(
-                deployment, from_attributes=True
-            )
-            for deployment in response
-        ]
+        return model_json_response(
+            [
+                schemas.responses.DeploymentResponse.model_validate(
+                    deployment, from_attributes=True
+                )
+                for deployment in response
+            ]
+        )
 
 
 @router.post("/paginate")
@@ -605,12 +611,14 @@ async def paginate_deployments(
         for deployment in response
     ]
 
-    return DeploymentPaginationResponse(
-        results=results,
-        count=count,
-        limit=limit,
-        pages=(count + limit - 1) // limit if limit > 0 else 0,
-        page=page,
+    return model_json_response(
+        DeploymentPaginationResponse(
+            results=results,
+            count=count,
+            limit=limit,
+            pages=(count + limit - 1) // limit if limit > 0 else 0,
+            page=page,
+        )
     )
 
 

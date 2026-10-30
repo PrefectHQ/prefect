@@ -4047,3 +4047,17 @@ class TestGetScheduledRuns:
                 )
                 assert updated_deployment_response.status_code == status.HTTP_200_OK
                 assert updated_deployment_response.json()["status"] == "READY"
+
+
+async def test_create_work_pool_rejects_unserializable_base_job_template(
+    client, session
+):
+    response = await client.post(
+        "/work_pools/",
+        content=(
+            '{"name": "%s", "base_job_template": {"x": %s}}'
+            % (f"pool-{uuid.uuid4()}", "[" * 300 + "]" * 300)
+        ).encode(),
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
