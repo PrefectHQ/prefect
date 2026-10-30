@@ -1,12 +1,16 @@
 import asyncio
 import time
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any
 
 import pytest
 
 import prefect.client.schemas as client_schemas
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
+from prefect.events import Event, Resource
 from prefect.events.utilities import emit_event
 from prefect.exceptions import FlowRunWaitTimeout, NotPausedError
 from prefect.flow_engine import run_flow_async
@@ -20,7 +24,7 @@ from prefect.flow_runs import (
     wait_for_flow_run,
 )
 from prefect.server.events.pipeline import EventsPipeline
-from prefect.states import Completed, Pending
+from prefect.states import Completed, Pending, Running
 
 
 async def test_create_then_wait_for_flow_run(prefect_client: PrefectClient):
@@ -92,6 +96,92 @@ async def test_wait_for_flow_run_handles_heartbeats(
     assert finished_flow_run.id == flow_run_id
     assert finished_flow_run.state is not None
     assert finished_flow_run.state.is_completed()
+
+
+class TestWaitForFlowRunAfterFinalEvent:
+    """
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/23668
+    """
+
+    @pytest.fixture
+    async def flow_run(self, prefect_client: PrefectClient) -> client_schemas.FlowRun:
+        @flow(name=f"foo_{uuid.uuid4()}")
+        def foo():
+            pass
+
+        return await prefect_client.create_flow_run(foo, state=Running())
+
+    @pytest.fixture
+    def stale_reads(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+        flow_run: client_schemas.FlowRun,
+    ) -> list[client_schemas.FlowRun]:
+        """
+        Delivers a `Completed` event after moving the flow run to `Completed`,
+        while API reads return the pre-transition flow run until the returned
+        list is cleared.
+        """
+        stale = [flow_run]
+        read_flow_run = prefect_client.read_flow_run
+
+        async def _read_flow_run(flow_run_id: uuid.UUID) -> client_schemas.FlowRun:
+            fresh = await read_flow_run(flow_run_id)
+            return stale[0] if stale else fresh
+
+        @asynccontextmanager
+        async def _subscriber(**kwargs: Any) -> AsyncIterator[AsyncIterator[Event]]:
+            async def _events() -> AsyncIterator[Event]:
+                await prefect_client.set_flow_run_state(
+                    flow_run.id, Completed(), force=True
+                )
+                yield Event(
+                    event="prefect.flow-run.Completed",
+                    resource=Resource(
+                        {
+                            "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+                            "prefect.state-type": "COMPLETED",
+                        }
+                    ),
+                )
+                await asyncio.Event().wait()
+
+            yield _events()
+
+        monkeypatch.setattr(prefect_client, "read_flow_run", _read_flow_run)
+        monkeypatch.setattr("prefect.flow_runs.get_events_subscriber", _subscriber)
+        return stale
+
+    async def test_reads_until_final_state_after_final_event(
+        self,
+        prefect_client: PrefectClient,
+        flow_run: client_schemas.FlowRun,
+        stale_reads: list[client_schemas.FlowRun],
+    ):
+        async def _become_visible() -> None:
+            await asyncio.sleep(0.5)
+            stale_reads.clear()
+
+        visibility_task = asyncio.create_task(_become_visible())
+
+        finished_flow_run = await wait_for_flow_run(
+            flow_run.id, timeout=10, client=prefect_client
+        )
+        await visibility_task
+
+        assert finished_flow_run.id == flow_run.id
+        assert finished_flow_run.state is not None
+        assert finished_flow_run.state.is_completed()
+
+    async def test_raises_timeout_if_final_state_never_visible(
+        self,
+        prefect_client: PrefectClient,
+        flow_run: client_schemas.FlowRun,
+        stale_reads: list[client_schemas.FlowRun],
+    ):
+        with pytest.raises(FlowRunWaitTimeout):
+            await wait_for_flow_run(flow_run.id, timeout=1, client=prefect_client)
 
 
 class TestResumeFlowRunAsyncDispatch:
