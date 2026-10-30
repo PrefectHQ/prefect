@@ -63,6 +63,7 @@ from prefect.settings import (
     load_profiles,
     save_profiles,
     temporary_settings,
+    update_current_profile,
 )
 from prefect.settings.base import (
     PrefectBaseSettings,
@@ -78,6 +79,7 @@ from prefect.settings.legacy import (
 )
 from prefect.settings.models.api import APISettings
 from prefect.settings.models.client import ClientSettings
+from prefect.settings.models.flows import FlowsSettings
 from prefect.settings.models.logging import LoggingSettings
 from prefect.settings.models.results import ResultsSettings
 from prefect.settings.models.root import _get_settings_accessors
@@ -2573,6 +2575,248 @@ class TestCastSettings:
             name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99}
         )
         assert "settings" in profile_with_settings.model_dump(exclude_unset=True)
+
+
+class TestInvalidProfileValues:
+    """
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/16813
+
+    An invalid value in the active profile used to fail every command with a
+    validation error, even commands that never read that setting.
+    """
+
+    @pytest.fixture
+    def profiles_path(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        path = tmp_path / "profiles.toml"
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(path))
+        return path
+
+    def test_invalid_profile_value_is_ignored_with_a_warning(self, profiles_path: Path):
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_SERVER_API_PORT = "not-a-port"
+                PREFECT_API_URL = "http://localhost:4200/api"
+                """
+            )
+        )
+
+        with pytest.warns(UserWarning, match="PREFECT_SERVER_API_PORT") as record:
+            settings = Settings()
+
+        assert "prefect --profile foo config unset PREFECT_SERVER_API_PORT" in str(
+            record[0].message
+        )
+        # The invalid value falls back to the default...
+        assert settings.server.api.port == 4200
+        # ...and the valid values in the same profile still load.
+        assert settings.api.url == "http://localhost:4200/api"
+
+    @pytest.mark.parametrize(
+        "toml_value",
+        ['"{not-json secret-token"', '{ X-Secret = "secret-token" }'],
+    )
+    def test_undecodable_profile_value_is_ignored_with_a_warning(
+        self, profiles_path: Path, toml_value: str
+    ):
+        profiles_path.write_text(
+            'active = "foo"\n\n'
+            f"[profiles.foo]\nPREFECT_CLIENT_CUSTOM_HEADERS = {toml_value}\n"
+        )
+
+        with pytest.warns(UserWarning, match="PREFECT_CLIENT_CUSTOM_HEADERS") as record:
+            settings = Settings()
+
+        assert all("secret-token" not in str(warning.message) for warning in record)
+        assert settings.client.custom_headers == {}
+
+    def test_invalid_profile_value_violating_a_field_constraint_is_ignored(
+        self, profiles_path: Path
+    ):
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_FLOWS_HEARTBEAT_FREQUENCY = "5"
+                """
+            )
+        )
+
+        with pytest.warns(UserWarning, match="greater than or equal to 30"):
+            settings = Settings()
+
+        assert (
+            settings.flows.heartbeat_frequency
+            == FlowsSettings.model_fields["heartbeat_frequency"].default
+        )
+
+    def test_valid_profile_values_do_not_warn(self, profiles_path: Path):
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_SERVER_API_PORT = "4300"
+                PREFECT_FLOWS_HEARTBEAT_FREQUENCY = "40"
+                """
+            )
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            settings = Settings()
+
+        assert settings.server.api.port == 4300
+        assert settings.flows.heartbeat_frequency == 40
+
+    def test_warning_does_not_include_the_invalid_value(self, profiles_path: Path):
+        # The value may be a secret, such as an API key written as a number.
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_API_KEY = 123456789
+                """
+            )
+        )
+
+        with pytest.warns(UserWarning, match="PREFECT_API_KEY") as record:
+            settings = Settings()
+
+        assert all("123456789" not in str(warning.message) for warning in record)
+        assert settings.api.key is None
+
+    def test_warning_names_the_legacy_key_used_in_the_profile(
+        self, profiles_path: Path
+    ):
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_API_DATABASE_TIMEOUT = "abc"
+                """
+            )
+        )
+
+        with pytest.warns(UserWarning, match="PREFECT_API_DATABASE_TIMEOUT"):
+            settings = Settings()
+
+        assert (
+            settings.server.database.timeout
+            == ServerDatabaseSettings.model_fields["timeout"].default
+        )
+
+    def test_value_that_needs_other_settings_to_validate_is_left_to_the_model(
+        self, profiles_path: Path
+    ):
+        # `profiles_path` is validated with the model's other values, which a
+        # check of the value on its own does not have.
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_PROFILES_PATH = "$PREFECT_HOME/other.toml"
+                """
+            )
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            settings = Settings()
+
+        # The environment variable outranks the profile.
+        assert settings.profiles_path == profiles_path
+
+
+class TestUpdateCurrentProfile:
+    """
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/16813
+
+    Updating a profile validates the whole merged profile. A value that was
+    already invalid must not block writing an unrelated setting.
+    """
+
+    @pytest.fixture(autouse=True)
+    def temporary_profiles_path(self, tmp_path: Path) -> Generator[Path, None, None]:
+        path = tmp_path / "profiles.toml"
+        with temporary_settings(updates={"PREFECT_PROFILES_PATH": path}):
+            yield path
+
+    @pytest.fixture
+    def current_profile(self) -> Generator[Profile, None, None]:
+        profile = Profile(
+            name="foo", settings={"PREFECT_SERVER_API_PORT": "not-a-port"}
+        )
+        save_profiles(ProfilesCollection(profiles=[profile], active="foo"))
+        with prefect.context.SettingsContext(
+            profile=profile, settings=get_current_settings()
+        ):
+            yield profile
+
+    @staticmethod
+    def _by_name(profile: Profile) -> dict[str, Any]:
+        return {setting.name: value for setting, value in profile.settings.items()}
+
+    def test_unrelated_invalid_setting_warns_and_update_is_saved(
+        self, current_profile: Profile
+    ):
+        with pytest.warns(UserWarning, match="PREFECT_SERVER_API_PORT"):
+            updated = update_current_profile(
+                {"PREFECT_API_URL": "http://localhost:4200/api"}
+            )
+
+        assert self._by_name(updated)["PREFECT_API_URL"] == "http://localhost:4200/api"
+        # The invalid value is reported, not silently dropped or rewritten.
+        assert self._by_name(updated)["PREFECT_SERVER_API_PORT"] == "not-a-port"
+
+        saved = self._by_name(load_profiles()["foo"])
+        assert saved["PREFECT_API_URL"] == "http://localhost:4200/api"
+        assert saved["PREFECT_SERVER_API_PORT"] == "not-a-port"
+
+    def test_invalid_value_in_the_update_itself_still_raises(
+        self, current_profile: Profile
+    ):
+        with pytest.raises(ProfileSettingsValidationError) as exc_info:
+            update_current_profile({"PREFECT_FLOWS_HEARTBEAT_FREQUENCY": "5"})
+
+        # Only the setting being written is reported as blocking.
+        assert [setting.name for setting, _ in exc_info.value.errors] == [
+            "PREFECT_FLOWS_HEARTBEAT_FREQUENCY"
+        ]
+        # Nothing was written.
+        assert "PREFECT_FLOWS_HEARTBEAT_FREQUENCY" not in self._by_name(
+            load_profiles()["foo"]
+        )
+
+    def test_invalid_union_value_in_the_update_itself_still_raises(
+        self, current_profile: Profile
+    ):
+        # A union field reports one error per member type, below the field's path.
+        with pytest.raises(ProfileSettingsValidationError) as exc_info:
+            update_current_profile({"PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS": "abc"})
+
+        assert [setting.name for setting, _ in exc_info.value.errors] == [
+            "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS"
+        ]
+        assert "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS" not in self._by_name(
+            load_profiles()["foo"]
+        )
 
 
 class TestProfilesCollection:

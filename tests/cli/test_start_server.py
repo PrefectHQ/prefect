@@ -129,6 +129,23 @@ async def fetch_pid(client, api_url):
     return r.json()["pid"]
 
 
+def test_start_refuses_profile_with_invalid_value(tmp_path: Path) -> None:
+    profiles_path = tmp_path / "profiles.toml"
+    profiles_path.write_text("[profiles.foo]\nPREFECT_SERVER_API_AUTH_STRING = 12345\n")
+
+    with temporary_settings({PREFECT_PROFILES_PATH: profiles_path}):
+        with pytest.warns(UserWarning, match="PREFECT_SERVER_API_AUTH_STRING"):
+            result = invoke_and_assert(
+                command=["--profile", "foo", "server", "start"],
+                expected_output_contains=(
+                    "invalid values for PREFECT_SERVER_API_AUTH_STRING"
+                ),
+                expected_code=1,
+            )
+
+    assert "12345" not in result.stdout + result.stderr
+
+
 class TestMultipleWorkerServer:
     def test_number_of_workers(self) -> None:
         """Test that workers parameter is properly validated"""
