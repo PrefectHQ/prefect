@@ -1644,9 +1644,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 self._release_limit_slot(flow_run.id)
         else:
             self._release_limit_slot(flow_run.id)
+            if self._cancelling_observer is not None:
+                self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
         self._submitting_flow_run_ids.remove(flow_run.id)
-        if self._cancelling_observer is not None:
-            self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self,
@@ -1695,6 +1695,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             return exc
         finally:
             self._release_limit_slot(flow_run.id)
+            # Keep watching for cancellation until infrastructure monitoring
+            # exits, not just until the infrastructure reports readiness.
+            if self._cancelling_observer is not None:
+                self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
 
         if task_status and not getattr(task_status, "_future").done():
             run_logger.error(
