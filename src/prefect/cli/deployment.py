@@ -104,7 +104,7 @@ deployment_app.command(schedule_app)
 
 
 def _assert_deployment_name_format(name: str) -> None:
-    if "/" not in name:
+    if name.count("/") != 1:
         exit_with_error(
             "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
         )
@@ -123,6 +123,7 @@ async def _get_deployment(
         except ObjectNotFound:
             exit_with_error(f"Deployment {deployment_id!r} not found!")
     elif name is not None and deployment_id is None:
+        _assert_deployment_name_format(name)
         try:
             deployment = await client.read_deployment_by_name(name)
         except ObjectNotFound:
@@ -683,6 +684,7 @@ async def delete(
             except ObjectNotFound:
                 exit_with_error(f"Deployment '{deployment_id}' not found!")
         elif name is not None:
+            _assert_deployment_name_format(name)
             try:
                 deployment = await client.read_deployment_by_name(name)
                 if _cli.is_interactive() and not confirm(
