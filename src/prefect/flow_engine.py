@@ -1259,8 +1259,12 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                         else:
                             self.handle_crash(exc)
                         raise
-                    except Exception:
-                        # regular exceptions are caught and re-raised to the user
+                    except Exception as exc:
+                        # Exceptions from user code are handled in `run_context`;
+                        # one that escapes before the run is final (e.g. from
+                        # `setup_run_context`) would otherwise leave it Running
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            self.handle_crash(exc)
                         raise
                     except (Abort, Pause) as exc:
                         if state := getattr(exc, "state", None):
@@ -1987,8 +1991,12 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         else:
                             await self.handle_crash(exc)
                         raise
-                    except Exception:
-                        # regular exceptions are caught and re-raised to the user
+                    except Exception as exc:
+                        # Exceptions from user code are handled in `run_context`;
+                        # one that escapes before the run is final (e.g. from
+                        # `setup_run_context`) would otherwise leave it Running
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            await self.handle_crash(exc)
                         raise
                     except (Abort, Pause) as exc:
                         if state := getattr(exc, "state", None):
