@@ -344,9 +344,9 @@ async def block_delete(
             except ObjectNotFound:
                 exit_with_error(f"Block '{block_id}' not found!")
         elif slug is not None:
-            if "/" not in slug:
+            if slug.count("/") != 1:
                 exit_with_error(
-                    f"{slug!r} is not valid. Slug must contain a '/', e.g. 'json/my-json-block'"
+                    f"{slug!r} is not valid. Slug must contain exactly one '/', e.g. 'json/my-json-block'"
                 )
             block_type_slug, block_document_name = slug.split("/")
             try:
@@ -447,9 +447,9 @@ async def block_inspect(
             except ObjectNotFound:
                 exit_with_error(f"Block '{block_id}' not found!")
         elif slug is not None:
-            if "/" not in slug:
+            if slug.count("/") != 1:
                 exit_with_error(
-                    f"{slug!r} is not valid. Slug must contain a '/', e.g. 'json/my-json-block'"
+                    f"{slug!r} is not valid. Slug must contain exactly one '/', e.g. 'json/my-json-block'"
                 )
             block_type_slug, block_document_name = slug.split("/")
             try:
