@@ -389,6 +389,22 @@ async def test_concurrency_releases_lease_without_renewal_when_limits_are_inacti
     assert executed
 
 
+async def test_concurrency_proceeds_when_inactive_lease_release_fails(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    executed = False
+
+    with mock.patch(
+        "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
+        side_effect=RuntimeError("server unavailable"),
+    ) as release_spy:
+        async with concurrency(inactive_concurrency_limit.name, occupy=1):
+            executed = True
+
+    release_spy.assert_called_once()
+    assert executed
+
+
 async def test_concurrency_maintains_lease_when_any_limit_is_active(
     concurrency_limit: ConcurrencyLimitV2,
     inactive_concurrency_limit: ConcurrencyLimitV2,

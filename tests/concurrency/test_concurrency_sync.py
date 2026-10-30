@@ -204,6 +204,22 @@ def test_concurrency_releases_lease_without_renewal_when_limits_are_inactive(
     assert executed
 
 
+def test_concurrency_proceeds_when_inactive_lease_release_fails(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    executed = False
+
+    with mock.patch(
+        "prefect.concurrency._sync.release_concurrency_slots_with_lease",
+        side_effect=RuntimeError("server unavailable"),
+    ) as release_spy:
+        with concurrency(inactive_concurrency_limit.name, occupy=1):
+            executed = True
+
+    release_spy.assert_called_once()
+    assert executed
+
+
 def test_concurrency_maintains_lease_when_any_limit_is_active(
     concurrency_limit: ConcurrencyLimitV2,
     inactive_concurrency_limit: ConcurrencyLimitV2,

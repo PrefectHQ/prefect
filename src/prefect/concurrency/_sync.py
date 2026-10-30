@@ -11,6 +11,7 @@ from prefect.client.schemas.responses import (
     MinimalConcurrencyLimitResponse,
 )
 from prefect.concurrency._asyncio import (
+    logger,
     _discard_cleanup_lease,
     aacquire_concurrency_slots,
     aacquire_concurrency_slots_with_lease,
@@ -143,9 +144,18 @@ def concurrency(
 
     if not any(limit.active for limit in acquisition_response.limits):
         # Inactive limits are not enforced, so give the lease back right away
-        # instead of renewing it for the whole run.
-        release_concurrency_slots_with_lease(acquisition_response.lease_id)
-        _discard_cleanup_lease(acquisition_response.lease_id)
+        # instead of renewing it for the whole run. The lease holds no slots,
+        # so if the release fails it can safely expire on its own.
+        try:
+            release_concurrency_slots_with_lease(acquisition_response.lease_id)
+        except Exception:
+            logger.debug(
+                "Failed to release lease %s for inactive concurrency limits",
+                acquisition_response.lease_id,
+                exc_info=True,
+            )
+        else:
+            _discard_cleanup_lease(acquisition_response.lease_id)
         yield
         return
 

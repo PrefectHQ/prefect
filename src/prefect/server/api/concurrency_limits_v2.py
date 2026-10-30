@@ -423,7 +423,10 @@ async def bulk_decrement_active_slots(
 
     return [
         MinimalConcurrencyLimitResponse(
-            id=limit.id, name=str(limit.name), limit=limit.limit
+            id=limit.id,
+            name=str(limit.name),
+            limit=limit.limit,
+            active=bool(limit.active),
         )
         for limit in limits
     ]
