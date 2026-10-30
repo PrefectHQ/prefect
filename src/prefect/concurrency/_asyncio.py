@@ -329,6 +329,14 @@ async def concurrency(
         yield
         return
 
+    if not any(limit.active for limit in response.limits):
+        # Inactive limits are not enforced, so give the lease back right away
+        # instead of renewing it for the whole run.
+        await arelease_concurrency_slots_with_lease(lease_id=response.lease_id)
+        _discard_cleanup_lease(response.lease_id)
+        yield
+        return
+
     emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
 
     try:

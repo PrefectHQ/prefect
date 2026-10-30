@@ -364,6 +364,51 @@ async def test_rate_limit_emits_events(
     }
 
 
+async def test_concurrency_releases_lease_without_renewal_when_limits_are_inactive(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    """Inactive limits are not enforced, so the lease is handed back right away
+    and no renewal thread is started for it.
+    """
+    executed = False
+
+    with mock.patch(
+        "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
+        wraps=arelease_concurrency_slots_with_lease,
+    ) as release_spy:
+        with mock.patch(
+            "prefect.concurrency._asyncio.amaintain_concurrency_lease",
+        ) as renew_spy:
+            async with concurrency(inactive_concurrency_limit.name, occupy=1):
+                release_spy.assert_called_once()
+                executed = True
+
+            renew_spy.assert_not_called()
+            release_spy.assert_called_once()
+
+    assert executed
+
+
+async def test_concurrency_maintains_lease_when_any_limit_is_active(
+    concurrency_limit: ConcurrencyLimitV2,
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    with mock.patch(
+        "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
+        wraps=arelease_concurrency_slots_with_lease,
+    ) as release_spy:
+        with mock.patch(
+            "prefect.concurrency._asyncio.amaintain_concurrency_lease",
+        ) as renew_spy:
+            async with concurrency(
+                [concurrency_limit.name, inactive_concurrency_limit.name], occupy=1
+            ):
+                release_spy.assert_not_called()
+
+            renew_spy.assert_called_once()
+            release_spy.assert_called_once()
+
+
 @pytest.mark.parametrize("names", [[], None])
 async def test_rate_limit_without_limit_names(names):
     executed = False

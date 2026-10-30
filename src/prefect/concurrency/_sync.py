@@ -141,6 +141,14 @@ def concurrency(
         yield
         return
 
+    if not any(limit.active for limit in acquisition_response.limits):
+        # Inactive limits are not enforced, so give the lease back right away
+        # instead of renewing it for the whole run.
+        release_concurrency_slots_with_lease(acquisition_response.lease_id)
+        _discard_cleanup_lease(acquisition_response.lease_id)
+        yield
+        return
+
     emitted_events = emit_concurrency_acquisition_events(
         acquisition_response.limits, occupy
     )

@@ -8940,6 +8940,11 @@ export interface components {
             name: string;
             /** Limit */
             limit: number;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
         };
         /** Node */
         Node: {

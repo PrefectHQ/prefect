@@ -18,7 +18,9 @@ Does NOT define concurrency limits (server-side in `server/`). Does NOT handle t
 
 **`raise_on_lease_renewal_failure` (public parameter):** Controls lease renewal failure behavior independently from `strict`. When `None` (default), falls back to the value of `strict` for backward compatibility. Set to `False` to let long-running tasks continue even if a transient renewal error occurs; set to `True` to terminate immediately on renewal failure regardless of `strict`. This means `strict=True, raise_on_lease_renewal_failure=False` gives strict slot acquisition but non-fatal renewal failures, and vice versa.
 
-**Lease renewal:** `_leases.py` starts a daemon thread that renews immediately on entry, then waits for 75% of `lease_duration` between renewals. The renewal thread uses the standard `get_client(sync_client=True)` path and retries each renewal up to 3 times with exponential backoff. If all attempts fail, a shared failure handler either cancels execution with the existing sync/async cancel scope or logs a warning, depending on `raise_on_lease_renewal_failure`.
+**Lease renewal:** `_leases.py` starts a daemon thread that renews immediately on entry, then waits for 75% of `lease_duration` between renewals. The renewal thread uses the standard `get_client(sync_client=True)` path and retries each renewal up to 3 times with exponential backoff. If all attempts fail, a shared failure handler either cancels execution with the existing sync/async cancel scope or logs a warning (DEBUG with `suppress_warnings`), depending on `raise_on_lease_renewal_failure`. That handler is the only place the final failure is logged; retry attempts log at WARNING, or DEBUG with `suppress_warnings`.
+
+**Inactive limits:** the server returns inactive limits with `active: false` and leaves them out of the lease's resources. When every returned limit is inactive, `concurrency()` releases the lease immediately and skips renewal, events, and the release on exit.
 
 **Sync/async lockstep invariant:** `asyncio.py`/`sync.py` and `_asyncio.py`/`_sync.py` are parallel implementations. Any behavior change to one must be mirrored in the other.
 
