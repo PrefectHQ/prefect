@@ -111,6 +111,11 @@ RUN uv export --frozen --no-dev --all-extras --no-emit-project --no-hashes -o di
 # Setup a base final image from miniconda
 FROM continuumio/miniconda3:26.7.1 AS prefect-conda
 
+RUN --mount=from=ghcr.io/astral-sh/uv:0.13.4,source=/uv,target=/tmp/uv \
+    /tmp/uv pip install --python /opt/conda/bin/python --upgrade \
+        "certifi>=2026.10.19" "pip>=26.2.2" && \
+    conda update --name base --yes ca-certificates
+
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
 RUN conda create \
@@ -159,6 +164,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
+    ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install git - for Bookworm, we need to use Trixie sources since git >= 2.47.3 is required
@@ -187,6 +193,9 @@ RUN ldconfig
 # Install UV from official image - pin to specific version for build caching
 COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /bin/uv
 
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --upgrade "pip>=26.2.2"
+
 # Extras to include during installation
 ARG PREFECT_EXTRAS=[redis,client,otel]
 
@@ -213,6 +222,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     [ -z "${EXTRA_PIP_PACKAGES:-""}" ] || UV_COMPILE_BYTECODE=1 uv pip install "${EXTRA_PIP_PACKAGES}"
 
 # Smoke test
+RUN --mount=type=bind,source=scripts/check_image_ca_trust.py,target=/tmp/check_image_ca_trust.py \
+    python /tmp/check_image_ca_trust.py && \
+    if [ -x /opt/conda/bin/python ]; then /opt/conda/bin/python /tmp/check_image_ca_trust.py; fi
+
 RUN prefect version
 
 # Setup entrypoint
