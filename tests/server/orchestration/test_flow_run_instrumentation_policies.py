@@ -11,6 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
+from prefect.server.database import PrefectDBInterface
 from prefect.server.database.orm_models import (
     ORMDeployment,
     ORMFlow,
@@ -20,7 +21,7 @@ from prefect.server.database.orm_models import (
     ORMWorkQueue,
 )
 from prefect.server.events.clients import AssertingEventsClient
-from prefect.server.events.schemas.events import RelatedResource, Resource
+from prefect.server.events.schemas.events import Event, RelatedResource, Resource
 from prefect.server.models import events, flow_run_states, flow_runs, workers
 from prefect.server.models.events import _flow_run_resource_data_cache
 from prefect.server.models.work_queues import create_work_queue
@@ -1080,3 +1081,126 @@ def test_state_payload_paused_state():
     )
     assert payload
     assert payload["pause_reschedule"] == "true"
+
+
+class TestPublishingEventsAfterCommit:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/22654, where
+    state change events were published before the transaction writing the state
+    committed, so subscribers could still read the previous state."""
+
+    async def test_event_is_not_published_until_the_transaction_commits(
+        self,
+        session: AsyncSession,
+        flow_run: ORMFlowRun,
+        orchestration_parameters: Dict[str, Any],
+    ):
+        transition = (StateType.PENDING, StateType.RUNNING)
+        context = FlowOrchestrationContext(
+            initial_state=State(type=transition[0]),
+            proposed_state=State(type=transition[1]),
+            run=flow_run,
+            session=session,
+            parameters=orchestration_parameters,
+        )
+
+        # Ignore lifecycle events emitted while creating the run's fixtures
+        AssertingEventsClient.reset()
+
+        async with InstrumentFlowRunStateTransitions(context, *transition):
+            await context.validate_proposed_state()
+
+        assert not AssertingEventsClient.last
+
+        await session.commit()
+
+        assert AssertingEventsClient.last
+        (event,) = AssertingEventsClient.last.events
+        assert event.event == "prefect.flow-run.Running"
+
+    async def test_rolled_back_transition_does_not_publish_an_event(
+        self,
+        session: AsyncSession,
+        flow_run: ORMFlowRun,
+        orchestration_parameters: Dict[str, Any],
+    ):
+        transition = (StateType.PENDING, StateType.RUNNING)
+        context = FlowOrchestrationContext(
+            initial_state=State(type=transition[0]),
+            proposed_state=State(type=transition[1]),
+            run=flow_run,
+            session=session,
+            parameters=orchestration_parameters,
+        )
+
+        # Ignore lifecycle events emitted while creating the run's fixtures
+        AssertingEventsClient.reset()
+
+        async with InstrumentFlowRunStateTransitions(context, *transition):
+            await context.validate_proposed_state()
+
+        await session.rollback()
+        await session.commit()
+
+        assert not AssertingEventsClient.last
+
+    @pytest.fixture
+    def states_observed_while_publishing(
+        self,
+        db: PrefectDBInterface,
+        flow_run: ORMFlowRun,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> list[StateType | None]:
+        """Records the flow run's state as read from another session at the moment
+        each state change event is published"""
+        observed: list[StateType | None] = []
+
+        class ObservingEventsClient(AssertingEventsClient):
+            async def emit(self, event: Event) -> Event:
+                async with db.session_context() as session:
+                    run = await flow_runs.read_flow_run(
+                        session=session, flow_run_id=flow_run.id
+                    )
+                    assert run
+                    observed.append(run.state.type if run.state else None)
+                return await super().emit(event)
+
+        monkeypatch.setattr(
+            "prefect.server.events._publishing.PrefectServerEventsClient",
+            ObservingEventsClient,
+        )
+
+        return observed
+
+    async def test_state_is_committed_when_publishing_a_single_transition(
+        self,
+        client: AsyncClient,
+        flow_run: ORMFlowRun,
+        states_observed_while_publishing: list[StateType | None],
+    ):
+        response = await client.post(
+            f"flow_runs/{flow_run.id}/set_state",
+            json={"state": to_state_create(Cancelled()).model_dump(mode="json")},
+        )
+        assert response.status_code == 201, response.text
+
+        assert states_observed_while_publishing == [StateType.CANCELLED]
+
+    async def test_state_is_committed_when_publishing_a_bulk_transition(
+        self,
+        client: AsyncClient,
+        flow_run: ORMFlowRun,
+        states_observed_while_publishing: list[StateType | None],
+    ):
+        response = await client.post(
+            "flow_runs/bulk_set_state",
+            json={
+                "flow_runs": {"id": {"any_": [str(flow_run.id)]}},
+                "state": to_state_create(Cancelled()).model_dump(mode="json"),
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert all(
+            result["status"] == "ACCEPT" for result in response.json()["results"]
+        ), response.text
+
+        assert states_observed_while_publishing == [StateType.CANCELLED]
