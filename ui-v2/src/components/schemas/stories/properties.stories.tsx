@@ -230,7 +230,7 @@ export const TypeBooleanWithEnum: Story = {
 			type: "object",
 			properties: {
 				name: {
-					default: true,
+					default: false,
 					title: "Is Active",
 					type: "boolean",
 					enum: [true, false],
@@ -263,10 +263,10 @@ export const TypeIntegerWithEnum: Story = {
 			type: "object",
 			properties: {
 				name: {
-					default: 1,
+					default: 0,
 					title: "Age",
 					type: "integer",
-					enum: [1, 2, 3],
+					enum: [0, 1, 2, 3],
 				},
 			},
 		},
