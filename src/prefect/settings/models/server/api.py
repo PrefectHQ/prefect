@@ -61,6 +61,173 @@ class ServerAPISettings(PrefectBaseSettings):
         """,
     )
 
+    # -------------------------------------------------------------------------
+    # Optional fastapi-guard security middleware (prefect/server/api/guard.py)
+    # -------------------------------------------------------------------------
+    # Opt-in request screening for deployments exposing the server directly:
+    # IP block/allow lists, rate limiting with auto-ban, user-agent blocking,
+    # penetration detection. Default off; the disabled path imports nothing.
+    # Requires the fastapi-guard dependency.
+    guard_enabled: bool = Field(
+        default=False,
+        description="""
+        Enables the optional fastapi-guard security middleware for the server
+        API. When enabled, the server applies IP block/allow lists, rate
+        limiting with auto-ban, user-agent blocking, and penetration-attempt
+        detection to incoming requests. Requires the fastapi-guard dependency;
+        enabling it without the dependency installed raises an error at
+        startup. Defaults to `False`.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("guard_enabled"),
+            "prefect_server_api_guard_enabled",
+        ),
+    )
+    guard_rate_limit: int = Field(
+        default=100,
+        description="Maximum requests per IP per rate limiting window when the guard middleware is enabled.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_rate_limit"),
+            "prefect_server_api_guard_rate_limit",
+        ),
+    )
+    guard_rate_limit_window: int = Field(
+        default=60,
+        description="Rate limiting window in seconds when the guard middleware is enabled.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_rate_limit_window"),
+            "prefect_server_api_guard_rate_limit_window",
+        ),
+    )
+    guard_auto_ban_threshold: int = Field(
+        default=10,
+        description="Number of suspicious events before an IP is banned when the guard middleware is enabled.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_auto_ban_threshold"),
+            "prefect_server_api_guard_auto_ban_threshold",
+        ),
+    )
+    guard_auto_ban_duration: int = Field(
+        default=300,
+        description="Duration of automatic IP bans in seconds when the guard middleware is enabled.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_auto_ban_duration"),
+            "prefect_server_api_guard_auto_ban_duration",
+        ),
+    )
+    guard_passive_mode: bool = Field(
+        default=False,
+        description="""
+        When `True`, the guard middleware logs violations without blocking
+        requests. Useful for observing what would be blocked before
+        enforcing.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("guard_passive_mode"),
+            "prefect_server_api_guard_passive_mode",
+        ),
+    )
+    guard_blocked_ips: Optional[str] = Field(
+        default=None,
+        description="Comma-separated IPs or CIDR ranges to block when the guard middleware is enabled.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_blocked_ips"),
+            "prefect_server_api_guard_blocked_ips",
+        ),
+    )
+    guard_allowed_ips: Optional[str] = Field(
+        default=None,
+        description="Comma-separated IPs or CIDR ranges to allow through the guard middleware; when set, all other IPs are blocked.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_allowed_ips"),
+            "prefect_server_api_guard_allowed_ips",
+        ),
+    )
+    guard_blocked_user_agents: Optional[str] = Field(
+        default=None,
+        description="Comma-separated user-agent substrings to block when the guard middleware is enabled.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_blocked_user_agents"),
+            "prefect_server_api_guard_blocked_user_agents",
+        ),
+    )
+    guard_trusted_proxies: Optional[str] = Field(
+        default=None,
+        description="""
+        Comma-separated proxy IPs or CIDR ranges trusted for
+        X-Forwarded-For resolution when the guard middleware is enabled.
+        Leave unset to keep client-supplied forwarding headers untrusted.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("guard_trusted_proxies"),
+            "prefect_server_api_guard_trusted_proxies",
+        ),
+    )
+    guard_trusted_proxy_depth: int = Field(
+        default=1,
+        description="Number of trusted proxies to walk in X-Forwarded-For when the guard middleware is enabled.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_trusted_proxy_depth"),
+            "prefect_server_api_guard_trusted_proxy_depth",
+        ),
+    )
+    guard_excluded_paths: Optional[str] = Field(
+        default=None,
+        description="""
+        Comma-separated path prefixes excluded from guard detection checks.
+        Defaults to health, docs and OpenAPI paths. Global IP lists still
+        apply on excluded paths.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("guard_excluded_paths"),
+            "prefect_server_api_guard_excluded_paths",
+        ),
+    )
+    guard_blocked_countries: Optional[str] = Field(
+        default=None,
+        description="Comma-separated ISO country codes to block when the guard middleware is enabled. Requires IPINFO_TOKEN geo lookups.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_blocked_countries"),
+            "prefect_server_api_guard_blocked_countries",
+        ),
+    )
+    guard_allowed_countries: Optional[str] = Field(
+        default=None,
+        description="Comma-separated ISO country codes to allow when the guard middleware is enabled. Requires IPINFO_TOKEN geo lookups.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_allowed_countries"),
+            "prefect_server_api_guard_allowed_countries",
+        ),
+    )
+    guard_block_cloud_providers: Optional[str] = Field(
+        default=None,
+        description="Comma-separated cloud provider names (e.g. AWS, GCP, Azure) to block when the guard middleware is enabled. Requires IPINFO_TOKEN.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_block_cloud_providers"),
+            "prefect_server_api_guard_block_cloud_providers",
+        ),
+    )
+    guard_redis_url: Optional[str] = Field(
+        default=None,
+        description="""
+        Redis URL for guard state shared across workers and replicas when
+        the guard middleware is enabled. Unset keeps counters and bans
+        in-memory per process.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("guard_redis_url"),
+            "prefect_server_api_guard_redis_url",
+        ),
+    )
+    guard_ipinfo_token: Optional[str] = Field(
+        default=None,
+        description="IPInfo token for geo and cloud-provider lookups when the guard middleware is enabled.",
+        validation_alias=AliasChoices(
+            AliasPath("guard_ipinfo_token"),
+            "prefect_server_api_guard_ipinfo_token",
+        ),
+    )
+
     csrf_protection_enabled: bool = Field(
         default=False,
         description="""
