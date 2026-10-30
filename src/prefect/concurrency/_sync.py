@@ -11,11 +11,11 @@ from prefect.client.schemas.responses import (
     MinimalConcurrencyLimitResponse,
 )
 from prefect.concurrency._asyncio import (
-    logger,
     _discard_cleanup_lease,
     aacquire_concurrency_slots,
     aacquire_concurrency_slots_with_lease,
     arelease_concurrency_slots_with_lease,
+    logger,
 )
 from prefect.concurrency._events import (
     emit_concurrency_acquisition_events,
