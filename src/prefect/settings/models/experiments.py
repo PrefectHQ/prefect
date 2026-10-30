@@ -32,6 +32,20 @@ class ExperimentsSettings(PrefectBaseSettings):
         ),
     )
 
+    aggregate_nested_states: bool = Field(
+        default=False,
+        description=(
+            "Whether to aggregate nested collections of states when "
+            "determining a flow or task run's final state. When enabled, "
+            "returning nested collections of states (for example, the "
+            "results of several `.map()` calls) aggregates the states at "
+            "any depth, so a run fails if any nested state failed. When "
+            "disabled (default), only a single state or a flat collection "
+            "of states is aggregated and nested collections are treated as "
+            "plain data, preserving the historical behavior."
+        ),
+    )
+
     # Bound by the root `Settings` model_validator so that
     # `settings.experiments.plugins` resolves on the same root instance
     # the user is holding — not on `get_current_settings()` (which can

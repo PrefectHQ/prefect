@@ -591,6 +591,18 @@ If `True`, warn on usage of experimental features.
 **Supported environment variables**:
 `PREFECT_EXPERIMENTS_WARN`, `PREFECT_EXPERIMENTAL_WARN`
 
+### `aggregate_nested_states`
+Whether to aggregate nested collections of states when determining a flow or task run's final state. When enabled, returning nested collections of states (for example, the results of several `.map()` calls) aggregates the states at any depth, so a run fails if any nested state failed. When disabled (default), only a single state or a flat collection of states is aggregated and nested collections are treated as plain data, preserving the historical behavior.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `experiments.aggregate_nested_states`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_AGGREGATE_NESTED_STATES`
+
 ---
 ## FlowsSettings
 Settings for controlling flow behavior

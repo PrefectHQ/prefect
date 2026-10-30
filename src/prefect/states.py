@@ -7,7 +7,7 @@ import traceback
 import uuid
 from collections import Counter
 from types import GeneratorType, TracebackType
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, Optional, Type
 
 import anyio
 import httpx
@@ -369,8 +369,8 @@ async def return_value_to_state(
         return state
 
     # Determine a new state from the aggregate of contained states
-    if isinstance(retval, State) or is_state_iterable(retval):
-        states = StateGroup(ensure_iterable(retval))
+    if contained_states := _get_states_to_aggregate(retval):
+        states = StateGroup(contained_states)
 
         # Determine the new state type
         if states.all_completed():
@@ -514,9 +514,15 @@ async def aget_state_exception(state: State) -> BaseException:
         # Return the exception from the inner state
         return await aget_state_exception(result)
 
-    elif is_state_iterable(result):
+    # Nested collections are understood here regardless of the
+    # `experiments.aggregate_nested_states` setting: once a run's final
+    # state has been aggregated, the nested states are part of the persisted
+    # result, and the failure must stay retrievable even if the setting is
+    # later disabled. The setting only controls whether nested collections
+    # are aggregated into a terminal state in the first place.
+    elif nested_states := _flatten_nested_states(result):
         # Return the first failure
-        for state in result:
+        for state in nested_states:
             if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return await aget_state_exception(state)
 
@@ -615,9 +621,15 @@ def get_state_exception(state: State) -> BaseException:
         # Return the exception from the inner state
         return get_state_exception(result)
 
-    elif is_state_iterable(result):
+    # Nested collections are understood here regardless of the
+    # `experiments.aggregate_nested_states` setting: once a run's final
+    # state has been aggregated, the nested states are part of the persisted
+    # result, and the failure must stay retrievable even if the setting is
+    # later disabled. The setting only controls whether nested collections
+    # are aggregated into a terminal state in the first place.
+    elif nested_states := _flatten_nested_states(result):
         # Return the first failure
-        for state in result:
+        for state in nested_states:
             if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return get_state_exception(state)
 
@@ -674,6 +686,101 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
         return all([isinstance(o, State) for o in obj])
     else:
         return False
+
+
+def _nested_state_aggregation_enabled() -> bool:
+    """
+    Whether nested collections of states should be aggregated when
+    determining a run's final state.
+
+    Controlled by the `experiments.aggregate_nested_states` setting, which
+    is disabled by default.
+    """
+    from prefect.settings.context import get_current_settings
+
+    return get_current_settings().experiments.aggregate_nested_states
+
+
+def _get_states_to_aggregate(retval: Any) -> list[State] | None:
+    """
+    Return the states to aggregate from a run's return value, or `None` if
+    the value should be treated as plain data.
+
+    Nested collections of states are only aggregated when the
+    `experiments.aggregate_nested_states` setting is enabled. When it is
+    disabled, only a single state or a flat collection of states is
+    aggregated, preserving the historical behavior.
+    """
+    if _nested_state_aggregation_enabled():
+        return _flatten_nested_states(retval)
+    if isinstance(retval, State) or is_state_iterable(retval):
+        return list(ensure_iterable(retval))
+    return None
+
+
+# Maximum nesting depth `_flatten_nested_states` will descend into a value
+# before giving up and treating it as plain data. Legitimate nesting (e.g.
+# the results of several `.map()` calls) is only a few levels deep; the cap
+# exists so adversarially deep inputs cannot exhaust the call stack.
+_MAX_NESTED_STATES_DEPTH = 1000
+
+
+def _flatten_nested_states(obj: Any) -> list[State] | None:
+    """
+    Flatten a state, or a collection of states that may be nested inside
+    `list`, `set`, and `tuple` containers, into a list of states.
+
+    Nesting occurs naturally when a run returns the results of several
+    `.map()` calls, which resolve to a list of lists of states.
+
+    Returns `None` if the object contains anything other than states and
+    nested collections of states, or if the collections form a reference
+    cycle. Empty collections contain no states and contribute nothing, so
+    a value made up only of empty collections returns an empty list.
+
+    The traversal is iterative, so inputs nested deeper than
+    `_MAX_NESTED_STATES_DEPTH` cannot raise `RecursionError`; they are
+    treated as plain data and `None` is returned instead.
+    """
+    if isinstance(obj, State):
+        return [obj]
+
+    if isinstance(obj, BaseAnnotation) or not isinstance(obj, (list, set, tuple)):
+        return None
+
+    states: list[State] = []
+    # Ids of the collections on the current path, for reference-cycle detection.
+    on_path: set[int] = {id(obj)}
+    # Explicit stack of (iterator, container, depth); avoids recursion so
+    # adversarially deep inputs cannot exhaust the interpreter's call stack.
+    stack: list[tuple[Iterator[Any], Any, int]] = []
+    container: Any = obj
+    iterator: Iterator[Any] = iter(obj)
+    depth = 1
+    while True:
+        for item in iterator:
+            if isinstance(item, State):
+                states.append(item)
+            elif (
+                isinstance(item, BaseAnnotation)
+                or not isinstance(item, (list, set, tuple))
+                or id(item) in on_path
+                or depth >= _MAX_NESTED_STATES_DEPTH
+            ):
+                # Anything other than states and nested collections, a
+                # reference cycle, or nesting beyond the depth cap means the
+                # value is plain data rather than states.
+                return None
+            else:
+                stack.append((iterator, container, depth))
+                on_path.add(id(item))
+                container, iterator, depth = item, iter(item), depth + 1
+                break
+        else:
+            on_path.discard(id(container))
+            if not stack:
+                return states
+            iterator, container, depth = stack.pop()
 
 
 class StateGroup:
