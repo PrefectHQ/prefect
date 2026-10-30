@@ -25,7 +25,6 @@ from zoneinfo import ZoneInfo
 
 import dateutil
 import dateutil.rrule
-import pytz
 import whenever
 from pydantic import ConfigDict, Field, field_validator, model_validator
 from typing_extensions import TypeAlias
@@ -663,60 +662,9 @@ class CronSchedule(PrefectBaseModel):
             else:
                 n = 1
 
-        if sys.version_info >= (3, 13):
-            yield from self._get_dates_whenever(n, start, end)
-            return
-
-        if self.timezone:
-            start = _pendulum_call(start, "in_tz", self.timezone)
-
-        # subtract one second from the start date, so that croniter returns it
-        # as an event (if it meets the cron criteria)
-        start = start - datetime.timedelta(seconds=1)
-
-        # Respect microseconds by rounding up
-        if start.microsecond > 0:
-            start += datetime.timedelta(seconds=1)
-
-        # croniter's DST logic interferes with all other datetime libraries except pytz
-        start_localized = pytz.timezone(start.tz.name).localize(
-            datetime.datetime(
-                year=start.year,
-                month=start.month,
-                day=start.day,
-                hour=start.hour,
-                minute=start.minute,
-                second=start.second,
-                microsecond=start.microsecond,
-            )
-        )
-        start_naive_tz = _pendulum_call(start, "naive")
-        cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
-        dates = set()
-        counter = 0
-
-        while True:
-            # croniter does not handle DST properly when the start time is
-            # in and around when the actual shift occurs. To work around this,
-            # we use the naive start time to get the next cron date delta, then
-            # add that time to the original scheduling anchor.
-            next_time = cron.get_next(datetime.datetime)
-            delta = next_time - start_naive_tz
-            next_date = create_datetime_instance(start_localized + delta)
-
-            # if the end date was exceeded, exit
-            if end and next_date > end:
-                break
-            # ensure no duplicates; weird things can happen with DST
-            if next_date not in dates:
-                dates.add(next_date)
-                yield next_date
-
-            # if enough dates have been collected or enough attempts were made, exit
-            if len(dates) >= n or counter > MAX_ITERATIONS:
-                break
-
-            counter += 1
+        # `whenever` is a server dependency on every supported Python, so all
+        # versions share one engine and one DST policy.
+        yield from self._get_dates_whenever(n, start, end)
 
     def _get_dates_whenever(
         self, n: int, start: datetime.datetime, end: Optional[datetime.datetime]
