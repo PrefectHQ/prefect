@@ -1,6 +1,6 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { buildListAutomationsQuery } from "@/api/automations";
+import { buildListAllAutomationsQuery } from "@/api/automations";
 import { categorizeError } from "@/api/error-utils";
 import { AutomationsHeader } from "@/components/automations/automations-header";
 import { AutomationsPage } from "@/components/automations/automations-page";
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/automations/")({
 		);
 	},
 	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(buildListAutomationsQuery()),
+		context.queryClient.ensureQueryData(buildListAllAutomationsQuery()),
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
 });
