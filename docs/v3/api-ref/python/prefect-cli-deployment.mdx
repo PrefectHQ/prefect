@@ -14,7 +14,7 @@ Manage deployments and deployment schedules.
 
 ## Functions
 
-### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L141" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 inspect(name: str)
@@ -63,7 +63,7 @@ View details about a deployment.
 ```
 
 
-### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L235" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ls(flow_name: Annotated[Optional[list[str]], cyclopts.Parameter('flow_name', help='One or more flow names to filter deployments by.')] = None)
@@ -73,7 +73,7 @@ ls(flow_name: Annotated[Optional[list[str]], cyclopts.Parameter('flow_name', hel
 View all deployments or deployments for specific flows.
 
 
-### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L319" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(name: Annotated[Optional[str], cyclopts.Parameter('name', help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>")] = None)
@@ -88,7 +88,7 @@ starts. To watch the flow run until it reaches a terminal state, use the
 `--watch` flag.
 
 
-### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L610" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L614" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(name: Annotated[Optional[str], cyclopts.Parameter('name', help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>")] = None)
@@ -105,7 +105,7 @@ $ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
 ```
 
 
-### `create_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L704" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L708" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_schedule(name: str)
@@ -115,7 +115,7 @@ create_schedule(name: str)
 Create a schedule for a given deployment.
 
 
-### `delete_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L884" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_schedule(deployment_name: str, schedule_id: UUID)
@@ -125,7 +125,7 @@ delete_schedule(deployment_name: str, schedule_id: UUID)
 Delete a deployment schedule.
 
 
-### `pause_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1046" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pause_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1050" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_schedule(deployment_name: Annotated[Optional[str], cyclopts.Parameter('deployment_name')] = None, schedule_id: Annotated[Optional[UUID], cyclopts.Parameter('schedule_id')] = None)
@@ -145,7 +145,7 @@ $ prefect deployment schedule pause --all
 ```
 
 
-### `resume_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1084" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resume_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1088" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_schedule(deployment_name: Annotated[Optional[str], cyclopts.Parameter('deployment_name')] = None, schedule_id: Annotated[Optional[UUID], cyclopts.Parameter('schedule_id')] = None)
@@ -165,7 +165,7 @@ $ prefect deployment schedule resume --all
 ```
 
 
-### `list_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `list_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 list_schedules(deployment_name: str)
@@ -175,7 +175,7 @@ list_schedules(deployment_name: str)
 View all schedules for a deployment.
 
 
-### `clear_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `clear_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 clear_schedules(deployment_name: str)
