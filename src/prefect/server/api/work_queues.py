@@ -18,6 +18,7 @@ from sqlalchemy.exc import IntegrityError
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.server.api.workers import schedule_readiness_update
 from prefect.server.database import (
     PrefectDBInterface,
     provide_database_interface,
@@ -189,19 +190,32 @@ async def read_work_queue_runs(
     if x_prefect_ui:
         return flow_runs
 
-    await docket.add(
+    work_queue_becoming_ready = work_queue.status == WorkQueueStatus.NOT_READY
+    if work_queue_becoming_ready:
+        deployments_becoming_ready = True
+    else:
+        async with db.session_context() as session:
+            deployments_becoming_ready = (
+                await models.deployments.has_not_ready_deployments(
+                    session=session, work_queue_ids=[work_queue_id]
+                )
+            )
+
+    await schedule_readiness_update(
+        docket,
         mark_work_queues_ready,
         key=f"mark_work_queues_ready:{work_queue_id}",
+        becoming_ready=work_queue_becoming_ready,
     )(
         polled_work_queue_ids=[work_queue_id],
-        ready_work_queue_ids=(
-            [work_queue_id] if work_queue.status == WorkQueueStatus.NOT_READY else []
-        ),
+        ready_work_queue_ids=[work_queue_id] if work_queue_becoming_ready else [],
     )
 
-    await docket.add(
+    await schedule_readiness_update(
+        docket,
         mark_deployments_ready,
         key=f"mark_deployments_ready:work_queue:{work_queue_id}",
+        becoming_ready=deployments_becoming_ready,
     )(
         work_queue_ids=[work_queue_id],
     )
