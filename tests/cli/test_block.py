@@ -426,6 +426,15 @@ def test_inspecting_a_block_malformed_slug():
     )
 
 
+def test_inspecting_a_block_by_id_not_found():
+    missing_block_id = uuid.uuid4()
+    invoke_and_assert(
+        ["block", "inspect", "--id", str(missing_block_id)],
+        expected_code=1,
+        expected_output_contains=f"Block '{missing_block_id}' not found!",
+    )
+
+
 async def test_deleting_a_block():
     await system.Secret(value="don't delete me please").save("pleasedonterase")
 
@@ -448,6 +457,15 @@ def test_deleting_a_block_malformed_slug():
         ["block", "delete", "chonk-block"],
         expected_code=1,
         expected_output_contains="'chonk-block' is not valid. Slug must contain a '/'",
+    )
+
+
+def test_deleting_a_block_by_id_not_found():
+    missing_block_id = uuid.uuid4()
+    invoke_and_assert(
+        ["block", "delete", "--id", str(missing_block_id)],
+        expected_code=1,
+        expected_output_contains=f"Block '{missing_block_id}' not found!",
     )
 
 
