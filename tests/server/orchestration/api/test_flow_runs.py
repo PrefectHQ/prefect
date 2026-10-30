@@ -23,6 +23,7 @@ from prefect.server import models, schemas
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
+from prefect.server.database import provide_database_interface
 from prefect.server.database.orm_models import Flow, WorkPool, WorkQueue
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
@@ -1859,6 +1860,72 @@ class TestSetFlowRunState:
         )
         assert run.state.type == StateType.RUNNING
         assert run.state.name == "Test State"
+
+    async def test_state_waiting_on_another_transition_is_timestamped_after_it(
+        self, flow_run, client, session, monkeypatch
+    ):
+        """
+        A proposed state is ordered behind any transition that holds the run, so
+        its timestamp must come after that transition's state too. Otherwise the
+        history, which is ordered by timestamp, ends in a state the run is not in.
+        """
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=schemas.states.Pending(),
+        )
+        await session.commit()
+
+        db = provide_database_interface()
+        async with db.session_context(
+            begin_transaction=True, with_for_update=True
+        ) as other:
+            # another transition takes the run first...
+            await models.flow_runs.read_flow_run(
+                session=other, flow_run_id=flow_run.id, for_update=True
+            )
+            # ...while this request arrives and waits for it
+            read_flow_run = models.flow_runs.read_flow_run
+            reached_lock = asyncio.Event()
+
+            async def signal_locking_read(*args, **kwargs):
+                if kwargs.get("for_update"):
+                    reached_lock.set()
+                return await read_flow_run(*args, **kwargs)
+
+            monkeypatch.setattr(models.flow_runs, "read_flow_run", signal_locking_read)
+            waiting = asyncio.create_task(
+                client.post(
+                    f"/flow_runs/{flow_run.id}/set_state",
+                    json=dict(state=dict(type="COMPLETED", name="Completed")),
+                )
+            )
+            await asyncio.wait_for(reached_lock.wait(), timeout=10)
+            monkeypatch.setattr(models.flow_runs, "read_flow_run", read_flow_run)
+            result = await models.flow_runs.set_flow_run_state(
+                session=other,
+                flow_run_id=flow_run.id,
+                state=schemas.states.Failed(),
+            )
+            assert result.status == responses.SetStateStatus.ACCEPT
+
+        response = await waiting
+        assert response.status_code == 201, response.text
+        assert response.json()["status"] == "ACCEPT"
+
+        async with db.session_context() as fresh:
+            run = await models.flow_runs.read_flow_run(
+                session=fresh, flow_run_id=flow_run.id
+            )
+            states = await models.flow_run_states.read_flow_run_states(
+                session=fresh, flow_run_id=flow_run.id
+            )
+        assert [state.type for state in states] == [
+            StateType.PENDING,
+            StateType.FAILED,
+            StateType.COMPLETED,
+        ]
+        assert states[-1].type == run.state_type
 
     async def test_cancelling_a_paused_flow_run_is_accepted(
         self, flow, client, session
