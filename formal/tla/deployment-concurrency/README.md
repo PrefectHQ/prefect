@@ -149,6 +149,22 @@ expiration before releasing capacity, and memory storage updates that expiration
 on renewal. This covers renewal completed before the reaper reads the lease;
 renewal during its subsequent database work still races with revocation.
 
+The duplicate-reaper regression passes: `services/repossessor.py::revoke_expired_lease`
+and `api/concurrency_limits_v2.py::bulk_decrement_active_slots_with_lease`
+decrement, then revoke the lease while the decrement still holds the limit
+rows, and roll the decrement back unless their own `revoke_lease` removed the
+lease. A duplicate release waits on those rows, finds the lease revoked, and
+rolls back, so `CounterexampleDuplicateReap.cfg` no longer describes these
+paths. A failed decrement leaves the lease in storage for a retry or a later
+reaper pass, covered by
+`tests/server/services/test_repossessor.py::TestRevokeExpiredLease::test_failed_reap_leaves_the_lease_for_a_later_pass`
+and
+`tests/server/orchestration/api/test_concurrency_limits_v2.py::test_failed_decrement_with_lease_can_be_retried`.
+This is not the target claim: the external revoke and the SQL commit are not
+atomic, so a commit that fails after a successful revoke still loses the
+release, and terminal release in `core_policy.py::_release_concurrency_lease`
+does not take this path.
+
 The remaining regressions are strict `xfail` tests while claim authority is
 absent. Implementing the target requires removing those marks and passing the
 same boundary assertions; lower-level replacements are insufficient. The model
