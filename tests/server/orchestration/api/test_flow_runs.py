@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import json
 import logging
 import shutil
 from typing import Any, AsyncGenerator, Generator, List, Optional
@@ -1721,6 +1722,50 @@ class TestResumeFlowrun:
 
         assert flow_run_input
         assert orjson.loads(flow_run_input.value) == {"approved": True}
+
+    async def test_resume_flow_run_waiting_for_input_with_integer_beyond_64_bit_range(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        flow: Flow,
+    ):
+        class BigIntInput(RunInput):
+            count: int
+
+        server_state = schemas.states.Paused(pause_key="1")
+        keyset = keyset_from_paused_state(Paused(pause_key="1"))
+        server_state.state_details.run_input_keyset = keyset
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, state=server_state),
+        )
+        await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key=keyset["schema"],
+                value=orjson.dumps(BigIntInput.model_json_schema()).decode(),
+            ),
+        )
+        await session.commit()
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/resume",
+            json={"run_input": {"count": 2**64 + 1}},
+        )
+
+        assert response.status_code == 201, response.text
+        assert response.json()["status"] == "ACCEPT"
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=flow_run.id,
+            key=keyset["response"],
+        )
+
+        assert flow_run_input
+        assert json.loads(flow_run_input.value) == {"count": 2**64 + 1}
 
     async def test_resume_flow_run_waiting_for_input_with_json_hydrated_input(
         self,
