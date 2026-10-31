@@ -861,24 +861,28 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-    await docket.add(
-        mark_work_queues_ready,
-        key=f"mark_work_queues_ready:work_pool:{work_pool_id}",
-    )(
-        polled_work_queue_ids=[
-            wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
-        ],
-        ready_work_queue_ids=[
-            wq.id for wq in work_queues if wq.status == WorkQueueStatus.NOT_READY
-        ],
-    )
+    polled_queue_ids = [wq.id for wq in work_queues]
+    # Record every poll before background-task deduplication can discard it.
+    async with db.session_context(begin_transaction=True) as session:
+        await models.work_queues.record_work_queue_polls(
+            session=session,
+            polled_work_queue_ids=polled_queue_ids,
+            ready_work_queue_ids=[],
+        )
+
+    ready_queue_ids = [
+        wq.id for wq in work_queues if wq.status == WorkQueueStatus.NOT_READY
+    ]
+    if ready_queue_ids:
+        await docket.add(
+            mark_work_queues_ready,
+            key=f"mark_work_queues_ready:work_pool:{work_pool_id}",
+        )(polled_work_queue_ids=[], ready_work_queue_ids=ready_queue_ids)
 
     await docket.add(
         mark_deployments_ready,
         key=f"mark_deployments_ready:work_pool:{work_pool_id}",
-    )(
-        work_queue_ids=[wq.id for wq in work_queues],
-    )
+    )(work_queue_ids=polled_queue_ids, skip_recently_polled=True)
 
     return queue_response
 
