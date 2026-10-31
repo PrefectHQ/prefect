@@ -78,6 +78,8 @@ In-page anchors (`#...`) must match Mintlify's heading slugs, not GitHub's: back
 
 When renaming or moving a page, add a redirect in `docs/docs.json` `redirects` array so existing links continue to work. Never remove existing redirects unless you are certain the old URL has no inbound traffic. Paths should not include `.mdx`.
 
+Missing pages return a real 404 (`errors.404.redirect` is `false`), so a broken `https://www.prefect.io/docs/...` URL in source, CLI messages, `ui-v2/`, or READMEs is not masked by a homepage fallback — point it at a real page or add a redirect. Exact `source` matches beat wildcards, but among wildcard (`:slug*`) rules the first match in the array wins — place narrower wildcard sources before broader ones.
+
 ## Terminology and casing
 
 Preferred terms are enforced by Vale via `docs/styles/CustomStyles/WordList.yml`. Key entries:
