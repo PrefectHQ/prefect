@@ -59,6 +59,16 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const MONTH_MS = 30 * DAY_MS;
 
+/** Milliseconds since the start of the local hour that contains `ms`. */
+const msPastLocalHour = (ms: number): number => {
+	const date = new Date(ms);
+	return (
+		date.getMinutes() * 60 * 1000 +
+		date.getSeconds() * 1000 +
+		date.getMilliseconds()
+	);
+};
+
 /**
  * Generates ticks for intervals of an hour or more on local time boundaries:
  * local midnight for day intervals, the first of the month for the month
@@ -102,17 +112,21 @@ const generateLocalTimeTicks = (
 	// subtraction for the same reason, since setMinutes(0) in a repeated hour
 	// resolves to its first occurrence.
 	const stepHours = Math.round(intervalMs / HOUR_MS);
-	let tick =
-		startMs -
-		(cursor.getMinutes() * 60 * 1000 +
-			cursor.getSeconds() * 1000 +
-			cursor.getMilliseconds());
+	let tick = startMs - msPastLocalHour(startMs);
 	if (tick < startMs) tick += HOUR_MS;
-	for (; tick <= endMs; tick += HOUR_MS) {
-		const date = new Date(tick);
-		if (date.getMinutes() === 0 && date.getHours() % stepHours === 0) {
+	while (tick <= endMs) {
+		// After an offset change that is not a whole hour (Lord Howe moves by
+		// 30 minutes) an hour step lands mid-hour. Move on to the next local
+		// hour boundary so the remaining ticks stay aligned.
+		const pastHour = msPastLocalHour(tick);
+		if (pastHour !== 0) {
+			tick += HOUR_MS - pastHour;
+			continue;
+		}
+		if (new Date(tick).getHours() % stepHours === 0) {
 			ticks.push(tick);
 		}
+		tick += HOUR_MS;
 	}
 	return ticks;
 };

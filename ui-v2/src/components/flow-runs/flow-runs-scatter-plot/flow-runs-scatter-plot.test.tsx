@@ -181,6 +181,50 @@ describe("generateNiceTimeTicks", () => {
 		});
 	});
 
+	// Lord Howe Island moves its clocks by 30 minutes, so an hour step after
+	// the change lands on :30. Set TZ here because CI runs in UTC.
+	it("keeps hour ticks after a half-hour DST change", () => {
+		const originalTz = process.env.TZ;
+		process.env.TZ = "Australia/Lord_Howe";
+		try {
+			// Local midnight to noon on 2026-10-04, when 02:00 becomes 02:30
+			const start = new Date("2026-10-03T13:30:00.000Z").getTime();
+			const end = new Date("2026-10-04T01:00:00.000Z").getTime();
+
+			const hours = (ticks: number[]) =>
+				ticks.map((tick) => new Date(tick).getHours());
+
+			const threeHourTicks = generateNiceTimeTicks(start, end, 10);
+			expect(hours(threeHourTicks)).toEqual([0, 3, 6, 9, 12]);
+
+			// No 2 AM tick, since 02:00 to 02:30 does not exist that night
+			const hourTicks = generateNiceTimeTicks(start, end, 20);
+			expect(hours(hourTicks)).toEqual([0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+			for (const tick of [...threeHourTicks, ...hourTicks]) {
+				expect(new Date(tick).getMinutes()).toBe(0);
+				expect(tick).toBeGreaterThanOrEqual(start);
+				expect(tick).toBeLessThanOrEqual(end);
+			}
+		} finally {
+			process.env.TZ = originalTz;
+		}
+	});
+
+	it("keeps the repeated hour tick when clocks fall back", () => {
+		const originalTz = process.env.TZ;
+		process.env.TZ = "America/New_York";
+		try {
+			const start = new Date("2026-11-01T04:00:00.000Z").getTime();
+			const end = new Date("2026-11-01T13:00:00.000Z").getTime();
+			const ticks = generateNiceTimeTicks(start, end, 10);
+
+			const hours = ticks.map((tick) => new Date(tick).getHours());
+			expect(hours).toEqual([0, 1, 1, 2, 3, 4, 5, 6, 7, 8]);
+		} finally {
+			process.env.TZ = originalTz;
+		}
+	});
+
 	it("returns about the target number of ticks for a 30-day range", () => {
 		const start = new Date("2026-09-02T14:23:00.000Z").getTime();
 		const end = new Date("2026-10-02T14:23:00.000Z").getTime();
