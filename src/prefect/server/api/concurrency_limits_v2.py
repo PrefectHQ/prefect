@@ -179,6 +179,7 @@ class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     id: UUID
     name: str
     limit: int
+    active: bool = True
 
 
 class ConcurrencyLimitWithLeaseResponse(PrefectBaseModel):
@@ -321,7 +322,10 @@ async def bulk_increment_active_slots(
     if acquired:
         return [
             MinimalConcurrencyLimitResponse(
-                id=limit.id, name=str(limit.name), limit=limit.limit
+                id=limit.id,
+                name=str(limit.name),
+                limit=limit.limit,
+                active=bool(limit.active),
             )
             for limit in acquired_limits
         ]
@@ -362,7 +366,7 @@ async def bulk_increment_active_slots_with_lease(
     if acquired:
         lease_storage = get_concurrency_lease_storage()
         lease = await lease_storage.create_lease(
-            resource_ids=[limit.id for limit in acquired_limits],
+            resource_ids=[limit.id for limit in acquired_limits if bool(limit.active)],
             ttl=timedelta(seconds=lease_duration),
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=slots,
@@ -373,7 +377,10 @@ async def bulk_increment_active_slots_with_lease(
             lease_id=lease.id,
             limits=[
                 MinimalConcurrencyLimitResponse(
-                    id=limit.id, name=str(limit.name), limit=limit.limit
+                    id=limit.id,
+                    name=str(limit.name),
+                    limit=limit.limit,
+                    active=bool(limit.active),
                 )
                 for limit in acquired_limits
             ],
@@ -416,7 +423,10 @@ async def bulk_decrement_active_slots(
 
     return [
         MinimalConcurrencyLimitResponse(
-            id=limit.id, name=str(limit.name), limit=limit.limit
+            id=limit.id,
+            name=str(limit.name),
+            limit=limit.limit,
+            active=bool(limit.active),
         )
         for limit in limits
     ]

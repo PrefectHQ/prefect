@@ -105,6 +105,34 @@ def test_lease_renewal_logs_once_after_max_retries_non_strict(
 @mock.patch(
     "prefect.concurrency._leases.exponential_backoff_with_jitter", _zero_backoff
 )
+def test_lease_renewal_failure_with_suppress_warnings_logs_below_warning(
+    caplog: pytest.LogCaptureFixture,
+):
+    mock_client = mock.MagicMock()
+    mock_client.renew_concurrency_lease.side_effect = RuntimeError("lease gone")
+    failure_message = "Concurrency lease renewal failed - slots are no longer reserved."
+
+    with _patch_renewal_client(mock_client):
+        with caplog.at_level(logging.DEBUG, logger="prefect"):
+            with maintain_concurrency_lease(
+                lease_id=uuid4(),
+                lease_duration=60,
+                raise_on_lease_renewal_failure=False,
+                suppress_warnings=True,
+            ):
+                assert _wait_for(lambda: failure_message in caplog.text)
+
+    assert mock_client.renew_concurrency_lease.call_count == 3
+    renewal_records = [
+        record for record in caplog.records if "lease renewal" in record.getMessage()
+    ]
+    assert renewal_records
+    assert all(record.levelno == logging.DEBUG for record in renewal_records)
+
+
+@mock.patch(
+    "prefect.concurrency._leases.exponential_backoff_with_jitter", _zero_backoff
+)
 def test_maintain_concurrency_lease_handles_failure_strict():
     mock_client = mock.MagicMock()
     mock_client.renew_concurrency_lease.side_effect = RuntimeError("server down")

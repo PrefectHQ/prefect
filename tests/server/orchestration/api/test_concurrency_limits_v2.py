@@ -741,12 +741,74 @@ async def test_increment_concurrency_limit_inactive(
     assert response.status_code == 200
     limits = response.json() if endpoint == "increment" else response.json()["limits"]
     assert [limit["id"] for limit in limits] == [str(inactive.id)]
+    assert [limit["active"] for limit in limits] == [False]
 
     refreshed_limit = await read_concurrency_limit(
         session=session, concurrency_limit_id=inactive.id
     )
     assert refreshed_limit
     assert refreshed_limit.active_slots == 0  # Inactive limits are not incremented
+
+
+async def test_increment_with_lease_only_leases_active_limits(
+    client: AsyncClient,
+    session: AsyncSession,
+    concurrency_limit: ConcurrencyLimitV2,
+):
+    inactive = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            active=False,
+            name="inactive_limit",
+            limit=10,
+        ),
+    )
+    await session.commit()
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name, inactive.name],
+            "slots": 1,
+            "mode": "concurrency",
+        },
+    )
+    assert response.status_code == 200
+    assert {limit["id"]: limit["active"] for limit in response.json()["limits"]} == {
+        str(concurrency_limit.id): True,
+        str(inactive.id): False,
+    }
+
+    lease_storage = get_concurrency_lease_storage()
+    lease = await lease_storage.read_lease(uuid.UUID(response.json()["lease_id"]))
+    assert lease
+    assert lease.resource_ids == [concurrency_limit.id]
+
+
+async def test_increment_with_lease_inactive_limits_hold_no_resources(
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    inactive = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            active=False,
+            name="inactive_limit",
+            limit=10,
+        ),
+    )
+    await session.commit()
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": [inactive.name], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+
+    lease_storage = get_concurrency_lease_storage()
+    lease = await lease_storage.read_lease(uuid.UUID(response.json()["lease_id"]))
+    assert lease
+    assert lease.resource_ids == []
 
 
 @pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
