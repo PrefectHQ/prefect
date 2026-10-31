@@ -10,6 +10,7 @@ from prefect_redis.blocks import RedisDatabase
 from prefect_redis.locking import RedisLockManager
 
 from prefect.results import ResultStore
+from prefect.transactions import AsyncTransaction, IsolationLevel
 
 
 class TestRedisLockManager:
@@ -86,6 +87,29 @@ class TestRedisLockManager:
         assert lock_manager.acquire_lock(key, holder="holder1")
         assert lock_manager.is_locked(key)
         lock_manager.release_lock(key, holder="holder1")
+        assert not lock_manager.is_locked(key)
+
+    async def test_release_lock_acquired_asynchronously(self, lock_manager):
+        key = str(uuid4())
+        assert await lock_manager.aacquire_lock(key, holder="holder1")
+        assert lock_manager.is_locked(key)
+        lock_manager.release_lock(key, holder="holder1")
+        assert not lock_manager.is_locked(key)
+        assert await lock_manager.aacquire_lock(
+            key, holder="holder2", acquire_timeout=0.1
+        )
+        lock_manager.release_lock(key, holder="holder2")
+
+    async def test_async_serializable_transaction_releases_lock(self, lock_manager):
+        key = str(uuid4())
+        store = ResultStore(lock_manager=lock_manager)
+
+        async with AsyncTransaction(
+            key=key, store=store, isolation_level=IsolationLevel.SERIALIZABLE
+        ) as txn:
+            assert lock_manager.is_locked(key)
+            txn.stage("value")
+
         assert not lock_manager.is_locked(key)
 
     def test_acquire_lock_idempotent(self, lock_manager):
