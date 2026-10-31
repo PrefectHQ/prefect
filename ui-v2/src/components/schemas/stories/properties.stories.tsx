@@ -138,6 +138,13 @@ export const TypeStringWithFormatDateTime: Story = {
 };
 TypeStringWithFormatDateTime.storyName = "type:string & format:date-time";
 
+export const DateTimeWithTimezone: Story = {
+	args: {
+		...TypeStringWithFormatDateTime.args,
+		values: { name: "2024-01-15T15:30:00Z" },
+	},
+};
+
 export const TypeStringWithFormatTimeDelta: Story = {
 	args: {
 		schema: {
