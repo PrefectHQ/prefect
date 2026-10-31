@@ -15,11 +15,14 @@ export type ArtifactDataViewProps = {
 };
 
 /**
- * Returns table rows when the data is a list of row objects, either as a JSON
- * string (what the Python SDK sends) or already parsed. Returns null for
- * anything else, e.g. malformed JSON or column-oriented tables.
+ * Returns table rows when the data is a list of row objects or a list of row
+ * arrays, either as a JSON string (what the Python SDK sends) or already
+ * parsed. Returns null for anything else, e.g. malformed JSON, null or
+ * primitive rows, or column-oriented tables.
  */
-const getTableRows = (data: unknown): Record<string, unknown>[] | null => {
+const getTableRows = (
+	data: unknown,
+): (Record<string, unknown> | unknown[])[] | null => {
 	let value = data;
 	if (typeof value === "string") {
 		try {
@@ -30,10 +33,8 @@ const getTableRows = (data: unknown): Record<string, unknown>[] | null => {
 	}
 	const isRowList =
 		Array.isArray(value) &&
-		value.every(
-			(row) => typeof row === "object" && row !== null && !Array.isArray(row),
-		);
-	return isRowList ? (value as Record<string, unknown>[]) : null;
+		value.every((row) => typeof row === "object" && row !== null);
+	return isRowList ? (value as (Record<string, unknown> | unknown[])[]) : null;
 };
 
 export const ArtifactDataView = ({
