@@ -53,9 +53,7 @@ export function DateTimePicker({
 				newDate.setMinutes(Number.parseInt(value, 10));
 			} else if (type === "ampm") {
 				const currentHours = newDate.getHours();
-				newDate.setHours(
-					value === "PM" ? currentHours + 12 : currentHours - 12,
-				);
+				newDate.setHours((currentHours % 12) + (value === "PM" ? 12 : 0));
 			}
 
 			handleDateChange(newDate);
@@ -81,7 +79,7 @@ export function DateTimePicker({
 					)}
 				</Button>
 			</PopoverTrigger>
-			<PopoverContent className="w-auto p-0">
+			<PopoverContent className="w-auto p-0" align="start">
 				<div className="sm:flex">
 					<Calendar
 						mode="single"

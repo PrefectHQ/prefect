@@ -4,6 +4,19 @@ import { describe, expect, test, vi } from "vitest";
 import { SchemaFormInputStringFormatDate } from "./schema-form-input-string-format-date";
 
 describe("SchemaFormInputStringFormatDate", () => {
+	test("aligns the popover to the start of the input", async () => {
+		const user = userEvent.setup();
+		render(
+			<SchemaFormInputStringFormatDate
+				value={undefined}
+				onValueChange={vi.fn()}
+				id="test-id"
+			/>,
+		);
+		await user.click(screen.getByRole("button", { name: /Pick a date/i }));
+		expect(screen.getByRole("dialog")).toHaveAttribute("data-align", "start");
+	});
+
 	test("renders without crashing", () => {
 		const onValueChange = vi.fn();
 

@@ -4,7 +4,7 @@ Structural context for any agent working in `docs/`. For the full writing guide 
 
 ## Platform
 
-[Mintlify](https://mintlify.com/) docs published to [docs.prefect.io](https://docs.prefect.io). All files use `.mdx` (Markdown + JSX). Site config lives in `docs/docs.json`.
+[Mintlify](https://mintlify.com/) docs published to [www.prefect.io/docs](https://www.prefect.io/docs). All files use `.mdx` (Markdown + JSX). Site config lives in `docs/docs.json`.
 
 ## Directory structure
 
@@ -71,6 +71,8 @@ See the [flows documentation](/v3/concepts/flows) for details.
 ```
 
 Do not use relative paths or include `.mdx` in links.
+
+In-page anchors (`#...`) must match Mintlify's heading slugs, not GitHub's: backticks are dropped, dots and spaces become hyphens, underscores are kept (heading `prefect.automation.created` → `#prefect-automation-created`; `connection_url` → `#connection_url`). `just links` (and CI) skip anchors by default — verify with `npx mint@latest broken-links --check-anchors --files <path>`.
 
 ## Redirects
 

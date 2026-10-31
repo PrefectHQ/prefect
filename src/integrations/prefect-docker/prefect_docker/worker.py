@@ -11,7 +11,7 @@ Replace `my-work-pool` with the name of the work pool you want the worker
 to poll for flow runs.
 
 For more information about work pools and workers,
-checkout out the [Prefect docs](https://docs.prefect.io/latest/deploy/infrastructure-concepts).
+checkout out the [Prefect docs](https://www.prefect.io/docs/v3/concepts/workers).
 """
 
 from __future__ import annotations
@@ -506,7 +506,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         "Docker daemon."
     )
     _display_name = "Docker"
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-docker"
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-docker"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"  # noqa
 
     def __init__(

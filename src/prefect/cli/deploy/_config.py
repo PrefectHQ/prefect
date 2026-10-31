@@ -66,7 +66,7 @@ def _format_validation_error(exc: ValidationError, raw_data: dict[str, Any]) -> 
         for field_name, msg in top_level_errors:
             lines.append(f"  • {field_name}: {msg}")
         lines.append(
-            "\nFor valid prefect.yaml fields, see: https://docs.prefect.io/v3/how-to-guides/deployments/prefect-yaml"
+            "\nFor valid prefect.yaml fields, see: https://www.prefect.io/docs/v3/how-to-guides/deployments/prefect-yaml"
         )
 
     # Format deployment-level errors
@@ -77,7 +77,7 @@ def _format_validation_error(exc: ValidationError, raw_data: dict[str, Any]) -> 
         for name, fields in sorted(deployment_errors.items()):
             lines.append(f"  • {name}: {', '.join(sorted(fields))}")
         lines.append(
-            "\nFor valid deployment fields and examples, go to: https://docs.prefect.io/v3/concepts/deployments#deployment-schema"
+            "\nFor valid deployment fields and examples, go to: https://www.prefect.io/docs/v3/concepts/deployments#deployment-schema"
         )
 
     return "\n".join(lines)

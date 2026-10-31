@@ -86,9 +86,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "Local File System"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/filesystem.png"
-    _documentation_url = (
-        "https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem"
-    )
+    _documentation_url = "https://www.prefect.io/docs/latest/develop/results#specifying-a-default-filesystem"
 
     basepath: Optional[str] = Field(
         default=None, description="Default local path for this block to write to."
@@ -389,9 +387,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "Remote File System"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/filesystem.png"
-    _documentation_url = (
-        "https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem"
-    )
+    _documentation_url = "https://www.prefect.io/docs/latest/develop/results#specifying-a-default-filesystem"
 
     basepath: str = Field(
         default=...,
@@ -708,9 +704,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "SMB"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/smb.png"
-    _documentation_url = (
-        "https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem"
-    )
+    _documentation_url = "https://www.prefect.io/docs/latest/develop/results#specifying-a-default-filesystem"
 
     share_path: str = Field(
         default=...,

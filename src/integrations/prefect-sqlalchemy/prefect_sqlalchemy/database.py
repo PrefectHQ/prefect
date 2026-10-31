@@ -93,7 +93,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
 
     _block_type_name = "SQLAlchemy Connector"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/sqlalchemy.png"  # type: ignore
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-sqlalchemy"  # type: ignore
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-sqlalchemy"  # type: ignore
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     connection_info: Union[ConnectionComponents, DBUrl] = Field(
@@ -727,7 +727,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
 
     _block_type_name = "Async SQLAlchemy Connector"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/sqlalchemy.png"  # type: ignore
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-sqlalchemy"  # type: ignore
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-sqlalchemy"  # type: ignore
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     connection_info: Union[ConnectionComponents, DBUrl] = Field(

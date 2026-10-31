@@ -11,6 +11,7 @@ from urllib.parse import quote
 from uuid import UUID
 
 import orjson
+import pydantic_core
 import sqlalchemy as sa
 from docket import Depends as DocketDepends
 from docket import Docket, Retry
@@ -69,6 +70,21 @@ logger: "logging.Logger" = get_logger("server.api")
 router: PrefectRouter = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
 
+def _json_response(content: Any) -> Response:
+    """
+    Serialize already JSON-compatible `content` into a JSON response.
+
+    orjson is much faster than the FastAPI encoder, but it rejects integers
+    outside of the 64-bit range. Flow run parameters are arbitrary user data, so
+    fall back to pydantic-core, which supports arbitrarily large integers.
+    """
+    try:
+        body = orjson.dumps(content)
+    except TypeError:
+        body = pydantic_core.to_json(content)
+    return Response(content=body, media_type="application/json")
+
+
 def _get_request_docket(request: Request) -> Docket | None:
     return getattr(request.app.state, "docket", None)
 
@@ -119,7 +135,7 @@ async def create_flow_run(
 
     If no state is provided, the flow run will be created in a PENDING state.
 
-    For more information, see https://docs.prefect.io/v3/concepts/flows.
+    For more information, see https://www.prefect.io/docs/v3/concepts/flows.
     """
     # hydrate the input model into a full flow run / state model
     flow_run_object = schemas.core.FlowRun(
@@ -621,10 +637,7 @@ async def read_flow_runs(
             ).model_dump(mode="json")
             for fr in db_flow_runs
         ]
-        return Response(
-            content=orjson.dumps(encoded),
-            media_type="application/json",
-        )
+        return _json_response(encoded)
 
 
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
@@ -1047,10 +1060,7 @@ async def paginate_flow_runs(
         page=page,
     ).model_dump(mode="json")
 
-    return Response(
-        content=orjson.dumps(response),
-        media_type="application/json",
-    )
+    return _json_response(response)
 
 
 FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT = 1000

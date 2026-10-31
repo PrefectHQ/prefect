@@ -65,7 +65,7 @@ describe("TaskRunArtifacts", () => {
 		).toBeInTheDocument();
 		expect(screen.getByRole("link", { name: /documentation/ })).toHaveAttribute(
 			"href",
-			"https://docs.prefect.io/v3/develop/artifacts",
+			"https://www.prefect.io/docs/v3/develop/artifacts",
 		);
 	});
 

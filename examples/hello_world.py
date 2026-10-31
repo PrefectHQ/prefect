@@ -99,13 +99,13 @@ if __name__ == "__main__":
 
 # Remember that Prefect makes it easy to:
 #
-# * Transform regular Python functions into production-ready workflows with just a [decorator](https://docs.prefect.io/v3/develop/write-flows#write-and-run-flows)
-# * Get automatic logging, [retries](https://docs.prefect.io/v3/develop/write-tasks#retries), and observability without extra code
+# * Transform regular Python functions into production-ready workflows with just a [decorator](https://www.prefect.io/docs/v3/develop/write-flows#write-and-run-flows)
+# * Get automatic logging, [retries](https://www.prefect.io/docs/v3/develop/write-tasks#retries), and observability without extra code
 # * Run the same code anywhere - from your laptop to production
 # * Build complex data pipelines while maintaining simplicity
-# * Track every execution with [detailed logs](https://docs.prefect.io/v3/develop/logging#configure-logging) and state information
+# * Track every execution with [detailed logs](https://www.prefect.io/docs/v3/develop/logging#configure-logging) and state information
 
 # The `@flow` decorator is your gateway to enterprise-grade orchestration - no complex configuration needed!
 #
 #
-# For more information about the orchestration concepts demonstrated in this example, see the [Prefect documentation](https://docs.prefect.io/).
+# For more information about the orchestration concepts demonstrated in this example, see the [Prefect documentation](https://www.prefect.io/docs/).

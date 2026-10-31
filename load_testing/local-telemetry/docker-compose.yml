@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:v3.14.0
+    image: prom/prometheus:v3.15.1
     ports:
       - 9090:9090
     volumes:
@@ -20,7 +20,7 @@ services:
       - 14269:14269 # jaeger's health check
       - 9411:9411 # zipkin (http)
   collector:
-    image: otel/opentelemetry-collector-contrib:0.160.0
+    image: otel/opentelemetry-collector-contrib:0.163.2
     depends_on:
       - jaeger
       - prometheus

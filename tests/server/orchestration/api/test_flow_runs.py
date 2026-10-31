@@ -23,7 +23,7 @@ from prefect.server import models, schemas
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
-from prefect.server.database.orm_models import Flow, WorkPool, WorkQueue
+from prefect.server.database.orm_models import Deployment, Flow, WorkPool, WorkQueue
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
@@ -720,6 +720,31 @@ class TestReadFlowRuns:
         assert len(response.json()) == 3
         # return type should be correct
         assert parse_obj_as(List[schemas.responses.FlowRunResponse], response.json())
+
+    async def test_read_flow_runs_with_parameter_beyond_64_bit_range(
+        self, flow: Flow, session: AsyncSession, client: AsyncClient
+    ):
+        # orjson only supports integers in the 64-bit range, but flow run
+        # parameters are arbitrary user data
+        big_int = 2**64 + 1
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, name="big-int", parameters={"x": big_int}
+            ),
+        )
+        await session.commit()
+
+        response = await client.post("/flow_runs/filter")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        (result,) = response.json()
+        assert result["id"] == str(flow_run.id)
+        assert result["parameters"] == {"x": big_int}
+
+        # the single-run route doesn't use orjson, make sure it stays working
+        response = await client.get(f"/flow_runs/{flow_run.id}")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["parameters"] == {"x": big_int}
 
     async def test_read_flow_runs_work_pool_fields(
         self,
@@ -1892,6 +1917,158 @@ class TestSetFlowRunState:
         )
         assert run.state.type == StateType.CANCELLING
 
+    async def test_pauses_fire_again_after_blocking_pause_is_rescheduled(
+        self,
+        deployment: Deployment,
+        client: AsyncClient,
+        session: AsyncSession,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23398
+
+        When a process waiting on a blocking pause is terminated and the run is
+        rescheduled, the new attempt restarts from the top and reuses the same
+        auto-generated pause keys. Those pauses must not be skipped."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id, deployment_id=deployment.id
+            ),
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+
+        async def set_state(type: StateType, **kwargs: Any) -> OrchestrationResult:
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=dict(type=type.value, **kwargs)),
+            )
+            assert response.status_code == 201, response.text
+            return OrchestrationResult.model_validate(response.json())
+
+        def paused(pause_key: str) -> dict[str, Any]:
+            return dict(
+                name="Paused",
+                state_details=dict(
+                    pause_key=pause_key,
+                    pause_timeout=(
+                        now("UTC") + datetime.timedelta(hours=1)
+                    ).isoformat(),
+                ),
+            )
+
+        # first attempt: pause, get resumed, pause again
+        await set_state(StateType.PENDING)
+        await set_state(StateType.RUNNING)
+        await set_state(StateType.PAUSED, **paused("1"))
+        await set_state(StateType.RUNNING)
+        await set_state(StateType.PAUSED, **paused("2"))
+
+        # process is terminated while paused and the run is rescheduled
+        result = await set_state(StateType.SCHEDULED, name="AwaitingRetry")
+        assert result.status == responses.SetStateStatus.ACCEPT
+
+        # second attempt restarts from the top with the same pause keys
+        await set_state(StateType.PENDING)
+        await set_state(StateType.RUNNING)
+        result = await set_state(StateType.PAUSED, **paused("1"))
+
+        assert result.status == responses.SetStateStatus.ACCEPT
+        assert result.state is not None
+        assert result.state.type == StateType.PAUSED
+
+        session.expire_all()
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run is not None
+        assert run.run_count == 3
+
+    async def test_input_pauses_can_be_replayed_after_blocking_pause_is_rescheduled(
+        self,
+        deployment: Deployment,
+        client: AsyncClient,
+        session: AsyncSession,
+    ):
+        """A replayed `wait_for_input` pause must be able to save its schema and
+        receive a fresh response instead of colliding with the earlier attempt's
+        input records."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id, deployment_id=deployment.id
+            ),
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+        keyset = {
+            "description": "paused-1-description",
+            "response": "paused-1-response",
+            "schema": "paused-1-schema",
+        }
+        schema = {"type": "object", "properties": {"x": {"type": "integer"}}}
+
+        async def set_state(type: StateType, **kwargs: Any) -> OrchestrationResult:
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=dict(type=type.value, **kwargs)),
+            )
+            assert response.status_code == 201, response.text
+            return OrchestrationResult.model_validate(response.json())
+
+        async def pause_for_input() -> None:
+            await set_state(StateType.PENDING)
+            await set_state(StateType.RUNNING)
+            result = await set_state(
+                StateType.PAUSED,
+                name="Paused",
+                state_details=dict(
+                    pause_key="1",
+                    pause_timeout=(
+                        now("UTC") + datetime.timedelta(hours=1)
+                    ).isoformat(),
+                    run_input_keyset=keyset,
+                ),
+            )
+            assert result.status == responses.SetStateStatus.ACCEPT
+            assert result.state is not None
+            assert result.state.type == StateType.PAUSED
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/input",
+                json=dict(key=keyset["schema"], value=orjson.dumps(schema).decode()),
+            )
+            assert response.status_code == 201, response.text
+
+        # first attempt pauses for input and is resumed with a response
+        await pause_for_input()
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume", json=dict(run_input={"x": 1})
+        )
+        assert response.json()["status"] == "ACCEPT", response.text
+
+        # the run is later terminated mid-run and rescheduled
+        await set_state(
+            StateType.PAUSED, name="Paused", state_details=dict(pause_key="2")
+        )
+        await set_state(StateType.SCHEDULED, name="AwaitingRetry")
+
+        # the second attempt replays the input pause and gets a new response
+        await pause_for_input()
+        response = await client.get(
+            f"/flow_runs/{flow_run_id}/input/{keyset['response']}"
+        )
+        assert response.status_code == 404
+
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume", json=dict(run_input={"x": 2})
+        )
+        assert response.json()["status"] == "ACCEPT", response.text
+        response = await client.get(
+            f"/flow_runs/{flow_run_id}/input/{keyset['response']}"
+        )
+        assert response.status_code == 200
+        assert response.json() == {"x": 2}
+
     async def test_cancelling_a_paused_flow_run_with_expired_timeout_is_accepted(
         self, flow: Flow, client: AsyncClient, session: AsyncSession
     ):
@@ -2451,6 +2628,72 @@ class TestSetFlowRunState:
             assert len(lease_ids) == 0
 
             # Check that the concurrency limit slot is released
+            concurrency_limit = await client.get(
+                f"/v2/concurrency_limits/{deployment_with_concurrency_limit.concurrency_limit_id}"
+            )
+            assert concurrency_limit.status_code == 200
+            assert concurrency_limit.json()["active_slots"] == 0
+
+        async def test_lease_handling_force_cancelled(
+            self,
+            client: AsyncClient,
+            flow_run_with_concurrency_limit: schemas.core.FlowRun,
+            deployment_with_concurrency_limit: schemas.core.Deployment,
+        ):
+            """
+            Test that a forced cancellation (as sent by the UI) keeps the lease ID
+            so the lease is revoked when the run reaches CANCELLED. Otherwise the
+            orphaned lease expires later and its slot is released a second time.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/23296
+            """
+            lease_storage = get_concurrency_lease_storage()
+            headers = {"User-Agent": "prefect/3.4.11 (API 0.8.4)"}
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.PENDING, name="Pending")),
+                headers=headers,
+            )
+            assert response.status_code == 201
+            lease_id = response.json()["state"]["state_details"][
+                "deployment_concurrency_lease_id"
+            ]
+            assert lease_id is not None
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.RUNNING, name="Running")),
+                headers=headers,
+            )
+            assert response.status_code == 201
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(
+                    state=dict(type=StateType.CANCELLING, name="Cancelling"),
+                    force=True,
+                ),
+            )
+            assert response.status_code == 201
+            assert (
+                response.json()["state"]["state_details"][
+                    "deployment_concurrency_lease_id"
+                ]
+                == lease_id
+            )
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.CANCELLED, name="Cancelled")),
+                headers=headers,
+            )
+            assert response.status_code == 201
+
+            # The lease is revoked, so lease expiration can't release the slot again
+            lease_ids = await lease_storage.read_active_lease_ids()
+            assert len(lease_ids) == 0
+
             concurrency_limit = await client.get(
                 f"/v2/concurrency_limits/{deployment_with_concurrency_limit.concurrency_limit_id}"
             )
@@ -3047,6 +3290,28 @@ class TestPaginateFlowRuns:
 
         # return type should be correct
         assert parse_obj_as(List[schemas.responses.FlowRunResponse], json["results"])
+
+    async def test_read_flow_runs_with_parameter_beyond_64_bit_range(
+        self, flow: Flow, session: AsyncSession, client: AsyncClient
+    ):
+        # orjson only supports integers in the 64-bit range, but flow run
+        # parameters are arbitrary user data
+        big_int = 2**64 + 1
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, name="big-int", parameters={"x": big_int}
+            ),
+        )
+        await session.commit()
+
+        response = await client.post("/flow_runs/paginate")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        json = response.json()
+        assert json["count"] == 1
+        (result,) = json["results"]
+        assert result["id"] == str(flow_run.id)
+        assert result["parameters"] == {"x": big_int}
 
     async def test_read_flow_runs_work_pool_fields(
         self,

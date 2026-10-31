@@ -74,7 +74,7 @@ async def inspect(
             )
 
         await run_sync_in_worker_thread(webbrowser.open_new_tab, task_run_url)
-        exit_with_success(f"Opened task run {id!r} in browser.")
+        exit_with_success(f"Opened task run '{id}' in browser.")
     else:
         if output and output.lower() == "json":
             task_run_json = task_run.model_dump(mode="json")

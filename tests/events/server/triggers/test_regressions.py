@@ -1,13 +1,15 @@
 import asyncio
 import random
 from datetime import timedelta
-from typing import Callable, List, Union
+from typing import Any, Callable, List, Union
 from unittest import mock
 from uuid import UUID, uuid4
 
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automations
 from prefect.server.events.schemas.automations import (
@@ -1041,3 +1043,101 @@ async def test_concurrent_bucket_updates_count_each_event_once(
     assert bucket
     assert bucket.count == len(events)
     act.assert_not_awaited()
+
+
+@pytest.fixture
+async def bucketed_automation(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+) -> Automation:
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="Counts events into a bucket",
+            trigger=EventTrigger(
+                expect={"counted-event"},
+                posture=Posture.Reactive,
+                threshold=1000,
+                within=timedelta(hours=1),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+    return automation
+
+
+async def test_read_bucket_tolerates_bucket_deleted_after_select(
+    db: PrefectDBInterface,
+    start_of_test: DateTime,
+    bucketed_automation: Automation,
+    automations_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23603, where a
+    bucket deleted by a concurrent evaluation between reading it and refreshing it
+    raised `InvalidRequestError: Could not refresh instance`."""
+    trigger = bucketed_automation.trigger
+    assert isinstance(trigger, EventTrigger)
+
+    await triggers.start_new_bucket(
+        automations_session,
+        trigger,
+        bucketing_key=(),
+        start=start_of_test,
+        end=start_of_test + timedelta(hours=1),
+        count=0,
+    )
+    await automations_session.commit()
+
+    original_execute = automations_session.execute
+    deleted = False
+
+    async def execute_then_delete_bucket(statement: Any, *args: Any, **kwargs: Any):
+        nonlocal deleted
+        result = await original_execute(statement, *args, **kwargs)
+        if not deleted and isinstance(statement, sa.Select):
+            deleted = True
+            # Simulate another transaction deleting the bucket right after the read
+            await original_execute(
+                sa.delete(db.AutomationBucket)
+                .where(db.AutomationBucket.trigger_id == trigger.id)
+                .execution_options(synchronize_session=False)
+            )
+        return result
+
+    monkeypatch.setattr(automations_session, "execute", execute_then_delete_bucket)
+
+    bucket = await triggers.read_bucket(automations_session, trigger, ())
+
+    assert deleted
+    assert bucket
+    assert bucket.trigger_id == trigger.id
+
+
+async def test_increment_bucket_returns_fresh_bucket_from_identity_map(
+    start_of_test: DateTime,
+    bucketed_automation: Automation,
+    automations_session: AsyncSession,
+):
+    trigger = bucketed_automation.trigger
+    assert isinstance(trigger, EventTrigger)
+
+    bucket = await triggers.start_new_bucket(
+        automations_session,
+        trigger,
+        bucketing_key=(),
+        start=start_of_test,
+        end=start_of_test + timedelta(hours=1),
+        count=1,
+    )
+    assert bucket.count == 1
+
+    incremented = await triggers.increment_bucket(
+        automations_session, bucket, count=2, last_event=None
+    )
+
+    assert incremented is bucket
+    assert incremented.count == 3

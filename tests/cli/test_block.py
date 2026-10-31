@@ -422,7 +422,28 @@ def test_inspecting_a_block_malformed_slug():
     invoke_and_assert(
         ["block", "inspect", "chonk-block"],
         expected_code=1,
-        expected_output_contains="'chonk-block' is not valid. Slug must contain a '/'",
+        expected_output_contains=(
+            "'chonk-block' is not valid. Slug must contain exactly one '/'"
+        ),
+    )
+
+
+def test_inspecting_a_block_slug_with_extra_slash():
+    invoke_and_assert(
+        ["block", "inspect", "secret/chonk/block"],
+        expected_code=1,
+        expected_output_contains=(
+            "'secret/chonk/block' is not valid. Slug must contain exactly one '/'"
+        ),
+    )
+
+
+def test_inspecting_a_block_by_id_not_found():
+    missing_block_id = uuid.uuid4()
+    invoke_and_assert(
+        ["block", "inspect", "--id", str(missing_block_id)],
+        expected_code=1,
+        expected_output_contains=f"Block '{missing_block_id}' not found!",
     )
 
 
@@ -447,7 +468,28 @@ def test_deleting_a_block_malformed_slug():
     invoke_and_assert(
         ["block", "delete", "chonk-block"],
         expected_code=1,
-        expected_output_contains="'chonk-block' is not valid. Slug must contain a '/'",
+        expected_output_contains=(
+            "'chonk-block' is not valid. Slug must contain exactly one '/'"
+        ),
+    )
+
+
+def test_deleting_a_block_slug_with_extra_slash():
+    invoke_and_assert(
+        ["block", "delete", "secret/chonk/block"],
+        expected_code=1,
+        expected_output_contains=(
+            "'secret/chonk/block' is not valid. Slug must contain exactly one '/'"
+        ),
+    )
+
+
+def test_deleting_a_block_by_id_not_found():
+    missing_block_id = uuid.uuid4()
+    invoke_and_assert(
+        ["block", "delete", "--id", str(missing_block_id)],
+        expected_code=1,
+        expected_output_contains=f"Block '{missing_block_id}' not found!",
     )
 
 
