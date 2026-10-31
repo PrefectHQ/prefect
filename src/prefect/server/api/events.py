@@ -11,8 +11,8 @@ from starlette.status import WS_1002_PROTOCOL_ERROR
 
 from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
-from prefect.server.api.dependencies import is_ephemeral_request
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.api.dependencies import ais_ephemeral_request
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.events import messaging, stream
 from prefect.server.events.counting import (
     Countable,
@@ -47,7 +47,7 @@ router: PrefectRouter = PrefectRouter(prefix="/events", tags=["Events"])
 @router.post("", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def create_events(
     events: List[Event],
-    ephemeral_request: bool = Depends(is_ephemeral_request),
+    ephemeral_request: bool = Depends(ais_ephemeral_request),
 ) -> None:
     """
     Record a batch of Events.
@@ -178,6 +178,13 @@ def verified_page_token(
     return page_token
 
 
+async def averified_page_token(
+    page_token: str = Query(..., alias="page-token"),
+) -> str:
+    """Async variant of `verified_page_token` for API routes."""
+    return verified_page_token(page_token)
+
+
 @router.post(
     "/filter",
 )
@@ -196,7 +203,7 @@ async def read_events(
         embed=True,
         description="The number of events to return with each page",
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> EventPage:
     """
     Queries for Events matching the given filter criteria in the given Account.  Returns
@@ -223,8 +230,8 @@ async def read_events(
 )
 async def read_account_events_page(
     request: Request,
-    page_token: str = Depends(verified_page_token),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    page_token: str = Depends(averified_page_token),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> EventPage:
     """
     Returns the next page of Events for a previous query against the given Account, and
@@ -267,7 +274,7 @@ async def count_account_events(
     countable: Countable = Path(...),
     time_unit: TimeUnit = Body(default=TimeUnit.day),
     time_interval: float = Body(default=1.0, ge=0.01),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[EventCount]:
     """
     Returns distinct objects and the count of events associated with them.  Objects
