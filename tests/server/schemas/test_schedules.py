@@ -1551,6 +1551,18 @@ class TestCreateRRuleSchedule:
         s = RRuleSchedule(rrule=RRDaily)
         assert s.timezone == "UTC"
 
+    @pytest.mark.parametrize(
+        "timezone", ["fake", "UTC+2", "GMT-5", "America/New_York ", "Not/A_UTC_Zone"]
+    )
+    async def test_invalid_timezone(self, timezone: str):
+        with pytest.raises(ValidationError):
+            RRuleSchedule(rrule=RRDaily, timezone=timezone)
+
+    @pytest.mark.parametrize("timezone", ["Etc/GMT+5", "America/Port-au-Prince"])
+    async def test_timezone_with_regex_metacharacters(self, timezone: str):
+        s = RRuleSchedule(rrule=RRDaily, timezone=timezone)
+        assert s.timezone == timezone
+
     async def test_create_with_dtstart(self):
         s = RRuleSchedule(rrule="DTSTART:20210905T000000\nFREQ=DAILY")
         assert "DTSTART:20210905T000000" in str(s.rrule)
