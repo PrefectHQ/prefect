@@ -598,6 +598,7 @@ async def test_rapid_fire_events(
                 triggered=frozen_time,  # type: ignore
                 triggering_labels={},
                 triggering_event=event,
+                triggering_events=[event],
             )
             for event in events
         ],

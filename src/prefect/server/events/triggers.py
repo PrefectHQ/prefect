@@ -162,7 +162,13 @@ async def evaluate(
     if count and (trigger.immediate or bucket.start <= now < bucket.end):
         # we are still within the automation time period, so spend the count in the
         # current bucket
-        bucket = await increment_bucket(session, bucket, count, triggering_event)
+        bucket = await increment_bucket(
+            session,
+            bucket,
+            count,
+            triggering_event,
+            max_events=trigger.threshold,
+        )
         count = 0
 
     # Reactive automations will fire "eagerly", meaning they will fire as _soon_ as the
@@ -203,6 +209,15 @@ async def evaluate(
                 for label, value in zip(sorted(trigger.for_each), bucket.bucketing_key)
             },
             triggering_event=triggering_event or bucket.last_event,
+            # Present the counted events in the order they occurred, so an
+            # action template sees every contributing payload, not only the
+            # last one.  Events counted only as held events carry no payload
+            # and are absent here; an empty list falls back to the singular
+            # event in `all_events`, as before.
+            triggering_events=sorted(
+                bucket.triggering_events or [],
+                key=lambda event: (event.occurred, event.id),
+            ),
         )
 
         await fire(session, firing)
@@ -317,6 +332,9 @@ async def evaluate(
             )
             return await evaluate(session, trigger, bucket, now, triggering_event)
         else:
+            # A count carried into the next window belongs to the event
+            # being evaluated, so carry that event with it; otherwise the
+            # next window would count an event whose payload it never saw.
             return await start_new_bucket(
                 session,
                 trigger,
@@ -324,6 +342,9 @@ async def evaluate(
                 start=start,
                 end=end,
                 count=count,
+                triggering_events=(
+                    [triggering_event] if count > 0 and triggering_event else []
+                ),
             )
 
 
@@ -1053,11 +1074,28 @@ async def increment_bucket(
     bucket: "ORMAutomationBucket",
     count: int,
     last_event: Optional[ReceivedEvent],
+    max_events: Optional[int] = None,
 ) -> "ORMAutomationBucket":
-    """Adds the given count to the bucket, returning the new bucket"""
-    additional_updates: dict[str, ReceivedEvent] = (
+    """Adds the given count to the bucket, returning the new bucket.  The
+    counted event is retained in the bucket, one entry per counted
+    evaluation, so the firing can expose every contributing event; the
+    list mirrors the count, with no deduplication by id, because the
+    count itself increments per evaluation.  The retained list is
+    capped at `max_events` (the trigger threshold): a reactive trigger
+    fires as soon as the threshold is met, and a proactive trigger only
+    fires while its count is below the threshold, so events past the cap
+    can never appear in a firing, and the bucket cannot grow without
+    bound on a long window.  The bucket is deleted when it fires or
+    expires, so retained events are cleaned up with it."""
+    triggering_events = list(bucket.triggering_events or [])
+    if last_event:
+        triggering_events.append(last_event)
+    if max_events is not None:
+        triggering_events = triggering_events[:max_events]
+    additional_updates: dict[str, object] = (
         {"last_event": last_event} if last_event else {}
     )
+    additional_updates["triggering_events"] = triggering_events
     await session.execute(
         db.queries.insert(db.AutomationBucket)
         .values(
@@ -1068,6 +1106,7 @@ async def increment_bucket(
             end=bucket.end,
             count=count,
             last_operation="increment_bucket[insert]",
+            triggering_events=triggering_events,
         )
         .on_conflict_do_update(
             index_elements=[
@@ -1108,10 +1147,13 @@ async def start_new_bucket(
     count: int,
     triggered_at: Optional[prefect.types._datetime.DateTime] = None,
     last_event: Optional[ReceivedEvent] = None,
+    triggering_events: Optional[List[ReceivedEvent]] = None,
 ) -> "ORMAutomationBucket":
     """Ensures that a bucket with the given start and end exists with the given count
     plus any held `expect` events that occurred inside its window, returning the new
-    bucket"""
+    bucket.  `triggering_events` holds the events the carried `count` belongs
+    to; it is empty when the count comes from held events, which carry no
+    payload, or from no event at all."""
     automation = trigger.automation
 
     # The held events are counted inside the upsert rather than in a query of their
@@ -1134,6 +1176,7 @@ async def start_new_bucket(
             last_operation="start_new_bucket[insert]",
             triggered_at=triggered_at,
             last_event=last_event,
+            triggering_events=triggering_events or [],
         )
         .on_conflict_do_update(
             index_elements=[
@@ -1149,6 +1192,7 @@ async def start_new_bucket(
                 updated=prefect.types._datetime.now("UTC"),
                 triggered_at=triggered_at,
                 last_event=last_event,
+                triggering_events=triggering_events or [],
             ),
         )
     )
