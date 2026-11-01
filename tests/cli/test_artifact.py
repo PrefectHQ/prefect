@@ -1,10 +1,14 @@
+import json
 import sys
-from typing import TYPE_CHECKING
+from collections.abc import Generator
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import pytest
 
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
+from prefect.settings import PREFECT_CLI_WRAP_LINES, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
 pytestmark = pytest.mark.clear_db
@@ -88,6 +92,68 @@ async def artifacts(session: "AsyncSession"):
     await session.commit()
 
     return [model1, model2, model3]
+
+
+LITERAL_DESCRIPTION = "[red]description[/red] :smile: [/close]"
+LITERAL_METADATA = {"note": "[bold]meta[/bold] :thumbs_up: [/close]"}
+
+LITERAL_DATA: list[Any] = [
+    "[red]literal[/red]",
+    ":smile:",
+    "literal [/unexpected]",
+    "x" * 1000,
+    {"nested": ["[bold]value[/bold]", ":thumbs_up:", {"deep": "[/close]"}]},
+]
+
+
+@pytest.fixture
+def wrap_lines_enabled() -> Generator[None, None, None]:
+    # The test suite disables line wrapping by default; enable it so long values
+    # exercise terminal-width wrapping.
+    with temporary_settings(updates={PREFECT_CLI_WRAP_LINES: True}):
+        yield
+
+
+@pytest.fixture(
+    params=LITERAL_DATA,
+    ids=["markup", "emoji", "unmatched-closing-tag", "long-string", "nested"],
+)
+async def literal_artifact(
+    session: "AsyncSession", request: pytest.FixtureRequest, wrap_lines_enabled: None
+) -> orm_models.Artifact:
+    model = await models.artifacts.create_artifact(
+        session=session,
+        artifact=schemas.core.Artifact(
+            key="literal-artifact",
+            type="markdown",
+            data=request.param,
+            description=LITERAL_DESCRIPTION,
+            metadata_=LITERAL_METADATA,
+        ),
+    )
+    await session.commit()
+
+    return model
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["artifact", "ls", "--output", "json"],
+        ["artifact", "ls", "--all", "--output", "json"],
+        ["artifact", "inspect", "literal-artifact", "--output", "json"],
+    ],
+    ids=["ls", "ls-all", "inspect"],
+)
+def test_artifact_json_output_preserves_literal_values(
+    literal_artifact: orm_models.Artifact, command: list[str]
+):
+    result = invoke_and_assert(command, expected_code=0)
+    output = json.loads(result.stdout)
+    assert len(output) == 1
+    assert output[0]["data"] == literal_artifact.data
+    assert output[0]["description"] == LITERAL_DESCRIPTION
+    assert output[0]["metadata_"] == LITERAL_METADATA
 
 
 def test_listing_artifacts_when_none_exist():
