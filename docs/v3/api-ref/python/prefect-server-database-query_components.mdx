@@ -26,7 +26,7 @@ cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]
 casts to JSON object if necessary
 
 
-#### `clear_configuration_value_cache_for_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L375" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `clear_configuration_value_cache_for_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 clear_configuration_value_cache_for_key(self, key: str) -> None
@@ -35,7 +35,7 @@ clear_configuration_value_cache_for_key(self, key: str) -> None
 Removes a configuration key from the cache.
 
 
-#### `flow_run_graph_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_run_graph_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_run_graph_v2(self, db: PrefectDBInterface, session: AsyncSession, flow_run_id: UUID, since: DateTime, max_nodes: int, max_artifacts: int) -> Graph
@@ -87,7 +87,7 @@ aggregates a JSON array
 make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
 ```
 
-#### `read_configuration_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_configuration_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L352" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_configuration_value(self, db: PrefectDBInterface, session: AsyncSession, key: str) -> Optional[dict[str, Any]]
@@ -126,11 +126,11 @@ uses_json_strings(self) -> bool
 specifies whether the configured dialect returns JSON as strings
 
 
-### `AsyncPostgresQueryComponents` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L540" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AsyncPostgresQueryComponents` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L539" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `cast_to_json` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L552" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `cast_to_json` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L551" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]
@@ -145,7 +145,7 @@ cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]
 casts to JSON object if necessary
 
 
-#### `clear_configuration_value_cache_for_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L375" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `clear_configuration_value_cache_for_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 clear_configuration_value_cache_for_key(self, key: str) -> None
@@ -154,7 +154,7 @@ clear_configuration_value_cache_for_key(self, key: str) -> None
 Removes a configuration key from the cache.
 
 
-#### `flow_run_graph_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_run_graph_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_run_graph_v2(self, db: PrefectDBInterface, session: AsyncSession, flow_run_id: UUID, since: DateTime, max_nodes: int, max_artifacts: int) -> Graph
@@ -182,7 +182,7 @@ This query returns a `(orm_models.FlowRun, orm_models.WorkQueue.id)` pair; calli
 will return only the flow run because it grabs the first result.
 
 
-#### `insert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L543" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `insert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L542" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 insert(self, obj: type[orm_models.Base]) -> postgresql.Insert
@@ -197,7 +197,7 @@ insert(self, obj: type[orm_models.Base]) -> Union[postgresql.Insert, sqlite.Inse
 dialect-specific insert statement
 
 
-#### `json_arr_agg` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L555" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `json_arr_agg` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]
@@ -212,7 +212,7 @@ json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]
 aggregates a JSON array
 
 
-#### `make_timestamp_bucket_index` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `make_timestamp_bucket_index` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L559" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
@@ -224,7 +224,7 @@ make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.Instrum
 make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
 ```
 
-#### `read_configuration_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_configuration_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L352" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_configuration_value(self, db: PrefectDBInterface, session: AsyncSession, key: str) -> Optional[dict[str, Any]]
@@ -239,7 +239,7 @@ The main use of configurations is encrypting blocks, this speeds up nested
 block document queries.
 
 
-#### `set_state_id_on_inserted_flow_runs_statement` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L575" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_state_id_on_inserted_flow_runs_statement` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L574" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_state_id_on_inserted_flow_runs_statement(self, db: PrefectDBInterface, inserted_flow_run_ids: Sequence[UUID], insert_flow_run_states: Iterable[dict[str, Any]]) -> sa.Update
@@ -264,7 +264,7 @@ unique_key(self) -> tuple[Hashable, ...]
 Returns a key used to determine whether to instantiate a new DB interface.
 
 
-#### `uses_json_strings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L549" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `uses_json_strings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L548" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 uses_json_strings(self) -> bool
@@ -279,7 +279,7 @@ uses_json_strings(self) -> bool
 specifies whether the configured dialect returns JSON as strings
 
 
-### `UUIDList` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L763" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `UUIDList` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L767" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Map a JSON list of strings back to a list of UUIDs at the result loading stage
@@ -287,17 +287,17 @@ Map a JSON list of strings back to a list of UUIDs at the result loading stage
 
 **Methods:**
 
-#### `process_result_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L769" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `process_result_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L773" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 process_result_value(self, value: Optional[list[Union[str, UUID]]], dialect: sa.Dialect) -> Optional[list[UUID]]
 ```
 
-### `AioSqliteQueryComponents` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L777" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AioSqliteQueryComponents` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L781" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `cast_to_json` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L789" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `cast_to_json` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L793" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]
@@ -312,7 +312,7 @@ cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]
 casts to JSON object if necessary
 
 
-#### `clear_configuration_value_cache_for_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L375" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `clear_configuration_value_cache_for_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 clear_configuration_value_cache_for_key(self, key: str) -> None
@@ -321,7 +321,7 @@ clear_configuration_value_cache_for_key(self, key: str) -> None
 Removes a configuration key from the cache.
 
 
-#### `flow_run_graph_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_run_graph_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_run_graph_v2(self, db: PrefectDBInterface, session: AsyncSession, flow_run_id: UUID, since: DateTime, max_nodes: int, max_artifacts: int) -> Graph
@@ -349,7 +349,7 @@ This query returns a `(orm_models.FlowRun, orm_models.WorkQueue.id)` pair; calli
 will return only the flow run because it grabs the first result.
 
 
-#### `insert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L780" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `insert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L784" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 insert(self, obj: type[orm_models.Base]) -> sqlite.Insert
@@ -364,7 +364,7 @@ insert(self, obj: type[orm_models.Base]) -> Union[postgresql.Insert, sqlite.Inse
 dialect-specific insert statement
 
 
-#### `json_arr_agg` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L792" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `json_arr_agg` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L796" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]
@@ -379,7 +379,7 @@ json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]
 aggregates a JSON array
 
 
-#### `make_timestamp_bucket_index` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L797" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `make_timestamp_bucket_index` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L801" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
@@ -391,7 +391,7 @@ make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.Instrum
 make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
 ```
 
-#### `read_configuration_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_configuration_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L352" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_configuration_value(self, db: PrefectDBInterface, session: AsyncSession, key: str) -> Optional[dict[str, Any]]
@@ -406,7 +406,7 @@ The main use of configurations is encrypting blocks, this speeds up nested
 block document queries.
 
 
-#### `set_state_id_on_inserted_flow_runs_statement` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L813" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_state_id_on_inserted_flow_runs_statement` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L817" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_state_id_on_inserted_flow_runs_statement(self, db: PrefectDBInterface, inserted_flow_run_ids: Sequence[UUID], insert_flow_run_states: Iterable[dict[str, Any]]) -> sa.Update
@@ -431,7 +431,7 @@ unique_key(self) -> tuple[Hashable, ...]
 Returns a key used to determine whether to instantiate a new DB interface.
 
 
-#### `uses_json_strings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L786" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `uses_json_strings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L790" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 uses_json_strings(self) -> bool

@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import datetime
 import enum
 import inspect
@@ -1848,6 +1849,25 @@ class TestFlowParameterTypes:
         # serialize_parameters should fall back to the placeholder rather than crash.
         # See #22244.
         assert my_flow.serialize_parameters({"x": data}) == {"x": "<Cyclic>"}
+
+    def test_serialize_parameters_falls_back_on_arbitrary_encoder_errors(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        class Uncopyable:
+            def __reduce__(self):
+                raise NotImplementedError
+
+        @dataclasses.dataclass
+        class Holder:
+            value: Uncopyable
+
+        # jsonable_encoder deep-copies dataclasses, so any error raised by
+        # `__reduce__` escapes the encoder. See #23629.
+        assert my_flow.serialize_parameters({"x": Holder(Uncopyable())}) == {
+            "x": "<Holder>"
+        }
 
     def test_flow_parameter_annotations_can_be_non_pydantic_classes(self):
         class Test:

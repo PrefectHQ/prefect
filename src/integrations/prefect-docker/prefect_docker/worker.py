@@ -11,7 +11,7 @@ Replace `my-work-pool` with the name of the work pool you want the worker
 to poll for flow runs.
 
 For more information about work pools and workers,
-checkout out the [Prefect docs](https://www.prefect.io/docs/latest/deploy/infrastructure-concepts).
+checkout out the [Prefect docs](https://www.prefect.io/docs/v3/concepts/workers).
 """
 
 from __future__ import annotations
@@ -76,7 +76,6 @@ from prefect.exceptions import InfrastructureNotFound
 from prefect.settings import PREFECT_API_URL
 from prefect.states import Pending
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.collections import get_from_dict
 from prefect.utilities.dockerutils import (
     format_outlier_version_name,
     get_prefect_image_name,
@@ -668,24 +667,8 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 {_bundle_execute_module: execute_step_args},
                 f"/tmp/{bundle_key}",
             )
-            existing_volumes: list[str] = (
-                get_from_dict(
-                    self.work_pool.base_job_template,
-                    "configuration.properties.volumes.default",
-                )
-                or []
-            )
-            job_variable_volumes: list[str] = (
-                job_variables.get("volumes", []) if job_variables else []
-            )
             job_variables = (job_variables or {}) | {
                 "command": command_to_string(execute_command),
-                "volumes": [
-                    *existing_volumes,
-                    *job_variable_volumes,
-                    # This is a temporary volume for the bundle
-                    f"{submission_dir}:/tmp/",
-                ],
             }
         else:
             if TYPE_CHECKING:
@@ -744,6 +727,9 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             values=job_variables,
             client=self._client,
         )
+        if not storage_configured_on_work_pool:
+            # Add the bundle mount after resolving the template's configured volumes.
+            configuration.volumes = [*configuration.volumes, f"{submission_dir}:/tmp/"]
         configuration.prepare_for_flow_run(
             flow_run=flow_run,
             flow=api_flow,

@@ -674,14 +674,14 @@ async def delete(
         if name is None and deployment_id is not None:
             try:
                 if _cli.is_interactive() and not confirm(
-                    f"Are you sure you want to delete deployment with id {deployment_id!r}?",
+                    f"Are you sure you want to delete deployment with id '{deployment_id}'?",
                     default=False,
                 ):
                     exit_with_error("Deletion aborted.")
                 await client.delete_deployment(deployment_id)
                 exit_with_success(f"Deleted deployment '{deployment_id}'.")
             except ObjectNotFound:
-                exit_with_error(f"Deployment {deployment_id!r} not found!")
+                exit_with_error(f"Deployment '{deployment_id}' not found!")
         elif name is not None:
             try:
                 deployment = await client.read_deployment_by_name(name)

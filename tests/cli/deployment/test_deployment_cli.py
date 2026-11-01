@@ -1431,6 +1431,14 @@ class TestDeploymentDelete:
             expected_code=0,
         )
 
+    def test_delete_deployment_by_id_not_found(self):
+        missing_deployment_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
+        invoke_and_assert(
+            ["deployment", "delete", "--id", missing_deployment_id],
+            expected_code=1,
+            expected_output_contains=f"Deployment '{missing_deployment_id}' not found!",
+        )
+
     @pytest.fixture
     async def setup_many_deployments(
         self,

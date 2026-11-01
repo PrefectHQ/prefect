@@ -982,8 +982,11 @@ class TestPrefectFutureList:
         mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), failing_future))
         futures = PrefectFutureList(mock_futures)
 
+        # The `TimeoutError` comes from the failed future, not the timeout. A tiny
+        # timeout arms a main-thread SIGALRM that can fire mid-teardown of the
+        # `as_completed` generator on a loaded runner, so use one that won't expire.
         with pytest.raises(TimeoutError):
-            futures.result(timeout=0.01)
+            futures.result(timeout=10)
 
     def test_result_does_not_obscure_other_timeouts(self):
         mock_futures: List[PrefectFuture] = [MockFuture(data=i) for i in range(5)]

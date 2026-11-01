@@ -31,7 +31,7 @@ import prefect.bundles
 import prefect.main  # noqa
 from prefect import flow, get_client
 from prefect.client.schemas import FlowRun
-from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import WorkPool, WorkPoolStorageConfiguration
 from prefect.events import RelatedResource
 from prefect.flows import bind_flow_to_infrastructure
@@ -1799,6 +1799,46 @@ class TestSubmitAdhocRunWithFlowRunParameter:
             return "success"
 
         return my_test_flow
+
+    @pytest.mark.parametrize(
+        "volume_source", ["default", "override", "hardcoded", "custom_variable"]
+    )
+    async def test_submit_adhoc_run_preserves_configured_volumes(
+        self, mock_docker_client, work_pool, test_flow, volume_source
+    ):
+        template = DockerWorker.get_default_base_job_template()
+        template["variables"]["properties"]["volumes"]["default"] = ["pool:/pool"]
+        job_variables = None
+        expected_volumes = ["pool:/pool"]
+        if volume_source == "override":
+            job_variables = {"volumes": ["override:/override"]}
+            expected_volumes = ["override:/override"]
+        elif volume_source == "hardcoded":
+            template["job_configuration"]["volumes"] = ["literal:/literal"]
+            expected_volumes = ["literal:/literal"]
+        elif volume_source == "custom_variable":
+            template["variables"]["properties"]["custom_volumes"] = {
+                "type": "array",
+                "items": {"type": "string"},
+                "default": ["custom:/custom"],
+            }
+            template["job_configuration"]["volumes"] = "{{ custom_volumes }}"
+            expected_volumes = ["custom:/custom"]
+
+        async with get_client() as client:
+            await client.update_work_pool(
+                work_pool.name, WorkPoolUpdate(base_job_template=template)
+            )
+
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            await worker._submit_adhoc_run(flow=test_flow, job_variables=job_variables)
+
+            mock_docker_client.containers.create.assert_called_once()
+            volumes = mock_docker_client.containers.create.call_args.kwargs["volumes"]
+            assert volumes[:-1] == expected_volumes
+            bundle_source, bundle_target = volumes[-1].rsplit(":", 1)
+            assert bundle_target == "/tmp/"
+            assert Path(bundle_source).parent == Path(worker._tmp_dir)
 
     async def test_submit_adhoc_run_with_existing_flow_run_reuses_id(
         self, mock_docker_client, work_pool, test_flow

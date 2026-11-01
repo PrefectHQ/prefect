@@ -699,24 +699,48 @@ async def record_work_queue_polls(
     session: AsyncSession,
     polled_work_queue_ids: Sequence[UUID],
     ready_work_queue_ids: Sequence[UUID],
-) -> None:
+) -> list[UUID]:
     """Record that the given work queues were polled, and also update the given
-    ready_work_queue_ids to READY."""
+    ready_work_queue_ids to READY.
+
+    Returns the IDs of the work queues that this call transitioned to READY.
+    """
     polled = now("UTC")
 
-    if polled_work_queue_ids:
+    if polled_work_queue_ids or ready_work_queue_ids:
         await session.execute(
             sa.update(db.WorkQueue)
-            .where(db.WorkQueue.id.in_(polled_work_queue_ids))
+            .where(db.WorkQueue.id.in_([*polled_work_queue_ids, *ready_work_queue_ids]))
             .values(last_polled=polled)
         )
 
-    if ready_work_queue_ids:
+    if not ready_work_queue_ids:
+        return []
+
+    # The `last_polled` update above already holds the row locks, so concurrent
+    # calls see each other's status changes here. (No `RETURNING`: it needs
+    # SQLite 3.35+.)
+    newly_ready_work_queue_ids = list(
+        (
+            await session.execute(
+                sa.select(db.WorkQueue.id)
+                .where(
+                    db.WorkQueue.id.in_(ready_work_queue_ids),
+                    db.WorkQueue.status != WorkQueueStatus.READY,
+                )
+                .with_for_update()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if newly_ready_work_queue_ids:
         await session.execute(
             sa.update(db.WorkQueue)
-            .where(db.WorkQueue.id.in_(ready_work_queue_ids))
-            .values(last_polled=polled, status=WorkQueueStatus.READY)
+            .where(db.WorkQueue.id.in_(newly_ready_work_queue_ids))
+            .values(status=WorkQueueStatus.READY)
         )
+    return newly_ready_work_queue_ids
 
 
 async def mark_work_queues_ready(
@@ -727,7 +751,7 @@ async def mark_work_queues_ready(
     retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
-        await record_work_queue_polls(
+        newly_ready_work_queue_ids = await record_work_queue_polls(
             session=session,
             polled_work_queue_ids=polled_work_queue_ids,
             ready_work_queue_ids=ready_work_queue_ids,
@@ -736,12 +760,14 @@ async def mark_work_queues_ready(
     # Emit events for any work queues that have transitioned to ready during this poll
     # Uses a separate transaction to avoid keeping locks open longer from the updates
     # in the previous transaction
-    if not ready_work_queue_ids:
+    if not newly_ready_work_queue_ids:
         return
 
     async with db.session_context(begin_transaction=True) as session:
         newly_ready_work_queues = await session.execute(
-            sa.select(db.WorkQueue).where(db.WorkQueue.id.in_(ready_work_queue_ids))
+            sa.select(db.WorkQueue).where(
+                db.WorkQueue.id.in_(newly_ready_work_queue_ids)
+            )
         )
 
         events = [

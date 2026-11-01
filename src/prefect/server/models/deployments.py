@@ -1360,6 +1360,37 @@ async def mark_deployments_ready(
 
 
 @db_injector
+async def has_not_ready_deployments(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_ids: Optional[Iterable[UUID]] = None,
+    work_queue_ids: Optional[Iterable[UUID]] = None,
+) -> bool:
+    """
+    Whether any of the given deployments, or any deployment in the given work
+    queues, is NOT_READY.
+    """
+    deployment_ids = list(deployment_ids or [])
+    work_queue_ids = list(work_queue_ids or [])
+
+    if not deployment_ids and not work_queue_ids:
+        return False
+
+    not_ready_deployment_id = await session.scalar(
+        select(db.Deployment.id)
+        .where(
+            or_(
+                db.Deployment.id.in_(deployment_ids),
+                db.Deployment.work_queue_id.in_(work_queue_ids),
+            ),
+            db.Deployment.status == DeploymentStatus.NOT_READY,
+        )
+        .limit(1)
+    )
+    return not_ready_deployment_id is not None
+
+
+@db_injector
 async def mark_deployments_not_ready(
     db: PrefectDBInterface,
     deployment_ids: Optional[Iterable[UUID]] = None,

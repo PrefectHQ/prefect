@@ -1,5 +1,5 @@
 import { parseISO } from "date-fns";
-import { formatInTimeZone, toZonedTime } from "date-fns-tz";
+import { formatInTimeZone } from "date-fns-tz";
 import { useState } from "react";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
@@ -39,9 +39,8 @@ export function SchemaFormInputStringFormatDateTime({
 
 		if (value) {
 			const date = parseISO(value);
-			const zonedDate = toZonedTime(date, newTimezone);
 			const formattedWithTimezone = formatInTimeZone(
-				zonedDate,
+				date,
 				newTimezone,
 				"yyyy-MM-dd'T'HH:mm:ssXXX",
 			);

@@ -7,4 +7,4 @@
         <img src="https://img.shields.io/pypi/dm/prefect-sqlalchemy?color=0052FF&labelColor=090422" /></a>
 </p>
 
-See the docs at [https://www.prefect.io/docs/integrations/prefect-sqlalchemy](https://www.prefect.io/docs/integrations/prefect-alchemy) for more information.
+See the docs at [https://www.prefect.io/docs/integrations/prefect-sqlalchemy](https://www.prefect.io/docs/integrations/prefect-sqlalchemy) for more information.

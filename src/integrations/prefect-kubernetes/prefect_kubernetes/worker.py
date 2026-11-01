@@ -137,7 +137,14 @@ from kubernetes_asyncio.client.models import (
     V1Secret,
 )
 from pydantic import Field, field_validator, model_validator
-from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, wait_random
+from tenacity import (
+    AsyncRetrying,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_fixed,
+    wait_random,
+)
 from typing_extensions import Literal, Self
 
 import prefect
@@ -1310,6 +1317,14 @@ class KubernetesWorker(
 
         return None
 
+    @retry(
+        retry=retry_if_exception(
+            lambda exc: isinstance(exc, ApiException) and exc.status == 409
+        ),
+        stop=stop_after_attempt(3),
+        wait=wait_random(0, 1),
+        reraise=True,
+    )
     async def _upsert_secret(
         self, name: str, value: str, namespace: str, client: "ApiClient"
     ):
@@ -1321,6 +1336,8 @@ class KubernetesWorker(
             current_secret = await core_client.read_namespaced_secret(
                 name=name, namespace=namespace
             )
+            if current_secret.data == {"value": encoded_value}:
+                return current_secret
             current_secret.data = {"value": encoded_value}
             secret = await core_client.replace_namespaced_secret(
                 name=name, namespace=namespace, body=current_secret
