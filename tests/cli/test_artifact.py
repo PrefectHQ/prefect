@@ -1,11 +1,13 @@
 import json
 import sys
+from collections.abc import Generator
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import pytest
 
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.settings import PREFECT_CLI_WRAP_LINES, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
@@ -105,7 +107,7 @@ LITERAL_DATA: list[Any] = [
 
 
 @pytest.fixture
-def wrap_lines_enabled():
+def wrap_lines_enabled() -> Generator[None, None, None]:
     # The test suite disables line wrapping by default; enable it so long values
     # exercise terminal-width wrapping.
     with temporary_settings(updates={PREFECT_CLI_WRAP_LINES: True}):
@@ -118,7 +120,7 @@ def wrap_lines_enabled():
 )
 async def literal_artifact(
     session: "AsyncSession", request: pytest.FixtureRequest, wrap_lines_enabled: None
-):
+) -> orm_models.Artifact:
     model = await models.artifacts.create_artifact(
         session=session,
         artifact=schemas.core.Artifact(
@@ -144,7 +146,7 @@ async def literal_artifact(
     ids=["ls", "ls-all", "inspect"],
 )
 def test_artifact_json_output_preserves_literal_values(
-    literal_artifact: models.artifacts.Artifact, command: list[str]
+    literal_artifact: orm_models.Artifact, command: list[str]
 ):
     result = invoke_and_assert(command, expected_code=0)
     output = json.loads(result.stdout)
