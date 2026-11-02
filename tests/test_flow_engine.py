@@ -1050,8 +1050,10 @@ async def test_completion_save_failure_does_not_trigger_failure_hook(
         assert hook_states[0].id == saved_run.state.id
         assert not completion_attempts
     else:
-        # The Completed proposal failed, so the server still has Running.
-        assert saved_run.state.is_running()
+        # The Completed proposal failed, so the run is crashed rather than
+        # left Running or marked Failed.
+        assert saved_run.state.is_crashed()
+        assert "completion save failed" in saved_run.state.message
         assert len(completion_attempts) == 1
         assert not hook_states
 
@@ -2667,6 +2669,46 @@ class TestFlowCrashDetection:
         assert (
             "BaseException was raised after user code finished executing" in caplog.text
         )
+
+    async def test_exception_in_setup_run_context_crashes_flow_sync(
+        self, prefect_client
+    ):
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name, result_storage="local-file-system/does-not-exist")
+        def my_flow():
+            pass
+
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_crashed()
+        assert "Unable to find block document" in flow_run.state.message
+
+    async def test_exception_in_setup_run_context_crashes_flow_async(
+        self, prefect_client
+    ):
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name, result_storage="local-file-system/does-not-exist")
+        async def my_flow():
+            pass
+
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            await my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_crashed()
+        assert "Unable to find block document" in flow_run.state.message
 
     async def test_termination_signal_after_user_code_finishes_does_not_crash_sync(
         self, prefect_client, monkeypatch, caplog
