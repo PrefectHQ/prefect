@@ -1,0 +1,149 @@
+---
+title: How to archive and restore flows
+sidebarTitle: Archive flows
+description: Keep your workspace organized by archiving retired flows and restoring them when you need them.
+keywords: ["inactive", "dormant", "managed automations", "unarchive", "run history"]
+---
+
+<span class="badge cloud"></span>
+
+Archive flows you no longer use to remove them from the default views without deleting their run history.
+You can archive flows yourself or let managed automations archive dormant flows and restore flows that run again.
+
+You need permission to manage flows (`manage_flows`) to archive or unarchive them.
+To configure the managed automations, you also need permission to manage automations.
+
+## Archive a flow
+
+1. Open **Flows** in your workspace.
+2. Open the flow's action menu, either in its list row or on its detail page, and select **Archive**.
+3. Review the confirmation and confirm the archive.
+
+If the flow has deployments with schedules that are on, pause those schedules first.
+The confirmation dialog links to the deployments that need attention.
+Archiving does not pause schedules for you.
+
+The flow moves from **Active** to **Archived**.
+Its deployments appear under **Archived flows** on the **Deployments** page.
+Search and the command palette still return the flow with an archived label.
+Favorited flows remain in **Favorites**, including archived flows.
+
+<Note>
+Archiving never deletes run history. Your plan's normal retention policy still applies.
+Archiving also leaves existing runs and deployments unchanged: it does not cancel runs or prevent you from starting a run manually.
+</Note>
+
+## Restore a flow
+
+Open **Flows → Archived**, then select **Unarchive** from the flow's action menu.
+You can also unarchive a flow from its detail page.
+The flow returns to **Active**, and its deployments return to the default deployments view.
+Unarchiving does not resume paused deployment schedules.
+
+## Archive or restore multiple flows
+
+1. Open **Flows** and select the flows you want to change.
+2. In **Active**, select **Archive** and review the confirmation. In **Archived**, select **Unarchive**.
+3. Review the result. Flows with active deployment schedules remain unarchived; other selected flows can still be archived.
+
+Pause any blocking schedules and retry the flows that could not be archived.
+
+## Enable automatic archival and restoration
+
+Prefect Cloud provides two managed automations for flow archival.
+Both are off by default, and you can enable them independently in each workspace.
+
+1. Open the workspace menu in the upper left and select **Settings**.
+2. Under **Account Settings → Controls**, make sure **Managed automations** is enabled. If you cannot change this setting, ask an account administrator.
+3. Under **Workspace Settings → Managed Automations**, enable **Dormant flow archival**, **Archived flow restoration**, or both.
+4. For **Dormant flow archival**, set the number of days without runs and select **Save** after changing the setting.
+
+Enabled automations appear in the **Managed** section of the workspace's automations list.
+Enabling managed automations in account controls alone does not opt a workspace into these two automations.
+
+### Archive dormant flows
+
+**Dormant flow archival** archives flows that have had no runs for the configured window.
+The default is **90 days**, and you can set a value from **1 to 365 days** (`inactive_days` in the API).
+Prefect Cloud uses the shorter of that window and your plan's run retention.
+For example, a 90-day setting on a plan with 30-day run retention uses a 30-day window.
+The settings page shows your plan's retention.
+
+A flow is eligible when all of the following are true:
+
+- It is not already archived.
+- It has not been created or updated within the window.
+- It has no recent runs and no unfinished runs, including scheduled, pending, running, or paused runs.
+- None of its deployments has a schedule that is on.
+
+Run activity uses the run's start time, or its expected start time if it has not started.
+A flow that has never run must still be older than the window.
+Manually unarchiving a flow updates it, giving it a full window before it can be archived again.
+
+Prefect Cloud checks daily and processes up to 50 eligible flows per workspace, spread across the day.
+Archival is gradual: a large backlog can take several days to clear.
+Each eligible flow produces a [`prefect.flow.dormant` event](/v3/api-ref/events/flow-events#prefect-flow-dormant), which triggers the archive action.
+The flow is checked again before the event is emitted.
+
+### Restore archived flows when they run again
+
+**Archived flow restoration** unarchives a flow when Prefect Cloud observes a `Scheduled`, `Pending`, or `Running` flow-run event whose related flow is archived.
+This applies to flows archived manually as well as those archived by an automation.
+There are no settings beyond enabling or disabling it.
+
+Restoration can happen when a run is scheduled, before execution starts.
+If you resume a deployment schedule for an archived flow, that schedule can create runs; with restoration enabled, its next run restores the flow.
+With restoration disabled, the flow stays archived even if you run it again.
+
+The automation groups matching events by flow within a 10-minute window to avoid repeated restoration actions during a burst of runs.
+It reacts to the first matching event; the window does not add a 10-minute delay.
+It matches the event names above, so custom state names do not match unless the run also emits one of those events.
+
+### Turn off a managed automation
+
+Turn off either automation under **Workspace Settings → Managed Automations**.
+Turning off dormant flow archival leaves already archived flows archived.
+You can still unarchive them manually or use archived flow restoration.
+
+## Use archival in your own automations
+
+When [creating an automation](/v3/how-to-guides/automations/creating-automations), choose **Archive a flow** (`archive-flow`) or **Unarchive a flow** (`unarchive-flow`) as the action.
+Select a specific flow or infer it from the triggering event's resource or related resources.
+An archive action fails if the flow has active deployment schedules; it does not pause them.
+
+Manual, bulk, and automated changes emit the same [`prefect.flow.archived` and `prefect.flow.unarchived` events](/v3/api-ref/events/flow-events).
+Use them to trigger notifications or other actions regardless of how the change was made.
+Repeating an archive or unarchive action on a flow already in that state does not emit another event.
+
+## Filter archived flows through the API
+
+The Prefect Cloud API includes archived flows by default.
+To select only archived flows, send this body to `POST /flows/filter` relative to your workspace API URL:
+
+```json
+{
+  "flows": {
+    "archived": { "eq_": true }
+  }
+}
+```
+
+Use `false` for unarchived flows, or omit `archived` to include both.
+The same flow filter works with flow counts and pagination, and as the nested `flows` filter when querying deployments.
+Flow responses include `archived` and `archived_at`; unarchiving resets `archived_at` to `null`.
+
+To change a flow's archived state, use `POST /flows/{id}/archive` or `POST /flows/{id}/unarchive`.
+Both return `204` on success, including when the flow is already in the requested state.
+Archiving returns `409` if active deployment schedules block it.
+
+For bulk changes, use `POST /flows/bulk_archive` or `POST /flows/bulk_unarchive` with a nonempty `flows` filter and a `limit` from 1 to 50.
+The response reports per-flow results (`ARCHIVED`, `UNARCHIVED`, or `BLOCKED`), so a blocked flow does not stop the rest of the batch.
+
+### Find archival automations with older clients
+
+Use `prefect` **3.9.0 or later** to read automations that contain archive or unarchive actions through the CLI or Python client.
+This version requires **Python 3.11 or later**.
+
+Older clients omit these automations from `prefect automation ls`, `prefect transfer`, and automation lookups such as `Automation.read()`.
+Inspecting one can report it as not found, even though it is visible in Prefect Cloud.
+Upgrade your client and, if needed, Python, or manage the automation in the Cloud UI.

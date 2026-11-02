@@ -98,6 +98,24 @@ You can also create a flow run by:
 However and wherever you run your flow, Prefect monitors the **flow run**, capturing its state for observability.
 To customize the default instrumentation of your workflow, you may [log a variety of metadata](/v3/how-to-guides/workflows/add-logging) or [emit events](/v3/advanced/use-custom-event-grammar) about flow runs for monitoring, troubleshooting, and auditing purposes.
 
+### Archive flows
+
+<span class="badge cloud"></span>
+
+Archive retired flows in Prefect Cloud to keep your workspace focused on the flows you use.
+An archived flow is hidden from the **Active** tab on the flows page, and its deployments move to **Archived flows** on the deployments page.
+You can still find the flow in search, view its history, and unarchive it at any time.
+
+Archiving never deletes run history; your plan's normal retention policy still applies.
+The archived state belongs to the flow, independently of its runs' [states](/v3/concepts/states).
+Archiving does not cancel existing runs or prevent manual runs.
+Pause active deployment schedules before archiving a flow.
+
+You can archive flows individually, in bulk, or with **Dormant flow archival**, a managed automation.
+Enable **Archived flow restoration** to restore archived flows when they run again.
+Both managed automations are off by default.
+See [how to archive and restore flows](/v3/how-to-guides/cloud/archive-flows) for instructions and API filters.
+
 ### Specify flow parameters
 
 As with any Python function, you can pass arguments to a flow, including both positional and keyword arguments.

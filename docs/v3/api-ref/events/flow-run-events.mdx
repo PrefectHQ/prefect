@@ -57,6 +57,27 @@ the state name (for example, `prefect.flow-run.Running` or
 | `prefect.tag.{tag}` | `tag` | One entry per tag on the flow run or its flow/deployment |
 | `prefect.deployment.{uuid}` or `prefect.automation.{uuid}` | `creator` | Provenance: which deployment or automation created this run |
 
+### Archived flow label (Prefect Cloud)
+
+In Prefect Cloud, state-transition events emitted for an archived flow include
+`"prefect.flow.archived": "true"` on the related resource with role `flow`.
+The label is absent when the flow is not archived. Its value is the string `"true"`, not a JSON boolean.
+
+For example, the related flow resource can contain:
+
+```json
+{
+  "prefect.resource.id": "prefect.flow.a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "prefect.resource.name": "daily-report",
+  "prefect.resource.role": "flow",
+  "prefect.flow.archived": "true"
+}
+```
+
+Use this label in an event trigger's `match_related` filter to match runs of archived flows.
+The [Archived flow restoration managed automation](/v3/how-to-guides/cloud/archive-flows#restore-archived-flows-when-they-run-again)
+matches this label on `prefect.flow-run.Scheduled`, `prefect.flow-run.Pending`, and `prefect.flow-run.Running` events.
+
 ### Payload
 
 | Field | Type | Description |
