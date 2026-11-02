@@ -202,6 +202,28 @@ def test_set_with_invalid_value_type():
     )
 
 
+def test_set_with_invalid_value_for_union_type():
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    result = invoke_and_assert(
+        [
+            "--profile",
+            "foo",
+            "config",
+            "set",
+            "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS=HELLO",
+        ],
+        expected_output_contains="Input should be a valid number",
+        expected_code=1,
+    )
+
+    # One heading for the setting, with an error for each member of the union.
+    assert result.stdout.count("Validation error(s) for setting") == 1
+    assert "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS" not in {
+        setting.name for setting in load_profiles()["foo"].settings
+    }
+
+
 def test_set_with_unparsable_setting():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
 
@@ -291,6 +313,40 @@ def test_unset_retains_other_keys():
     profiles = load_profiles()
     assert "foo" in profiles
     assert profiles["foo"].settings == {PREFECT_TEST_SETTING: "DEBUG"}
+
+
+@pytest.mark.parametrize(
+    "setting, toml_value, secret",
+    [
+        ("PREFECT_SERVER_API_AUTH_STRING", "12345", "12345"),
+        ("PREFECT_CLIENT_CUSTOM_HEADERS", '"{not-json secret-token"', "secret-token"),
+    ],
+)
+def test_unset_repairs_active_profile_with_invalid_value(
+    tmp_path: Path, setting: str, toml_value: str, secret: str
+):
+    # The profile loader is off in test mode, so this runs the CLI without it.
+    profiles_path = tmp_path / "profiles.toml"
+    profiles_path.write_text(
+        f'active = "foo"\n\n[profiles.foo]\n{setting} = {toml_value}\n'
+    )
+    env = {key: value for key, value in os.environ.items() if "PREFECT" not in key}
+    env.update(PREFECT_PROFILES_PATH=str(profiles_path), PREFECT_HOME=str(tmp_path))
+
+    result = subprocess.run(
+        [sys.executable, "-m", "prefect", "config", "unset", setting, "-y"],
+        env=env,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+    assert f"Unset {setting!r}." in output
+    assert secret not in output
+    assert setting not in profiles_path.read_text()
 
 
 def test_unset_warns_if_present_in_environment(monkeypatch):
