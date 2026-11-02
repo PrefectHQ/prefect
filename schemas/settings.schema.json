@@ -1168,6 +1168,229 @@
                     "title": "Keepalive Timeout",
                     "type": "integer"
                 },
+                "guard_enabled": {
+                    "default": false,
+                    "description": "\n        Enables the optional fastapi-guard security middleware for the server\n        API. When enabled, the server applies IP block/allow lists, rate\n        limiting with auto-ban, user-agent blocking, and penetration-attempt\n        detection to incoming requests. Requires the fastapi-guard dependency;\n        enabling it without the dependency installed raises an error at\n        startup. Defaults to `False`.\n        ",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_ENABLED"
+                    ],
+                    "title": "Guard Enabled",
+                    "type": "boolean"
+                },
+                "guard_rate_limit": {
+                    "default": 100,
+                    "description": "Maximum requests per IP per rate limiting window when the guard middleware is enabled.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_RATE_LIMIT"
+                    ],
+                    "title": "Guard Rate Limit",
+                    "type": "integer"
+                },
+                "guard_rate_limit_window": {
+                    "default": 60,
+                    "description": "Rate limiting window in seconds when the guard middleware is enabled.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_RATE_LIMIT_WINDOW"
+                    ],
+                    "title": "Guard Rate Limit Window",
+                    "type": "integer"
+                },
+                "guard_auto_ban_threshold": {
+                    "default": 10,
+                    "description": "Number of suspicious events before an IP is banned when the guard middleware is enabled.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_AUTO_BAN_THRESHOLD"
+                    ],
+                    "title": "Guard Auto Ban Threshold",
+                    "type": "integer"
+                },
+                "guard_auto_ban_duration": {
+                    "default": 300,
+                    "description": "Duration of automatic IP bans in seconds when the guard middleware is enabled.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_AUTO_BAN_DURATION"
+                    ],
+                    "title": "Guard Auto Ban Duration",
+                    "type": "integer"
+                },
+                "guard_passive_mode": {
+                    "default": false,
+                    "description": "\n        When `True`, the guard middleware logs violations without blocking\n        requests. Useful for observing what would be blocked before\n        enforcing.\n        ",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_PASSIVE_MODE"
+                    ],
+                    "title": "Guard Passive Mode",
+                    "type": "boolean"
+                },
+                "guard_blocked_ips": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Comma-separated IPs or CIDR ranges to block when the guard middleware is enabled.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_BLOCKED_IPS"
+                    ],
+                    "title": "Guard Blocked Ips"
+                },
+                "guard_allowed_ips": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Comma-separated IPs or CIDR ranges to allow through the guard middleware; when set, all other IPs are blocked.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_ALLOWED_IPS"
+                    ],
+                    "title": "Guard Allowed Ips"
+                },
+                "guard_blocked_user_agents": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Comma-separated user-agent substrings to block when the guard middleware is enabled.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_BLOCKED_USER_AGENTS"
+                    ],
+                    "title": "Guard Blocked User Agents"
+                },
+                "guard_trusted_proxies": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "\n        Comma-separated proxy IPs or CIDR ranges trusted for\n        X-Forwarded-For resolution when the guard middleware is enabled.\n        Leave unset to keep client-supplied forwarding headers untrusted.\n        ",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_TRUSTED_PROXIES"
+                    ],
+                    "title": "Guard Trusted Proxies"
+                },
+                "guard_trusted_proxy_depth": {
+                    "default": 1,
+                    "description": "Number of trusted proxies to walk in X-Forwarded-For when the guard middleware is enabled.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_TRUSTED_PROXY_DEPTH"
+                    ],
+                    "title": "Guard Trusted Proxy Depth",
+                    "type": "integer"
+                },
+                "guard_excluded_paths": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "\n        Comma-separated path prefixes excluded from guard detection checks.\n        Defaults to health, docs and OpenAPI paths. Global IP lists still\n        apply on excluded paths.\n        ",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_EXCLUDED_PATHS"
+                    ],
+                    "title": "Guard Excluded Paths"
+                },
+                "guard_blocked_countries": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Comma-separated ISO country codes to block when the guard middleware is enabled. Requires IPINFO_TOKEN geo lookups.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_BLOCKED_COUNTRIES"
+                    ],
+                    "title": "Guard Blocked Countries"
+                },
+                "guard_allowed_countries": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Comma-separated ISO country codes to allow when the guard middleware is enabled. Requires IPINFO_TOKEN geo lookups.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_ALLOWED_COUNTRIES"
+                    ],
+                    "title": "Guard Allowed Countries"
+                },
+                "guard_block_cloud_providers": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Comma-separated cloud provider names (e.g. AWS, GCP, Azure) to block when the guard middleware is enabled. Requires IPINFO_TOKEN.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_BLOCK_CLOUD_PROVIDERS"
+                    ],
+                    "title": "Guard Block Cloud Providers"
+                },
+                "guard_redis_url": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "\n        Redis URL for guard state shared across workers and replicas when\n        the guard middleware is enabled. Unset keeps counters and bans\n        in-memory per process.\n        ",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_REDIS_URL"
+                    ],
+                    "title": "Guard Redis Url"
+                },
+                "guard_ipinfo_token": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "IPInfo token for geo and cloud-provider lookups when the guard middleware is enabled.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_GUARD_IPINFO_TOKEN"
+                    ],
+                    "title": "Guard Ipinfo Token"
+                },
                 "csrf_protection_enabled": {
                     "default": false,
                     "description": "\n        Controls the activation of CSRF protection for the Prefect server API.\n\n        When enabled (`True`), the server enforces CSRF validation checks on incoming\n        state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF\n        token to be included in the request headers or body. This adds a layer of\n        security by preventing unauthorized or malicious sites from making requests on\n        behalf of authenticated users.\n\n        It is recommended to enable this setting in production environments where the\n        API is exposed to web clients to safeguard against CSRF attacks.\n\n        Note: Enabling this setting requires corresponding support in the client for\n        CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.\n        ",
