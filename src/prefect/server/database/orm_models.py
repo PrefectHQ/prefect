@@ -1343,6 +1343,10 @@ class AutomationBucket(Base):
 
     last_event: Mapped[Optional[ReceivedEvent]] = mapped_column(Pydantic(ReceivedEvent))
 
+    triggering_events: Mapped[list[ReceivedEvent]] = mapped_column(
+        Pydantic(list[ReceivedEvent]), server_default="[]", default=list
+    )
+
     start: Mapped[DateTime]
     end: Mapped[DateTime]
 
