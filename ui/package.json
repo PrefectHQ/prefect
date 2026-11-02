@@ -7,7 +7,8 @@
     "build": "vite build",
     "lint": "eslint src --ext .js,.ts,.vue",
     "lint:fix": "eslint src --fix",
-    "validate:types": "vue-tsc --noEmit"
+    "validate:types": "vue-tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@prefecthq/prefect-design": "2.16.4",
@@ -32,6 +33,7 @@
     "ts-node": "10.9.2",
     "typescript": "^5.9.2",
     "vite": "^8.3.4",
+    "vitest": "5.0.0",
     "vue-tsc": "^3.1.2"
   },
   "overrides": {
