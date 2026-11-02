@@ -15,6 +15,16 @@ from prefect._internal.schemas.validators import (
 )
 
 
+class _Unset:
+    """Sentinel for an `active` argument that was not explicitly provided."""
+
+    def __repr__(self) -> str:
+        return "<unset>"
+
+
+_UNSET = _Unset()
+
+
 @dataclasses.dataclass(frozen=True)
 class Schedule:
     """
@@ -35,7 +45,9 @@ class Schedule:
             This behaves like fcron and enables you to e.g. define a job that
             executes each 2nd friday of a month by setting the days of month and
             the weekday.
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If left unset, the
+            schedule is active when first created and keeps its existing
+            active state when an existing deployment is updated.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
     """
@@ -48,9 +60,14 @@ class Schedule:
         default_factory=partial(datetime.datetime.now, tz=datetime.timezone.utc)
     )
     day_or: bool = True
-    active: bool = True
+    active: bool | _Unset = _UNSET
     parameters: dict[str, Any] = dataclasses.field(default_factory=dict)
     slug: str | None = None
+    # Internal: records whether `active` was set explicitly. It is False when
+    # `active` is omitted (via the `_UNSET` default, normalized in
+    # `__post_init__`) so a redeploy can preserve the schedule's server-side
+    # active state instead of forcing it back to True.
+    _active_provided: bool = dataclasses.field(default=True, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         defined_fields = [
@@ -68,13 +85,30 @@ class Schedule:
         if self.rrule is not None:
             validate_rrule_string(self.rrule)
 
+        # The factories resolve the `_UNSET` sentinel before constructing, but
+        # the direct constructor can receive it. Normalize here (frozen
+        # dataclass, so `object.__setattr__`) so `active` is always a real bool
+        # while `_active_provided` still records whether it was given.
+        if isinstance(self.active, _Unset):
+            object.__setattr__(self, "active", True)
+            object.__setattr__(self, "_active_provided", False)
+        elif self.active is False and self._active_provided is False:
+            # `dataclasses.replace()` replays every init field, so an explicit
+            # `active=False` override applied to a schedule created with
+            # `active` omitted arrives here as (active=False,
+            # _active_provided=False). A replayed `active` from an omitted
+            # schedule is always the normalized `True`, so `False` here can
+            # only have been explicitly provided: record it so the pause is
+            # not silently dropped from the deployment payload.
+            object.__setattr__(self, "_active_provided", True)
+
 
 def Cron(
     cron: str,
     /,
     timezone: str | None = None,
     day_or: bool = True,
-    active: bool = True,
+    active: bool | _Unset = _UNSET,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -90,7 +124,9 @@ def Cron(
             This behaves like fcron and enables you to e.g. define a job that
             executes each 2nd friday of a month by setting the days of month and
             the weekday.
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If left unset, the
+            schedule is active when first created and keeps its existing
+            active state when an existing deployment is updated.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
 
@@ -115,13 +151,18 @@ def Cron(
     """
     if parameters is None:
         parameters = {}
+    if isinstance(active, _Unset):
+        resolved_active, active_provided = True, False
+    else:
+        resolved_active, active_provided = active, True
     return Schedule(
         cron=cron,
         timezone=timezone,
         day_or=day_or,
-        active=active,
+        active=resolved_active,
         parameters=parameters,
         slug=slug,
+        _active_provided=active_provided,
     )
 
 
@@ -130,7 +171,7 @@ def Interval(
     /,
     anchor_date: datetime.datetime | None = None,
     timezone: str | None = None,
-    active: bool = True,
+    active: bool | _Unset = _UNSET,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -142,7 +183,9 @@ def Interval(
             it will be interpreted as seconds.
         anchor_date: The anchor date to use for the schedule.
         timezone: A valid timezone string in IANA tzdata format (e.g. America/New_York).
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If left unset, the
+            schedule is active when first created and keeps its existing
+            active state when an existing deployment is updated.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
 
@@ -174,13 +217,18 @@ def Interval(
         anchor_date = datetime.datetime.now(tz=datetime.timezone.utc)
     if parameters is None:
         parameters = {}
+    if isinstance(active, _Unset):
+        resolved_active, active_provided = True, False
+    else:
+        resolved_active, active_provided = active, True
     return Schedule(
         interval=interval,
         anchor_date=anchor_date,
         timezone=timezone,
-        active=active,
+        active=resolved_active,
         parameters=parameters,
         slug=slug,
+        _active_provided=active_provided,
     )
 
 
@@ -188,7 +236,7 @@ def RRule(
     rrule: str,
     /,
     timezone: str | None = None,
-    active: bool = True,
+    active: bool | _Unset = _UNSET,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -198,7 +246,9 @@ def RRule(
     Args:
         rrule: A valid RRule string (e.g. "RRULE:FREQ=DAILY;INTERVAL=1").
         timezone: A valid timezone string in IANA tzdata format (e.g. America/New_York).
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If left unset, the
+            schedule is active when first created and keeps its existing
+            active state when an existing deployment is updated.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
 
@@ -222,10 +272,15 @@ def RRule(
     """
     if parameters is None:
         parameters = {}
+    if isinstance(active, _Unset):
+        resolved_active, active_provided = True, False
+    else:
+        resolved_active, active_provided = active, True
     return Schedule(
         rrule=rrule,
         timezone=timezone,
-        active=active,
+        active=resolved_active,
         parameters=parameters,
         slug=slug,
+        _active_provided=active_provided,
     )
