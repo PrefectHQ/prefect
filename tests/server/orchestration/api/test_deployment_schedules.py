@@ -290,8 +290,9 @@ class TestUpdateDeploymentSchedule:
             {"schedule": {"interval": 3600}},
             {"slug": "new-slug"},
             {"max_scheduled_runs": 5},
+            {},
         ],
-        ids=["active", "schedule", "slug", "max_scheduled_runs"],
+        ids=["active", "schedule", "slug", "max_scheduled_runs", "empty"],
     )
     async def test_update_keeps_parameters_it_does_not_set(
         self,
