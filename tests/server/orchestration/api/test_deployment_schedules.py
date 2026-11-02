@@ -283,6 +283,55 @@ class TestUpdateDeploymentSchedule:
         assert the_schedule.active is False
         assert the_schedule.slug == "new-slug"
 
+    @pytest.mark.parametrize(
+        "update",
+        [
+            {"active": False},
+            {"schedule": {"interval": 3600}},
+            {"slug": "new-slug"},
+            {"max_scheduled_runs": 5},
+        ],
+        ids=["active", "schedule", "slug", "max_scheduled_runs"],
+    )
+    async def test_update_keeps_parameters_it_does_not_set(
+        self,
+        get_server_session: AsyncSessionGetter,
+        client: AsyncClient,
+        deployment_with_schedules,
+        schedules_url: Callable[..., str],
+        schedule_to_update: schemas.core.DeploymentSchedule,
+        update: dict,
+    ):
+        async with get_server_session() as session:
+            await models.deployments.update_deployment_schedule(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+                deployment_schedule_id=schedule_to_update.id,
+                schedule=schemas.actions.DeploymentScheduleUpdate(
+                    parameters={"foo": "bar"}
+                ),
+            )
+            await session.commit()
+
+        url = schedules_url(
+            deployment_with_schedules.id, schedule_id=schedule_to_update.id
+        )
+        response = await client.patch(url, json=update)
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+            )
+
+        the_schedule = next(
+            schedule for schedule in schedules if schedule.id == schedule_to_update.id
+        )
+
+        assert the_schedule.parameters == {"foo": "bar"}
+
     async def test_404_non_existent_deployment(
         self,
         client: AsyncClient,

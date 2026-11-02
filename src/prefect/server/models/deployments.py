@@ -1201,6 +1201,10 @@ async def update_deployment_schedule(
     """
     # Exclude 'replaces' as it's a deploy-time directive, not a persisted field
     update_values = schedule.model_dump(exclude_none=True, exclude={"replaces"})
+    # `parameters` defaults to `{}`, so only write it when the caller sent it;
+    # otherwise a partial update like `{"active": false}` clears the overrides
+    if "parameters" not in schedule.model_fields_set:
+        update_values.pop("parameters", None)
     if deployment_schedule_id:
         result = await session.execute(
             sa.update(db.DeploymentSchedule)
