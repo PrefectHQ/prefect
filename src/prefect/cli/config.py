@@ -16,7 +16,7 @@ import prefect.cli._app as _cli
 import prefect.context
 import prefect.settings
 from prefect._internal.compatibility.backports import tomllib
-from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli._utilities import exit_with_error, exit_with_success, print_verbatim
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings import Settings, get_current_settings
 from prefect.settings.legacy import (
@@ -361,7 +361,7 @@ def view(
         if ui_url:
             config_data["ui_url"] = ui_url
         json_output = orjson.dumps(config_data, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
         return
 
     formatted_settings = [

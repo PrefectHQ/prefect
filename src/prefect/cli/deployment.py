@@ -26,6 +26,7 @@ from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
     load_json_key_values,
+    print_verbatim,
     with_cli_exception_handling,
 )
 from prefect.cli.flow_runs_watching import (
@@ -229,7 +230,7 @@ async def inspect(
 
     if output and output.lower() == "json":
         json_output = orjson.dumps(deployment_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         _cli.console.print(Pretty(deployment_json))
 
@@ -294,7 +295,7 @@ async def ls(
         json_output = orjson.dumps(
             deployments_json, option=orjson.OPT_INDENT_2
         ).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Deployments",
@@ -1171,7 +1172,7 @@ async def list_schedules(
             for schedule in deployment.schedules
         ]
         json_output = orjson.dumps(schedules_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Deployment Schedules",
