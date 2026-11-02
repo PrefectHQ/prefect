@@ -28,6 +28,19 @@ from prefect.settings.sources import (
 from prefect.utilities.collections import visit_collection
 
 
+class _DefaultEnvFile(tuple[str, ...]):
+    """The `env_file` value set by `build_settings_config`.
+
+    It is empty, so the dotenv source that pydantic-settings builds (and
+    Prefect discards) does not read `.env`. `FilteredDotEnvSettingsSource`
+    reads `.env` in its place. Subclasses can still set `env_file` to another
+    path, or to `None` to not load a dotenv file.
+    """
+
+
+_DEFAULT_ENV_FILE = _DefaultEnvFile()
+
+
 class PrefectBaseSettings(BaseSettings):
     @classmethod
     def settings_customise_sources(
@@ -72,7 +85,13 @@ class PrefectBaseSettings(BaseSettings):
             ),
             FilteredDotEnvSettingsSource(
                 settings_cls,
-                env_file=cls.model_config.get("env_file"),
+                env_file=(
+                    ".env"
+                    if isinstance(
+                        env_file := cls.model_config.get("env_file"), _DefaultEnvFile
+                    )
+                    else env_file
+                ),
                 env_file_encoding=cls.model_config.get("env_file_encoding"),
                 case_sensitive=cls.model_config.get("case_sensitive"),
                 env_prefix=cls.model_config.get("env_prefix"),
@@ -252,7 +271,7 @@ def build_settings_config(
     env_prefix = f"PREFECT_{'_'.join(path).upper()}_" if path else "PREFECT_"
     return PrefectSettingsConfigDict(
         env_prefix=env_prefix,
-        env_file=".env",
+        env_file=_DEFAULT_ENV_FILE,
         extra="ignore",
         toml_file="prefect.toml",
         prefect_toml_table_header=path,

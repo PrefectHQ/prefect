@@ -1,21 +1,26 @@
 from __future__ import annotations
 
+import builtins
 import copy
 import json
 import os
 import sys
 import textwrap
+import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable, Generator
+from typing import Any, Callable, ClassVar, Generator
 
 import pydantic
+import pydantic_settings
 import pytest
 import toml
 from cachetools import TTLCache
+from packaging.version import Version
 from pydantic_core import to_jsonable_python
+from pydantic_settings import SettingsConfigDict
 from sqlalchemy import make_url
 
 import prefect.context
@@ -1747,6 +1752,157 @@ class TestSettingsSources:
         from prefect.settings.sources import _get_profiles_path
 
         _get_profiles_path()
+
+    @pytest.fixture
+    def dotenv_opens(self, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+        """Records every open of a `.env` file, starting from an empty settings
+        file cache."""
+        monkeypatch.setattr(
+            "prefect.settings.sources._file_cache", TTLCache(maxsize=100, ttl=60)
+        )
+        opened: list[str] = []
+        original_open = builtins.open
+
+        def counting_open(file: Any, *args: Any, **kwargs: Any) -> Any:
+            if str(file).endswith(".env"):
+                opened.append(str(file))
+            return original_open(file, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "open", counting_open)
+        return opened
+
+    def test_dotenv_file_read_once_across_settings_sources(
+        self, temporary_env_file: Callable[[str], None], dotenv_opens: list[str]
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23532"""
+        temporary_env_file("PREFECT_API_URL=http://from-dotenv:4200/api")
+
+        assert Settings().api.url == "http://from-dotenv:4200/api"
+        assert Settings().api.url == "http://from-dotenv:4200/api"
+
+        assert len(dotenv_opens) == 1
+
+    def test_dotenv_file_changes_are_reloaded(
+        self, temporary_env_file: Callable[[str], None], dotenv_opens: list[str]
+    ):
+        temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420")
+        assert Settings().client.retry_extra_codes == {420}
+
+        temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
+        assert Settings().client.retry_extra_codes == {420, 500}
+
+        assert len(dotenv_opens) == 2
+
+    @pytest.mark.skipif(
+        Version(pydantic_settings.__version__) < Version("2.14"),
+        reason="pydantic-settings < 2.14 does not read FIFO dotenv files",
+    )
+    def test_dotenv_fifo_read_once_across_settings_sources(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        dotenv_opens: list[str],
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23532
+
+        1Password Environments mounts `.env` as a FIFO, where every open is
+        served by 1Password, so it must only be read once.
+        """
+        monkeypatch.chdir(tmp_path)
+        os.mkfifo(".env")
+        stop = threading.Event()
+
+        def serve() -> None:
+            while not stop.is_set():
+                fd = os.open(".env", os.O_WRONLY)
+                try:
+                    os.write(fd, b"PREFECT_API_URL=http://from-fifo:4200/api\n")
+                except BrokenPipeError:
+                    pass
+                finally:
+                    os.close(fd)
+
+        server = threading.Thread(target=serve, daemon=True)
+        server.start()
+        try:
+            assert Settings().api.url == "http://from-fifo:4200/api"
+            assert Settings().api.url == "http://from-fifo:4200/api"
+        finally:
+            stop.set()
+            # unblock the server if it is waiting for a reader
+            fd = os.open(".env", os.O_RDONLY | os.O_NONBLOCK)
+            server.join(timeout=5)
+            os.close(fd)
+
+        assert len(dotenv_opens) == 1
+
+    def test_dotenv_file_read_once_by_concurrent_settings_loads(
+        self, temporary_env_file: Callable[[str], None], dotenv_opens: list[str]
+    ):
+        temporary_env_file("PREFECT_API_URL=http://from-dotenv:4200/api")
+        barrier = threading.Barrier(8)
+
+        def load() -> str | None:
+            barrier.wait()
+            return Settings().api.url
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            urls = list(executor.map(lambda _: load(), range(8)))
+
+        assert urls == ["http://from-dotenv:4200/api"] * 8
+        assert len(dotenv_opens) == 1
+
+    def test_dotenv_file_interpolation_uses_current_environment(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        temporary_env_file: Callable[[str], None],
+        dotenv_opens: list[str],
+    ):
+        temporary_env_file("PREFECT_API_URL=${API_HOST}/api")
+
+        monkeypatch.setenv("API_HOST", "http://host-a:4200")
+        assert Settings().api.url == "http://host-a:4200/api"
+
+        monkeypatch.setenv("API_HOST", "http://host-b:4200")
+        assert Settings().api.url == "http://host-b:4200/api"
+
+        assert len(dotenv_opens) == 1
+
+    def test_env_file_can_be_overridden(
+        self, temporary_env_file: Callable[[str], None]
+    ):
+        temporary_env_file("PREFECT_DOTENV_TEST_VALUE=from-dotenv")
+        Path("custom.env").write_text("PREFECT_DOTENV_TEST_VALUE=from-custom")
+
+        class DefaultEnvFileSettings(PrefectBaseSettings):
+            model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+                ("dotenv_test",)
+            )
+
+            value: str = "default"
+
+        class CustomEnvFileSettings(DefaultEnvFileSettings):
+            model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+                env_file="custom.env"
+            )
+
+        class SubclassNoEnvFileSettings(DefaultEnvFileSettings):
+            model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+                env_file=None
+            )
+
+        class NoEnvFileSettings(PrefectBaseSettings):
+            model_config: ClassVar[SettingsConfigDict] = {
+                **build_settings_config(("dotenv_test",)),
+                "env_file": None,
+            }
+
+            value: str = "default"
+
+        assert DefaultEnvFileSettings().value == "from-dotenv"
+        assert CustomEnvFileSettings().value == "from-custom"
+        assert SubclassNoEnvFileSettings().value == "default"
+        assert NoEnvFileSettings().value == "default"
 
     def test_resolution_order(
         self,
