@@ -87,7 +87,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     (echo "ERROR: git version must be >= 1:2.47.3" && exit 1)
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /bin/uv
 
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
@@ -111,7 +111,7 @@ RUN uv export --frozen --no-dev --all-extras --no-emit-project --no-hashes -o di
 # Setup a base final image from miniconda
 FROM continuumio/miniconda3:26.7.1 AS prefect-conda
 
-RUN --mount=from=ghcr.io/astral-sh/uv:0.13.4,source=/uv,target=/tmp/uv \
+RUN --mount=from=ghcr.io/astral-sh/uv:0.13.6,source=/uv,target=/tmp/uv \
     /tmp/uv pip install --python /opt/conda/bin/python --upgrade \
         "certifi>=2026.10.19" "pip>=26.2.2" && \
     conda update --name base --yes ca-certificates
@@ -191,7 +191,7 @@ COPY --from=sqlite-builder /usr/local/lib/pkgconfig/sqlite3.pc /usr/local/lib/pk
 RUN ldconfig
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /bin/uv
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --upgrade "pip>=26.2.2"
