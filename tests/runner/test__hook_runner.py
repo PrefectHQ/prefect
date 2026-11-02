@@ -56,7 +56,7 @@ class TestRunHooks:
 
         await _run_hooks([async_hook], flow_run, flow, state)
 
-        async_hook.assert_awaited_once_with(flow=flow, flow_run=flow_run, state=state)
+        async_hook.assert_awaited_once_with(flow, flow_run, state)
 
     async def test_run_hooks_sync_hook_runs_in_thread(self):
         captured: dict[str, object] = {}
@@ -75,6 +75,23 @@ class TestRunHooks:
         assert captured["flow"] is flow
         assert captured["flow_run"] is flow_run
         assert captured["state"] is state
+
+    async def test_run_hooks_passes_arguments_positionally(self):
+        calls: list[tuple[object, ...]] = []
+
+        def sync_hook(flow_, run, state_):
+            calls.append((flow_, run, state_))
+
+        async def async_hook(flow_, run, state_):
+            calls.append((flow_, run, state_))
+
+        flow_run = _make_flow_run()
+        flow = _make_flow()
+        state = _make_state(name="Crashed")
+
+        await _run_hooks([sync_hook, async_hook], flow_run, flow, state)
+
+        assert calls == [(flow, flow_run, state), (flow, flow_run, state)]
 
     async def test_run_hooks_logs_hook_name_on_start(self, caplog):
         flow_run = _make_flow_run()
@@ -103,7 +120,7 @@ class TestRunHooks:
             await _run_hooks([failing_hook, second_hook], flow_run, flow, state)
 
         assert "bad_hook" in caplog.text
-        second_hook.assert_awaited_once_with(flow=flow, flow_run=flow_run, state=state)
+        second_hook.assert_awaited_once_with(flow, flow_run, state)
 
     async def test_run_hooks_successful_hook_logs_finished(self, caplog):
         flow_run = _make_flow_run()
@@ -141,7 +158,7 @@ class TestHookRunnerRunCancellationHooks:
         await runner.run_cancellation_hooks(flow_run, state)
 
         resolve_flow.assert_awaited_once_with(flow_run)
-        async_hook.assert_awaited_once_with(flow=flow, flow_run=flow_run, state=state)
+        async_hook.assert_awaited_once_with(flow, flow_run, state)
 
     async def test_run_cancellation_hooks_resolution_failure_logs_warning(self, caplog):
         resolve_flow = AsyncMock(side_effect=ValueError("cannot resolve"))
@@ -189,7 +206,7 @@ class TestHookRunnerRunCrashedHooks:
         await runner.run_crashed_hooks(flow_run, state)
 
         resolve_flow.assert_awaited_once_with(flow_run)
-        async_hook.assert_awaited_once_with(flow=flow, flow_run=flow_run, state=state)
+        async_hook.assert_awaited_once_with(flow, flow_run, state)
 
     async def test_run_crashed_hooks_resolution_failure_logs_warning(self, caplog):
         resolve_flow = AsyncMock(side_effect=ValueError("cannot resolve"))
@@ -238,7 +255,7 @@ class TestRunnerResolveFlowForHooksRegression:
             await runner.run_crashed_hooks(flow_run, state)
 
         mock_load.assert_awaited_once_with(flow_run, storage_base_path="/tmp")
-        crashed_hook.assert_awaited_once_with(flow=flow, flow_run=flow_run, state=state)
+        crashed_hook.assert_awaited_once_with(flow, flow_run, state)
 
     async def test_explicit_client_positional_arg_breaks_crashed_hooks(self, caplog):
         """Demonstrate the original bug: passing a client as the first positional
@@ -310,7 +327,7 @@ class TestCancellationHooksWithClientInjector:
             await runner.run_cancellation_hooks(flow_run, state)
 
         mock_load.assert_awaited_once_with(flow_run=flow_run)
-        cancel_hook.assert_awaited_once_with(flow=flow, flow_run=flow_run, state=state)
+        cancel_hook.assert_awaited_once_with(flow, flow_run, state)
 
     async def test_explicit_client_positional_arg_causes_misrouted_flow_run(
         self, caplog

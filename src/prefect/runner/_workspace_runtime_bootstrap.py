@@ -121,14 +121,9 @@ async def _run_hooks(
     for hook in hooks:
         hook_name = getattr(hook, "__name__", type(hook).__name__)
         try:
-            result = await _run_sync(
-                functools.partial(
-                    hook,
-                    flow=flow,
-                    flow_run=flow_run,
-                    state=state,
-                )
-            )
+            # Positional, as the flow engine calls hooks: a hook that runs on
+            # failure must also run on crash, whatever its parameter names
+            result = await _run_sync(hook, flow, flow_run, state)
             if inspect.isawaitable(result):
                 await result
         except Exception:

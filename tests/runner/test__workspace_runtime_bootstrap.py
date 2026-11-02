@@ -129,3 +129,21 @@ def test_engine_bootstrap_uses_legacy_engine_without_flow_engine_module(
     run_module.assert_called_once_with("prefect.engine", run_name="__main__")
     assert _workspace_runtime_bootstrap.sys.argv is original_argv
     assert os.environ["PREFECT__FLOW_ENTRYPOINT"] == "flows.py:original"
+
+
+async def test_run_hooks_passes_arguments_positionally():
+    calls: list[tuple[object, ...]] = []
+
+    def sync_hook(flow_, run, state_):
+        calls.append((flow_, run, state_))
+
+    async def async_hook(flow_, run, state_):
+        calls.append((flow_, run, state_))
+
+    flow_run, flow, state = MagicMock(), MagicMock(), MagicMock()
+
+    await _workspace_runtime_bootstrap._run_hooks(
+        [sync_hook, async_hook], flow_run, flow, state
+    )
+
+    assert calls == [(flow, flow_run, state), (flow, flow_run, state)]

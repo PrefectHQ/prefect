@@ -35,11 +35,13 @@ async def _run_hooks(
                 hook_name,
                 state.name,
             )
+            # Positional, as the flow engine calls hooks: a hook that runs on
+            # failure must also run on crash, whatever its parameter names
             if is_async_fn(hook):
-                await hook(flow=flow, flow_run=flow_run, state=state)
+                await hook(flow, flow_run, state)
             else:
                 await from_async.call_in_new_thread(
-                    create_call(hook, flow=flow, flow_run=flow_run, state=state)
+                    create_call(hook, flow, flow_run, state)
                 )
         except Exception:
             logger.error(
