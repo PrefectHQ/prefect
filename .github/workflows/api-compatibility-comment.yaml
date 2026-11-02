@@ -34,7 +34,7 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         env:
           COMPATIBILITY_REPORT: ${{ runner.temp }}/cloud-api-compatibility/report.json
         with:
