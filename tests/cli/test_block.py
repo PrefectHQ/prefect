@@ -9,9 +9,10 @@ import respx
 from prefect.blocks import system
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
-from prefect.server import models
+from prefect.server import models, schemas
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_CLI_WRAP_LINES,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -630,4 +631,137 @@ def test_creating_a_block_selects_oss_ui_url_when_oss_server_type():
         expected_code=0,
         expected_output_contains=["blocks/catalog"],
         expected_output_does_not_contain=["settings/blocks/catalog"],
+    )
+
+
+LITERAL_TEXT = "[bold]literal[/bold] :smile: [/unexpected]"
+
+
+@pytest.fixture
+def wrap_lines_enabled():
+    # The test suite disables line wrapping by default; enable it so long values
+    # exercise terminal-width wrapping.
+    with temporary_settings(updates={PREFECT_CLI_WRAP_LINES: True}):
+        yield
+
+
+@pytest.fixture
+async def literal_block_schema(
+    session, wrap_lines_enabled: None
+) -> schemas.core.BlockSchema:
+    block_type = await models.block_types.create_block_type(
+        session,
+        block_type=schemas.core.BlockType(
+            name="Literal Markup",
+            slug="literal-markup",
+            description=LITERAL_TEXT,
+            code_example=LITERAL_TEXT,
+        ),
+    )
+    block_schema = await models.block_schemas.create_block_schema(
+        session,
+        block_schema=schemas.actions.BlockSchemaCreate(
+            block_type_id=block_type.id,
+            fields={
+                "title": "LiteralMarkup",
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "title": "Message",
+                        "description": LITERAL_TEXT,
+                        "type": "string",
+                    },
+                    "secret": {
+                        "title": "Secret",
+                        "type": "string",
+                        "format": "password",
+                        "writeOnly": True,
+                    },
+                },
+                "required": ["message", "secret"],
+                "secret_fields": ["secret"],
+            },
+        ),
+    )
+    await session.commit()
+    return block_schema
+
+
+@pytest.fixture(
+    params=[
+        "[red]literal[/red]",
+        ":smile:",
+        "literal [/unexpected]",
+        "x" * 1000,
+    ],
+    ids=["markup", "emoji", "unmatched-closing-tag", "long-string"],
+)
+async def literal_block_document(
+    session,
+    request: pytest.FixtureRequest,
+    literal_block_schema: schemas.core.BlockSchema,
+) -> schemas.core.BlockDocument:
+    block_document = await models.block_documents.create_block_document(
+        session,
+        block_document=schemas.actions.BlockDocumentCreate(
+            name="literal-block",
+            data={"message": request.param, "secret": "[red]secret[/red]"},
+            block_schema_id=literal_block_schema.id,
+            block_type_id=literal_block_schema.block_type_id,
+        ),
+    )
+    await session.commit()
+    return block_document
+
+
+def test_listing_blocks_json_preserves_literal_content(
+    literal_block_document: schemas.core.BlockDocument,
+):
+    result = invoke_and_assert(["block", "ls", "-o", "json"], expected_code=0)
+    output = json.loads(result.stdout)
+    assert [block["data"]["message"] for block in output] == [
+        literal_block_document.data["message"]
+    ]
+
+
+@pytest.mark.parametrize("by_id", [False, True], ids=["slug", "id"])
+def test_inspecting_a_block_json_preserves_literal_content(
+    literal_block_document: schemas.core.BlockDocument, by_id: bool
+):
+    lookup = (
+        ["--id", str(literal_block_document.id)]
+        if by_id
+        else ["literal-markup/literal-block"]
+    )
+    result = invoke_and_assert(
+        ["block", "inspect", *lookup, "-o", "json"], expected_code=0
+    )
+    output = json.loads(result.stdout)
+    assert output["data"]["message"] == literal_block_document.data["message"]
+    assert output["data"]["secret"] == "********"
+
+
+def test_listing_block_types_json_preserves_literal_content(
+    literal_block_schema: schemas.core.BlockSchema,
+):
+    result = invoke_and_assert(["block", "type", "ls", "-o", "json"], expected_code=0)
+    output = json.loads(result.stdout)
+    assert [
+        (block_type["description"], block_type["code_example"]) for block_type in output
+    ] == [(LITERAL_TEXT, LITERAL_TEXT)]
+
+
+def test_inspecting_a_block_type_json_preserves_literal_content(
+    literal_block_schema: schemas.core.BlockSchema,
+):
+    result = invoke_and_assert(
+        ["block", "type", "inspect", "literal-markup", "-o", "json"],
+        expected_code=0,
+    )
+    output = json.loads(result.stdout)
+    assert output["block_type"]["description"] == LITERAL_TEXT
+    assert output["block_type"]["code_example"] == LITERAL_TEXT
+    assert (
+        output["schema"]["fields"]["properties"]["message"]["description"]
+        == LITERAL_TEXT
     )

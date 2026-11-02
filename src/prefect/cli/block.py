@@ -287,7 +287,7 @@ async def block_ls(
     if output and output.lower() == "json":
         blocks_json = [block.model_dump(mode="json") for block in blocks]
         json_output = orjson.dumps(blocks_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        _cli.console.print(json_output, soft_wrap=True, markup=False, emoji=False)
     else:
         table = Table(
             title="Blocks", caption="List Block Types using `prefect block type ls`"
@@ -464,7 +464,7 @@ async def block_inspect(
         if output and output.lower() == "json":
             block_json = block_document.model_dump(mode="json")
             json_output = orjson.dumps(block_json, option=orjson.OPT_INDENT_2).decode()
-            _cli.console.print(json_output, soft_wrap=True)
+            _cli.console.print(json_output, soft_wrap=True, markup=False, emoji=False)
         else:
             _cli.console.print(_display_block(block_document))
 
@@ -501,7 +501,7 @@ async def list_types(
         json_output = orjson.dumps(
             block_types_json, option=orjson.OPT_INDENT_2
         ).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        _cli.console.print(json_output, soft_wrap=True, markup=False, emoji=False)
     else:
         table = Table(
             title="Block Types",
@@ -572,7 +572,7 @@ async def blocktype_inspect(
                 {"block_type": block_type_json, "schema": schema_json},
                 option=orjson.OPT_INDENT_2,
             ).decode()
-            _cli.console.print(json_output, soft_wrap=True)
+            _cli.console.print(json_output, soft_wrap=True, markup=False, emoji=False)
             return
 
         _cli.console.print(_display_block_type(block_type))
