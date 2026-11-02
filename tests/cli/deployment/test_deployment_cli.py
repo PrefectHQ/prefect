@@ -183,6 +183,28 @@ def test_list_schedules_with_json_output(flojo_deployment: DeploymentResponse):
     )
 
 
+@pytest.mark.parametrize(
+    "command,extra_args",
+    [
+        (["inspect"], []),
+        (["schedule", "create"], ["--interval", "60"]),
+        (["schedule", "delete"], ["ccb86ed0-e824-4d8b-b825-880401320e41"]),
+        (["schedule", "pause"], ["ccb86ed0-e824-4d8b-b825-880401320e41"]),
+        (["schedule", "resume"], ["ccb86ed0-e824-4d8b-b825-880401320e41"]),
+        (["schedule", "ls"], []),
+        (["schedule", "clear"], []),
+    ],
+)
+def test_deployment_name_with_extra_slash(command: list[str], extra_args: list[str]):
+    invoke_and_assert(
+        ["deployment", *command, "rence-griffith/test-deployment/extra", *extra_args],
+        expected_code=1,
+        expected_output_contains=(
+            "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
+        ),
+    )
+
+
 class TestDeploymentSchedules:
     @pytest.fixture(autouse=True)
     def enable_triggers(self):
@@ -1437,6 +1459,18 @@ class TestDeploymentDelete:
             ["deployment", "delete", "--id", missing_deployment_id],
             expected_code=1,
             expected_output_contains=f"Deployment '{missing_deployment_id}' not found!",
+        )
+
+    @pytest.mark.parametrize(
+        "name", ["rence-griffith", "rence-griffith/test-deployment/extra"]
+    )
+    def test_delete_deployment_by_invalid_name(self, name: str):
+        invoke_and_assert(
+            ["deployment", "delete", name],
+            expected_code=1,
+            expected_output_contains=(
+                "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
+            ),
         )
 
     @pytest.fixture
