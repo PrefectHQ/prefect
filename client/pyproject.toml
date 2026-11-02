@@ -35,7 +35,7 @@ dependencies = [
     "dateparser>=1.1.1,<2.0.0",
     "exceptiongroup>=1.0.0",
     # 0.151 rejects an explicit null for a body param with a default, and released clients send null
-    "fastapi>=0.139.0,<0.151",
+    "fastapi>=0.162,<0.163",
     "fsspec>=2022.5.0",
     "graphviz>=0.20.1",
     "griffe>=0.49.0,<3.0.0",
@@ -75,7 +75,7 @@ Documentation = "https://www.prefect.io/docs"
 Source = "https://github.com/PrefectHQ/prefect"
 Tracker = "https://github.com/PrefectHQ/prefect/issues"
 [project.optional-dependencies]
-notifications = ["apprise>=1.13.0, <2.1.0"]
+notifications = ["apprise>=2.1.0, <3.0.0"]
 
 
 [tool.hatch.version]

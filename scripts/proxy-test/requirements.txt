@@ -1,5 +1,5 @@
-fastapi==0.148.0
+fastapi==0.162.0
 uvicorn==0.54.0
-uv==0.13.4
+uv==0.13.5
 websockets==16.1.1
 httpx==0.28.1
