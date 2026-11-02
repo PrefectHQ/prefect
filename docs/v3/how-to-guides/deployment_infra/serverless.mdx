@@ -696,6 +696,35 @@ Click **Create** to configure your push work pool by selecting a push option in 
     [work pools documentation](/v3/deploy/infrastructure-concepts/work-pools/).
     Select the block you created under the Modal Credentials field.
     This allows Prefect Cloud to securely interact with your Modal account.
+
+    To let flow runs authenticate with AWS without static keys, enable **Include OIDC Identity Token**. Modal then
+    injects a signed identity token into each sandbox as the `MODAL_IDENTITY_TOKEN` environment variable; see
+    Modal's [OIDC integration guide](https://modal.com/docs/guide/oidc-integration) to configure AWS to trust it and
+    create the IAM role to assume. Set `AWS_ROLE_ARN` to that role in the work pool's environment variables, then
+    write the token to a file and point `AWS_WEB_IDENTITY_TOKEN_FILE` at it before creating any boto3 clients.
+    boto3 then assumes the role from the token file and re-assumes it whenever the temporary credentials expire,
+    so runs that last longer than the role's maximum session duration keep working. Each re-assumption reuses the
+    same token, because Modal sets `MODAL_IDENTITY_TOKEN` once when the sandbox starts. A run must finish before
+    the token expires; the token's `exp` claim gives the expiration time:
+
+    {/* pmd-metadata: notest */}
+    ```python
+    import os
+    from pathlib import Path
+
+    import boto3
+    from prefect import flow
+
+
+    @flow
+    def list_reports():
+        token_file = Path("/tmp/modal-identity-token")
+        token_file.write_text(os.environ["MODAL_IDENTITY_TOKEN"])
+        os.environ["AWS_WEB_IDENTITY_TOKEN_FILE"] = str(token_file)
+
+        s3 = boto3.client("s3")
+        print(s3.list_objects_v2(Bucket="my-reports-bucket").get("KeyCount"))
+    ```
  </Tab>
  <Tab title="Coiled">
 
