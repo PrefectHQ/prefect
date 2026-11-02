@@ -13,6 +13,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 from prefect.client.orchestration import PrefectClient, get_client
@@ -110,12 +111,11 @@ async def result_storage_inspect(
 
         if block_document_id is None:
             if output and output.lower() == "json":
-                _cli.console.print(
+                print_verbatim(
                     orjson.dumps(
                         {"default_result_storage_block_id": None},
                         option=orjson.OPT_INDENT_2,
-                    ).decode(),
-                    soft_wrap=True,
+                    ).decode()
                 )
             else:
                 _cli.console.print("No default result storage is configured.")
@@ -123,15 +123,14 @@ async def result_storage_inspect(
 
         block_slug = await _read_block_slug(client, block_document_id)
         if output and output.lower() == "json":
-            _cli.console.print(
+            print_verbatim(
                 orjson.dumps(
                     {
                         "default_result_storage_block_id": str(block_document_id),
                         "block": block_slug,
                     },
                     option=orjson.OPT_INDENT_2,
-                ).decode(),
-                soft_wrap=True,
+                ).decode()
             )
         else:
             _cli.console.print(

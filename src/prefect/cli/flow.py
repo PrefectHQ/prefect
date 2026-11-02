@@ -13,6 +13,7 @@ from rich.table import Table
 import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
+    print_verbatim,
     with_cli_exception_handling,
 )
 from prefect.client.orchestration import get_client
@@ -70,7 +71,7 @@ async def ls(
     if output and output.lower() == "json":
         flows_json = [f.model_dump(mode="json") for f in flows]
         json_output = orjson.dumps(flows_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(title="Flows")
         table.add_column("ID", justify="right", style="cyan", no_wrap=True)
