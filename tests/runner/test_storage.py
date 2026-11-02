@@ -109,6 +109,23 @@ def mock_run_process(monkeypatch):
     return mock_run_process
 
 
+async def _failing_git_clone(cmd: list[str], **kwargs: Any) -> None:
+    """Simulate a failed `git clone` whose stderr echoes the credentialed URL.
+
+    Used instead of cloning from GitHub so tests don't depend on the network.
+    """
+    url = next(arg for arg in cmd if arg.startswith("https://"))
+    raise subprocess.CalledProcessError(
+        128,
+        cmd,
+        stderr=(
+            f"Cloning into 'repo'...\n"
+            f"fatal: unable to access '{url}/': GnuTLS recv error (-110):"
+            " The TLS connection was non-properly terminated.\n"
+        ).encode(),
+    )
+
+
 class MockCredentials(Block):
     token: Optional[SecretStr] = None
     username: Optional[str] = None
@@ -665,6 +682,8 @@ class TestGitRepository:
         self, monkeypatch, capsys, tmp_path: Path
     ):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        mock_run_process = AsyncMock(side_effect=_failing_git_clone)
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
 
         with tmpchdir(str(tmp_path)):
             with pytest.raises(RuntimeError) as exc:
@@ -674,6 +693,8 @@ class TestGitRepository:
                     branch="definitely-does-not-exist-123",
                     credentials={"access_token": "super-secret-42".upper()},
                 ).pull_code()
+            # the credentials must have reached git for this test to be meaningful
+            assert "super-secret-42".upper() in str(mock_run_process.await_args)
             assert "super-secret-42".upper() not in str(exc.getrepr())
             console_output = capsys.readouterr()
             assert "super-secret-42".upper() not in console_output.out
@@ -686,6 +707,8 @@ class TestGitRepository:
         tmp_path: Path,
     ):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        mock_run_process = AsyncMock(side_effect=_failing_git_clone)
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
 
         with tmpchdir(str(tmp_path)):
             with pytest.raises(RuntimeError) as exc:
@@ -695,6 +718,8 @@ class TestGitRepository:
                     url=f"https://{basic_auth_creds}@github.com/prefecthq/prefect.git",
                     branch="definitely-does-not-exist-123",
                 ).pull_code()
+            # the credentials must have reached git for this test to be meaningful
+            assert "user:password".upper() in str(mock_run_process.await_args)
             assert "user:password".upper() not in str(exc.getrepr()), exc.getrepr()
             console_output = capsys.readouterr()
             assert "user:password".upper() not in console_output.out
