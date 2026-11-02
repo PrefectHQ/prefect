@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import datetime
+import heapq
 import inspect
+import itertools
 import logging
+import os
 import threading
 import time
 from asyncio import CancelledError
@@ -76,6 +80,10 @@ from prefect.exceptions import (
     TerminationSignal,
     UpstreamTaskError,
 )
+from prefect.logging.handlers import (
+    _ensure_api_log_worker,  # type: ignore[reportPrivateUsage]
+    _only_running_api_log_worker,  # type: ignore[reportPrivateUsage]
+)
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.results import (
     ResultRecord,
@@ -129,6 +137,215 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 BACKOFF_MAX = 10
+
+# Lets an enforced timeout unwind the run before the watchdog warns about it
+_TIMEOUT_WATCHDOG_GRACE_SECONDS = 0.5
+
+# Disarmed deadlines are dropped from a heap bigger than this once they outnumber
+# armed ones, as asyncio does for cancelled timers
+_TIMEOUT_WATCHDOG_MIN_COMPACT_SIZE = 100
+
+# Shared across watchdogs so handles stay unique after a fork replaces one
+_timeout_watchdog_handles = itertools.count()
+
+# Bounds how long `disarm` waits for a callback that is already running, since a
+# log handler could block on something the disarming thread holds
+_TIMEOUT_WATCHDOG_DISARM_WAIT_SECONDS = 1.0
+
+# Bounds how long an arm waits for a thread another arm is starting, before it
+# treats that start as failed and starts its own
+_TIMEOUT_WATCHDOG_START_SECONDS = 1.0
+
+# Caps each sleep of the watchdog thread, so a wake-up lost when an enclosing
+# timeout interrupts an arm delays a warning rather than losing it
+_TIMEOUT_WATCHDOG_MAX_WAIT_SECONDS = 5.0
+
+_in_timeout_watchdog_thread = threading.local()
+
+
+class _TimeoutWatchdog:
+    """
+    Fires a callback for each deadline that is still armed when it passes.
+
+    Every run in the process shares one daemon thread, so a wide mapped or async
+    fan-out costs one thread rather than one per run. The thread runs on its own so
+    that it still fires while a run blocks the event loop it was started from.
+    """
+
+    def __init__(self) -> None:
+        # Entered directly rather than through `_condition`, whose `__enter__` is
+        # Python code and so easier for an enclosing timeout to interrupt mid-acquire
+        self._lock = threading.RLock()
+        self._condition = threading.Condition(self._lock)
+        # (deadline, handle) pairs, including disarmed ones not yet dropped
+        self._deadlines: list[tuple[float, int]] = []
+        self._armed: dict[int, Callable[[], None]] = {}
+        # The handle `arm` has pushed but not yet stored, kept when deadlines that
+        # are not armed are dropped
+        self._arming: int | None = None
+        self._firing: set[int] = set()
+        # The thread serving deadlines. Each new watchdog thread takes over once it
+        # runs, and the one it replaces exits.
+        self._thread: threading.Thread | None = None
+        self._start_began: float | None = None
+
+    def arm(self, seconds: float, callback: Callable[[], None]) -> int:
+        # A plain thread would not see the run's context variables
+        run_in_context = partial(contextvars.copy_context().run, callback)
+        self._start_thread_if_needed()
+        with self._lock:
+            handle = next(_timeout_watchdog_handles)
+            # Built before the heap is looked up, since a finalizer run meanwhile can
+            # replace the heap while dropping disarmed deadlines
+            entry = (time.monotonic() + seconds, handle)
+            # Pushed before the callback is stored, since an interruption between
+            # the two then leaves only a deadline that is skipped. A finalizer run
+            # between them can drop disarmed deadlines, which must not drop this one.
+            self._arming = handle
+            heapq.heappush(self._deadlines, entry)
+            self._armed[handle] = run_in_context
+            self._arming = None
+            if self._deadlines[0][1] == handle:
+                self._condition.notify_all()
+        return handle
+
+    def _start_in_progress(self) -> bool:
+        # A start interrupted before it could finish or fail counts as over once it
+        # is this old
+        return (
+            self._start_began is not None
+            and time.monotonic() - self._start_began < _TIMEOUT_WATCHDOG_START_SECONDS
+        )
+
+    def _start_thread_if_needed(self) -> None:
+        with self._lock:
+            # A thread another arm is starting serves this deadline too, unless its
+            # start fails, so wait to see rather than start another
+            self._condition.wait_for(
+                lambda: not self._start_in_progress(),
+                timeout=_TIMEOUT_WATCHDOG_START_SECONDS,
+            )
+            if self._thread is not None and self._thread.is_alive():
+                return
+            if self._start_in_progress():
+                # Another arm that waited too has just started one
+                return
+            self._start_began = time.monotonic()
+        try:
+            # Outside the lock, so a start that stalls cannot hold up other runs. A
+            # start that fails changes nothing for a thread already serving.
+            threading.Thread(
+                target=self._run, name="TaskRunTimeoutWatchdog", daemon=True
+            ).start()
+        except BaseException:
+            with self._lock:
+                self._start_began = None
+                self._condition.notify_all()
+            raise
+
+    def disarm(self, handle: int) -> None:
+        """
+        Keep a deadline from firing.
+
+        A callback that has already started cannot be stopped, so this waits for it
+        to finish rather than let it report on a run that has moved on. The wait is
+        bounded, so a callback stuck on the disarming thread delays the run rather
+        than hanging it.
+        """
+        with self._lock:
+            if self._armed.pop(handle, None) is not None:
+                self._compact_if_mostly_disarmed()
+            if getattr(_in_timeout_watchdog_thread, "active", False):
+                # Reached from a callback, e.g. via garbage collection, so the wait
+                # could be on itself
+                return
+            self._condition.wait_for(
+                lambda: handle not in self._firing,
+                timeout=_TIMEOUT_WATCHDOG_DISARM_WAIT_SECONDS,
+            )
+
+    def _compact_if_mostly_disarmed(self) -> None:
+        size = len(self._deadlines)
+        if size > _TIMEOUT_WATCHDOG_MIN_COMPACT_SIZE and size > 2 * len(self._armed):
+            self._deadlines = [
+                entry
+                for entry in self._deadlines
+                if entry[1] in self._armed or entry[1] == self._arming
+            ]
+            heapq.heapify(self._deadlines)
+
+    def _run(self) -> None:
+        _in_timeout_watchdog_thread.active = True
+        with self._lock:
+            self._thread = threading.current_thread()
+            self._start_began = None
+            # Wakes the thread this one replaces so that it exits now
+            self._condition.notify_all()
+        while (claimed := self._wait_for_next_deadline()) is not None:
+            self._fire(*claimed)
+            # Not kept while waiting, since the callback holds on to the run it reports
+            del claimed
+
+    def _wait_for_next_deadline(self) -> tuple[int, Callable[[], None]] | None:
+        """
+        Wait until an armed deadline passes, then claim it.
+
+        Returns `None` once another watchdog thread has taken over.
+        """
+        with self._lock:
+            while self._thread is threading.current_thread():
+                while self._deadlines and self._deadlines[0][1] not in self._armed:
+                    heapq.heappop(self._deadlines)
+                if not self._deadlines:
+                    self._condition.wait(_TIMEOUT_WATCHDOG_MAX_WAIT_SECONDS)
+                    continue
+                deadline, handle = self._deadlines[0]
+                remaining = deadline - time.monotonic()
+                if remaining > 0:
+                    # Also keeps an infinite timeout under `threading.TIMEOUT_MAX`
+                    self._condition.wait(
+                        min(remaining, _TIMEOUT_WATCHDOG_MAX_WAIT_SECONDS)
+                    )
+                    continue
+                # Claimed by handle, its deadline then dropped like a disarmed one,
+                # since a finalizer run on this thread may have disarmed it or
+                # replaced the heap since it was looked up
+                callback = self._armed.pop(handle, None)
+                if callback is None:
+                    continue
+                self._firing.add(handle)
+                return handle, callback
+            return None
+
+    def _fire(self, handle: int, callback: Callable[[], None]) -> None:
+        try:
+            callback()
+        except Exception:
+            # One failing callback must not stop the thread every run depends on
+            get_logger("engine").debug(
+                "Timeout watchdog callback failed", exc_info=True
+            )
+        finally:
+            with self._lock:
+                self._firing.discard(handle)
+                self._condition.notify_all()
+
+
+_task_run_timeout_watchdog = _TimeoutWatchdog()
+
+
+def _reset_timeout_watchdog_after_fork_in_child() -> None:
+    # A forked child inherits the watchdog without its thread, possibly locked
+    global _task_run_timeout_watchdog
+    _task_run_timeout_watchdog = _TimeoutWatchdog()
+
+
+if hasattr(os, "register_at_fork"):
+    try:
+        os.register_at_fork(after_in_child=_reset_timeout_watchdog_after_fork_in_child)
+    except RuntimeError:
+        # Might fail in certain contexts (e.g., if already in a child process)
+        pass
 
 
 def _create_task_run_locally(
@@ -268,6 +485,67 @@ class BaseTaskRunEngine(Generic[P, R]):
         ):
             return self.context["cancel_event"].is_set()
         return False
+
+    def _warn_timeout_exceeded(self) -> None:
+        """Report a run that is still going after its timeout has elapsed."""
+        # Starting an API log worker would wait on the global event loop, which this
+        # run may be blocking
+        with _only_running_api_log_worker():
+            self.logger.warning(
+                "Task run has exceeded its timeout of %s second(s) but is still "
+                "running. A timeout cannot always interrupt blocking operations "
+                "like `time.sleep()`, network requests, or file I/O, and a run "
+                "blocked in one continues until the operation returns. See "
+                "https://docs.prefect.io/v3/how-to-guides/workflows/"
+                "write-and-run#task-timeout-behavior for more information.",
+                self.task.timeout_seconds,
+            )
+
+    @contextmanager
+    def _timeout_watchdog(self) -> Generator[None, None, None]:
+        """
+        Warn if the run outlives its timeout.
+
+        A timeout cannot interrupt a run blocked in a syscall, so the run overruns its
+        deadline until that call returns on its own.
+        """
+        handle: int | None = None
+        # Guards against a warning after the run has left, even if an enclosing
+        # timeout interrupts arming or disarming
+        exited: list[bool] = []
+
+        def warn_unless_exited() -> None:
+            if not exited:
+                self._warn_timeout_exceeded()
+
+        try:
+            if self.task.timeout_seconds is not None:
+                try:
+                    # The warning only uses a log worker that is already running
+                    _ensure_api_log_worker()
+                except Exception:
+                    # Without one the warning still reaches the other log handlers
+                    get_logger("engine").debug(
+                        "Could not start an API log worker for the timeout warning",
+                        exc_info=True,
+                    )
+                try:
+                    handle = _task_run_timeout_watchdog.arm(
+                        self.task.timeout_seconds + _TIMEOUT_WATCHDOG_GRACE_SECONDS,
+                        warn_unless_exited,
+                    )
+                except Exception:
+                    # Advisory, so the run goes on without the warning
+                    get_logger("engine").debug(
+                        "Could not arm the timeout watchdog", exc_info=True
+                    )
+
+            yield
+        finally:
+            exited.append(True)
+            if handle is not None:
+                # Looked up again, since a fork replaces the watchdog in the child
+                _task_run_timeout_watchdog.disarm(handle)
 
     def compute_transaction_key(self) -> Optional[str]:
         key: Optional[str] = None
@@ -1045,9 +1323,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         "write-and-run#task-timeout-behavior for more information.",
                         self.task.timeout_seconds,
                     )
-                with timeout(
-                    seconds=self.task.timeout_seconds,
-                    timeout_exc_type=TaskRunTimeoutError,
+                # Outside the timeout scope, so the deadline is disarmed as soon as
+                # the run leaves it, before `handle_timeout` runs
+                with (
+                    self._timeout_watchdog(),
+                    timeout(
+                        seconds=self.task.timeout_seconds,
+                        timeout_exc_type=TaskRunTimeoutError,
+                    ),
                 ):
                     self.logger.debug(
                         f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
@@ -1694,9 +1977,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # reenter the run context to ensure it is up to date for every run
         async with self.setup_run_context():
             try:
-                with timeout_async(
-                    seconds=self.task.timeout_seconds,
-                    timeout_exc_type=TaskRunTimeoutError,
+                # Outside the timeout scope, so the deadline is disarmed as soon as
+                # the run leaves it, before `handle_timeout` runs
+                with (
+                    self._timeout_watchdog(),
+                    timeout_async(
+                        seconds=self.task.timeout_seconds,
+                        timeout_exc_type=TaskRunTimeoutError,
+                    ),
                 ):
                     self.logger.debug(
                         f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
