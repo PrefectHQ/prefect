@@ -762,6 +762,13 @@ class RRuleSchedule(PrefectBaseModel):
     def validate_rrule_str(cls, v: str) -> str:
         return validate_rrule_string(v)
 
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, v: Optional[str]) -> Optional[str]:
+        # The `TimeZone` pattern is unanchored, so it accepts any string that
+        # merely contains a timezone name (e.g. "UTC+2"); check the full value.
+        return default_timezone(v)
+
     @classmethod
     def from_rrule(
         cls, rrule: dateutil.rrule.rrule | dateutil.rrule.rruleset
