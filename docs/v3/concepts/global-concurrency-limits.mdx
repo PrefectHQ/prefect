@@ -109,7 +109,7 @@ Prefect provides several mechanisms to control concurrency, each suited for diff
 | Concurrency Type | Scope | Use Case |
 |------------------|-------|----------|
 | **Global concurrency limits** | Any Python operation | General-purpose concurrency control for database connections, API calls, or any resource |
-| [Work pool flow run limits](/v3/concepts/work-pools#manage-concurrency) | Flows in a work pool | Limit concurrent flows on specific infrastructure |
+| [Work pool flow run limits](/v3/how-to-guides/deployment_infra/manage-work-pools#manage-concurrency-for-a-work-pool) | Flows in a work pool | Limit concurrent flows on specific infrastructure |
 | [Work queue flow run limits](/v3/concepts/work-pools#queue-concurrency-limits) | Flows in a work queue | Priority-based flow execution control |
 | [Deployment flow run limits](/v3/concepts/deployments#concurrency-limiting) | Specific deployment | Prevent concurrent runs of a specific deployment |
 | [Tag-based task concurrency limits](/v3/concepts/tag-based-concurrency-limits) | Prefect tasks with tags | Limit concurrent Prefect task runs with specific tags |

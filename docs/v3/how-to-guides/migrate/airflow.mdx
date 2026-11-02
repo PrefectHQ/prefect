@@ -178,7 +178,7 @@ def my_flow():
 By using standard Python control flow, Prefect **eliminates complexity** and makes conditional execution more **readable, maintainable, and testable**.
 
 ### Retries and error handling
-Airflow DAGs often have retry settings either at the DAG level (`default_args`) or per task (e.g., `retries=3`). In Prefect, you can specify [retries](/v3/develop/write-flows#retries) for any task or flow.
+Airflow DAGs often have retry settings either at the DAG level (`default_args`) or per task (e.g., `retries=3`). In Prefect, you can specify [retries](/v3/how-to-guides/workflows/retries) for any task or flow.
 
 Use `@task(retries=2, retry_delay_seconds=60)` to retry a task twice on failure, or `@flow(retries=1)` to retry the entire flow once. Prefect **distinguishes flow and task retries**—flow retries rerun all tasks, while task retries rerun only the failed task. Replace Airflow-specific error handling (`on_failure_callback`, sensors) with Prefect's **Retry**, **State Handlers**, or built-in failure notifications.
 
@@ -187,7 +187,7 @@ Go through the DAG code and strip out anything that doesn't apply in Prefect.
 
 This includes: DAG declarations (`DAG(...)` blocks), default_args, Airflow imports (`from airflow...`), XCom push/pull calls (replace with return values), Jinja templating in operator arguments (you can often just compute those values in Python directly or use [Prefect parameters](/v3/deploy/index#workflow-scheduling-and-parametrization)).
 
-If your DAG used Airflow Variables or Connections (Airflow's way to store config in the Metastore), you'll need to supply those to Prefect tasks via another means - for example, as [environment variables](/v3/develop/settings-and-profiles#environment-variables) or using [Prefect Blocks](/integrations/integrations) (like a Block for a database connection string). Essentially, your Prefect flow code should look like a regular Python script with functions, not like an Airflow DAG file.
+If your DAG used Airflow Variables or Connections (Airflow's way to store config in the Metastore), you'll need to supply those to Prefect tasks via another means - for example, as [environment variables](/v3/concepts/settings-and-profiles#environment-variables) or using [Prefect Blocks](/integrations/integrations) (like a Block for a database connection string). Essentially, your Prefect flow code should look like a regular Python script with functions, not like an Airflow DAG file.
 
 As an illustration, here's how our example **ETL pipeline** looks after conversion:
 
