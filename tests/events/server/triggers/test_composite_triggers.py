@@ -474,7 +474,9 @@ class TestCompoundTriggerAll:
         # Replace the get_child_firings function with one that returns firings that
         # are _not_ the one that should have just happened
         async def get_child_firings(
-            session: AsyncSession, firing: Firing
+            session: AsyncSession,
+            trigger: CompoundTrigger,
+            bucketing_key: List[str] | None = None,
         ) -> List[db.CompositeTriggerChildFiring]:
             assert isinstance(
                 compound_automation_all_with_match.trigger, CompoundTrigger
@@ -1748,3 +1750,226 @@ class TestCompoundTriggerConcurrency:
 
         firing: Firing = act.call_args.args[0]
         assert firing.trigger.id == compound_automation_concurrent.trigger.id
+
+
+class TestCompoundTriggerForEach:
+    """A compound trigger with `for_each` groups child firings by a shared label so
+    that only firings sharing the same label value are paired together, rather than
+    pairing any two children that land within the `within` window (issue #23510)."""
+
+    def worker_event(self, occurred: DateTime, slot: str, worker: str) -> ReceivedEvent:
+        return ReceivedEvent(
+            occurred=occurred,
+            event=f"task.worker-{worker}.complete",
+            resource={
+                "prefect.resource.id": f"task.complete.{slot}.worker-{worker}",
+                "task.slot": slot,
+            },
+            id=uuid4(),
+        )
+
+    @pytest.fixture
+    async def coordinate_per_slot(
+        self,
+        automations_session: AsyncSession,
+        cleared_buckets: None,
+        cleared_automations: None,
+    ) -> Automation:
+        automation = Automation(
+            name="Coordinate workers per slot",
+            description="",
+            trigger=CompoundTrigger(
+                require="all",
+                within=timedelta(minutes=5),
+                for_each={"task.slot"},
+                triggers=[
+                    EventTrigger(
+                        expect={"task.worker-a.complete"},
+                        match={"prefect.resource.id": "task.complete.*.worker-a"},
+                        posture=Posture.Reactive,
+                        threshold=1,
+                    ),
+                    EventTrigger(
+                        expect={"task.worker-b.complete"},
+                        match={"prefect.resource.id": "task.complete.*.worker-b"},
+                        posture=Posture.Reactive,
+                        threshold=1,
+                    ),
+                ],
+            ),
+            actions=[actions.DoNothing()],
+        )
+
+        persisted = await automations.create_automation(
+            session=automations_session, automation=automation
+        )
+        automation.created = persisted.created
+        automation.updated = persisted.updated
+        triggers.load_automation(persisted)
+        await automations_session.commit()
+
+        return automation
+
+    async def test_does_not_pair_across_different_slots(
+        self,
+        act: mock.AsyncMock,
+        start_of_test: DateTime,
+        coordinate_per_slot: Automation,
+    ):
+        """Worker A completing slot X and worker B completing slot Y must not pair,
+        even though both land within the `within` window."""
+        await triggers.reactive_evaluation(
+            self.worker_event(start_of_test + timedelta(seconds=1), "X", "a")
+        )
+        await triggers.reactive_evaluation(
+            self.worker_event(start_of_test + timedelta(seconds=2), "Y", "b")
+        )
+
+        act.assert_not_called()
+
+    async def test_fires_once_both_workers_complete_the_same_slot(
+        self,
+        act: mock.AsyncMock,
+        start_of_test: DateTime,
+        coordinate_per_slot: Automation,
+    ):
+        """Only once both workers complete the *same* slot does the trigger fire, and
+        the firing carries both children's events for that slot."""
+        # mispairing bait: A on slot X, B on slot Y — different groups, no fire
+        await triggers.reactive_evaluation(
+            self.worker_event(start_of_test + timedelta(seconds=1), "X", "a")
+        )
+        await triggers.reactive_evaluation(
+            self.worker_event(start_of_test + timedelta(seconds=2), "Y", "b")
+        )
+        act.assert_not_called()
+
+        # B finally completes slot X — completes the slot-X group
+        await triggers.reactive_evaluation(
+            self.worker_event(start_of_test + timedelta(seconds=3), "X", "b")
+        )
+
+        act.assert_called_once()
+        firing: Firing = act.call_args.args[0]
+        assert firing.trigger.id == coordinate_per_slot.trigger.id
+
+        slots = {event.resource["task.slot"] for event in firing.all_events()}
+        assert slots == {"X"}
+
+    async def test_without_for_each_pairs_across_slots(
+        self,
+        act: mock.AsyncMock,
+        start_of_test: DateTime,
+        automations_session: AsyncSession,
+        cleared_buckets: None,
+        cleared_automations: None,
+    ):
+        """Control: the same two events on different slots are wrongly paired when
+        the trigger has no `for_each` — the behaviour `for_each` guards against."""
+        automation = Automation(
+            name="Coordinate workers (no for_each)",
+            description="",
+            trigger=CompoundTrigger(
+                require="all",
+                within=timedelta(minutes=5),
+                triggers=[
+                    EventTrigger(
+                        expect={"task.worker-a.complete"},
+                        match={"prefect.resource.id": "task.complete.*.worker-a"},
+                        posture=Posture.Reactive,
+                        threshold=1,
+                    ),
+                    EventTrigger(
+                        expect={"task.worker-b.complete"},
+                        match={"prefect.resource.id": "task.complete.*.worker-b"},
+                        posture=Posture.Reactive,
+                        threshold=1,
+                    ),
+                ],
+            ),
+            actions=[actions.DoNothing()],
+        )
+        persisted = await automations.create_automation(
+            session=automations_session, automation=automation
+        )
+        triggers.load_automation(persisted)
+        await automations_session.commit()
+
+        await triggers.reactive_evaluation(
+            self.worker_event(start_of_test + timedelta(seconds=1), "X", "a")
+        )
+        await triggers.reactive_evaluation(
+            self.worker_event(start_of_test + timedelta(seconds=2), "Y", "b")
+        )
+
+        act.assert_called_once()
+
+    async def test_for_each_resolves_related_resource_labels(
+        self,
+        act: mock.AsyncMock,
+        start_of_test: DateTime,
+        automations_session: AsyncSession,
+        cleared_buckets: None,
+        cleared_automations: None,
+    ):
+        """`for_each` supports `related:<role>:<label>`, matching EventTrigger syntax."""
+        automation = Automation(
+            name="Coordinate per deployment",
+            description="",
+            trigger=CompoundTrigger(
+                require="all",
+                within=timedelta(minutes=5),
+                for_each={"related:deployment:prefect.resource.id"},
+                triggers=[
+                    EventTrigger(
+                        expect={"task.worker-a.complete"},
+                        match={"prefect.resource.id": "task.complete.*.worker-a"},
+                        posture=Posture.Reactive,
+                        threshold=1,
+                    ),
+                    EventTrigger(
+                        expect={"task.worker-b.complete"},
+                        match={"prefect.resource.id": "task.complete.*.worker-b"},
+                        posture=Posture.Reactive,
+                        threshold=1,
+                    ),
+                ],
+            ),
+            actions=[actions.DoNothing()],
+        )
+        persisted = await automations.create_automation(
+            session=automations_session, automation=automation
+        )
+        triggers.load_automation(persisted)
+        await automations_session.commit()
+
+        def event(occurred: DateTime, deployment: str, worker: str) -> ReceivedEvent:
+            return ReceivedEvent(
+                occurred=occurred,
+                event=f"task.worker-{worker}.complete",
+                resource={
+                    "prefect.resource.id": f"task.complete.slot.worker-{worker}",
+                },
+                related=[
+                    {
+                        "prefect.resource.id": deployment,
+                        "prefect.resource.role": "deployment",
+                    }
+                ],
+                id=uuid4(),
+            )
+
+        # different deployments → no pairing
+        await triggers.reactive_evaluation(
+            event(start_of_test + timedelta(seconds=1), "deploy-1", "a")
+        )
+        await triggers.reactive_evaluation(
+            event(start_of_test + timedelta(seconds=2), "deploy-2", "b")
+        )
+        act.assert_not_called()
+
+        # same deployment → fires
+        await triggers.reactive_evaluation(
+            event(start_of_test + timedelta(seconds=3), "deploy-1", "b")
+        )
+        act.assert_called_once()
