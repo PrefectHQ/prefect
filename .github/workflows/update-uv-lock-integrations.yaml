@@ -43,7 +43,7 @@ jobs:
         with:
           python-version: "3.15"
 
-      - uses: astral-sh/setup-uv@v10.3.0
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
           version: latest
 
