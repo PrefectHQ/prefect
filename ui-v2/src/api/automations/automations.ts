@@ -56,6 +56,27 @@ export const buildListAutomationsQuery = (
 		},
 	});
 
+export const buildListAllAutomationsQuery = (
+	sort: components["schemas"]["AutomationSort"] = "CREATED_DESC",
+) =>
+	queryOptions({
+		queryKey: [...queryKeyFactory.filter({ sort, offset: 0 }), "all"],
+		refetchInterval: 30_000,
+		queryFn: async ({ signal }) => {
+			const service = await getQueryService();
+			const automations: Automation[] = [];
+			while (true) {
+				const { data } = await service.POST("/automations/filter", {
+					body: { sort, offset: automations.length },
+					signal,
+				});
+				if (!data) throw new Error("'data' expected");
+				if (data.length === 0) return automations;
+				automations.push(...data);
+			}
+		},
+	});
+
 export const buildGetAutomationQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
