@@ -7,7 +7,9 @@ import pytest
 import respx
 
 from prefect.blocks import system
+from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import BlockSchemaCreate, BlockTypeCreate
 from prefect.exceptions import ObjectNotFound
 from prefect.server import models
 from prefect.settings import (
@@ -631,3 +633,98 @@ def test_creating_a_block_selects_oss_ui_url_when_oss_server_type():
         expected_output_contains=["blocks/catalog"],
         expected_output_does_not_contain=["settings/blocks/catalog"],
     )
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["[bold]literal[/bold]", "[/bold]", ":smile:", "plain text", "日本語 café " * 40],
+)
+@pytest.mark.parametrize("command", ["ls", "inspect-slug", "inspect-id"])
+async def test_block_json_preserves_literal_data(value: str, command: str):
+    class LiteralData(Block):
+        message: str
+
+    block_id = await LiteralData(message=value).save("literal-data")
+    if command == "ls":
+        args = ["block", "ls"]
+    elif command == "inspect-slug":
+        args = ["block", "inspect", "literaldata/literal-data"]
+    else:
+        args = ["block", "inspect", "--id", str(block_id)]
+
+    result = await run_sync_in_worker_thread(
+        invoke_and_assert, [*args, "-o", "json"], expected_code=0
+    )
+    output = json.loads(result.stdout)
+    if command == "ls":
+        output = next(block for block in output if block["id"] == str(block_id))
+    assert output["data"] == {"message": value}
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["[bold]literal[/bold]", "[/bold]", ":smile:", "plain text", "日本語 café " * 40],
+)
+@pytest.mark.parametrize("command", ["ls", "inspect"])
+async def test_block_type_json_preserves_literal_metadata(
+    prefect_client: PrefectClient, value: str, command: str
+):
+    block_type = await prefect_client.create_block_type(
+        BlockTypeCreate(
+            name="Literal metadata",
+            slug="literal-metadata",
+            description=value,
+            code_example=value,
+        )
+    )
+    await prefect_client.create_block_schema(
+        BlockSchemaCreate(
+            block_type_id=block_type.id,
+            fields={
+                "properties": {"message": {"type": "string", "description": value}}
+            },
+        )
+    )
+    args = ["block", "type", command]
+    if command == "inspect":
+        args.append(block_type.slug)
+    result = await run_sync_in_worker_thread(
+        invoke_and_assert, [*args, "-o", "json"], expected_code=0
+    )
+    output = json.loads(result.stdout)
+    if command == "ls":
+        metadata = next(item for item in output if item["id"] == str(block_type.id))
+    else:
+        metadata = output["block_type"]
+        assert (
+            output["schema"]["fields"]["properties"]["message"]["description"] == value
+        )
+    assert metadata["description"] == value
+    assert metadata["code_example"] == value
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["[bold]literal[/bold]", "[/bold]", ":smile:", "plain text", "日本語 café " * 40],
+)
+async def test_block_type_json_preserves_literal_schema(
+    prefect_client: PrefectClient, value: str
+):
+    block_type = await prefect_client.create_block_type(
+        BlockTypeCreate(name="Literal schema", slug="literal-schema")
+    )
+    await prefect_client.create_block_schema(
+        BlockSchemaCreate(
+            block_type_id=block_type.id,
+            fields={
+                "properties": {"message": {"type": "string", "description": value}}
+            },
+        )
+    )
+    result = await run_sync_in_worker_thread(
+        invoke_and_assert,
+        ["block", "type", "inspect", block_type.slug, "-o", "json"],
+        expected_code=0,
+    )
+    output = json.loads(result.stdout)
+    assert output["schema"]["fields"]["properties"]["message"]["description"] == value
