@@ -1287,3 +1287,155 @@ async def test_increment_bucket_caps_retained_events_independently_of_threshold(
     assert [event.id for event in incremented.triggering_events] == [
         event.id for event in retained[: triggers.MAX_RETAINED_TRIGGERING_EVENTS]
     ]
+
+
+async def test_increment_bucket_does_not_resurrect_deleted_bucket(
+    db: PrefectDBInterface,
+    start_of_test: DateTime,
+    bucketed_automation: Automation,
+    automations_session: AsyncSession,
+):
+    """A bucket deleted by a winning handler (it fired and removed the
+    bucket) must not come back when a losing handler increments from a
+    stale snapshot: no row is written and the caller's bucket is
+    returned unchanged."""
+    trigger = bucketed_automation.trigger
+    assert isinstance(trigger, EventTrigger)
+
+    first = Event(
+        occurred=start_of_test,
+        event="counted-event",
+        resource={"prefect.resource.id": "some.resource"},
+        id=uuid4(),
+    ).receive()
+    bucket = await triggers.start_new_bucket(
+        automations_session,
+        trigger,
+        bucketing_key=(),
+        start=start_of_test,
+        end=start_of_test + timedelta(hours=1),
+        count=1,
+        triggering_events=[first],
+    )
+    await automations_session.commit()
+
+    # The winning handler fires and deletes the bucket.
+    await automations_session.execute(
+        sa.delete(db.AutomationBucket).where(
+            db.AutomationBucket.trigger_id == trigger.id
+        )
+    )
+    await automations_session.commit()
+
+    second = Event(
+        occurred=start_of_test + timedelta(seconds=1),
+        event="counted-event",
+        resource={"prefect.resource.id": "some.resource"},
+        id=uuid4(),
+    ).receive()
+    incremented = await triggers.increment_bucket(
+        automations_session, bucket, count=1, last_event=second
+    )
+    await automations_session.commit()
+
+    assert incremented.count == 1
+    assert [event.id for event in incremented.triggering_events] == [first.id]
+    assert await triggers.read_bucket(automations_session, trigger, ()) is None
+
+
+async def test_increment_bucket_retains_opening_event_only_when_asked(
+    start_of_test: DateTime,
+    bucketed_automation: Automation,
+    automations_session: AsyncSession,
+):
+    """An opening event that nets a -1 bucket to zero is dropped by
+    default (reactive case) but kept when retain_opening_event is set
+    (proactive case, where it is the firing's subject)."""
+    trigger = bucketed_automation.trigger
+    assert isinstance(trigger, EventTrigger)
+
+    opening = Event(
+        occurred=start_of_test,
+        event="counted-event",
+        resource={"prefect.resource.id": "some.resource"},
+        id=uuid4(),
+    ).receive()
+    bucket = await triggers.start_new_bucket(
+        automations_session,
+        trigger,
+        bucketing_key=(),
+        start=start_of_test,
+        end=start_of_test + timedelta(hours=1),
+        count=-1,
+    )
+    dropped = await triggers.increment_bucket(
+        automations_session, bucket, count=1, last_event=opening
+    )
+    assert dropped.count == 0
+    assert dropped.triggering_events == []
+
+    kept_bucket = await triggers.start_new_bucket(
+        automations_session,
+        trigger,
+        bucketing_key=("second",),
+        start=start_of_test,
+        end=start_of_test + timedelta(hours=1),
+        count=-1,
+    )
+    kept = await triggers.increment_bucket(
+        automations_session,
+        kept_bucket,
+        count=1,
+        last_event=opening,
+        retain_opening_event=True,
+    )
+    assert kept.count == 0
+    assert [event.id for event in kept.triggering_events] == [opening.id]
+
+
+async def test_threshold_101_firing_exposes_all_101_events(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+):
+    """With a threshold above the 100-event retention cap, the firing
+    must still expose every counted event, including the 101st event
+    that actually caused the firing and that the stored list alone
+    would have truncated away."""
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="Threshold 101",
+            trigger=EventTrigger(
+                expect={"counted-event"},
+                posture=Posture.Reactive,
+                threshold=101,
+                within=timedelta(hours=1),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+
+    events = [
+        Event(
+            occurred=frozen_time + timedelta(seconds=i),
+            event="counted-event",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+        for i in range(101)
+    ]
+    for event in events:
+        await triggers.reactive_evaluation(event)
+
+    act.assert_awaited_once()
+    firing = act.await_args_list[0][0][0]
+    assert isinstance(firing, Firing)
+    assert [event.id for event in firing.triggering_events] == [
+        event.id for event in events
+    ]
+    assert firing.triggering_event.id == events[-1].id

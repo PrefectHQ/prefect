@@ -168,6 +168,13 @@ async def evaluate(
             count,
             triggering_event,
             max_events=trigger.threshold,
+            # A proactive firing is about the absence of later events, so
+            # the event that opened the bucket is the firing's subject
+            # (e.g. the stuck run in an SLA trigger) and must stay in
+            # the retained list; a reactive firing is caused by a later
+            # event, so its opening event stays dropped (see
+            # increment_bucket's docstring).
+            retain_opening_event=trigger.posture == Posture.Proactive,
         )
         count = 0
 
@@ -200,6 +207,31 @@ async def evaluate(
             extra=logging_context,
         )
 
+        # Present the counted events in the order they occurred, so an
+        # action template sees every contributing payload, not only the
+        # last one.  Events counted only as held events carry no payload
+        # and are absent here; an empty list falls back to the singular
+        # event in `all_events`, as before.
+        firing_events = sorted(
+            bucket.triggering_events or [],
+            key=lambda event: (event.occurred, event.id),
+        )
+        # A reactive firing is caused by its triggering event, so that
+        # event belongs in the list even when the retained list was
+        # truncated by the storage cap (e.g. threshold 101 with a 100
+        # event cap, where the stored list holds only the first 100).
+        # Without this, the one event that actually caused the firing
+        # would be the one omitted from it.  The append stays within
+        # the threshold: a threshold-0 trigger retains no events at
+        # all, and that contract is preserved.
+        if (
+            triggering_event is not None
+            and len(firing_events) < trigger.threshold
+            and all(event.id != triggering_event.id for event in firing_events)
+        ):
+            firing_events.append(triggering_event)
+            firing_events.sort(key=lambda event: (event.occurred, event.id))
+
         firing = Firing(
             trigger=trigger,
             trigger_states={TriggerState.Triggered},
@@ -209,15 +241,7 @@ async def evaluate(
                 for label, value in zip(sorted(trigger.for_each), bucket.bucketing_key)
             },
             triggering_event=triggering_event or bucket.last_event,
-            # Present the counted events in the order they occurred, so an
-            # action template sees every contributing payload, not only the
-            # last one.  Events counted only as held events carry no payload
-            # and are absent here; an empty list falls back to the singular
-            # event in `all_events`, as before.
-            triggering_events=sorted(
-                bucket.triggering_events or [],
-                key=lambda event: (event.occurred, event.id),
-            ),
+            triggering_events=firing_events,
         )
 
         await fire(session, firing)
@@ -1093,6 +1117,7 @@ async def increment_bucket(
     count: int,
     last_event: Optional[ReceivedEvent],
     max_events: Optional[int] = None,
+    retain_opening_event: bool = False,
 ) -> "ORMAutomationBucket":
     """Adds the given count to the bucket, returning the new bucket.  The
     counted event is retained in the bucket, one entry per counted
@@ -1109,10 +1134,23 @@ async def increment_bucket(
     `BEGIN IMMEDIATE`), so the lock is taken on the read itself.
 
     An event that only arms a bucket opened at `initial_count=-1` (the
-    same event matching both `after` and `expect`) is not retained: it
-    nets the count to zero, so keeping it would let a threshold-1 firing
-    expose only the arming event and omit the payload that actually
-    caused the firing.
+    same event matching both `after` and `expect`) is not retained by
+    default: it nets the count to zero, so keeping it would let a
+    threshold-1 reactive firing expose only the arming event and omit
+    the payload that actually caused the firing.  Callers pass
+    `retain_opening_event=True` for proactive triggers, where the
+    firing is about the absence of later events and the opening event
+    is itself the firing's subject (e.g. the stuck run in an SLA
+    trigger); dropping it there would leave the firing with no
+    contributing payload at all.
+
+    If the locked re-read finds no row, the bucket was deleted after
+    the caller read it (another handler already fired and removed
+    it).  In that case nothing is written: re-inserting the caller's
+    stale snapshot would resurrect a fired bucket with its old
+    triggering events.  Callers must therefore only increment buckets
+    they have ensured or read; in production that is exactly what
+    `evaluate` does.
 
     The retained list is capped at `max_events` (the trigger threshold)
     and at `MAX_RETAINED_TRIGGERING_EVENTS`, whichever is smaller: a
@@ -1131,10 +1169,15 @@ async def increment_bucket(
         tuple(bucket.bucketing_key),
         for_update=True,
     )
-    if locked_bucket is not None:
-        bucket = locked_bucket
+    if locked_bucket is None:
+        # The row vanished under the lock: another handler fired and
+        # deleted this bucket while this handler waited.  Return the
+        # caller's bucket unchanged and write nothing, so the fired
+        # bucket is not resurrected from a stale snapshot.
+        return bucket
+    bucket = locked_bucket
     triggering_events = list(bucket.triggering_events or [])
-    if last_event and bucket.count + count > 0:
+    if last_event and (bucket.count + count > 0 or retain_opening_event):
         triggering_events.append(last_event)
     effective_cap = (
         min(max_events, MAX_RETAINED_TRIGGERING_EVENTS)
