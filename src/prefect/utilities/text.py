@@ -13,7 +13,8 @@ def truncated_to(length: int, value: Optional[str]) -> str:
     half = length // 2
 
     beginning = value[:half]
-    end = value[-half:]
+    # value[-0:] is the whole value, so a half of zero must not repeat the tail.
+    end = value[-half:] if half else ""
     omitted = len(value) - (len(beginning) + len(end))
 
     proposed = f"{beginning}...{omitted} additional characters...{end}"

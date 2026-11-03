@@ -46,3 +46,14 @@ def test_truncated_to_keeps_original_when_truncation_would_be_longer():
     # case the original value is returned unchanged.
     value = "x" * 25
     assert truncated_to(20, value) == value
+
+
+@pytest.mark.parametrize("length", [0, 1])
+def test_truncated_to_a_tiny_length_still_truncates_a_long_value(length):
+    # half becomes zero here, and value[-0:] is the whole value, so the tail used to
+    # repeat the entire string and the placeholder was never shorter than the input.
+    result = truncated_to(length, "x" * 100)
+
+    assert result != "x" * 100
+    assert len(result) < 100
+    assert "additional characters" in result
