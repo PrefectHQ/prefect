@@ -309,14 +309,22 @@ async def bulk_decrement_active_slots(
         query = query.values(
             # Update the average occupancy seconds per slot as a weighted
             # average over the last `limit * OCCUPANCY_SAMPLE_MULTIPLIER` samples.
-            avg_slot_occupancy_seconds=db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
-            + (
-                occupancy_seconds_per_slot
-                / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
-            )
-            - (
-                db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
-                / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+            # A held slot can be released after its limit is changed to 0, so
+            # keep the current average instead of dividing by zero.
+            avg_slot_occupancy_seconds=sa.case(
+                (
+                    db.ConcurrencyLimitV2.limit > 0,
+                    db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
+                    + (
+                        occupancy_seconds_per_slot
+                        / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+                    )
+                    - (
+                        db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
+                        / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+                    ),
+                ),
+                else_=db.ConcurrencyLimitV2.avg_slot_occupancy_seconds,
             ),
         )
 
