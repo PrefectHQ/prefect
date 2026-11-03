@@ -1329,6 +1329,39 @@ async def test_decrement_with_lease_while_inactive_returns_slot(
     assert response.status_code == 200
 
 
+@pytest.mark.parametrize("active", [True, False], ids=["active", "inactive"])
+async def test_decrement_with_lease_after_limit_set_to_zero(
+    client: AsyncClient,
+    active: bool,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/",
+        json={"name": "zeroed_limit", "limit": 1},
+    )
+    assert response.status_code == 201
+    limit_id = response.json()["id"]
+
+    acquire = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["zeroed_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert acquire.status_code == 200
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"limit": 0, "active": active}
+    )
+    assert response.status_code == 204
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": acquire.json()["lease_id"]},
+    )
+    assert response.status_code == 204
+
+    limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
+    assert limit.json()["active_slots"] == 0
+
+
 async def test_decrement_with_lease_without_incremented_limit_ids(
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
