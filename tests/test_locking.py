@@ -119,9 +119,12 @@ class TestMemoryLockManager:
     def test_release_lock_after_hold_timeout_expiry(self):
         key = str(uuid4())
         manager = MemoryLockManager()
-        assert manager.acquire_lock(key=key, holder="holder1", hold_timeout=0.1)
+        assert manager.acquire_lock(key=key, holder="holder1")
         assert manager.is_locked(key=key)
-        sleep(0.2)  # the expiration timer releases the lock and drops the entry
+        # trigger the expiration timer's callback synchronously (what a
+        # hold_timeout would fire asynchronously) so the test has no timing
+        # dependence on the scheduler
+        manager._expire_lock(key)
         assert not manager.is_locked(key=key)
         # releasing a lock that has expired is a no-op, not an error, matching
         # RedisLockManager.release_lock
