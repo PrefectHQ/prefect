@@ -3407,6 +3407,110 @@ class TestFlowHooksWithKwargs:
         assert data == dict(name="hook", state=state, kwargs={"foo": 42})
 
 
+def _hooks_by_signature(received: list[tuple[Any, Any, Any]]) -> dict[str, Any]:
+    def alternate_names(flow_, run, state_):
+        received.append((flow_, run, state_))
+
+    def documented_run_name(flow, run, state):
+        received.append((flow, run, state))
+
+    def keyword_only(*, flow, flow_run, state):
+        received.append((flow, flow_run, state))
+
+    def reordered_names(state, flow, flow_run):
+        received.append((flow, flow_run, state))
+
+    async def async_keyword_only(*, flow, flow_run, state):
+        received.append((flow, flow_run, state))
+
+    return {
+        hook.__name__: hook
+        for hook in (
+            alternate_names,
+            documented_run_name,
+            keyword_only,
+            reordered_names,
+            async_keyword_only,
+        )
+    }
+
+
+HOOK_SIGNATURES = [
+    "alternate_names",
+    "documented_run_name",
+    "keyword_only",
+    "reordered_names",
+    "async_keyword_only",
+]
+
+
+class TestFlowHookSignatures:
+    @pytest.mark.parametrize("signature", HOOK_SIGNATURES)
+    def test_hook_receives_flow_flow_run_and_state(self, signature: str):
+        received: list[tuple[Any, Any, Any]] = []
+
+        @flow(on_completion=[_hooks_by_signature(received)[signature]])
+        def foo_flow():
+            pass
+
+        state = foo_flow(return_state=True)
+
+        assert len(received) == 1
+        hook_flow, hook_flow_run, hook_state = received[0]
+        assert hook_flow is foo_flow
+        assert hook_flow_run.id == state.state_details.flow_run_id
+        assert hook_state == state
+
+    @pytest.mark.parametrize("signature", HOOK_SIGNATURES)
+    async def test_hook_receives_flow_flow_run_and_state_in_async_flow(
+        self, signature: str
+    ):
+        received: list[tuple[Any, Any, Any]] = []
+
+        @flow(on_completion=[_hooks_by_signature(received)[signature]])
+        async def foo_flow():
+            pass
+
+        state = await foo_flow(return_state=True)
+
+        assert len(received) == 1
+        hook_flow, hook_flow_run, hook_state = received[0]
+        assert hook_flow is foo_flow
+        assert hook_flow_run.id == state.state_details.flow_run_id
+        assert hook_state == state
+
+    def test_hook_that_raises_type_error_runs_once(self, caplog):
+        calls: list[Any] = []
+
+        def hook(flow, flow_run, state):
+            calls.append(state)
+            raise TypeError("raised inside the hook")
+
+        @flow(on_completion=[hook])
+        def foo_flow():
+            pass
+
+        foo_flow()
+
+        assert len(calls) == 1
+        assert "raised inside the hook" in caplog.text
+
+    def test_hook_with_incompatible_signature_is_not_called(self, caplog):
+        calls: list[Any] = []
+
+        def hook(flow, flow_run):
+            calls.append(flow_run)
+
+        @flow(on_completion=[hook])
+        def foo_flow():
+            pass
+
+        foo_flow()
+
+        assert calls == []
+        assert "must accept the flow, the flow run and the state" in caplog.text
+
+
 class TestFlowHooksOnCompletion:
     def test_noniterable_hook_raises(self):
         def completion_hook():

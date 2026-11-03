@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.metadata
+import logging
 import os
 import sys
 from pathlib import Path
@@ -131,19 +132,85 @@ def test_engine_bootstrap_uses_legacy_engine_without_flow_engine_module(
     assert os.environ["PREFECT__FLOW_ENTRYPOINT"] == "flows.py:original"
 
 
-async def test_run_hooks_passes_arguments_positionally():
-    calls: list[tuple[object, ...]] = []
+@pytest.mark.parametrize(
+    "signature",
+    [
+        "alternate_names",
+        "documented_run_name",
+        "keyword_only",
+        "reordered_names",
+        "async_keyword_only",
+    ],
+)
+async def test_run_hooks_passes_flow_flow_run_and_state_to_each_signature(
+    signature: str,
+):
+    received: list[tuple[object, object, object]] = []
 
-    def sync_hook(flow_, run, state_):
-        calls.append((flow_, run, state_))
+    def alternate_names(flow_, run, state_):
+        received.append((flow_, run, state_))
 
-    async def async_hook(flow_, run, state_):
-        calls.append((flow_, run, state_))
+    def documented_run_name(flow, run, state):
+        received.append((flow, run, state))
 
+    def keyword_only(*, flow, flow_run, state):
+        received.append((flow, flow_run, state))
+
+    def reordered_names(state, flow, flow_run):
+        received.append((flow, flow_run, state))
+
+    async def async_keyword_only(*, flow, flow_run, state):
+        received.append((flow, flow_run, state))
+
+    hooks = {
+        hook.__name__: hook
+        for hook in (
+            alternate_names,
+            documented_run_name,
+            keyword_only,
+            reordered_names,
+            async_keyword_only,
+        )
+    }
     flow_run, flow, state = MagicMock(), MagicMock(), MagicMock()
 
     await _workspace_runtime_bootstrap._run_hooks(
-        [sync_hook, async_hook], flow_run, flow, state
+        [hooks[signature]], flow_run, flow, state
     )
 
-    assert calls == [(flow, flow_run, state), (flow, flow_run, state)]
+    assert received == [(flow, flow_run, state)]
+
+
+async def test_run_hooks_runs_a_hook_that_raises_type_error_once(
+    caplog: pytest.LogCaptureFixture,
+):
+    calls: list[object] = []
+
+    def hook(flow, flow_run, state):
+        calls.append(state)
+        raise TypeError("raised inside the hook")
+
+    with caplog.at_level(logging.ERROR, logger="prefect.flow_runs"):
+        await _workspace_runtime_bootstrap._run_hooks(
+            [hook], MagicMock(), MagicMock(), MagicMock()
+        )
+
+    assert len(calls) == 1
+    assert "raised inside the hook" in caplog.text
+
+
+async def test_run_hooks_does_not_call_a_hook_with_an_incompatible_signature(
+    caplog: pytest.LogCaptureFixture,
+):
+    calls: list[object] = []
+
+    def hook(flow, flow_run):
+        calls.append(flow_run)
+
+    with caplog.at_level(logging.ERROR, logger="prefect.flow_runs"):
+        await _workspace_runtime_bootstrap._run_hooks(
+            [hook], MagicMock(), MagicMock(), MagicMock()
+        )
+
+    assert calls == []
+    assert "must accept the flow, the flow run and the state" in caplog.text

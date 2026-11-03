@@ -109,6 +109,52 @@ async def _load_flow(manifest: dict[str, Any]) -> Flow[Any, Any]:
         return await _run_sync(load_function_and_convert_to_flow, entrypoint)
 
 
+def _flow_hook_arguments(
+    hook: Callable[..., Any],
+    flow: Flow[Any, Any],
+    flow_run: FlowRun,
+    state: State,
+) -> tuple[tuple[Any, ...], dict[str, Any]]:
+    # Same rule as `prefect._internal.engine.resolve_flow_hook_arguments`. This
+    # module runs with the flow's runtime, which may have an older Prefect
+    # without that function, so it keeps its own copy.
+    try:
+        signature = inspect.signature(hook)
+    except (TypeError, ValueError):
+        return (flow, flow_run, state), {}
+
+    def binds(*args: Any, **kwargs: Any) -> bool:
+        try:
+            signature.bind(*args, **kwargs)
+        except TypeError:
+            return False
+        return True
+
+    named = (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+    for flow_run_name in ("flow_run", "run"):
+        kwargs = {"flow": flow, flow_run_name: flow_run, "state": state}
+        declared = all(
+            name in signature.parameters and signature.parameters[name].kind in named
+            for name in kwargs
+        )
+        if declared and binds(**kwargs):
+            return (), kwargs
+
+    if binds(flow, flow_run, state):
+        return (flow, flow_run, state), {}
+
+    kwargs = {"flow": flow, "flow_run": flow_run, "state": state}
+    if binds(**kwargs):
+        return (), kwargs
+
+    hook_name = getattr(hook, "__name__", type(hook).__name__)
+    raise TypeError(
+        f"Hook {hook_name!r} must accept the flow, the flow run and the state as"
+        " three positional arguments or as parameters named `flow`, `flow_run`"
+        " (or `run`) and `state`"
+    )
+
+
 async def _run_hooks(
     hooks: list[Callable[..., Any]],
     flow_run: FlowRun,
@@ -121,9 +167,8 @@ async def _run_hooks(
     for hook in hooks:
         hook_name = getattr(hook, "__name__", type(hook).__name__)
         try:
-            # Positional, as the flow engine calls hooks: a hook that runs on
-            # failure must also run on crash, whatever its parameter names
-            result = await _run_sync(hook, flow, flow_run, state)
+            args, kwargs = _flow_hook_arguments(hook, flow, flow_run, state)
+            result = await _run_sync(functools.partial(hook, *args, **kwargs))
             if inspect.isawaitable(result):
                 await result
         except Exception:

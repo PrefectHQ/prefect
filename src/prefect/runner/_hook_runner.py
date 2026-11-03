@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Protocol
 
 from prefect._internal.concurrency.api import create_call, from_async
-from prefect._internal.engine import get_hook_name
+from prefect._internal.engine import get_hook_name, resolve_flow_hook_arguments
 from prefect.logging.loggers import flow_run_logger
 from prefect.utilities.asyncutils import is_async_fn
 
@@ -35,14 +35,11 @@ async def _run_hooks(
                 hook_name,
                 state.name,
             )
-            # Positional, as the flow engine calls hooks: a hook that runs on
-            # failure must also run on crash, whatever its parameter names
+            args, kwargs = resolve_flow_hook_arguments(hook, flow, flow_run, state)
             if is_async_fn(hook):
-                await hook(flow, flow_run, state)
+                await hook(*args, **kwargs)
             else:
-                await from_async.call_in_new_thread(
-                    create_call(hook, flow, flow_run, state)
-                )
+                await from_async.call_in_new_thread(create_call(hook, *args, **kwargs))
         except Exception:
             logger.error(
                 "An error was encountered while running hook %r",

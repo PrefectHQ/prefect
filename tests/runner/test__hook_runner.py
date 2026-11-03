@@ -76,22 +76,81 @@ class TestRunHooks:
         assert captured["flow_run"] is flow_run
         assert captured["state"] is state
 
-    async def test_run_hooks_passes_arguments_positionally(self):
-        calls: list[tuple[object, ...]] = []
+    @pytest.mark.parametrize(
+        "signature",
+        [
+            "alternate_names",
+            "documented_run_name",
+            "keyword_only",
+            "reordered_names",
+            "async_keyword_only",
+        ],
+    )
+    async def test_run_hooks_passes_flow_flow_run_and_state_to_each_signature(
+        self, signature
+    ):
+        received: list[tuple[object, object, object]] = []
 
-        def sync_hook(flow_, run, state_):
-            calls.append((flow_, run, state_))
+        def alternate_names(flow_, run, state_):
+            received.append((flow_, run, state_))
 
-        async def async_hook(flow_, run, state_):
-            calls.append((flow_, run, state_))
+        def documented_run_name(flow, run, state):
+            received.append((flow, run, state))
 
+        def keyword_only(*, flow, flow_run, state):
+            received.append((flow, flow_run, state))
+
+        def reordered_names(state, flow, flow_run):
+            received.append((flow, flow_run, state))
+
+        async def async_keyword_only(*, flow, flow_run, state):
+            received.append((flow, flow_run, state))
+
+        hooks = {
+            hook.__name__: hook
+            for hook in (
+                alternate_names,
+                documented_run_name,
+                keyword_only,
+                reordered_names,
+                async_keyword_only,
+            )
+        }
+        hook = hooks[signature]
         flow_run = _make_flow_run()
         flow = _make_flow()
         state = _make_state(name="Crashed")
 
-        await _run_hooks([sync_hook, async_hook], flow_run, flow, state)
+        await _run_hooks([hook], flow_run, flow, state)
 
-        assert calls == [(flow, flow_run, state), (flow, flow_run, state)]
+        assert received == [(flow, flow_run, state)]
+
+    async def test_run_hooks_runs_a_hook_that_raises_type_error_once(self, caplog):
+        calls: list[object] = []
+
+        def hook(flow, flow_run, state):
+            calls.append(state)
+            raise TypeError("raised inside the hook")
+
+        with caplog.at_level(logging.ERROR, logger="prefect.flow_runs"):
+            await _run_hooks([hook], _make_flow_run(), _make_flow(), _make_state())
+
+        assert len(calls) == 1
+        assert "raised inside the hook" in caplog.text
+
+    async def test_run_hooks_does_not_call_a_hook_with_an_incompatible_signature(
+        self, caplog
+    ):
+        calls: list[object] = []
+
+        def hook(flow, flow_run):
+            calls.append(flow_run)
+
+        with caplog.at_level(logging.ERROR, logger="prefect.flow_runs"):
+            await _run_hooks([hook], _make_flow_run(), _make_flow(), _make_state())
+
+        assert calls == []
+        assert "must accept the flow, the flow run and the state" in caplog.text
 
     async def test_run_hooks_logs_hook_name_on_start(self, caplog):
         flow_run = _make_flow_run()

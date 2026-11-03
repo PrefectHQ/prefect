@@ -1,5 +1,6 @@
 """Internal engine utilities"""
 
+import inspect
 from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any, Union
@@ -8,6 +9,9 @@ from uuid import uuid4
 from prefect.context import FlowRunContext
 from prefect.flows import Flow
 from prefect.tasks import Task, TaskRunNameCallbackWithParameters
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import FlowRun, State
 
 
 def dynamic_key_for_task_run(
@@ -92,4 +96,59 @@ def get_hook_name(hook: Callable[..., Any]) -> str:
         else (
             hook.func.__name__ if isinstance(hook, partial) else hook.__class__.__name__
         )
+    )
+
+
+def resolve_flow_hook_arguments(
+    hook: Callable[..., Any],
+    flow: "Flow[..., Any]",
+    flow_run: "FlowRun",
+    state: "State",
+) -> tuple[tuple[Any, ...], dict[str, Any]]:
+    """
+    Return the positional and keyword arguments to call a flow state hook with,
+    checking its signature without calling it.
+
+    A hook that names its parameters `flow`, `flow_run` (or `run`) and `state`
+    gets them by name, in any order and including keyword-only parameters.
+    Otherwise, a hook that takes three positional arguments gets them in that
+    order, whatever their names, and a hook that only takes keyword arguments
+    gets them by name.
+
+    Raises:
+        TypeError: if the hook accepts none of these forms.
+    """
+    try:
+        signature = inspect.signature(hook)
+    except (TypeError, ValueError):
+        return (flow, flow_run, state), {}
+
+    def binds(*args: Any, **kwargs: Any) -> bool:
+        try:
+            signature.bind(*args, **kwargs)
+        except TypeError:
+            return False
+        return True
+
+    named = (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+    for flow_run_name in ("flow_run", "run"):
+        kwargs = {"flow": flow, flow_run_name: flow_run, "state": state}
+        declared = all(
+            name in signature.parameters and signature.parameters[name].kind in named
+            for name in kwargs
+        )
+        if declared and binds(**kwargs):
+            return (), kwargs
+
+    if binds(flow, flow_run, state):
+        return (flow, flow_run, state), {}
+
+    kwargs = {"flow": flow, "flow_run": flow_run, "state": state}
+    if binds(**kwargs):
+        return (), kwargs
+
+    raise TypeError(
+        f"Hook {get_hook_name(hook)!r} must accept the flow, the flow run and the"
+        " state as three positional arguments or as parameters named `flow`,"
+        " `flow_run` (or `run`) and `state`"
     )
