@@ -1240,6 +1240,118 @@ async def test_decrement_concurrency_limit_with_lease(
     assert refreshed_limit.json()["active_slots"] == 0
 
 
+async def test_decrement_with_lease_taken_while_inactive_keeps_other_holders_slot(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/",
+        json={"name": "toggled_limit", "limit": 1, "active": False},
+    )
+    assert response.status_code == 201
+    limit_id = response.json()["id"]
+
+    inactive_acquire = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert inactive_acquire.status_code == 200
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"active": True}
+    )
+    assert response.status_code == 204
+
+    active_acquire = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert active_acquire.status_code == 200
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": inactive_acquire.json()["lease_id"]},
+    )
+    assert response.status_code == 204
+
+    limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
+    assert limit.json()["active_slots"] == 1
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 423
+
+
+async def test_decrement_with_lease_while_inactive_returns_slot(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/",
+        json={"name": "toggled_limit", "limit": 1},
+    )
+    assert response.status_code == 201
+    limit_id = response.json()["id"]
+
+    acquire = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert acquire.status_code == 200
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"active": False}
+    )
+    assert response.status_code == 204
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": acquire.json()["lease_id"]},
+    )
+    assert response.status_code == 204
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"active": True}
+    )
+    assert response.status_code == 204
+
+    limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
+    assert limit.json()["active_slots"] == 0
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+
+
+async def test_decrement_with_lease_without_incremented_limit_ids(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/increment",
+        json={"names": [concurrency_limit.name], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+
+    # The shape of a lease written before leases recorded the limits they incremented
+    lease = await get_concurrency_lease_storage().create_lease(
+        resource_ids=[concurrency_limit.id],
+        ttl=timedelta(minutes=5),
+        metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+    )
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": str(lease.id)},
+    )
+    assert response.status_code == 204
+
+    limit = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
+    assert limit.json()["active_slots"] == 0
+
+
 async def test_renew_concurrency_lease(
     expiring_concurrency_lease: ResourceLease[ConcurrencyLimitLeaseMetadata],
     client: AsyncClient,
