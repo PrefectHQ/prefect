@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { mockPointerEvents } from "@tests/utils/browser";
-import { expect, test, vi } from "vitest";
+import { mockBrowserTimezone, mockPointerEvents } from "@tests/utils/browser";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { TimezoneSelect } from "./timezone-select";
 
@@ -79,4 +79,34 @@ test("TimezoneSelect selects the canonical UTC option", async () => {
 	await user.click(screen.getByRole("option", { name: /^utc$/i }));
 
 	expect(mockOnSelectFn).toBeCalledWith("UTC");
+});
+
+describe("when the browser reports no time zone", () => {
+	beforeEach(() => {
+		mockBrowserTimezone(undefined);
+		vi.resetModules();
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test("TimezoneSelect renders with UTC as the only suggested timezone", async () => {
+		mockPointerEvents();
+		const user = userEvent.setup();
+		const { TimezoneSelect: TimezoneSelectWithoutBrowserTimezone } =
+			await import("./timezone-select");
+
+		render(
+			<TimezoneSelectWithoutBrowserTimezone
+				onSelect={vi.fn()}
+				selectedValue=""
+			/>,
+		);
+
+		await user.click(screen.getByLabelText(/select timezone/i));
+
+		expect(screen.getByText(/suggested timezones/i)).toBeVisible();
+		expect(screen.getAllByRole("option", { name: /^utc$/i })).toHaveLength(1);
+	});
 });

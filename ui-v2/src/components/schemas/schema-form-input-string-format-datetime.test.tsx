@@ -1,7 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { mockPointerEvents } from "@tests/utils/browser";
-import { beforeAll, describe, expect, test, vi } from "vitest";
+import { mockBrowserTimezone, mockPointerEvents } from "@tests/utils/browser";
+import {
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+	vi,
+} from "vitest";
 import { SchemaFormInputStringFormatDateTime } from "./schema-form-input-string-format-datetime";
 
 describe("SchemaFormInputStringFormatDateTime", () => {
@@ -128,5 +136,30 @@ describe("SchemaFormInputStringFormatDateTime", () => {
 
 		const dateButton = screen.getByRole("button", { name: /MM\/DD\/YYYY/i });
 		expect(dateButton).toHaveAttribute("id", "my-custom-id");
+	});
+});
+
+describe("SchemaFormInputStringFormatDateTime when the browser reports no time zone", () => {
+	beforeAll(mockPointerEvents);
+
+	beforeEach(() => {
+		mockBrowserTimezone(undefined);
+		vi.resetModules();
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test("defaults the timezone to UTC", async () => {
+		const { SchemaFormInputStringFormatDateTime: Input } = await import(
+			"./schema-form-input-string-format-datetime"
+		);
+
+		render(<Input value={undefined} onValueChange={vi.fn()} id="test-id" />);
+
+		expect(
+			screen.getByRole("button", { name: /select timezone/i }),
+		).toHaveTextContent("UTC");
 	});
 });
