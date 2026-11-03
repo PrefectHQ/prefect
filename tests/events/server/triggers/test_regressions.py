@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import PrefectDBInterface
+from prefect.server.database.orm_models import ORMAutomationBucket
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automations
 from prefect.server.events.schemas.automations import (
@@ -1142,3 +1143,147 @@ async def test_increment_bucket_returns_fresh_bucket_from_identity_map(
 
     assert incremented is bucket
     assert incremented.count == 3
+
+
+async def test_threshold_1_after_and_expect_firing_exposes_firing_event_not_arming_event(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    reactive_extended_expect_and_after: Automation,
+):
+    """The arming event of an after+expect trigger must not be retained:
+    with threshold 1, the firing's triggering events would otherwise
+    contain only the arming event and omit the payload that actually
+    caused the firing."""
+    arming = Event(
+        occurred=frozen_time + timedelta(seconds=1),
+        event="some-event",
+        resource={"prefect.resource.id": "some.resource"},
+        payload={"seq": 1},
+        id=uuid4(),
+    ).receive()
+    await triggers.reactive_evaluation(arming)
+    act.assert_not_awaited()
+
+    firing_event = Event(
+        occurred=frozen_time + timedelta(seconds=2),
+        event="some-event",
+        resource={"prefect.resource.id": "some.resource"},
+        payload={"seq": 2},
+        id=uuid4(),
+    ).receive()
+    await triggers.reactive_evaluation(firing_event)
+    act.assert_awaited_once()
+
+    firing = act.await_args_list[0][0][0]
+    assert isinstance(firing, Firing)
+    assert [event.id for event in firing.triggering_events] == [firing_event.id]
+    assert firing.triggering_event.id == firing_event.id
+
+
+async def test_increment_bucket_does_not_lose_events_from_stale_snapshot(
+    start_of_test: DateTime,
+    bucketed_automation: Automation,
+    automations_session: AsyncSession,
+):
+    """Two handlers building the retained list from the same snapshot must
+    not lose a payload: the second writer's list used to replace the
+    first's while the count still incremented atomically."""
+    trigger = bucketed_automation.trigger
+    assert isinstance(trigger, EventTrigger)
+
+    first = Event(
+        occurred=start_of_test,
+        event="counted-event",
+        resource={"prefect.resource.id": "some.resource"},
+        id=uuid4(),
+    ).receive()
+    bucket = await triggers.start_new_bucket(
+        automations_session,
+        trigger,
+        bucketing_key=(),
+        start=start_of_test,
+        end=start_of_test + timedelta(hours=1),
+        count=1,
+        triggering_events=[first],
+    )
+
+    second = Event(
+        occurred=start_of_test + timedelta(seconds=1),
+        event="counted-event",
+        resource={"prefect.resource.id": "some.resource"},
+        id=uuid4(),
+    ).receive()
+    await triggers.increment_bucket(
+        automations_session, bucket, count=1, last_event=second, max_events=1000
+    )
+
+    # A handler still holding the pre-second-increment snapshot.
+    stale = ORMAutomationBucket(
+        automation_id=bucketed_automation.id,
+        trigger_id=trigger.id,
+        bucketing_key=[],
+        start=start_of_test,
+        end=start_of_test + timedelta(hours=1),
+        count=1,
+        triggering_events=[first],
+    )
+    third = Event(
+        occurred=start_of_test + timedelta(seconds=2),
+        event="counted-event",
+        resource={"prefect.resource.id": "some.resource"},
+        id=uuid4(),
+    ).receive()
+    incremented = await triggers.increment_bucket(
+        automations_session, stale, count=1, last_event=third, max_events=1000
+    )
+    assert incremented.count == 3
+    assert [event.id for event in incremented.triggering_events] == [
+        first.id,
+        second.id,
+        third.id,
+    ]
+
+
+async def test_increment_bucket_caps_retained_events_independently_of_threshold(
+    start_of_test: DateTime,
+    bucketed_automation: Automation,
+    automations_session: AsyncSession,
+):
+    """A large threshold must not grow the retained list without bound:
+    retention is capped at MAX_RETAINED_TRIGGERING_EVENTS even when the
+    threshold is larger, while the count itself stays exact."""
+    trigger = bucketed_automation.trigger
+    assert isinstance(trigger, EventTrigger)
+
+    retained = [
+        Event(
+            occurred=start_of_test + timedelta(milliseconds=i),
+            event="counted-event",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+        for i in range(120)
+    ]
+    bucket = await triggers.start_new_bucket(
+        automations_session,
+        trigger,
+        bucketing_key=(),
+        start=start_of_test,
+        end=start_of_test + timedelta(hours=1),
+        count=len(retained),
+        triggering_events=retained,
+    )
+    new_event = Event(
+        occurred=start_of_test + timedelta(seconds=1),
+        event="counted-event",
+        resource={"prefect.resource.id": "some.resource"},
+        id=uuid4(),
+    ).receive()
+    incremented = await triggers.increment_bucket(
+        automations_session, bucket, count=1, last_event=new_event, max_events=1000
+    )
+    assert incremented.count == len(retained) + 1
+    assert len(incremented.triggering_events) == triggers.MAX_RETAINED_TRIGGERING_EVENTS
+    assert [event.id for event in incremented.triggering_events] == [
+        event.id for event in retained[: triggers.MAX_RETAINED_TRIGGERING_EVENTS]
+    ]

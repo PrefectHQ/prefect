@@ -1029,6 +1029,7 @@ async def read_bucket_by_trigger_id(
     automation_id: UUID,
     trigger_id: UUID,
     bucketing_key: Tuple[str, ...],
+    for_update: bool = False,
 ) -> "ORMAutomationBucket | None":
     """Gets the bucket this event would fall into for the given Automation, if there is
     one currently"""
@@ -1041,6 +1042,12 @@ async def read_bucket_by_trigger_id(
         )
         .execution_options(populate_existing=True)
     )
+    if for_update:
+        # `with_for_update` on the session is for SQLite only (it makes
+        # SQLite `BEGIN IMMEDIATE`); for PostgreSQL, lock the row on read
+        # so a read-modify-write of the bucket cannot interleave with
+        # another handler's increment of the same bucket.
+        query = query.with_for_update()
     result = await session.execute(query)
     return result.scalars().first()
 
@@ -1067,6 +1074,17 @@ async def hold_expect_event(
     return await read_bucket(session, trigger, bucketing_key)
 
 
+# Hard cap on retained triggering events, independent of the trigger
+# threshold: a threshold has no upper bound, so capping retention at the
+# threshold alone lets a large threshold grow the stored JSON list without
+# bound (and every increment reserializes the whole list).  100 covers any
+# realistic automation threshold while bounding per-row storage and
+# per-increment reserialization work; a firing still fires on the exact
+# count, but for thresholds above the cap only the first 100 counted
+# events are exposed.
+MAX_RETAINED_TRIGGERING_EVENTS = 100
+
+
 @db_injector
 async def increment_bucket(
     db: PrefectDBInterface,
@@ -1080,18 +1098,50 @@ async def increment_bucket(
     counted event is retained in the bucket, one entry per counted
     evaluation, so the firing can expose every contributing event; the
     list mirrors the count, with no deduplication by id, because the
-    count itself increments per evaluation.  The retained list is
-    capped at `max_events` (the trigger threshold): a reactive trigger
-    fires as soon as the threshold is met, and a proactive trigger only
-    fires while its count is below the threshold, so events past the cap
-    can never appear in a firing, and the bucket cannot grow without
-    bound on a long window.  The bucket is deleted when it fires or
-    expires, so retained events are cleaned up with it."""
+    count itself increments per evaluation.
+
+    The bucket row is re-read under a write lock before the list is
+    built: the upsert increments `count` atomically, but the retained
+    list is built from the caller's snapshot, so two concurrent handlers
+    would otherwise let the second writer's list replace the first's
+    while the count still reaches the threshold.  On PostgreSQL the
+    session's `with_for_update` flag is ignored (it only makes SQLite
+    `BEGIN IMMEDIATE`), so the lock is taken on the read itself.
+
+    An event that only arms a bucket opened at `initial_count=-1` (the
+    same event matching both `after` and `expect`) is not retained: it
+    nets the count to zero, so keeping it would let a threshold-1 firing
+    expose only the arming event and omit the payload that actually
+    caused the firing.
+
+    The retained list is capped at `max_events` (the trigger threshold)
+    and at `MAX_RETAINED_TRIGGERING_EVENTS`, whichever is smaller: a
+    reactive trigger fires as soon as the threshold is met, and a
+    proactive trigger only fires while its count is below the threshold,
+    so events past the threshold cap can never appear in a firing, and
+    the hard cap keeps a large threshold from growing the stored list
+    without bound.  The bucket is deleted when it fires or expires, so
+    retained events are cleaned up with it."""
+    # Re-read under a write lock so the list is built from the latest
+    # committed row, not the caller's possibly stale snapshot.
+    locked_bucket = await read_bucket_by_trigger_id(
+        session,
+        bucket.automation_id,
+        bucket.trigger_id,
+        tuple(bucket.bucketing_key),
+        for_update=True,
+    )
+    if locked_bucket is not None:
+        bucket = locked_bucket
     triggering_events = list(bucket.triggering_events or [])
-    if last_event:
+    if last_event and bucket.count + count > 0:
         triggering_events.append(last_event)
-    if max_events is not None:
-        triggering_events = triggering_events[:max_events]
+    effective_cap = (
+        min(max_events, MAX_RETAINED_TRIGGERING_EVENTS)
+        if max_events is not None
+        else MAX_RETAINED_TRIGGERING_EVENTS
+    )
+    triggering_events = triggering_events[:effective_cap]
     additional_updates: dict[str, object] = (
         {"last_event": last_event} if last_event else {}
     )
