@@ -202,8 +202,10 @@ class TestConcurrencyLeaseStorage:
         assert renewed_lease is not None
         assert renewed_lease.expiration > original_expiration
 
-    @pytest.mark.parametrize("incremented_count", [1, 0])
-    async def test_read_lease_with_incremented_limit_ids(
+    @pytest.mark.parametrize(
+        "incremented_count", [1, 0], ids=["one-limit", "no-limits"]
+    )
+    async def test_incremented_limit_ids_survive_renewal(
         self, storage: ConcurrencyLeaseStorage, incremented_count: int
     ):
         resource_ids = [uuid4(), uuid4()]

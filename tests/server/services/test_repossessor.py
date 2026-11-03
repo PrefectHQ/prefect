@@ -4,7 +4,6 @@ from uuid import UUID, uuid4
 
 import pytest
 from docket import Docket
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
@@ -17,7 +16,9 @@ from prefect.server.models.concurrency_limits_v2 import (
     bulk_increment_active_slots,
     bulk_read_concurrency_limits,
     create_concurrency_limit,
+    update_concurrency_limit,
 )
+from prefect.server.schemas.actions import ConcurrencyLimitV2Update
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.services.repossessor import (
     monitor_expired_leases,
@@ -301,83 +302,86 @@ class TestRevokeExpiredLease:
     async def test_revoke_expired_lease_taken_while_inactive_keeps_other_holders_slot(
         self,
         lease_storage: ConcurrencyLeaseStorage,
-        client: AsyncClient,
+        session: AsyncSession,
     ):
-        response = await client.post(
-            "/v2/concurrency_limits/",
-            json={"name": "toggled_limit", "limit": 1, "active": False},
+        limit = await create_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2(
+                name="toggled_limit", limit=1, active=False
+            ),
         )
-        assert response.status_code == 201
-        limit_id = response.json()["id"]
+        await session.commit()
 
-        inactive_acquire = await client.post(
-            "/v2/concurrency_limits/increment-with-lease",
-            json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+        # Acquired while the limit was inactive, so the acquire incremented nothing
+        lease = await lease_storage.create_lease(
+            resource_ids=[limit.id],
+            ttl=timedelta(minutes=5),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1, incremented_limit_ids=[]),
         )
-        assert inactive_acquire.status_code == 200
-        lease_id = UUID(inactive_acquire.json()["lease_id"])
 
-        response = await client.patch(
-            f"/v2/concurrency_limits/{limit_id}", json={"active": True}
+        assert await update_concurrency_limit(
+            session=session,
+            concurrency_limit_id=limit.id,
+            concurrency_limit=ConcurrencyLimitV2Update(active=True),
         )
-        assert response.status_code == 204
+        assert await bulk_increment_active_slots(session, [limit.id], 1)
+        await session.commit()
 
-        active_acquire = await client.post(
-            "/v2/concurrency_limits/increment-with-lease",
-            json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
-        )
-        assert active_acquire.status_code == 200
-
-        assert await lease_storage.renew_lease(lease_id, timedelta(seconds=-1))
+        assert await lease_storage.renew_lease(lease.id, timedelta(seconds=-1))
         await revoke_expired_lease(
-            lease_id,
+            lease.id,
             db=provide_database_interface(),
             lease_storage=lease_storage,
         )
-        assert await lease_storage.read_lease(lease_id) is None
+        assert await lease_storage.read_lease(lease.id) is None
 
-        limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
-        assert limit.json()["active_slots"] == 1
+        await session.refresh(limit)
+        assert limit.active_slots == 1
 
     async def test_revoke_expired_lease_while_inactive_returns_slot(
         self,
         lease_storage: ConcurrencyLeaseStorage,
-        client: AsyncClient,
+        session: AsyncSession,
     ):
-        response = await client.post(
-            "/v2/concurrency_limits/",
-            json={"name": "toggled_limit", "limit": 1},
+        limit = await create_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2(name="toggled_limit", limit=1),
         )
-        assert response.status_code == 201
-        limit_id = response.json()["id"]
+        assert await bulk_increment_active_slots(session, [limit.id], 1)
+        await session.commit()
 
-        acquire = await client.post(
-            "/v2/concurrency_limits/increment-with-lease",
-            json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+        lease = await lease_storage.create_lease(
+            resource_ids=[limit.id],
+            ttl=timedelta(minutes=5),
+            metadata=ConcurrencyLimitLeaseMetadata(
+                slots=1, incremented_limit_ids=[limit.id]
+            ),
         )
-        assert acquire.status_code == 200
-        lease_id = UUID(acquire.json()["lease_id"])
 
-        response = await client.patch(
-            f"/v2/concurrency_limits/{limit_id}", json={"active": False}
+        assert await update_concurrency_limit(
+            session=session,
+            concurrency_limit_id=limit.id,
+            concurrency_limit=ConcurrencyLimitV2Update(active=False),
         )
-        assert response.status_code == 204
+        await session.commit()
 
-        assert await lease_storage.renew_lease(lease_id, timedelta(seconds=-1))
+        assert await lease_storage.renew_lease(lease.id, timedelta(seconds=-1))
         await revoke_expired_lease(
-            lease_id,
+            lease.id,
             db=provide_database_interface(),
             lease_storage=lease_storage,
         )
-        assert await lease_storage.read_lease(lease_id) is None
+        assert await lease_storage.read_lease(lease.id) is None
 
-        response = await client.patch(
-            f"/v2/concurrency_limits/{limit_id}", json={"active": True}
+        assert await update_concurrency_limit(
+            session=session,
+            concurrency_limit_id=limit.id,
+            concurrency_limit=ConcurrencyLimitV2Update(active=True),
         )
-        assert response.status_code == 204
+        await session.commit()
 
-        limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
-        assert limit.json()["active_slots"] == 0
+        await session.refresh(limit)
+        assert limit.active_slots == 0
 
 
 class TestMonitorExpiredLeases:

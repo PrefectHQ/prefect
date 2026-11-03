@@ -221,8 +221,10 @@ class TestFilesystemConcurrencyLeaseStorage:
             "id": read_lease.metadata.holder.id,
         }
 
-    @pytest.mark.parametrize("incremented_count", [1, 0])
-    async def test_read_lease_with_incremented_limit_ids(
+    @pytest.mark.parametrize(
+        "incremented_count", [1, 0], ids=["one-limit", "no-limits"]
+    )
+    async def test_incremented_limit_ids_survive_renewal(
         self,
         storage: ConcurrencyLeaseStorage,
         sample_resource_ids: list[UUID],
