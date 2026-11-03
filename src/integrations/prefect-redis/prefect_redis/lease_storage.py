@@ -109,6 +109,13 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 if hasattr(holder, "model_dump"):
                     holder = holder.model_dump(mode="json")  # type: ignore[attr-defined]
                 metadata_dict["holder"] = holder
+            incremented_limit_ids = getattr(
+                lease.metadata, "incremented_limit_ids", None
+            )
+            if incremented_limit_ids is not None:
+                metadata_dict["incremented_limit_ids"] = [
+                    str(limit_id) for limit_id in incremented_limit_ids
+                ]
 
         data = {
             "id": str(lease.id),
@@ -136,6 +143,22 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 except (AttributeError, TypeError):
                     logger.debug(
                         "Could not set holder on metadata type %s for lease %s",
+                        type(metadata).__name__,
+                        lease_data.get("id"),
+                    )
+            incremented_limit_ids = lease_data["metadata"].get("incremented_limit_ids")
+            if incremented_limit_ids is not None:
+                try:
+                    # renew_lease's Lua cjson round trip rewrites an empty list as {}
+                    setattr(
+                        metadata,
+                        "incremented_limit_ids",
+                        [UUID(limit_id) for limit_id in incremented_limit_ids or []],
+                    )
+                except (AttributeError, TypeError, ValueError):
+                    logger.debug(
+                        "Could not set incremented_limit_ids on metadata type %s "
+                        "for lease %s",
                         type(metadata).__name__,
                         lease_data.get("id"),
                     )

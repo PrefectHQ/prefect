@@ -17,7 +17,9 @@ from prefect.server.concurrency.lease_storage import (
     get_concurrency_lease_storage,
 )
 from prefect.server.database import PrefectDBInterface, provide_database_interface
-from prefect.server.models.concurrency_limits_v2 import bulk_decrement_active_slots
+from prefect.server.models.concurrency_limits_v2 import (
+    bulk_decrement_active_slots_for_lease,
+)
 from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings.context import get_current_settings
 
@@ -63,10 +65,9 @@ async def revoke_expired_lease(
     )
 
     async with db.session_context(begin_transaction=True) as session:
-        await bulk_decrement_active_slots(
+        await bulk_decrement_active_slots_for_lease(
             session=session,
-            concurrency_limit_ids=expired_lease.resource_ids,
-            slots=expired_lease.metadata.slots,
+            lease=expired_lease,
             occupancy_seconds=occupancy_seconds,
         )
         await lease_storage.revoke_lease(lease_id)
