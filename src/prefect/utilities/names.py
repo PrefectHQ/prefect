@@ -32,7 +32,17 @@ def generate_slug(n_words: int) -> str:
 
     Args:
         - n_words (int): the number of words in the slug
+
+    Raises:
+        - ValueError: if `n_words` is not an integer of at least 2, the
+            minimum number of words the generator can produce.
     """
+    if not isinstance(n_words, int) or n_words < 2:
+        raise ValueError(
+            f"Invalid number of words for slug: {n_words!r}."
+            " A slug must contain at least 2 words."
+        )
+
     words = coolname.generate(n_words)
 
     # regenerate words if they include ignored words
