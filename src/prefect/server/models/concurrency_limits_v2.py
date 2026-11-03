@@ -332,17 +332,19 @@ async def bulk_decrement_active_slots(
 async def bulk_decrement_active_slots_for_lease(
     session: AsyncSession,
     lease: ResourceLease[ConcurrencyLimitLeaseMetadata],
+    slots: int,
     occupancy_seconds: Optional[float] = None,
 ) -> bool:
     """
-    Return the slots a lease holds to the limits its acquire counted them on.
+    Release `slots` for a lease from the limits its acquire counted them on.
 
     A lease that records `incremented_limit_ids` decrements exactly those limits,
     whether or not they are active now, so toggling a limit's `active` flag while
     the lease is held neither releases another holder's slot nor strands this one.
     A lease without that record decrements the active limits in `resource_ids`.
+    Callers pass `slots`, so each release path keeps its own default for a lease
+    without metadata.
     """
-    slots = lease.metadata.slots if lease.metadata else 0
     if lease.metadata and lease.metadata.incremented_limit_ids is not None:
         return await bulk_decrement_active_slots(
             session=session,

@@ -445,6 +445,7 @@ async def bulk_decrement_active_slots_with_lease(
         await models.concurrency_limits_v2.bulk_decrement_active_slots_for_lease(
             session=session,
             lease=lease,
+            slots=lease.metadata.slots if lease.metadata else 0,
             occupancy_seconds=occupancy_seconds,
         )
     await lease_storage.revoke_lease(lease_id)

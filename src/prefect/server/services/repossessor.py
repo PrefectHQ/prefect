@@ -68,6 +68,7 @@ async def revoke_expired_lease(
         await bulk_decrement_active_slots_for_lease(
             session=session,
             lease=expired_lease,
+            slots=expired_lease.metadata.slots,
             occupancy_seconds=occupancy_seconds,
         )
         await lease_storage.revoke_lease(lease_id)
