@@ -149,11 +149,12 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             incremented_limit_ids = lease_data["metadata"].get("incremented_limit_ids")
             if incremented_limit_ids is not None:
                 try:
-                    # renew_lease's Lua cjson round trip rewrites an empty list as {}
+                    # renew_lease's Lua cjson round trip rewrites an empty list as
+                    # {}, which iterates as empty
                     setattr(
                         metadata,
                         "incremented_limit_ids",
-                        [UUID(limit_id) for limit_id in incremented_limit_ids or []],
+                        [UUID(limit_id) for limit_id in incremented_limit_ids],
                     )
                 except (AttributeError, TypeError, ValueError):
                     logger.debug(

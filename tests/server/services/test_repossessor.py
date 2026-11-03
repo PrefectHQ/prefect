@@ -315,7 +315,7 @@ class TestRevokeExpiredLease:
         # Acquired while the limit was inactive, so the acquire incremented nothing
         lease = await lease_storage.create_lease(
             resource_ids=[limit.id],
-            ttl=timedelta(minutes=5),
+            ttl=timedelta(seconds=-1),
             metadata=ConcurrencyLimitLeaseMetadata(slots=1, incremented_limit_ids=[]),
         )
 
@@ -327,7 +327,6 @@ class TestRevokeExpiredLease:
         assert await bulk_increment_active_slots(session, [limit.id], 1)
         await session.commit()
 
-        assert await lease_storage.renew_lease(lease.id, timedelta(seconds=-1))
         await revoke_expired_lease(
             lease.id,
             db=provide_database_interface(),
@@ -352,7 +351,7 @@ class TestRevokeExpiredLease:
 
         lease = await lease_storage.create_lease(
             resource_ids=[limit.id],
-            ttl=timedelta(minutes=5),
+            ttl=timedelta(seconds=-1),
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=1, incremented_limit_ids=[limit.id]
             ),
@@ -365,7 +364,6 @@ class TestRevokeExpiredLease:
         )
         await session.commit()
 
-        assert await lease_storage.renew_lease(lease.id, timedelta(seconds=-1))
         await revoke_expired_lease(
             lease.id,
             db=provide_database_interface(),

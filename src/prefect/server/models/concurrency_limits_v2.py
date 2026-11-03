@@ -342,8 +342,6 @@ async def bulk_decrement_active_slots_for_lease(
     whether or not they are active now, so toggling a limit's `active` flag while
     the lease is held neither releases another holder's slot nor strands this one.
     A lease without that record decrements the active limits in `resource_ids`.
-    Callers pass `slots`, so each release path keeps its own default for a lease
-    without metadata.
     """
     if lease.metadata and lease.metadata.incremented_limit_ids is not None:
         return await bulk_decrement_active_slots(
