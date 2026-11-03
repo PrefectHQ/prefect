@@ -287,14 +287,11 @@ async def bulk_decrement_active_slots(
     slots: int,
     occupancy_seconds: Optional[float] = None,
 ) -> bool:
+    # Released slots return even if the limit was disabled after they were
+    # acquired; otherwise they stay counted when the limit is enabled again.
     query = (
         sa.update(db.ConcurrencyLimitV2)
-        .where(
-            sa.and_(
-                db.ConcurrencyLimitV2.id.in_(concurrency_limit_ids),
-                db.ConcurrencyLimitV2.active == True,  # noqa
-            )
-        )
+        .where(db.ConcurrencyLimitV2.id.in_(concurrency_limit_ids))
         .values(
             active_slots=sa.case(
                 (active_slots_after_decay(db) - slots < 0, 0),

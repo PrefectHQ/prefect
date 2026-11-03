@@ -16,7 +16,9 @@ from prefect.server.models.concurrency_limits_v2 import (
     bulk_increment_active_slots,
     bulk_read_concurrency_limits,
     create_concurrency_limit,
+    update_concurrency_limit,
 )
+from prefect.server.schemas.actions import ConcurrencyLimitV2Update
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.services.repossessor import (
     monitor_expired_leases,
@@ -88,6 +90,34 @@ class TestRevokeExpiredLease:
         # Verify the slots were decremented
         limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
         assert len(limits) == 1
+        assert limits[0].active_slots == 0
+
+    async def test_revoke_expired_lease_for_inactive_limit(
+        self, lease_storage, concurrency_limit, session: AsyncSession
+    ):
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 2)
+        await update_concurrency_limit(
+            session,
+            ConcurrencyLimitV2Update(active=False),
+            concurrency_limit_id=concurrency_limit.id,
+        )
+        await session.commit()
+
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=2),
+        )
+
+        await revoke_expired_lease(
+            lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+
+        assert len(lease_storage.leases) == 0
+        limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
+        await session.refresh(limits[0])
         assert limits[0].active_slots == 0
 
     async def test_does_not_revoke_lease_renewed_after_expiry_scan(

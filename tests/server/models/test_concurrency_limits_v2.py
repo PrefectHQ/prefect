@@ -542,6 +542,27 @@ async def test_bulk_decrement_active_slots_clamped(
     assert refreshed.active_slots == 0
 
 
+async def test_bulk_decrement_active_slots_inactive_limit(
+    session: AsyncSession,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+):
+    await update_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2Update(active=False),
+        concurrency_limit_id=locked_concurrency_limit.id,
+    )
+
+    assert await bulk_decrement_active_slots(
+        session=session, concurrency_limit_ids=[locked_concurrency_limit.id], slots=1
+    )
+
+    refreshed = await read_concurrency_limit(
+        session=session, concurrency_limit_id=locked_concurrency_limit.id
+    )
+    assert refreshed
+    assert refreshed.active_slots == locked_concurrency_limit.limit - 1
+
+
 async def test_bulk_decrement_active_slots_updates_occupancy_seconds(
     session: AsyncSession,
     locked_concurrency_limit: ConcurrencyLimitV2,
