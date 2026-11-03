@@ -180,17 +180,17 @@ class MemoryLockManager(LockManager):
 
     def release_lock(self, key: str, holder: str) -> None:
         with self._locks_dict_lock:
-            if key in self._locks and self._locks[key]["holder"] == holder:
-                if (
-                    expiration_timer := self._locks[key]["expiration_timer"]
-                ) is not None:
-                    expiration_timer.cancel()
-                self._locks[key]["lock"].release()
-                del self._locks[key]
-            else:
+            if (lock_info := self._locks.get(key)) is None:
+                # The lock expired or was already released
+                return
+            if lock_info["holder"] != holder:
                 raise ValueError(
                     f"No lock held by {holder} for transaction with key {key}"
                 )
+            if (expiration_timer := lock_info["expiration_timer"]) is not None:
+                expiration_timer.cancel()
+            lock_info["lock"].release()
+            del self._locks[key]
 
     def is_locked(self, key: str) -> bool:
         return key in self._locks and self._locks[key]["lock"].locked()

@@ -195,7 +195,9 @@ class FileSystemLockManager(LockManager):
     def release_lock(self, key: str, holder: str) -> None:
         lock_path = self._lock_path_for_key(key)
         if not self.is_locked(key):
-            raise ValueError(f"No lock for transaction with key {key}")
+            # The lock expired or was already released
+            self._locks.pop(key, None)
+            return
         if self.is_lock_holder(key, holder):
             Path(lock_path).unlink(missing_ok=True)
             self._locks.pop(key, None)
