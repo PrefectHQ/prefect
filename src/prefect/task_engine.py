@@ -1872,6 +1872,10 @@ async def run_generator_task_async(
     )
 
     async with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+        # Set when the consumer closes the generator and its finalizer raises;
+        # deferred so the error escapes the run contexts without being treated
+        # as a retryable task failure (which would restart the task body).
+        deferred_close_error: Optional[BaseException] = None
         while engine.is_running():
             await engine.wait_until_ready()
             async with (
@@ -1905,12 +1909,24 @@ async def run_generator_task_async(
                     except (StopAsyncIteration, GeneratorExit) as exc:
                         await engine.handle_success(None, transaction=txn)
                         if isinstance(exc, GeneratorExit):
-                            gen.throw(exc)
+                            try:
+                                await gen.athrow(exc)
+                            except Exception as close_exc:
+                                # The consumer is closing the generator and its
+                                # finalizer raised. The task body must not run
+                                # again, so do not let the run contexts handle
+                                # this as a retryable failure; surface the error
+                                # to the consumer after the contexts exit, the
+                                # way a plain async generator does on aclose().
+                                deferred_close_error = close_exc
             raise_if_flow_run_suspension_requested()
 
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():
         await engine.result()
+
+    if deferred_close_error is not None:
+        raise deferred_close_error
 
 
 @overload
