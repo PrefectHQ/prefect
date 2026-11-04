@@ -116,7 +116,11 @@ class DockerImage:
         build_kwargs["stream_progress_to"] = self.stream_progress_to
 
         if self.dockerfile == "auto":
-            with generate_default_dockerfile():
+            with generate_default_dockerfile(
+                context=Path(build_kwargs["context"]).resolve()
+                if build_kwargs["context"]
+                else None
+            ):
                 build_image(**build_kwargs)
         else:
             build_kwargs["dockerfile"] = self.dockerfile
@@ -134,7 +138,9 @@ class DockerImage:
         build_kwargs["stream_progress_to"] = self.stream_progress_to
 
         if self.dockerfile == "auto":
-            with generate_default_dockerfile():
+            with generate_default_dockerfile(
+                context=Path(context).resolve() if context else None
+            ):
                 buildx_build_image(
                     context=context,
                     push=push,

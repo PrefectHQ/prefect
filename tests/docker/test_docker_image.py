@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import io
 import sys
+from pathlib import Path
+from typing import Any, Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -233,3 +235,144 @@ class TestDockerImageBuildBackend:
         image.push()
 
         mock_client.api.push.assert_called_once()
+
+
+@pytest.mark.parametrize("build_backend", ["docker-py", "buildx"])
+class TestDockerImageBuildContext:
+    @pytest.fixture
+    def build_mock(
+        self, build_backend: str, monkeypatch: pytest.MonkeyPatch
+    ) -> MagicMock:
+        mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.docker.docker_image._ensure_buildx_extra", lambda: None
+        )
+        target = (
+            "prefect.docker.docker_image.build_image"
+            if build_backend == "docker-py"
+            else "prefect._internal.buildx.buildx_build_image"
+        )
+        monkeypatch.setattr(target, mock)
+        return mock
+
+    @pytest.mark.parametrize("relative_context", [False, True])
+    def test_auto_dockerfile_uses_build_context(
+        self,
+        build_backend: Literal["docker-py", "buildx"],
+        build_mock: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        relative_context: bool,
+    ):
+        monkeypatch.chdir(tmp_path)
+        context = tmp_path / "project"
+        context.mkdir()
+        (context / "requirements.txt").write_text("example-package\n")
+        # An unrelated Dockerfile in cwd must not prevent the build.
+        cwd_dockerfile = tmp_path / "Dockerfile"
+        cwd_dockerfile.write_text("FROM unrelated-image\n")
+
+        def inspect_build(**kwargs: Any) -> None:
+            assert Path(kwargs["context"]).resolve() == context
+            contents = (context / "Dockerfile").read_text()
+            assert (
+                "COPY requirements.txt /opt/prefect/project/requirements.txt"
+                in contents
+            )
+            assert "WORKDIR /opt/prefect/project/" in contents
+
+        build_mock.side_effect = inspect_build
+        image = DockerImage(
+            name="test-image",
+            tag="latest",
+            build_backend=build_backend,
+            context="project" if relative_context else context,
+        )
+        image.build()
+
+        build_mock.assert_called_once()
+        assert not (context / "Dockerfile").exists()
+        assert cwd_dockerfile.read_text() == "FROM unrelated-image\n"
+
+    def test_auto_dockerfile_removed_after_build_failure(
+        self,
+        build_backend: Literal["docker-py", "buildx"],
+        build_mock: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.chdir(tmp_path)
+        context = tmp_path / "project"
+        context.mkdir()
+
+        def fail_build(**kwargs: Any) -> None:
+            assert (context / "Dockerfile").is_file()
+            raise RuntimeError("Build failed")
+
+        build_mock.side_effect = fail_build
+        image = DockerImage(
+            name="test-image", build_backend=build_backend, context=context
+        )
+        with pytest.raises(RuntimeError, match="Build failed"):
+            image.build()
+
+        assert not (context / "Dockerfile").exists()
+        assert not (tmp_path / "Dockerfile").exists()
+
+    @pytest.mark.parametrize("context", [None, ".", Path(".")])
+    def test_auto_dockerfile_defaults_to_current_directory(
+        self,
+        build_backend: Literal["docker-py", "buildx"],
+        build_mock: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        context: str | Path | None,
+    ):
+        monkeypatch.chdir(tmp_path)
+
+        def inspect_build(**kwargs: Any) -> None:
+            assert kwargs["context"] == (tmp_path if context is None else context)
+            contents = (tmp_path / "Dockerfile").read_text()
+            assert f"WORKDIR /opt/prefect/{tmp_path.name}/" in contents
+
+        build_mock.side_effect = inspect_build
+        build_kwargs = {} if context is None else {"context": context}
+        DockerImage(
+            name="test-image", build_backend=build_backend, **build_kwargs
+        ).build()
+
+        build_mock.assert_called_once()
+        assert not (tmp_path / "Dockerfile").exists()
+
+    @pytest.mark.parametrize("dockerfile", ["auto", "Dockerfile"])
+    def test_existing_context_dockerfile_is_preserved(
+        self,
+        build_backend: Literal["docker-py", "buildx"],
+        build_mock: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        dockerfile: str,
+    ):
+        monkeypatch.chdir(tmp_path)
+        context = tmp_path / "project"
+        context.mkdir()
+        existing_dockerfile = context / "Dockerfile"
+        existing_dockerfile.write_text("FROM custom-image\n")
+        image = DockerImage(
+            name="test-image",
+            build_backend=build_backend,
+            context=context,
+            dockerfile=dockerfile,
+        )
+
+        if dockerfile == "auto":
+            with pytest.raises(RuntimeError, match="Dockerfile already exists"):
+                image.build()
+            build_mock.assert_not_called()
+        else:
+            image.build()
+            build_mock.assert_called_once()
+            assert build_mock.call_args.kwargs["dockerfile"] == "Dockerfile"
+
+        assert existing_dockerfile.read_text() == "FROM custom-image\n"
+        assert not (tmp_path / "Dockerfile").exists()
