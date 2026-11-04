@@ -333,6 +333,9 @@ def visit_collection(
     - When `return_data` is `False`, no copies are created, and only side effects from
       `visit_fn` are applied. This mode is faster and should be used when no transformation
       of the collection is required, because it never has to copy any data.
+    - When a dataclass is copied, fields declared with `init=False` keep their
+      visited values. They are not recomputed by `__init__` or `__post_init__`
+      from the new field values; this is intentional.
 
     Supported types:
     - List (including iterators)
@@ -522,8 +525,14 @@ def visit_collection(
             )
             if modified:
                 result = replace(
-                    expr, **{f.name: v for f, v in zip(expr_fields, values)}
+                    expr,
+                    **{f.name: v for f, v in zip(expr_fields, values) if f.init},
                 )
+                # `replace` rejects `init=False` fields and resets them, so set
+                # their visited values directly; this also works on frozen dataclasses
+                for f, v in zip(expr_fields, values):
+                    if not f.init:
+                        object.__setattr__(result, f.name, v)
 
     # --- Pydantic models
 
