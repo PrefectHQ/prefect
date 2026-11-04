@@ -3734,17 +3734,51 @@ class TestTaskConcurrencyLimits:
 
         assert Path(states[0].data.metadata.storage_key).name == "t-7-1"
 
-    def test_tagged_task_with_a_failing_storage_key_fails_the_run(self):
-        attempts: list[int] = []
+    async def test_tagged_async_task_stores_its_result_under_its_resolved_storage_key(
+        self, tmp_path: Path
+    ):
+        @task
+        async def upstream() -> int:
+            return 7
+
+        @task(
+            tags=[f"keyed-{uuid4()}"],
+            result_storage=tmp_path,
+            result_storage_key="t-{parameters[x]}-{task_run.run_count}",
+            persist_result=True,
+        )
+        async def keyed(x: int) -> int:
+            return x
+
+        states: list[State[int]] = []
+
+        @flow
+        async def keyed_run() -> None:
+            future = keyed.submit(upstream.submit())
+            future.wait()
+            states.append(future.state)
+
+        await keyed_run()
+
+        assert Path(states[0].data.metadata.storage_key).name == "t-7-1"
+
+    def test_tagged_task_with_a_failing_storage_key_fails_after_its_retry(self):
+        calls: list[int] = []
+        retried_after: list[int] = []
+
+        def record_retry(task: Task[..., Any], task_run: TaskRun, state: State) -> bool:
+            retried_after.append(task_run.run_count)
+            return True
 
         @task(
             tags=[f"bad-key-{uuid4()}"],
             result_storage_key="{parameters[missing]}",
             persist_result=True,
             retries=1,
+            retry_condition_fn=record_retry,
         )
         def bad_key(x: int) -> int:
-            attempts.append(x)
+            calls.append(x)
             return x
 
         states: list[State[int]] = []
@@ -3757,7 +3791,42 @@ class TestTaskConcurrencyLimits:
 
         assert states[0].is_failed()
         assert "KeyError" in (states[0].message or "")
-        assert attempts == []
+        assert retried_after == [1]
+        assert calls == []
+
+    async def test_tagged_async_task_with_a_failing_storage_key_fails_after_its_retry(
+        self,
+    ):
+        calls: list[int] = []
+        retried_after: list[int] = []
+
+        def record_retry(task: Task[..., Any], task_run: TaskRun, state: State) -> bool:
+            retried_after.append(task_run.run_count)
+            return True
+
+        @task(
+            tags=[f"bad-key-{uuid4()}"],
+            result_storage_key="{parameters[missing]}",
+            persist_result=True,
+            retries=1,
+            retry_condition_fn=record_retry,
+        )
+        async def bad_key(x: int) -> int:
+            calls.append(x)
+            return x
+
+        states: list[State[int]] = []
+
+        @flow
+        async def bad_key_run() -> None:
+            states.append(await bad_key(1, return_state=True))
+
+        await bad_key_run()
+
+        assert states[0].is_failed()
+        assert "KeyError" in (states[0].message or "")
+        assert retried_after == [1]
+        assert calls == []
 
 
 class TestRunStateIsDenormalized:

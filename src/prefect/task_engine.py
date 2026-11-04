@@ -327,29 +327,32 @@ class BaseTaskRunEngine(Generic[P, R]):
         )
         return overwrite, isolation_level
 
-    def _slot_probe_key(self) -> Optional[str]:
+    def _may_skip_tag_slot(self) -> bool:
         """
-        The cache key to look up before taking the tag concurrency slot, or None
-        to take the slot first.
+        Whether a live cache record may let this run skip its tag concurrency slot.
 
-        The lookup only decides when the slot is taken: the transaction computes
-        its own key and decides hit or miss, and `call_task_fn` takes the skipped
-        slot on a miss. A SERIALIZABLE transaction takes its record lock with no
-        timeout, so waiting for the slot while holding it could deadlock with a
-        run that holds the slot and waits for the lock.
+        The cache lookup in `start()` only decides when the slot is taken: the
+        transaction computes its own key and decides hit or miss, and
+        `call_task_fn` takes the skipped slot on a miss. A SERIALIZABLE
+        transaction takes its record lock with no timeout, so waiting for the slot
+        while holding it could deadlock with a run that holds the slot and waits
+        for the lock.
         """
         overwrite, isolation_level = self._transaction_settings()
         if isolation_level is None and (parent := get_transaction()):
             isolation_level = parent.isolation_level
         locks_record = isolation_level == IsolationLevel.SERIALIZABLE
-        if (
-            not self.task_run.tags
-            or self.task.isgenerator
-            or overwrite
-            or not should_persist_result()
-            or locks_record
-        ):
-            return None
+        has_key = self._has_cache_policy() or self.task.result_storage_key is not None
+        return (
+            bool(self.task_run.tags)
+            and has_key
+            and not self.task.isgenerator
+            and not overwrite
+            and should_persist_result()
+            and not locks_record
+        )
+
+    def _slot_probe_key(self) -> Optional[str]:
         try:
             return self._transaction_key()
         except Exception:
@@ -1052,11 +1055,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.call_hooks()
                     return
 
-                with self.setup_run_context():
-                    key = self._slot_probe_key()
-                    self._tag_slot_deferred = (
-                        key is not None and get_result_store().exists(key=key)
-                    )
+                if self._may_skip_tag_slot():
+                    with self.setup_run_context():
+                        key = self._slot_probe_key()
+                        self._tag_slot_deferred = (
+                            key is not None and get_result_store().exists(key=key)
+                        )
                 with self._tag_slot(take=not self._tag_slot_deferred):
                     raise_if_flow_run_suspension_requested()
                     self.begin_run()
@@ -1715,11 +1719,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     await self.call_hooks()
                     return
 
-                async with self.setup_run_context():
-                    key = self._slot_probe_key()
-                    self._tag_slot_deferred = (
-                        key is not None and await get_result_store().aexists(key=key)
-                    )
+                if self._may_skip_tag_slot():
+                    async with self.setup_run_context():
+                        key = self._slot_probe_key()
+                        self._tag_slot_deferred = (
+                            key is not None
+                            and await get_result_store().aexists(key=key)
+                        )
                 async with self._tag_slot(take=not self._tag_slot_deferred):
                     raise_if_flow_run_suspension_requested()
                     await self.begin_run()
