@@ -20,10 +20,12 @@ jobs:
   trigger-devin:
     name: Trigger Devin to fix flaky tests
     runs-on: ubuntu-latest
-    # Only run when a test workflow fails on main branch
+    # Only run when a test workflow fails on this repository's main branch.
+    # A pull request from a fork's main branch also has head_branch 'main'.
     if: >
       github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.head_branch == 'main'
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
 
     steps:
       - name: Trigger Devin session to fix flaky tests
