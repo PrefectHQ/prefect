@@ -35,7 +35,6 @@ from typing import (
     Sequence,
     Tuple,
     Type,
-    TypeAlias,
     TypeVar,
     Union,
     cast,
@@ -119,42 +118,21 @@ P = ParamSpec("P")  # The parameters of the flow
 F = TypeVar("F", bound="Flow[Any, Any]")  # The type of the flow
 
 
-class _FlowStateHookByPosition(Protocol, Generic[P, R]):
+class FlowStateHook(Protocol, Generic[P, R]):
+    """
+    A callable that is invoked when a flow enters a given state.
+
+    It receives the flow, the flow run, and the state as its first three
+    parameters, whatever their names. A hook whose parameters are named `flow`,
+    `flow_run` (or `run`), and `state` receives them by name instead.
+    """
+
     __name__: str
 
     def __call__(
         self, flow: Flow[P, R], flow_run: FlowRun, state: State, /
     ) -> Awaitable[None] | None: ...
 
-
-class _FlowStateHookByName(Protocol, Generic[P, R]):
-    __name__: str
-
-    def __call__(
-        self, *, flow: Flow[P, R], flow_run: FlowRun, state: State
-    ) -> Awaitable[None] | None: ...
-
-
-class _FlowStateHookByRunName(Protocol, Generic[P, R]):
-    __name__: str
-
-    def __call__(
-        self, *, flow: Flow[P, R], run: FlowRun, state: State
-    ) -> Awaitable[None] | None: ...
-
-
-FlowStateHook: TypeAlias = (
-    _FlowStateHookByPosition[P, R]
-    | _FlowStateHookByName[P, R]
-    | _FlowStateHookByRunName[P, R]
-)
-"""
-A callable that is invoked when a flow enters a given state.
-
-A hook whose parameters are named `flow`, `flow_run` (or `run`) and `state` gets
-them by name, in any order and including keyword-only parameters. Any other hook
-gets the flow, the flow run and the state as three positional arguments.
-"""
 
 _FlowStateHookT = TypeVar("_FlowStateHookT", bound="FlowStateHook[..., Any]")
 

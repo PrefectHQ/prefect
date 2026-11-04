@@ -58,6 +58,7 @@ from prefect.exceptions import (
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import (
     Flow,
+    FlowStateHook,
     load_flow_arguments_from_entrypoint,
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
@@ -3509,6 +3510,34 @@ class TestFlowHookSignatures:
 
         assert calls == []
         assert "must accept the flow, the flow run and the state" in caplog.text
+
+    @pytest.mark.parametrize(
+        "base",
+        [FlowStateHook, FlowStateHook[..., None]],
+        ids=["protocol", "parametrized-protocol"],
+    )
+    def test_flow_state_hook_subclass_receives_flow_flow_run_and_state(self, base: Any):
+        received: list[tuple[Any, Any, Any]] = []
+
+        class Hook(base):
+            def __call__(self, flow, flow_run, state):
+                received.append((flow, flow_run, state))
+
+        hook = Hook()
+
+        @flow
+        def foo_flow():
+            pass
+
+        assert foo_flow.on_completion(hook) is hook
+
+        state = foo_flow(return_state=True)
+
+        assert len(received) == 1
+        hook_flow, hook_flow_run, hook_state = received[0]
+        assert hook_flow is foo_flow
+        assert hook_flow_run.id == state.state_details.flow_run_id
+        assert hook_state == state
 
 
 class TestFlowHooksOnCompletion:
