@@ -381,3 +381,28 @@ class TestDockerImageAutoDockerfileContext:
         assert captured["dockerfile"] is not None
         assert f"WORKDIR /opt/prefect/{cwd.name}/" in captured["dockerfile"]
         assert not (cwd / "Dockerfile").exists()
+
+    @pytest.mark.parametrize("build_backend", ["docker-py", "buildx"])
+    def test_relative_context_uses_resolved_directory_name(
+        self,
+        project: Path,
+        mock_build_image: MagicMock,
+        mock_buildx_build_image: MagicMock,
+        build_backend: Literal["docker-py", "buildx"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.chdir(project)
+        mock = (
+            mock_build_image
+            if build_backend == "docker-py"
+            else mock_buildx_build_image
+        )
+        captured = self._capture_dockerfile(mock)
+
+        DockerImage(
+            name="test-image", tag="latest", build_backend=build_backend, context="."
+        ).build()
+
+        assert captured["dockerfile"] is not None
+        assert "WORKDIR /opt/prefect/project/" in captured["dockerfile"]
+        assert not (project / "Dockerfile").exists()
