@@ -554,6 +554,52 @@ def test_inspecting_a_block_type_invalid_output_format():
     )
 
 
+@pytest.fixture
+async def empty_description_block_schema(session) -> schemas.core.BlockSchema:
+    block_type = await models.block_types.create_block_type(
+        session,
+        block_type=schemas.core.BlockType(
+            name="Empty Description",
+            slug="empty-description",
+            description="",
+        ),
+    )
+    block_schema = await models.block_schemas.create_block_schema(
+        session,
+        block_schema=schemas.actions.BlockSchemaCreate(
+            block_type_id=block_type.id,
+            fields={
+                "title": "EmptyDescription",
+                "type": "object",
+                "properties": {"message": {"title": "Message", "type": "string"}},
+                "required": ["message"],
+            },
+        ),
+    )
+    await session.commit()
+    return block_schema
+
+
+def test_inspecting_a_block_type_with_empty_description(
+    empty_description_block_schema: schemas.core.BlockSchema,
+):
+    invoke_and_assert(
+        ["block", "type", "inspect", "empty-description"],
+        expected_code=0,
+        expected_output_contains=["Empty Description", "Description", "message"],
+    )
+
+
+def test_listing_block_types_with_empty_description(
+    empty_description_block_schema: schemas.core.BlockSchema,
+):
+    invoke_and_assert(
+        ["block", "type", "ls"],
+        expected_code=0,
+        expected_output_contains=["empty-description"],
+    )
+
+
 async def test_deleting_a_block_type(tmp_path, prefect_client):
     test_file_path = tmp_path / "test.py"
 
