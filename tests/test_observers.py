@@ -1,4 +1,5 @@
 import asyncio
+import signal
 import threading
 import uuid
 from collections.abc import Awaitable, Callable, Generator
@@ -15,8 +16,10 @@ from websockets.exceptions import ConnectionClosedError
 from prefect import flow
 from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
+    _FlowRunSuspensionObserverThread,
     is_suspended_flow_run_state,
     observe_flow_run_suspension,
+    observe_flow_run_suspension_async,
 )
 from prefect._internal.observers import (
     FlowRunCancellingObserver,
@@ -28,7 +31,7 @@ from prefect.client.schemas.objects import State, StateType
 from prefect.events import Event, Resource
 from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
 from prefect.events.utilities import emit_event
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectNotFound, TerminationSignal
 from prefect.states import Running, Scheduled, Suspended
 from prefect.types._datetime import DateTime, now
 
@@ -791,6 +794,272 @@ class TestFlowRunSuspendingObserver:
 
         assert not thread.is_alive()
         assert not errors
+
+    def test_observe_flow_run_suspension_stops_observer_interrupted_during_initial_check(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ):
+        watch_started = threading.Event()
+        observers: list[_FlowRunSuspensionObserverThread] = []
+
+        class FakeFlowRunSuspendingObserver:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                pass
+
+            async def watch_flow_run_id(self, observed_flow_run_id):
+                watch_started.set()
+                # Retries until stopped, like the real observer while the API is
+                # unavailable.
+                while True:
+                    await asyncio.sleep(0.01)
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FakeFlowRunSuspendingObserver,
+        )
+
+        original_init = _FlowRunSuspensionObserverThread.__init__
+
+        def init_with_interrupted_wait(
+            self: _FlowRunSuspensionObserverThread, *args, ready, **kwargs
+        ):
+            original_init(self, *args, ready=ready, **kwargs)
+            observers.append(self)
+
+            # Raises like the SIGTERM handler of the engine does.
+            def interrupted_wait(timeout: float | None = None) -> bool:
+                assert watch_started.wait(timeout=10)
+                raise TerminationSignal(signal=signal.SIGTERM)
+
+            ready.wait = interrupted_wait
+
+        monkeypatch.setattr(
+            _FlowRunSuspensionObserverThread, "__init__", init_with_interrupted_wait
+        )
+        caplog.set_level("DEBUG", logger="prefect.flow_run_suspension")
+
+        with pytest.raises(TerminationSignal):
+            with observe_flow_run_suspension(uuid.uuid4(), FlowRunSuspensionRequest()):
+                pass
+
+        (observer,) = observers
+        observer.join(timeout=10)
+        assert not observer._thread.is_alive()
+        assert "cancelled before it was stopped" not in caplog.text
+
+    def test_observe_flow_run_suspension_logs_unexpected_observer_cancellation(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ):
+        class FakeFlowRunSuspendingObserver:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                pass
+
+            async def watch_flow_run_id(self, observed_flow_run_id):
+                # Cancelled by something other than `stop`.
+                task = asyncio.current_task()
+                assert task is not None
+                task.cancel()
+                await asyncio.sleep(0)
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FakeFlowRunSuspendingObserver,
+        )
+        caplog.set_level("DEBUG", logger="prefect.flow_run_suspension")
+
+        with observe_flow_run_suspension(uuid.uuid4(), FlowRunSuspensionRequest()):
+            pass
+
+        assert (
+            "Flow run suspension observer was cancelled before it was stopped"
+            in caplog.text
+        )
+
+    async def test_observe_flow_run_suspension_async_waits_for_initial_check_without_blocking_event_loop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        flow_run_id = uuid.uuid4()
+        test_loop = asyncio.get_running_loop()
+        watch_started = asyncio.Event()
+        release_watch = asyncio.Event()
+        watch_released = False
+
+        class FakeFlowRunSuspendingObserver:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                pass
+
+            async def watch_flow_run_id(self, observed_flow_run_id):
+                nonlocal watch_released
+                assert observed_flow_run_id == flow_run_id
+                test_loop.call_soon_threadsafe(watch_started.set)
+                # Completes only if the caller's event loop keeps running.
+                await asyncio.wait_for(
+                    asyncio.wrap_future(
+                        asyncio.run_coroutine_threadsafe(
+                            release_watch.wait(), test_loop
+                        )
+                    ),
+                    timeout=10,
+                )
+                watch_released = True
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FakeFlowRunSuspendingObserver,
+        )
+
+        entered_context = asyncio.Event()
+        exit_context = asyncio.Event()
+
+        async def run_with_observer():
+            async with observe_flow_run_suspension_async(
+                flow_run_id, FlowRunSuspensionRequest()
+            ):
+                entered_context.set()
+                await exit_context.wait()
+
+        observed = asyncio.create_task(run_with_observer())
+        await watch_started.wait()
+        assert not entered_context.is_set()
+
+        release_watch.set()
+        await asyncio.wait_for(entered_context.wait(), timeout=10)
+        assert watch_released
+
+        exit_context.set()
+        await asyncio.wait_for(observed, timeout=10)
+
+    async def test_observe_flow_run_suspension_async_exits_without_waiting_for_observer_shutdown(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        release_shutdown = threading.Event()
+        observer_exited = threading.Event()
+
+        class FakeFlowRunSuspendingObserver:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                # Holds the observer's thread until the test releases it.
+                release_shutdown.wait(timeout=10)
+                observer_exited.set()
+
+            async def watch_flow_run_id(self, observed_flow_run_id):
+                pass
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FakeFlowRunSuspendingObserver,
+        )
+        # Makes the test fail if leaving the context waits for the observer, as
+        # `observe_flow_run_suspension` does.
+        monkeypatch.setattr(
+            "prefect._flow_run_suspension._OBSERVER_SHUTDOWN_TIMEOUT", 60
+        )
+
+        try:
+            async with observe_flow_run_suspension_async(
+                uuid.uuid4(), FlowRunSuspensionRequest()
+            ):
+                pass
+
+            assert not observer_exited.is_set()
+        finally:
+            release_shutdown.set()
+
+        assert await asyncio.to_thread(observer_exited.wait, 10)
+
+    async def test_observe_flow_run_suspension_async_marks_suspension_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        flow_run_id = uuid.uuid4()
+        suspension_request = FlowRunSuspensionRequest()
+        suspended_state = Suspended()
+
+        class FakeFlowRunSuspendingObserver:
+            def __init__(self, on_suspended, **kwargs):
+                self.on_suspended = on_suspended
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                pass
+
+            async def watch_flow_run_id(self, observed_flow_run_id):
+                self.on_suspended(observed_flow_run_id, suspended_state)
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FakeFlowRunSuspendingObserver,
+        )
+
+        async with observe_flow_run_suspension_async(flow_run_id, suspension_request):
+            assert suspension_request.get_state() is suspended_state
+
+    async def test_observe_flow_run_suspension_async_stops_observer_cancelled_during_initial_check(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        test_loop = asyncio.get_running_loop()
+        watch_started = asyncio.Event()
+        observer_exited = threading.Event()
+
+        class FakeFlowRunSuspendingObserver:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                observer_exited.set()
+
+            async def watch_flow_run_id(self, observed_flow_run_id):
+                test_loop.call_soon_threadsafe(watch_started.set)
+                # Retries until stopped, like the real observer while the API is
+                # unavailable.
+                while True:
+                    await asyncio.sleep(0.01)
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FakeFlowRunSuspendingObserver,
+        )
+
+        async def run_with_observer():
+            async with observe_flow_run_suspension_async(
+                uuid.uuid4(), FlowRunSuspensionRequest()
+            ):
+                pass
+
+        observed = asyncio.create_task(run_with_observer())
+        await asyncio.wait_for(watch_started.wait(), timeout=10)
+        observed.cancel()
+
+        done, _ = await asyncio.wait([observed], timeout=10)
+        assert observed in done
+        assert observed.cancelled()
+        assert await asyncio.to_thread(observer_exited.wait, 10)
 
 
 CLOSE = object()

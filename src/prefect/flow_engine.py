@@ -48,6 +48,7 @@ from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
     is_suspended_flow_run_state,
     observe_flow_run_suspension,
+    observe_flow_run_suspension_async,
     raise_if_flow_run_suspension_requested,
     register_flow_run_suspension_request,
 )
@@ -610,28 +611,26 @@ class BaseFlowRunEngine(Generic[P, R]):
         return self._flow_run_suspension_request
 
     @contextmanager
-    def setup_flow_run_suspension_request(
+    def _register_flow_run_suspension_request(
         self,
-    ) -> Generator[FlowRunSuspensionRequest, None, None]:
+    ) -> Generator[tuple[FlowRunSuspensionRequest, UUID | None], None, None]:
+        """
+        Registers the suspension request of this flow run.
+
+        Yields the request and the ID of the flow run to observe for suspension,
+        which is `None` unless the flow run belongs to a deployment.
+        """
         if not self.flow_run:
             raise ValueError("Flow run not set")
 
         flow_run_suspension_request = self._get_flow_run_suspension_request()
-        with ExitStack() as stack:
-            stack.enter_context(
-                register_flow_run_suspension_request(
-                    self.flow_run.id, flow_run_suspension_request
-                )
+        with register_flow_run_suspension_request(
+            self.flow_run.id, flow_run_suspension_request
+        ):
+            yield (
+                flow_run_suspension_request,
+                self.flow_run.id if self.flow_run.deployment_id else None,
             )
-            if self.flow_run.deployment_id:
-                stack.enter_context(
-                    observe_flow_run_suspension(
-                        self.flow_run.id, flow_run_suspension_request
-                    )
-                )
-
-            flow_run_suspension_request.raise_if_requested()
-            yield flow_run_suspension_request
 
 
 @dataclass
@@ -1310,6 +1309,24 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
     # The following methods compose the main task run loop
     #
     # --------------------------
+
+    @contextmanager
+    def setup_flow_run_suspension_request(
+        self,
+    ) -> Generator[FlowRunSuspensionRequest, None, None]:
+        with self._register_flow_run_suspension_request() as (
+            flow_run_suspension_request,
+            observed_flow_run_id,
+        ):
+            with (
+                observe_flow_run_suspension(
+                    observed_flow_run_id, flow_run_suspension_request
+                )
+                if observed_flow_run_id
+                else nullcontext()
+            ):
+                flow_run_suspension_request.raise_if_requested()
+                yield flow_run_suspension_request
 
     @contextmanager
     def start(self) -> Generator[None, None, None]:
@@ -2069,6 +2086,24 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     # --------------------------
 
     @asynccontextmanager
+    async def setup_flow_run_suspension_request(
+        self,
+    ) -> AsyncGenerator[FlowRunSuspensionRequest, None]:
+        with self._register_flow_run_suspension_request() as (
+            flow_run_suspension_request,
+            observed_flow_run_id,
+        ):
+            async with (
+                observe_flow_run_suspension_async(
+                    observed_flow_run_id, flow_run_suspension_request
+                )
+                if observed_flow_run_id
+                else nullcontext()
+            ):
+                flow_run_suspension_request.raise_if_requested()
+                yield flow_run_suspension_request
+
+    @asynccontextmanager
     async def start(self) -> AsyncGenerator[None, None]:
         async with self.initialize_run():
             with (
@@ -2076,7 +2111,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                with self.setup_flow_run_suspension_request():
+                async with self.setup_flow_run_suspension_request():
                     await self.begin_run()
 
                     yield
