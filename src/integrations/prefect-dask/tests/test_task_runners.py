@@ -1,5 +1,6 @@
 import asyncio
 import os
+import threading
 import time
 from typing import Any, Callable, Generator, List
 from uuid import UUID
@@ -697,9 +698,11 @@ class TestWorkerDeath:
 
         with task_runner:
             future = task_runner.submit(completes, parameters={})
-            deadline = time.monotonic() + 30
-            while not future.wrapped_future.done() and time.monotonic() < deadline:
-                time.sleep(0.1)
+            # Dask runs done callbacks in order on one thread, so once this one
+            # runs, the runner's own callback has already handled the error
+            callbacks_ran = threading.Event()
+            future.wrapped_future.add_done_callback(lambda _: callbacks_ran.set())
+            assert callbacks_ran.wait(timeout=30)
             assert future.wrapped_future.status == "error"
 
         state = wait_for_recorded_state(future.task_run_id, until=lambda state: True)

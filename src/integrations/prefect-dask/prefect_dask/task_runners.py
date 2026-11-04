@@ -119,6 +119,12 @@ R = TypeVar("R")
 
 
 def _report_crash(task_run_id: UUID, exc: BaseException) -> None:
+    """
+    Propose a `Crashed` state for a task run whose Dask future errored.
+
+    Does nothing if the task run doesn't exist or is already in a final state.
+    Errors are logged, not raised.
+    """
     try:
         with get_client(sync_client=True) as client:
             try:
@@ -534,4 +540,5 @@ class DaskTaskRunner(TaskRunner):
         self._exit_stack.__exit__(*args)
         if self._crash_reporter is not None:
             self._crash_reporter.shutdown(wait=True)
+            self._crash_reporter = None
         super().__exit__(*args)
