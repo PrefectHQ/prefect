@@ -26,6 +26,8 @@ Task tag limits are checked whenever a task run attempts to enter a `Running` st
 
 If there are no concurrency slots available for any one of your task's tags, it delays the transition to a `Running` state and instructs the client to try entering a `Running` state again in 30 seconds (or the value specified by the `PREFECT_SERVER_TASKS_TAG_CONCURRENCY_SLOT_WAIT_SECONDS` setting).
 
+A task run that persists its result and finds a live [cached result](/v3/concepts/caching) does not take a slot, because it does not run its function. It returns `Cached` even when its tags' limits are full. Cache policies with `SERIALIZABLE` isolation still take the slot before they look up the cache.
+
 ## Use cases
 
 Tag-based concurrency limits are useful when you have tasks that interact with shared resources. For example:
