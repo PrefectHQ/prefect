@@ -360,6 +360,11 @@ async def test_invalid_data_exception_handler(exc: Exception):
 
 def test_non_data_database_errors_remain_retryable():
     assert is_client_retryable_exception(_asyncpg_dbapi_error("57014"))
+    assert is_client_retryable_exception(TimeoutError("asyncpg timeout"))
+    assert is_client_retryable_exception(sa.exc.TimeoutError("queue pool timeout"))
+    assert is_client_retryable_exception(
+        asyncpg.exceptions.PostgresConnectionError("connection failure")
+    )
 
 
 def _write_fake_ui_bundle(directory: pathlib.Path, marker: str) -> pathlib.Path:

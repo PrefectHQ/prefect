@@ -367,9 +367,12 @@ def is_client_retryable_exception(exc: Exception) -> bool:
         exc,
         (
             sqlalchemy.exc.DBAPIError,
+            sqlalchemy.exc.TimeoutError,
+            TimeoutError,
             asyncpg.exceptions.QueryCanceledError,
             asyncpg.exceptions.ConnectionDoesNotExistError,
             asyncpg.exceptions.CannotConnectNowError,
+            asyncpg.exceptions.PostgresConnectionError,
             sqlalchemy.exc.InvalidRequestError,
             sqlalchemy.orm.exc.DetachedInstanceError,
         ),
