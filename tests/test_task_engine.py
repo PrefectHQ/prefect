@@ -3153,7 +3153,9 @@ class TestGenerators:
         assert starts == ["start"]
         assert cleanups == [True]
 
-    async def test_generator_yields_during_close_raises(self, prefect_client: PrefectClient):
+    async def test_generator_yields_during_close_raises(
+        self, prefect_client: PrefectClient
+    ):
         """
         A generator that yields while handling GeneratorExit makes aclose raise
         RuntimeError, matching plain async generator semantics.
