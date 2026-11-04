@@ -19,9 +19,6 @@ async def concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
 
 @pytest.fixture
 async def slow_concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
-    # Slots on this limit have been held for a minute on average, so the server
-    # tells a refused caller to retry after its maximum wait of 30 seconds
-    # (between about 22 and 39 seconds once jittered).
     concurrency_limit = await create_concurrency_limit(
         session=session,
         concurrency_limit=ConcurrencyLimitV2(

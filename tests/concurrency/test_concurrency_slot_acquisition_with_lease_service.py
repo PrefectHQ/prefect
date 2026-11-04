@@ -278,7 +278,6 @@ async def test_retries_failed_call_respects_retry_after_header(
 
     assert returned_response == responses[1]
     assert len(request_times) == 2
-    # Nothing in this process released a slot, so the retry waits out Retry-After.
     assert request_times[1] - request_times[0] >= 1
 
 

@@ -224,11 +224,7 @@ async def test_concurrency_respects_max_retries():
 async def test_release_wakes_a_waiter_sleeping_on_retry_after(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A slot released in this process goes to a local waiter right away, instead
-    of sitting idle until the waiter's `Retry-After` runs out.
-
-    Regression test for https://github.com/PrefectHQ/prefect/issues/23183
-    """
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23183"""
     retry_afters: list[float] = []
     waiter_refused = threading.Event()
     increment = PrefectClient.increment_concurrency_slots_with_lease
@@ -250,23 +246,22 @@ async def test_release_wakes_a_waiter_sleeping_on_retry_after(
         increment_noting_refusals,
     )
 
+    waiter_timeout = 10
     waiter_entered = False
 
     async def waiter() -> None:
         nonlocal waiter_entered
-        # Shorter than any `Retry-After` the server gives for this limit, so a
-        # waiter that sleeps it out times out instead of hanging the test.
-        async with concurrency("test", occupy=1, timeout_seconds=10, strict=True):
+        async with concurrency(
+            "test", occupy=1, timeout_seconds=waiter_timeout, strict=True
+        ):
             waiter_entered = True
 
     async with concurrency("test", occupy=1, strict=True):
         waiter_task = asyncio.create_task(waiter())
         waiter_was_refused = await anyio.to_thread.run_sync(waiter_refused.wait, 10)
-    # Leaving the block releases the slot as soon as the waiter is refused,
-    # possibly before the waiter has started to sleep.
 
     assert waiter_was_refused, "the server never refused the waiter"
-    assert retry_afters[0] > 10
+    assert retry_afters[0] > waiter_timeout
     await waiter_task
     assert waiter_entered
 

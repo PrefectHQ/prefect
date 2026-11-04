@@ -470,12 +470,9 @@ async def test_increment_concurrency_limit_with_lease_holds_sqlite_write_lock(
     client: AsyncClient,
     concurrency_limit: ConcurrencyLimitV2,
 ):
-    # The request must hold SQLite's write lock before it reads the limit, so a
-    # release that tries to commit between the read and the increment waits.
     # A deferred transaction that reads first can fail its increment with
     # "database is locked" while another writer is busy, because SQLite does
-    # not apply the busy timeout to that upgrade, and the client then backs
-    # off from the 503 for seconds.
+    # not apply the busy timeout to that upgrade.
     db = provide_database_interface()
     if db.dialect.name != "sqlite":
         pytest.skip("Transaction begin mode is SQLite-only")

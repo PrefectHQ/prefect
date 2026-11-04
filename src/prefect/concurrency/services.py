@@ -159,8 +159,6 @@ class ConcurrencySlotAcquisitionWithLeaseService(
 
         with timeout_async(seconds=timeout_seconds):
             while True:
-                # Cleared before the request, so a release that lands while the
-                # request is in flight still ends the wait after a 423.
                 self._slot_released.clear()
                 try:
                     if use_cache:
@@ -276,14 +274,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
 
 
 def _wake_waiters(released_names: Iterable[str]) -> None:
-    """End the `Retry-After` wait of every lease acquisition service in this
-    process that shares a limit with `released_names`, so it asks for the
-    released slots right away.
-
-    Call this after the server has confirmed the release.
-    """
     released = set(released_names)
-    # `_instances` is shared by every service class, hence the type check.
     with ConcurrencySlotAcquisitionWithLeaseService._instance_cache_lock:
         services = [
             service
