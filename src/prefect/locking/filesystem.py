@@ -203,6 +203,7 @@ class FileSystemLockManager(LockManager):
             # elapsed or it was released during a task retry) — including
             # between the checks above — so releasing it is a no-op, matching
             # RedisLockManager.
+            self._locks.pop(key, None)
             return
         raise ValueError(f"No lock held by {holder} for transaction with key {key}")
 
