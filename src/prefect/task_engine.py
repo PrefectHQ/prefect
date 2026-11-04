@@ -258,7 +258,6 @@ class BaseTaskRunEngine(Generic[P, R]):
     _last_event: Optional[PrefectEvent] = None
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
     _tag_slot_deferred: bool = False
-    _probed_key: Union[str, None, Type[NotSet]] = NotSet
 
     def __post_init__(self) -> None:
         if self.parameters is None:
@@ -280,32 +279,38 @@ class BaseTaskRunEngine(Generic[P, R]):
         return False
 
     def compute_transaction_key(self) -> Optional[str]:
-        key: Optional[str] = None
-        if self.task.cache_policy and isinstance(self.task.cache_policy, CachePolicy):
+        try:
+            return self._transaction_key()
+        except Exception:
+            if not self._has_cache_policy():
+                raise
+            self.logger.exception(
+                "Error encountered when computing cache key - result will not be persisted.",
+            )
+            return None
+
+    def _has_cache_policy(self) -> bool:
+        return bool(self.task.cache_policy) and isinstance(
+            self.task.cache_policy, CachePolicy
+        )
+
+    def _transaction_key(self) -> Optional[str]:
+        if self._has_cache_policy():
             flow_run_context = FlowRunContext.get()
             task_run_context = TaskRunContext.get()
-
-            if flow_run_context:
-                parameters = flow_run_context.parameters
-            else:
-                parameters = None
-
-            try:
-                if not task_run_context:
-                    raise ValueError("Task run context is not set")
-                key = self.task.cache_policy.compute_key(
-                    task_ctx=task_run_context,
-                    inputs=self.parameters or {},
-                    flow_parameters=parameters or {},
+            if not task_run_context:
+                raise ValueError("Task run context is not set")
+            return self.task.cache_policy.compute_key(
+                task_ctx=task_run_context,
+                inputs=self.parameters or {},
+                flow_parameters=(
+                    flow_run_context.parameters if flow_run_context else None
                 )
-            except Exception:
-                self.logger.exception(
-                    "Error encountered when computing cache key - result will not be persisted.",
-                )
-                key = None
-        elif self.task.result_storage_key is not None:
-            key = _format_user_supplied_storage_key(self.task.result_storage_key)
-        return key
+                or {},
+            )
+        if self.task.result_storage_key is not None:
+            return _format_user_supplied_storage_key(self.task.result_storage_key)
+        return None
 
     def _transaction_settings(self) -> tuple[bool, Optional[IsolationLevel]]:
         overwrite = (
@@ -323,6 +328,16 @@ class BaseTaskRunEngine(Generic[P, R]):
         return overwrite, isolation_level
 
     def _slot_probe_key(self) -> Optional[str]:
+        """
+        The cache key to look up before taking the tag concurrency slot, or None
+        to take the slot first.
+
+        The lookup only decides when the slot is taken: the transaction computes
+        its own key and decides hit or miss, and `call_task_fn` takes the skipped
+        slot on a miss. A SERIALIZABLE transaction takes its record lock with no
+        timeout, so waiting for the slot while holding it could deadlock with a
+        run that holds the slot and waits for the lock.
+        """
         overwrite, isolation_level = self._transaction_settings()
         if isolation_level is None and (parent := get_transaction()):
             isolation_level = parent.isolation_level
@@ -335,12 +350,10 @@ class BaseTaskRunEngine(Generic[P, R]):
             or locks_record
         ):
             return None
-        self._probed_key = self.compute_transaction_key()
-        return self._probed_key
-
-    def _attempt_transaction_key(self) -> Optional[str]:
-        key, self._probed_key = self._probed_key, NotSet
-        return self.compute_transaction_key() if key is NotSet else key
+        try:
+            return self._transaction_key()
+        except Exception:
+            return None
 
     def _resolve_parameters(self):
         if not self.parameters:
@@ -1039,10 +1052,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.call_hooks()
                     return
 
-                key = self._slot_probe_key()
-                self._tag_slot_deferred = key is not None and get_result_store().exists(
-                    key=key
-                )
+                with self.setup_run_context():
+                    key = self._slot_probe_key()
+                    self._tag_slot_deferred = (
+                        key is not None and get_result_store().exists(key=key)
+                    )
                 with self._tag_slot(take=not self._tag_slot_deferred):
                     raise_if_flow_run_suspension_requested()
                     self.begin_run()
@@ -1055,7 +1069,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def transaction_context(self) -> Generator[Transaction, None, None]:
         overwrite, isolation_level = self._transaction_settings()
         with transaction(
-            key=self._attempt_transaction_key(),
+            key=self.compute_transaction_key(),
             store=get_result_store(),
             overwrite=overwrite,
             logger=self.logger,
@@ -1701,10 +1715,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     await self.call_hooks()
                     return
 
-                key = self._slot_probe_key()
-                self._tag_slot_deferred = (
-                    key is not None and await get_result_store().aexists(key=key)
-                )
+                async with self.setup_run_context():
+                    key = self._slot_probe_key()
+                    self._tag_slot_deferred = (
+                        key is not None and await get_result_store().aexists(key=key)
+                    )
                 async with self._tag_slot(take=not self._tag_slot_deferred):
                     raise_if_flow_run_suspension_requested()
                     await self.begin_run()
@@ -1717,7 +1732,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def transaction_context(self) -> AsyncGenerator[AsyncTransaction, None]:
         overwrite, isolation_level = self._transaction_settings()
         async with atransaction(
-            key=self._attempt_transaction_key(),
+            key=self.compute_transaction_key(),
             store=get_result_store(),
             overwrite=overwrite,
             logger=self.logger,

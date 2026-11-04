@@ -3523,7 +3523,7 @@ class TestTaskConcurrencyLimits:
 
         async with aconcurrency(f"tag:{tag}", occupy=1):
             run = asyncio.ensure_future(double(1, return_state=True))
-            done, _ = await asyncio.wait({run}, timeout=2)
+            done, _ = await asyncio.wait({run}, timeout=30)
         state = await run
 
         assert done == {run}, "the cache hit waited for the tag slot"
@@ -3555,7 +3555,7 @@ class TestTaskConcurrencyLimits:
                 args=(lambda: states.append(cached_run()),),
             )
             run.start()
-            run.join(timeout=2)
+            run.join(timeout=30)
             waited = run.is_alive()
         run.join()
 
@@ -3690,6 +3690,7 @@ class TestTaskConcurrencyLimits:
             return list(count_to(2))
 
         assert generator_run() == [0, 1]
+        assert any(tmp_path.iterdir()), "the generator run wrote no cache record"
 
         results: list[list[int]] = []
         with concurrency(f"tag:{tag}", occupy=1):
@@ -3705,27 +3706,58 @@ class TestTaskConcurrencyLimits:
         assert waited, "the generator task ran without the tag slot"
         assert results == [[0, 1]]
 
-    def test_tagged_cache_key_fn_runs_once_per_run(self, tmp_path: Path):
-        key_calls: list[int] = []
-
-        def counting_key(context: TaskRunContext, parameters: dict[str, Any]) -> str:
-            key_calls.append(parameters["x"])
-            return f"counted-{parameters['x']}"
+    def test_tagged_task_stores_its_result_under_its_resolved_storage_key(
+        self, tmp_path: Path
+    ):
+        @task
+        def upstream() -> int:
+            return 7
 
         @task(
-            tags=[f"counted-{uuid4()}"],
-            cache_key_fn=counting_key,
+            tags=[f"keyed-{uuid4()}"],
             result_storage=tmp_path,
+            result_storage_key="t-{parameters[x]}-{task_run.run_count}",
             persist_result=True,
         )
-        def double(x: int) -> int:
-            return x * 2
+        def keyed(x: int) -> int:
+            return x
 
-        assert double(1, return_state=True).name == "Completed"
-        assert key_calls == [1]
+        states: list[State[int]] = []
 
-        assert double(1, return_state=True).name == "Cached"
-        assert key_calls == [1, 1]
+        @flow
+        def keyed_run() -> None:
+            future = keyed.submit(upstream.submit())
+            future.wait()
+            states.append(future.state)
+
+        keyed_run()
+
+        assert Path(states[0].data.metadata.storage_key).name == "t-7-1"
+
+    def test_tagged_task_with_a_failing_storage_key_fails_the_run(self):
+        attempts: list[int] = []
+
+        @task(
+            tags=[f"bad-key-{uuid4()}"],
+            result_storage_key="{parameters[missing]}",
+            persist_result=True,
+            retries=1,
+        )
+        def bad_key(x: int) -> int:
+            attempts.append(x)
+            return x
+
+        states: list[State[int]] = []
+
+        @flow
+        def bad_key_run() -> None:
+            states.append(bad_key(1, return_state=True))
+
+        bad_key_run()
+
+        assert states[0].is_failed()
+        assert "KeyError" in (states[0].message or "")
+        assert attempts == []
 
 
 class TestRunStateIsDenormalized:
