@@ -194,13 +194,17 @@ class FileSystemLockManager(LockManager):
 
     def release_lock(self, key: str, holder: str) -> None:
         lock_path = self._lock_path_for_key(key)
-        if not self.is_locked(key):
-            raise ValueError(f"No lock for transaction with key {key}")
         if self.is_lock_holder(key, holder):
             Path(lock_path).unlink(missing_ok=True)
             self._locks.pop(key, None)
-        else:
-            raise ValueError(f"No lock held by {holder} for transaction with key {key}")
+            return
+        if not self.is_locked(key):
+            # The lock was already released or expired (e.g. its hold timeout
+            # elapsed or it was released during a task retry) — including
+            # between the checks above — so releasing it is a no-op, matching
+            # RedisLockManager.
+            return
+        raise ValueError(f"No lock held by {holder} for transaction with key {key}")
 
     def is_locked(self, key: str, use_cache: bool = False) -> bool:
         if (lock_info := self._get_lock_info(key, use_cache=use_cache)) is None:
