@@ -308,7 +308,6 @@ class BaseTaskRunEngine(Generic[P, R]):
         return key
 
     def _transaction_settings(self) -> tuple[bool, Optional[IsolationLevel]]:
-        # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
@@ -324,23 +323,16 @@ class BaseTaskRunEngine(Generic[P, R]):
         return overwrite, isolation_level
 
     def _slot_probe_key(self) -> Optional[str]:
-        """
-        The cache key to look up before taking the tag concurrency slot, or None
-        to take the slot first.
-
-        The transaction still decides hit or miss, and `call_task_fn` takes the
-        skipped slot on a miss. SERIALIZABLE is excluded so that no run requests
-        the slot while it holds the record lock.
-        """
         overwrite, isolation_level = self._transaction_settings()
         if isolation_level is None and (parent := get_transaction()):
             isolation_level = parent.isolation_level
+        locks_record = isolation_level == IsolationLevel.SERIALIZABLE
         if (
             not self.task_run.tags
             or self.task.isgenerator
             or overwrite
             or not should_persist_result()
-            or isolation_level == IsolationLevel.SERIALIZABLE
+            or locks_record
         ):
             return None
         self._probed_key = self.compute_transaction_key()
@@ -1120,7 +1112,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            # start() skipped the slot for a cached record this attempt missed
             with self._tag_slot(take=self._tag_slot_deferred):
                 result = call_with_parameters(self.task.fn, parameters)
         self.handle_success(result, transaction=transaction)
@@ -1767,7 +1758,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = await transaction.read()
         else:
-            # start() skipped the slot for a cached record this attempt missed
             async with self._tag_slot(take=self._tag_slot_deferred):
                 result = await call_with_parameters(self.task.fn, parameters)
         await self.handle_success(result, transaction=transaction)
