@@ -220,7 +220,7 @@ class ModalPushProvisioner:
                 else:
                     raise RuntimeError(
                         "Modal credentials not found. Please create a new token by"
-                        " running [blue]modal token new[/] and try again."
+                        " running `modal token new` and try again."
                     )
 
             # Create the credentials block
