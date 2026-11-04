@@ -22,9 +22,12 @@ Per-event-type retention can be customised via
 `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`. Event types
 not listed fall back to `server.events.retention_period`.
 
-Each task runs independently with its own error isolation and
-docket-managed retries. Deterministic keys prevent duplicate tasks from
-accumulating if a cycle overlaps with in-progress work.
+Each task runs with its own error isolation and docket-managed retries.
+All cleanup tasks share one docket concurrency slot, so they run one at a
+time on the maintenance connection. Deterministic keys prevent duplicate
+tasks from accumulating while a task is queued or running. While a task
+waits for the slot, docket does not deduplicate its key, so a later cycle
+can enqueue another copy of it.
 """
 
 from __future__ import annotations
@@ -73,6 +76,7 @@ _MAINTENANCE_CONFIGS: dict[str, AsyncPostgresConfiguration] = {}
 # Docket reads the argument from the enqueued call without applying defaults, so
 # each `docket.add(...)` must pass it explicitly.
 _MAINTENANCE_POOL = "db-vacuum"
+_MaintenancePoolSlot = Annotated[str, ConcurrencyLimit(1)]
 
 # Binds a batched delete spends on top of its id list (the `LIMIT`/`OFFSET` of
 # the subquery that bounds how many rows one statement removes).
@@ -152,9 +156,9 @@ async def schedule_vacuum_tasks(
 ) -> None:
     """Schedule cleanup tasks for old flow runs.
 
-    Each task is enqueued with a deterministic key so that overlapping
-    cycles (e.g. when cleanup takes longer than loop_seconds) naturally
-    deduplicate instead of piling up redundant work.
+    Each task is enqueued with a deterministic key so that a cycle that
+    overlaps a queued or running copy (e.g. when cleanup takes longer than
+    loop_seconds) deduplicates instead of piling up redundant work.
 
     Disabled by default because it permanently deletes flow runs. Enable
     via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.
@@ -236,7 +240,7 @@ async def schedule_orphan_vacuum_tasks(
 async def vacuum_orphaned_logs(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    maintenance_pool: Annotated[str, ConcurrencyLimit(1)] = _MAINTENANCE_POOL,
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Delete logs whose flow_run_id references a non-existent flow run."""
     settings = get_current_settings().server.services.db_vacuum
@@ -248,7 +252,7 @@ async def vacuum_orphaned_logs(
 async def vacuum_orphaned_artifacts(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    maintenance_pool: Annotated[str, ConcurrencyLimit(1)] = _MAINTENANCE_POOL,
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Delete artifacts whose flow_run_id references a non-existent flow run."""
     settings = get_current_settings().server.services.db_vacuum
@@ -260,7 +264,7 @@ async def vacuum_orphaned_artifacts(
 async def vacuum_stale_artifact_collections(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    maintenance_pool: Annotated[str, ConcurrencyLimit(1)] = _MAINTENANCE_POOL,
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Reconcile artifact collections whose latest_id points to a deleted artifact.
 
@@ -282,7 +286,7 @@ async def vacuum_stale_artifact_collections(
 async def vacuum_old_flow_runs(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    maintenance_pool: Annotated[str, ConcurrencyLimit(1)] = _MAINTENANCE_POOL,
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Delete old top-level terminal flow runs past the retention period.
 
@@ -350,7 +354,7 @@ async def vacuum_old_flow_runs(
 async def vacuum_events_with_retention_overrides(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    maintenance_pool: Annotated[str, ConcurrencyLimit(1)] = _MAINTENANCE_POOL,
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Delete events whose types have per-type retention overrides.
 
@@ -405,7 +409,7 @@ async def vacuum_events_with_retention_overrides(
 async def vacuum_old_events(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    maintenance_pool: Annotated[str, ConcurrencyLimit(1)] = _MAINTENANCE_POOL,
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Delete all events and event resources past the general events retention period."""
     settings = get_current_settings()

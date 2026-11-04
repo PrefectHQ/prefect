@@ -542,8 +542,8 @@ async def test_orphan_reconciliation_schedules_cleanup_tasks():
 async def test_vacuum_tasks_run_one_at_a_time_on_the_maintenance_pool(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Every vacuum task draws on the one-connection maintenance pool, so a
-    worker with spare capacity must still run them one at a time."""
+    """On Postgres every vacuum task draws on the one-connection maintenance
+    pool, so a worker with spare capacity must still run them one at a time."""
     tasks = [
         vacuum_orphaned_logs,
         vacuum_orphaned_artifacts,
@@ -552,6 +552,11 @@ async def test_vacuum_tasks_run_one_at_a_time_on_the_maintenance_pool(
         vacuum_events_with_retention_overrides,
         vacuum_old_events,
     ]
+    monkeypatch.setattr(
+        get_current_settings().server.services.db_vacuum,
+        "event_retention_overrides",
+        {"prefect.flow-run.heartbeat": timedelta(days=7)},
+    )
     active = 0
     max_active = 0
     ran: set[str] = set()
