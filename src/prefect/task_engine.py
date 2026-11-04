@@ -243,7 +243,6 @@ class _GeneratorFinalizerError(Exception):
     def __init__(self, cause: BaseException) -> None:
         super().__init__(cause)
         self.cause = cause
-    """Raised when a task run exceeds its timeout."""
 
 
 @dataclass
