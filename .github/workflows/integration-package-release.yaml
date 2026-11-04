@@ -14,7 +14,7 @@ jobs:
       PACKAGE_VERSION: ${{ steps.package_version.outputs.PACKAGE_VERSION }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.inputs.commit }}
           fetch-depth: 0
@@ -36,27 +36,27 @@ jobs:
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.15"
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10.3.2
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         if: steps.package_name.outputs.PACKAGE_NAME == 'prefect-aws'
         with:
           version: latest
 
       - name: Set up node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.package_name.outputs.PACKAGE_NAME == 'prefect-aws'
         with:
           node-version-file: "src/integrations/prefect-aws/infra/.nvmrc"
           cache-dependency-path: "src/integrations/prefect-aws/infra/package-lock.json"
 
       - name: Set up just
-        uses: extractions/setup-just@v4
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
       - name: Install dependencies
         run: |
@@ -92,7 +92,7 @@ jobs:
         working-directory: src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}
 
       - name: Publish build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ steps.package_name.outputs.PACKAGE_NAME }}-pypi-dists
           path: "./src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}/dist"
@@ -108,13 +108,13 @@ jobs:
 
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.build-pypi-dists.outputs.PACKAGE_NAME}}-pypi-dists
           path: "./dist"
 
       - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
 
   update-integration-lock:
     needs: [build-pypi-dists, publish-pypi-dists]
