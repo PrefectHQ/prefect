@@ -142,6 +142,8 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 **Automatic dependency installation:** By default, `WorkspaceResolvingEngineCommandStarter` does not install dependencies before starting a flow run. When no explicit command is passed and `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` is true, it auto-selects `uv run --no-default-groups --project <project_root>` with the worker-supplied workspace bootstrap — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). The bootstrap uses the prepared entrypoint with `prefect.flow_engine` when that module exposes its executable `_main`; older selected runtimes fall back to `prefect.engine` with `PREFECT__FLOW_ENTRYPOINT`, preserving the prepared workspace. If the setting is false or any condition fails, the command falls back to `None`. Explicit commands always take precedence.
 
+**Version skew in the runtime bootstrap:** `_workspace_runtime_bootstrap.py` runs inside the flow's selected runtime, which may ship an older Prefect than the worker. Do not make it depend on Prefect internals newer than that runtime; it keeps local copies instead. Its flow hook argument resolution is one such copy (see the hook-parity contract in `src/prefect/AGENTS.md`).
+
 ## Reference
 
 Full refactor design and rationale: plans/completed/2026-02-18-runner-refactor.md
