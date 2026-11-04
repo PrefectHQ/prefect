@@ -687,6 +687,15 @@ class AzureContainerWorker(
                 )
             time.sleep(configuration.task_watch_poll_interval)
 
+        # Check the container group once more before trusting the deployment
+        # result, so that a deployment failure (e.g. in another resource of a
+        # custom ARM template) doesn't cause a running container to be deleted.
+        container_group = self._get_container_group_if_started(
+            client, configuration, container_group_name
+        )
+        if container_group is not None:
+            return container_group
+
         deployment = creation_status_poller.result()
 
         provisioning_succeeded = (

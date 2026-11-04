@@ -329,6 +329,9 @@ async def test_worker_container_client_creation(
     # test the call to the client constructors to ensure the block is calling them
     # with the correct information.
     mock_container_client_constructor = Mock()
+    mock_container_client_constructor.return_value.container_groups.get.side_effect = (
+        ResourceNotFoundError(message="not found")
+    )
     monkeypatch.setattr(
         prefect_azure.credentials,
         "ContainerInstanceManagementClient",
@@ -384,6 +387,9 @@ async def test_worker_credentials_are_used(
     )
     monkeypatch.setattr(
         prefect_azure.credentials, "ClientSecretCredential", mock_credential
+    )
+    mock_aci_client.container_groups.get.side_effect = ResourceNotFoundError(
+        message="not found"
     )
 
     async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
@@ -467,6 +473,9 @@ async def test_worker_uses_entrypoint_correctly_in_template(
 ):
     mock_deployment_call = Mock()
     mock_resource_client.deployments.begin_create_or_update = mock_deployment_call
+    mock_aci_client.container_groups.get.side_effect = ResourceNotFoundError(
+        message="not found"
+    )
 
     job_overrides = {
         "entrypoint": entrypoint,
@@ -724,6 +733,38 @@ async def test_container_start_detected_before_deployment_completes(
     assert result.status_code == 0
     mock_poller.result.assert_not_called()
     assert mock_aci_client.container_groups.get.call_count == 3
+
+
+async def test_running_container_not_deleted_when_deployment_fails(
+    mock_prefect_client,
+    worker_flow_run,
+    job_configuration,
+    mock_aci_client,
+    mock_resource_client,
+    running_worker_container_group,
+    completed_worker_container_group,
+):
+    # the ARM deployment reports failure (e.g. another resource in a custom
+    # template failed), but the task container is already running
+    mock_poller = Mock()
+    mock_poller.done.return_value = True
+    mock_poller.result.return_value.properties.provisioning_state = (
+        ContainerGroupProvisioningState.FAILED
+    )
+    mock_resource_client.deployments.begin_create_or_update.side_effect = (
+        lambda *args, **kwargs: mock_poller
+    )
+    running_worker_container_group.provisioning_state = "Creating"
+    mock_aci_client.container_groups.get.side_effect = [
+        running_worker_container_group,
+        completed_worker_container_group,
+    ]
+
+    async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
+        result = await aci_worker.run(worker_flow_run, job_configuration)
+
+    assert result.status_code == 0
+    mock_poller.result.assert_not_called()
 
 
 async def test_container_start_wait_tolerates_status_read_errors(
@@ -1121,6 +1162,9 @@ async def test_provisioning_container_group(
     mock_deployments.begin_create_or_update = mock_provisioning_call
 
     monkeypatch.setattr(mock_resource_client, "deployments", mock_deployments)
+    mock_aci_client.container_groups.get.side_effect = ResourceNotFoundError(
+        message="not found"
+    )
 
     async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
         # We want to ensure that the provisioning call is made; we don't care about
