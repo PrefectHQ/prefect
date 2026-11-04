@@ -69,6 +69,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
           filter: blob:none
           ref: ${{ github.event.inputs.tag || github.ref }}
@@ -179,6 +180,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-tags: true
 
       - name: Get latest prefect-aws version from tags
@@ -209,6 +211,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-tags: true
 
       - name: Get latest prefect-azure version from tags
@@ -239,6 +242,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-tags: true
 
       - name: Get latest prefect-gcp version from tags

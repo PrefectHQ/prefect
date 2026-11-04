@@ -35,6 +35,8 @@ jobs:
       - name: Check out main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # scripts/update_uv_lock_integrations.py pushes its branch with this token
+          persist-credentials: true
           ref: main
           fetch-depth: 0
           token: ${{ steps.app_token.outputs.token }}
