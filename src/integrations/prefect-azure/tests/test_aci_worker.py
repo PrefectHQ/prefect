@@ -499,14 +499,16 @@ async def test_delete_after_group_creation_failure(
     mock_prefect_client,
 ):
     # if provisioning failed, the container group should be deleted
-    mock_container_group = Mock()
-    mock_container_group.provisioning_state.return_value = (
-        ContainerGroupProvisioningState.FAILED
+    failed_container_group = create_mock_container_group(
+        state="Waiting", exit_code=None
     )
+    failed_container_group.provisioning_state = ContainerGroupProvisioningState.FAILED
 
     async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
         monkeypatch.setattr(
-            aci_worker, "_wait_for_task_container_start", mock_container_group
+            aci_worker,
+            "_wait_for_task_container_start",
+            Mock(return_value=failed_container_group),
         )
 
         # We expect the worker to raise an exception when creating the container group
@@ -650,6 +652,13 @@ async def test_provisioning_timeout_throws_exception(
     mock_resource_client.deployments.begin_create_or_update.side_effect = (
         lambda *args, **kwargs: mock_poller
     )
+    # the container group exists but its container never leaves `Waiting`
+    waiting_container_group = create_mock_container_group(
+        state="Waiting", exit_code=None
+    )
+    waiting_container_group.provisioning_state = "Creating"
+    mock_aci_client.container_groups.get.side_effect = None
+    mock_aci_client.container_groups.get.return_value = waiting_container_group
 
     # avoid delaying test runs
     job_configuration.task_watch_poll_interval = 0.09
@@ -660,6 +669,139 @@ async def test_provisioning_timeout_throws_exception(
         # provisioning times out
         with pytest.raises(RuntimeError, match="Timed out after"):
             await aci_worker.run(worker_flow_run, job_configuration)
+
+    mock_aci_client.container_groups.begin_delete.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "provisioning_state, container_state",
+    [
+        # the container is running while the ARM deployment is still in progress
+        ("Creating", "Running"),
+        # the container group has been provisioned before the ARM deployment
+        # reports success
+        (ContainerGroupProvisioningState.SUCCEEDED, "Waiting"),
+    ],
+)
+async def test_container_start_detected_before_deployment_completes(
+    mock_prefect_client,
+    worker_flow_run,
+    job_configuration,
+    mock_aci_client,
+    mock_resource_client,
+    completed_worker_container_group,
+    provisioning_state,
+    container_state,
+):
+    # the ARM deployment never completes, so the worker must detect the start
+    # by reading the container group directly
+    mock_poller = Mock()
+    mock_poller.done.return_value = False
+    mock_resource_client.deployments.begin_create_or_update.side_effect = (
+        lambda *args, **kwargs: mock_poller
+    )
+
+    started_container_group = create_mock_container_group(
+        state=container_state, exit_code=None
+    )
+    started_container_group.provisioning_state = provisioning_state
+    mock_aci_client.container_groups.get.side_effect = [
+        ResourceNotFoundError(message="not created yet"),
+        started_container_group,
+        completed_worker_container_group,
+    ]
+
+    job_configuration.task_watch_poll_interval = 0.01
+    job_configuration.task_start_timeout_seconds = 60
+
+    task_status = Mock(spec=TaskStatus)
+    async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
+        result = await aci_worker.run(
+            worker_flow_run, job_configuration, task_status=task_status
+        )
+
+    task_status.started.assert_called_once()
+    assert result.status_code == 0
+    mock_poller.result.assert_not_called()
+    assert mock_aci_client.container_groups.get.call_count == 3
+
+
+async def test_container_start_wait_tolerates_status_read_errors(
+    mock_prefect_client,
+    worker_flow_run,
+    job_configuration,
+    mock_aci_client,
+    mock_resource_client,
+    running_worker_container_group,
+    completed_worker_container_group,
+):
+    mock_poller = Mock()
+    mock_poller.done.return_value = False
+    mock_resource_client.deployments.begin_create_or_update.side_effect = (
+        lambda *args, **kwargs: mock_poller
+    )
+    mock_aci_client.container_groups.get.side_effect = [
+        HttpResponseError(message="forbidden", response=Mock(status_code=403)),
+        running_worker_container_group,
+        completed_worker_container_group,
+    ]
+
+    job_configuration.task_watch_poll_interval = 0.01
+    job_configuration.task_start_timeout_seconds = 60
+
+    async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
+        result = await aci_worker.run(worker_flow_run, job_configuration)
+
+    assert result.status_code == 0
+
+
+async def test_deployment_polling_interval_matches_task_watch_poll_interval(
+    mock_prefect_client,
+    worker_flow_run,
+    job_configuration,
+    mock_aci_client,
+    mock_resource_client,
+    completed_worker_container_group,
+    monkeypatch,
+):
+    job_configuration.task_watch_poll_interval = 0.5
+
+    async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
+        monkeypatch.setattr(
+            aci_worker,
+            "_wait_for_task_container_start",
+            Mock(return_value=completed_worker_container_group),
+        )
+        await aci_worker.run(worker_flow_run, job_configuration)
+
+    call_kwargs = mock_resource_client.deployments.begin_create_or_update.call_args
+    assert call_kwargs.kwargs["polling_interval"] == 0.5
+
+
+@pytest.mark.parametrize(
+    "provisioning_state, container_state, expected",
+    [
+        (ContainerGroupProvisioningState.SUCCEEDED, "Running", True),
+        (ContainerGroupProvisioningState.SUCCEEDED, "Waiting", True),
+        ("Creating", "Running", True),
+        ("Creating", "Terminated", True),
+        ("Creating", "Waiting", False),
+        (ContainerGroupProvisioningState.FAILED, "Waiting", False),
+    ],
+)
+def test_provisioning_succeeded(provisioning_state, container_state, expected):
+    container_group = create_mock_container_group(state=container_state, exit_code=None)
+    container_group.provisioning_state = provisioning_state
+
+    assert AzureContainerWorker._provisioning_succeeded(container_group) is expected
+
+
+def test_provisioning_succeeded_without_instance_view():
+    container_group = create_mock_container_group(state="Waiting", exit_code=None)
+    container_group.provisioning_state = "Creating"
+    container_group.containers[0].instance_view = None
+
+    assert AzureContainerWorker._provisioning_succeeded(container_group) is False
 
 
 async def test_watch_for_container_termination(
