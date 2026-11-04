@@ -35,8 +35,8 @@ class SlackCredentials(Block):
     """  # noqa E501
 
     _block_type_name = "Slack Credentials"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c1965ecbf8704ee1ea20d77786de9a41ce1087d1-500x500.png"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-slack"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/slack.png"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-slack"  # noqa
 
     token: SecretStr = Field(
         default=...,
@@ -82,7 +82,7 @@ class SlackWebhook(NotificationBlock):
 
     _block_type_name = "Slack Incoming Webhook"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/7dkzINU9r6j44giEFuHuUC/85d4cd321ad60c1b1e898bc3fbd28580/5cb480cd5f1b6d3fbadece79.png?h=250"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-slack"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-slack"  # noqa
 
     url: SecretStr = Field(
         default=...,

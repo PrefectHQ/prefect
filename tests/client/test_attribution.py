@@ -2,6 +2,7 @@
 Tests for attribution headers functionality.
 """
 
+import asyncio
 import os
 from unittest import mock
 from uuid import uuid4
@@ -10,11 +11,11 @@ import httpx
 import pytest
 from httpx import Request, Response
 
+from prefect import flow
 from prefect._internal.compatibility.starlette import status
 from prefect.client.attribution import get_attribution_headers
 from prefect.client.base import PrefectHttpxAsyncClient, PrefectHttpxSyncClient
-
-pytestmark = pytest.mark.clear_db
+from prefect.settings import PREFECT_CLIENT_MAX_RETRIES, temporary_settings
 
 RESPONSE_200 = Response(
     status.HTTP_200_OK,
@@ -301,3 +302,53 @@ class TestSyncClientAttributionHeaders:
                 assert request.headers["X-Prefect-Worker-Name"] == worker_name
                 assert request.headers["X-Prefect-Flow-Id"] == flow_id
                 assert request.headers["X-Prefect-Flow-Name"] == flow_name
+
+
+@pytest.mark.parametrize("kind", ["FLOW", "DEPLOYMENT", "WORKER"])
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("my flow ", "my flow"),
+        (" my flow", "my flow"),
+        ("\t my flow \t", "my flow"),
+        (" \t ", None),
+    ],
+)
+def test_environment_attribution_whitespace(
+    monkeypatch: pytest.MonkeyPatch, kind: str, name: str, expected: str | None
+):
+    """Normalize optional header values without changing the source environment."""
+    monkeypatch.setenv(f"PREFECT__{kind}_NAME", name)
+    headers = get_attribution_headers()
+    header = f"X-Prefect-{kind.title()}-Name"
+    if expected is None:
+        assert header not in headers
+    else:
+        assert headers[header] == expected
+    assert os.environ[f"PREFECT__{kind}_NAME"] == name
+
+
+@pytest.mark.parametrize("is_async", [False, True])
+@pytest.mark.parametrize("name", ["my flow ", " my flow", "\t my flow \t", " \t "])
+def test_flow_with_surrounding_whitespace_completes(name: str, is_async: bool):
+    """Accepted flow names must not prevent terminal state reporting over HTTP."""
+
+    def sync_body() -> str:
+        return "done"
+
+    async def async_body() -> str:
+        return "done"
+
+    # Use the hosted API so real HTTP serialization validates the headers.
+    # In-process ASGI transports do not reject leading/trailing whitespace.
+    with temporary_settings({PREFECT_CLIENT_MAX_RETRIES: 0}):
+        if is_async:
+            example = flow(name=name)(async_body)
+            state = asyncio.run(example(return_state=True))
+        else:
+            example = flow(name=name)(sync_body)
+            state = example(return_state=True)
+
+    assert state.is_completed()
+    assert state.result() == "done"
+    assert example.name == name

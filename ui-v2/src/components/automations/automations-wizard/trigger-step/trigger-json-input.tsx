@@ -55,7 +55,7 @@ export const TriggerJsonInput = ({
 			<p className="text-sm text-muted-foreground">
 				Edit the trigger configuration as JSON.{" "}
 				<a
-					href="https://docs.prefect.io/v3/automate/events/automations-triggers"
+					href="https://www.prefect.io/docs/v3/automate/events/automations-triggers"
 					target="_blank"
 					rel="noopener noreferrer"
 					className="underline hover:text-foreground"

@@ -74,7 +74,7 @@ const mockWorkPoolTypes = {
 			logo_url:
 				"https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/a1cea49ca56d0b142a1d30a5b8296ff0/kubernetes-logo.svg",
 			documentation_url:
-				"https://docs.prefect.io/latest/concepts/work-pools/#kubernetes-job-work-pool",
+				"https://www.prefect.io/docs/latest/concepts/work-pools/#kubernetes-job-work-pool",
 			is_beta: false,
 			default_base_job_configuration: exampleBaseJobTemplate,
 		},
@@ -87,7 +87,7 @@ const mockWorkPoolTypes = {
 			logo_url:
 				"https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f7cdca7b4f6d7ce95128b540f3cc2/docker-logo.svg",
 			documentation_url:
-				"https://docs.prefect.io/latest/concepts/work-pools/#docker-container-work-pool",
+				"https://www.prefect.io/docs/latest/concepts/work-pools/#docker-container-work-pool",
 			is_beta: false,
 			default_base_job_configuration: exampleBaseJobTemplate,
 		},

@@ -108,7 +108,8 @@ test.describe("Deployments List Page", () => {
 			});
 		}).toPass({ timeout: 15000 });
 
-		const tagsInput = page.getByPlaceholder("Filter by tags");
+		await page.getByRole("button", { name: "Filter by tags" }).click();
+		const tagsInput = page.getByPlaceholder("Search or enter new tag");
 		await tagsInput.pressSequentially("e2e-dep-tag");
 		await page.keyboard.press("Enter");
 
@@ -181,5 +182,42 @@ test.describe("Deployments List Page", () => {
 
 		await expect(page).toHaveURL(/\/deployments\/deployment\//);
 		await expect(page.getByText(depName)).toBeVisible();
+	});
+
+	test("Pinned deployments sort first", async ({ page, apiClient }) => {
+		const timestamp = Date.now();
+		const flow = await createFlow(
+			apiClient,
+			`${TEST_PREFIX}pin-flow-${timestamp}`,
+		);
+		const firstName = `${TEST_PREFIX}pin-a-${timestamp}`;
+		const secondName = `${TEST_PREFIX}pin-b-${timestamp}`;
+		await createDeployment(apiClient, { name: firstName, flowId: flow.id });
+		await createDeployment(apiClient, { name: secondName, flowId: flow.id });
+
+		const deploymentLinks = page.locator(
+			'tbody a[href*="/deployments/deployment/"]',
+		);
+
+		await expect(async () => {
+			await page.goto(
+				`/deployments?sort=NAME_ASC&flowOrDeploymentName=${encodeURIComponent(`${TEST_PREFIX}pin-`)}`,
+			);
+			await expect(deploymentLinks).toHaveText([firstName, secondName], {
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
+
+		await page
+			.getByRole("row", { name: new RegExp(secondName) })
+			.getByRole("button", { name: "Pin deployment" })
+			.click();
+		await expect(deploymentLinks).toHaveText([secondName, firstName]);
+
+		await page.reload();
+		await expect(deploymentLinks).toHaveText([secondName, firstName]);
+
+		await page.getByRole("button", { name: "Unpin deployment" }).click();
+		await expect(deploymentLinks).toHaveText([firstName, secondName]);
 	});
 });

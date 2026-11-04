@@ -1,6 +1,9 @@
 import asyncio
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 
+import anyio.from_thread
 import pytest
 from starlette.testclient import TestClient
 
@@ -41,6 +44,24 @@ from tests.server.orchestration.api.worker_channel_cleanup_test_utils import (
 )
 
 pytestmark = pytest.mark.clear_db
+
+
+@contextmanager
+def _shared_event_loop(test_client: TestClient) -> Iterator[None]:
+    """
+    Run every websocket opened through `test_client` on one event loop.
+
+    Without an active portal, `TestClient` starts a new portal (and event loop)
+    for each `websocket_connect`. Concurrent worker channels would then share
+    the process-wide cleanup registry from different event loops, which is not
+    how the server runs and makes its `asyncio.Lock`s raise.
+    """
+    with anyio.from_thread.start_blocking_portal(**test_client.async_backend) as portal:
+        test_client.portal = portal
+        try:
+            yield
+        finally:
+            test_client.portal = None
 
 
 class TestWorkerChannelCleanupDispatcher:
@@ -120,7 +141,10 @@ class TestWorkerChannelCleanupDispatcher:
             5.0,
         )
 
-        with _connect_worker_channel(test_client, work_pool.name) as first_websocket:
+        with (
+            _shared_event_loop(test_client),
+            _connect_worker_channel(test_client, work_pool.name) as first_websocket,
+        ):
             _authenticate_worker_channel(first_websocket)
             first_websocket.send_json(
                 _cleanup_worker_hello_frame(worker_name="worker-1")
@@ -240,7 +264,10 @@ class TestWorkerChannelCleanupDispatcher:
         first = await enqueue_cleanup_message(cleanup_queue, work_pool_id=work_pool.id)
         second = await enqueue_cleanup_message(cleanup_queue, work_pool_id=work_pool.id)
 
-        with _connect_worker_channel(test_client, work_pool.name) as first_websocket:
+        with (
+            _shared_event_loop(test_client),
+            _connect_worker_channel(test_client, work_pool.name) as first_websocket,
+        ):
             _authenticate_worker_channel(first_websocket)
             first_websocket.send_json(
                 _cleanup_worker_hello_frame(worker_name="worker-1")

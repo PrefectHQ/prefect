@@ -48,7 +48,9 @@ from prefect.server.models.workers import (
 from prefect.server.schemas.states import StateType
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.database import UUID as PrefectUUID
+from prefect.server.utilities.database import get_max_query_parameters
 from prefect.types._datetime import DateTime, now
+from prefect.utilities.collections import batched_iterable
 
 WORK_QUEUE_LAST_POLLED_TIMEOUT = datetime.timedelta(seconds=60)
 
@@ -699,24 +701,58 @@ async def record_work_queue_polls(
     session: AsyncSession,
     polled_work_queue_ids: Sequence[UUID],
     ready_work_queue_ids: Sequence[UUID],
-) -> None:
+) -> list[UUID]:
     """Record that the given work queues were polled, and also update the given
-    ready_work_queue_ids to READY."""
-    polled = now("UTC")
+    ready_work_queue_ids to READY.
 
-    if polled_work_queue_ids:
+    Returns the IDs of the work queues that this call transitioned to READY.
+    """
+    polled = sa.literal(now("UTC"), type_=db.WorkQueue.last_polled.type)
+    # An older poll can acquire the row lock after a newer poll has committed.
+    last_polled = sa.case(
+        (db.WorkQueue.last_polled > polled, db.WorkQueue.last_polled), else_=polled
+    )
+
+    # SQLite can bind the timestamp twice in the CASE.
+    batch_size = get_max_query_parameters() - 2
+    for queue_ids in batched_iterable(
+        sorted({*polled_work_queue_ids, *ready_work_queue_ids}), batch_size
+    ):
         await session.execute(
             sa.update(db.WorkQueue)
-            .where(db.WorkQueue.id.in_(polled_work_queue_ids))
-            .values(last_polled=polled)
+            .where(db.WorkQueue.id.in_(queue_ids))
+            .values(last_polled=last_polled)
         )
 
-    if ready_work_queue_ids:
+    if not ready_work_queue_ids:
+        return []
+
+    # The `last_polled` update above already holds the row locks, so concurrent
+    # calls see each other's status changes here. (No `RETURNING`: it needs
+    # SQLite 3.35+.)
+    newly_ready_work_queue_ids: list[UUID] = []
+    for queue_ids in batched_iterable(sorted(set(ready_work_queue_ids)), batch_size):
+        newly_ready_work_queue_ids.extend(
+            (
+                await session.execute(
+                    sa.select(db.WorkQueue.id)
+                    .where(
+                        db.WorkQueue.id.in_(queue_ids),
+                        db.WorkQueue.status != WorkQueueStatus.READY,
+                    )
+                    .with_for_update()
+                )
+            )
+            .scalars()
+            .all()
+        )
+    for queue_ids in batched_iterable(newly_ready_work_queue_ids, batch_size):
         await session.execute(
             sa.update(db.WorkQueue)
-            .where(db.WorkQueue.id.in_(ready_work_queue_ids))
-            .values(last_polled=polled, status=WorkQueueStatus.READY)
+            .where(db.WorkQueue.id.in_(queue_ids))
+            .values(status=WorkQueueStatus.READY)
         )
+    return newly_ready_work_queue_ids
 
 
 async def mark_work_queues_ready(
@@ -727,7 +763,7 @@ async def mark_work_queues_ready(
     retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
-        await record_work_queue_polls(
+        newly_ready_work_queue_ids = await record_work_queue_polls(
             session=session,
             polled_work_queue_ids=polled_work_queue_ids,
             ready_work_queue_ids=ready_work_queue_ids,
@@ -736,22 +772,25 @@ async def mark_work_queues_ready(
     # Emit events for any work queues that have transitioned to ready during this poll
     # Uses a separate transaction to avoid keeping locks open longer from the updates
     # in the previous transaction
-    if not ready_work_queue_ids:
+    if not newly_ready_work_queue_ids:
         return
 
     async with db.session_context(begin_transaction=True) as session:
-        newly_ready_work_queues = await session.execute(
-            sa.select(db.WorkQueue).where(db.WorkQueue.id.in_(ready_work_queue_ids))
-        )
-
-        events = [
-            await work_queue_status_event(
-                session=session,
-                work_queue=work_queue,
-                occurred=now("UTC"),
+        events = []
+        for queue_ids in batched_iterable(
+            newly_ready_work_queue_ids, get_max_query_parameters()
+        ):
+            newly_ready_work_queues = await session.execute(
+                sa.select(db.WorkQueue).where(db.WorkQueue.id.in_(queue_ids))
             )
-            for work_queue in newly_ready_work_queues.scalars().all()
-        ]
+            for work_queue in newly_ready_work_queues.scalars():
+                events.append(
+                    await work_queue_status_event(
+                        session=session,
+                        work_queue=work_queue,
+                        occurred=now("UTC"),
+                    )
+                )
 
     async with PrefectServerEventsClient() as events_client:
         for event in events:

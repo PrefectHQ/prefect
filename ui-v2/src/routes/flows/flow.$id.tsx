@@ -7,14 +7,20 @@ import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
-import { buildPaginateDeploymentsQuery } from "@/api/deployments";
+import {
+	buildFilterDeploymentsQuery,
+	buildPaginateDeploymentsQuery,
+	type DeploymentsFilter,
+} from "@/api/deployments";
 import { categorizeError } from "@/api/error-utils";
+import type { FlowRun } from "@/api/flow-runs";
 import {
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
 	buildPaginateFlowRunsQuery,
 	type FlowRunsPaginateFilter,
 } from "@/api/flow-runs";
+import type { StateType } from "@/api/flow-runs/constants";
 import {
 	buildDeploymentsCountByFlowQuery,
 	buildFLowDetailsQuery,
@@ -30,7 +36,10 @@ import {
 	SORT_FILTERS,
 	type SortFilters,
 } from "@/components/flow-runs/flow-runs-list";
-import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import {
+	buildStateFilter,
+	STATE_TYPES,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import FlowDetail from "@/components/flows/detail";
 import {
 	buildCompletedTaskRunsCountFilter,
@@ -64,6 +73,7 @@ const searchParams = z
 		"runs.sort": z.enum(SORT_FILTERS).optional().default("START_TIME_DESC"),
 		"runs.flowRuns.nameLike": z.string().optional().default(""),
 		"runs.flowRuns.state.name": z.array(z.string()).optional(),
+		"runs.flowRuns.state.type": z.array(z.enum(STATE_TYPES)).optional(),
 		type: z.enum(["span", "range"]).optional(),
 		seconds: z.number().int().positive().optional(),
 		startDateTime: z.date().optional(),
@@ -77,7 +87,6 @@ const searchParams = z
 			.optional()
 			.default("NAME_ASC"),
 	})
-	.optional()
 	.prefault({});
 
 type SearchParams = z.infer<typeof searchParams>;
@@ -87,20 +96,20 @@ const buildPaginationBody = (
 	flowId: string,
 ): FlowRunsPaginateFilter => {
 	const flowRunSearch = search["runs.flowRuns.nameLike"];
-	const stateFilters = search["runs.flowRuns.state.name"] ?? [];
+	const stateFilter = buildStateFilter(
+		search["runs.flowRuns.state.name"] ?? [],
+		search["runs.flowRuns.state.type"],
+	);
 
-	const hasFilters = flowRunSearch || stateFilters.length > 0;
+	const hasFilters = flowRunSearch || stateFilter;
 	const flowRunsFilter = hasFilters
 		? {
 				operator: "and_" as const,
 				...(flowRunSearch && {
 					name: { like_: flowRunSearch },
 				}),
-				...(stateFilters.length > 0 && {
-					state: {
-						operator: "and_" as const,
-						name: { any_: stateFilters },
-					},
+				...(stateFilter && {
+					state: stateFilter,
 				}),
 			}
 		: undefined;
@@ -111,6 +120,26 @@ const buildPaginationBody = (
 		sort: search["runs.sort"],
 		flow_runs: flowRunsFilter,
 		flows: { operator: "and_" as const, id: { any_: [flowId] } },
+	};
+};
+
+const buildFlowRunDeploymentsFilter = (
+	flowRuns: FlowRun[],
+): DeploymentsFilter | null => {
+	const deploymentIds = Array.from(
+		new Set(
+			flowRuns
+				.map((run) => run.deployment_id)
+				.filter((id): id is string => Boolean(id)),
+		),
+	);
+	if (deploymentIds.length === 0) {
+		return null;
+	}
+	return {
+		deployments: { operator: "and_", id: { any_: deploymentIds } },
+		offset: 0,
+		sort: "CREATED_DESC",
 	};
 };
 
@@ -189,12 +218,12 @@ const useStateFilter = () => {
 	const navigate = Route.useNavigate();
 
 	const selectedStates = useMemo(
-		() => new Set((search["runs.flowRuns.state.name"] || []) as FlowRunState[]),
+		() => new Set(search["runs.flowRuns.state.name"] ?? []),
 		[search["runs.flowRuns.state.name"]],
 	);
 
 	const onSelectFilter = useCallback(
-		(states: Set<FlowRunState>) => {
+		(states: Set<string>) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
@@ -208,7 +237,27 @@ const useStateFilter = () => {
 		[navigate],
 	);
 
-	return { selectedStates, onSelectFilter };
+	const selectedStateTypes = new Set(search["runs.flowRuns.state.type"] ?? []);
+	const onStateTypesChange = useCallback(
+		(types: Set<StateType>) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"runs.flowRuns.state.type": [...types],
+					"runs.page": 1,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+	return {
+		selectedStates,
+		onSelectFilter,
+		selectedStateTypes,
+		onStateTypesChange,
+	};
 };
 
 const useDeploymentSearch = () => {
@@ -317,7 +366,12 @@ export const Route = createFileRoute("/flows/flow/$id")({
 		const [pagination, onPaginationChange] = usePagination();
 		const [sort, onSortChange] = useSort();
 		const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
-		const { selectedStates, onSelectFilter } = useStateFilter();
+		const {
+			selectedStates,
+			onSelectFilter,
+			selectedStateTypes,
+			onStateTypesChange,
+		} = useStateFilter();
 
 		// Navigation hooks for deployments
 		const [deploymentSearch, onDeploymentSearchChange] = useDeploymentSearch();
@@ -364,6 +418,17 @@ export const Route = createFileRoute("/flows/flow/$id")({
 
 		const flowRuns = flowRunsPage?.results ?? [];
 
+		// Load deployments for the visible flow runs so each card can link to its deployment
+		const flowRunDeploymentsFilter = useMemo(
+			() => buildFlowRunDeploymentsFilter(flowRuns),
+			[flowRuns],
+		);
+		const { data: flowRunDeployments } = useQuery(
+			buildFilterDeploymentsQuery(flowRunDeploymentsFilter ?? undefined, {
+				enabled: flowRunDeploymentsFilter !== null,
+			}),
+		);
+
 		// Prefetch task run counts for the current page's flow runs
 		// This ensures the data is ready when FlowRunCard renders
 		useEffect(() => {
@@ -390,10 +455,17 @@ export const Route = createFileRoute("/flows/flow/$id")({
 					const pageData = await queryClient.ensureQueryData(
 						buildPaginateFlowRunsQuery(filter, 30_000),
 					);
-					const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
+					const pageFlowRuns = pageData?.results ?? [];
+					const flowRunIds = pageFlowRuns.map((run) => run.id);
 					if (flowRunIds.length > 0) {
 						void queryClient.prefetchQuery(
 							buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+						);
+					}
+					const deploymentsFilter = buildFlowRunDeploymentsFilter(pageFlowRuns);
+					if (deploymentsFilter) {
+						void queryClient.prefetchQuery(
+							buildFilterDeploymentsQuery(deploymentsFilter),
 						);
 					}
 				})();
@@ -418,6 +490,7 @@ export const Route = createFileRoute("/flows/flow/$id")({
 			<FlowDetail
 				flow={flow}
 				flowRuns={flowRuns}
+				flowRunDeployments={flowRunDeployments ?? []}
 				flowRunsCount={flowRunsPage?.count ?? 0}
 				flowRunsPages={flowRunsPage?.pages ?? 0}
 				deployments={deploymentsPage?.results ?? []}
@@ -433,6 +506,8 @@ export const Route = createFileRoute("/flows/flow/$id")({
 				flowRunSearch={flowRunSearch}
 				onFlowRunSearchChange={onFlowRunSearchChange}
 				selectedStates={selectedStates}
+				selectedStateTypes={selectedStateTypes}
+				onStateTypesChange={onStateTypesChange}
 				onSelectFilter={onSelectFilter}
 				deploymentSearch={deploymentSearch}
 				onDeploymentSearchChange={onDeploymentSearchChange}
@@ -545,10 +620,17 @@ export const Route = createFileRoute("/flows/flow/$id")({
 					30_000,
 				),
 			);
-			const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
+			const pageFlowRuns = pageData?.results ?? [];
+			const flowRunIds = pageFlowRuns.map((run) => run.id);
 			if (flowRunIds.length > 0) {
 				void context.queryClient.prefetchQuery(
 					buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+				);
+			}
+			const deploymentsFilter = buildFlowRunDeploymentsFilter(pageFlowRuns);
+			if (deploymentsFilter) {
+				void context.queryClient.prefetchQuery(
+					buildFilterDeploymentsQuery(deploymentsFilter),
 				);
 			}
 		})();

@@ -85,10 +85,8 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "Local File System"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/ad39089fa66d273b943394a68f003f7a19aa850e-48x48.png"
-    _documentation_url = (
-        "https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem"
-    )
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/filesystem.png"
+    _documentation_url = "https://www.prefect.io/docs/latest/develop/results#specifying-a-default-filesystem"
 
     basepath: Optional[str] = Field(
         default=None, description="Default local path for this block to write to."
@@ -191,13 +189,15 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             with open(from_path / Path(".prefectignore")) as f:
                 ignore_patterns = f.readlines()
             included_files = filter_files(
-                root=from_path, ignore_patterns=ignore_patterns
+                root=from_path, ignore_patterns=ignore_patterns, as_posix=True
             )
 
             def ignore_func(directory, files):
                 relative_path = Path(directory).relative_to(from_path)
                 files_to_ignore = [
-                    f for f in files if str(relative_path / f) not in included_files
+                    f
+                    for f in files
+                    if (relative_path / f).as_posix() not in included_files
                 ]
                 return files_to_ignore
         else:
@@ -210,13 +210,15 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     async def _get_ignore_func(self, local_path: str, ignore_file: str):
         with open(ignore_file) as f:
             ignore_patterns = f.readlines()
-        included_files = filter_files(root=local_path, ignore_patterns=ignore_patterns)
+        included_files = filter_files(
+            root=local_path, ignore_patterns=ignore_patterns, as_posix=True
+        )
 
         def ignore_func(directory, files):
             relative_path = Path(directory).relative_to(local_path)
 
             files_to_ignore = [
-                f for f in files if str(relative_path / f) not in included_files
+                f for f in files if (relative_path / f).as_posix() not in included_files
             ]
             return files_to_ignore
 
@@ -278,13 +280,15 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             with open(ignore_file) as f:
                 ignore_patterns = f.readlines()
             included_files = filter_files(
-                root=local_path, ignore_patterns=ignore_patterns
+                root=local_path, ignore_patterns=ignore_patterns, as_posix=True
             )
 
             def ignore_func(directory, files):
                 relative_path = Path(directory).relative_to(local_path)
                 files_to_ignore = [
-                    f for f in files if str(relative_path / f) not in included_files
+                    f
+                    for f in files
+                    if (relative_path / f).as_posix() not in included_files
                 ]
                 return files_to_ignore
         else:
@@ -382,10 +386,8 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "Remote File System"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/e86b41bc0f9c99ba9489abeee83433b43d5c9365-48x48.png"
-    _documentation_url = (
-        "https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem"
-    )
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/filesystem.png"
+    _documentation_url = "https://www.prefect.io/docs/latest/develop/results#specifying-a-default-filesystem"
 
     basepath: str = Field(
         default=...,
@@ -539,13 +541,13 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 ignore_patterns = f.readlines()
 
             included_files = filter_files(
-                local_path, ignore_patterns, include_dirs=True
+                local_path, ignore_patterns, include_dirs=True, as_posix=True
             )
 
         counter = 0
         for f in Path(local_path).rglob("*"):
             relative_path = f.relative_to(local_path)
-            if included_files and str(relative_path) not in included_files:
+            if included_files and relative_path.as_posix() not in included_files:
                 continue
 
             if to_path.endswith("/"):
@@ -595,13 +597,13 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 ignore_patterns = f.readlines()
 
             included_files = filter_files(
-                local_path, ignore_patterns, include_dirs=True
+                local_path, ignore_patterns, include_dirs=True, as_posix=True
             )
 
         counter = 0
         for f in Path(local_path).rglob("*"):
             relative_path = f.relative_to(local_path)
-            if included_files and str(relative_path) not in included_files:
+            if included_files and relative_path.as_posix() not in included_files:
                 continue
 
             if to_path.endswith("/"):
@@ -701,10 +703,8 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "SMB"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/3f624663f7beb97d011d011bffd51ecf6c499efc-195x195.png"
-    _documentation_url = (
-        "https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem"
-    )
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/smb.png"
+    _documentation_url = "https://www.prefect.io/docs/latest/develop/results#specifying-a-default-filesystem"
 
     share_path: str = Field(
         default=...,

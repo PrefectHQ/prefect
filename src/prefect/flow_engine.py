@@ -59,7 +59,11 @@ from prefect._internal.control_listener import (
     get_intent,
     report_engine_outcome,
 )
-from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
+from prefect._internal.engine import (
+    get_hook_name,
+    resolve_custom_flow_run_name,
+    resolve_flow_hook_arguments,
+)
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -810,8 +814,17 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             )
         )
         raise_if_flow_run_suspension_requested()
-        self.set_state(terminal_state)
         self._return_value = resolved_result
+        state = self.set_state(terminal_state)
+        if terminal_state.is_failed() and state.is_scheduled():
+            self.logger.info(
+                f"Received non-final state {state.name!r} when proposing final"
+                f" state {terminal_state.name!r} and will attempt to run again..."
+            )
+            raise_if_flow_run_suspension_requested()
+            self._return_value = NotSet
+            self.set_state(Running())
+            return result
 
         link_state_to_flow_run_result(terminal_state, resolved_result)
         self._telemetry.end_span_on_success()
@@ -930,9 +943,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         run, if appropriate.
 
         If the parent task run is in a final state, we return the existing
-        subflow run to avoid re-execution (unless the parent is being rerun
-        and the subflow did not complete, in which case a fresh run is
-        desired).
+        subflow run unless the parent is being rerun and the subflow either
+        did not complete or has no persisted result. In those cases a fresh
+        run gives the subflow its full retry budget while preserving the
+        previous run's history.
 
         If the parent task run is in a non-final state (e.g. still Running
         after a process restart), we also look for an existing subflow run
@@ -972,8 +986,18 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         )
         if flow_runs:
             loaded_flow_run = flow_runs[0]
-            # When the parent task run is final the subflow has already
-            # finished; cache the result so the engine skips re-execution.
+            if (
+                rerunning
+                and parent_task_run.state.is_completed()
+                and loaded_flow_run.state is not None
+                and loaded_flow_run.state.is_completed()
+                and loaded_flow_run.state.data is None
+            ):
+                # Without a persisted result the child must execute again. A
+                # fresh run preserves its history and restores its retry budget.
+                return None
+
+            # Keep the previous state available when reusing a finished run.
             if parent_task_run.state.is_final():
                 self._return_value = loaded_flow_run.state
             return loaded_flow_run
@@ -1052,7 +1076,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
-                result = hook(flow, flow_run, state)
+                args, kwargs = resolve_flow_hook_arguments(hook, flow, flow_run, state)
+                result = hook(*args, **kwargs)
                 if asyncio.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
@@ -1117,7 +1142,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
                 stack.enter_context(
                     maintain_concurrency_lease(
-                        lease_id, 300, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        300,
+                        raise_on_lease_renewal_failure=True,
+                        flow_run_id=self.flow_run.id,
                     )
                 )
 
@@ -1213,9 +1241,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                         intent = _termination_intent()
                         if intent == "cancel":
                             self.handle_cancellation(exc)
-                        elif intent is None:
-                            self.handle_crash(exc)
-                        elif intent not in _SUPERVISOR_OWNED_INTENTS:
+                            raise
+                        if intent in _SUPERVISOR_OWNED_INTENTS:
+                            raise
+                        if intent is not None:
                             # Defensive: an unknown intent means the control
                             # listener was extended (e.g. "suspend" in a
                             # follow-up PR) without extending this dispatch.
@@ -1227,6 +1256,15 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                                 " dispatch branch.",
                                 intent,
                             )
+                        if self.flow_run.state and self.flow_run.state.is_final():
+                            # A termination signal that lands during teardown
+                            # must not overwrite an already-reported final state
+                            self.logger.debug(
+                                "Termination signal was received after the flow"
+                                " run reached a final state",
+                                exc_info=exc,
+                            )
+                        else:
                             self.handle_crash(exc)
                         raise
                     except Exception:
@@ -1311,6 +1349,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 self.handle_timeout(exc)
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
+                if self.state.is_final() or self._return_value is not NotSet:
+                    raise
                 self.handle_exception(exc)
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
@@ -1510,8 +1550,17 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             write_result=should_persist_result(),
         )
         raise_if_flow_run_suspension_requested()
-        await self.set_state(terminal_state)
         self._return_value = resolved_result
+        state = await self.set_state(terminal_state)
+        if terminal_state.is_failed() and state.is_scheduled():
+            self.logger.info(
+                f"Received non-final state {state.name!r} when proposing final"
+                f" state {terminal_state.name!r} and will attempt to run again..."
+            )
+            raise_if_flow_run_suspension_requested()
+            self._return_value = NotSet
+            await self.set_state(Running())
+            return result
 
         self._telemetry.end_span_on_success()
 
@@ -1628,9 +1677,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         run, if appropriate.
 
         If the parent task run is in a final state, we return the existing
-        subflow run to avoid re-execution (unless the parent is being rerun
-        and the subflow did not complete, in which case a fresh run is
-        desired).
+        subflow run unless the parent is being rerun and the subflow either
+        did not complete or has no persisted result. In those cases a fresh
+        run gives the subflow its full retry budget while preserving the
+        previous run's history.
 
         If the parent task run is in a non-final state (e.g. still Running
         after a process restart), we also look for an existing subflow run
@@ -1670,8 +1720,18 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         )
         if flow_runs:
             loaded_flow_run = flow_runs[0]
-            # When the parent task run is final the subflow has already
-            # finished; cache the result so the engine skips re-execution.
+            if (
+                rerunning
+                and parent_task_run.state.is_completed()
+                and loaded_flow_run.state is not None
+                and loaded_flow_run.state.is_completed()
+                and loaded_flow_run.state.data is None
+            ):
+                # Without a persisted result the child must execute again. A
+                # fresh run preserves its history and restores its retry budget.
+                return None
+
+            # Keep the previous state available when reusing a finished run.
             if parent_task_run.state.is_final():
                 self._return_value = loaded_flow_run.state
             return loaded_flow_run
@@ -1748,7 +1808,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
-                result = hook(flow, flow_run, state)
+                args, kwargs = resolve_flow_hook_arguments(hook, flow, flow_run, state)
+                result = hook(*args, **kwargs)
                 if asyncio.iscoroutine(result):
                     await result
             except Exception:
@@ -1813,7 +1874,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
                 await stack.enter_async_context(
                     amaintain_concurrency_lease(
-                        lease_id, 300, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        300,
+                        raise_on_lease_renewal_failure=True,
+                        flow_run_id=self.flow_run.id,
                     )
                 )
 
@@ -1913,9 +1977,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         intent = _termination_intent()
                         if intent == "cancel":
                             await self.handle_cancellation(exc)
-                        elif intent is None:
-                            await self.handle_crash(exc)
-                        elif intent not in _SUPERVISOR_OWNED_INTENTS:
+                            raise
+                        if intent in _SUPERVISOR_OWNED_INTENTS:
+                            raise
+                        if intent is not None:
                             # Defensive: see sync engine's dispatch for why.
                             self.logger.error(
                                 "Unhandled termination intent %r; treating as"
@@ -1923,6 +1988,15 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                                 " dispatch branch.",
                                 intent,
                             )
+                        if self.flow_run.state and self.flow_run.state.is_final():
+                            # A termination signal that lands during teardown
+                            # must not overwrite an already-reported final state
+                            self.logger.debug(
+                                "Termination signal was received after the flow"
+                                " run reached a final state",
+                                exc_info=exc,
+                            )
+                        else:
                             await self.handle_crash(exc)
                         raise
                     except Exception:
@@ -2033,6 +2107,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 await self.handle_timeout(exc)
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
+                if self.state.is_final() or self._return_value is not NotSet:
+                    raise
                 await self.handle_exception(exc)
 
     async def call_flow_fn(self) -> Coroutine[Any, Any, R]:

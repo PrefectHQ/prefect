@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 from textwrap import dedent
-from typing import Optional
+from typing import Any, Callable, NamedTuple, Optional
 from unittest.mock import AsyncMock, MagicMock, call
 from urllib.parse import urlparse, urlunparse
 
@@ -466,7 +466,8 @@ class TestGitRepository:
                 ["git", "sparse-checkout", "set", "--", "dir_1", "dir_2"],
                 cwd=Path.cwd() / "repo",
             ),
-            call(["git", "pull", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),
+            call(["git", "fetch", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),
+            call(["git", "reset", "--keep", "FETCH_HEAD"], cwd=Path.cwd() / "repo"),
         ]
 
         mock_run_process.assert_has_awaits(expected_calls)
@@ -541,16 +542,21 @@ class TestGitRepository:
         monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
 
         await repo.pull_code()
-        mock_run_process.assert_awaited_with(
+        mock_run_process.assert_has_awaits(
             [
-                "git",
-                "pull",
-                "origin",
-                "--recurse-submodules",
-                "--depth",
-                "1",
-            ],
-            cwd=Path.cwd() / "repo",
+                call(
+                    ["git", "fetch", "origin", "--depth", "1"],
+                    cwd=Path.cwd() / "repo",
+                ),
+                call(
+                    ["git", "reset", "--keep", "FETCH_HEAD"],
+                    cwd=Path.cwd() / "repo",
+                ),
+                call(
+                    ["git", "submodule", "update", "--init", "--recursive"],
+                    cwd=Path.cwd() / "repo",
+                ),
+            ]
         )
 
     async def test_include_submodules_with_credentials(
@@ -588,6 +594,7 @@ class TestGitRepository:
         monkeypatch.setattr(
             GitRepository, "is_current_commit", AsyncMock(return_value=False)
         )
+        monkeypatch.setattr(GitRepository, "_has_commit", AsyncMock(return_value=False))
         # Mock is_shallow_clone to return True to test unshallow behavior
         monkeypatch.setattr(
             GitRepository, "is_shallow_clone", AsyncMock(return_value=True)
@@ -606,7 +613,7 @@ class TestGitRepository:
                 cwd=str(Path.cwd() / "repo"),
             ),
             call(
-                ["git", "fetch", "origin", "--unshallow"],
+                ["git", "fetch", "origin", "--unshallow", "1234567890"],
                 cwd=Path.cwd() / "repo",
             ),
             call(
@@ -692,6 +699,44 @@ class TestGitRepository:
             console_output = capsys.readouterr()
             assert "user:password".upper() not in console_output.out
             assert "user:password".upper() not in console_output.err
+
+    async def test_submodule_update_errors_obscure_access_token(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ):
+        # we uppercase the token because this test definition does show up in the exception traceback
+        token = "super-secret-42".upper()
+
+        async def mock_run_process(cmd: list[str], **kwargs: Any) -> MagicMock:
+            if "submodule" in cmd:
+                raise subprocess.CalledProcessError(
+                    128,
+                    cmd,
+                    stderr=f"fatal: unable to access 'https://{token}@github.com/org/sub.git/'".encode(),
+                )
+            result = MagicMock()
+            result.stdout = b"https://github.com/org/repo.git"
+            return result
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+        monkeypatch.setattr(
+            GitRepository, "is_current_commit", AsyncMock(return_value=True)
+        )
+
+        with pytest.raises(RuntimeError, match="Failed to update submodules") as exc:
+            await GitRepository(
+                url="https://github.com/org/repo.git",
+                commit_sha="1234567890",
+                include_submodules=True,
+                credentials={"access_token": token},
+            ).pull_code()
+        assert "unable to access" in str(exc.value)
+        assert token not in str(exc.getrepr())
+        console_output = capsys.readouterr()
+        assert token not in console_output.out
+        assert token not in console_output.err
 
     class TestCredentialFormatting:
         async def test_credential_formatting_maintains_secrets(
@@ -1606,7 +1651,7 @@ class TestGitRepositoryConcurrency:
 
             if "config" in cmd:
                 return Result()
-            if "pull" in cmd:
+            if "fetch" in cmd:
                 call_count += 1
                 if call_count == 1:
                     raise subprocess.CalledProcessError(1, cmd)
@@ -1627,8 +1672,331 @@ class TestGitRepositoryConcurrency:
         # Both calls should complete without FileNotFoundError
         await asyncio.gather(repo1.pull_code(), repo2.pull_code())
 
-        # The first call should have triggered rmtree due to the failed pull
+        # The first call should have triggered rmtree due to the failed fetch
         assert len(rmtree_calls) >= 1
+
+
+def _git(*args: str, cwd: Path) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+class _Upstream(NamedTuple):
+    path: Path
+    url: str
+    sha_a: str
+    sha_b: str
+
+
+class TestGitRepositoryCommitSha:
+    """Exercise `commit_sha` handling against a real local git repository."""
+
+    @pytest.fixture
+    def upstream(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Upstream:
+        for var in ("AUTHOR", "COMMITTER"):
+            monkeypatch.setenv(f"GIT_{var}_NAME", "test")
+            monkeypatch.setenv(f"GIT_{var}_EMAIL", "test@example.com")
+
+        path = tmp_path / "upstream"
+        path.mkdir()
+        _git("init", "-q", cwd=path)
+        (path / "f.txt").write_text("A")
+        _git("add", "f.txt", cwd=path)
+        _git("commit", "-q", "-m", "A", cwd=path)
+        sha_a = _git("rev-parse", "HEAD", cwd=path)
+        (path / "f.txt").write_text("B")
+        _git("commit", "-q", "-am", "B", cwd=path)
+        sha_b = _git("rev-parse", "HEAD", cwd=path)
+        return _Upstream(path=path, url=path.as_uri(), sha_a=sha_a, sha_b=sha_b)
+
+    @pytest.fixture
+    def base_path(self, tmp_path: Path) -> Path:
+        base_path = tmp_path / "work"
+        base_path.mkdir()
+        return base_path
+
+    async def _pull(
+        self, url: str, base_path: Path, commit_sha: str | None = None
+    ) -> GitRepository:
+        repo = GitRepository(url=url, commit_sha=commit_sha, name="repo")
+        repo.set_base_path(base_path)
+        await repo.pull_code()
+        return repo
+
+    async def test_pull_code_checks_out_new_commit_in_existing_checkout(
+        self, upstream: _Upstream, base_path: Path
+    ):
+        repo = await self._pull(upstream.url, base_path, upstream.sha_a)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == upstream.sha_a
+        assert (repo.destination / "f.txt").read_text() == "A"
+
+        repo = await self._pull(upstream.url, base_path, upstream.sha_b)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == upstream.sha_b
+        assert (repo.destination / "f.txt").read_text() == "B"
+
+    async def test_pull_code_checks_out_commit_on_other_branch_in_shallow_checkout(
+        self, upstream: _Upstream, base_path: Path
+    ):
+        _git("checkout", "-q", "-b", "feature", cwd=upstream.path)
+        (upstream.path / "f.txt").write_text("C")
+        _git("commit", "-q", "-am", "C", cwd=upstream.path)
+        sha_c = _git("rev-parse", "HEAD", cwd=upstream.path)
+        _git("checkout", "-q", "-", cwd=upstream.path)
+
+        repo = await self._pull(upstream.url, base_path)
+        assert _git("rev-parse", "--is-shallow-repository", cwd=repo.destination) == (
+            "true"
+        )
+
+        repo = await self._pull(upstream.url, base_path, sha_c)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == sha_c
+        assert (repo.destination / "f.txt").read_text() == "C"
+
+    async def test_pull_code_checks_out_local_commit_without_fetching(
+        self, upstream: _Upstream, base_path: Path
+    ):
+        await self._pull(upstream.url, base_path, upstream.sha_a)
+        await self._pull(upstream.url, base_path, upstream.sha_b)
+        upstream.path.rename(upstream.path.with_name("unreachable"))
+
+        repo = await self._pull(upstream.url, base_path, upstream.sha_a)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == upstream.sha_a
+        assert (repo.destination / "f.txt").read_text() == "A"
+
+    @pytest.fixture
+    def parent(
+        self, upstream: _Upstream, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> _Upstream:
+        """A repository with `upstream` as a submodule at A, then at B."""
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "protocol.file.allow")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "always")
+
+        path = tmp_path / "parent"
+        path.mkdir()
+        _git("init", "-q", cwd=path)
+        _git("submodule", "add", "-q", upstream.url, "sub", cwd=path)
+        _git("-C", "sub", "checkout", "-q", upstream.sha_a, cwd=path)
+        _git("add", "sub", cwd=path)
+        _git("commit", "-q", "-m", "sub at A", cwd=path)
+        sha_a = _git("rev-parse", "HEAD", cwd=path)
+        _git("-C", "sub", "checkout", "-q", upstream.sha_b, cwd=path)
+        _git("add", "sub", cwd=path)
+        _git("commit", "-q", "-m", "sub at B", cwd=path)
+        sha_b = _git("rev-parse", "HEAD", cwd=path)
+        return _Upstream(path=path, url=path.as_uri(), sha_a=sha_a, sha_b=sha_b)
+
+    async def _pull_with_submodules(
+        self, parent: _Upstream, base_path: Path, commit_sha: str
+    ) -> GitRepository:
+        repo = GitRepository(
+            url=parent.url,
+            commit_sha=commit_sha,
+            include_submodules=True,
+            name="repo",
+        )
+        repo.set_base_path(base_path)
+        await repo.pull_code()
+        return repo
+
+    async def test_pull_code_updates_submodules_when_commit_changes(
+        self, parent: _Upstream, base_path: Path
+    ):
+        repo = await self._pull_with_submodules(parent, base_path, parent.sha_a)
+        assert (repo.destination / "sub" / "f.txt").read_text() == "A"
+
+        repo = await self._pull_with_submodules(parent, base_path, parent.sha_b)
+        assert (repo.destination / "sub" / "f.txt").read_text() == "B"
+
+    async def test_pull_code_retries_failed_submodule_update_for_current_commit(
+        self, upstream: _Upstream, parent: _Upstream, base_path: Path
+    ):
+        unreachable = upstream.path.rename(upstream.path.with_name("unreachable"))
+        with pytest.raises(RuntimeError, match="Failed to update submodules"):
+            await self._pull_with_submodules(parent, base_path, parent.sha_a)
+        unreachable.rename(upstream.path)
+
+        repo = await self._pull_with_submodules(parent, base_path, parent.sha_a)
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == parent.sha_a
+        assert (repo.destination / "sub" / "f.txt").read_text() == "A"
+
+    @pytest.mark.parametrize(
+        "pick_sha, expected",
+        [
+            pytest.param(lambda up: up.sha_a, True, id="full-sha-of-head"),
+            pytest.param(lambda up: up.sha_a[:7], True, id="short-sha-of-head"),
+            pytest.param(lambda up: up.sha_b, False, id="other-commit"),
+            pytest.param(lambda up: "f" * 40, False, id="nonexistent-sha"),
+        ],
+    )
+    async def test_is_current_commit(
+        self,
+        upstream: _Upstream,
+        base_path: Path,
+        pick_sha: Callable[[_Upstream], str],
+        expected: bool,
+    ):
+        await self._pull(upstream.url, base_path, upstream.sha_a)
+
+        repo = GitRepository(
+            url=upstream.url, commit_sha=pick_sha(upstream), name="repo"
+        )
+        repo.set_base_path(base_path)
+        assert await repo.is_current_commit() is expected
+
+
+class TestGitRepositoryUpdatesShallowClone:
+    """
+    Regression tests for #16241: updating an existing shallow clone must apply
+    new remote commits in place, not delete and re-clone a directory that other
+    runs may be using.
+    """
+
+    @pytest.fixture
+    def remote(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        # Keep the user's git config (pull.rebase, pull.ff, ...) out of the test
+        monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+        monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+        for role in ("AUTHOR", "COMMITTER"):
+            monkeypatch.setenv(f"GIT_{role}_NAME", "test")
+            monkeypatch.setenv(f"GIT_{role}_EMAIL", "test@example.com")
+
+        remote = tmp_path / "remote.git"
+        work = tmp_path / "work"
+        _git("init", "--bare", str(remote), cwd=tmp_path)
+        _git("clone", str(remote), str(work), cwd=tmp_path)
+        _git("symbolic-ref", "HEAD", "refs/heads/main", cwd=work)
+        (work / "flow.py").write_text("VERSION = 1\n")
+        _git("add", "flow.py", cwd=work)
+        _git("commit", "-m", "v1", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+        return remote
+
+    @pytest.mark.parametrize("change", ["commit", "merge", "force-push"])
+    async def test_pull_code_applies_new_remote_commit_in_place(
+        self, remote: Path, tmp_path: Path, change: str
+    ):
+        repo = GitRepository(url=remote.as_uri(), branch="main")
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        # Stands in for a flow run that is using the checkout
+        in_use = repo.destination / "in_use.txt"
+        in_use.write_text("in use")
+
+        work = tmp_path / "work"
+        (work / "flow.py").write_text("VERSION = 2\n")
+        if change == "commit":
+            _git("commit", "-am", "v2", cwd=work)
+            _git("push", "origin", "main", cwd=work)
+        elif change == "merge":
+            _git("checkout", "-b", "feature", cwd=work)
+            _git("commit", "-am", "v2", cwd=work)
+            _git("checkout", "main", cwd=work)
+            _git("merge", "--no-ff", "feature", "-m", "merge feature", cwd=work)
+            _git("push", "origin", "main", cwd=work)
+        else:
+            _git("commit", "-a", "--amend", "-m", "v2", cwd=work)
+            _git("push", "--force", "origin", "main", cwd=work)
+
+        await repo.pull_code()
+
+        assert (repo.destination / "flow.py").read_text() == "VERSION = 2\n"
+        assert in_use.exists(), "pull_code deleted and re-cloned the checkout"
+
+    async def test_pull_code_keeps_local_changes_when_remote_is_unchanged(
+        self, remote: Path, tmp_path: Path
+    ):
+        repo = GitRepository(url=remote.as_uri(), branch="main")
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        (repo.destination / "flow.py").write_text("VERSION = local\n")
+
+        await repo.pull_code()
+
+        assert (repo.destination / "flow.py").read_text() == "VERSION = local\n"
+
+    async def test_pull_code_keeps_unrelated_local_changes_when_remote_advances(
+        self, remote: Path, tmp_path: Path
+    ):
+        work = tmp_path / "work"
+        (work / "other.py").write_text("OTHER = 1\n")
+        _git("add", "other.py", cwd=work)
+        _git("commit", "-m", "add other.py", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+        repo = GitRepository(url=remote.as_uri(), branch="main")
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        (repo.destination / "other.py").write_text("OTHER = local\n")
+
+        (work / "flow.py").write_text("VERSION = 2\n")
+        _git("commit", "-am", "v2", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+        await repo.pull_code()
+
+        assert (repo.destination / "flow.py").read_text() == "VERSION = 2\n"
+        assert (repo.destination / "other.py").read_text() == "OTHER = local\n"
+
+    async def test_pull_code_re_clones_when_local_changes_would_be_overwritten(
+        self, remote: Path, tmp_path: Path
+    ):
+        repo = GitRepository(url=remote.as_uri(), branch="main")
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        (repo.destination / "flow.py").write_text("VERSION = local\n")
+
+        work = tmp_path / "work"
+        (work / "flow.py").write_text("VERSION = 2\n")
+        _git("commit", "-am", "v2", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+        await repo.pull_code()
+
+        # Same outcome as the `git pull` path: fall back to a fresh clone
+        assert (repo.destination / "flow.py").read_text() == "VERSION = 2\n"
+
+    async def test_pull_code_updates_submodules_in_place(
+        self, remote: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        # git refuses file-based submodules unless explicitly allowed
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "protocol.file.allow")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "always")
+
+        sub_remote = tmp_path / "lib.git"
+        sub_work = tmp_path / "lib-work"
+        _git("init", "--bare", str(sub_remote), cwd=tmp_path)
+        _git("clone", str(sub_remote), str(sub_work), cwd=tmp_path)
+        _git("symbolic-ref", "HEAD", "refs/heads/main", cwd=sub_work)
+        (sub_work / "lib.py").write_text("LIB = 1\n")
+        _git("add", "lib.py", cwd=sub_work)
+        _git("commit", "-m", "lib v1", cwd=sub_work)
+        _git("push", "origin", "main", cwd=sub_work)
+
+        work = tmp_path / "work"
+        _git("submodule", "add", "-b", "main", str(sub_remote), "lib", cwd=work)
+        _git("commit", "-m", "add lib submodule", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+
+        repo = GitRepository(
+            url=remote.as_uri(), branch="main", include_submodules=True
+        )
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        assert (repo.destination / "lib" / "lib.py").read_text() == "LIB = 1\n"
+        in_use = repo.destination / "in_use.txt"
+        in_use.write_text("in use")
+
+        (sub_work / "lib.py").write_text("LIB = 2\n")
+        _git("commit", "-am", "lib v2", cwd=sub_work)
+        _git("push", "origin", "main", cwd=sub_work)
+        _git("submodule", "update", "--remote", "lib", cwd=work)
+        _git("commit", "-am", "bump lib", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+
+        await repo.pull_code()
+
+        assert (repo.destination / "lib" / "lib.py").read_text() == "LIB = 2\n"
+        assert in_use.exists(), "pull_code deleted and re-cloned the checkout"
 
 
 class TestRemoteStorageErrorHints:

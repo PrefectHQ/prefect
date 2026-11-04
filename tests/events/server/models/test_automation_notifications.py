@@ -4,11 +4,13 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
+from asyncpg import Connection
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.testing import retry_asserts
 from prefect.server.events.actions import DoNothing
 from prefect.server.events.models.automations import (
+    AUTOMATION_CHANGES_CHANNEL,
     create_automation,
     delete_automation,
     update_automation,
@@ -118,6 +120,44 @@ async def test_automation_crud_operations_complete_successfully(
         assert created.id not in triggers.automations_by_id
 
 
+async def test_automation_commit_does_not_block_event_loop_while_lock_held(
+    automations_session: AsyncSession, sample_automation: Automation
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23055
+
+    On SQLite the `after_commit` listener updates the in-memory automations
+    cache via `automation_changed`, which waits on the module-global
+    automations lock. If that lock is held by another coroutine on the same
+    event loop (as `reconcile_automations` does across its database reads),
+    the commit must not block the event loop waiting for it.
+    """
+    if get_dialect(automations_session.sync_session).name == "postgresql":
+        pytest.skip("PostgreSQL uses NOTIFY and has no after_commit listener")
+
+    from prefect.server.events import triggers
+
+    triggers.automations_by_id.clear()
+    triggers.triggers.clear()
+
+    # Hold the automations lock on this event loop the way
+    # `reconcile_automations` does while it reads the database
+    async with triggers._automations_lock():
+        created = await create_automation(automations_session, sample_automation)
+        # If the after_commit listener blocked the event loop waiting on the
+        # lock, this commit would deadlock the test
+        await automations_session.commit()
+
+        # The event loop must still be able to run other work while the
+        # pending cache update waits on the lock
+        await asyncio.sleep(0)
+        assert created.id not in triggers.automations_by_id
+
+    # Once the lock is released, the scheduled cache update completes
+    async for attempt in retry_asserts(max_attempts=10, delay=0.1):
+        with attempt:
+            assert created.id in triggers.automations_by_id
+
+
 async def test_automation_listener_receives_notifications_and_processes_them(
     automations_session: AsyncSession, sample_automation: Automation
 ):
@@ -138,14 +178,28 @@ async def test_automation_listener_receives_notifications_and_processes_them(
         async def mock_automation_changed(automation_id, event):
             automation_changed_calls.append((automation_id, event))
 
-        with patch(
-            "prefect.server.events.triggers.automation_changed", mock_automation_changed
+        # NOTIFYs sent before LISTEN is registered are never delivered, so the
+        # test must wait until the listener is actually subscribed to the channel
+        listening = asyncio.Event()
+        original_add_listener = Connection.add_listener
+
+        async def add_listener_and_signal(self, channel, callback):
+            await original_add_listener(self, channel, callback)
+            if channel == AUTOMATION_CHANGES_CHANNEL:
+                listening.set()
+
+        with (
+            patch(
+                "prefect.server.events.triggers.automation_changed",
+                mock_automation_changed,
+            ),
+            patch.object(Connection, "add_listener", add_listener_and_signal),
         ):
             # Start the listener
             listener_task = asyncio.create_task(listen_for_automation_changes())
 
             try:
-                await asyncio.sleep(0.1)
+                await listening.wait()
 
                 # Create automation - should trigger "created" notification
                 created = await create_automation(

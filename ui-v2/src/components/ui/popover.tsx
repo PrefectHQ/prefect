@@ -28,6 +28,7 @@ function PopoverContent({
 		<PopoverPrimitive.Portal>
 			<PopoverPrimitive.Content
 				data-slot="popover-content"
+				data-row-click-ignore="true"
 				align={align}
 				sideOffset={sideOffset}
 				className={cn(

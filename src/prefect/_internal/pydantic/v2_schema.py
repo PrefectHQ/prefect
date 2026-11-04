@@ -85,6 +85,14 @@ def process_v2_params(
     # still ensure 'position' is always set
     extra.setdefault("position", position)
 
+    # `*args` and `**kwargs` accept any number of values, including none
+    if param.kind is inspect.Parameter.VAR_POSITIONAL:
+        type_ = list[type_]
+        default_value = []
+    elif param.kind is inspect.Parameter.VAR_KEYWORD:
+        type_ = dict[str, type_]
+        default_value = {}
+
     field = pydantic.Field(
         default=... if default_value is param.empty else default_value,
         title=param.name,

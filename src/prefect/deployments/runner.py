@@ -35,6 +35,8 @@ import importlib
 import os
 import sys
 import tempfile
+import warnings
+from contextlib import suppress
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
@@ -103,6 +105,7 @@ from prefect.schedules import Schedule
 from prefect.settings import (
     PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
+    get_current_settings,
 )
 from prefect.types import ListOfNonEmptyStrings
 from prefect.types.entrypoint import EntrypointType
@@ -124,6 +127,25 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
 
 __all__ = ["RunnerDeployment"]
+
+
+def _should_clear_empty_schedules() -> bool:
+    if get_current_settings().deployments.clear_schedules_on_empty:
+        return True
+
+    warnings.warn(
+        "Preserving existing schedules when an empty schedules list is provided "
+        "on redeployment is deprecated. A future release will clear schedules "
+        "by default after at least six months or three minor releases, whichever "
+        "is longer. The opt-in setting and this warning will then be removed. "
+        "Set PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true to opt in now. "
+        "To preserve existing schedules, omit schedules or use schedules=None "
+        "(schedules: null in prefect.yaml).",
+        FutureWarning,
+        stacklevel=3,
+    )
+    return False
+
 
 _DEPLOYMENT_PARAMETER_SERIALIZER = TypeAdapter(
     dict[str, Any],
@@ -617,15 +639,21 @@ class RunnerDeployment(BaseModel):
         deployment_id: UUID,
         client: PrefectClient,
         version_info: VersionInfo | None,
+        *,
+        preserve_schedules: bool = False,
     ):
         parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
             exclude_unset=True
         )
 
+        exclude = {"storage", "name", "flow_name", "triggers", "version_type"}
+        if preserve_schedules:
+            # Explicitly set schedules survive exclude_unset, even when empty.
+            exclude.add("schedules")
         update_payload = self.model_dump(
             mode="json",
             exclude_unset=True,
-            exclude={"storage", "name", "flow_name", "triggers", "version_type"},
+            exclude=exclude,
         )
 
         if self.storage:
@@ -636,7 +664,7 @@ class RunnerDeployment(BaseModel):
         else:
             update_payload["pull_steps"] = None
 
-        if self.schedules:
+        if self.schedules and not preserve_schedules:
             update_payload["schedules"] = [
                 schedule.model_dump(mode="json", exclude_unset=True)
                 for schedule in self._schedules_with_serialized_block_parameters() or []
@@ -669,15 +697,21 @@ class RunnerDeployment(BaseModel):
         deployment_id: UUID,
         client: SyncPrefectClient,
         version_info: VersionInfo | None,
+        *,
+        preserve_schedules: bool = False,
     ):
         parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
             exclude_unset=True
         )
 
+        exclude = {"storage", "name", "flow_name", "triggers", "version_type"}
+        if preserve_schedules:
+            # Keep schedule exclusion in sync with _update above.
+            exclude.add("schedules")
         update_payload = self.model_dump(
             mode="json",
             exclude_unset=True,
-            exclude={"storage", "name", "flow_name", "triggers", "version_type"},
+            exclude=exclude,
         )
 
         if self.storage:
@@ -688,7 +722,7 @@ class RunnerDeployment(BaseModel):
         else:
             update_payload["pull_steps"] = None
 
-        if self.schedules:
+        if self.schedules and not preserve_schedules:
             update_payload["schedules"] = [
                 schedule.model_dump(mode="json", exclude_unset=True)
                 for schedule in self._schedules_with_serialized_block_parameters() or []
@@ -756,6 +790,9 @@ class RunnerDeployment(BaseModel):
         Registers this deployment with the API and returns the deployment's ID.
 
         Args:
+            schedules: Override the schedules for this deployment. On redeployment,
+                an empty list preserves schedules by default and emits a warning.
+                Set `PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true` to clear them.
             work_pool_name: The name of the work pool to use for this
                 deployment.
             image: The registry, name, and tag of the Docker image to
@@ -784,11 +821,29 @@ class RunnerDeployment(BaseModel):
                     self.job_variables["image"] = image
                 if work_pool_name:
                     self.work_pool_name = work_pool_name
-                if schedules:
+                clear_schedules = schedules == [] and _should_clear_empty_schedules()
+                if schedules or clear_schedules:
                     self.schedules = [
-                        DeploymentScheduleUpdate(**schedule) for schedule in schedules
+                        DeploymentScheduleUpdate(**schedule)
+                        for schedule in schedules or []
                     ]
-                return await self._update(deployment.id, client, version_info)
+                await self._update(
+                    deployment.id,
+                    client,
+                    version_info,
+                    preserve_schedules=schedules == [] and not clear_schedules,
+                )
+                # The update API preserves empty-list updates when all existing
+                # schedules have slugs. Clear those explicitly after a successful update.
+                if clear_schedules and all(
+                    schedule.slug is not None for schedule in deployment.schedules
+                ):
+                    for schedule in deployment.schedules:
+                        with suppress(ObjectNotFound):
+                            await client.delete_deployment_schedule(
+                                deployment.id, schedule.id
+                            )
+                return deployment.id
 
     @async_dispatch(aapply)
     def apply(
@@ -802,6 +857,9 @@ class RunnerDeployment(BaseModel):
         Registers this deployment with the API and returns the deployment's ID.
 
         Args:
+            schedules: Override the schedules for this deployment. On redeployment,
+                an empty list preserves schedules by default and emits a warning.
+                Set `PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true` to clear them.
             work_pool_name: The name of the work pool to use for this
                 deployment.
             image: The registry, name, and tag of the Docker image to
@@ -829,11 +887,28 @@ class RunnerDeployment(BaseModel):
                     self.job_variables["image"] = image
                 if work_pool_name:
                     self.work_pool_name = work_pool_name
-                if schedules:
+                clear_schedules = schedules == [] and _should_clear_empty_schedules()
+                if schedules or clear_schedules:
                     self.schedules = [
-                        DeploymentScheduleUpdate(**schedule) for schedule in schedules
+                        DeploymentScheduleUpdate(**schedule)
+                        for schedule in schedules or []
                     ]
-                return self._update_sync(deployment.id, client, version_info)
+                self._update_sync(
+                    deployment.id,
+                    client,
+                    version_info,
+                    preserve_schedules=schedules == [] and not clear_schedules,
+                )
+                # Keep explicit clearing in sync with aapply above.
+                if clear_schedules and all(
+                    schedule.slug is not None for schedule in deployment.schedules
+                ):
+                    for schedule in deployment.schedules:
+                        with suppress(ObjectNotFound):
+                            client.delete_deployment_schedule(
+                                deployment.id, schedule.id
+                            )
+                return deployment.id
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
         if not isinstance(self._sla, list):
@@ -1051,7 +1126,7 @@ class RunnerDeployment(BaseModel):
             no_file_location_error = (
                 "Flows defined interactively cannot be deployed. Check out the"
                 " quickstart guide for help getting started:"
-                " https://docs.prefect.io/latest/get-started/quickstart"
+                " https://www.prefect.io/docs/latest/get-started/quickstart"
             )
             ## first see if an entrypoint can be determined
             flow_file = getattr(flow, "__globals__", {}).get("__file__")
@@ -1596,14 +1671,14 @@ async def adeploy(
                 " or specify a remote storage location for the flow with `.from_source`."
                 " If you are attempting to deploy a flow to a local process work pool,"
                 " consider using `flow.serve` instead. See the documentation for more"
-                " information: https://docs.prefect.io/latest/how-to-guides/deployments/run-flows-in-local-processes"
+                " information: https://www.prefect.io/docs/v3/how-to-guides/deployment_infra/run-flows-in-local-processes"
             )
         elif work_pool.type == "process" and not ignore_warnings:
             console.print(
                 "Looks like you're deploying to a process work pool. If you're creating a"
                 " deployment for local development, calling `.serve` on your flow is a great"
                 " way to get started. See the documentation for more information:"
-                " https://docs.prefect.io/latest/how-to-guides/deployments/run-flows-in-local-processes "
+                " https://www.prefect.io/docs/v3/how-to-guides/deployment_infra/run-flows-in-local-processes "
                 " Set `ignore_warnings=True` to suppress this message.",
                 style="yellow",
             )
@@ -1837,14 +1912,14 @@ def deploy(
                 " or specify a remote storage location for the flow with `.from_source`."
                 " If you are attempting to deploy a flow to a local process work pool,"
                 " consider using `flow.serve` instead. See the documentation for more"
-                " information: https://docs.prefect.io/latest/how-to-guides/deployments/run-flows-in-local-processes"
+                " information: https://www.prefect.io/docs/v3/how-to-guides/deployment_infra/run-flows-in-local-processes"
             )
         elif work_pool.type == "process" and not ignore_warnings:
             console.print(
                 "Looks like you're deploying to a process work pool. If you're creating a"
                 " deployment for local development, calling `.serve` on your flow is a great"
                 " way to get started. See the documentation for more information:"
-                " https://docs.prefect.io/latest/how-to-guides/deployments/run-flows-in-local-processes "
+                " https://www.prefect.io/docs/v3/how-to-guides/deployment_infra/run-flows-in-local-processes "
                 " Set `ignore_warnings=True` to suppress this message.",
                 style="yellow",
             )

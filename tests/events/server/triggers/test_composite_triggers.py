@@ -327,7 +327,7 @@ class TestCompoundTriggerAny:
         for received_event in flow_run_events:
             await triggers.reactive_evaluation(received_event)
 
-        act.call_count == 2
+        assert act.call_count == 2
 
         firing: Firing = act.call_args.args[0]
 
@@ -664,20 +664,21 @@ class TestCompoundTriggerAll:
 
         return nested_compound_automation
 
-    async def test_compound_automation_all_double_nested_trigger_any_all_does_not_act(
+    async def test_compound_automation_all_double_nested_trigger_all_and_any_acts(
         self,
         act: mock.AsyncMock,
         flow_run_events: List[ReceivedEvent],
         compound_automation_all_double_nested_all_and_any: Automation,
     ):
         """
-        Ensures that when a stream of events is received,
-        the compound trigger is not called if the expected event is not present.
+        Ensures that when a stream of events is received, the compound trigger is
+        called once when the nested `all` trigger sees all of its expected events and
+        the nested `any` trigger sees at least one of its expected events.
         """
         for received_event in flow_run_events:
             await triggers.reactive_evaluation(received_event)
 
-        act.call_count == 2
+        act.assert_called_once()
 
         firing: Firing = act.call_args.args[0]
 
@@ -849,7 +850,7 @@ class TestCompoundTriggerAll:
         for received_event in flow_run_events:
             await triggers.reactive_evaluation(received_event)
 
-        act.call_count == 1
+        assert act.call_count == 1
 
         firing: Firing = act.call_args.args[0]
 

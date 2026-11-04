@@ -579,6 +579,8 @@ class TestWorkspaceResolverProcess:
         assert result.workspace is not None
         assert result.workspace.environment[env_var_name] == env_var_value
         assert result.workspace.sys_path[0] == str(support_dir.resolve())
+        assert str(REPO_ROOT) not in result.workspace.sys_path
+        assert str(REPO_ROOT / "src") not in result.workspace.sys_path
         assert os.environ.get(env_var_name) is None
 
     async def test_uses_absolute_directory_output_when_step_removed_cwd(

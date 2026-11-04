@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Tuple
@@ -44,6 +45,50 @@ def setup_test_directory(tmp_src: str, sub_dir: str = "puppy") -> Tuple[str, str
     assert set(os.listdir(sub_dir_path)) == child_contents
 
     return parent_contents, child_contents
+
+
+@pytest.mark.parametrize("sync", [False, True])
+@pytest.mark.parametrize("storage", ["local", "remote"])
+async def test_nested_ignored_files(tmp_path: Path, storage: str, sync: bool):
+    """Copy/upload nested files while honoring POSIX ignore patterns on every OS."""
+    source = tmp_path / "source"
+    nested = source / "a" / "b"
+    nested.mkdir(parents=True)
+    (nested / "keep.py").write_text("pass")
+    (nested / "ignored.txt").write_text("ignored")
+    ignore_file = source / ".prefectignore"
+    ignore_file.write_text("*\n!a/b/keep.py\n")
+
+    if storage == "local":
+        destination = tmp_path / "destination"
+        fs = LocalFileSystem(basepath=str(destination))
+    else:
+        fs = RemoteFileSystem(basepath=f"memory://{tmp_path.name}/{sync}")
+
+    if sync:
+        fs.put_directory(
+            local_path=str(source), ignore_file=str(ignore_file), _sync=True
+        )
+    else:
+        await fs.aput_directory(local_path=str(source), ignore_file=str(ignore_file))
+
+    assert await fs.aread_path("a/b/keep.py") == b"pass"
+    if storage == "local":
+        assert not (destination / "a" / "b" / "ignored.txt").exists()
+    else:
+        with pytest.raises(FileNotFoundError):
+            await fs.aread_path("a/b/ignored.txt")
+
+    if storage == "local":
+        # get_directory reads .prefectignore from its source automatically.
+        downloaded = tmp_path / "downloaded"
+        fs = LocalFileSystem(basepath=str(source))
+        if sync:
+            fs.get_directory(local_path=str(downloaded), _sync=True)
+        else:
+            await fs.aget_directory(local_path=str(downloaded))
+        assert (downloaded / "a" / "b" / "keep.py").read_text() == "pass"
+        assert not (downloaded / "a" / "b" / "ignored.txt").exists()
 
 
 class TestLocalFileSystem:
@@ -556,13 +601,24 @@ class TestRemoteFileSystem:
             "/flat/shared_libs.py",
         }
 
-    async def test_put_directory_tree(self):
+    @pytest.fixture
+    def tree_project(self, tmp_path: Path) -> Path:
+        # Other tests import modules from tree-project, which concurrently writes
+        # `__pycache__` entries into the shared directory under xdist; use a
+        # private copy so the directory contents can't change mid-test.
+        return Path(
+            shutil.copytree(
+                TEST_PROJECTS_DIR / "tree-project",
+                tmp_path / "tree-project",
+                ignore=shutil.ignore_patterns("__pycache__"),
+            )
+        )
+
+    async def test_put_directory_tree(self, tree_project: Path):
         fs = RemoteFileSystem(basepath="memory://tree")
         await fs.put_directory(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
-            ignore_file=os.path.join(
-                TEST_PROJECTS_DIR, "tree-project", ".prefectignore"
-            ),
+            str(tree_project),
+            ignore_file=str(tree_project / ".prefectignore"),
         )
         copied_files = set(fs.filesystem.glob("/tree/**"))
 
@@ -580,20 +636,20 @@ class TestRemoteFileSystem:
             "/tree/.hidden",
         }
 
-    async def test_put_directory_put_file_count(self):
-        ignore_file = os.path.join(TEST_PROJECTS_DIR, "tree-project", ".prefectignore")
+    async def test_put_directory_put_file_count(self, tree_project: Path):
+        ignore_file = str(tree_project / ".prefectignore")
 
         # Put files
         fs = RemoteFileSystem(basepath="memory://tree")
         num_files_put = await fs.put_directory(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            str(tree_project),
             ignore_file=ignore_file,
         )
 
         # Expected files
         ignore_patterns = Path(ignore_file).read_text().splitlines(keepends=False)
         included_files = prefect.utilities.filesystem.filter_files(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            str(tree_project),
             ignore_patterns,
             include_dirs=False,
         )

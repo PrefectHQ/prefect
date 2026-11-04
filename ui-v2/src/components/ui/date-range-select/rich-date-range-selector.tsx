@@ -250,6 +250,10 @@ export function RichDateRangeSelector({
 		setOpen(false);
 		setMode(null);
 	}
+	function cancel() {
+		setOpen(false);
+		setMode(null);
+	}
 
 	function clear() {
 		onValueChange(null);
@@ -325,7 +329,7 @@ export function RichDateRangeSelector({
 					<Button
 						variant="outline"
 						size="icon"
-						className="-ml-px bg-card dark:bg-background"
+						className="rounded-r-none bg-card dark:bg-background"
 						onClick={previous}
 						disabled={previousDisabled}
 						aria-label="Previous range"
@@ -378,8 +382,12 @@ export function RichDateRangeSelector({
 								onApply={apply}
 							/>
 						)}
-						{mode === "around" && <AroundView onApply={apply} />}
-						{mode === "range" && <RangeView onApply={apply} />}
+						{mode === "around" && (
+							<AroundView onApply={apply} onCancel={cancel} />
+						)}
+						{mode === "range" && (
+							<RangeView onApply={apply} onCancel={cancel} />
+						)}
 					</div>
 				</PopoverContent>
 			</Popover>
@@ -401,7 +409,7 @@ export function RichDateRangeSelector({
 					<Button
 						variant="outline"
 						size="icon"
-						className="-ml-px bg-card dark:bg-background"
+						className="rounded-l-none -ml-px bg-card dark:bg-background"
 						onClick={nextStep}
 						disabled={nextDisabled}
 						aria-label="Next range"
@@ -600,8 +608,10 @@ function RelativeView({
 // ----- Around a time -----
 function AroundView({
 	onApply,
+	onCancel,
 }: {
 	onApply: (value: DateRangeSelectValue) => void;
+	onCancel: () => void;
 }) {
 	const [dateIso, setDateIso] = React.useState<string | undefined>(undefined);
 	const [quantity, setQuantity] = React.useState<number>(15);
@@ -644,7 +654,7 @@ function AroundView({
 				</Select>
 			</div>
 			<div className="flex gap-2 justify-end">
-				<Button variant="ghost" onClick={() => onApply(null)}>
+				<Button variant="ghost" onClick={onCancel}>
 					Cancel
 				</Button>
 				<Button onClick={commit}>Apply</Button>
@@ -656,8 +666,10 @@ function AroundView({
 // ----- Range (date range calendar) -----
 function RangeView({
 	onApply,
+	onCancel,
 }: {
 	onApply: (value: DateRangeSelectValue) => void;
+	onCancel: () => void;
 }) {
 	const [range, setRange] = React.useState<{ from?: Date; to?: Date }>({});
 
@@ -850,7 +862,7 @@ function RangeView({
 				</div>
 			</div>
 			<div className="flex gap-2 justify-end">
-				<Button variant="ghost" onClick={() => onApply(null)}>
+				<Button variant="ghost" onClick={onCancel}>
 					Cancel
 				</Button>
 				<Tooltip>

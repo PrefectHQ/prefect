@@ -28,6 +28,17 @@ def exit_with_success(message: str, **kwargs: Any) -> NoReturn:
     raise SystemExit(0)
 
 
+def print_verbatim(output: str) -> None:
+    """
+    Print machine-readable output (e.g. JSON or YAML) exactly as given.
+
+    Rich markup and emoji alias parsing are disabled so user data like
+    `[red]text[/red]` or `:smile:` is not rewritten, and soft wrapping keeps
+    long lines intact.
+    """
+    _cli.console.print(output, soft_wrap=True, markup=False, emoji=False)
+
+
 def with_cli_exception_handling(fn: Callable[..., Any]) -> Callable[..., Any]:
     if inspect.iscoroutinefunction(fn):
 

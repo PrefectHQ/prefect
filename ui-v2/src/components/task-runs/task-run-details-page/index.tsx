@@ -230,6 +230,7 @@ const Header = ({
 				<DropdownMenuTrigger asChild>
 					<Button variant="outline" className="p-2">
 						<MoreVertical className="w-4 h-4" />
+						<span className="sr-only">Open menu</span>
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent>

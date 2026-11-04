@@ -191,6 +191,7 @@ flowchart TD
 
     Running --> |Manual pause| Paused
     Paused --> |Resume| Running
+    Paused --> |User cancels| Cancelling
     
     Cancelling -.-> |Cleanup complete| Cancelled
 
@@ -278,6 +279,11 @@ def my_task_state_hook(task: Task, run: TaskRun, state: State) -> None:
 def my_flow_state_hook(flow: Flow, run: FlowRun, state: State) -> None:
     ...
 ```
+
+A flow state hook gets the flow, the flow run, and the state by name when its parameters are named `flow`, `flow_run` (or `run`), and `state`, in any order and including keyword-only parameters.
+Any other flow state hook gets them as three positional arguments, whatever its parameter names.
+If a hook accepts neither form, Prefect doesn't call it and logs an error.
+Task state hooks get the task, the task run, and the state as three positional arguments.
 
 State change hooks are versatile, allowing you to specify multiple state change hooks for the same state transition,
 or to use the same state change hook for different transitions.

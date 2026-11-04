@@ -1,13 +1,8 @@
+import isEqual from "lodash.isequal";
 import type { SchemaObject } from "openapi-typescript";
 import { isPrefectKindValue } from "../types/prefect-kind-value";
-import {
-	isArray,
-	isDefined,
-	isEmptyObject,
-	isRecord,
-	isReferenceObject,
-} from "./guards";
-import { getSchemaDefinition } from "./mergeSchemaPropertyDefinition";
+import { isArray, isDefined, isEmptyObject, isRecord } from "./guards";
+import { mergeSchemaPropertyDefinition } from "./mergeSchemaPropertyDefinition";
 
 type InitialIndexContext = {
 	property: SchemaObject;
@@ -55,6 +50,17 @@ function getMatchingDefinitionIndex(
 ): number {
 	if (isPrefectKindValue(valueOrDefaultValue)) {
 		return definitions.findIndex((definition) => !isDefined(definition.type));
+	}
+
+	// a definition with a const accepts only that value, so an exact match wins
+	// over a definition that only matches the type of the value
+	const constIndex = definitions.findIndex(
+		(definition) =>
+			"const" in definition && isEqual(definition.const, valueOrDefaultValue),
+	);
+
+	if (constIndex >= 0) {
+		return constIndex;
 	}
 
 	switch (typeof valueOrDefaultValue) {
@@ -109,15 +115,23 @@ function getPrimitiveDefinitionIndex(
 		return enumIndex;
 	}
 
-	const nonEnumIndex = definitions.findIndex(
-		(definition) => matchesType(definition) && !isDefined(definition.enum),
+	// a definition with an enum or a const only accepts the values it declares,
+	// and none of them matched the value, so a definition without either is a
+	// better match
+	const unrestrictedIndex = definitions.findIndex(
+		(definition) =>
+			matchesType(definition) &&
+			!isDefined(definition.enum) &&
+			!("const" in definition),
 	);
 
-	if (nonEnumIndex >= 0) {
-		return nonEnumIndex;
+	if (unrestrictedIndex >= 0) {
+		return unrestrictedIndex;
 	}
 
-	return definitions.findIndex(matchesType);
+	return definitions.findIndex(
+		(definition) => matchesType(definition) && !("const" in definition),
+	);
 }
 
 /**
@@ -134,13 +148,9 @@ function getSchemaPropertyAnyOfDefinitions(
 		return [];
 	}
 
-	return property.anyOf.map((definition) => {
-		if (isReferenceObject(definition)) {
-			return getSchemaDefinition(schema, definition.$ref);
-		}
-
-		return definition;
-	});
+	return property.anyOf.map((definition) =>
+		mergeSchemaPropertyDefinition(definition, schema),
+	);
 }
 
 /**

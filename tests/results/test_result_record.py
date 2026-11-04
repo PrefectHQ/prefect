@@ -1,8 +1,10 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
 from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
-from prefect.filesystems import NullFileSystem
+from prefect.filesystems import LocalFileSystem, NullFileSystem
 from prefect.results import ResultStore
 from prefect.serializers import JSONSerializer
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH
@@ -32,6 +34,36 @@ class TestResultRecord:
             serialized, backup_serializer=JSONSerializer()
         )
         assert deserialized.result == "The results are in..."
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            {"data": [1, 2, 3], "total": 3},
+            {"result": 5, "status": "ok"},
+            {"data": "hello"},
+            {"data": '"hello"', "serializer": {"type": "json"}, "total": 1},
+            {"data": [1], "serializer": {"type": "json"}},
+        ],
+    )
+    def test_deserialize_raw_result_with_record_like_keys(self, value):
+        serialized = JSONSerializer().dumps(value)
+
+        deserialized = ResultRecord.deserialize(
+            serialized, backup_serializer=JSONSerializer()
+        )
+        assert deserialized.result == value
+        assert deserialized.serializer == JSONSerializer()
+
+    def test_deserialize_legacy_persisted_result_blob(self):
+        serialized = (
+            b'{"serializer": {"type": "json"}, "data": "\\"hello\\"",'
+            b' "prefect_version": "2.20.0", "expiration": null}'
+        )
+
+        deserialized = ResultRecord.deserialize(serialized)
+        assert deserialized.result == "hello"
+        assert deserialized.serializer == JSONSerializer()
+        assert deserialized.metadata.prefect_version == "2.20.0"
 
     def test_result_record_metadata_tolerates_unknown_serializer_types(self):
         metadata = ResultRecordMetadata.load_bytes(
@@ -66,6 +98,21 @@ class TestResultRecord:
         store = ResultStore()
         result_record = store.create_result_record("The results are in...", "the-key")
         await store.apersist_result_record(result_record)
+
+        loaded = await ResultStore._from_metadata(result_record.metadata)
+        assert loaded.result == "The results are in..."
+
+    async def test_from_metadata_with_unsaved_local_storage_outside_default_path(
+        self, tmp_path: Path
+    ):
+        store = ResultStore(
+            result_storage=LocalFileSystem(basepath=str(tmp_path / "custom-storage"))
+        )
+        result_record = store.create_result_record("The results are in...", "the-key")
+        await store.apersist_result_record(result_record)
+
+        assert result_record.metadata.storage_block_id is None
+        assert (tmp_path / "custom-storage" / "the-key").exists()
 
         loaded = await ResultStore._from_metadata(result_record.metadata)
         assert loaded.result == "The results are in..."

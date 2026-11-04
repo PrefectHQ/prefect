@@ -6,11 +6,11 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Toaster } from "@/components/ui/sonner";
 import { createFakeFlowRun, createFakeState } from "@/mocks";
 import { FlowRunDetailsPage } from ".";
@@ -119,6 +119,10 @@ describe("FlowRunDetailsPage", () => {
 		);
 	});
 
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
 	it("renders flow run details with correct breadcrumb navigation", async () => {
 		renderFlowRunDetailsPage();
 
@@ -129,6 +133,14 @@ describe("FlowRunDetailsPage", () => {
 		expect(screen.getByText("Runs")).toBeInTheDocument();
 		const nav = screen.getByRole("navigation");
 		expect(nav).toHaveTextContent("test-flow-run");
+	});
+
+	it("sets the document title to the flow run name", async () => {
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(document.title).toBe("Flow Run: test-flow-run • Prefect Server");
+		});
 	});
 
 	it("displays the flow run state badge", async () => {
@@ -171,7 +183,7 @@ describe("FlowRunDetailsPage", () => {
 			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
 		});
 
-		const moreButton = screen.getByRole("button", { expanded: false });
+		const moreButton = screen.getByRole("button", { name: "Open menu" });
 		await user.click(moreButton);
 
 		await waitFor(() => {
@@ -202,7 +214,7 @@ describe("FlowRunDetailsPage", () => {
 			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
 		});
 
-		const moreButton = screen.getByRole("button", { expanded: false });
+		const moreButton = screen.getByRole("button", { name: "Open menu" });
 		await user.click(moreButton);
 
 		await waitFor(() => {
@@ -278,6 +290,66 @@ describe("FlowRunDetailsPage", () => {
 		});
 
 		expect(screen.getByText("Pending")).toBeInTheDocument();
+	});
+
+	it("updates a scheduled flow run after polling", async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		const scheduledFlowRun = createFakeFlowRun({
+			name: "scheduled-flow-run",
+			state_type: "SCHEDULED",
+			state: createFakeState({
+				type: "SCHEDULED",
+				name: "Scheduled",
+			}),
+		});
+		const runningFlowRun = createFakeFlowRun({
+			...scheduledFlowRun,
+			state_type: "RUNNING",
+			state_name: "Running",
+			state: createFakeState({
+				type: "RUNNING",
+				name: "Running",
+			}),
+		});
+		let requestCount = 0;
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				requestCount += 1;
+				return HttpResponse.json(
+					requestCount === 1 ? scheduledFlowRun : runningFlowRun,
+				);
+			}),
+		);
+
+		renderFlowRunDetailsPage();
+
+		expect(await screen.findByText("Scheduled")).toBeInTheDocument();
+
+		await act(() => vi.advanceTimersByTimeAsync(5000));
+
+		expect(await screen.findByText("Running")).toBeInTheDocument();
+		expect(requestCount).toBeGreaterThanOrEqual(2);
+	});
+
+	it("stops polling a terminal flow run", async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		let requestCount = 0;
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				requestCount += 1;
+				return HttpResponse.json(mockFlowRun);
+			}),
+		);
+
+		renderFlowRunDetailsPage();
+
+		expect(await screen.findByText("Completed")).toBeInTheDocument();
+
+		await act(() => vi.advanceTimersByTimeAsync(10_000));
+
+		expect(requestCount).toBe(1);
 	});
 
 	it("displays all tabs for non-pending flow runs", async () => {

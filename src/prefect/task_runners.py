@@ -40,6 +40,7 @@ from prefect.futures import (
 from prefect.logging.handlers import APILogWorker, set_api_log_sink
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.settings.context import get_current_settings
+from prefect.settings.models.root import Settings
 from prefect.utilities.annotations import allow_failure, opaque, quote, unmapped
 from prefect.utilities.callables import (
     cloudpickle_wrapped_call,
@@ -386,7 +387,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
         self._warn_if_nested_submit_would_deadlock(task)
 
-        from prefect.context import FlowRunContext
+        from prefect.context import FlowRunContext, SyncClientContext
         from prefect.task_engine import run_task_async, run_task_sync
 
         task_run_id = uuid7()
@@ -426,6 +427,15 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
                 run_task_sync,
                 **submit_kwargs,
             )
+
+        # The submitted task runs with a copy of this context and reuses its sync
+        # client, which may be owned by a sync task run that returns (and closes
+        # the client) before the submitted task finishes, e.g. a sync task in an
+        # async flow. Keep the client open until the submitted task is done.
+        if (client_ctx := SyncClientContext.get()) and not client_ctx.client._closed:
+            sync_client = client_ctx.client.__enter__()
+            future.add_done_callback(lambda _: sync_client.__exit__(None, None, None))
+
         with self._submission_lock:
             self._active_submission_count += 1
         future.add_done_callback(self._on_executor_future_done)
@@ -607,12 +617,22 @@ def _run_task_in_subprocess(
     """
     Wrapper function to update environment variables and settings before running a task in a subprocess.
     """
+    # Apply this task's environment and restore the worker's environment
+    # afterwards so values from one task's settings do not leak into later
+    # tasks run by the same worker process.
+    original_environ = os.environ.copy()
+    os.environ.update(env or {})
+    try:
+        return _run_task_with_hydrated_context(*args, **kwargs)
+    finally:
+        os.environ.clear()
+        os.environ.update(original_environ)
+
+
+def _run_task_with_hydrated_context(*args: Any, **kwargs: Any) -> Any:
     from prefect.context import hydrated_context
     from prefect.engine import handle_engine_signals
     from prefect.task_engine import run_task_async, run_task_sync
-
-    # Update environment variables
-    os.environ.update(env or {})
 
     # Extract context from kwargs
     context = kwargs.pop("context", None)
@@ -871,8 +891,8 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         self._subprocess_message_processor_factories: tuple[
             _SubprocessMessageProcessorFactory, ...
         ] = tuple(subprocess_message_processor_factories or ())
-        self._cached_context: dict[str, Any] | None = None
         self._cached_env: dict[str, str] | None = None
+        self._cached_env_settings: Settings | None = None
 
     def duplicate(self) -> Self:
         duplicate_runner = type(self)(max_workers=self._max_workers)
@@ -1201,16 +1221,21 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 f"Submitting task {task.name} to process pool executor..."
             )
 
-        # Serialize the current context for the subprocess (cached per runner lifecycle)
-        if self._cached_context is None:
-            from prefect.context import serialize_context
+        from prefect.context import serialize_context
 
-            self._cached_context = serialize_context()
+        # Context (tags, settings, etc.) can change between submits, so it is
+        # serialized every time. The env is only rebuilt when settings change.
+        context = serialize_context()
+        current_settings = get_current_settings()
+        if (
+            self._cached_env is None
+            or self._cached_env_settings is not current_settings
+        ):
             self._cached_env = (
-                get_current_settings().to_environment_variables(exclude_unset=True)
+                current_settings.to_environment_variables(exclude_unset=True)
                 | os.environ
             )
-        context = self._cached_context
+            self._cached_env_settings = current_settings
         env = self._cached_env
 
         # Submit the resolution and subprocess execution to a background thread
@@ -1261,9 +1286,9 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         return super().map(task, parameters, wait_for)
 
     def cancel_all(self) -> None:
-        # Invalidate cached context and env so they are recomputed on next start
-        self._cached_context = None
+        # Invalidate cached env so it is recomputed on next start
         self._cached_env = None
+        self._cached_env_settings = None
 
         # Clear cancel events first to avoid resource tracking issues
         events_to_set = list(self._cancel_events.values())

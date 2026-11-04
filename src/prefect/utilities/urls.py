@@ -345,6 +345,11 @@ def convert_class_to_name(obj: Any) -> str:
     return "".join(["-" + i.lower() if i.isupper() else i for i in name]).lstrip("-")
 
 
+def _quote_path_segment(value: Any) -> str:
+    """Percent-encode a value so it is interpolated as a single URL path segment."""
+    return urllib.parse.quote(str(value), safe="")
+
+
 def url_for(
     obj: Union[
         "PrefectFuture[Any]",
@@ -473,6 +478,8 @@ def url_for(
     )
     assert url_format is not None
 
+    obj_id = _quote_path_segment(obj_id)
+
     # Use duck-typing to handle both client-side and server-side ReceivedEvent
     if name == "received-event" and hasattr(obj, "occurred"):
         # Cast to ReceivedEvent for type checking - we've verified it has the
@@ -493,7 +500,13 @@ def url_for(
                 f"Unable to generate URL for {name} because the following keys are missing: {', '.join(obj_keys)}"
             )
 
-        url = url_format.format(obj_id=obj_id, **additional_format_kwargs)
+        url = url_format.format(
+            obj_id=obj_id,
+            **{
+                key: _quote_path_segment(additional_format_kwargs[key])
+                for key in obj_keys
+            },
+        )
 
     if not base_url.endswith("/"):
         base_url += "/"

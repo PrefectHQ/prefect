@@ -20,6 +20,7 @@ prefect/
 ├── Dockerfile                       # Production container image
 ├── docs/                            # Mintlify documentation (see docs/AGENTS.md)
 ├── examples/                        # Example flows (auto-published to docs)
+├── formal/                          # Executable formal models (see formal/tla/AGENTS.md)
 ├── integration-tests/               # End-to-end integration tests (require running server)
 ├── justfile                         # Task runner (just <command>)
 ├── load_testing/                    # Load/performance testing
@@ -68,7 +69,7 @@ just generate-docs                     # Regenerate all doc artifacts
 just ui-v2                             # Start React dev server at localhost:5173
 
 # Docker
-docker build -t prefect .                              # Default build (Python 3.10)
+docker build -t prefect .                              # Default build (Python 3.11)
 docker build --build-arg PYTHON_VERSION=3.12 -t prefect .  # Custom Python version
 docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With extras
 ```
@@ -88,7 +89,7 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 
 ## Tech Stack & Tooling
 
-- **Python >=3.10,<3.15** with modern typing (`list[int]`, `T | None`)
+- **Python >=3.11,<3.16** with modern typing (`list[int]`, `T | None`)
 - **FastAPI** for REST APIs
 - **Pydantic v2** for validation
 - **SQLAlchemy 2.0** async ORM
@@ -134,6 +135,13 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 - Tests require deterministic behavior
 - Mock external dependencies
 
+## Formal Protocol Models
+
+- Use TLA+ selectively for bounded concurrent or distributed protocols whose correctness depends on interleavings, retries, duplication, time, or ownership. Prefer ordinary tests for local or sequential behavior.
+- Treat each `formal/tla/<protocol>/README.md` as the authority for its scope, configurations, action-to-code mapping, owner, and review triggers.
+- Before changing mapped behavior, review the model and its deterministic regressions. Update them when the abstraction changes; otherwise state in the PR why it remains valid.
+- A green model validates only its documented abstraction, not Prefect's implementation. Implementation evidence comes from mapped behavior and contract tests.
+
 ## Working on Issues
 
 - Read the GitHub issue/PR and comments (`gh issue view`, `gh pr view`) before writing code
@@ -150,6 +158,10 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 - Brief summary: "this PR {changes}"
 - Details in `<details>` tag
 - Include relevant links
+
+## Code Review Rules
+
+When reviewing changes, read and apply [REVIEW.md](REVIEW.md).
 
 # Project Practices
 

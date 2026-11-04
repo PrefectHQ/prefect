@@ -300,6 +300,79 @@ async def test_task_failure_is_persisted_randomly(
     assert UUID(task_state.data.metadata.storage_key)
 
 
+@pytest.mark.parametrize("mode", ["sync", "async"])
+async def test_failed_task_exception_is_persisted(
+    mode: str, prefect_client, tmp_path: Path, events_pipeline
+):
+    storage = LocalFileSystem(basepath=tmp_path / "test-storage")
+    await storage.save(f"tmp-test-storage-{uuid.uuid4()}")
+
+    def fails_sync() -> None:
+        raise ValueError("expected failure")
+
+    async def fails_async() -> None:
+        raise ValueError("expected failure")
+
+    failing_task = task(
+        fails_sync if mode == "sync" else fails_async,
+        persist_result=True,
+        result_storage=storage,
+    )
+    task_state = failing_task(return_state=True)
+    if mode == "async":
+        task_state = await task_state
+
+    assert task_state.is_failed()
+    with pytest.raises(ValueError, match="^expected failure$"):
+        await task_state.aresult()
+
+    await events_pipeline.process_events()
+
+    api_state = (
+        await prefect_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    assert api_state.is_failed()
+    with pytest.raises(ValueError, match="^expected failure$"):
+        await api_state.aresult()
+
+
+@pytest.mark.parametrize("mode", ["sync", "async"])
+async def test_failed_task_exception_is_not_persisted_when_disabled(
+    mode: str, prefect_client, tmp_path: Path, events_pipeline
+):
+    storage = LocalFileSystem(basepath=tmp_path / "test-storage")
+    await storage.save(f"tmp-test-storage-{uuid.uuid4()}")
+
+    def fails_sync() -> None:
+        raise ValueError("expected failure")
+
+    async def fails_async() -> None:
+        raise ValueError("expected failure")
+
+    failing_task = task(
+        fails_sync if mode == "sync" else fails_async,
+        persist_result=False,
+        result_storage=storage,
+    )
+    task_state = failing_task(return_state=True)
+    if mode == "async":
+        task_state = await task_state
+
+    assert task_state.is_failed()
+    with pytest.raises(ValueError, match="^expected failure$"):
+        await task_state.aresult()
+
+    assert not list((tmp_path / "test-storage").glob("*"))
+
+    await events_pipeline.process_events()
+
+    api_state = (
+        await prefect_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    assert api_state.is_failed()
+    assert api_state.data is None
+
+
 async def test_task_result_parameter_formatted_storage_key(
     prefect_client, tmp_path, events_pipeline
 ):

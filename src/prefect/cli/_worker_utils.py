@@ -92,7 +92,7 @@ async def _retrieve_worker_type_from_pool(
         if work_pool.is_push_pool or work_pool.is_managed_pool:
             exit_fn(
                 "Workers are not required for push work pools. "
-                "See https://docs.prefect.io/latest/deploy/infrastructure-examples/serverless "
+                "See https://www.prefect.io/docs/latest/deploy/infrastructure-examples/serverless "
                 "for more details."
             )
 
@@ -134,6 +134,8 @@ async def _install_package(
     console.print(f"Installing {package}...")
     install_package = KNOWN_EXTRAS_FOR_PACKAGES.get(package, package)
     await ainstall_packages([install_package], stream_output=True, upgrade=upgrade)
+    # Collections are cached from the first load; pick up the new package.
+    load_prefect_collections(reload=True)
 
 
 async def _find_package_for_worker_type(

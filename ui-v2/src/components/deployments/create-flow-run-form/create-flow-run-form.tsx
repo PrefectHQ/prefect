@@ -95,7 +95,7 @@ export const CreateFlowRunForm = ({
 							control={form.control}
 							name="enforce_parameter_schema"
 							render={({ field }) => (
-								<FormItem>
+								<FormItem className="mt-4">
 									<FormLabel>Enforce Parameter Schema</FormLabel>
 									<FormControl>
 										<Switch
@@ -213,7 +213,7 @@ export const CreateFlowRunForm = ({
 										name="empirical_policy.retry_delay"
 										render={({ field }) => (
 											<FormItem>
-												<FormLabel>Retries (Optional)</FormLabel>
+												<FormLabel>Retry Delay (Optional)</FormLabel>
 												<div className="flex items-center">
 													<FormControl>
 														<Input

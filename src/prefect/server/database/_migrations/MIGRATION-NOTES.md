@@ -8,6 +8,45 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add observed state covering indexes
+SQLite: `27d8f4e1a6c9`
+Postgres: `91e2b8f3d6a4`
+
+SQLite adds `(type, name, timestamp)` indexes to both run state histories for
+observed state aggregation. Building them scans retained history and requires
+additional disk space; SQLite holds its write lock during the migration.
+Downgrading drops the indexes. The PostgreSQL companion is a no-op.
+
+# Add `automation_held_event` table
+SQLite: `8f5eda7c1dd7`
+Postgres: `e7f54680bce3`
+
+Holds the `expect`-only events of proactive triggers with `after`, so each
+bucket that opens or rolls counts the held events that occurred inside its
+window. Rows are short-lived: the triggers service deletes them after twice the
+preceding-event lookback. Downgrading drops the table, and held events are lost.
+
+# Add `flow_run(state_type, coalesce(start_time, expected_start_time))` index
+SQLite: `a3b9c7d2e5f1`
+Postgres: `d4a7e1c93f52`
+
+Serves state-filtered flow run queries sorted by `START_TIME_ASC`/`DESC` (the
+existing coalesce indexes do not include `state_type`, so the planner walked
+them and filtered afterwards). Postgres creates the index concurrently, rebuilds
+an invalid index left by an interrupted prior attempt, and rejects offline SQL
+generation. Downgrading removes the index.
+
+# Rebuild invalid `event_resources.occurred` index
+SQLite: None
+Postgres: `c8d5f2a71b3e`
+
+`bad1e352c597` used a plain `IF NOT EXISTS`, so an `INVALID` index left by an
+interrupted build was skipped and never repaired. This rebuilds an invalid
+`ix_event_resources__occurred` with `REINDEX INDEX CONCURRENTLY`, preserving the
+old index until its replacement is valid. Offline SQL generation is rejected
+because it cannot safely inspect the catalog. Downgrading is a no-op; the index
+is removed by downgrading `bad1e352c597`.
+
 # Add `flow_run.deployment_id` index for deployment-filtered queries
 SQLite: `f416ea180ae1`
 Postgres: `9e9dadc36797`

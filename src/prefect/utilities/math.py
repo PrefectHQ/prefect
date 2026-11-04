@@ -48,9 +48,14 @@ def clamped_poisson_interval(
 
     The upper bound for this random variate is: average_interval * (1 + clamping_factor).
     A lower bound is picked so that the average interval remains approximately fixed.
+
+    An `average_interval` of zero (or less) yields an interval of `0.0`.
     """
     if clamping_factor <= 0:
         raise ValueError("`clamping_factor` must be >= 0.")
+
+    if average_interval <= 0:
+        return 0.0
 
     upper_clamp_multiple = 1 + clamping_factor
     upper_bound = average_interval * upper_clamp_multiple

@@ -123,8 +123,8 @@ class AzureBlobStorageCredentials(Block):
     """
 
     _block_type_name = "Azure Blob Storage Credentials"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-azure.png"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-azure"  # noqa
     _credential: Optional[Union[ADefaultAzureCredential, AClientSecretCredential]] = (
         PrivateAttr(default=None)
     )
@@ -408,8 +408,8 @@ class AzureCosmosDbCredentials(Block):
     """
 
     _block_type_name = "Azure Cosmos DB Credentials"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-azure.png"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-azure"  # noqa
 
     connection_string: SecretStr = Field(
         default=..., description="Includes the authorization information required."
@@ -528,8 +528,8 @@ class AzureMlCredentials(Block):
     """
 
     _block_type_name = "AzureML Credentials"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-azure.png"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-azure"  # noqa
 
     tenant_id: str = Field(
         default=...,
@@ -601,8 +601,8 @@ class AzureContainerInstanceCredentials(Block):
     """
 
     _block_type_name = "Azure Container Instance Credentials"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-azure.png"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-azure"  # noqa
 
     client_id: Optional[str] = Field(
         default=None,
@@ -730,8 +730,8 @@ class AzureDevopsCredentials(Block):
     """
 
     _block_type_name = "AzureDevops Credentials"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-azure.png"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-azure"
 
     token: Optional[SecretStr] = Field(
         title="AzureDevops Personal Access Token",

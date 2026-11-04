@@ -1,6 +1,6 @@
 """Module containing credentials for interacting with dbt CLI"""
 
-from typing import Annotated, Any, Dict, Optional, Union
+from typing import Annotated, Any
 
 from pydantic import Discriminator, Field, Tag
 
@@ -120,7 +120,7 @@ class DbtCliProfile(Block):
 
     _block_type_name = "dbt CLI Profile"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-dbt"  # noqa
 
     name: str = Field(
         default=..., description="Profile name used for populating profiles.yml."
@@ -129,12 +129,10 @@ class DbtCliProfile(Block):
         default=..., description="The default target your dbt project will use."
     )
     target_configs: Annotated[
-        Union[
-            Annotated[SnowflakeTargetConfigs, Tag("dbt-cli-snowflake-target-configs")],
-            Annotated[BigQueryTargetConfigs, Tag("dbt-cli-bigquery-target-configs")],
-            Annotated[PostgresTargetConfigs, Tag("dbt-cli-postgres-target-configs")],
-            Annotated[TargetConfigs, Tag("dbt-cli-target-configs")],
-        ],
+        Annotated[SnowflakeTargetConfigs, Tag("dbt-cli-snowflake-target-configs")]
+        | Annotated[BigQueryTargetConfigs, Tag("dbt-cli-bigquery-target-configs")]
+        | Annotated[PostgresTargetConfigs, Tag("dbt-cli-postgres-target-configs")]
+        | Annotated[TargetConfigs, Tag("dbt-cli-target-configs")],
         Discriminator(target_configs_discriminator),
     ] = Field(
         default=...,
@@ -143,7 +141,7 @@ class DbtCliProfile(Block):
             "warehouse you're connecting to."
         ),
     )
-    global_configs: Optional[GlobalConfigs] = Field(
+    global_configs: GlobalConfigs | None = Field(
         default=None,
         description=(
             "Global configs control things like the visual output of logs, the manner "
@@ -152,7 +150,7 @@ class DbtCliProfile(Block):
         ),
     )
 
-    def get_profile(self) -> Dict[str, Any]:
+    def get_profile(self) -> dict[str, Any]:
         """
         Returns the dbt profile, likely used for writing to profiles.yml.
 

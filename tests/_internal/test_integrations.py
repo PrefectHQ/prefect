@@ -1,4 +1,6 @@
 import toml
+from packaging.requirements import Requirement
+from packaging.version import Version
 
 import prefect
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
@@ -16,3 +18,34 @@ def test_known_extras_for_packages():
         assert extra_name in extras_require, (
             f"Extra '{extra_name}' for package '{package}' not found in setup.py"
         )
+
+
+def test_versioningit_fallbacks_satisfy_integration_prefect_floors():
+    """
+    Lock updates run from clones without tags resolve integrations against the
+    versioningit fallback version. If that version is below an integration's
+    `prefect` floor, `uv lock` silently keeps an older integration release,
+    which the Docker image then ships.
+    """
+    base_path = prefect.__development_base_path__
+    versioningit = toml.load(base_path / "pyproject.toml")["tool"]["versioningit"]
+    fallback_versions = [
+        Version(versioningit["default-version"]),
+        Version(versioningit["vcs"]["default-tag"]),
+    ]
+
+    integration_pyprojects = sorted(
+        (base_path / "src" / "integrations").glob("*/pyproject.toml")
+    )
+    assert integration_pyprojects
+
+    for pyproject_path in integration_pyprojects:
+        dependencies = toml.load(pyproject_path)["project"]["dependencies"]
+        for requirement in map(Requirement, dependencies):
+            if requirement.name != "prefect":
+                continue
+            for version in fallback_versions:
+                assert requirement.specifier.contains(version, prereleases=True), (
+                    f"versioningit fallback {version} in pyproject.toml does not "
+                    f"satisfy {requirement} from {pyproject_path.parent.name}"
+                )

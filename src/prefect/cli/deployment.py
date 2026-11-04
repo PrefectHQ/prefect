@@ -26,6 +26,7 @@ from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
     load_json_key_values,
+    print_verbatim,
     with_cli_exception_handling,
 )
 from prefect.cli.flow_runs_watching import (
@@ -115,8 +116,12 @@ async def _get_deployment(
 ) -> DeploymentResponse:
     if name is None and deployment_id is not None:
         try:
+            UUID(deployment_id)
+        except ValueError:
+            exit_with_error(f"Invalid deployment ID: {deployment_id!r}")
+        try:
             deployment = await client.read_deployment(deployment_id)
-        except PrefectHTTPStatusError:
+        except ObjectNotFound:
             exit_with_error(f"Deployment {deployment_id!r} not found!")
     elif name is not None and deployment_id is None:
         try:
@@ -225,7 +230,7 @@ async def inspect(
 
     if output and output.lower() == "json":
         json_output = orjson.dumps(deployment_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         _cli.console.print(Pretty(deployment_json))
 
@@ -290,7 +295,7 @@ async def ls(
         json_output = orjson.dumps(
             deployments_json, option=orjson.OPT_INDENT_2
         ).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Deployments",
@@ -647,30 +652,37 @@ async def delete(
                 exit_with_error(
                     "Cannot provide a deployment name or id when deleting all deployments."
                 )
-            deployments = await client.read_deployments()
-            if len(deployments) == 0:
+            total = 0
+            while page := await client.read_deployments(offset=total):
+                total += len(page)
+            if total == 0:
                 exit_with_success("No deployments found.")
             if _cli.is_interactive() and not confirm(
-                f"Are you sure you want to delete all {len(deployments)} deployments?",
+                f"Are you sure you want to delete all {total} deployments?",
                 default=False,
             ):
                 exit_with_error("Deletion aborted.")
-            for deployment in deployments:
-                await client.delete_deployment(deployment.id)
-            plural = "" if len(deployments) == 1 else "s"
-            exit_with_success(f"Deleted {len(deployments)} deployment{plural}.")
+            # Always read from the start: deleting shifts later pages, and the
+            # default name sort is not stable for deployments sharing a name.
+            deleted = 0
+            while page := await client.read_deployments():
+                for deployment in page:
+                    await client.delete_deployment(deployment.id)
+                deleted += len(page)
+            plural = "" if deleted == 1 else "s"
+            exit_with_success(f"Deleted {deleted} deployment{plural}.")
 
         if name is None and deployment_id is not None:
             try:
                 if _cli.is_interactive() and not confirm(
-                    f"Are you sure you want to delete deployment with id {deployment_id!r}?",
+                    f"Are you sure you want to delete deployment with id '{deployment_id}'?",
                     default=False,
                 ):
                     exit_with_error("Deletion aborted.")
                 await client.delete_deployment(deployment_id)
                 exit_with_success(f"Deleted deployment '{deployment_id}'.")
             except ObjectNotFound:
-                exit_with_error(f"Deployment {deployment_id!r} not found!")
+                exit_with_error(f"Deployment '{deployment_id}' not found!")
         elif name is not None:
             try:
                 deployment = await client.read_deployment_by_name(name)
@@ -1160,7 +1172,7 @@ async def list_schedules(
             for schedule in deployment.schedules
         ]
         json_output = orjson.dumps(schedules_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Deployment Schedules",

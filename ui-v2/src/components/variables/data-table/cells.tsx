@@ -101,7 +101,7 @@ export const ValueCell = (
 	const codeRef = useRef<HTMLDivElement>(null);
 	const isOverflowing = useIsOverflowing(codeRef);
 
-	if (!value) return null;
+	if (value === undefined) return null;
 	return (
 		// Disable the hover card if the value is not overflowing
 		<HoverCard open={isOverflowing ? undefined : false}>

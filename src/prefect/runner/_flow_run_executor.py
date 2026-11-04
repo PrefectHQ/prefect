@@ -18,7 +18,7 @@ from prefect.logging import get_logger
 from prefect.runner._cancellation_manager import CancellationManager
 from prefect.runner._control_channel import ControlChannel
 from prefect.runner._event_emitter import EventEmitter
-from prefect.runner._hook_runner import HookRunner
+from prefect.runner._hook_runner import FlowRunHookRunner, HookRunner
 from prefect.runner._process_manager import ProcessHandle, ProcessManager
 from prefect.runner._state_proposer import StateProposer
 from prefect.settings.context import get_current_settings
@@ -51,10 +51,16 @@ class ProcessStarter(Protocol):
 
 @dataclass(frozen=True)
 class FlowRunExecutionResult:
-    """Process handle plus the infrastructure status for a completed attempt."""
+    """Process handle plus the infrastructure status for a completed attempt.
+
+    `crash_unreported` is `True` when the process exited non-zero or failed
+    after starting, and the runner could not record a final state for the flow
+    run in its place.
+    """
 
     handle: ProcessHandle
     status_code: int | None
+    crash_unreported: bool = False
 
 
 class FlowRunExecutor:
@@ -94,7 +100,7 @@ class FlowRunExecutor:
         starter: ProcessStarter,
         process_manager: ProcessManager,
         state_proposer: StateProposer,
-        hook_runner: HookRunner,
+        hook_runner: FlowRunHookRunner,
         get_attempt_conclusion: Callable[[UUID], AttemptConclusion | None],
         propose_submitting: bool = True,
     ) -> None:
@@ -124,6 +130,7 @@ class FlowRunExecutor:
         """
         handle: ProcessHandle | None = None
         attempt_conclusion: AttemptConclusion | None = None
+        process_error: Exception | None = None
         try:
             # Step 1a: already-cancelling precheck (runs regardless of propose_submitting)
             if self._flow_run.state and self._flow_run.state.is_cancelling():
@@ -165,16 +172,26 @@ class FlowRunExecutor:
             handle = await self._start_process(task_status)
 
         except Exception as exc:
+            # A failure after the process exited (e.g. its output stream broke)
+            # still leaves an exit to account for. A live process stays
+            # registered so the process manager can still stop it.
+            started_handle = self._process_manager.get(self._flow_run.id)
+            if started_handle is None or started_handle.returncode is None:
+                self._logger.exception(
+                    "Flow run '%s' could not start: %s",
+                    self._flow_run.id,
+                    exc,
+                )
+                await self._state_proposer.propose_crashed(
+                    self._flow_run,
+                    message=f"Flow run could not start: {exc}",
+                )
+                return
             self._logger.exception(
-                "Flow run '%s' could not start: %s",
-                self._flow_run.id,
-                exc,
+                "Flow run '%s' process failed: %s", self._flow_run.id, exc
             )
-            await self._state_proposer.propose_crashed(
-                self._flow_run,
-                message=f"Flow run could not start: {exc}",
-            )
-            return
+            handle = started_handle
+            process_error = exc
         finally:
             # Step 6: snapshot terminal evidence before process cleanup unregisters
             # the attempt control session, then remove the process handle.
@@ -199,14 +216,23 @@ class FlowRunExecutor:
                     info.resolution,
                     extra={"flow_run_id": self._flow_run.id},
                 )
-            crashed_state = await self._state_proposer.propose_crashed(
-                self._flow_run, message=msg
-            )
-            # Step 8: run crashed hooks
-            if crashed_state is not None:
-                await self._hook_runner.run_crashed_hooks(self._flow_run, crashed_state)
+        elif process_error is not None:
+            msg = f"Flow run process failed: {process_error}"
+        else:
+            return FlowRunExecutionResult(handle=handle, status_code=exit_code)
 
-        return FlowRunExecutionResult(handle=handle, status_code=exit_code)
+        crashed_state = await self._state_proposer.propose_crashed(
+            self._flow_run, message=msg
+        )
+        # Step 8: run crashed hooks
+        if crashed_state is not None:
+            await self._hook_runner.run_crashed_hooks(self._flow_run, crashed_state)
+
+        return FlowRunExecutionResult(
+            handle=handle,
+            status_code=exit_code,
+            crash_unreported=crashed_state is None or not crashed_state.is_final(),
+        )
 
     async def _start_process(
         self,
@@ -267,6 +293,7 @@ class FlowRunExecutorContext:
     async def __aenter__(self) -> FlowRunExecutorContext:
         self._stack = AsyncExitStack()
         await self._stack.__aenter__()
+        self._after_exit_callbacks: list[Callable[[], object]] = []
         self._logger = get_logger("runner.executor_context")
 
         # Step 1: client
@@ -339,7 +366,15 @@ class FlowRunExecutorContext:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> bool | None:
-        return await self._stack.__aexit__(exc_type, exc_value, traceback)
+        try:
+            return await self._stack.__aexit__(exc_type, exc_value, traceback)
+        finally:
+            for callback in reversed(self._after_exit_callbacks):
+                callback()
+
+    def call_after_exit(self, callback: Callable[[], object]) -> None:
+        """Keep attempt resources alive until cancellation work has drained."""
+        self._after_exit_callbacks.append(callback)
 
     def _handle_cancellation_observer_failure(self, flow_run_ids: set) -> None:
         """Handle failure of both cancellation observer mechanisms.
@@ -369,10 +404,15 @@ class FlowRunExecutorContext:
         self,
         flow_run: FlowRun,
         starter: ProcessStarter,
-        resolve_flow: Callable[[FlowRun], Awaitable[Flow[Any, Any]]],
+        resolve_flow: Callable[[FlowRun], Awaitable[Flow[Any, Any]]] | None = None,
         propose_submitting: bool = True,
+        hook_runner: FlowRunHookRunner | None = None,
     ) -> FlowRunExecutor:
-        hook_runner = HookRunner(resolve_flow=resolve_flow)
+        if (resolve_flow is None) == (hook_runner is None):
+            raise ValueError("Provide exactly one of resolve_flow or hook_runner.")
+        if hook_runner is None:
+            assert resolve_flow is not None
+            hook_runner = HookRunner(resolve_flow=resolve_flow)
         # Wire the real resolver into CancellationManager for on_cancellation hooks
         self._cancellation_manager._hook_runner = hook_runner
         return FlowRunExecutor(

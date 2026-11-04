@@ -1,6 +1,6 @@
 """Module containing models for Snowflake configs"""
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 try:
     from typing import Literal
@@ -64,12 +64,12 @@ class SnowflakeTargetConfigs(BaseTargetConfigs):
 
     _block_type_name = "dbt CLI Snowflake Target Configs"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-dbt"  # noqa
 
     type: Literal["snowflake"] = Field(
         default="snowflake", description="The type of the target configs."
     )
-    schema_: Optional[str] = Field(
+    schema_: str | None = Field(
         default=None,
         alias="schema",
         description="The schema to use for the target configs.",
@@ -78,7 +78,7 @@ class SnowflakeTargetConfigs(BaseTargetConfigs):
         default=..., description="The connector to use."
     )
 
-    def get_configs(self) -> Dict[str, Any]:
+    def get_configs(self) -> dict[str, Any]:
         """
         Returns the dbt configs specific to Snowflake profile.
 

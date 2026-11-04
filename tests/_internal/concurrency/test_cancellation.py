@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import anyio
 import pytest
 
+from prefect._internal.concurrency import cancellation
 from prefect._internal.concurrency.cancellation import (
     AlarmCancelScope,
     AsyncCancelScope,
@@ -170,6 +171,61 @@ def test_watcher_thread_cancel_scope_enforcer_exits_when_teardown_interrupted(
     finally:
         scope._event.set()
         scope._enforcer_thread.join()
+
+
+def test_watcher_thread_cancel_scope_does_not_inject_into_exiting_thread(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    If the timeout elapses while the supervised thread is already exiting the scope,
+    the scope is still marked as cancelled but the enforcer must not inject an
+    exception: it would land at an arbitrary instruction outside the scope (e.g.
+    inside a logging handler) and can leave locks held forever.
+    """
+    exiting = threading.Event()
+    enforcer_ready = threading.Event()
+    original_exit = CancelScope.__exit__
+    original_enforcer = WatcherThreadCancelScope._timeout_enforcer
+    original_get_shield = cancellation._get_thread_shield
+
+    def synchronized_exit(self: CancelScope, *exc_info: object) -> bool | None:
+        exiting.set()
+        assert enforcer_ready.wait(5), "Enforcer did not reach the cancellation check"
+        return original_exit(self, *exc_info)
+
+    def synchronized_enforcer(self: WatcherThreadCancelScope) -> None:
+        assert exiting.wait(5), "Supervised thread did not start exiting"
+        original_enforcer(self)
+
+    def notify_enforcer_ready(thread: threading.Thread) -> cancellation.ThreadShield:
+        thread_shield = original_get_shield(thread)
+        # The enforcer obtains the shield before it checks, under the exit lock,
+        # whether the supervised thread has already left the scope.
+        enforcer_ready.set()
+        return thread_shield
+
+    send_exception_to_thread = MagicMock()
+    monkeypatch.setattr(CancelScope, "__exit__", synchronized_exit)
+    monkeypatch.setattr(
+        WatcherThreadCancelScope, "_timeout_enforcer", synchronized_enforcer
+    )
+    monkeypatch.setattr(cancellation, "_get_thread_shield", notify_enforcer_ready)
+    # Observe injection without risking an asynchronous exception in test cleanup.
+    monkeypatch.setattr(
+        cancellation, "_send_exception_to_thread", send_exception_to_thread
+    )
+
+    def on_worker_thread() -> WatcherThreadCancelScope:
+        with WatcherThreadCancelScope(timeout=0) as scope:
+            pass
+        return scope
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        scope = executor.submit(on_worker_thread).result(timeout=10)
+
+    assert scope.cancelled()
+    assert not scope.completed()
+    send_exception_to_thread.assert_not_called()
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere

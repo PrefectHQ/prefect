@@ -69,18 +69,17 @@ export function dateRangeValueToUrlState(
 
 	switch (value.type) {
 		case "span": {
-			const absSeconds = Math.abs(value.seconds);
 			// Map common span values to presets
-			if (absSeconds === SECONDS_IN_HOUR) {
+			if (value.seconds === -SECONDS_IN_HOUR) {
 				return { range: "past-hour" };
 			}
-			if (absSeconds === PAST_24_HOURS_SECONDS) {
+			if (value.seconds === -PAST_24_HOURS_SECONDS) {
 				return { range: "past-24-hours" };
 			}
-			if (absSeconds === PAST_7_DAYS_SECONDS) {
+			if (value.seconds === -PAST_7_DAYS_SECONDS) {
 				return { range: "past-7-days" };
 			}
-			if (absSeconds === PAST_30_DAYS_SECONDS) {
+			if (value.seconds === -PAST_30_DAYS_SECONDS) {
 				return { range: "past-30-days" };
 			}
 			// For non-standard spans, convert to a concrete date range

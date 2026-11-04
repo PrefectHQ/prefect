@@ -3,6 +3,16 @@ from typing import Annotated
 
 from pydantic import AfterValidator
 
+NAMED_VOLUME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
+
+
+def is_relative_bind_source(source: str) -> bool:
+    """
+    Return whether a volume host source is an explicit relative path
+    (`.`, `..`, or a path starting with `./`, `../`, `.\\`, or `..\\`).
+    """
+    return source in (".", "..") or source.startswith(("./", "../", ".\\", "..\\"))
+
 
 def assert_volume_str(volume: str) -> str:
     """
@@ -31,18 +41,25 @@ def assert_volume_str(volume: str) -> str:
     host_part = match.group("host")
     container_path = match.group("container_path")
     options = match.group("options")
-    # Determine if host is a bind mount (absolute host path) or a named volume.
+    # Determine if host is a bind mount (absolute or explicit relative host
+    # path) or a named volume.
     is_unix_host = host_part.startswith("/")
     is_windows_drive = re.match(r"^[A-Za-z]:\\", host_part) is not None
     is_unc = host_part.startswith("\\\\")
-    if is_unix_host or is_windows_drive or is_unc:
+    is_relative = is_relative_bind_source(host_part)
+    if is_unix_host or is_windows_drive or is_unc or is_relative:
         # For bind mounts, container path must be absolute.
         if not container_path.startswith("/"):
             raise ValueError("For bind mounts, container path must be absolute")
     else:
-        # For named volumes, host must not contain path separators.
-        if "/" in host_part or "\\" in host_part:
-            raise ValueError(f"Invalid volume name: {host_part}")
+        # For named volumes, host must be a valid Docker volume name.
+        if not NAMED_VOLUME_PATTERN.match(host_part):
+            raise ValueError(
+                f"Invalid volume name: {host_part!r}. Named volumes must match"
+                " [a-zA-Z0-9][a-zA-Z0-9_.-]*. Shell expressions such as $(pwd)"
+                " are not evaluated; use an absolute host path or an explicit"
+                " relative path such as '.' or './dir' for bind mounts."
+            )
     if options is not None:
         if options not in ("ro", "rw"):
             raise ValueError(

@@ -53,6 +53,7 @@ import {
 import { PrefectLoading } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 function FlowRunsCardSkeleton() {
 	return (
@@ -142,8 +143,7 @@ const searchParams = z.object({
 	rangeType: z
 		.enum(["span", "range", "around", "period"])
 		.optional()
-		.default("span")
-		.catch("span"),
+		.catch(undefined),
 	seconds: z.number().optional().default(-86400).catch(-86400), // default 24h
 	start: z.string().datetime().optional(), // for range
 	end: z.string().datetime().optional(),
@@ -171,15 +171,16 @@ function roundToMinute(date: Date): Date {
 	return rounded;
 }
 
-function getDateRangeFromSearch(search: DashboardSearch): {
+export function getDateRangeFromSearch(search: DashboardSearch): {
 	from: string;
 	to: string;
 } {
-	if (search.from && search.to) {
+	// Legacy absolute URLs have from/to without a range type.
+	if (!search.rangeType && search.from && search.to) {
 		return { from: search.from, to: search.to };
 	}
 
-	switch (search.rangeType) {
+	switch (search.rangeType ?? "span") {
 		case "span": {
 			const now = roundToMinute(new Date());
 			const seconds = search.seconds ?? -86400;
@@ -217,6 +218,10 @@ function getDateRangeFromSearch(search: DashboardSearch): {
 			end.setHours(23, 59, 59, 999);
 			return { from: start.toISOString(), to: end.toISOString() };
 		}
+	}
+
+	if (search.from && search.to) {
+		return { from: search.from, to: search.to };
 	}
 
 	const now = roundToMinute(new Date());
@@ -363,6 +368,17 @@ function buildTaskRunsCountFiltersFromSearch(search: DashboardSearch): {
 	};
 }
 
+/**
+ * Filter that requests a single flow run to find if the workspace has any
+ * flow runs. An unfiltered count scans the whole flow run table and can
+ * exceed the API statement timeout on large tables.
+ */
+const ANY_FLOW_RUNS_FILTER: FlowRunsFilter = {
+	sort: "ID_DESC",
+	offset: 0,
+	limit: 1,
+};
+
 const STATE_TYPE_GROUPS = [
 	["FAILED", "CRASHED"],
 	["RUNNING", "PENDING", "CANCELLING"],
@@ -391,13 +407,13 @@ export const Route = createFileRoute("/dashboard")({
 	loader: async ({ deps, context: { queryClient } }) => {
 		void queryClient.prefetchQuery(buildGetSettingsQuery());
 
-		// Prefetch total flow runs count to determine if dashboard is empty
-		const totalFlowRuns = await queryClient.ensureQueryData(
-			buildCountFlowRunsQuery({}, 30_000),
+		// Prefetch a single flow run to determine if dashboard is empty
+		const anyFlowRuns = await queryClient.ensureQueryData(
+			buildFilterFlowRunsQuery(ANY_FLOW_RUNS_FILTER, 30_000),
 		);
 
 		// If there are no flow runs, skip prefetching other data
-		if (totalFlowRuns === 0) {
+		if (anyFlowRuns.length === 0) {
 			return;
 		}
 
@@ -631,7 +647,7 @@ export const Route = createFileRoute("/dashboard")({
 			// Prefetch mini bar chart flow runs (used by WorkPoolMiniBarChart)
 			const miniBarChartFilter: FlowRunsFilter = {
 				limit: 24,
-				sort: "START_TIME_DESC",
+				sort: "EXPECTED_START_TIME_DESC",
 				offset: 0,
 				work_pools: {
 					operator: "and_",
@@ -760,20 +776,29 @@ function omitKeys<T extends object, K extends readonly (keyof T)[]>(
 }
 
 export function RouteComponent() {
+	usePageTitle("Dashboard");
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
-	// Check if there are any flow runs at all (unfiltered count)
-	const { data: totalFlowRuns } = useSuspenseQuery(
-		buildCountFlowRunsQuery({}, 30_000),
+	// Check if there are any flow runs at all (unfiltered, one run only)
+	const { data: anyFlowRuns } = useSuspenseQuery(
+		buildFilterFlowRunsQuery(ANY_FLOW_RUNS_FILTER, 30_000),
 	);
-	const isEmpty = totalFlowRuns === 0;
+	const isEmpty = anyFlowRuns.length === 0;
 
 	// Derive UI states with sensible defaults
 	const hideSubflows = search.hideSubflows ?? false;
 	const tags = search.tags ?? [];
 	const dateRangeValue = useMemo<DateRangeSelectValue>(() => {
-		switch (search.rangeType) {
+		if (!search.rangeType && search.from && search.to) {
+			return {
+				type: "range",
+				startDate: new Date(search.from),
+				endDate: new Date(search.to),
+			};
+		}
+
+		switch (search.rangeType ?? "span") {
 			case "span": {
 				const seconds = search.seconds ?? -86400; // default 24h
 				return { type: "span", seconds };
@@ -807,6 +832,8 @@ export function RouteComponent() {
 		}
 	}, [
 		search.rangeType,
+		search.from,
+		search.to,
 		search.seconds,
 		search.start,
 		search.end,
@@ -952,19 +979,12 @@ export function RouteComponent() {
 					let toIso: string | undefined;
 					switch (next.type) {
 						case "span": {
-							const now = new Date();
-							const then = new Date(now.getTime() + next.seconds * 1000);
-							const [a, b] = [now, then].sort(
-								(x, y) => x.getTime() - y.getTime(),
-							);
-							fromIso = a.toISOString();
-							toIso = b.toISOString();
 							return {
 								...prev,
 								rangeType: "span",
 								seconds: next.seconds,
-								from: fromIso,
-								to: toIso,
+								from: undefined,
+								to: undefined,
 								flow: undefined,
 								page: undefined,
 							};
@@ -1009,20 +1029,14 @@ export function RouteComponent() {
 							};
 						}
 						case "period": {
-							// Only Today supported; normalize to today's start/end
-							const now = new Date();
-							const start = new Date(now);
-							start.setHours(0, 0, 0, 0);
-							const end = new Date(now);
-							end.setHours(23, 59, 59, 999);
-							fromIso = start.toISOString();
-							toIso = end.toISOString();
+							// Only Today supported; is relative so revisiting the URL
+							// on a later day resolves to that day
 							return {
 								...prev,
 								rangeType: "period",
 								period: next.period,
-								from: fromIso,
-								to: toIso,
+								from: undefined,
+								to: undefined,
 								flow: undefined,
 								page: undefined,
 							};

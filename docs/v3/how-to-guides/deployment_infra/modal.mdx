@@ -313,7 +313,7 @@ You could `pip install` without `uv` but it would be significantly slower (minut
 
 You can create multiple work queues across the same pool (for example, if you have another job using this pool).
 Multiple work queues let you handle concurrency and swim-lane priorities.
-To keep things simple, this tutorial will use the the default queue name that comes with every new pool.
+To keep things simple, this tutorial will use the default queue name that comes with every new pool.
 
 When you deploy to Prefect, it will know to schedule all of the flow runs for this particular deployment on your modal work pool!
 

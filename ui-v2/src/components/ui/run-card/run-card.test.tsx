@@ -6,7 +6,6 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
-import humanizeDuration from "humanize-duration";
 import { describe, expect, it } from "vitest";
 import type { components } from "@/api/prefect";
 import { createFakeTaskRun } from "@/mocks";
@@ -31,23 +30,15 @@ const RunCardRouter = ({
 };
 
 describe("RunCard", () => {
-	it("formats API duration seconds as milliseconds", async () => {
-		const estimatedRunTime = 125.123;
+	it("displays the duration in hours and minutes", async () => {
 		const taskRun = createFakeTaskRun({
-			estimated_run_time: estimatedRunTime,
+			estimated_run_time: 42787.67,
 		});
 
 		render(<RunCardRouter taskRun={taskRun} />);
 
 		await waitFor(() => {
-			expect(
-				screen.getByText(
-					humanizeDuration(estimatedRunTime * 1000, {
-						maxDecimalPoints: 3,
-						units: ["s"],
-					}),
-				),
-			).toBeVisible();
+			expect(screen.getByText("11h 53m")).toBeVisible();
 		});
 	});
 });

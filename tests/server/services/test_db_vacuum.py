@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import uuid
 from datetime import timedelta
@@ -9,9 +10,14 @@ from types import SimpleNamespace
 
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import (
+    PrefectDBInterface,
+    orm_models,
+    provide_database_interface,
+)
 from prefect.server.database.configurations import (
     AioSqliteConfiguration,
     AsyncPostgresConfiguration,
@@ -23,6 +29,8 @@ from prefect.server.services import db_vacuum
 from prefect.server.services.db_vacuum import (
     _maintenance_database_config,
     _maintenance_session,
+    schedule_orphan_vacuum_tasks,
+    schedule_vacuum_tasks,
     vacuum_events_with_retention_overrides,
     vacuum_old_events,
     vacuum_old_flow_runs,
@@ -318,6 +326,185 @@ class TestVacuumOldFlowRuns:
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 1
 
+    async def test_deletes_logs_and_artifacts_with_the_run(self, session, flow):
+        """Logs and artifacts are deleted by flow_run_id in the same batch."""
+        db = provide_database_interface()
+        flow_run = await _create_flow_run(session, flow, end_time=OLD)
+        task_run = await _create_task_run(session, flow_run)
+        await _create_log(session, flow_run_id=flow_run.id)
+        await _create_log(session, flow_run_id=flow_run.id, task_run_id=task_run.id)
+        await _create_artifact(session, flow_run_id=flow_run.id)
+
+        assert await _count(session, db, db.Log) == 2
+        assert await _count(session, db, db.Artifact) == 1
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 0
+            assert await _count(new_session, db, db.Log) == 0
+            assert await _count(new_session, db, db.Artifact) == 0
+
+    async def test_preserves_children_of_surviving_runs(self, session, flow):
+        """Logs and artifacts of runs within the retention period survive."""
+        db = provide_database_interface()
+        old_run = await _create_flow_run(session, flow, end_time=OLD)
+        recent_run = await _create_flow_run(session, flow, end_time=RECENT)
+        await _create_log(session, flow_run_id=old_run.id)
+        await _create_log(session, flow_run_id=recent_run.id)
+        await _create_log(session, flow_run_id=None)
+        await _create_artifact(session, flow_run_id=recent_run.id)
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 1
+            # The recent run's log and the log with no flow_run_id remain
+            assert await _count(new_session, db, db.Log) == 2
+            assert await _count(new_session, db, db.Artifact) == 1
+
+    async def test_children_are_deleted_in_bounded_batches(
+        self, session, flow, monkeypatch
+    ):
+        """A run with more children than `batch_size` still loses all of them."""
+        settings = get_current_settings()
+        monkeypatch.setattr(settings.server.services.db_vacuum, "batch_size", 2)
+
+        db = provide_database_interface()
+        flow_run = await _create_flow_run(session, flow, end_time=OLD)
+        for _ in range(5):
+            await _create_log(session, flow_run_id=flow_run.id)
+        for index in range(3):
+            await _create_artifact(
+                session, flow_run_id=flow_run.id, key=f"report-{index}"
+            )
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 0
+            assert await _count(new_session, db, db.Log) == 0
+            assert await _count(new_session, db, db.Artifact) == 0
+
+    async def test_batching_deletes_children_across_batches(
+        self, session, flow, monkeypatch
+    ):
+        """Every batch cleans up its own runs' logs, not just the first."""
+        settings = get_current_settings()
+        monkeypatch.setattr(settings.server.services.db_vacuum, "batch_size", 2)
+
+        db = provide_database_interface()
+        for _ in range(5):
+            flow_run = await _create_flow_run(session, flow, end_time=OLD)
+            await _create_log(session, flow_run_id=flow_run.id)
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 0
+            assert await _count(new_session, db, db.Log) == 0
+
+    async def test_locked_run_is_skipped(self, session, flow):
+        """A locked state change prevents vacuum from selecting the run."""
+        db = provide_database_interface()
+        if db.dialect.name != "postgresql":
+            pytest.skip("Row-level locking is PostgreSQL-only")
+
+        flow_run = await _create_flow_run(session, flow, end_time=OLD)
+        async with db.session_context(
+            begin_transaction=True, with_for_update=True
+        ) as update_session:
+            await models.flow_runs.set_flow_run_state(
+                session=update_session,
+                flow_run_id=flow_run.id,
+                state=schemas.states.Running(),
+                force=True,
+            )
+            await asyncio.wait_for(vacuum_old_flow_runs(db=db), timeout=5)
+
+        async with db.session_context() as read_session:
+            surviving_run = await read_session.get(db.FlowRun, flow_run.id)
+            assert surviving_run is not None
+            assert surviving_run.state_type == schemas.states.StateType.RUNNING
+
+    async def test_deletes_run_before_starting_child_cleanup(
+        self, session, flow, monkeypatch
+    ):
+        """Child cleanup cannot delete data from a run that still exists."""
+        db = provide_database_interface()
+        flow_run = await _create_flow_run(session, flow, end_time=OLD)
+        await _create_log(session, flow_run_id=flow_run.id)
+        original_batch_delete = db_vacuum._batch_delete
+
+        async def assert_run_was_deleted_before_children(*args, **kwargs):
+            async with db.session_context() as read_session:
+                assert await read_session.get(db.FlowRun, flow_run.id) is None
+            return await original_batch_delete(*args, **kwargs)
+
+        monkeypatch.setattr(
+            db_vacuum, "_batch_delete", assert_run_was_deleted_before_children
+        )
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as read_session:
+            assert await _count(read_session, db, db.Log) == 0
+
+    async def test_reconciles_collections_of_deleted_artifacts(self, session, flow):
+        """Collections left stale by inline artifact deletion are reconciled."""
+        db = provide_database_interface()
+        flow_run = await _create_flow_run(session, flow, end_time=OLD)
+        await _create_artifact(session, flow_run_id=flow_run.id, key="my-report")
+
+        assert await _count(session, db, db.ArtifactCollection) == 1
+
+        await vacuum_old_flow_runs(db=db)
+        await vacuum_stale_artifact_collections(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.Artifact) == 0
+            assert await _count(new_session, db, db.ArtifactCollection) == 0
+
+
+async def test_flow_run_vacuum_schedules_only_expected_cleanup_tasks():
+    scheduled: list[tuple[object, str | None]] = []
+
+    class FakeDocket:
+        def add(self, function, key=None):
+            scheduled.append((function, key))
+
+            async def enqueue():
+                return None
+
+            return enqueue
+
+    await schedule_vacuum_tasks(docket=FakeDocket())
+
+    assert scheduled == [
+        (vacuum_old_flow_runs, "db-vacuum:old-flow-runs"),
+    ]
+
+
+async def test_orphan_reconciliation_schedules_cleanup_tasks():
+    scheduled: list[tuple[object, str | None]] = []
+
+    class FakeDocket:
+        def add(self, function, key=None):
+            scheduled.append((function, key))
+
+            async def enqueue():
+                return None
+
+            return enqueue
+
+    await schedule_orphan_vacuum_tasks(docket=FakeDocket())
+
+    assert scheduled == [
+        (vacuum_orphaned_logs, "db-vacuum:orphaned-logs"),
+        (vacuum_orphaned_artifacts, "db-vacuum:orphaned-artifacts"),
+        (vacuum_stale_artifact_collections, "db-vacuum:stale-collections"),
+    ]
+
 
 class TestVacuumOrphanedLogs:
     async def test_deletes_orphaned_logs(self, session, flow):
@@ -344,6 +531,47 @@ class TestVacuumOrphanedLogs:
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Log) == 1
 
+    async def test_preserves_log_if_flow_run_is_created_before_delete(
+        self,
+        session: AsyncSession,
+        flow: orm_models.Flow,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A flow run created after discovery makes its logs non-orphaned."""
+        db = provide_database_interface()
+        flow_run_id = uuid.uuid4()
+        await _create_log(session, flow_run_id=flow_run_id)
+        original_batch_delete = db_vacuum._batch_delete
+        flow_run_created = False
+
+        async def create_flow_run_before_delete(
+            db: PrefectDBInterface,
+            model: type[orm_models.Log | orm_models.Artifact],
+            condition: sa.ColumnElement[bool],
+            batch_size: int,
+        ) -> int:
+            nonlocal flow_run_created
+            if not flow_run_created:
+                flow_run_created = True
+                async with db.session_context(begin_transaction=True) as late_session:
+                    await models.flow_runs.create_flow_run(
+                        session=late_session,
+                        flow_run=schemas.core.FlowRun(
+                            id=flow_run_id,
+                            flow_id=flow.id,
+                            state=schemas.states.Completed(),
+                            end_time=RECENT,
+                        ),
+                    )
+            return await original_batch_delete(db, model, condition, batch_size)
+
+        monkeypatch.setattr(db_vacuum, "_batch_delete", create_flow_run_before_delete)
+
+        await vacuum_orphaned_logs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.Log) == 1
+
     async def test_preserves_logs_with_null_flow_run_id(self, session, flow):
         """Logs with flow_run_id=NULL (e.g. task-run-only) should not be deleted."""
         db = provide_database_interface()
@@ -353,6 +581,83 @@ class TestVacuumOrphanedLogs:
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Log) == 1
+
+    async def test_scans_all_flow_runs_across_multiple_batches(
+        self, session, flow, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Orphans are found in every page of the flow_run_id scan, even when
+        live runs and orphans are interleaved and each page holds several rows
+        per run."""
+        db = provide_database_interface()
+        monkeypatch.setattr(
+            get_current_settings().server.services.db_vacuum, "batch_size", 2
+        )
+        live_ids = []
+        for _ in range(3):
+            flow_run = await _create_flow_run(session, flow, end_time=RECENT)
+            live_ids.append(flow_run.id)
+        orphaned_ids = [uuid.uuid4() for _ in range(3)]
+        for flow_run_id in live_ids + orphaned_ids:
+            for _ in range(3):
+                await _create_log(session, flow_run_id=flow_run_id)
+        await _create_log(session, flow_run_id=None)
+
+        assert await _count(session, db, db.Log) == 19
+        await vacuum_orphaned_logs(db=db)
+
+        async with db.session_context() as new_session:
+            remaining = (
+                (await new_session.execute(sa.select(db.Log.flow_run_id)))
+                .scalars()
+                .all()
+            )
+        assert len(remaining) == 10
+        assert set(remaining) == set(live_ids) | {None}
+
+    async def test_large_configured_batch_bounds_query_parameters(
+        self, session, flow, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A batch size above the bind-parameter budget still keeps every
+        statement within that budget."""
+        db = provide_database_interface()
+        if db.dialect.name != "sqlite":
+            pytest.skip("Maintenance statements on Postgres use a separate engine")
+        monkeypatch.setattr(
+            get_current_settings().server.services.db_vacuum, "batch_size", 1_000
+        )
+        monkeypatch.setattr(db_vacuum, "get_max_query_parameters", lambda: 5)
+
+        flow_run = await _create_flow_run(session, flow, end_time=RECENT)
+        await _create_log(session, flow_run_id=flow_run.id)
+        orphaned_ids = [uuid.uuid4() for _ in range(7)]
+        for flow_run_id in orphaned_ids:
+            await _create_log(session, flow_run_id=flow_run_id)
+
+        parameter_counts: list[int] = []
+        engine = await db.engine()
+
+        def record_parameters(
+            _conn, _cursor, _statement, parameters, _context, _executemany
+        ):
+            parameter_counts.append(len(parameters))
+
+        sa.event.listen(engine.sync_engine, "before_cursor_execute", record_parameters)
+        try:
+            await vacuum_orphaned_logs(db=db)
+        finally:
+            sa.event.remove(
+                engine.sync_engine, "before_cursor_execute", record_parameters
+            )
+
+        assert parameter_counts
+        assert max(parameter_counts) <= 5
+        async with db.session_context() as new_session:
+            remaining = (
+                (await new_session.execute(sa.select(db.Log.flow_run_id)))
+                .scalars()
+                .all()
+            )
+        assert remaining == [flow_run.id]
 
 
 class TestVacuumOrphanedArtifacts:
@@ -656,6 +961,47 @@ class TestVacuumBatching:
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
 
+    async def test_large_configured_batch_chunks_delete_parameters(
+        self, session, flow, monkeypatch
+    ):
+        """A configured batch over SQLite's legacy limit still bounds each DELETE."""
+        db = provide_database_interface()
+        if db.dialect.name != "sqlite":
+            pytest.skip("SQLite query-parameter regression")
+
+        settings = get_current_settings()
+        monkeypatch.setattr(settings.server.services.db_vacuum, "batch_size", 1_001)
+        monkeypatch.setattr(db_vacuum, "get_max_query_parameters", lambda: 4)
+
+        for _ in range(5):
+            await _create_flow_run(session, flow, end_time=OLD)
+
+        delete_parameter_counts: list[int] = []
+        engine = await db.engine()
+
+        def record_delete_parameters(
+            _conn, _cursor, statement, parameters, _context, _executemany
+        ):
+            if statement.lstrip().upper().startswith("DELETE FROM"):
+                delete_parameter_counts.append(len(parameters))
+
+        sa.event.listen(
+            engine.sync_engine, "before_cursor_execute", record_delete_parameters
+        )
+        try:
+            await vacuum_old_flow_runs(db=db)
+        finally:
+            sa.event.remove(
+                engine.sync_engine,
+                "before_cursor_execute",
+                record_delete_parameters,
+            )
+
+        assert delete_parameter_counts
+        assert max(delete_parameter_counts) <= 4
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 0
+
 
 class TestVacuumIdempotency:
     async def test_second_run_is_noop(self, session, flow):
@@ -763,3 +1109,32 @@ class TestMaintenanceSession:
 
         async with _maintenance_session(db) as session:
             assert await session.execute(sa.select(sa.literal(1))) is not None
+
+    async def test_flow_run_vacuum_uses_immediate_sqlite_transaction(self):
+        """The selection lock requests an immediate SQLite write transaction."""
+        db = provide_database_interface()
+        if db.dialect.name != "sqlite":
+            pytest.skip("SQLite transaction-mode regression")
+
+        begin_statements: list[str] = []
+        engine = await db.engine()
+
+        def record_begin_statement(
+            _conn, _cursor, statement, _parameters, _context, _executemany
+        ):
+            if statement.lstrip().upper().startswith("BEGIN"):
+                begin_statements.append(statement.strip().upper())
+
+        sa.event.listen(
+            engine.sync_engine, "before_cursor_execute", record_begin_statement
+        )
+        try:
+            await vacuum_old_flow_runs(db=db)
+        finally:
+            sa.event.remove(
+                engine.sync_engine,
+                "before_cursor_execute",
+                record_begin_statement,
+            )
+
+        assert "BEGIN IMMEDIATE" in begin_statements

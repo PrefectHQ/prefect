@@ -1,5 +1,8 @@
 import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { buildApiUrl, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
+import { describe, expect, it } from "vitest";
+import { createFakeEvent } from "@/mocks";
 import type { EventsCountFilter, EventsFilter } from ".";
 import { buildGetEventQuery, queryKeyFactory } from ".";
 
@@ -144,28 +147,27 @@ describe("events api", () => {
 			const eventId = "nonexistent-event";
 			const eventDate = new Date("2024-06-15T14:30:00.000Z");
 
-			vi.mock("../service", () => ({
-				getQueryService: () => ({
-					POST: vi.fn().mockResolvedValue({ data: { events: [] } }),
-				}),
-			}));
-
-			const query = buildGetEventQuery(eventId, eventDate);
-
-			const queryFn = query.queryFn;
-			if (!queryFn) {
-				throw new Error("Expected queryFn to be defined");
-			}
-
 			const client = new QueryClient();
-			const ctx = {
-				client,
-				queryKey: query.queryKey,
-				signal: new AbortController().signal,
-				meta: undefined,
-			} as unknown as Parameters<typeof queryFn>[0];
 
-			await expect(queryFn(ctx)).rejects.toThrow("Event not found");
+			await expect(
+				client.fetchQuery(buildGetEventQuery(eventId, eventDate)),
+			).rejects.toThrow("Event not found");
+		});
+
+		it("returns the matching event", async () => {
+			const event = createFakeEvent();
+			server.use(
+				http.post(buildApiUrl("/events/filter"), () =>
+					HttpResponse.json({ events: [event], total: 1, next_page: null }),
+				),
+			);
+			const client = new QueryClient();
+
+			await expect(
+				client.fetchQuery(
+					buildGetEventQuery(event.id, new Date(event.occurred)),
+				),
+			).resolves.toEqual(event);
 		});
 	});
 });

@@ -3,7 +3,7 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 
-For more user-accessible information about the current run, see [`prefect.runtime`](https://docs.prefect.io/v3/api-ref/python/prefect-runtime-flow_run).
+For more user-accessible information about the current run, see [`prefect.runtime`](https://www.prefect.io/docs/v3/api-ref/python/prefect-runtime-flow_run).
 """
 
 import asyncio
@@ -912,6 +912,32 @@ def get_settings_context() -> SettingsContext:
         raise MissingContextError("No settings context found.")
 
     return settings_ctx
+
+
+@contextmanager
+def _temporary_global_settings_context(
+    settings_context: "SettingsContext",
+) -> Generator[None, None, None]:
+    """
+    Temporarily replace the process-global settings context.
+
+    `SettingsContext.get` returns the process-global settings context when the
+    current `contextvars` context does not contain one. Replacing the global
+    context makes the given settings visible to contexts that were copied before
+    the settings were applied, such as the context that
+    `unittest.IsolatedAsyncioTestCase` copies when it is constructed. Contexts
+    that contain their own settings context are not affected.
+
+    This is an internal utility for `prefect.testing.utilities.prefect_test_harness`.
+    """
+    global GLOBAL_SETTINGS_CONTEXT
+
+    prior_global_settings_context = GLOBAL_SETTINGS_CONTEXT
+    GLOBAL_SETTINGS_CONTEXT = settings_context
+    try:
+        yield
+    finally:
+        GLOBAL_SETTINGS_CONTEXT = prior_global_settings_context
 
 
 @contextmanager

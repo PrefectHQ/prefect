@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { LayoutWellSidebar } from "@/components/ui/layout-well";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 import { DeploymentActionMenu } from "./deployment-action-menu";
 import { DeploymentDetailsHeader } from "./deployment-details-header";
@@ -12,6 +13,7 @@ import { DeploymentMetadata } from "./deployment-metadata";
 import { DeploymentScheduleDialog } from "./deployment-schedules/deployment-schedule-dialog";
 import { DeploymentSchedules } from "./deployment-schedules/deployment-schedules";
 import { DeploymentTriggers } from "./deployment-triggers";
+import { PinDeploymentButton } from "./pinned-deployments";
 import { RunFlowButton } from "./run-flow-button";
 import { useDeleteDeploymentConfirmationDialog } from "./use-delete-deployment-confirmation-dialog";
 
@@ -28,6 +30,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 	const { data: deployment } = useSuspenseQuery(
 		buildDeploymentDetailsQuery(id),
 	);
+	usePageTitle(`Deployment: ${deployment.name}`);
 
 	const [deleteConfirmationDialogState, confirmDelete] =
 		useDeleteDeploymentConfirmationDialog();
@@ -70,12 +73,13 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 	return (
 		<>
 			<div className="flex flex-col gap-4">
-				<div className="flex items-center justify-between">
-					<div className="flex flex-col gap-2">
+				<div className="flex flex-wrap items-center justify-between gap-2">
+					<div className="flex min-w-0 flex-col gap-2">
 						<DeploymentDetailsHeader deployment={deployment} />
 						<DeploymentLinks deployment={deployment} />
 					</div>
 					<div className="flex items-center gap-2">
+						<PinDeploymentButton deploymentId={id} />
 						<RunFlowButton deployment={deployment} />
 						<DeploymentActionMenu
 							id={id}
@@ -96,7 +100,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 				</div>
 			</div>
 			<DeploymentScheduleDialog
-				deploymentId={id}
+				deployment={deployment}
 				open={showScheduleDialog.open}
 				onOpenChange={handleOpenChange}
 				scheduleToEdit={scheduleToEdit}

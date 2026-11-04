@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
 import { scaleSymlog } from "d3-scale";
 import { format, formatDistanceStrict } from "date-fns";
@@ -28,6 +28,7 @@ import {
 import { StateBadge } from "../state-badge";
 import { TagBadgeGroup } from "../tag-badge-group";
 import { FlowRunActivityBarGraphTooltipContext } from "./context";
+import { useStickyHoverTarget } from "./use-sticky-hover-target";
 import { organizeFlowRunsWithGaps } from "./utils";
 
 type CustomShapeProps = {
@@ -38,6 +39,7 @@ type CustomShapeProps = {
 	radius?: number[];
 	role?: string;
 	flowRun?: EnrichedFlowRun;
+	onNavigate?: (flowRunId: string) => void;
 };
 
 const barVariants = cva("gap-1 z-1", {
@@ -70,23 +72,52 @@ const CustomBar = (props: CustomShapeProps) => {
 		radius = [0, 0, 0, 0],
 		role,
 		flowRun,
+		onNavigate,
 	} = props;
+	const flowRunId = flowRun?.id;
 	const effectiveHeight = Math.max(height, minHeight);
 	// Shift the bar up if we're inflating its height, so it still rests on the baseline
 	const yPosition = y + (height - effectiveHeight);
+	const bar = (
+		<rect
+			data-testid={`bar-rect-${flowRun?.id}`}
+			x={x}
+			y={yPosition}
+			width={width}
+			height={effectiveHeight}
+			rx={radius[0]}
+			ry={radius[0]}
+			className={barVariants({ state: flowRun?.state_type })}
+		/>
+	);
 
 	return (
 		<g role={role}>
-			<rect
-				data-testid={`bar-rect-${flowRun?.id}`}
-				x={x}
-				y={yPosition}
-				width={width}
-				height={effectiveHeight}
-				rx={radius[0]}
-				ry={radius[0]}
-				className={barVariants({ state: flowRun?.state_type })}
-			/>
+			{flowRunId ? (
+				<Link
+					to="/runs/flow-run/$id"
+					params={{ id: flowRunId }}
+					aria-label={`Open flow run ${flowRun?.name ?? flowRunId}`}
+					data-row-click-ignore="true"
+					className="cursor-pointer"
+					onKeyDown={(event) => {
+						const isUnmodifiedEnter =
+							event.key === "Enter" &&
+							!event.ctrlKey &&
+							!event.metaKey &&
+							!event.altKey &&
+							!event.shiftKey;
+						if (event.key === " " || isUnmodifiedEnter) {
+							event.preventDefault();
+							onNavigate?.(flowRunId);
+						}
+					}}
+				>
+					{bar}
+				</Link>
+			) : (
+				bar
+			)}
 		</g>
 	);
 };
@@ -96,6 +127,8 @@ type EnrichedFlowRun = components["schemas"]["FlowRunResponse"] & {
 	flow?: components["schemas"]["Flow"];
 };
 
+const TOOLTIP_LEAVE_DELAY = 200;
+
 /**
  * Custom hook to manage tooltip active state with a delayed hide effect and coordinate between multiple tooltips.
  * Only one tooltip can be active at a time, controlled by the holder ID.
@@ -103,14 +136,15 @@ type EnrichedFlowRun = components["schemas"]["FlowRunResponse"] & {
  * @param chartId - Unique identifier for the chart instance to coordinate with other charts
  * @param initialValue - Initial active state of the tooltip (default: undefined)
  * @param leaveDelay - Delay in milliseconds before hiding the tooltip after becoming inactive (default: 200ms)
- * @returns A tuple containing [isActive, setIsActive] where isActive is the current tooltip state
- *          and setIsActive is a function to update the internal state. isActive will be false if another
- *          chart takes control.
+ * @returns A tuple containing the visible state, a setter for pointer-driven
+ *          interaction, an immediate dismiss function, and the current
+ *          interaction state. The visible state is false after dismissal or
+ *          when another chart takes control.
  */
 const useIsTooltipActive = (
 	chartId?: string,
 	initialValue: boolean | undefined = undefined,
-	leaveDelay = 200,
+	leaveDelay = TOOLTIP_LEAVE_DELAY,
 ) => {
 	const [internalValue, setInternalValue] = useState<boolean | undefined>(
 		initialValue,
@@ -125,6 +159,11 @@ const useIsTooltipActive = (
 	useEffect(() => {
 		if (currentHolder && chartId !== currentHolder) {
 			setExternalValue(false);
+		} else if (internalValue === false) {
+			setExternalValue(false);
+			if (chartId) {
+				releaseCurrentHolder(chartId);
+			}
 		} else if (internalValue) {
 			if (chartId) {
 				takeCurrentHolder(chartId);
@@ -148,7 +187,15 @@ const useIsTooltipActive = (
 		releaseCurrentHolder,
 	]);
 
-	return [externalValue, setInternalValue] as const;
+	const dismiss = useCallback(() => {
+		setInternalValue(false);
+		setExternalValue(false);
+		if (chartId) {
+			releaseCurrentHolder(chartId);
+		}
+	}, [chartId, releaseCurrentHolder]);
+
+	return [externalValue, setInternalValue, dismiss, internalValue] as const;
 };
 
 /**
@@ -206,8 +253,23 @@ export const FlowRunActivityBarChart = ({
 	numberOfBars,
 	className,
 }: FlowRunActivityBarChartProps) => {
-	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive(chartId);
+	const [
+		isTooltipActive,
+		setIsTooltipActive,
+		dismissTooltip,
+		interactionState,
+	] = useIsTooltipActive(chartId);
 	const chartRef = useRef<HTMLDivElement>(null);
+	const navigate = useNavigate();
+	const navigateToFlowRun = useCallback(
+		(flowRunId: string) => {
+			void navigate({
+				to: "/runs/flow-run/$id",
+				params: { id: flowRunId },
+			});
+		},
+		[navigate],
+	);
 
 	// Cap flow runs to prevent crash when there are more runs than bars.
 	// The chart can only display one run per bar, so we take the first N runs
@@ -266,15 +328,28 @@ export const FlowRunActivityBarChart = ({
 				data={data}
 				margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
 				barSize={barWidth}
-				onMouseMove={() => {
-					setIsTooltipActive(true);
+				onMouseMove={(_state, event) => {
+					// Tooltip content is rendered inside Recharts' wrapper, so its mouse
+					// events also reach this handler. Only movement over the plot should
+					// release a pinned tooltip.
+					if (event.target instanceof SVGElement) {
+						setIsTooltipActive(true);
+					}
 				}}
 				onMouseLeave={() => {
 					setIsTooltipActive(undefined);
 				}}
 			>
 				<ChartTooltip
-					content={<FlowRunTooltip chartRef={chartRef} />}
+					content={
+						<FlowRunTooltip
+							chartRef={chartRef}
+							flowRuns={cappedFlowRuns}
+							onDismiss={dismissTooltip}
+							onInteractionChange={setIsTooltipActive}
+							interactionState={interactionState}
+						/>
+					}
 					isAnimationActive={false}
 					active={isTooltipActive}
 					// Allows the tooltip to react to mouse events
@@ -282,7 +357,7 @@ export const FlowRunActivityBarChart = ({
 				/>
 				<Bar
 					dataKey="value"
-					shape={<CustomBar />}
+					shape={<CustomBar onNavigate={navigateToFlowRun} />}
 					radius={[5, 5, 5, 5]}
 					onMouseEnter={() => setIsTooltipActive(true)}
 					onMouseLeave={() => setIsTooltipActive(undefined)}
@@ -301,17 +376,149 @@ FlowRunActivityBarChart.displayName = "FlowRunActivityBarChart";
 
 type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>> & {
 	chartRef: RefObject<HTMLDivElement | null>;
+	flowRuns: EnrichedFlowRun[];
+	onDismiss: () => void;
+	onInteractionChange: (activity: boolean | undefined) => void;
+	interactionState: boolean | undefined;
 };
+
+type HoveredFlowRun = {
+	flowRun: EnrichedFlowRun;
+	x: number;
+	y: number;
+};
+
+const getHoveredFlowRun = (
+	payload: FlowRunTooltipProps["payload"],
+	coordinate: FlowRunTooltipProps["coordinate"],
+): HoveredFlowRun | undefined => {
+	const firstPayloadItem = payload?.[0] as { payload?: unknown } | undefined;
+	const nestedPayload: unknown = firstPayloadItem?.payload;
+	if (
+		!nestedPayload ||
+		typeof nestedPayload !== "object" ||
+		!("flowRun" in nestedPayload)
+	) {
+		return undefined;
+	}
+	const flowRun = nestedPayload.flowRun as EnrichedFlowRun | undefined;
+	if (
+		!flowRun?.id ||
+		coordinate?.x === undefined ||
+		coordinate.y === undefined
+	) {
+		return undefined;
+	}
+	return { flowRun, x: coordinate.x, y: coordinate.y };
+};
+
+const getHoveredFlowRunKey = ({ flowRun }: HoveredFlowRun) => flowRun.id;
 
 const FlowRunTooltip = ({
 	payload,
 	active,
 	coordinate,
 	chartRef,
+	flowRuns,
+	onDismiss,
+	onInteractionChange,
+	interactionState,
 }: FlowRunTooltipProps) => {
 	const ref = useRef<HTMLDivElement>(null);
 	const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
-	const { x, y } = coordinate ?? {};
+	const [isCardHovered, setIsCardHovered] = useState(false);
+	const hoveredFlowRun = active
+		? getHoveredFlowRun(payload, coordinate)
+		: undefined;
+
+	// Keep showing the originally hovered run while the cursor travels across
+	// neighboring bars toward the tooltip, and freeze it once the cursor is inside.
+	// `active` is `false` after an explicit dismissal or when another chart owns
+	// the shared tooltip, so this target must disappear immediately.
+	const { target, pin, unpin } = useStickyHoverTarget(
+		hoveredFlowRun,
+		getHoveredFlowRunKey,
+		{ enabled: active !== false },
+	);
+	const targetKey = target ? getHoveredFlowRunKey(target) : undefined;
+	const flowRun = target
+		? flowRuns.find((flowRun) => flowRun.id === target.flowRun.id)
+		: undefined;
+	const deferredUnpinRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+		undefined,
+	);
+	const { x, y } = target ?? {};
+	const cancelDeferredUnpin = useCallback(() => {
+		if (deferredUnpinRef.current !== undefined) {
+			clearTimeout(deferredUnpinRef.current);
+			deferredUnpinRef.current = undefined;
+		}
+	}, []);
+	const dismissTooltip = useCallback(() => {
+		cancelDeferredUnpin();
+		setIsCardHovered(false);
+		onDismiss();
+	}, [cancelDeferredUnpin, onDismiss]);
+
+	useEffect(() => {
+		return cancelDeferredUnpin;
+	}, [cancelDeferredUnpin]);
+
+	useEffect(() => {
+		cancelDeferredUnpin();
+		if (
+			active === false ||
+			interactionState === false ||
+			targetKey === undefined
+		) {
+			unpin();
+			return;
+		}
+		if (isCardHovered) {
+			pin();
+			return;
+		}
+		if (interactionState === true) {
+			unpin();
+			return;
+		}
+		if (interactionState === undefined) {
+			pin();
+			deferredUnpinRef.current = setTimeout(() => {
+				deferredUnpinRef.current = undefined;
+				unpin();
+			}, TOOLTIP_LEAVE_DELAY);
+		}
+	}, [
+		active,
+		cancelDeferredUnpin,
+		isCardHovered,
+		interactionState,
+		pin,
+		targetKey,
+		unpin,
+	]);
+
+	useEffect(() => {
+		if (targetKey === undefined) {
+			return;
+		}
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				dismissTooltip();
+			}
+		};
+
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [dismissTooltip, targetKey]);
+
+	useEffect(() => {
+		if (active !== false && targetKey !== undefined && flowRun === undefined) {
+			dismissTooltip();
+		}
+	}, [active, dismissTooltip, flowRun, targetKey]);
 
 	// Position the tooltip next to the cursor and clamped to the viewport so it is never clipped
 	useLayoutEffect(() => {
@@ -329,23 +536,13 @@ const FlowRunTooltip = ({
 		setStyle({
 			left: clamp(chartRect.left + x + OFFSET, innerWidth - PADDING - width),
 			top: clamp(chartRect.top + y + OFFSET, innerHeight - PADDING - height),
+			// Recharts hides its wrapper when the cursor leaves the plot area; stay
+			// visible so the tooltip can be reached and its links clicked.
+			visibility: "visible",
 		});
 	}, [chartRef, x, y]);
 
-	if (!active || !payload?.length) {
-		return null;
-	}
-	const firstPayloadItem = payload[0] as { payload?: unknown } | undefined;
-	const nestedPayload: unknown = firstPayloadItem?.payload;
-	if (
-		!nestedPayload ||
-		typeof nestedPayload !== "object" ||
-		!("flowRun" in nestedPayload)
-	) {
-		return null;
-	}
-	const flowRun = nestedPayload.flowRun as EnrichedFlowRun;
-	if (!flowRun?.id) {
+	if (active === false || !target || !flowRun) {
 		return null;
 	}
 
@@ -359,7 +556,31 @@ const FlowRunTooltip = ({
 			: null;
 
 	return (
-		<Card ref={ref} className="fixed z-50" style={style}>
+		<Card
+			ref={ref}
+			className="fixed z-50"
+			style={style}
+			onMouseEnter={() => {
+				onInteractionChange(true);
+				setIsCardHovered(true);
+				cancelDeferredUnpin();
+				pin();
+			}}
+			onMouseLeave={(event) => {
+				setIsCardHovered(false);
+				const nextTarget = event.relatedTarget;
+				if (
+					nextTarget instanceof Node &&
+					chartRef.current?.contains(nextTarget)
+				) {
+					onInteractionChange(true);
+					cancelDeferredUnpin();
+					unpin();
+					return;
+				}
+				onInteractionChange(undefined);
+			}}
+		>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-1">
 					{flow?.id && (

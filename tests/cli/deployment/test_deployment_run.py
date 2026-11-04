@@ -89,6 +89,23 @@ def test_both_start_in_and_start_at_raises():
     )
 
 
+def test_run_deployment_by_id_not_found():
+    missing_deployment_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
+    invoke_and_assert(
+        command=["deployment", "run", "--id", missing_deployment_id],
+        expected_output_contains=f"Deployment '{missing_deployment_id}' not found!",
+        expected_code=1,
+    )
+
+
+def test_run_deployment_by_invalid_id():
+    invoke_and_assert(
+        command=["deployment", "run", "--id", "not-a-uuid"],
+        expected_output_contains="Invalid deployment ID: 'not-a-uuid'",
+        expected_code=1,
+    )
+
+
 @pytest.mark.parametrize(
     "start_at,expected_output",
     [

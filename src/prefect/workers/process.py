@@ -11,7 +11,7 @@ Replace `my-work-pool` with the name of the work pool you want the worker
 to poll for flow runs.
 
 For more information about work pools and workers,
-checkout out the [Prefect docs](https://docs.prefect.io/v3/concepts/work-pools/).
+checkout out the [Prefect docs](https://www.prefect.io/docs/v3/concepts/work-pools/).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import anyio
 import anyio.abc
-from pydantic import Field, PrivateAttr, TypeAdapter, ValidationError, field_validator
+from pydantic import Field, PrivateAttr, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
@@ -35,9 +35,9 @@ from prefect.runner._flow_run_executor import (
     FlowRunExecutorContext,
 )
 from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._starter_bundle import BundleExecutionStarter
 from prefect.runner._starter_engine import EngineCommandStarter
-from prefect.runner._uv_command import uv_project_command
-from prefect.runner.runner import Runner
+from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.states import Pending
 from prefect.utilities.processutils import command_to_string, get_sys_executable
 from prefect.workers.base import (
@@ -102,43 +102,10 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     @staticmethod
     def _base_flow_run_command() -> str:
         """
-        Override the base worker command because process workers still execute
-        runs through `Runner.execute_flow_run` / `python -m prefect.engine`
-        instead of the newer `prefect flow-run execute` path.
+        Process workers use the engine command as their fallback when prepared
+        workspace dependency installation does not select another launcher.
         """
         return "python -m prefect.engine"
-
-    def _resolve_command(self, working_dir: Path | str) -> str | None:
-        """
-        Use an auto-`uv run` launcher for the flow run when the working directory
-        is a project that declares `prefect` as a dependency and the deployment
-        did not configure an explicit command.
-        """
-        if self._command_configured:
-            return self.command
-
-        env = self.env or {}
-        # A run-specific setting in the environment takes precedence over the
-        # worker process's own setting.
-        auto_install = env.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
-        try:
-            auto_install_dependencies = (
-                TypeAdapter(bool).validate_python(auto_install)
-                if auto_install is not None
-                else None
-            )
-        except ValidationError:
-            auto_install_dependencies = None
-
-        uv_command = uv_project_command(
-            # `uv` resolves `--project` relative to the flow run's working
-            # directory, so the project root must be absolute.
-            Path(working_dir).resolve(),
-            ["-m", "prefect.engine"],
-            path=env.get("PATH"),
-            auto_install_dependencies=auto_install_dependencies,
-        )
-        return uv_command or self.command
 
 
 class ProcessVariables(BaseVariables):
@@ -176,8 +143,8 @@ class ProcessWorker(
         " when first getting started."
     )
     _display_name = "Process"
-    _documentation_url = "https://docs.prefect.io/latest/get-started/quickstart"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/356e6766a91baf20e1d08bbe16e8b5aaef4d8643-48x48.png"
+    _documentation_url = "https://www.prefect.io/docs/latest/get-started/quickstart"
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/process.png"
 
     async def run(
         self,
@@ -196,18 +163,37 @@ class ProcessWorker(
         with working_dir_ctx as working_dir, warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             async with FlowRunExecutorContext() as ctx:
-                executor = ctx.create_executor(
-                    flow_run,
-                    EngineCommandStarter(
-                        command=configuration._resolve_command(working_dir),
-                        cwd=working_dir,
+                workspace_root = Path(working_dir).resolve()
+                if configuration._command_configured:
+                    starter = EngineCommandStarter(
+                        command=configuration.command,
+                        cwd=workspace_root,
                         env=configuration.env,
                         stream_output=configuration.stream_output,
                         control_channel=ctx.control_channel,
-                    ),
-                    resolve_flow=load_flow_from_flow_run,
-                    propose_submitting=False,
-                )
+                    )
+                    executor = ctx.create_executor(
+                        flow_run,
+                        starter,
+                        resolve_flow=load_flow_from_flow_run,
+                        propose_submitting=False,
+                    )
+                else:
+                    workspace_starter = WorkspaceResolvingEngineCommandStarter(
+                        workspace_root=workspace_root,
+                        command=None,
+                        stream_output=configuration.stream_output,
+                        control_channel=ctx.control_channel,
+                        source_cwd=workspace_root,
+                        environment=configuration.env,
+                    )
+                    ctx.call_after_exit(workspace_starter.close)
+                    executor = ctx.create_executor(
+                        flow_run,
+                        workspace_starter,
+                        propose_submitting=False,
+                        hook_runner=workspace_starter.hook_runner,
+                    )
                 execution: FlowRunExecutionResult | None = None
 
                 async def execute(
@@ -280,37 +266,38 @@ class ProcessWorker(
             worker_id=self.backend_id,
         )
 
-        result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        try:
+            result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        except Exception as exc:
+            logger.exception(
+                "Failed to create execution bundle for flow run '%s'.", flow_run.id
+            )
+            message = (
+                f"Flow run bundle could not be created: {type(exc).__name__}: {exc}"
+            )
+            await self._propose_crashed_state(flow_run, message)
+            return
+
+        async def resolve_flow(_: "FlowRun") -> "Flow[..., FR]":
+            return flow
 
         logger.debug("Executing flow run bundle in subprocess...")
         try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
-                await self._runner.execute_bundle(
-                    bundle=result["bundle"],
-                    cwd=configuration.working_dir,
-                    env=configuration.env,
+            async with FlowRunExecutorContext() as ctx:
+                executor = ctx.create_executor(
+                    flow_run,
+                    BundleExecutionStarter(
+                        bundle=result["bundle"],
+                        cwd=configuration.working_dir,
+                        env=configuration.env,
+                        control_channel=ctx.control_channel,
+                    ),
+                    resolve_flow=resolve_flow,
+                    propose_submitting=False,
                 )
+                await executor.submit()
         except Exception:
             logger.exception("Error executing flow run bundle in subprocess")
             await self._propose_crashed_state(flow_run, "Flow run execution failed")
         finally:
             logger.debug("Flow run bundle execution complete")
-
-    async def __aenter__(self) -> ProcessWorker:
-        runner = Runner(pause_on_shutdown=False, limit=None)
-        self._runner = await runner.__aenter__()
-        try:
-            await super().__aenter__()
-        except BaseException as exc:
-            await runner.__aexit__(type(exc), exc, exc.__traceback__)
-            raise
-        return self
-
-    async def __aexit__(self, *exc_info: Any) -> None:
-        try:
-            # The worker task group owns ad-hoc submissions. Let those finish
-            # while the runner is still available to supervise their children.
-            await super().__aexit__(*exc_info)
-        finally:
-            await self._runner.__aexit__(*exc_info)

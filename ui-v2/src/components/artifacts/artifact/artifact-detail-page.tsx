@@ -1,12 +1,9 @@
 import { useMemo } from "react";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { LayoutWellSidebar } from "@/components/ui/layout-well";
+import { ArtifactDataView } from "./artifact-data-view";
 import { ArtifactDetailHeader } from "./artifact-detail-header";
 import { ArtifactDetailTabs } from "./artifact-detail-tabs";
-import { DetailImage } from "./detail-image";
-import { DetailMarkdown } from "./detail-markdown";
-import { DetailProgress } from "./detail-progress";
-import { DetailTable } from "./detail-table";
 import { MetadataSidebar } from "./metadata-sidebar";
 
 export type ArtifactDetailPageProps = {
@@ -14,21 +11,10 @@ export type ArtifactDetailPageProps = {
 };
 
 export const ArtifactDetailPage = ({ artifact }: ArtifactDetailPageProps) => {
-	const artifactContent = useMemo(() => {
-		switch (artifact.type) {
-			case "markdown":
-			case "link":
-				return <DetailMarkdown markdown={artifact.data as string} />;
-			case "image":
-				return <DetailImage url={artifact.data as string} />;
-			case "progress":
-				return <DetailProgress progress={artifact.data as number} />;
-			case "table":
-				return <DetailTable tableData={artifact.data as string} />;
-			default:
-				return <pre>{JSON.stringify(artifact.data, null, 2)}</pre>;
-		}
-	}, [artifact]);
+	const artifactContent = useMemo(
+		() => <ArtifactDataView artifact={artifact} />,
+		[artifact],
+	);
 
 	const sidebarContent = <MetadataSidebar artifact={artifact} />;
 

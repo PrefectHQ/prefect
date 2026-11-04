@@ -1647,7 +1647,7 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(
 async def test_prefect_api_ssl_cert_file_default_setting(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    os.environ["SSL_CERT_FILE"] = "my_cert.pem"
+    monkeypatch.setenv("SSL_CERT_FILE", "my_cert.pem")
 
     # Mock the SSL context creation
     mock_context = Mock()
@@ -1678,7 +1678,7 @@ async def test_prefect_api_ssl_cert_file_default_setting(
 async def test_prefect_api_ssl_cert_file_default_setting_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    os.environ["SSL_CERT_FILE"] = ""
+    monkeypatch.setenv("SSL_CERT_FILE", "")
 
     # Mock the SSL context creation
     mock_context = Mock()
@@ -2207,6 +2207,26 @@ class TestWorkPools:
         updated_work_pool = await prefect_client.read_work_pool(work_pool.name)
         assert updated_work_pool.type == work_pool.type
 
+    async def test_create_work_pool_unsupported_by_plan(self, cloud_client):
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
+            create_route = router.post("/work_pools/").mock(
+                return_value=httpx.Response(
+                    403,
+                    json={
+                        "detail": "Your plan does not support work pools of this type."
+                    },
+                )
+            )
+
+            with pytest.raises(prefect.exceptions.ObjectUnsupported):
+                await cloud_client.create_work_pool(
+                    work_pool=WorkPoolCreate(name="test-pool", type="ecs:push")
+                )
+
+            assert create_route.called
+
     async def test_update_work_pool(self, prefect_client):
         work_pool = await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(name="test-pool-1")
@@ -2720,6 +2740,35 @@ class TestAutomations:
             assert body["limit"] == 10
             assert body["offset"] == 5
             assert len(result) == 1
+
+    async def test_read_automations_with_id_filter(
+        self, cloud_client, automation: AutomationCore
+    ):
+        from prefect.events.filters import AutomationFilter, AutomationFilterId
+
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
+            created_automation = automation.model_dump(mode="json")
+            automation_id = uuid4()
+            created_automation["id"] = str(automation_id)
+            read_route = router.post("/automations/filter").mock(
+                return_value=httpx.Response(200, json=[created_automation])
+            )
+
+            automation_filter = AutomationFilter(
+                id=AutomationFilterId(any_=[automation_id])
+            )
+            result = await cloud_client.read_automations(automations=automation_filter)
+
+            assert read_route.called
+            body = json.loads(read_route.calls[0].request.content)
+            # the id criteria must survive serialization; PrefectBaseModel ignores
+            # unknown fields, so a missing model field would drop it silently and
+            # return unfiltered automations
+            assert body["automations"]["id"] == {"any_": [str(automation_id)]}
+            assert len(result) == 1
+            assert result[0].id == automation_id
 
     async def test_read_automations_by_name(
         self, cloud_client, automation: AutomationCore

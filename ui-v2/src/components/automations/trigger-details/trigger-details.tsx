@@ -103,6 +103,7 @@ function extractFlowRunStateProps(trigger: EventTrigger): {
 	deploymentIds: string[];
 	posture: AutomationTriggerEventPosture;
 	states: string[];
+	stateTypes: string[];
 	time?: number;
 } {
 	const matchRelatedResourceIds = getMatchRelatedValue(
@@ -129,6 +130,7 @@ function extractFlowRunStateProps(trigger: EventTrigger): {
 		deploymentIds,
 		posture,
 		states,
+		stateTypes: asArray(getMatchValue(trigger, "prefect.state-type")),
 		time: trigger.within,
 	};
 }

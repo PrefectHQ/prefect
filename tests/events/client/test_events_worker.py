@@ -129,6 +129,57 @@ async def test_includes_related_resources_from_run_context(
     assert event.related[1]["prefect.resource.name"] == db_flow.name
 
 
+@pytest.mark.parametrize("caller_related", [3, 2])
+async def test_keeps_related_resources_from_run_context_within_the_maximum(
+    asserting_events_worker: EventsWorker,
+    reset_worker_events: None,
+    caller_related: int,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/22834, where the
+    resources from the run context took an event that the caller had already filled to
+    the maximum over that maximum, so the event was no longer valid to send."""
+    maximum = 3
+
+    @flow
+    def emitting_flow() -> None:
+        emit_event(
+            event="vogon.poetry.read",
+            resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
+            related=[
+                {
+                    "prefect.resource.id": f"vogon.listener.{index}",
+                    "prefect.resource.role": "listener",
+                }
+                for index in range(caller_related)
+            ],
+        )
+
+    with temporary_settings(
+        updates={"PREFECT_SERVER_EVENTS_MAXIMUM_RELATED_RESOURCES": maximum}
+    ):
+        emitting_flow(return_state=True)
+
+        await asserting_events_worker.drain()
+
+        assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+        assert len(asserting_events_worker._client.events) == 1
+        event = asserting_events_worker._client.events[0]
+
+        # every resource the caller gave is kept, and the resources from the run
+        # context only fill the room that is left
+        assert len(event.related) == maximum
+        assert [related.id for related in event.related[:caller_related]] == [
+            f"vogon.listener.{index}" for index in range(caller_related)
+        ]
+        assert [related.role for related in event.related[caller_related:]] == [
+            "flow-run",
+            "flow",
+        ][: maximum - caller_related]
+
+        # the event is still valid to send
+        Event.model_validate_json(event.model_dump_json())
+
+
 async def test_does_not_include_related_resources_from_run_context_for_lineage_events(
     asserting_events_worker: EventsWorker,
     reset_worker_events,

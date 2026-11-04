@@ -32,7 +32,11 @@ from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState, Node
 from prefect.server.schemas.states import StateType
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
-from prefect.server.utilities.database import Timestamp, bindparams_from_clause
+from prefect.server.utilities.database import (
+    Timestamp,
+    bindparams_from_clause,
+    date_diff_seconds,
+)
 from prefect.types._datetime import DateTime
 
 T = TypeVar("T", infer_variance=True)
@@ -95,24 +99,18 @@ class BaseQueryComponents(ABC):
         """casts to JSON object if necessary"""
 
     @abstractmethod
-    def build_json_object(
-        self, *args: Union[str, sa.ColumnElement[Any]]
-    ) -> sa.ColumnElement[Any]:
-        """builds a JSON object from sequential key-value pairs"""
-
-    @abstractmethod
     def json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]:
         """aggregates a JSON array"""
 
     # --- dialect-optimized subqueries
 
     @abstractmethod
-    def make_timestamp_intervals(
+    def make_timestamp_bucket_index(
         self,
+        timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any],
         start_time: datetime.datetime,
-        end_time: datetime.datetime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]: ...
+    ) -> sa.ColumnElement[int]: ...
 
     @abstractmethod
     def set_state_id_on_inserted_flow_runs_statement(
@@ -332,8 +330,7 @@ class BaseQueryComponents(ABC):
                 FlowRun,
             )
             .from_statement(query)
-            # indicate that the state relationship isn't being loaded
-            .options(orm.noload(FlowRun.state))
+            .options(orm.selectinload(FlowRun._state))
         )
 
         result: sa.Result[
@@ -348,7 +345,7 @@ class BaseQueryComponents(ABC):
                     flow_run, from_attributes=True
                 ),
             )
-            for (run_work_pool_id, run_work_queue_id, flow_run) in result.t
+            for (run_work_pool_id, run_work_queue_id, flow_run) in result
         ]
 
     @db_injector
@@ -422,7 +419,7 @@ class BaseQueryComponents(ABC):
             ).where(FlowRun.id == flow_run_id)
         )
         try:
-            start_time, end_time = result.t.one()
+            start_time, end_time = result.one()
         except NoResultFound:
             raise ObjectNotFoundError(f"Flow run {flow_run_id} not found")
 
@@ -440,7 +437,7 @@ class BaseQueryComponents(ABC):
         nodes: list[tuple[UUID, Node]] = []
         root_node_ids: list[UUID] = []
 
-        for row in results.t:
+        for row in results:
             if not row.parent_ids:
                 root_node_ids.append(row.id)
 
@@ -513,7 +510,7 @@ class BaseQueryComponents(ABC):
         results = await session.execute(query)
 
         artifacts_by_task: dict[Optional[UUID], list[GraphArtifact]] = defaultdict(list)
-        for artifact, latest_in_collection_id in results.t:
+        for artifact, latest_in_collection_id in results:
             artifacts_by_task[artifact.task_run_id].append(
                 GraphArtifact(
                     id=artifact.id,
@@ -554,35 +551,23 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
     def cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]:
         return json_obj
 
-    def build_json_object(
-        self, *args: Union[str, sa.ColumnElement[Any]]
-    ) -> sa.ColumnElement[Any]:
-        return sa.func.jsonb_build_object(*args)
-
     def json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]:
         return sa.func.jsonb_agg(json_array)
 
     # --- Postgres-optimized subqueries
 
-    def make_timestamp_intervals(
+    def make_timestamp_bucket_index(
         self,
+        timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any],
         start_time: datetime.datetime,
-        end_time: datetime.datetime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]:
-        dt = sa.func.generate_series(
-            start_time, end_time, interval, type_=Timestamp()
-        ).column_valued("dt")
-        return (
-            sa.select(
-                dt.label("interval_start"),
-                sa.type_coerce(
-                    dt + sa.bindparam("interval", interval, type_=sa.Interval()),
-                    type_=Timestamp(),
-                ).label("interval_end"),
-            )
-            .where(dt < end_time)
-            .limit(500)  # grab at most 500 intervals
+    ) -> sa.ColumnElement[int]:
+        start = sa.bindparam(None, start_time, type_=Timestamp(), unique=True)
+        return sa.cast(
+            sa.func.floor(
+                date_diff_seconds(timestamp, start) / interval.total_seconds()
+            ),
+            sa.Integer,
         )
 
     @db_injector
@@ -743,7 +728,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 with_children.c.child_ids,
                 with_encapsulating.c.encapsulating_ids,
             )
-            .distinct(edges.c.id)
             .join(with_parents, isouter=True, onclause=with_parents.c.id == edges.c.id)
             .join(
                 with_children, isouter=True, onclause=with_children.c.id == edges.c.id
@@ -753,8 +737,14 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 isouter=True,
                 onclause=with_encapsulating.c.id == edges.c.id,
             )
-            .cte("nodes")
         )
+        # SQLAlchemy 2.1 replaces distinct(expr) with the distinct_on extension.
+        distinct_on = getattr(postgresql, "distinct_on", None)
+        if distinct_on is not None:
+            graph = getattr(graph, "ext")(distinct_on(edges.c.id))
+        else:
+            graph = graph.distinct(edges.c.id)
+        graph = graph.cte("nodes")
         query = (
             sa.select(
                 graph.c.kind,
@@ -803,48 +793,25 @@ class AioSqliteQueryComponents(BaseQueryComponents):
     def cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]:
         return sa.func.json(json_obj)
 
-    def build_json_object(
-        self, *args: Union[str, sa.ColumnElement[Any]]
-    ) -> sa.ColumnElement[Any]:
-        return sa.func.json_object(*args)
-
     def json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]:
         return sa.func.json_group_array(json_array)
 
     # --- Sqlite-optimized subqueries
 
-    def make_timestamp_intervals(
+    def make_timestamp_bucket_index(
         self,
+        timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any],
         start_time: datetime.datetime,
-        end_time: datetime.datetime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]:
-        start = sa.bindparam("start_time", start_time, Timestamp)
-        # subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
-        stop = sa.bindparam("end_time", end_time - interval, Timestamp)
-        step = sa.bindparam("interval", interval, sa.Interval)
-
-        one = sa.literal(1, literal_execute=True)
-
-        # recursive CTE to mimic the behavior of `generate_series`, which is
-        # only available as a compiled extension
-        base_case = sa.select(
-            start.label("interval_start"),
-            sa.func.date_add(start, step).label("interval_end"),
-            one.label("counter"),
-        ).cte(recursive=True)
-        recursive_case = sa.select(
-            base_case.c.interval_end,
-            sa.func.date_add(base_case.c.interval_end, step),
-            base_case.c.counter + one,
-        ).where(
-            base_case.c.interval_start < stop,
-            # don't compute more than 500 intervals
-            base_case.c.counter < 500,
+    ) -> sa.ColumnElement[int]:
+        start = sa.bindparam(None, start_time, type_=Timestamp(), unique=True)
+        # SQLite's julianday arithmetic introduces small floating-point errors;
+        # rounding to its millisecond precision avoids mis-bucketing boundaries.
+        seconds = sa.func.round(date_diff_seconds(timestamp, start), 3)
+        return sa.cast(
+            sa.func.floor(seconds / interval.total_seconds()),
+            sa.Integer,
         )
-        cte = base_case.union_all(recursive_case)
-
-        return sa.select(cte.c.interval_start, cte.c.interval_end)
 
     @db_injector
     def set_state_id_on_inserted_flow_runs_statement(
@@ -987,7 +954,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         else_=sa.null(),
                     ),
                 ).label("end_time"),
-                argument.c.value["id"].astext.label("parent"),
+                sa.func.json_extract(argument.c.value, "$.id").label("parent"),
                 (input.c.key == "__parents__").label("has_encapsulating_task"),
             )
             .join_from(TaskRun, input, onclause=sa.true(), isouter=True)

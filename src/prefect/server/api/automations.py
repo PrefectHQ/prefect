@@ -43,7 +43,7 @@ async def create_automation(
     """
     Create an automation.
 
-    For more information, see https://docs.prefect.io/v3/concepts/automations.
+    For more information, see https://www.prefect.io/docs/v3/concepts/automations.
     """
     # reset any client-provided IDs on the provided triggers
     automation.trigger.reset_ids()
@@ -196,10 +196,16 @@ async def read_automations(
 
 @router.post("/count")
 async def count_automations(
+    # embed keeps the filter under an "automations" key, matching /filter, and
+    # keeps bodiless requests on the count-everything path
+    automations: Optional[AutomationFilter] = Body(None, embed=True),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> int:
     async with db.session_context() as session:
-        return await automations_models.count_automations_for_workspace(session=session)
+        return await automations_models.count_automations_for_workspace(
+            session=session,
+            automation_filter=automations,
+        )
 
 
 @router.get("/{id:uuid}")

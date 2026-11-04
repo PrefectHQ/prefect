@@ -9,6 +9,7 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { usePageTitle } from "@/hooks/use-page-title";
 import {
 	AutomationActions,
 	AutomationDescription,
@@ -25,6 +26,7 @@ type AutomationsDetailsPageProps = {
 export const AutomationDetailsPage = ({ id }: AutomationsDetailsPageProps) => {
 	const [dialogState, confirmDelete] = useDeleteAutomationConfirmationDialog();
 	const { data } = useSuspenseQuery(buildGetAutomationQuery(id));
+	usePageTitle(`Automation: ${data.name}`);
 
 	const handleDelete = () => confirmDelete(data, { shouldNavigate: true });
 

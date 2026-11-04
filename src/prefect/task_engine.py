@@ -16,6 +16,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    Awaitable,
     Callable,
     Coroutine,
     Generator,
@@ -444,8 +445,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State[R]], bool]
         ] = self.task.retry_condition_fn
 
-        failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
-
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
@@ -453,16 +452,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 f"Running `retry_condition_fn` check {retry_condition!r} for task"
                 f" {self.task.name!r}"
             )
-            state = Failed(
-                data=exc_or_state,
-                message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
-            )
-            if inspect.iscoroutinefunction(retry_condition):
-                should_retry = run_coro_as_sync(
-                    retry_condition(self.task, self.task_run, state)
+            state = (
+                exc_or_state
+                if isinstance(exc_or_state, State)
+                else Failed(
+                    data=exc_or_state,
+                    message=f"Task run encountered unexpected exception: {repr(exc_or_state)}",
                 )
-            elif inspect.isfunction(retry_condition):
+            )
+            if callable(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
+                if inspect.isawaitable(should_retry):
+
+                    async def await_retry_condition(result: Awaitable[bool]) -> bool:
+                        return await result
+
+                    should_retry = run_coro_as_sync(await_retry_condition(should_retry))
             else:
                 should_retry = not retry_condition
             return should_retry
@@ -626,6 +631,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # which case we should retry the task if it has retries left.
         if isinstance(result, State) and result.is_failed():
             if self.handle_retry(result):
+                transaction.write_on_commit = False
                 return None
 
         if self.task.cache_expiration is not None:
@@ -640,22 +646,49 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             expiration=expiration,
         )
 
+        if terminal_state.is_failed():
+            if (
+                isinstance(terminal_state.data, ResultRecord)
+                and not terminal_state.data.is_persisted
+            ):
+                # Match raised failures: retain the result without populating the cache key.
+                result_store = get_result_store()
+                failure_record = result_store.create_result_record(
+                    terminal_state.data.result, key=str(uuid4()), expiration=expiration
+                )
+                terminal_state.data = failure_record
+                if transaction.write_on_commit:
+                    try:
+                        result_store.persist_result_record(failure_record)
+                    except Exception as exc:
+                        self.logger.warning(
+                            "Failed to write result: %s Execution will continue, but the result has not been written",
+                            exc,
+                        )
+            transaction.write_on_commit = False
+
         # Avoid logging when running this rollback hook since it is not user-defined
         handle_rollback = partial(self.handle_rollback)
         handle_rollback.log_on_run = False
 
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
+            on_rollback_hooks=([] if terminal_state.is_failed() else [handle_rollback])
+            + self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
-        if transaction.is_committed():
+        if terminal_state.is_failed():
+            transaction.rollback()
+        elif transaction.is_committed():
             terminal_state.name = "Cached"
 
         self.set_state(terminal_state)
         self._return_value = result
 
-        self._telemetry.end_span_on_success()
+        if terminal_state.is_failed():
+            self._telemetry.end_span_on_failure(terminal_state.message)
+        else:
+            self._telemetry.end_span_on_success()
 
     def handle_retry(self, exc_or_state: Exception | State[R]) -> bool:
         """Handle any task run retries.
@@ -674,6 +707,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     if isinstance(self.task.retry_delay_seconds, Sequence)
                     else self.task.retry_delay_seconds
                 )
+                if self.task.retry_jitter_factor and delay > 0:
+                    delay = clamped_poisson_interval(
+                        delay, clamping_factor=self.task.retry_jitter_factor
+                    )
                 new_state = AwaitingRetry(
                     scheduled_time=prefect.types._datetime.now("UTC")
                     + timedelta(seconds=delay)
@@ -721,7 +758,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exc,
                 message="Task run encountered an exception",
                 result_store=get_result_store(),
-                write_result=True,
+                write_result=should_persist_result(),
             )
             self.set_state(state)
             self._raised = exc
@@ -1004,7 +1041,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         "requests, or file I/O. The timeout will only take effect after "
                         "the blocking operation completes. Consider using an async task "
                         "with `await` statements for reliable timeout behavior. "
-                        "See https://docs.prefect.io/v3/how-to-guides/workflows/"
+                        "See https://www.prefect.io/docs/v3/how-to-guides/workflows/"
                         "write-and-run#task-timeout-behavior for more information.",
                         self.task.timeout_seconds,
                     )
@@ -1056,8 +1093,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State[R]], bool]
         ] = self.task.retry_condition_fn
 
-        failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
-
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
@@ -1065,14 +1100,18 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 f"Running `retry_condition_fn` check {retry_condition!r} for task"
                 f" {self.task.name!r}"
             )
-            state = Failed(
-                data=exc_or_state,
-                message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
+            state = (
+                exc_or_state
+                if isinstance(exc_or_state, State)
+                else Failed(
+                    data=exc_or_state,
+                    message=f"Task run encountered unexpected exception: {repr(exc_or_state)}",
+                )
             )
-            if inspect.iscoroutinefunction(retry_condition):
-                should_retry = await retry_condition(self.task, self.task_run, state)
-            elif inspect.isfunction(retry_condition):
+            if callable(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
+                if inspect.isawaitable(should_retry):
+                    should_retry = await should_retry
             else:
                 should_retry = not retry_condition
             return should_retry
@@ -1251,6 +1290,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     ) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]:
         if isinstance(result, State) and result.is_failed():
             if await self.handle_retry(result):
+                transaction.write_on_commit = False
                 return None
 
         if self.task.cache_expiration is not None:
@@ -1265,21 +1305,48 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             expiration=expiration,
         )
 
+        if terminal_state.is_failed():
+            if (
+                isinstance(terminal_state.data, ResultRecord)
+                and not terminal_state.data.is_persisted
+            ):
+                # Match raised failures: retain the result without populating the cache key.
+                result_store = get_result_store()
+                failure_record = result_store.create_result_record(
+                    terminal_state.data.result, key=str(uuid4()), expiration=expiration
+                )
+                terminal_state.data = failure_record
+                if transaction.write_on_commit:
+                    try:
+                        await result_store.apersist_result_record(failure_record)
+                    except Exception as exc:
+                        self.logger.warning(
+                            "Failed to write result: %s Execution will continue, but the result has not been written",
+                            exc,
+                        )
+            transaction.write_on_commit = False
+
         # Avoid logging when running this rollback hook since it is not user-defined
         handle_rollback = partial(self.handle_rollback)
         handle_rollback.log_on_run = False
 
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
+            on_rollback_hooks=([] if terminal_state.is_failed() else [handle_rollback])
+            + self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
-        if transaction.is_committed():
+        if terminal_state.is_failed():
+            await transaction.rollback()
+        elif transaction.is_committed():
             terminal_state.name = "Cached"
 
         await self.set_state(terminal_state)
         self._return_value = result
-        self._telemetry.end_span_on_success()
+        if terminal_state.is_failed():
+            self._telemetry.end_span_on_failure(terminal_state.message)
+        else:
+            self._telemetry.end_span_on_success()
 
         return result
 
@@ -1301,6 +1368,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     if isinstance(self.task.retry_delay_seconds, Sequence)
                     else self.task.retry_delay_seconds
                 )
+                if self.task.retry_jitter_factor and delay > 0:
+                    delay = clamped_poisson_interval(
+                        delay, clamping_factor=self.task.retry_jitter_factor
+                    )
                 new_state = AwaitingRetry(
                     scheduled_time=prefect.types._datetime.now("UTC")
                     + timedelta(seconds=delay)
@@ -1348,6 +1419,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exc,
                 message="Task run encountered an exception",
                 result_store=get_result_store(),
+                write_result=should_persist_result(),
             )
             await self.set_state(state)
             self._raised = exc

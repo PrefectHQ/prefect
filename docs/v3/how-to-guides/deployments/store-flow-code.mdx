@@ -121,9 +121,9 @@ If you are using a private repository and are authenticated in your environment 
 
 Alternatively, for a private repository, you can create a `Secret` block or `git`-platform-specific credentials [block](/v3/develop/blocks/) to store your credentials:
 
-- [`GitHubCredentials`](https://docs.prefect.io/integrations/prefect-github/)
-- [`BitBucketCredentials`](https://docs.prefect.io/integrations/prefect-bitbucket/)
-- [`GitLabCredentials`](https://docs.prefect.io/integrations/prefect-gitlab/)
+- [`GitHubCredentials`](https://www.prefect.io/docs/integrations/prefect-github/)
+- [`BitBucketCredentials`](https://www.prefect.io/docs/integrations/prefect-bitbucket/)
+- [`GitLabCredentials`](https://www.prefect.io/docs/integrations/prefect-gitlab/)
 
 Then you can reference this block in the Python `deploy` method or the `prefect.yaml` file pull step.
 
@@ -607,7 +607,8 @@ dependencies. Verify each condition when debugging missing packages at runtime.
 If your custom image already contains the required project code and dependencies, leave
 `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` unset or set it to `false`.
 
-Process workers follow the same rules, with the flow run's working directory as the project root. Set the
+Process workers follow the same rules. Project detection runs after any deployment pull steps complete, so a
+`pyproject.toml` added by a pull step (for example, `git_clone`) is still found. If you don't use pull steps, set the
 `working_dir` job variable to the directory that contains your `pyproject.toml` so the worker can detect the project.
 
 For more information, see [this discussion of custom Docker images](/v3/how-to-guides/deployment_infra/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).

@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
       dedupe: ['vue', 'vue-router'],
     },
     build: {
-      sourcemap: true,
+      sourcemap: false,
     },
   }
 })

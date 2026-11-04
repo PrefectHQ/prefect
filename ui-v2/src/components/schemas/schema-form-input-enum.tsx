@@ -45,7 +45,9 @@ export function SchemaFormInputEnum<T extends PrimitiveProperty>({
 		);
 	}, [property.enum, search]);
 
-	const selected = Boolean(props.multiple ? props.values?.length : props.value);
+	const selected = props.multiple
+		? Boolean(props.values?.length)
+		: props.value !== undefined;
 	const label = props.multiple ? props.values?.join(", ") : String(props.value);
 
 	function isSelected(key: string) {

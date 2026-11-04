@@ -175,6 +175,80 @@ async def test_counting_automations_by_workspace(
     assert count == 4
 
 
+async def test_reading_automations_by_workspace_by_id_filtered(
+    automations_session: AsyncSession,
+    some_workspace_automations: Sequence[Automation],
+):
+    wanted = sorted(
+        (
+            automation
+            for automation in some_workspace_automations
+            if automation.name in ("automation 1", "automation 3")
+        ),
+        key=lambda automation: automation.name,
+    )
+    assert len(wanted) == 2
+
+    existing = await automations.read_automations_for_workspace(
+        session=automations_session,
+        sort=AutomationSort.NAME_ASC,
+        automation_filter=filters.AutomationFilter(
+            id=filters.AutomationFilterId(any_=[automation.id for automation in wanted])
+        ),
+    )
+    assert [automation.id for automation in existing] == [
+        automation.id for automation in wanted
+    ]
+
+
+async def test_reading_automations_by_workspace_by_id_filtered_nonexistent(
+    automations_session: AsyncSession,
+    some_workspace_automations: Sequence[Automation],
+):
+    existing = await automations.read_automations_for_workspace(
+        session=automations_session,
+        automation_filter=filters.AutomationFilter(
+            id=filters.AutomationFilterId(any_=[uuid4()])
+        ),
+    )
+    assert existing == []
+
+
+async def test_counting_automations_by_workspace_with_filter_matches_reads(
+    automations_session: AsyncSession,
+    some_workspace_automations: Sequence[Automation],
+):
+    for automation_filter in (
+        None,
+        filters.AutomationFilter(
+            name=filters.AutomationFilterName(any_=["automation 1", "automation 3"])
+        ),
+        filters.AutomationFilter(
+            id=filters.AutomationFilterId(any_=[some_workspace_automations[0].id])
+        ),
+        filters.AutomationFilter(
+            name=filters.AutomationFilterName(any_=["nonexistent"])
+        ),
+    ):
+        read = await automations.read_automations_for_workspace(
+            session=automations_session,
+            automation_filter=automation_filter,
+        )
+        count = await automations.count_automations_for_workspace(
+            session=automations_session,
+            automation_filter=automation_filter,
+        )
+        assert count == len(read), f"filter: {automation_filter!r}"
+
+    count = await automations.count_automations_for_workspace(
+        session=automations_session,
+        automation_filter=filters.AutomationFilter(
+            name=filters.AutomationFilterName(any_=["automation 1", "automation 3"])
+        ),
+    )
+    assert count == 2
+
+
 async def test_creating_automation(automations_session: AsyncSession):
     # These will be what users provide at the API
     automation_request = AutomationCreate(

@@ -1,0 +1,24 @@
+---
+title: observed_states
+sidebarTitle: observed_states
+---
+
+# `prefect.server.api.observed_states`
+
+
+Routes for discovering observed state types and names.
+
+## Functions
+
+### `read_observed_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/observed_states.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_observed_states(db: Annotated[PrefectDBInterface, Depends(provide_database_interface)], query: Annotated[str | None, Query(max_length=100)] = None, order_by: ObservedStateSort = ObservedStateSort.LAST_SEEN_DESC, limit: Annotated[int, Query(ge=1, le=200)] = 200) -> list[ObservedState]
+```
+
+
+Discover exact state names and types from retained run transitions.
+
+Search by case-insensitive name or type prefix. Timestamps describe retained
+history; deleting runs can change them or remove a state from the results.
+

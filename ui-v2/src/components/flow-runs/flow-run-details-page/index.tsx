@@ -7,6 +7,7 @@ import {
 	buildGetFlowRunDetailsQuery,
 	queryKeyFactory as flowRunsQueryKeyFactory,
 	isPendingLikeState,
+	isTerminalState,
 	useDeleteFlowRun,
 } from "@/api/flow-runs";
 import { queryKeyFactory as logsQueryKeyFactory } from "@/api/logs";
@@ -20,6 +21,7 @@ import { LazyJsonInput } from "@/components/ui/json-input-lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TabErrorState } from "@/components/ui/tab-error-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useStateFavicon } from "@/hooks/use-state-favicon";
 import { FlowRunArtifacts } from "./flow-run-artifacts";
 import { FlowRunDetails } from "./flow-run-details";
@@ -59,15 +61,13 @@ export const FlowRunDetailsPage = ({
 	const { navigate } = useRouter();
 	const isPending = isPendingLikeState(flowRun.state_type, flowRun.state_name);
 
+	usePageTitle(`Flow Run: ${flowRun.name}`);
+
 	// Set favicon based on flow run state
 	useStateFavicon(flowRun?.state_type);
 
 	useEffect(() => {
-		if (flowRun.state_type === "RUNNING" || flowRun.state_type === "PENDING") {
-			setRefetchInterval(5000);
-		} else {
-			setRefetchInterval(false);
-		}
+		setRefetchInterval(isTerminalState(flowRun.state_type) ? false : 5000);
 	}, [flowRun]);
 
 	const onDeleteRunClicked = () => {

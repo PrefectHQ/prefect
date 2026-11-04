@@ -4,14 +4,17 @@ import logging
 import os
 import random
 import time
+from contextlib import AsyncExitStack
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Any, Awaitable, Generator, List, Literal, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
 
 import anyio
+import pydantic
 import pytest
 
 from prefect import Task, flow, tags, task
@@ -19,7 +22,7 @@ from prefect.cache_policies import FLOW_PARAMETERS, INPUTS, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import StateDetails
 from prefect.client.schemas.filters import TaskRunFilter, TaskRunFilterName
-from prefect.client.schemas.objects import FlowRun, StateType
+from prefect.client.schemas.objects import FlowRun, StateType, TaskRun
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
 from prefect.context import (
@@ -45,6 +48,7 @@ from prefect.states import (
     Running,
     State,
     Suspended,
+    to_state_create,
 )
 from prefect.task_engine import (
     AsyncTaskRunEngine,
@@ -54,11 +58,19 @@ from prefect.task_engine import (
 )
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
-from prefect.transactions import transaction
+from prefect.transactions import (
+    AsyncTransaction,
+    CommitMode,
+    Transaction,
+    atransaction,
+    get_transaction,
+    transaction,
+)
 from prefect.types._datetime import now
-from prefect.utilities.annotations import opaque
+from prefect.utilities.annotations import opaque, quote
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
+from prefect.utilities.math import clamped_poisson_interval
 
 
 @task
@@ -954,6 +966,66 @@ class TestReturnState:
 
 
 class TestTaskRetries:
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize(
+        "retry_delay_seconds,jitter_factor,expected_delays",
+        [
+            (10, 0.5, [7.864312, 7.864312, 7.864312]),
+            ([10, 20], 3, [3.741129, 7.482257, 7.482257]),
+            ([0, 10], 0.5, [0, 7.864312, 7.864312]),
+            (0, 0.5, [0, 0, 0]),
+            (None, 0.5, [0, 0, 0]),
+            (10, 0, [10, 10, 10]),
+            (10, None, [10, 10, 10]),
+            ([0], 0.5, [0, 0, 0]),
+        ],
+    )
+    async def test_task_respects_retry_jitter_factor(
+        self,
+        is_async: bool,
+        retry_delay_seconds: float | list[float] | None,
+        jitter_factor: float | None,
+        expected_delays: list[float],
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        def fail() -> None:
+            raise ValueError("retry me")
+
+        async def async_fail() -> None:
+            fail()
+
+        flaky_task = task(
+            retries=3,
+            retry_delay_seconds=retry_delay_seconds,
+            retry_jitter_factor=jitter_factor,
+        )(async_fail if is_async else fail)
+        sleep = AsyncMock() if is_async else Mock()
+        monkeypatch.setattr(anyio if is_async else time, "sleep", sleep)
+        monkeypatch.setattr(
+            "prefect.utilities.math.random.uniform",
+            lambda lower, upper: lower + (upper - lower) / 4,
+        )
+        jitter = Mock(wraps=clamped_poisson_interval)
+        monkeypatch.setattr("prefect.task_engine.clamped_poisson_interval", jitter)
+
+        if is_async:
+            state = await flaky_task(return_state=True)
+        else:
+            state = flaky_task(return_state=True)
+
+        assert state.is_failed()
+        assert sleep.call_args_list == [
+            call(pytest.approx(delay, abs=1))
+            for delay in expected_delays
+            if retry_delay_seconds
+        ]
+        assert jitter.call_count == (
+            sum(delay > 0 for delay in expected_delays) if jitter_factor else 0
+        )
+        for jitter_call in jitter.call_args_list:
+            assert jitter_call.kwargs == {"clamping_factor": jitter_factor}
+
     @pytest.mark.parametrize("always_fail", [True, False])
     async def test_task_respects_retry_count(
         self, always_fail, prefect_client, events_pipeline
@@ -1181,6 +1253,180 @@ class TestTaskRetries:
             "Retrying",
             "Completed",
         ]
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("async_condition", [False, True])
+    async def test_retry_condition_receives_custom_failed_state(
+        self, async_task: bool, async_condition: bool
+    ):
+        failure = Failed(
+            name="RateLimited",
+            message="Try again",
+            state_details=StateDetails(retriable=True),
+        )
+        expected_state_details = failure.state_details.model_copy(deep=True)
+        received_states: list[State] = []
+        attempts = 0
+
+        def retry_condition(task: Task, task_run: TaskRun, state: State) -> bool:
+            received_states.append(state.model_copy(deep=True))
+            return state.name == "RateLimited"
+
+        async def async_retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> bool:
+            return retry_condition(task, task_run, state)
+
+        def flaky_function() -> State | str:
+            nonlocal attempts
+            attempts += 1
+            return failure if attempts == 1 else "success"
+
+        async def async_flaky_function() -> State | str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=(
+                async_retry_condition if async_condition else retry_condition
+            ),
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert len(received_states) == 1
+        assert received_states[0].name == "RateLimited"
+        assert received_states[0].message == "Try again"
+        assert received_states[0].state_details == expected_state_details
+        assert attempts == 2
+        assert final_state.is_completed()
+        assert await final_state.result() == "success"
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("async_predicate", [False, True])
+    @pytest.mark.parametrize("should_retry", [False, True])
+    @pytest.mark.parametrize(
+        "predicate_type", ["function", "method", "partial", "instance"]
+    )
+    async def test_retry_condition_accepts_callable_types(
+        self,
+        async_task: bool,
+        async_predicate: bool,
+        should_retry: bool,
+        predicate_type: Literal["function", "method", "partial", "instance"],
+    ):
+        attempts = 0
+        predicate_calls = 0
+
+        def retry_condition(task: Task, task_run: TaskRun, state: State) -> bool:
+            nonlocal predicate_calls
+            predicate_calls += 1
+            assert state.is_failed()
+            return should_retry
+
+        async def async_retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> bool:
+            return retry_condition(task, task_run, state)
+
+        class RetryPolicy:
+            def should_retry(self, task: Task, task_run: TaskRun, state: State) -> bool:
+                return retry_condition(task, task_run, state)
+
+            __call__ = should_retry
+
+        class AsyncRetryPolicy:
+            async def should_retry(
+                self, task: Task, task_run: TaskRun, state: State
+            ) -> bool:
+                return await async_retry_condition(task, task_run, state)
+
+            __call__ = should_retry
+
+        policy = AsyncRetryPolicy() if async_predicate else RetryPolicy()
+        predicate = async_retry_condition if async_predicate else retry_condition
+        predicates = {
+            "function": predicate,
+            "method": policy.should_retry,
+            "partial": partial(predicate),
+            "instance": policy,
+        }
+
+        def flaky_function() -> str:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise ValueError("Temporary failure")
+            return "success"
+
+        async def async_flaky_function() -> str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=predicates[predicate_type],
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert predicate_calls == 1
+        assert attempts == (2 if should_retry else 1)
+        assert final_state.is_completed() == should_retry
+        assert final_state.is_failed() == (not should_retry)
+
+    @pytest.mark.parametrize("async_task", [False, True])
+    @pytest.mark.parametrize("should_retry", [False, True])
+    async def test_retry_condition_returns_custom_awaitable(
+        self, async_task: bool, should_retry: bool
+    ):
+        attempts = 0
+        predicate_calls = 0
+
+        class RetryDecision(Awaitable[bool]):
+            def __await__(self) -> Generator[Any, None, bool]:
+                async def resolve() -> bool:
+                    nonlocal predicate_calls
+                    predicate_calls += 1
+                    return should_retry
+
+                return resolve().__await__()
+
+        def retry_condition(
+            task: Task, task_run: TaskRun, state: State
+        ) -> Awaitable[bool]:
+            assert state.is_failed()
+            return RetryDecision()
+
+        def flaky_function() -> str:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise ValueError("Temporary failure")
+            return "success"
+
+        async def async_flaky_function() -> str:
+            return flaky_function()
+
+        flaky_task = task(
+            async_flaky_function if async_task else flaky_function,
+            retries=1,
+            retry_condition_fn=retry_condition,
+        )
+        if async_task:
+            final_state = await flaky_task(return_state=True)
+        else:
+            final_state = flaky_task(return_state=True)
+
+        assert predicate_calls == 1
+        assert attempts == (2 if should_retry else 1)
+        assert final_state.is_completed() == should_retry
+        assert final_state.is_failed() == (not should_retry)
 
     async def test_task_retries_receive_latest_task_run_in_context(self):
         state_names: List[str] = []
@@ -2091,6 +2337,32 @@ class TestSyncTaskTimeoutWarning:
 
 
 class TestPersistence:
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_returned_failure_survives_persistence_error(
+        self, is_async: bool, caplog: pytest.LogCaptureFixture
+    ):
+        @task(persist_result=True)
+        def fail() -> State:
+            return Failed(data=ValueError("original failure"))
+
+        @task(persist_result=True)
+        async def async_fail() -> State:
+            return Failed(data=ValueError("original failure"))
+
+        method = "apersist_result_record" if is_async else "persist_result_record"
+        with patch.object(
+            ResultStore, method, side_effect=OSError("storage unavailable")
+        ):
+            state = (
+                await async_fail(return_state=True)
+                if is_async
+                else fail(return_state=True)
+            )
+        assert state.is_failed()
+        with pytest.raises(ValueError, match="original failure"):
+            await state.result()
+        assert "storage unavailable" in caplog.text
+
     async def test_task_can_return_result_record(self):
         @task
         async def async_task():
@@ -2134,6 +2406,203 @@ class TestPersistence:
 
 
 class TestCachePolicy:
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("retries", [0, 1])
+    @pytest.mark.parametrize("aggregate", [False, True])
+    @pytest.mark.parametrize("named_result", [False, True])
+    async def test_returned_failed_state_is_not_cached(
+        self,
+        tmp_path: Path,
+        is_async: bool,
+        retries: int,
+        aggregate: bool,
+        named_result: bool,
+    ):
+        # Aggregate states do not participate in the explicit-state retry path.
+        retries = 0 if aggregate else retries
+        attempts = 0
+
+        def flaky(order_id: int) -> State | list[State] | str:
+            nonlocal attempts
+            attempts += 1
+            if attempts <= retries + 1:
+                failure = Failed(data=ValueError("temporary"))
+                return [failure] if aggregate else failure
+            return "recovered"
+
+        async def async_flaky(order_id: int) -> State | list[State] | str:
+            return flaky(order_id)
+
+        flaky_task = task(
+            async_flaky if is_async else flaky,
+            cache_policy=None if named_result else INPUTS,
+            result_storage_key="named-result" if named_result else None,
+            persist_result=True,
+            result_storage=tmp_path,
+            retries=retries,
+        )
+        run = run_task_async if is_async else run_task_sync
+
+        first = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            first = await first
+        assert first.is_failed()
+        assert attempts == retries + 1
+
+        second = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            second = await second
+        assert second.is_completed()
+        assert second.name == "Completed"
+        assert await second.result() == "recovered"
+        assert attempts == retries + 2
+
+        third = run(flaky_task, parameters={"order_id": 1}, return_type="state")
+        if is_async:
+            third = await third
+        assert third.name == "Cached"
+        assert await third.result() == "recovered"
+        assert attempts == retries + 2
+
+        # The original failure must remain persisted after a successful call.
+        persisted_failure = ResultStore(
+            result_storage=LocalFileSystem(basepath=tmp_path)
+        )
+        record = await persisted_failure.aread(first.data.metadata.storage_key)
+        failure = record.result[0].data if aggregate else record.result
+        assert isinstance(failure, ValueError)
+        assert str(failure) == "temporary"
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("persist_result", [False, True])
+    @pytest.mark.parametrize("data_type", ["metadata", "record"])
+    async def test_returned_failure_preserves_persisted_result(
+        self, tmp_path: Path, is_async: bool, persist_result: bool, data_type: str
+    ):
+        store = ResultStore(result_storage=LocalFileSystem(basepath=tmp_path))
+        record = store.create_result_record(ValueError("temporary"), key="failure")
+        await store.apersist_result_record(record)
+        data = record.metadata if data_type == "metadata" else record
+        attempts = 0
+
+        def flaky(order_id: int) -> State | str:
+            nonlocal attempts
+            attempts += 1
+            return Failed(data=data) if attempts == 1 else "recovered"
+
+        async def async_flaky(order_id: int) -> State | str:
+            return flaky(order_id)
+
+        flaky_task = task(
+            async_flaky if is_async else flaky,
+            cache_policy=INPUTS,
+            persist_result=persist_result,
+            result_storage=tmp_path,
+        )
+        run = run_task_async if is_async else run_task_sync
+        first = run(flaky_task, parameters={"order_id": 42}, return_type="state")
+        if is_async:
+            first = await first
+        assert first.is_failed()
+        assert first.data is data
+        assert attempts == 1
+        assert list(tmp_path.iterdir()) == [tmp_path / "failure"]
+        with pytest.raises(ValueError, match="temporary"):
+            await first.result()
+        if data_type == "record":
+            assert first.data.is_persisted
+            assert to_state_create(first).data == record.metadata
+
+        second = run(flaky_task, parameters={"order_id": 42}, return_type="state")
+        if is_async:
+            second = await second
+        assert second.name == "Completed"
+        assert await second.result() == "recovered"
+        assert attempts == 2
+        stored = await store.aread(record.metadata.storage_key)
+        assert isinstance(stored.result, ValueError)
+        assert str(stored.result) == "temporary"
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("commit_mode", list(CommitMode))
+    @pytest.mark.parametrize("persist_result", [False, True])
+    @pytest.mark.parametrize("cache_enabled", [False, True])
+    async def test_returned_failure_diagnostics_survive_parent_rollback(
+        self,
+        tmp_path: Path,
+        is_async: bool,
+        commit_mode: CommitMode,
+        persist_result: bool,
+        cache_enabled: bool,
+    ):
+        def fail() -> State:
+            return Failed(data=ValueError("temporary"))
+
+        async def async_fail() -> State:
+            return fail()
+
+        failing_task = task(
+            async_fail if is_async else fail,
+            cache_policy=INPUTS if cache_enabled else None,
+            persist_result=persist_result,
+            result_storage=tmp_path,
+        )
+        async with AsyncExitStack() as stack:
+            if is_async:
+                parent = await stack.enter_async_context(
+                    atransaction(commit_mode=commit_mode)
+                )
+                state = await run_task_async(failing_task, return_type="state")
+            else:
+                parent = stack.enter_context(transaction(commit_mode=commit_mode))
+                state = run_task_sync(failing_task, return_type="state")
+            assert state.is_failed()
+            assert parent.is_rolled_back()
+            record = state.data
+            assert record.is_persisted is persist_result
+
+        if persist_result:
+            assert record.is_persisted
+            stored = await ResultStore(
+                result_storage=LocalFileSystem(basepath=tmp_path)
+            ).aread(record.metadata.storage_key)
+            assert isinstance(stored.result, ValueError)
+            assert str(stored.result) == "temporary"
+        else:
+            assert not record.is_persisted
+            assert not list(tmp_path.iterdir())
+
+    def test_tasks_without_source_reuse_their_own_cached_results(self, tmp_path: Path):
+        tasks = []
+        for fee in (1, 100):
+            namespace: dict[str, Any] = {}
+            exec(  # noqa: S102
+                f"def calculate_total(amount):\n    return amount + {fee}\n",
+                namespace,
+            )
+            dynamic_task = task(persist_result=True, result_storage=tmp_path)(
+                namespace["calculate_total"]
+            )
+            assert dynamic_task.source_code is None
+            tasks.append(dynamic_task)
+
+        @flow
+        def calculate_totals() -> list[State]:
+            return [
+                dynamic_task(10, return_state=True)
+                for _ in range(2)
+                for dynamic_task in tasks
+            ]
+
+        states = calculate_totals()
+
+        assert [(state.result(), state.name) for state in states] == [
+            (11, "Completed"),
+            (110, "Completed"),
+            (11, "Cached"),
+            (110, "Cached"),
+        ]
+
     async def test_result_stored_with_storage_key_if_no_policy_set(
         self, prefect_client
     ):
@@ -3247,6 +3716,108 @@ class TestRunStateIsDenormalized:
 
 
 class TestTransactionHooks:
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_returned_failure_keeps_failed_state_after_rollback(
+        self, is_async: bool, prefect_client: PrefectClient, events_pipeline: Any
+    ):
+        @task
+        def fail() -> State:
+            return Failed(data=ValueError("temporary"))
+
+        @task
+        async def async_fail() -> State:
+            return Failed(data=ValueError("temporary"))
+
+        state = (
+            await async_fail(return_state=True) if is_async else fail(return_state=True)
+        )
+        await events_pipeline.process_events()
+        states = await prefect_client.read_task_run_states(
+            state.state_details.task_run_id
+        )
+        assert [s.name for s in states] == ["Pending", "Running", "Failed"]
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    @pytest.mark.parametrize("return_state", [False, True])
+    @pytest.mark.parametrize("has_parent", [False, True])
+    @pytest.mark.parametrize("retries,recover", [(0, False), (1, False), (1, True)])
+    async def test_returned_failure_transaction_hooks(
+        self,
+        is_async: bool,
+        return_state: bool,
+        has_parent: bool,
+        retries: int,
+        recover: bool,
+    ):
+        attempts = 0
+        events: list[str] = []
+        transactions: list[Transaction | AsyncTransaction] = []
+
+        def fail() -> State | str:
+            nonlocal attempts
+            attempts += 1
+            txn = get_transaction()
+            assert txn is not None
+            transactions.append(txn)
+            if recover and attempts > 1:
+                return "recovered"
+            return Failed(data=ValueError("temporary"))
+
+        async def async_fail() -> State | str:
+            return fail()
+
+        failing_task = task(
+            async_fail if is_async else fail,
+            retries=retries,
+            persist_result=False,
+        )
+
+        @failing_task.on_commit
+        def commit(txn: Transaction) -> None:
+            events.append("task_commit")
+
+        @failing_task.on_rollback
+        def rollback(txn: Transaction) -> None:
+            events.append("task_rollback")
+
+        async with AsyncExitStack() as stack:
+            if has_parent:
+                parent = (
+                    await stack.enter_async_context(atransaction())
+                    if is_async
+                    else stack.enter_context(transaction())
+                )
+                parent.stage(
+                    None,
+                    on_commit_hooks=[lambda txn: events.append("parent_commit")],
+                    on_rollback_hooks=[lambda txn: events.append("parent_rollback")],
+                )
+            result = (
+                await failing_task(return_state=return_state)
+                if is_async
+                else failing_task(return_state=return_state)
+            )
+            assert attempts == retries + 1
+            if recover:
+                assert not transactions[-1].is_rolled_back()
+                if return_state:
+                    assert result.is_completed()
+                    assert await result.result() == "recovered"
+                else:
+                    assert result == "recovered"
+            else:
+                assert transactions[-1].is_rolled_back()
+                assert result.is_failed()
+                with pytest.raises(ValueError, match="temporary"):
+                    await result.result()
+            if has_parent:
+                assert parent.is_rolled_back() is (not recover)
+
+        expected = ["task_commit" if recover else "task_rollback"]
+        if has_parent:
+            expected.append("parent_commit" if recover else "parent_rollback")
+        assert events == expected
+
     async def test_task_transitions_to_rolled_back_on_transaction_rollback(
         self,
         events_pipeline,
@@ -3803,6 +4374,36 @@ class TestWaitUntilReadySync:
 
             # State should now be Retrying (not Running)
             assert engine.state.name == "Retrying"
+
+
+class TestPydanticTaskArgumentWithUnsetPrivateAttributes:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/23514"""
+
+    class Document(pydantic.BaseModel):
+        text: Any
+        _cache: dict[str, Any] = pydantic.PrivateAttr()
+
+    def test_sync_task(self):
+        @task
+        def read(document: Any) -> tuple[str, bool]:
+            return document.text, hasattr(document, "_cache")
+
+        @flow
+        def my_flow() -> tuple[str, bool]:
+            return read(self.Document(text=quote("parsed text")))
+
+        assert my_flow() == ("parsed text", False)
+
+    async def test_async_task(self):
+        @task
+        async def read(document: Any) -> tuple[str, bool]:
+            return document.text, hasattr(document, "_cache")
+
+        @flow
+        async def my_flow() -> tuple[str, bool]:
+            return await read(self.Document(text=quote("parsed text")))
+
+        assert await my_flow() == ("parsed text", False)
 
 
 class TestRunSchemaObjectAsTaskArgument:

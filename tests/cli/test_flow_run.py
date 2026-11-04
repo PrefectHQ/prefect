@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import anyio
+import httpx
 import pytest
 
 import prefect.exceptions
@@ -21,7 +22,10 @@ from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.objects import FlowRun
 from prefect.deployments.runner import RunnerDeployment
 from prefect.runner._control_channel import ControlChannel, ControlSignalStatus
-from prefect.runner._flow_run_executor import FlowRunExecutorContext
+from prefect.runner._flow_run_executor import (
+    FlowRunExecutionResult,
+    FlowRunExecutorContext,
+)
 from prefect.runner._process_manager import ProcessManager
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.settings import PREFECT_UI_URL, temporary_settings
@@ -29,6 +33,7 @@ from prefect.settings.context import get_current_settings
 from prefect.states import (
     AwaitingRetry,
     Cancelled,
+    Cancelling,
     Completed,
     Crashed,
     Failed,
@@ -56,6 +61,11 @@ def hello_flow():
 @flow(name="goodbye")
 def goodbye_flow():
     return "Goodbye"
+
+
+@flow()
+def crashing_flow():
+    os._exit(1)
 
 
 @flow()
@@ -166,7 +176,7 @@ def test_inspect_flow_run_with_web_flag(flow_run: FlowRun, mock_webbrowser: Magi
     invoke_and_assert(
         command=["flow-run", "inspect", str(flow_run.id), "--web"],
         expected_code=0,
-        expected_output_contains=f"Opened flow run {flow_run.id!r} in browser.",
+        expected_output_contains=f"Opened flow run '{flow_run.id}' in browser.",
     )
 
     mock_webbrowser.open_new_tab.assert_called_once()
@@ -185,6 +195,15 @@ def test_inspect_flow_run_with_web_flag_no_ui_url(
         )
 
     mock_webbrowser.open_new_tab.assert_not_called()
+
+
+def test_inspect_flow_run_not_found():
+    missing_flow_run_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
+    invoke_and_assert(
+        command=["flow-run", "inspect", missing_flow_run_id],
+        expected_output_contains=f"Flow run '{missing_flow_run_id}' not found!",
+        expected_code=1,
+    )
 
 
 def test_inspect_flow_run_with_json_output(flow_run: FlowRun):
@@ -1849,8 +1868,8 @@ class TestFlowRunExecute:
             captured_starter["starter"], WorkspaceResolvingEngineCommandStarter
         )
         assert (
-            captured_kwargs.get("resolve_flow")
-            == captured_starter["starter"].resolve_flow
+            captured_kwargs.get("hook_runner")
+            is captured_starter["starter"].hook_runner
         )
         assert captured_kwargs.get("propose_submitting") is False
         assert captured_starter["starter"]._deployment_name is None
@@ -1899,6 +1918,142 @@ class TestFlowRunExecute:
         assert workspace_exists_during_context_exit == [True]
         assert workspace_path
         assert not workspace_path[0].exists()
+
+    async def test_execute_exits_zero_when_crash_is_reported(
+        self, prefect_client: PrefectClient
+    ):
+        deployment_id = await (await crashing_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=0,
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_crashed()
+
+    async def test_execute_exits_with_process_status_when_crash_cannot_be_reported(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        deployment_id = await (await crashing_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        monkeypatch.setattr(
+            "prefect.runner._state_proposer.propose_state",
+            AsyncMock(side_effect=httpx.ConnectError("API unreachable")),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="could not be reported",
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert not flow_run.state.is_final()
+
+    async def test_execute_exits_nonzero_when_output_stream_fails_and_crash_cannot_be_reported(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        deployment_id = await (await crashing_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        monkeypatch.setattr(
+            "prefect.utilities.processutils.consume_process_output",
+            AsyncMock(side_effect=OSError("output stream closed")),
+        )
+        monkeypatch.setattr(
+            "prefect.runner._state_proposer.propose_state",
+            AsyncMock(side_effect=httpx.ConnectError("API unreachable")),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="could not be reported",
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert not flow_run.state.is_final()
+
+    @pytest.mark.parametrize(
+        ("status_code", "expected_exit_code"), [(1, 1), (7, 7), (-9, 137)]
+    )
+    async def test_execute_exit_code_reflects_unreported_crash_status(
+        self,
+        prefect_client: PrefectClient,
+        status_code: int,
+        expected_exit_code: int,
+    ):
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        mock_submit = AsyncMock(
+            return_value=FlowRunExecutionResult(
+                handle=MagicMock(),
+                status_code=status_code,
+                crash_unreported=True,
+            )
+        )
+        original_create_executor = FlowRunExecutorContext.create_executor
+
+        def capture_create_executor(self_ctx, *args, **kwargs):
+            result = original_create_executor(self_ctx, *args, **kwargs)
+            result.submit = mock_submit
+            return result
+
+        with (
+            patch.object(
+                FlowRunExecutorContext,
+                "create_executor",
+                side_effect=capture_create_executor,
+                autospec=True,
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            await execute(id=flow_run.id)
+
+        assert exc_info.value.code == expected_exit_code
+
+    async def test_execute_exits_zero_when_nonzero_exit_crash_was_reported(
+        self, prefect_client: PrefectClient
+    ):
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        mock_submit = AsyncMock(
+            return_value=FlowRunExecutionResult(
+                handle=MagicMock(), status_code=1, crash_unreported=False
+            )
+        )
+        original_create_executor = FlowRunExecutorContext.create_executor
+
+        def capture_create_executor(self_ctx, *args, **kwargs):
+            result = original_create_executor(self_ctx, *args, **kwargs)
+            result.submit = mock_submit
+            return result
+
+        with patch.object(
+            FlowRunExecutorContext,
+            "create_executor",
+            side_effect=capture_create_executor,
+            autospec=True,
+        ):
+            await execute(id=flow_run.id)
+
+        mock_submit.assert_awaited_once()
 
 
 class TestSignalHandling:
@@ -2074,6 +2229,132 @@ class TestSignalHandling:
 
         kill.assert_not_awaited()
         propose.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "server_state, expected_state_name, expected_message",
+        [
+            (Cancelled, "Cancelled", "Flow run was not rescheduled."),
+            (Completed, "Completed", "Flow run was not rescheduled."),
+            (Failed, "Failed", "Flow run was not rescheduled."),
+            (Cancelling, "Cancelling", "Flow run was not rescheduled."),
+            (Crashed, "AwaitingRetry", "Flow run successfully rescheduled."),
+        ],
+    )
+    async def test_reschedule_leaves_final_states_other_than_crashed(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        prefect_client: PrefectClient,
+        server_state: Callable[[], State],
+        expected_state_name: str,
+        expected_message: str,
+    ):
+        """A SIGTERM after the server finished the run (e.g. a cancellation timeout
+        marked it `Cancelled`) must not revive it; `Crashed` is still rescheduled.
+        A `Cancelling` run rejects the reschedule, which must not be reported as
+        a success."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        handlers: list[Callable[[], None]] = []
+        kill = AsyncMock()
+
+        def capture_install(handler: Callable[[], None]) -> bool:
+            handlers.append(handler)
+            return True
+
+        async def fake_submit(*_: Any, **__: Any) -> None:
+            await prefect_client.set_flow_run_state(flow_run.id, Running(), force=True)
+            await prefect_client.set_flow_run_state(
+                flow_run.id, server_state(), force=True
+            )
+            handlers[0]()
+            await anyio.sleep(1)
+
+        with (
+            patch(
+                "prefect.cli.flow_run._install_termination_handler",
+                side_effect=capture_install,
+            ),
+            patch.object(
+                ControlChannel,
+                "signal",
+                AsyncMock(return_value=ControlSignalStatus.ACKNOWLEDGED),
+            ),
+            patch.object(ProcessManager, "kill", kill),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            await execute(id=flow_run.id)
+
+        assert exc_info.value.code == 0
+        kill.assert_awaited_once()
+        assert expected_message in capsys.readouterr().out
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and run.state.name == expected_state_name
+
+    async def test_reschedule_proceeds_when_state_read_fails(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        handlers: list[Callable[[], None]] = []
+        read_flow_run = PrefectClient.read_flow_run
+        reads_fail = False
+
+        def capture_install(handler: Callable[[], None]) -> bool:
+            handlers.append(handler)
+            return True
+
+        async def flaky_read_flow_run(
+            self: PrefectClient, flow_run_id: UUID
+        ) -> FlowRun:
+            if reads_fail:
+                raise httpx.ConnectError("connection refused")
+            return await read_flow_run(self, flow_run_id)
+
+        async def fake_submit(*_: Any, **__: Any) -> None:
+            nonlocal reads_fail
+            await prefect_client.set_flow_run_state(flow_run.id, Running(), force=True)
+            reads_fail = True
+            handlers[0]()
+            await anyio.sleep(1)
+
+        with (
+            patch(
+                "prefect.cli.flow_run._install_termination_handler",
+                side_effect=capture_install,
+            ),
+            patch.object(
+                ControlChannel,
+                "signal",
+                AsyncMock(return_value=ControlSignalStatus.ACKNOWLEDGED),
+            ),
+            patch.object(ProcessManager, "kill", AsyncMock()),
+            patch.object(PrefectClient, "read_flow_run", flaky_read_flow_run),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            await execute(id=flow_run.id)
+
+        assert exc_info.value.code == 0
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and run.state.name == "AwaitingRetry"
 
     async def test_termination_handler_installed_even_when_submit_exits_early(
         self,
