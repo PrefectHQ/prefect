@@ -110,6 +110,12 @@ class ConcurrencySlotAcquisitionWithLeaseService(
 
     @classmethod
     def _wake_waiters(cls, released_names: Iterable[str]) -> None:
+        """End the `Retry-After` wait of every service in this process that
+        acquires slots on one of `released_names`.
+
+        `concurrency()` calls this once the server has confirmed its release, so
+        the woken service's next request can take the freed slot.
+        """
         released = set(released_names)
         with cls._instance_cache_lock:
             services = [
