@@ -10,6 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 import sqlalchemy as sa
+from docket import Docket, Worker
+from docket.dependencies import current_execution
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
@@ -29,6 +31,7 @@ from prefect.server.services import db_vacuum
 from prefect.server.services.db_vacuum import (
     _maintenance_database_config,
     _maintenance_session,
+    schedule_event_vacuum_tasks,
     schedule_orphan_vacuum_tasks,
     schedule_vacuum_tasks,
     vacuum_events_with_retention_overrides,
@@ -504,6 +507,75 @@ async def test_orphan_reconciliation_schedules_cleanup_tasks():
         (vacuum_orphaned_artifacts, "db-vacuum:orphaned-artifacts"),
         (vacuum_stale_artifact_collections, "db-vacuum:stale-collections"),
     ]
+
+
+async def test_vacuum_tasks_run_one_at_a_time_on_the_maintenance_pool(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Every vacuum task draws on the one-connection maintenance pool, so a
+    worker with spare capacity must still run them one at a time."""
+    tasks = [
+        vacuum_orphaned_logs,
+        vacuum_orphaned_artifacts,
+        vacuum_stale_artifact_collections,
+        vacuum_old_flow_runs,
+        vacuum_events_with_retention_overrides,
+        vacuum_old_events,
+    ]
+    active = 0
+    max_active = 0
+    ran: set[str] = set()
+
+    async def hold_maintenance_connection() -> None:
+        nonlocal active, max_active
+        ran.add(current_execution.get().function_name)
+        active += 1
+        max_active = max(max_active, active)
+        try:
+            await asyncio.sleep(0.1)
+        finally:
+            active -= 1
+
+    async def batch_delete(*args: object, **kwargs: object) -> int:
+        await hold_maintenance_connection()
+        return 0
+
+    async def delete_orphaned_by_flow_run(*args: object, **kwargs: object) -> int:
+        await hold_maintenance_connection()
+        return 0
+
+    async def reconcile_artifact_collections(
+        *args: object, **kwargs: object
+    ) -> tuple[int, int]:
+        await hold_maintenance_connection()
+        return 0, 0
+
+    async def delete_flow_run_batch(*args: object, **kwargs: object) -> list[uuid.UUID]:
+        await hold_maintenance_connection()
+        return []
+
+    monkeypatch.setattr(db_vacuum, "_batch_delete", batch_delete)
+    monkeypatch.setattr(
+        db_vacuum, "_delete_orphaned_by_flow_run", delete_orphaned_by_flow_run
+    )
+    monkeypatch.setattr(
+        db_vacuum, "_reconcile_artifact_collections", reconcile_artifact_collections
+    )
+    monkeypatch.setattr(db_vacuum, "_delete_flow_run_batch", delete_flow_run_batch)
+
+    async with Docket(name=f"test-db-vacuum-{uuid.uuid4()}", url="memory://") as docket:
+        for task in tasks:
+            docket.register(task)
+
+        await schedule_vacuum_tasks(docket=docket)
+        await schedule_event_vacuum_tasks(docket=docket)
+        await schedule_orphan_vacuum_tasks(docket=docket)
+
+        async with Worker(docket, concurrency=len(tasks)) as worker:
+            await worker.run_until_finished()
+
+    assert max_active == 1
+    assert ran == {task.__name__ for task in tasks}
 
 
 class TestVacuumOrphanedLogs:
