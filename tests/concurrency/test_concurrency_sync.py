@@ -1,3 +1,5 @@
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from unittest import mock
 from uuid import UUID
@@ -7,6 +9,7 @@ from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
+from prefect.client.orchestration import PrefectClient
 from prefect.concurrency._sync import (
     acquire_concurrency_slots,
     acquire_concurrency_slots_with_lease,
@@ -14,6 +17,7 @@ from prefect.concurrency._sync import (
     release_concurrency_slots_with_lease,
 )
 from prefect.concurrency.asyncio import ConcurrencySlotAcquisitionError
+from prefect.concurrency.sync import concurrency as public_concurrency
 from prefect.concurrency.sync import rate_limit
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
@@ -255,6 +259,58 @@ def test_concurrency_respects_timeout():
     with pytest.raises(TimeoutError, match=".*timed out after 0.01 second(s)*."):
         with concurrency("test", occupy=1, timeout_seconds=0.01):
             print("should not be executed")
+
+
+@pytest.mark.usefixtures("slow_concurrency_limit")
+def test_release_wakes_a_waiter_sleeping_on_retry_after(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A slot released in this process goes to a local waiter right away, instead
+    of sitting idle until the waiter's `Retry-After` runs out.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/23183
+    """
+    retry_afters: list[float] = []
+    waiter_refused = threading.Event()
+    increment = PrefectClient.increment_concurrency_slots_with_lease
+
+    async def increment_noting_refusals(
+        self: PrefectClient, *args: Any, **kwargs: Any
+    ) -> Response:
+        try:
+            return await increment(self, *args, **kwargs)
+        except HTTPStatusError as exc:
+            if exc.response.status_code == status.HTTP_423_LOCKED:
+                retry_afters.append(float(exc.response.headers["Retry-After"]))
+                waiter_refused.set()
+            raise
+
+    monkeypatch.setattr(
+        PrefectClient,
+        "increment_concurrency_slots_with_lease",
+        increment_noting_refusals,
+    )
+
+    waiter_entered = threading.Event()
+
+    def waiter() -> None:
+        # Shorter than any `Retry-After` the server gives for this limit, so a
+        # waiter that sleeps it out times out instead of hanging the test.
+        with public_concurrency("test", occupy=1, timeout_seconds=10, strict=True):
+            waiter_entered.set()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        with public_concurrency("test", occupy=1, strict=True):
+            waiter_future = executor.submit(waiter)
+            waiter_was_refused = waiter_refused.wait(10)
+        # Leaving the block releases the slot as soon as the waiter is refused,
+        # possibly before the waiter has started to sleep.
+
+        assert waiter_was_refused, "the server never refused the waiter"
+        assert retry_afters[0] > 10
+        waiter_future.result(timeout=30)
+
+    assert waiter_entered.is_set()
 
 
 def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLimitV2):
