@@ -180,17 +180,22 @@ class MemoryLockManager(LockManager):
 
     def release_lock(self, key: str, holder: str) -> None:
         with self._locks_dict_lock:
-            if (lock_info := self._locks.get(key)) is None:
-                # The lock expired or was already released
+            lock_info = self._locks.get(key)
+            if lock_info is not None and lock_info["holder"] == holder:
+                if (expiration_timer := lock_info["expiration_timer"]) is not None:
+                    expiration_timer.cancel()
+                if lock_info["lock"].locked():
+                    lock_info["lock"].release()
+                del self._locks[key]
+            elif lock_info is None or not lock_info["lock"].locked():
+                # The lock was already released or expired (e.g. its hold
+                # timeout elapsed or it was released during a task retry);
+                # releasing it is a no-op, matching RedisLockManager.
                 return
-            if lock_info["holder"] != holder:
+            else:
                 raise ValueError(
                     f"No lock held by {holder} for transaction with key {key}"
                 )
-            if (expiration_timer := lock_info["expiration_timer"]) is not None:
-                expiration_timer.cancel()
-            lock_info["lock"].release()
-            del self._locks[key]
 
     def is_locked(self, key: str) -> bool:
         return key in self._locks and self._locks[key]["lock"].locked()

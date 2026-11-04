@@ -121,13 +121,20 @@ F = TypeVar("F", bound="Flow[Any, Any]")  # The type of the flow
 class FlowStateHook(Protocol, Generic[P, R]):
     """
     A callable that is invoked when a flow enters a given state.
+
+    It receives the flow, the flow run, and the state as its first three
+    parameters, whatever their names. A hook whose parameters are named `flow`,
+    `flow_run` (or `run`), and `state` receives them by name instead.
     """
 
     __name__: str
 
     def __call__(
-        self, flow: Flow[P, R], flow_run: FlowRun, state: State
+        self, flow: Flow[P, R], flow_run: FlowRun, state: State, /
     ) -> Awaitable[None] | None: ...
+
+
+_FlowStateHookT = TypeVar("_FlowStateHookT", bound="FlowStateHook[..., Any]")
 
 
 if TYPE_CHECKING:
@@ -1004,23 +1011,23 @@ class Flow(Generic[P, R]):
                 _sla=_sla,
             )
 
-    def on_completion(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
+    def on_completion(self, fn: _FlowStateHookT) -> _FlowStateHookT:
         self.on_completion_hooks.append(fn)
         return fn
 
-    def on_cancellation(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
+    def on_cancellation(self, fn: _FlowStateHookT) -> _FlowStateHookT:
         self.on_cancellation_hooks.append(fn)
         return fn
 
-    def on_crashed(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
+    def on_crashed(self, fn: _FlowStateHookT) -> _FlowStateHookT:
         self.on_crashed_hooks.append(fn)
         return fn
 
-    def on_running(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
+    def on_running(self, fn: _FlowStateHookT) -> _FlowStateHookT:
         self.on_running_hooks.append(fn)
         return fn
 
-    def on_failure(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
+    def on_failure(self, fn: _FlowStateHookT) -> _FlowStateHookT:
         self.on_failure_hooks.append(fn)
         return fn
 
