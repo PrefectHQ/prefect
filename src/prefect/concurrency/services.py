@@ -108,6 +108,27 @@ class ConcurrencySlotAcquisitionWithLeaseService(
         self._pending_releases: set[concurrent.futures.Future[None]] = set()
         self._slot_released = asyncio.Event()
 
+    @classmethod
+    def _wake_waiters(cls, released_names: Iterable[str]) -> None:
+        released = set(released_names)
+        with cls._instance_cache_lock:
+            services = [
+                service
+                for service in cls._instances.values()
+                if isinstance(service, cls)
+                and not released.isdisjoint(service.concurrency_limit_names)
+            ]
+
+        for service in services:
+            loop = service._loop
+            if loop is None:
+                continue
+            try:
+                loop.call_soon_threadsafe(service._slot_released.set)
+            except RuntimeError:
+                # The service's loop has closed, so nothing is waiting on it.
+                pass
+
     @asynccontextmanager
     async def _lifespan(self) -> AsyncGenerator[None, None]:
         async with get_client() as client:
@@ -195,7 +216,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
 
                     retry_after = float(exc.response.headers["Retry-After"])
                     logger.debug(
-                        f"Unable to acquire concurrency slot with lease for {self.concurrency_limit_names}. Retrying in {retry_after} second(s), or sooner if this process releases a slot on one of these limits."
+                        f"Unable to acquire concurrency slot with lease for {self.concurrency_limit_names}. Retrying in {retry_after} second(s), or sooner if a `concurrency()` block in this process releases one of these limits."
                     )
                     with suppress(TimeoutError):
                         await asyncio.wait_for(
@@ -271,27 +292,6 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                 exc_info=True,
             )
             return None
-
-
-def _wake_waiters(released_names: Iterable[str]) -> None:
-    released = set(released_names)
-    with ConcurrencySlotAcquisitionWithLeaseService._instance_cache_lock:
-        services = [
-            service
-            for service in ConcurrencySlotAcquisitionWithLeaseService._instances.values()
-            if isinstance(service, ConcurrencySlotAcquisitionWithLeaseService)
-            and not released.isdisjoint(service.concurrency_limit_names)
-        ]
-
-    for service in services:
-        loop = service._loop
-        if loop is None:
-            continue
-        try:
-            loop.call_soon_threadsafe(service._slot_released.set)
-        except RuntimeError:
-            # The service's loop has closed, so nothing is waiting on it.
-            pass
 
 
 def _should_use_cache(

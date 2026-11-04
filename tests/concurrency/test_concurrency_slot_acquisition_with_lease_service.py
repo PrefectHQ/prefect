@@ -18,7 +18,6 @@ from prefect.concurrency.services import (
     _create_empty_limits_response,
     _no_limits_cache,
     _should_use_cache,
-    _wake_waiters,
 )
 
 pytestmark = pytest.mark.clear_db
@@ -299,7 +298,7 @@ async def test_release_while_the_request_is_in_flight_ends_the_wait(
         request_count += 1
         if request_count > 1:
             return granted
-        _wake_waiters(["tag:test"])
+        ConcurrencySlotAcquisitionWithLeaseService._wake_waiters(["tag:test"])
         await asyncio.sleep(0)
         raise HTTPStatusError(
             "Limit is locked",
@@ -328,6 +327,55 @@ async def test_release_while_the_request_is_in_flight_ends_the_wait(
 
     assert returned_response == granted
     assert request_count == 2
+
+
+async def test_release_on_another_limit_leaves_the_wait_alone(
+    mocked_client: Any,
+) -> None:
+    granted = Response(
+        200,
+        json={
+            "lease_id": str(uuid4()),
+            "limits": [{"id": str(uuid4()), "name": "tag:test", "limit": 1}],
+        },
+    )
+    request_count = 0
+
+    async def increment(*args: Any, **kwargs: Any) -> Response:
+        nonlocal request_count
+        request_count += 1
+        if request_count > 1:
+            return granted
+        ConcurrencySlotAcquisitionWithLeaseService._wake_waiters(["tag:other"])
+        await asyncio.sleep(0)
+        raise HTTPStatusError(
+            "Limit is locked",
+            request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
+            response=Response(423, headers={"Retry-After": "60.0"}),
+        )
+
+    mocked_client.client.increment_concurrency_slots_with_lease.side_effect = increment
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["tag:test"])
+    )
+    future: Future[Response] = service.send(
+        (
+            1,  # slots
+            "concurrency",  # mode
+            0.5,  # timeout_seconds
+            None,  # max_retries
+            60.0,  # lease_duration
+            False,  # strict
+            None,  # holder
+        )
+    )
+
+    with pytest.raises(TimeoutError):
+        await asyncio.wrap_future(future)
+    await service.drain()
+
+    assert request_count == 1
 
 
 async def test_failed_call_status_code_not_retryable_returns_exception(
