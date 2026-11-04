@@ -201,24 +201,31 @@ async def read_work_queue_runs(
                 )
             )
 
-    await schedule_readiness_update(
-        docket,
-        mark_work_queues_ready,
-        key=f"mark_work_queues_ready:{work_queue_id}",
-        becoming_ready=work_queue_becoming_ready,
-    )(
-        polled_work_queue_ids=[work_queue_id],
-        ready_work_queue_ids=[work_queue_id] if work_queue_becoming_ready else [],
-    )
+    # Record every poll before background-task deduplication can discard it.
+    async with db.session_context(begin_transaction=True) as session:
+        await models.work_queues.record_work_queue_polls(
+            session=session,
+            polled_work_queue_ids=[work_queue_id],
+            ready_work_queue_ids=[],
+        )
+
+    if work_queue_becoming_ready:
+        await schedule_readiness_update(
+            docket,
+            mark_work_queues_ready,
+            key=f"mark_work_queues_ready:{work_queue_id}",
+            becoming_ready=True,
+        )(
+            polled_work_queue_ids=[],
+            ready_work_queue_ids=[work_queue_id],
+        )
 
     await schedule_readiness_update(
         docket,
         mark_deployments_ready,
         key=f"mark_deployments_ready:work_queue:{work_queue_id}",
         becoming_ready=deployments_becoming_ready,
-    )(
-        work_queue_ids=[work_queue_id],
-    )
+    )(work_queue_ids=[work_queue_id], skip_recently_polled=True)
 
     return flow_runs
 
