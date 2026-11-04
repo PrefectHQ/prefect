@@ -59,7 +59,11 @@ from prefect._internal.control_listener import (
     get_intent,
     report_engine_outcome,
 )
-from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
+from prefect._internal.engine import (
+    get_hook_name,
+    resolve_custom_flow_run_name,
+    resolve_flow_hook_arguments,
+)
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -1072,7 +1076,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
-                result = hook(flow, flow_run, state)
+                args, kwargs = resolve_flow_hook_arguments(hook, flow, flow_run, state)
+                result = hook(*args, **kwargs)
                 if asyncio.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
@@ -1803,7 +1808,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
-                result = hook(flow, flow_run, state)
+                args, kwargs = resolve_flow_hook_arguments(hook, flow, flow_run, state)
+                result = hook(*args, **kwargs)
                 if asyncio.iscoroutine(result):
                     await result
             except Exception:
