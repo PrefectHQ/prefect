@@ -14,6 +14,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { getLocalTimezone } from "@/utils";
 
 function getTimezoneLabel(value: string): string {
 	return value.replaceAll("/", " / ").replaceAll("_", " ");
@@ -49,7 +50,7 @@ function normalizeTimezone(
 	return isUTCAlias(timezone) ? "UTC" : timezone;
 }
 
-const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const localTimezone = getLocalTimezone();
 const normalizedLocalTimezone = normalizeTimezone(localTimezone);
 
 const SUGGESTED_TIMEZONES = [
