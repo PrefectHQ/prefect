@@ -4470,7 +4470,7 @@ requires-dist = [
     { name = "pydantic-core", specifier = ">=2.12.0,<3.0.0" },
     { name = "pydantic-extra-types", specifier = ">=2.8.2,<3.0.0" },
     { name = "pydantic-settings", specifier = ">=2.9.1,<3.0.0" },
-    { name = "pydocket", specifier = ">=0.23.1" },
+    { name = "pydocket", specifier = ">=0.27.2" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "python-on-whales", marker = "extra == 'buildx'", specifier = ">=0.81" },
     { name = "python-slugify", specifier = ">=9,<9.2" },
@@ -5317,7 +5317,7 @@ wheels = [
 
 [[package]]
 name = "pydocket"
-version = "0.23.1"
+version = "0.27.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "burner-redis" },
@@ -5334,9 +5334,9 @@ dependencies = [
     { name = "tzdata", marker = "sys_platform == 'win32'" },
     { name = "uncalled-for" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f8/72/f5a0960249d32a213fb26297a55f842ce8bc90bb19adbf47fefebb9c99da/pydocket-0.23.1.tar.gz", hash = "sha256:136c1cc8b7aa7c4c08ea12431e966ae75eb093bb6ce6e0ac9db3391ba3d6034b", size = 425621, upload-time = "2026-07-20T18:49:24.592Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/e2/b430c83b1388c3a28e171eeaade1fadb67e0d528ac13437906cae82a154a/pydocket-0.27.2.tar.gz", hash = "sha256:472c1f91c1b3940c639aab37b2272f4504f8400d6d8956a13d508925d847f234", size = 333458, upload-time = "2026-11-03T19:06:23.227Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/67/b57ac7cfd2c2f30d58ff2c996591880d200078fc828cbbad8da69d634c0e/pydocket-0.23.1-py3-none-any.whl", hash = "sha256:3da279978fd0d07eb96d4119e1a213de61d6b4acd1792a28bc62e67f3e7e5929", size = 129230, upload-time = "2026-07-20T18:49:23.243Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/e5/4eb4f658d2712c88da3ac9d1ad6fc662dd077cb38f90c6bd9792dc3c61bb/pydocket-0.27.2-py3-none-any.whl", hash = "sha256:c3aea41bf457e1285d3c932beb714754fbfbf047db6406d75114e37bed3f5eb6", size = 156375, upload-time = "2026-11-03T19:06:21.578Z" },
 ]
 
 [[package]]
@@ -7177,11 +7177,11 @@ wheels = [
 
 [[package]]
 name = "uncalled-for"
-version = "0.3.2"
+version = "0.4.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b5/82/345cc927f7fbdae6065e7768759932fcc827fc20b29b45dfbafa2f1f7da4/uncalled_for-0.3.2.tar.gz", hash = "sha256:89f5dbcd71e2b8f47c030b1fa302e6cce2ec795d1ac565eeb6525c5fe55cb8a2", size = 50032, upload-time = "2026-05-06T13:38:25.204Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1c/3f/3367539c8c619908b8e26db13634d2265ab2ec01e86573699c529dc1982c/uncalled_for-0.4.2.tar.gz", hash = "sha256:d274d6ab5eb0751e9b71c73647dc25a07d56b293dea479e689056aa919363133", size = 84827, upload-time = "2026-11-03T18:53:12.97Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/25/2c87754f3a9e692315f7b811244090e68f362979fc8886b3fbd2985a1d8c/uncalled_for-0.3.2-py3-none-any.whl", hash = "sha256:0ff60b142c7d1f8070bde9d42afaa70aedc77dcc10998c227687e9c15713418e", size = 11444, upload-time = "2026-05-06T13:38:24.025Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/3a/e709d69accc4f8b36cd2c64f6bee0fef10d7d78ffe9895d00c87bc042891/uncalled_for-0.4.2-py3-none-any.whl", hash = "sha256:e35b2970b1f90ae393c510c426357eac0e8da083b62b06dbefde704d69bb2645", size = 14900, upload-time = "2026-11-03T18:53:11.639Z" },
 ]
 
 [[package]]
