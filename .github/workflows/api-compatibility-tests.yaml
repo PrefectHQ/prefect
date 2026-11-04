@@ -29,7 +29,7 @@ jobs:
       - name: Prepare the report directory
         run: echo "REPORT_DIR=$RUNNER_TEMP/cloud-api-compatibility" >> "$GITHUB_ENV"
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: head
           fetch-depth: 0
@@ -37,7 +37,7 @@ jobs:
           persist-credentials: false
           submodules: true
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: base
           ref: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
@@ -45,7 +45,7 @@ jobs:
           filter: blob:none
           persist-credentials: false
 
-      - uses: astral-sh/setup-uv@v10.3.2
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           python-version: "3.12"
           enable-cache: true
@@ -90,7 +90,7 @@ jobs:
 
       - name: Save the compatibility report and logs
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cloud-api-compatibility
           path: ${{ env.REPORT_DIR }}
