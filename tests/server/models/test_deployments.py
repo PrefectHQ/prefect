@@ -1963,6 +1963,69 @@ class TestDeploymentSchedules:
 
         assert the_one.active is False
 
+    async def test_update_schedule_keeps_parameters_it_does_not_set(
+        self,
+        session: AsyncSession,
+        deployment,
+        deployment_schedules: List[schemas.core.DeploymentSchedule],
+    ):
+        assert await models.deployments.update_deployment_schedule(
+            session=session,
+            deployment_id=deployment.id,
+            deployment_schedule_id=deployment_schedules[0].id,
+            schedule=schemas.actions.DeploymentScheduleUpdate(parameters={"x": 1}),
+        )
+
+        assert await models.deployments.update_deployment_schedule(
+            session=session,
+            deployment_id=deployment.id,
+            deployment_schedule_id=deployment_schedules[0].id,
+            schedule=schemas.actions.DeploymentScheduleUpdate(active=False),
+        )
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+        )
+
+        the_one = next(
+            schedule
+            for schedule in schedules
+            if schedule.id == deployment_schedules[0].id
+        )
+
+        assert the_one.active is False
+        assert the_one.parameters == {"x": 1}
+
+    async def test_update_schedule_with_empty_parameters_clears_them(
+        self,
+        session: AsyncSession,
+        deployment,
+        deployment_schedules: List[schemas.core.DeploymentSchedule],
+    ):
+        for parameters in ({"x": 1}, {}):
+            assert await models.deployments.update_deployment_schedule(
+                session=session,
+                deployment_id=deployment.id,
+                deployment_schedule_id=deployment_schedules[0].id,
+                schedule=schemas.actions.DeploymentScheduleUpdate(
+                    parameters=parameters
+                ),
+            )
+
+        schedules = await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment.id,
+        )
+
+        the_one = next(
+            schedule
+            for schedule in schedules
+            if schedule.id == deployment_schedules[0].id
+        )
+
+        assert the_one.parameters == {}
+
     async def test_cannot_update_schedule_incorrect_deployment_id(
         self,
         session: AsyncSession,

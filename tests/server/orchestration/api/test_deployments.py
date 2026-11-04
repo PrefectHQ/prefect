@@ -2334,6 +2334,62 @@ class TestUpdateDeployment:
         }
         assert expected_interval_active_and_slug == interval_active_and_slug
 
+    async def test_update_deployment_with_existing_slug_clears_parameters_left_out(
+        self,
+        client,
+        flow,
+    ):
+        """
+        A schedule sent with a deployment update carries its full parameter
+        overrides, so leaving `parameters` out clears them. `prefect deploy` sends
+        schedules this way after the overrides are removed from `prefect.yaml`.
+        """
+        schedule = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule,
+                    parameters={"foo": "bar"},
+                    slug="test-schedule",
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+        assert response.json()["schedules"][0]["parameters"] == {"foo": "bar"}
+
+        deployment_id = response.json()["id"]
+
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule,
+                    slug="test-schedule",
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json=update_data,
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_id}",
+        )
+
+        assert response.json()["schedules"][0]["parameters"] == {}
+
     async def test_update_schedule_without_slug_and_specifying_active_defaults_to_true(
         self,
         client,

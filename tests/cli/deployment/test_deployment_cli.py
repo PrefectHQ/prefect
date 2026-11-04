@@ -90,6 +90,18 @@ async def flojo_deployment(
     return await prefect_client.read_deployment(create_flojo_deployment)
 
 
+@pytest.fixture
+async def flojo_deployment_with_schedule_parameters(
+    flojo_deployment: DeploymentResponse, prefect_client: PrefectClient
+) -> DeploymentResponse:
+    await prefect_client.update_deployment_schedule(
+        flojo_deployment.id,
+        flojo_deployment.schedules[0].id,
+        parameters={"foo": "baz"},
+    )
+    return await prefect_client.read_deployment(flojo_deployment.id)
+
+
 def test_list_schedules(flojo_deployment: DeploymentResponse):
     create_commands = [
         "deployment",
@@ -637,6 +649,32 @@ class TestDeploymentSchedules:
             ],
             expected_output_contains=["'active': True"],
         )
+
+    def test_pausing_and_resuming_schedule_keeps_its_parameters(
+        self, flojo_deployment_with_schedule_parameters: DeploymentResponse
+    ):
+        schedule_id = str(flojo_deployment_with_schedule_parameters.schedules[0].id)
+
+        for command in ("pause", "resume"):
+            invoke_and_assert(
+                [
+                    "deployment",
+                    "schedule",
+                    command,
+                    "rence-griffith/test-deployment",
+                    schedule_id,
+                ],
+                expected_code=0,
+            )
+
+            invoke_and_assert(
+                [
+                    "deployment",
+                    "inspect",
+                    "rence-griffith/test-deployment",
+                ],
+                expected_output_contains=["'parameters': {'foo': 'baz'}"],
+            )
 
     @pytest.mark.usefixtures("create_flojo_deployment")
     def test_schedule_pause_deployment_not_found_raises(
