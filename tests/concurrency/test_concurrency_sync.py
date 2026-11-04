@@ -1,3 +1,4 @@
+import contextvars
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -301,7 +302,8 @@ def test_release_wakes_a_waiter_sleeping_on_retry_after(
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         with public_concurrency("test", occupy=1, strict=True):
-            waiter_future = executor.submit(waiter)
+            # The waiter's thread needs this test's settings to reach its server.
+            waiter_future = executor.submit(contextvars.copy_context().run, waiter)
             waiter_was_refused = waiter_refused.wait(10)
         # Leaving the block releases the slot as soon as the waiter is refused,
         # possibly before the waiter has started to sleep.
