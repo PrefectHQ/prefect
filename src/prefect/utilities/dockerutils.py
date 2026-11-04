@@ -678,8 +678,7 @@ def generate_default_dockerfile(context: Optional[Path] = None):
     temp_dockerfile = context / "Dockerfile"
     if Path(temp_dockerfile).exists():
         raise RuntimeError(
-            "Failed to generate Dockerfile. Dockerfile already exists in the"
-            " current directory."
+            f"Failed to generate Dockerfile. Dockerfile already exists in {context}."
         )
 
     with Path(temp_dockerfile).open("w") as f:
