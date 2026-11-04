@@ -1,14 +1,16 @@
 import asyncio
 import concurrent.futures
+import contextvars
 import logging
 import os
 import random
+import threading
 import time
 from contextlib import AsyncExitStack
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
-from typing import Any, Awaitable, Generator, List, Literal, Optional
+from typing import Any, Awaitable, Callable, Generator, List, Literal, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
@@ -21,6 +23,7 @@ from prefect import Task, flow, tags, task
 from prefect.cache_policies import FLOW_PARAMETERS, INPUTS, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import StateDetails
+from prefect.client.schemas.actions import GlobalConcurrencyLimitCreate
 from prefect.client.schemas.filters import TaskRunFilter, TaskRunFilterName
 from prefect.client.schemas.objects import FlowRun, StateType, TaskRun
 from prefect.concurrency.asyncio import concurrency as aconcurrency
@@ -3503,6 +3506,226 @@ class TestTaskConcurrencyLimits:
             # We don't expect V1 limits to be created
             limits = await prefect_client.read_concurrency_limits(10, 0)
             assert len(limits) == 0
+
+    async def test_cache_hit_does_not_wait_for_a_full_tag_limit(
+        self, prefect_client: PrefectClient, tmp_path: Path
+    ):
+        tag = f"cached-{uuid4()}"
+        await prefect_client.create_global_concurrency_limit(
+            GlobalConcurrencyLimitCreate(name=f"tag:{tag}", limit=1)
+        )
+
+        @task(tags=[tag], cache_policy=INPUTS, result_storage=tmp_path)
+        async def double(x: int) -> int:
+            return x * 2
+
+        assert (await double(1, return_state=True)).name == "Completed"
+
+        async with aconcurrency(f"tag:{tag}", occupy=1):
+            run = asyncio.ensure_future(double(1, return_state=True))
+            done, _ = await asyncio.wait({run}, timeout=2)
+        state = await run
+
+        assert done == {run}, "the cache hit waited for the tag slot"
+        assert state.name == "Cached"
+        assert await state.result() == 2
+
+    def test_cache_hit_does_not_wait_for_a_full_tag_limit_sync(
+        self, sync_prefect_client: SyncPrefectClient, tmp_path: Path
+    ):
+        tag = f"cached-{uuid4()}"
+        sync_prefect_client.create_global_concurrency_limit(
+            GlobalConcurrencyLimitCreate(name=f"tag:{tag}", limit=1)
+        )
+
+        @task(tags=[tag], cache_policy=INPUTS, result_storage=tmp_path)
+        def double(x: int) -> int:
+            return x * 2
+
+        @flow
+        def cached_run() -> State[int]:
+            return double(1, return_state=True)
+
+        assert cached_run().name == "Completed"
+
+        states: list[State[int]] = []
+        with concurrency(f"tag:{tag}", occupy=1):
+            run = threading.Thread(
+                target=contextvars.copy_context().run,
+                args=(lambda: states.append(cached_run()),),
+            )
+            run.start()
+            run.join(timeout=2)
+            waited = run.is_alive()
+        run.join()
+
+        assert not waited, "the cache hit waited for the tag slot"
+        assert states[0].name == "Cached"
+        assert states[0].result() == 2
+
+    async def test_cache_expiring_after_the_hit_check_runs_only_under_the_tag_slot(
+        self,
+        prefect_client: PrefectClient,
+        tmp_path: Path,
+        advance_time: Callable[[timedelta], Any],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        tag = f"expiring-{uuid4()}"
+        await prefect_client.create_global_concurrency_limit(
+            GlobalConcurrencyLimitCreate(name=f"tag:{tag}", limit=1)
+        )
+        calls: list[int] = []
+
+        @task(
+            tags=[tag],
+            cache_policy=INPUTS,
+            cache_expiration=timedelta(seconds=1),
+            result_storage=tmp_path,
+        )
+        async def double(x: int) -> int:
+            calls.append(x)
+            return x * 2
+
+        assert (await double(1, return_state=True)).name == "Completed"
+        calls.clear()
+
+        aexists = ResultStore.aexists
+        checks: list[bool] = []
+
+        async def expire_after_first_check(self: ResultStore, key: str) -> bool:
+            exists = await aexists(self, key=key)
+            checks.append(exists)
+            if len(checks) == 1:
+                advance_time(timedelta(seconds=2))
+            return exists
+
+        monkeypatch.setattr(ResultStore, "aexists", expire_after_first_check)
+
+        async with aconcurrency(f"tag:{tag}", occupy=1):
+            run = asyncio.ensure_future(double(1, return_state=True))
+            done, _ = await asyncio.wait({run}, timeout=2)
+            calls_while_held = len(calls)
+        state = await run
+
+        assert checks[:2] == [True, False], "the record did not expire after the check"
+        assert not done, "the cache miss did not wait for the tag slot"
+        assert calls_while_held == 0, "the task ran without the tag slot"
+        assert state.name == "Completed"
+        assert calls == [1]
+
+    def test_cache_expiring_after_the_hit_check_runs_only_under_the_tag_slot_sync(
+        self,
+        sync_prefect_client: SyncPrefectClient,
+        tmp_path: Path,
+        advance_time: Callable[[timedelta], Any],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        tag = f"expiring-{uuid4()}"
+        sync_prefect_client.create_global_concurrency_limit(
+            GlobalConcurrencyLimitCreate(name=f"tag:{tag}", limit=1)
+        )
+        calls: list[int] = []
+
+        @task(
+            tags=[tag],
+            cache_policy=INPUTS,
+            cache_expiration=timedelta(seconds=1),
+            result_storage=tmp_path,
+        )
+        def double(x: int) -> int:
+            calls.append(x)
+            return x * 2
+
+        @flow
+        def expiring_run() -> State[int]:
+            return double(1, return_state=True)
+
+        assert expiring_run().name == "Completed"
+        calls.clear()
+
+        exists = ResultStore.exists
+        checks: list[bool] = []
+
+        def expire_after_first_check(self: ResultStore, key: str) -> bool:
+            found = exists(self, key=key)
+            checks.append(found)
+            if len(checks) == 1:
+                advance_time(timedelta(seconds=2))
+            return found
+
+        monkeypatch.setattr(ResultStore, "exists", expire_after_first_check)
+
+        states: list[State[int]] = []
+        with concurrency(f"tag:{tag}", occupy=1):
+            run = threading.Thread(
+                target=contextvars.copy_context().run,
+                args=(lambda: states.append(expiring_run()),),
+            )
+            run.start()
+            run.join(timeout=2)
+            waited = run.is_alive()
+            calls_while_held = len(calls)
+        run.join()
+
+        assert checks[:2] == [True, False], "the record did not expire after the check"
+        assert waited, "the cache miss did not wait for the tag slot"
+        assert calls_while_held == 0, "the task ran without the tag slot"
+        assert states[0].name == "Completed"
+        assert calls == [1]
+
+    def test_generator_task_waits_for_a_full_tag_limit_despite_a_cache_record(
+        self, sync_prefect_client: SyncPrefectClient, tmp_path: Path
+    ):
+        tag = f"generator-{uuid4()}"
+        sync_prefect_client.create_global_concurrency_limit(
+            GlobalConcurrencyLimitCreate(name=f"tag:{tag}", limit=1)
+        )
+
+        @task(tags=[tag], cache_policy=INPUTS, result_storage=tmp_path)
+        def count_to(n: int) -> Generator[int, None, None]:
+            yield from range(n)
+
+        @flow
+        def generator_run() -> list[int]:
+            return list(count_to(2))
+
+        assert generator_run() == [0, 1]
+
+        results: list[list[int]] = []
+        with concurrency(f"tag:{tag}", occupy=1):
+            run = threading.Thread(
+                target=contextvars.copy_context().run,
+                args=(lambda: results.append(generator_run()),),
+            )
+            run.start()
+            run.join(timeout=1)
+            waited = run.is_alive()
+        run.join()
+
+        assert waited, "the generator task ran without the tag slot"
+        assert results == [[0, 1]]
+
+    def test_tagged_cache_key_fn_runs_once_per_run(self, tmp_path: Path):
+        key_calls: list[int] = []
+
+        def counting_key(context: TaskRunContext, parameters: dict[str, Any]) -> str:
+            key_calls.append(parameters["x"])
+            return f"counted-{parameters['x']}"
+
+        @task(
+            tags=[f"counted-{uuid4()}"],
+            cache_key_fn=counting_key,
+            result_storage=tmp_path,
+            persist_result=True,
+        )
+        def double(x: int) -> int:
+            return x * 2
+
+        assert double(1, return_state=True).name == "Completed"
+        assert key_calls == [1]
+
+        assert double(1, return_state=True).name == "Cached"
+        assert key_calls == [1, 1]
 
 
 class TestRunStateIsDenormalized:
