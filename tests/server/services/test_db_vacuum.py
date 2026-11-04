@@ -29,6 +29,7 @@ from prefect.server.events.storage.database import write_events
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.services import db_vacuum
 from prefect.server.services.db_vacuum import (
+    _MAINTENANCE_POOL,
     _maintenance_database_config,
     _maintenance_session,
     schedule_event_vacuum_tasks,
@@ -469,43 +470,72 @@ class TestVacuumOldFlowRuns:
             assert await _count(new_session, db, db.ArtifactCollection) == 0
 
 
+MAINTENANCE_POOL_KWARGS: dict[str, object] = {"maintenance_pool": _MAINTENANCE_POOL}
+
+
 async def test_flow_run_vacuum_schedules_only_expected_cleanup_tasks():
-    scheduled: list[tuple[object, str | None]] = []
+    scheduled: list[tuple[object, str | None, dict[str, object]]] = []
 
     class FakeDocket:
         def add(self, function, key=None):
-            scheduled.append((function, key))
-
-            async def enqueue():
-                return None
+            async def enqueue(**kwargs: object):
+                scheduled.append((function, key, kwargs))
 
             return enqueue
 
     await schedule_vacuum_tasks(docket=FakeDocket())
 
     assert scheduled == [
-        (vacuum_old_flow_runs, "db-vacuum:old-flow-runs"),
+        (vacuum_old_flow_runs, "db-vacuum:old-flow-runs", MAINTENANCE_POOL_KWARGS),
+    ]
+
+
+async def test_event_vacuum_schedules_event_cleanup_tasks():
+    scheduled: list[tuple[object, str | None, dict[str, object]]] = []
+
+    class FakeDocket:
+        def add(self, function, key=None):
+            async def enqueue(**kwargs: object):
+                scheduled.append((function, key, kwargs))
+
+            return enqueue
+
+    await schedule_event_vacuum_tasks(docket=FakeDocket())
+
+    assert scheduled == [
+        (
+            vacuum_events_with_retention_overrides,
+            "db-vacuum:retention-overrides",
+            MAINTENANCE_POOL_KWARGS,
+        ),
+        (vacuum_old_events, "db-vacuum:old-events", MAINTENANCE_POOL_KWARGS),
     ]
 
 
 async def test_orphan_reconciliation_schedules_cleanup_tasks():
-    scheduled: list[tuple[object, str | None]] = []
+    scheduled: list[tuple[object, str | None, dict[str, object]]] = []
 
     class FakeDocket:
         def add(self, function, key=None):
-            scheduled.append((function, key))
-
-            async def enqueue():
-                return None
+            async def enqueue(**kwargs: object):
+                scheduled.append((function, key, kwargs))
 
             return enqueue
 
     await schedule_orphan_vacuum_tasks(docket=FakeDocket())
 
     assert scheduled == [
-        (vacuum_orphaned_logs, "db-vacuum:orphaned-logs"),
-        (vacuum_orphaned_artifacts, "db-vacuum:orphaned-artifacts"),
-        (vacuum_stale_artifact_collections, "db-vacuum:stale-collections"),
+        (vacuum_orphaned_logs, "db-vacuum:orphaned-logs", MAINTENANCE_POOL_KWARGS),
+        (
+            vacuum_orphaned_artifacts,
+            "db-vacuum:orphaned-artifacts",
+            MAINTENANCE_POOL_KWARGS,
+        ),
+        (
+            vacuum_stale_artifact_collections,
+            "db-vacuum:stale-collections",
+            MAINTENANCE_POOL_KWARGS,
+        ),
     ]
 
 
