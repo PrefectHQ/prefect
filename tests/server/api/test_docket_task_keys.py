@@ -337,6 +337,7 @@ class TestDocketAtMostOnceExecution:
         monkeypatch.setattr(
             models.work_queues, "PrefectServerEventsClient", AssertingEventsClient
         )
+
         def fail_deployment_enqueue(schedule: Any) -> Any:
             def wrapper(function: Any, *args: Any, **kwargs: Any) -> Any:
                 if function is models.deployments.mark_deployments_ready:
