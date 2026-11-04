@@ -37,8 +37,12 @@ jobs:
 
       - name: Resolve SQLite build args
         id: args
+        env:
+          SQLITE_VERSION_INPUT: ${{ github.event.inputs.sqlite_version }}
+          SQLITE_YEAR_INPUT: ${{ github.event.inputs.sqlite_year }}
+          SQLITE_FILE_VERSION_INPUT: ${{ github.event.inputs.sqlite_file_version }}
         run: |
-          VERSION="${{ github.event.inputs.sqlite_version }}"
+          VERSION="$SQLITE_VERSION_INPUT"
           if [ -z "$VERSION" ]; then
             VERSION=$(grep -m1 'ARG SQLITE_VERSION=' Dockerfile | cut -d= -f2)
             CLIENT_VERSION=$(grep -m1 'ARG SQLITE_VERSION=' client/Dockerfile | cut -d= -f2)
@@ -52,13 +56,20 @@ jobs:
               exit 1
             fi
           fi
-          YEAR="${{ github.event.inputs.sqlite_year }}"
+          YEAR="$SQLITE_YEAR_INPUT"
           if [ -z "$YEAR" ]; then
             YEAR=$(grep -m1 'ARG SQLITE_YEAR=' Dockerfile.sqlite-builder | cut -d= -f2)
           fi
-          FILE_VERSION="${{ github.event.inputs.sqlite_file_version }}"
+          FILE_VERSION="$SQLITE_FILE_VERSION_INPUT"
           if [ -z "$FILE_VERSION" ]; then
             FILE_VERSION=$(grep -m1 'ARG SQLITE_FILE_VERSION=' Dockerfile.sqlite-builder | cut -d= -f2)
+          fi
+          # These values become the image tag and the build args that
+          # Dockerfile.sqlite-builder puts in its download URL.
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$YEAR" =~ ^[0-9]{4}$ && "$FILE_VERSION" =~ ^[0-9]{7}$ ]]; then
+            echo "Error: expected a version like 3.50.4, a year like 2025, and a file version like 3500400."
+            echo "Got version='$VERSION' year='$YEAR' file_version='$FILE_VERSION'."
+            exit 1
           fi
           echo "sqlite_version=$VERSION" >> $GITHUB_OUTPUT
           echo "sqlite_year=$YEAR" >> $GITHUB_OUTPUT
@@ -66,8 +77,10 @@ jobs:
 
       - name: Check if image already exists
         id: check
+        env:
+          SQLITE_VERSION: ${{ steps.args.outputs.sqlite_version }}
         run: |
-          IMAGE="prefecthq/prefect-sqlite:${{ steps.args.outputs.sqlite_version }}"
+          IMAGE="prefecthq/prefect-sqlite:$SQLITE_VERSION"
           if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "Image $IMAGE already exists — skipping build."

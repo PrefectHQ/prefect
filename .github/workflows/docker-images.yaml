@@ -89,10 +89,12 @@ jobs:
 
       - name: Determine latest tag
         # https://stackoverflow.com/a/75079768/5511061
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "LATEST_TAG=$(curl -qsSL \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "${{ github.api_url }}/repos/${{ github.repository }}/releases/latest" \
           | jq -r .tag_name)" >> $GITHUB_ENV
@@ -162,11 +164,12 @@ jobs:
       - name: Dispatch to cluster-deployment
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           gh workflow run update-integration-test-image.yaml \
             -R PrefectHQ/cluster-deployment \
             --ref main \
-            --field tag=${{ github.ref_name }}
+            --field "tag=$REF_NAME"
 
   get-prefect-aws-version:
     name: Get latest prefect-aws version
