@@ -1603,6 +1603,34 @@ class TestOrchestrationContext:
             == "Error validating state: RuntimeError('One time error!')"
         )
 
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            TimeoutError("asyncpg query timeout"),
+            sqlalchemy.exc.TimeoutError("queue pool timeout"),
+        ],
+    )
+    async def test_context_state_validation_encounters_timeout_exception(
+        self, session, run_type, initialize_orchestration, exc
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+        object.__setattr__(
+            ctx.session,
+            "flush",
+            AsyncMock(side_effect=exc),
+        )
+
+        with pytest.raises((TimeoutError, sqlalchemy.exc.TimeoutError)):
+            async with contextlib.AsyncExitStack():
+                await ctx.validate_proposed_state()
+
+        assert ctx.proposed_state is None
+
     async def test_context_state_validation_encounters_sqlite_busy_exception(
         self, session, run_type, initialize_orchestration
     ):
