@@ -1,7 +1,10 @@
 import asyncio
+import os
 import time
-from typing import Generator, List
+from typing import Any, Callable, Generator, List
+from uuid import UUID
 
+import dask.config
 import dask.dataframe as dd
 import distributed
 import pandas as pd
@@ -10,10 +13,12 @@ from distributed import LocalCluster
 from prefect_dask import DaskTaskRunner
 from prefect_dask.task_runners import PrefectDaskFuture
 
-from prefect import flow, task
+from prefect import Task, flow, task
 from prefect.assets import Asset, materialize
 from prefect.client.orchestration import get_client
-from prefect.context import get_run_context
+from prefect.client.schemas.objects import TaskRun
+from prefect.context import TaskRunContext, get_run_context
+from prefect.exceptions import ObjectNotFound
 from prefect.futures import as_completed
 from prefect.server.schemas.states import StateType
 from prefect.states import State
@@ -617,3 +622,92 @@ class TestDaskTaskRunner:
         ]
         assert len(related_assets) == 1
         assert related_assets[0]["prefect.resource.id"] == upstream.key
+
+
+def poll_task_run_state(
+    task_run_id: UUID, until: Callable[[State], bool], timeout: float = 30
+) -> State | None:
+    """
+    Read the task run's state from the API until `until` holds or `timeout`
+    passes, and return the last state read.
+    """
+    deadline = time.monotonic() + timeout
+    state = None
+    with get_client(sync_client=True) as client:
+        while True:
+            try:
+                state = client.read_task_run(task_run_id).state
+            except ObjectNotFound:
+                pass
+            if (state is not None and until(state)) or time.monotonic() > deadline:
+                return state
+            time.sleep(0.1)
+
+
+class TestWorkerDeath:
+    @pytest.fixture(autouse=True)
+    def no_allowed_failures(self) -> Generator[None, None, None]:
+        # Dask gives up on a task with KilledWorker the first time its worker dies
+        with dask.config.set({"distributed.scheduler.allowed-failures": 0}):
+            yield
+
+    @pytest.fixture
+    def task_runner(self) -> DaskTaskRunner:
+        return DaskTaskRunner(
+            cluster_kwargs={
+                "n_workers": 1,
+                "threads_per_worker": 1,
+                "processes": True,
+                "dashboard_address": None,
+            }
+        )
+
+    def test_unconsumed_task_run_crashes_when_its_worker_dies(
+        self, task_runner: DaskTaskRunner
+    ) -> None:
+        @task
+        def dies_once_running() -> None:
+            task_run_context = TaskRunContext.get()
+            assert task_run_context is not None
+            # The engine reports states as events, so wait until the server has
+            # recorded this run as RUNNING before killing the worker process.
+            poll_task_run_state(
+                task_run_context.task_run.id, until=lambda state: state.is_running()
+            )
+            os._exit(1)
+
+        with task_runner:
+            future = task_runner.submit(dies_once_running, parameters={})
+            state = poll_task_run_state(
+                future.task_run_id, until=lambda state: state.is_final()
+            )
+
+        assert state is not None
+        assert state.type == StateType.CRASHED
+        assert "KilledWorker" in (state.message or "")
+
+    def test_task_run_finished_before_its_worker_died_keeps_its_state(
+        self, task_runner: DaskTaskRunner
+    ) -> None:
+        def die_once_completed(
+            task: Task[..., Any], task_run: TaskRun, state: State
+        ) -> None:
+            # The engine has finished this run; kill the worker before Dask
+            # receives the result, once the server has recorded COMPLETED.
+            poll_task_run_state(task_run.id, until=lambda state: state.is_completed())
+            os._exit(1)
+
+        @task(on_completion=[die_once_completed])
+        def completes() -> int:
+            return 1
+
+        with task_runner:
+            future = task_runner.submit(completes, parameters={})
+            deadline = time.monotonic() + 30
+            while not future.wrapped_future.done() and time.monotonic() < deadline:
+                time.sleep(0.1)
+            assert future.wrapped_future.status == "error"
+
+        state = poll_task_run_state(future.task_run_id, until=lambda state: True)
+        assert state is not None
+        assert state.type == StateType.COMPLETED
