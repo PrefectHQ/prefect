@@ -27,6 +27,7 @@ from prefect.logging.loggers import get_run_logger
 from .services import (
     ConcurrencySlotAcquisitionService,
     ConcurrencySlotAcquisitionWithLeaseService,
+    _wake_waiters,  # pyright: ignore[reportPrivateUsage]
 )
 
 if TYPE_CHECKING:
@@ -353,5 +354,6 @@ async def concurrency(
             pass
         else:
             _discard_cleanup_lease(response.lease_id)
+            _wake_waiters(names)
 
         emit_concurrency_release_events(response.limits, occupy, emitted_events)
