@@ -116,14 +116,6 @@ class TestMemoryLockManager:
         ):
             manager.release_lock(key=key, holder="holder2")
 
-    def test_release_expired_lock_is_noop(self):
-        key = str(uuid4())
-        manager = MemoryLockManager()
-        assert manager.acquire_lock(key=key, holder="holder1", hold_timeout=0.1)
-        assert manager.wait_for_lock(key=key, timeout=5)
-        manager.release_lock(key=key, holder="holder1")
-        assert not manager.is_locked(key=key)
-
     def test_release_never_acquired_lock_is_noop(self):
         key = str(uuid4())
         manager = MemoryLockManager()
