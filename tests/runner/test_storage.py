@@ -613,6 +613,10 @@ class TestGitRepository:
                 cwd=str(Path.cwd() / "repo"),
             ),
             call(
+                ["git", "config", "--get", "core.sparseCheckout"],
+                cwd=Path.cwd() / "repo",
+            ),
+            call(
                 ["git", "fetch", "origin", "--unshallow", "1234567890"],
                 cwd=Path.cwd() / "repo",
             ),
@@ -650,11 +654,15 @@ class TestGitRepository:
 
         await repo.pull_code()
 
-        # Should only check the remote URL since the commit is already checked out
+        # Should only inspect the checkout since the commit is already checked out
         expected_calls = [
             call(
                 ["git", "config", "--get", "remote.origin.url"],
                 cwd=str(Path.cwd() / "repo"),
+            ),
+            call(
+                ["git", "config", "--get", "core.sparseCheckout"],
+                cwd=Path.cwd() / "repo",
             ),
         ]
 
@@ -1997,6 +2005,109 @@ class TestGitRepositoryUpdatesShallowClone:
 
         assert (repo.destination / "lib" / "lib.py").read_text() == "LIB = 2\n"
         assert in_use.exists(), "pull_code deleted and re-cloned the checkout"
+
+
+class TestGitRepositorySparseCheckout:
+    """
+    An existing sparse checkout must follow the configured `directories`: a
+    destination can be reused after a redeploy that changed the list, or by
+    deployments with different `directories` sharing a working directory.
+    """
+
+    @pytest.fixture
+    def remote(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+        monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+        for role in ("AUTHOR", "COMMITTER"):
+            monkeypatch.setenv(f"GIT_{role}_NAME", "test")
+            monkeypatch.setenv(f"GIT_{role}_EMAIL", "test@example.com")
+
+        remote = tmp_path / "remote.git"
+        work = tmp_path / "work"
+        _git("init", "--bare", str(remote), cwd=tmp_path)
+        _git("clone", str(remote), str(work), cwd=tmp_path)
+        _git("symbolic-ref", "HEAD", "refs/heads/main", cwd=work)
+        for directory in ("flows_a", "flows_b"):
+            (work / directory).mkdir()
+            (work / directory / "flow.py").write_text(f"NAME = {directory!r}\n")
+        _git("add", ".", cwd=work)
+        _git("commit", "-m", "v1", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+        return remote
+
+    async def _pull(
+        self,
+        remote: Path,
+        tmp_path: Path,
+        directories: list[str] | None,
+        commit_sha: str | None = None,
+    ) -> GitRepository:
+        repo = GitRepository(
+            url=remote.as_uri(),
+            branch=None if commit_sha else "main",
+            commit_sha=commit_sha,
+            directories=directories,
+        )
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        return repo
+
+    async def test_pull_code_checks_out_directories_added_to_existing_sparse_checkout(
+        self, remote: Path, tmp_path: Path
+    ):
+        await self._pull(remote, tmp_path, ["flows_a"])
+
+        repo = await self._pull(remote, tmp_path, ["flows_a", "flows_b"])
+
+        assert (repo.destination / "flows_a" / "flow.py").exists()
+        assert (repo.destination / "flows_b" / "flow.py").exists()
+
+    async def test_pull_code_checks_out_directory_added_in_new_remote_commit(
+        self, remote: Path, tmp_path: Path
+    ):
+        await self._pull(remote, tmp_path, ["flows_a"])
+        work = tmp_path / "work"
+        (work / "flows_c").mkdir()
+        (work / "flows_c" / "flow.py").write_text("NAME = 'flows_c'\n")
+        _git("add", ".", cwd=work)
+        _git("commit", "-m", "add flows_c", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+
+        repo = await self._pull(remote, tmp_path, ["flows_a", "flows_c"])
+
+        assert (repo.destination / "flows_c" / "flow.py").exists()
+
+    async def test_pull_code_checks_out_directories_added_at_pinned_commit(
+        self, remote: Path, tmp_path: Path
+    ):
+        sha = _git("rev-parse", "HEAD", cwd=tmp_path / "work")
+        await self._pull(remote, tmp_path, ["flows_a"], commit_sha=sha)
+
+        repo = await self._pull(remote, tmp_path, ["flows_b"], commit_sha=sha)
+
+        assert (repo.destination / "flows_b" / "flow.py").exists()
+
+    async def test_pull_code_keeps_directories_checked_out_for_other_runs(
+        self, remote: Path, tmp_path: Path
+    ):
+        first = await self._pull(remote, tmp_path, ["flows_a"])
+        # Stands in for a flow run that is using the first set of directories
+        in_use = first.destination / "flows_a" / "flow.py"
+
+        second = await self._pull(remote, tmp_path, ["flows_b"])
+
+        assert (second.destination / "flows_b" / "flow.py").exists()
+        assert in_use.exists(), "pull_code removed a directory another run uses"
+
+    async def test_pull_code_checks_out_whole_repository_when_directories_are_removed(
+        self, remote: Path, tmp_path: Path
+    ):
+        await self._pull(remote, tmp_path, ["flows_a"])
+
+        repo = await self._pull(remote, tmp_path, None)
+
+        assert (repo.destination / "flows_a" / "flow.py").exists()
+        assert (repo.destination / "flows_b" / "flow.py").exists()
 
 
 class TestRemoteStorageErrorHints:
