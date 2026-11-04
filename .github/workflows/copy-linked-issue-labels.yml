@@ -3,6 +3,12 @@ on:
   pull_request_target:
     types: [opened, edited, reopened, ready_for_review, review_requested]
 
+permissions:
+  # required to read the linked issues and their labels
+  issues: read
+  # required to add the copied labels to the pull request
+  pull-requests: write
+
 jobs:
   copy-labels:
     runs-on: ubuntu-latest
