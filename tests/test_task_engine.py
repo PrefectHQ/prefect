@@ -3153,6 +3153,55 @@ class TestGenerators:
         assert starts == ["start"]
         assert cleanups == [True]
 
+    async def test_generator_yields_during_close_raises(self, prefect_client: PrefectClient):
+        """
+        A generator that yields while handling GeneratorExit makes aclose raise
+        RuntimeError, matching plain async generator semantics.
+        """
+
+        @task(retries=1)
+        async def generator():
+            starts.append("start")
+            try:
+                yield 1
+            finally:
+                yield 99
+
+        starts = []
+
+        gen = generator()
+        assert await anext(gen) == 1
+        with pytest.raises(
+            RuntimeError, match="^async generator ignored GeneratorExit$"
+        ):
+            await gen.aclose()
+
+        assert starts == ["start"]
+
+    async def test_sync_generator_yields_during_close_raises(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Sync mirror: yielding while handling GeneratorExit makes close raise.
+        """
+
+        @task(retries=1)
+        def generator():
+            starts.append("start")
+            try:
+                yield 1
+            finally:
+                yield 99
+
+        starts = []
+
+        gen = generator()
+        assert next(gen) == 1
+        with pytest.raises(RuntimeError, match="^generator ignored GeneratorExit$"):
+            gen.close()
+
+        assert starts == ["start"]
+
     async def test_generator_finalizer_failure_on_close_rolls_back_transaction(
         self, prefect_client: PrefectClient
     ):

@@ -1877,6 +1877,13 @@ def run_generator_task_sync(
                                 pass
                             except Exception as close_exc:
                                 raise _GeneratorFinalizerError(close_exc) from close_exc
+                            else:
+                                # the generator yielded while handling
+                                # GeneratorExit; a plain generator's close
+                                # rejects that
+                                raise _GeneratorFinalizerError(
+                                    RuntimeError("generator ignored GeneratorExit")
+                                )
                 raise_if_flow_run_suspension_requested()
 
     except _GeneratorFinalizerError as wrapper:
@@ -1946,14 +1953,23 @@ async def run_generator_task_async(
                                     # returned; treat that as a successful close
                                     pass
                                 except Exception as close_exc:
-                                    # The consumer is closing the generator and its
-                                    # finalizer raised. Wrap the error so the
-                                    # transaction rolls back and the run contexts
-                                    # do not schedule a retry; the consumer sees
-                                    # the original error from aclose(), like a
-                                    # plain async generator.
+                                    # The consumer is closing the generator and
+                                    # its finalizer raised. Wrap the error so
+                                    # the transaction rolls back and the run
+                                    # contexts do not schedule a retry; the
+                                    # consumer sees the original error from
+                                    # aclose(), like a plain async generator.
                                     raise _GeneratorFinalizerError(close_exc) from (
                                         close_exc
+                                    )
+                                else:
+                                    # the generator yielded while handling
+                                    # GeneratorExit; a plain async generator's
+                                    # aclose rejects that
+                                    raise _GeneratorFinalizerError(
+                                        RuntimeError(
+                                            "async generator ignored GeneratorExit"
+                                        )
                                     )
                 raise_if_flow_run_suspension_requested()
 
