@@ -15,8 +15,15 @@ import prefect.cli._app as _cli
 
 
 def exit_with_error(message: str | Exception, code: int = 1, **kwargs: Any) -> NoReturn:
-    """Print a stylized error message and exit with a non-zero code."""
+    """
+    Print a stylized error message and exit with a non-zero code.
+
+    Rich markup is disabled by default because messages often include user
+    input or server error text; pass `markup=True` for messages with trusted
+    markup and escape any interpolated values.
+    """
     kwargs.setdefault("style", "red")
+    kwargs.setdefault("markup", False)
     _cli.console.print(message, **kwargs)
     raise SystemExit(code)
 
