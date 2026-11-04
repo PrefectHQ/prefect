@@ -5942,3 +5942,199 @@ class TestPreserveDeploymentConcurrencyLeaseId:
         assert (
             ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease_id
         )
+
+
+class TestPromoteAwaitingConcurrencySlotRuns:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/22386."""
+
+    async def create_deployment_with_concurrency_limit(
+        self,
+        session: AsyncSession,
+        limit: int,
+        flow: orm.Flow,
+    ) -> orm.Deployment:
+        concurrency_limit = await concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name=f"deployment:{uuid4()}",
+                limit=limit,
+            ),
+        )
+        deployment = await deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-push-pool-concurrency-deployment",
+                flow_id=flow.id,
+                concurrency_limit_id=concurrency_limit.id,
+                concurrency_options=schemas.core.ConcurrencyOptions(
+                    collision_strategy=schemas.core.ConcurrencyLimitStrategy.ENQUEUE,
+                ),
+            ),
+        )
+        await session.flush()
+        return deployment
+
+    async def test_releasing_slot_promotes_next_awaiting_concurrency_slot_run(
+        self,
+        session: AsyncSession,
+        flow: orm.Flow,
+    ):
+        """When a run completes and frees a deployment concurrency slot, the earliest
+        queued `AwaitingConcurrencySlot` run is immediately promoted to `Scheduled`
+        with `scheduled_time <= now("UTC")` while additional runs remain queued."""
+        from prefect.server.orchestration.core_policy import CoreFlowPolicy
+
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        run_a = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+            ),
+        )
+        run_b = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+            ),
+        )
+        run_c = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+            ),
+        )
+
+        # Run A acquires the single slot and transitions to Running.
+        res_a_pending = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run_a.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert res_a_pending.status == SetStateStatus.ACCEPT
+
+        res_a_running = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run_a.id,
+            state=states.Running(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert res_a_running.status == SetStateStatus.ACCEPT
+
+        # Run B and Run C attempt to enter Pending and are rejected into AwaitingConcurrencySlot.
+        res_b = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run_b.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert res_b.status == SetStateStatus.REJECT
+        assert res_b.state.name == "AwaitingConcurrencySlot"
+
+        res_c = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run_c.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert res_c.status == SetStateStatus.REJECT
+        assert res_c.state.name == "AwaitingConcurrencySlot"
+
+        # Complete Run A: this releases the slot and must immediately promote Run B to Scheduled.
+        before_complete = now("UTC")
+        res_a_completed = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run_a.id,
+            state=states.Completed(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert res_a_completed.status == SetStateStatus.ACCEPT
+
+        updated_b = await flow_runs.read_flow_run(session=session, flow_run_id=run_b.id)
+        updated_c = await flow_runs.read_flow_run(session=session, flow_run_id=run_c.id)
+
+        assert updated_b.state_type == StateType.SCHEDULED
+        assert updated_b.state_name == "Scheduled"
+        assert updated_b.next_scheduled_start_time is not None
+        assert updated_b.next_scheduled_start_time >= before_complete
+        assert updated_b.next_scheduled_start_time <= now("UTC")
+
+        # Run C remains in AwaitingConcurrencySlot because limit=1 (only 1 slot became free).
+        assert updated_c.state_type == StateType.SCHEDULED
+        assert updated_c.state_name == "AwaitingConcurrencySlot"
+
+    async def test_revoking_expired_lease_promotes_awaiting_concurrency_slot_run(
+        self,
+        session: AsyncSession,
+        flow: orm.Flow,
+    ):
+        """When an expired deployment concurrency lease is reaped by the repossessor,
+        queued `AwaitingConcurrencySlot` runs are promoted to `Scheduled`."""
+        from prefect.server.orchestration.core_policy import CoreFlowPolicy
+
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        run_a = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+            ),
+        )
+        run_b = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+            ),
+        )
+
+        res_a = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run_a.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert res_a.status == SetStateStatus.ACCEPT
+        lease_id = res_a.state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+
+        res_b = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run_b.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert res_b.status == SetStateStatus.REJECT
+        assert res_b.state.name == "AwaitingConcurrencySlot"
+
+        lease_storage = get_concurrency_lease_storage()
+        await lease_storage.renew_lease(
+            lease_id=lease_id, ttl=datetime.timedelta(seconds=-1)
+        )
+        await session.commit()
+
+        await revoke_expired_lease(
+            lease_id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+
+        session.expire_all()
+        updated_b = await flow_runs.read_flow_run(session=session, flow_run_id=run_b.id)
+        assert updated_b.state_type == StateType.SCHEDULED
+        assert updated_b.state_name == "Scheduled"
+
