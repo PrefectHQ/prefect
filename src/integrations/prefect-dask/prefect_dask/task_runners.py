@@ -119,17 +119,11 @@ R = TypeVar("R")
 
 
 def _report_crash(task_run_id: UUID, exc: BaseException) -> None:
-    """
-    Mark a task run as crashed when its Dask future failed before the task engine
-    reported a final state, for example because the worker running it died.
-    """
     try:
         with get_client(sync_client=True) as client:
             try:
                 task_run = client.read_task_run(task_run_id)
             except ObjectNotFound:
-                # The task engine never reported this run, for example because an
-                # upstream Dask task failed
                 return
             if task_run.state is not None and task_run.state.is_final():
                 return
@@ -480,7 +474,6 @@ class DaskTaskRunner(TaskRunner):
 
         crash_reporter = self._crash_reporter
         task_run_id: UUID = future.task_run_id
-        # Report with the submitting flow run's settings and client
         context = contextvars.copy_context()
 
         def report_if_crashed(dask_future: distributed.Future) -> None:
@@ -531,14 +524,14 @@ class DaskTaskRunner(TaskRunner):
         """
         super().__enter__()
         self._exit_stack.__enter__()
-        # Entered before the lazily created Dask client so that it shuts down after
-        # the client closes, waiting for crash reports already handed to it
-        self._crash_reporter = self._exit_stack.enter_context(
-            ThreadPoolExecutor(thread_name_prefix="PrefectDaskCrashReporter")
+        self._crash_reporter = ThreadPoolExecutor(
+            thread_name_prefix="PrefectDaskCrashReporter"
         )
 
         return self
 
     def __exit__(self, *args: Any) -> None:
         self._exit_stack.__exit__(*args)
+        if self._crash_reporter is not None:
+            self._crash_reporter.shutdown(wait=True)
         super().__exit__(*args)

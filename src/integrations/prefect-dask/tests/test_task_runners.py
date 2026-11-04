@@ -624,13 +624,9 @@ class TestDaskTaskRunner:
         assert related_assets[0]["prefect.resource.id"] == upstream.key
 
 
-def poll_task_run_state(
+def wait_for_recorded_state(
     task_run_id: UUID, until: Callable[[State], bool], timeout: float = 30
 ) -> State | None:
-    """
-    Read the task run's state from the API until `until` holds or `timeout`
-    passes, and return the last state read.
-    """
     deadline = time.monotonic() + timeout
     state = None
     with get_client(sync_client=True) as client:
@@ -669,16 +665,14 @@ class TestWorkerDeath:
         def dies_once_running() -> None:
             task_run_context = TaskRunContext.get()
             assert task_run_context is not None
-            # The engine reports states as events, so wait until the server has
-            # recorded this run as RUNNING before killing the worker process.
-            poll_task_run_state(
+            wait_for_recorded_state(
                 task_run_context.task_run.id, until=lambda state: state.is_running()
             )
             os._exit(1)
 
         with task_runner:
             future = task_runner.submit(dies_once_running, parameters={})
-            state = poll_task_run_state(
+            state = wait_for_recorded_state(
                 future.task_run_id, until=lambda state: state.is_final()
             )
 
@@ -692,9 +686,9 @@ class TestWorkerDeath:
         def die_once_completed(
             task: Task[..., Any], task_run: TaskRun, state: State
         ) -> None:
-            # The engine has finished this run; kill the worker before Dask
-            # receives the result, once the server has recorded COMPLETED.
-            poll_task_run_state(task_run.id, until=lambda state: state.is_completed())
+            wait_for_recorded_state(
+                task_run.id, until=lambda state: state.is_completed()
+            )
             os._exit(1)
 
         @task(on_completion=[die_once_completed])
@@ -708,6 +702,6 @@ class TestWorkerDeath:
                 time.sleep(0.1)
             assert future.wrapped_future.status == "error"
 
-        state = poll_task_run_state(future.task_run_id, until=lambda state: True)
+        state = wait_for_recorded_state(future.task_run_id, until=lambda state: True)
         assert state is not None
         assert state.type == StateType.COMPLETED
