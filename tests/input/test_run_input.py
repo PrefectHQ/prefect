@@ -180,8 +180,7 @@ async def test_load_fails_validation_raises_exception(flow_run_context):
     )
 
     with pytest.raises(pydantic.ValidationError, match="boolean"):
-        person = await Person.load(keyset)
-        assert isinstance(person, Person)
+        await Person.load(keyset)
 
 
 async def test_load_from_flow_run_input(flow_run_context):
