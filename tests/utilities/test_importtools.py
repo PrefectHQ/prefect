@@ -498,6 +498,17 @@ def test_load_script_as_module_removes_failed_script_with_fallback_name(
             sys.modules.pop(k, None)
 
 
+def test_load_script_as_module_removes_script_that_raises_base_exception(
+    tmp_path: Path,
+):
+    script = tmp_path / "exiting_script_mod.py"
+    script.write_text("import sys\n\nsys.exit(3)\n")
+
+    with pytest.raises(SystemExit):
+        load_script_as_module(str(script))
+    assert "exiting_script_mod" not in sys.modules
+
+
 def test_concurrent_script_loading(tmpdir: Path):
     """Test that loading multiple scripts concurrently is thread-safe.
 
