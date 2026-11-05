@@ -11,7 +11,7 @@ import signal
 import sys
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import (
     AsyncExitStack,
     ExitStack,
@@ -334,28 +334,40 @@ def _send_heartbeats(
     resource, related = engine._build_heartbeat_event_template()
 
     stop_event = threading.Event()
+    # The heartbeat thread checks for a stop and emits while holding this lock,
+    # so once `stop_heartbeats` returns, no heartbeat is mid-emit and none will
+    # be emitted.
+    emit_lock = threading.Lock()
+
+    def stop_heartbeats() -> None:
+        with emit_lock:
+            stop_event.set()
 
     def heartbeat_loop() -> None:
-        while not stop_event.is_set():
-            # Check state before emitting - don't emit if final
-            if (
-                engine.flow_run
-                and engine.flow_run.state
-                and engine.flow_run.state.is_final()
-            ):
-                engine.logger.debug("Flow run in terminal state, stopping heartbeat")
-                return
-
-            try:
-                engine._emit_flow_run_heartbeat(resource, related)
-            except Exception:
-                engine.logger.debug("Failed to emit heartbeat", exc_info=True)
-
-            # Sleep in increments to allow quick shutdown
-            for _ in range(heartbeat_seconds):
+        while True:
+            with emit_lock:
                 if stop_event.is_set():
                     return
-                time.sleep(1)
+
+                # Check state before emitting - don't emit if final
+                if (
+                    engine.flow_run
+                    and engine.flow_run.state
+                    and engine.flow_run.state.is_final()
+                ):
+                    engine.logger.debug(
+                        "Flow run in terminal state, stopping heartbeat"
+                    )
+                    return
+
+                try:
+                    engine._emit_flow_run_heartbeat(resource, related)
+                except Exception:
+                    engine.logger.debug("Failed to emit heartbeat", exc_info=True)
+
+            # Waiting on the event wakes the thread as soon as heartbeats stop
+            if stop_event.wait(heartbeat_seconds):
+                return
 
     # Copy the current context so the heartbeat thread sees the same
     # `SettingsContext` (and therefore the same `PREFECT_API_URL`) as the
@@ -370,13 +382,14 @@ def _send_heartbeats(
     thread = threading.Thread(
         target=heartbeat_ctx.run, args=(heartbeat_loop,), daemon=True
     )
+    engine._stop_heartbeats = stop_heartbeats
     thread.start()
     engine.logger.debug("Started flow run heartbeat context")
 
     try:
         yield
     finally:
-        stop_event.set()
+        stop_heartbeats()
         if join_on_exit:
             thread.join(timeout=2)
         engine.logger.debug("Stopped flow run heartbeat context")
@@ -428,6 +441,15 @@ class BaseFlowRunEngine(Generic[P, R]):
         default_factory=FlowRunSuspensionRequest
     )
     _attempt_conclusion: EngineOutcomeReceipt | None = field(default=None, init=False)
+    # Stops the heartbeat thread started by the most recent `_send_heartbeats`.
+    # `set_state` calls it before proposing a terminal state: the server
+    # timestamps that state when it accepts it, but the heartbeat thread sees
+    # it only after the response arrives.  A heartbeat sent in that gap occurs
+    # after the terminal state, and an automation that expects every heartbeat
+    # to be followed by another event then fires on the finished run.
+    _stop_heartbeats: Callable[[], None] | None = field(
+        default=None, init=False, repr=False
+    )
 
     def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
@@ -760,6 +782,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         # prevents any state-setting activity
         if self.short_circuit:
             return self.state
+
+        if state.is_final() and self._stop_heartbeats is not None:
+            self._stop_heartbeats()
 
         state = propose_state_sync(
             self.client, state, flow_run_id=self.flow_run.id, force=force
@@ -1499,6 +1524,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         # prevents any state-setting activity
         if self.short_circuit:
             return self.state
+
+        if state.is_final() and self._stop_heartbeats is not None:
+            self._stop_heartbeats()
 
         state = await propose_state(
             self.client, state, flow_run_id=self.flow_run.id, force=force
