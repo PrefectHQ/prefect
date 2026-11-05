@@ -6101,6 +6101,7 @@ class TestPromoteAwaitingConcurrencySlotRuns:
                 state=states.Scheduled(),
             ),
         )
+        run_b_id = run_b.id
 
         res_a = await flow_runs.set_flow_run_state(
             session=session,
@@ -6114,7 +6115,7 @@ class TestPromoteAwaitingConcurrencySlotRuns:
 
         res_b = await flow_runs.set_flow_run_state(
             session=session,
-            flow_run_id=run_b.id,
+            flow_run_id=run_b_id,
             state=states.Pending(),
             flow_policy=CoreFlowPolicy,
         )
@@ -6134,7 +6135,6 @@ class TestPromoteAwaitingConcurrencySlotRuns:
         )
 
         session.expire_all()
-        updated_b = await flow_runs.read_flow_run(session=session, flow_run_id=run_b.id)
+        updated_b = await flow_runs.read_flow_run(session=session, flow_run_id=run_b_id)
         assert updated_b.state_type == StateType.SCHEDULED
         assert updated_b.state_name == "Scheduled"
-
