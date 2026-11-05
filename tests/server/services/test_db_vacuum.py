@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from types import SimpleNamespace
 
@@ -29,7 +30,6 @@ from prefect.server.events.storage.database import write_events
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.services import db_vacuum
 from prefect.server.services.db_vacuum import (
-    _MAINTENANCE_POOL,
     _maintenance_database_config,
     _maintenance_session,
     schedule_event_vacuum_tasks,
@@ -470,106 +470,89 @@ class TestVacuumOldFlowRuns:
             assert await _count(new_session, db, db.ArtifactCollection) == 0
 
 
-MAINTENANCE_POOL_KWARGS: dict[str, object] = {"maintenance_pool": _MAINTENANCE_POOL}
-
-
 async def test_flow_run_vacuum_schedules_only_expected_cleanup_tasks():
-    scheduled: list[tuple[object, str | None, dict[str, object]]] = []
+    scheduled: list[tuple[object, str | None]] = []
 
     class FakeDocket:
         def add(self, function, key=None):
-            async def enqueue(**kwargs: object):
-                scheduled.append((function, key, kwargs))
+            async def enqueue():
+                scheduled.append((function, key))
 
             return enqueue
 
     await schedule_vacuum_tasks(docket=FakeDocket())
 
     assert scheduled == [
-        (vacuum_old_flow_runs, "db-vacuum:old-flow-runs", MAINTENANCE_POOL_KWARGS),
+        (vacuum_old_flow_runs, "db-vacuum:old-flow-runs"),
     ]
 
 
 async def test_event_vacuum_schedules_event_cleanup_tasks():
-    scheduled: list[tuple[object, str | None, dict[str, object]]] = []
+    scheduled: list[tuple[object, str | None]] = []
 
     class FakeDocket:
         def add(self, function, key=None):
-            async def enqueue(**kwargs: object):
-                scheduled.append((function, key, kwargs))
+            async def enqueue():
+                scheduled.append((function, key))
 
             return enqueue
 
     await schedule_event_vacuum_tasks(docket=FakeDocket())
 
     assert scheduled == [
-        (
-            vacuum_events_with_retention_overrides,
-            "db-vacuum:retention-overrides",
-            MAINTENANCE_POOL_KWARGS,
-        ),
-        (vacuum_old_events, "db-vacuum:old-events", MAINTENANCE_POOL_KWARGS),
+        (vacuum_events_with_retention_overrides, "db-vacuum:retention-overrides"),
+        (vacuum_old_events, "db-vacuum:old-events"),
     ]
 
 
 async def test_orphan_reconciliation_schedules_cleanup_tasks():
-    scheduled: list[tuple[object, str | None, dict[str, object]]] = []
+    scheduled: list[tuple[object, str | None]] = []
 
     class FakeDocket:
         def add(self, function, key=None):
-            async def enqueue(**kwargs: object):
-                scheduled.append((function, key, kwargs))
+            async def enqueue():
+                scheduled.append((function, key))
 
             return enqueue
 
     await schedule_orphan_vacuum_tasks(docket=FakeDocket())
 
     assert scheduled == [
-        (vacuum_orphaned_logs, "db-vacuum:orphaned-logs", MAINTENANCE_POOL_KWARGS),
-        (
-            vacuum_orphaned_artifacts,
-            "db-vacuum:orphaned-artifacts",
-            MAINTENANCE_POOL_KWARGS,
-        ),
-        (
-            vacuum_stale_artifact_collections,
-            "db-vacuum:stale-collections",
-            MAINTENANCE_POOL_KWARGS,
-        ),
+        (vacuum_orphaned_logs, "db-vacuum:orphaned-logs"),
+        (vacuum_orphaned_artifacts, "db-vacuum:orphaned-artifacts"),
+        (vacuum_stale_artifact_collections, "db-vacuum:stale-collections"),
     ]
 
 
-async def test_vacuum_tasks_run_one_at_a_time_on_the_maintenance_pool(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """On Postgres every vacuum task draws on the one-connection maintenance
-    pool, so a worker with spare capacity must still run them one at a time."""
-    tasks = [
-        vacuum_orphaned_logs,
-        vacuum_orphaned_artifacts,
-        vacuum_stale_artifact_collections,
-        vacuum_old_flow_runs,
-        vacuum_events_with_retention_overrides,
-        vacuum_old_events,
-    ]
+VACUUM_TASKS = [
+    vacuum_orphaned_logs,
+    vacuum_orphaned_artifacts,
+    vacuum_stale_artifact_collections,
+    vacuum_old_flow_runs,
+    vacuum_events_with_retention_overrides,
+    vacuum_old_events,
+]
+
+
+@pytest.fixture
+def maintenance_work(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+    """Replace the helpers that hold the maintenance connection with a short
+    hold that records which tasks ran and how many overlapped."""
+    work = SimpleNamespace(active=0, max_active=0, ran=set())
     monkeypatch.setattr(
         get_current_settings().server.services.db_vacuum,
         "event_retention_overrides",
         {"prefect.flow-run.heartbeat": timedelta(days=7)},
     )
-    active = 0
-    max_active = 0
-    ran: set[str] = set()
 
     async def hold_maintenance_connection() -> None:
-        nonlocal active, max_active
-        ran.add(current_execution.get().function_name)
-        active += 1
-        max_active = max(max_active, active)
+        work.ran.add(current_execution.get().function_name)
+        work.active += 1
+        work.max_active = max(work.max_active, work.active)
         try:
             await asyncio.sleep(0.1)
         finally:
-            active -= 1
+            work.active -= 1
 
     async def batch_delete(*args: object, **kwargs: object) -> int:
         await hold_maintenance_connection()
@@ -597,20 +580,89 @@ async def test_vacuum_tasks_run_one_at_a_time_on_the_maintenance_pool(
         db_vacuum, "_reconcile_artifact_collections", reconcile_artifact_collections
     )
     monkeypatch.setattr(db_vacuum, "_delete_flow_run_batch", delete_flow_run_batch)
+    return work
 
+
+async def test_vacuum_tasks_run_one_at_a_time_on_the_maintenance_pool(
+    maintenance_work: SimpleNamespace,
+):
+    """On Postgres every vacuum task draws on the one-connection maintenance
+    pool, so a worker with spare capacity must still run them one at a time."""
     async with Docket(name=f"test-db-vacuum-{uuid.uuid4()}", url="memory://") as docket:
-        for task in tasks:
+        for task in VACUUM_TASKS:
             docket.register(task)
 
         await schedule_vacuum_tasks(docket=docket)
         await schedule_event_vacuum_tasks(docket=docket)
         await schedule_orphan_vacuum_tasks(docket=docket)
 
-        async with Worker(docket, concurrency=len(tasks)) as worker:
+        async with Worker(docket, concurrency=len(VACUUM_TASKS)) as worker:
             await worker.run_until_finished()
 
-    assert max_active == 1
-    assert ran == {task.__name__ for task in tasks}
+    assert maintenance_work.max_active == 1
+    assert maintenance_work.ran == {task.__name__ for task in VACUUM_TASKS}
+
+
+def _released_vacuum_task(task: Callable[..., Awaitable[None]], ran: set[str]):
+    """A vacuum task with the signature released servers registered, which has
+    no parameter beyond the injected database interface."""
+
+    async def released_task(*, db: object = None) -> None:
+        ran.add(task.__name__)
+
+    released_task.__name__ = task.__name__
+    return released_task
+
+
+async def test_released_worker_runs_calls_from_the_vacuum_schedulers():
+    """During a rolling upgrade, a worker that is still on a released version
+    can claim the calls that upgraded schedulers enqueue."""
+    name = f"test-db-vacuum-{uuid.uuid4()}"
+    url = f"memory://{name}"
+    ran: set[str] = set()
+
+    async with Docket(name=name, url=url) as upgraded_server:
+        await schedule_vacuum_tasks(docket=upgraded_server)
+        await schedule_event_vacuum_tasks(docket=upgraded_server)
+        await schedule_orphan_vacuum_tasks(docket=upgraded_server)
+
+        async with Docket(name=name, url=url) as released_server:
+            for task in VACUUM_TASKS:
+                released_server.register(_released_vacuum_task(task, ran))
+
+            async with Worker(
+                released_server, concurrency=len(VACUUM_TASKS)
+            ) as released_worker:
+                await released_worker.run_until_finished()
+
+    assert ran == {task.__name__ for task in VACUUM_TASKS}
+
+
+async def test_upgraded_worker_runs_calls_from_a_released_server_one_at_a_time(
+    maintenance_work: SimpleNamespace,
+):
+    """During a rolling upgrade, a worker that has upgraded can claim the calls
+    a released scheduler enqueued, and those calls still share the slot."""
+    name = f"test-db-vacuum-{uuid.uuid4()}"
+    url = f"memory://{name}"
+
+    async with Docket(name=name, url=url) as released_server:
+        for task in VACUUM_TASKS:
+            await released_server.add(
+                _released_vacuum_task(task, set()), key=f"db-vacuum:{task.__name__}"
+            )()
+
+        async with Docket(name=name, url=url) as upgraded_server:
+            for task in VACUUM_TASKS:
+                upgraded_server.register(task)
+
+            async with Worker(
+                upgraded_server, concurrency=len(VACUUM_TASKS)
+            ) as upgraded_worker:
+                await upgraded_worker.run_until_finished()
+
+    assert maintenance_work.max_active == 1
+    assert maintenance_work.ran == {task.__name__ for task in VACUUM_TASKS}
 
 
 class TestVacuumOrphanedLogs:
