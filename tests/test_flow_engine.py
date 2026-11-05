@@ -7,6 +7,7 @@ import time
 import uuid
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from contextlib import asynccontextmanager, contextmanager, nullcontext
+from dataclasses import dataclass, field
 from textwrap import dedent
 from types import SimpleNamespace
 from typing import Any, Literal, Optional
@@ -29,7 +30,7 @@ from prefect._internal.attempt_control import EngineOutcomeReceipt
 from prefect.cache_policies import INPUTS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
-from prefect.client.schemas.objects import FlowRun, StateType
+from prefect.client.schemas.objects import FlowRun, State, StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
@@ -40,6 +41,8 @@ from prefect.context import (
     get_run_context,
 )
 from prefect.engine import _drive_run_flow_result, handle_engine_signals
+from prefect.events.schemas.events import Event
+from prefect.events.worker import EventsWorker
 from prefect.exceptions import (
     Abort,
     CrashedRun,
@@ -51,6 +54,7 @@ from prefect.exceptions import (
 from prefect.flow_engine import (
     MINIMUM_HEARTBEAT_INTERVAL,
     AsyncFlowRunEngine,
+    BaseFlowRunEngine,
     FlowRunEngine,
     NotSet,
     _load_flow_from_runtime_entrypoint,
@@ -6657,3 +6661,101 @@ class TestFlowRunEngineHeartbeat:
                 time.sleep(3)
 
         assert heartbeat_count >= 1
+
+
+@dataclass
+class _HeartbeatSpy:
+    events: list[Event] = field(default_factory=list)
+    emitted: threading.Event = field(default_factory=threading.Event)
+
+
+class TestHeartbeatsAroundTerminalState:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/21932
+
+    The server timestamps a terminal state when it accepts it, and the engine
+    records that state only when the response arrives.  A heartbeat emitted
+    in between occurs after the terminal state, and a proactive trigger with
+    `after: prefect.flow-run.heartbeat` then opens a window that no later
+    event closes, so it fires on a run that completed normally.
+    """
+
+    @pytest.fixture
+    def heartbeats(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        asserting_events_worker: EventsWorker,
+    ) -> _HeartbeatSpy:
+        """Emit a heartbeat every second and record each one."""
+        monkeypatch.setattr(flow_engine_module, "MINIMUM_HEARTBEAT_INTERVAL", 1)
+        monkeypatch.setattr(BaseFlowRunEngine, "heartbeat_seconds", 1)
+
+        spy = _HeartbeatSpy()
+        real_emit_event = flow_engine_module.emit_event
+
+        def recording_emit_event(**kwargs: Any) -> Event | None:
+            event = real_emit_event(**kwargs)
+            if event is not None and event.event == "prefect.flow-run.heartbeat":
+                spy.events.append(event)
+                spy.emitted.set()
+            return event
+
+        monkeypatch.setattr(flow_engine_module, "emit_event", recording_emit_event)
+        return spy
+
+    @pytest.fixture
+    def slow_terminal_state_responses(
+        self, monkeypatch: pytest.MonkeyPatch, heartbeats: _HeartbeatSpy
+    ) -> None:
+        """After the server accepts a terminal state, hold its response until the
+        heartbeat thread emits, or for two heartbeat intervals if it doesn't."""
+
+        def propose_with_slow_response(*args: Any, **kwargs: Any) -> State:
+            state = propose_state_sync(*args, **kwargs)
+            if state.is_final():
+                heartbeats.emitted.clear()
+                heartbeats.emitted.wait(timeout=2)
+            return state
+
+        async def apropose_with_slow_response(*args: Any, **kwargs: Any) -> State:
+            state = await propose_state(*args, **kwargs)
+            if state.is_final():
+                heartbeats.emitted.clear()
+                await asyncio.to_thread(heartbeats.emitted.wait, 2)
+            return state
+
+        monkeypatch.setattr(
+            flow_engine_module, "propose_state_sync", propose_with_slow_response
+        )
+        monkeypatch.setattr(
+            flow_engine_module, "propose_state", apropose_with_slow_response
+        )
+
+    def test_no_heartbeat_occurs_after_terminal_state_sync(
+        self, heartbeats: _HeartbeatSpy, slow_terminal_state_responses: None
+    ):
+        @flow
+        def my_flow() -> int:
+            heartbeats.emitted.wait(timeout=5)
+            return 42
+
+        state = my_flow(return_state=True)
+
+        assert state.is_completed()
+        occurred = [heartbeat.occurred for heartbeat in heartbeats.events]
+        assert occurred
+        assert max(occurred) < state.timestamp
+
+    async def test_no_heartbeat_occurs_after_terminal_state_async(
+        self, heartbeats: _HeartbeatSpy, slow_terminal_state_responses: None
+    ):
+        @flow
+        async def my_flow() -> int:
+            await asyncio.to_thread(heartbeats.emitted.wait, 5)
+            return 42
+
+        state = await my_flow(return_state=True)
+
+        assert state.is_completed()
+        occurred = [heartbeat.occurred for heartbeat in heartbeats.events]
+        assert occurred
+        assert max(occurred) < state.timestamp
