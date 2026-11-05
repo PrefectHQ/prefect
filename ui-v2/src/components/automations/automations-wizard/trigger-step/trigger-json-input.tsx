@@ -48,7 +48,7 @@ export const TriggerJsonInput = ({
 		<div className="space-y-2">
 			<div className="flex items-center justify-between">
 				<Label>Trigger Configuration</Label>
-				<Button variant="ghost" size="sm" onClick={formatJson}>
+				<Button type="button" variant="ghost" size="sm" onClick={formatJson}>
 					Format
 				</Button>
 			</div>
