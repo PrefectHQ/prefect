@@ -103,13 +103,13 @@ To customize the default instrumentation of your workflow, you may [log a variet
 <span class="badge cloud"></span>
 
 Archive retired flows in Prefect Cloud to keep your workspace focused on the flows you use.
-An archived flow is hidden from the **Active** tab on the flows page, and its deployments move to **Archived flows** on the deployments page.
+By default, the flows and deployments pages hide an archived flow and its deployments.
 You can still find the flow in search, view its history, and unarchive it at any time.
 
 Archiving never deletes run history; your plan's normal retention policy still applies.
 The archived state belongs to the flow, independently of its runs' [states](/v3/concepts/states).
-Archiving does not cancel existing runs or prevent manual runs.
-Pause active deployment schedules before archiving a flow.
+A flow can't be archived while one of its deployments has a schedule that is on.
+Archiving deletes the runs that the flow's deployment schedules created and that have not started yet, and it does not cancel other runs.
 
 You can archive flows individually, in bulk, or with **Dormant flow archival**, a managed automation.
 Enable **Archived flow restoration** to restore archived flows when they run again.
