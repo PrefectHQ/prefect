@@ -381,20 +381,12 @@ def _parse_name_from_pattern(
     name_pattern = re.escape(name_pattern).replace(r"\*", ".*")
 
     if "/" in name_pattern:
-        flow_name, deploy_name = name_pattern.split("/", 1)
-        flow_name = (
-            re.compile(flow_name.replace("*", ".*"))
-            if "*" in flow_name
-            else re.compile(flow_name)
-        )
-        deploy_name = (
-            re.compile(deploy_name.replace("*", ".*"))
-            if "*" in deploy_name
-            else re.compile(deploy_name)
-        )
+        flow_pattern, deploy_pattern = name_pattern.split("/", 1)
+        flow_name = re.compile(flow_pattern)
+        deploy_name = re.compile(deploy_pattern)
     else:
         flow_name = None
-        deploy_name = re.compile(name_pattern.replace("*", ".*"))
+        deploy_name = re.compile(name_pattern)
 
     for deploy_config in deploy_configs:
         if not deploy_config.get("entrypoint"):
