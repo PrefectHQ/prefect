@@ -863,6 +863,9 @@ class TestWorkspaceResolverProcess:
         prefect_client,
         tmp_path: Path,
     ) -> None:
+        """Step start and failure error must both appear in the API logs so they
+        are visible in the Prefect UI (e.g. when pods are deleted before their
+        stderr can be inspected)."""
         flow_id = await prefect_client.create_flow_from_name("failing-logged-flow")
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
@@ -895,6 +898,9 @@ class TestWorkspaceResolverProcess:
         )
         messages = [log.message for log in logs]
         assert "Executing deployment step: raise_error" in messages
+        assert any(f"{CUSTOM_STEP_FQN}.raise_error" in m for m in messages), (
+            f"Expected pull step failure to be logged to the API. Got: {messages}"
+        )
 
 
 class TestRelativePathSetWorkingDirectory:
