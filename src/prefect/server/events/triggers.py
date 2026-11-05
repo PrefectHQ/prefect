@@ -858,16 +858,18 @@ async def automation_changed(
     global automation_state_snapshot
 
     async with _automations_lock():
+        if event == "automation__deleted":
+            forget_automation(automation_id)
+
         async with automations_session() as session:
-            automation: Optional[Automation] = None
             if event in ("automation__created", "automation__updated"):
                 automation = await read_automation(session, automation_id)
 
-            # Swap the automation without awaiting so that concurrent evaluations
-            # never see it missing while it is being re-read
-            if event in ("automation__deleted", "automation__updated"):
-                forget_automation(automation_id)
-            load_automation(automation)
+                # Swap the automation without awaiting so that concurrent
+                # evaluations never see it missing while it is being re-read
+                if event == "automation__updated":
+                    forget_automation(automation_id)
+                load_automation(automation)
 
             automation_state_snapshot = await read_automation_state_snapshot(session)
 
