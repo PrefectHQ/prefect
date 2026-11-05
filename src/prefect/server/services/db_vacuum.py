@@ -72,9 +72,10 @@ logger: logging.Logger = get_logger(__name__)
 _MAINTENANCE_CONFIGS: dict[str, AsyncPostgresConfiguration] = {}
 
 # Docket keys an argument-based concurrency limit by argument name and value, not
-# by task function, so every vacuum task passing this value shares one slot.
-# Docket reads the argument from the enqueued call without applying defaults, so
-# each `docket.add(...)` must pass it explicitly.
+# by task function, so every vacuum task with this default shares one slot. The
+# schedulers pass no arguments, so queued calls have the same shape across Prefect
+# versions: a released worker accepts them, and an upgraded worker reads the slot
+# from this default, because Docket applies parameter defaults to the argument.
 _MAINTENANCE_POOL = "db-vacuum"
 _MaintenancePoolSlot = Annotated[str, ConcurrencyLimit(1)]
 
@@ -163,9 +164,7 @@ async def schedule_vacuum_tasks(
     Disabled by default because it permanently deletes flow runs. Enable
     via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.
     """
-    await docket.add(vacuum_old_flow_runs, key="db-vacuum:old-flow-runs")(
-        maintenance_pool=_MAINTENANCE_POOL
-    )
+    await docket.add(vacuum_old_flow_runs, key="db-vacuum:old-flow-runs")()
 
 
 @perpetual_service(
@@ -195,10 +194,8 @@ async def schedule_event_vacuum_tasks(
     """
     await docket.add(
         vacuum_events_with_retention_overrides, key="db-vacuum:retention-overrides"
-    )(maintenance_pool=_MAINTENANCE_POOL)
-    await docket.add(vacuum_old_events, key="db-vacuum:old-events")(
-        maintenance_pool=_MAINTENANCE_POOL
-    )
+    )()
+    await docket.add(vacuum_old_events, key="db-vacuum:old-events")()
 
 
 @perpetual_service(
@@ -221,15 +218,11 @@ async def schedule_orphan_vacuum_tasks(
     Each pass can scan the full log and artifact tables, so this service runs
     less often than the normal flow run and event vacuum loops.
     """
-    await docket.add(vacuum_orphaned_logs, key="db-vacuum:orphaned-logs")(
-        maintenance_pool=_MAINTENANCE_POOL
-    )
-    await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")(
-        maintenance_pool=_MAINTENANCE_POOL
-    )
+    await docket.add(vacuum_orphaned_logs, key="db-vacuum:orphaned-logs")()
+    await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")()
     await docket.add(
         vacuum_stale_artifact_collections, key="db-vacuum:stale-collections"
-    )(maintenance_pool=_MAINTENANCE_POOL)
+    )()
 
 
 # ---------------------------------------------------------------------------
