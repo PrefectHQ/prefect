@@ -106,6 +106,17 @@ def test_run_deployment_by_invalid_id():
     )
 
 
+@pytest.mark.parametrize("name", ["my-flow", "my-flow/my-deployment/extra"])
+def test_run_deployment_by_invalid_name(name: str):
+    invoke_and_assert(
+        command=["deployment", "run", name],
+        expected_output_contains=(
+            "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
+        ),
+        expected_code=1,
+    )
+
+
 @pytest.mark.parametrize(
     "start_at,expected_output",
     [

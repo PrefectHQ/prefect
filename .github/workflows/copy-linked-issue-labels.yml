@@ -3,13 +3,19 @@ on:
   pull_request_target:
     types: [opened, edited, reopened, ready_for_review, review_requested]
 
+permissions:
+  # required to read the linked issues and their labels
+  issues: read
+  # required to add the copied labels to the pull request
+  pull-requests: write
+
 jobs:
   copy-labels:
     runs-on: ubuntu-latest
     name: Copy labels from linked issues
     steps:
       - name: copy-labels
-        uses: michalvankodev/copy-issue-labels@v2.0.0
+        uses: michalvankodev/copy-issue-labels@c4df96ee53d2cdf639ba169a26c43b04d5085cb3 # v2.0.0
         with:
           custom-keywords: |
             in

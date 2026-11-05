@@ -8,7 +8,7 @@ from rich.console import Console
 
 import prefect.cli
 import prefect.cli._app as _cli
-from prefect.cli._utilities import print_verbatim
+from prefect.cli._utilities import exit_with_error, print_verbatim
 
 CLI_SOURCE_DIR = Path(prefect.cli.__file__).parent
 
@@ -43,6 +43,29 @@ def test_print_verbatim_preserves_json_output(
         "value": value,
         "nested": [{"value": value}],
     }
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["Unknown setting name 'foo[/x]'.", "[bold]literal[/bold]"],
+)
+def test_exit_with_error_prints_message_literally(
+    captured_console: io.StringIO, message: str
+):
+    with pytest.raises(SystemExit) as exc_info:
+        exit_with_error(message, soft_wrap=True)
+
+    assert exc_info.value.code == 1
+    assert captured_console.getvalue() == message + "\n"
+
+
+def test_exit_with_error_renders_markup_when_requested(
+    captured_console: io.StringIO,
+):
+    with pytest.raises(SystemExit):
+        exit_with_error("[bold]styled[/bold]", markup=True)
+
+    assert captured_console.getvalue() == "styled\n"
 
 
 def _is_serialized_output(node: ast.expr) -> bool:
