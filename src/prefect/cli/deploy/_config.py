@@ -391,12 +391,18 @@ def _parse_name_from_pattern(
     for deploy_config in deploy_configs:
         if not deploy_config.get("entrypoint"):
             continue
-        entrypoint = deploy_config.get("entrypoint").split(":")[-1].replace("_", "-")
+        flow_func_name = deploy_config.get("entrypoint").split(":")[-1]
         deployment_name = deploy_config.get("name")
-        flow_match = flow_name.fullmatch(entrypoint) if flow_name else True
+        flow_match = (
+            flow_name.fullmatch(flow_func_name.replace("_", "-")) if flow_name else True
+        )
         deploy_match = deploy_name.fullmatch(deployment_name)
         if flow_match and deploy_match:
-            parsed_names.append(deployment_name)
+            # Keep the flow qualifier so deployments with the same name in other
+            # flows aren't selected too
+            parsed_names.append(
+                f"{flow_func_name}/{deployment_name}" if flow_name else deployment_name
+            )
 
     return parsed_names
 
