@@ -125,6 +125,10 @@ def load_script_as_module(path: str) -> ModuleType:
             sys.path.insert(0, parent_path)
             spec.loader.exec_module(module)
     except Exception as exc:
+        # Match the import system: drop a module whose execution failed so later
+        # imports of the same name re-run it instead of getting a half-run module
+        if sys.modules.get(module_name) is module:
+            del sys.modules[module_name]
         raise ScriptError(user_exc=exc, path=path) from exc
 
     return module
