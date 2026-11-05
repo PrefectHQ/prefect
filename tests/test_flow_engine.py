@@ -6685,9 +6685,9 @@ class TestHeartbeatsAroundTerminalState:
         monkeypatch: pytest.MonkeyPatch,
         asserting_events_worker: EventsWorker,
     ) -> _HeartbeatSpy:
-        """Emit a heartbeat every second and record each one."""
-        monkeypatch.setattr(flow_engine_module, "MINIMUM_HEARTBEAT_INTERVAL", 1)
-        monkeypatch.setattr(BaseFlowRunEngine, "heartbeat_seconds", 1)
+        """Emit a heartbeat every 50 milliseconds and record each one."""
+        monkeypatch.setattr(flow_engine_module, "MINIMUM_HEARTBEAT_INTERVAL", 0.05)
+        monkeypatch.setattr(BaseFlowRunEngine, "heartbeat_seconds", 0.05)
 
         spy = _HeartbeatSpy()
         real_emit_event = flow_engine_module.emit_event
@@ -6707,20 +6707,20 @@ class TestHeartbeatsAroundTerminalState:
         self, monkeypatch: pytest.MonkeyPatch, heartbeats: _HeartbeatSpy
     ) -> None:
         """After the server accepts a terminal state, hold its response until the
-        heartbeat thread emits, or for two heartbeat intervals if it doesn't."""
+        heartbeat thread emits, or for five heartbeat intervals if it doesn't."""
 
         def propose_with_slow_response(*args: Any, **kwargs: Any) -> State:
             state = propose_state_sync(*args, **kwargs)
             if state.is_final():
                 heartbeats.emitted.clear()
-                heartbeats.emitted.wait(timeout=2)
+                heartbeats.emitted.wait(timeout=0.25)
             return state
 
         async def apropose_with_slow_response(*args: Any, **kwargs: Any) -> State:
             state = await propose_state(*args, **kwargs)
             if state.is_final():
                 heartbeats.emitted.clear()
-                await asyncio.to_thread(heartbeats.emitted.wait, 2)
+                await asyncio.to_thread(heartbeats.emitted.wait, 0.25)
             return state
 
         monkeypatch.setattr(

@@ -365,11 +365,9 @@ def _send_heartbeats(
                 except Exception:
                     engine.logger.debug("Failed to emit heartbeat", exc_info=True)
 
-            # Sleep in increments to allow quick shutdown
-            for _ in range(heartbeat_seconds):
-                if stop_event.is_set():
-                    return
-                time.sleep(1)
+            # Waiting on the event wakes the thread as soon as heartbeats stop
+            if stop_event.wait(heartbeat_seconds):
+                return
 
     # Copy the current context so the heartbeat thread sees the same
     # `SettingsContext` (and therefore the same `PREFECT_API_URL`) as the
