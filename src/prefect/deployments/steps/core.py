@@ -282,8 +282,6 @@ async def run_steps(
                 flow_run=flow_run,
                 logger=logger,
             )
-            if logger:
-                logger.error("Step '%s' failed: %s", fqn, exc, exc_info=True)
             raise StepExecutionError(f"Encountered error while running {fqn}") from exc
 
     if logger:

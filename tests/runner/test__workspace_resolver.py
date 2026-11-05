@@ -898,7 +898,7 @@ class TestWorkspaceResolverProcess:
         )
         messages = [log.message for log in logs]
         assert "Executing deployment step: raise_error" in messages
-        assert any(f"{CUSTOM_STEP_FQN}.raise_error" in m for m in messages), (
+        assert any("Encountered error while running" in m for m in messages), (
             f"Expected pull step failure to be logged to the API. Got: {messages}"
         )
 

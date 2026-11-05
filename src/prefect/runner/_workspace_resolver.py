@@ -373,6 +373,9 @@ async def prepare_workspace(
                     flow_run=flow_run,
                     logger=run_logger,
                 )
+        except Exception as exc:
+            run_logger.error(str(exc))
+            raise
         finally:
             _PULL_STEP_SOURCE_CWD.reset(source_cwd_token)
 
