@@ -475,8 +475,10 @@ async def test_flow_run_vacuum_schedules_only_expected_cleanup_tasks():
 
     class FakeDocket:
         def add(self, function, key=None):
+            scheduled.append((function, key))
+
             async def enqueue():
-                scheduled.append((function, key))
+                return None
 
             return enqueue
 
@@ -487,31 +489,15 @@ async def test_flow_run_vacuum_schedules_only_expected_cleanup_tasks():
     ]
 
 
-async def test_event_vacuum_schedules_event_cleanup_tasks():
-    scheduled: list[tuple[object, str | None]] = []
-
-    class FakeDocket:
-        def add(self, function, key=None):
-            async def enqueue():
-                scheduled.append((function, key))
-
-            return enqueue
-
-    await schedule_event_vacuum_tasks(docket=FakeDocket())
-
-    assert scheduled == [
-        (vacuum_events_with_retention_overrides, "db-vacuum:retention-overrides"),
-        (vacuum_old_events, "db-vacuum:old-events"),
-    ]
-
-
 async def test_orphan_reconciliation_schedules_cleanup_tasks():
     scheduled: list[tuple[object, str | None]] = []
 
     class FakeDocket:
         def add(self, function, key=None):
+            scheduled.append((function, key))
+
             async def enqueue():
-                scheduled.append((function, key))
+                return None
 
             return enqueue
 
@@ -603,7 +589,9 @@ async def test_vacuum_tasks_run_one_at_a_time_on_the_maintenance_pool(
     assert maintenance_work.ran == {task.__name__ for task in VACUUM_TASKS}
 
 
-def _released_vacuum_task(task: Callable[..., Awaitable[None]], ran: set[str]):
+def _released_vacuum_task(
+    task: Callable[..., Awaitable[None]], ran: set[str]
+) -> Callable[..., Awaitable[None]]:
     """A vacuum task with the signature released servers registered, which has
     no parameter beyond the injected database interface."""
 

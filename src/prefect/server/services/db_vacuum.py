@@ -22,12 +22,11 @@ Per-event-type retention can be customised via
 `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`. Event types
 not listed fall back to `server.events.retention_period`.
 
-Each task runs with its own error isolation and docket-managed retries.
-All cleanup tasks share one docket concurrency slot, so they run one at a
-time on the maintenance connection. Deterministic keys prevent duplicate
-tasks from accumulating while a task is queued or running. While a task
-waits for the slot, docket does not deduplicate its key, so a later cycle
-can enqueue another copy of it.
+Each task runs with its own error isolation. All cleanup tasks share one
+docket concurrency slot, so they run one at a time on the maintenance
+connection. Deterministic keys prevent duplicate tasks from accumulating while
+a task is queued or running. While a task waits for the slot, docket does not
+deduplicate its key, so a later cycle can enqueue another copy of it.
 """
 
 from __future__ import annotations
