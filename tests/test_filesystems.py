@@ -91,6 +91,32 @@ async def test_nested_ignored_files(tmp_path: Path, storage: str, sync: bool):
         assert not (downloaded / "a" / "b" / "ignored.txt").exists()
 
 
+@pytest.mark.parametrize("sync", [False, True])
+async def test_remote_put_directory_uploads_nothing_when_ignore_file_excludes_everything(
+    tmp_path: Path, sync: bool
+):
+    source = tmp_path / "source"
+    (source / "nested").mkdir(parents=True)
+    (source / "demo.txt").write_text("demo")
+    (source / "nested" / "config.txt").write_text("config")
+    ignore_file = tmp_path / ".prefectignore"
+    ignore_file.write_text("*\n")
+
+    fs = RemoteFileSystem(basepath=f"memory://{tmp_path.name}/ignore-all-{sync}")
+
+    if sync:
+        count = fs.put_directory(
+            local_path=str(source), ignore_file=str(ignore_file), _sync=True
+        )
+    else:
+        count = await fs.aput_directory(
+            local_path=str(source), ignore_file=str(ignore_file)
+        )
+
+    assert count == 0
+    assert fs.filesystem.find(f"/{tmp_path.name}/ignore-all-{sync}") == []
+
+
 class TestLocalFileSystem:
     async def test_read_write_roundtrip(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
