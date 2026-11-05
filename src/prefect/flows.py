@@ -3032,7 +3032,12 @@ def load_flow_from_entrypoint(
         # If the flow has dependencies that are not installed in the current
         # environment, fallback to loading the flow via AST parsing.
         if use_placeholder_flow:
-            flow: Optional[Flow[P, Any]] = safe_load_flow_from_entrypoint(entrypoint)
+            try:
+                flow: Optional[Flow[P, Any]] = safe_load_flow_from_entrypoint(
+                    entrypoint
+                )
+            except Exception:
+                flow = None
             if flow is None:
                 raise
         else:

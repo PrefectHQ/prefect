@@ -3088,6 +3088,93 @@ class TestLoadFlowFromEntrypoint:
                 f"{fpath}:{entrypoint_without_filename}", use_placeholder_flow=False
             )
 
+    @pytest.mark.parametrize(
+        "source_code",
+        [
+            pytest.param(
+                """
+                import not_a_module
+                from prefect import flow
+
+                @flow
+                def etl():
+                    pass
+
+                etl_daily = etl.with_options(name="etl-daily")
+                """,
+                id="with_options",
+            ),
+            pytest.param(
+                """
+                import not_a_module
+                from prefect import flow
+
+                def run_etl():
+                    pass
+
+                etl_daily = flow(name="etl-daily")(run_etl)
+                """,
+                id="decorator-call",
+            ),
+            pytest.param(
+                """
+                import not_a_module
+                from prefect import Flow, flow
+
+                @flow
+                def etl():
+                    pass
+
+                etl_daily: Flow = etl.with_options(name="etl-daily")
+                """,
+                id="annotated-assignment",
+            ),
+            pytest.param(
+                """
+                import not_a_module
+                from prefect import flow as etl_daily
+                """,
+                id="re-export",
+            ),
+        ],
+    )
+    def test_load_flow_from_entrypoint_raises_script_error_for_non_def_entrypoint(
+        self, tmp_path: Path, source_code: str
+    ):
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(source_code))
+
+        with pytest.raises(ScriptError) as exc_info:
+            load_flow_from_entrypoint(f"{fpath}:etl_daily")
+
+        assert isinstance(exc_info.value.user_exc, ModuleNotFoundError)
+
+    def test_load_flow_from_entrypoint_raises_script_error_for_import_time_error(
+        self, tmp_path: Path
+    ):
+        fpath = tmp_path / "f.py"
+        fpath.write_text(
+            dedent(
+                """
+                import os
+                from prefect import flow
+
+                SECRET = os.environ["PREFECT_TEST_UNSET_ENV_VAR"]
+
+                @flow
+                def etl():
+                    pass
+
+                etl_daily = etl.with_options(name="etl-daily")
+                """
+            )
+        )
+
+        with pytest.raises(ScriptError) as exc_info:
+            load_flow_from_entrypoint(f"{fpath}:etl_daily")
+
+        assert isinstance(exc_info.value.user_exc, KeyError)
+
     @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_handling_script_with_unprotected_call_in_flow_script(
         self, tmp_path, caplog, prefect_client
