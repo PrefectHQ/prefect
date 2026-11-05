@@ -3150,8 +3150,9 @@ class TestLoadFlowFromEntrypoint:
         assert isinstance(exc_info.value.user_exc, ModuleNotFoundError)
 
     def test_load_flow_from_entrypoint_raises_script_error_for_import_time_error(
-        self, tmp_path: Path
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ):
+        monkeypatch.delenv("PREFECT_TEST_UNSET_ENV_VAR", raising=False)
         fpath = tmp_path / "f.py"
         fpath.write_text(
             dedent(
