@@ -9,7 +9,8 @@ from unittest.mock import create_autospec
 from uuid import UUID
 
 import pytest
-from prefect_aws.microvm import entrypoint, server as server_module
+from prefect_aws.microvm import entrypoint
+from prefect_aws.microvm import server as server_module
 from prefect_aws.microvm.payload import InvalidRunHookPayload, RunHookRequest
 from prefect_aws.microvm.server import LifecycleHookServer
 from prefect_aws.microvm.supervisor import supervise_flow_run

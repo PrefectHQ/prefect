@@ -166,7 +166,9 @@ def test_env_defaults_to_empty():
 @pytest.mark.parametrize(
     "body",
     [
-        json.dumps({"runHookPayload": '{"v": 1, "env": {"PREFECT_API_KEY": "pnu_secret"'}).encode(),
+        json.dumps(
+            {"runHookPayload": '{"v": 1, "env": {"PREFECT_API_KEY": "pnu_secret"'}
+        ).encode(),
         b'{"runHookPayload": "pnu_secret',
     ],
 )

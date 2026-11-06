@@ -32,7 +32,9 @@ def api_from_environment(
     monkeypatch.setenv("PREFECT_API_URL", api_url)
     # Restores the global settings that `refresh_global_settings_context` replaces.
     monkeypatch.setattr(
-        prefect.context, "GLOBAL_SETTINGS_CONTEXT", prefect.context.GLOBAL_SETTINGS_CONTEXT
+        prefect.context,
+        "GLOBAL_SETTINGS_CONTEXT",
+        prefect.context.GLOBAL_SETTINGS_CONTEXT,
     )
     yield api_url
 
