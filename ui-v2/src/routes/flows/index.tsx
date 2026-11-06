@@ -232,7 +232,18 @@ export const Route = createFileRoute("/flows/")({
 			</div>
 		);
 	},
-	loaderDeps: ({ search }) => buildPaginationBody(search),
+	loaderDeps: ({ search }) => {
+		// Exclude the `name` and `tags` filters: they change on every
+		// keystroke in the search inputs, and re-running the loader
+		// re-suspends the route (wrapInSuspense), unmounting the search input
+		// and dropping focus. The paginated query in the component refetches
+		// on filter changes via its own query key with keepPreviousData, so
+		// the loader prefetch is not needed for filters.
+		const { name, tags, ...rest } = search;
+		void name;
+		void tags;
+		return buildPaginationBody(rest);
+	},
 	loader: ({ deps, context }) => {
 		// Prefetch current page queries without blocking the loader
 		void context.queryClient.prefetchQuery(
