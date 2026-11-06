@@ -7,7 +7,14 @@ import logging
 import threading
 import time
 from asyncio import CancelledError
-from contextlib import ExitStack, asynccontextmanager, contextmanager, nullcontext
+from contextlib import (
+    AbstractAsyncContextManager,
+    AbstractContextManager,
+    ExitStack,
+    asynccontextmanager,
+    contextmanager,
+    nullcontext,
+)
 from dataclasses import dataclass, field
 from datetime import timedelta
 from functools import partial
@@ -107,6 +114,7 @@ from prefect.transactions import (
     IsolationLevel,
     Transaction,
     atransaction,
+    get_transaction,
     transaction,
 )
 from prefect.utilities.annotations import NotSet
@@ -249,6 +257,7 @@ class BaseTaskRunEngine(Generic[P, R]):
     _task_name_set: bool = False
     _last_event: Optional[PrefectEvent] = None
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
+    _tag_slot_deferred: bool = False
 
     def __post_init__(self) -> None:
         if self.parameters is None:
@@ -270,32 +279,84 @@ class BaseTaskRunEngine(Generic[P, R]):
         return False
 
     def compute_transaction_key(self) -> Optional[str]:
-        key: Optional[str] = None
-        if self.task.cache_policy and isinstance(self.task.cache_policy, CachePolicy):
+        try:
+            return self._transaction_key()
+        except Exception:
+            if not self._has_cache_policy():
+                raise
+            self.logger.exception(
+                "Error encountered when computing cache key - result will not be persisted.",
+            )
+            return None
+
+    def _has_cache_policy(self) -> bool:
+        return bool(self.task.cache_policy) and isinstance(
+            self.task.cache_policy, CachePolicy
+        )
+
+    def _transaction_key(self) -> Optional[str]:
+        if self._has_cache_policy():
             flow_run_context = FlowRunContext.get()
             task_run_context = TaskRunContext.get()
-
-            if flow_run_context:
-                parameters = flow_run_context.parameters
-            else:
-                parameters = None
-
-            try:
-                if not task_run_context:
-                    raise ValueError("Task run context is not set")
-                key = self.task.cache_policy.compute_key(
-                    task_ctx=task_run_context,
-                    inputs=self.parameters or {},
-                    flow_parameters=parameters or {},
+            if not task_run_context:
+                raise ValueError("Task run context is not set")
+            return self.task.cache_policy.compute_key(
+                task_ctx=task_run_context,
+                inputs=self.parameters or {},
+                flow_parameters=(
+                    flow_run_context.parameters if flow_run_context else None
                 )
-            except Exception:
-                self.logger.exception(
-                    "Error encountered when computing cache key - result will not be persisted.",
-                )
-                key = None
-        elif self.task.result_storage_key is not None:
-            key = _format_user_supplied_storage_key(self.task.result_storage_key)
-        return key
+                or {},
+            )
+        if self.task.result_storage_key is not None:
+            return _format_user_supplied_storage_key(self.task.result_storage_key)
+        return None
+
+    def _transaction_settings(self) -> tuple[bool, Optional[IsolationLevel]]:
+        overwrite = (
+            self.task.refresh_cache
+            if self.task.refresh_cache is not None
+            else PREFECT_TASKS_REFRESH_CACHE.value()
+        )
+        isolation_level = (
+            IsolationLevel(self.task.cache_policy.isolation_level)
+            if self.task.cache_policy
+            and self.task.cache_policy is not NotSet
+            and self.task.cache_policy.isolation_level is not None
+            else None
+        )
+        return overwrite, isolation_level
+
+    def _may_skip_tag_slot(self) -> bool:
+        """
+        Whether a live cache record may let this run skip its tag concurrency slot.
+
+        The cache lookup in `start()` only decides when the slot is taken: the
+        transaction computes its own key and decides hit or miss, and
+        `call_task_fn` takes the skipped slot on a miss. A SERIALIZABLE
+        transaction takes its record lock with no timeout, so waiting for the slot
+        while holding it could deadlock with a run that holds the slot and waits
+        for the lock.
+        """
+        overwrite, isolation_level = self._transaction_settings()
+        if isolation_level is None and (parent := get_transaction()):
+            isolation_level = parent.isolation_level
+        locks_record = isolation_level == IsolationLevel.SERIALIZABLE
+        has_key = self._has_cache_policy() or self.task.result_storage_key is not None
+        return (
+            bool(self.task_run.tags)
+            and has_key
+            and not self.task.isgenerator
+            and not overwrite
+            and should_persist_result()
+            and not locks_record
+        )
+
+    def _slot_probe_key(self) -> Optional[str]:
+        try:
+            return self._transaction_key()
+        except Exception:
+            return None
 
     def _resolve_parameters(self):
         if not self.parameters:
@@ -953,6 +1014,17 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     #
     # --------------------------
 
+    def _tag_slot(self, take: bool) -> AbstractContextManager[None]:
+        if not take:
+            return nullcontext()
+        return _concurrency(
+            names=[f"tag:{tag}" for tag in self.task_run.tags],
+            occupy=1,
+            holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
+            lease_duration=60,
+            suppress_warnings=True,
+        )
+
     @contextmanager
     def start(
         self,
@@ -983,13 +1055,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.call_hooks()
                     return
 
-                with _concurrency(
-                    names=[f"tag:{tag}" for tag in self.task_run.tags],
-                    occupy=1,
-                    holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
-                    lease_duration=60,
-                    suppress_warnings=True,
-                ):
+                if self._may_skip_tag_slot():
+                    with self.setup_run_context():
+                        key = self._slot_probe_key()
+                        self._tag_slot_deferred = (
+                            key is not None and get_result_store().exists(key=key)
+                        )
+                with self._tag_slot(take=not self._tag_slot_deferred):
                     raise_if_flow_run_suspension_requested()
                     self.begin_run()
                     try:
@@ -999,21 +1071,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
-        # refresh cache setting is now repurposes as overwrite transaction record
-        overwrite = (
-            self.task.refresh_cache
-            if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
-
-        isolation_level = (
-            IsolationLevel(self.task.cache_policy.isolation_level)
-            if self.task.cache_policy
-            and self.task.cache_policy is not NotSet
-            and self.task.cache_policy.isolation_level is not None
-            else None
-        )
-
+        overwrite, isolation_level = self._transaction_settings()
         with transaction(
             key=self.compute_transaction_key(),
             store=get_result_store(),
@@ -1072,7 +1130,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            result = call_with_parameters(self.task.fn, parameters)
+            with self._tag_slot(take=self._tag_slot_deferred):
+                result = call_with_parameters(self.task.fn, parameters)
         self.handle_success(result, transaction=transaction)
         return result
 
@@ -1617,6 +1676,17 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     #
     # --------------------------
 
+    def _tag_slot(self, take: bool) -> AbstractAsyncContextManager[None]:
+        if not take:
+            return nullcontext()
+        return _aconcurrency(
+            names=[f"tag:{tag}" for tag in self.task_run.tags],
+            occupy=1,
+            holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
+            lease_duration=60,
+            suppress_warnings=True,
+        )
+
     @asynccontextmanager
     async def start(
         self,
@@ -1649,13 +1719,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     await self.call_hooks()
                     return
 
-                async with _aconcurrency(
-                    names=[f"tag:{tag}" for tag in self.task_run.tags],
-                    occupy=1,
-                    holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
-                    lease_duration=60,
-                    suppress_warnings=True,
-                ):
+                if self._may_skip_tag_slot():
+                    async with self.setup_run_context():
+                        key = self._slot_probe_key()
+                        self._tag_slot_deferred = (
+                            key is not None
+                            and await get_result_store().aexists(key=key)
+                        )
+                async with self._tag_slot(take=not self._tag_slot_deferred):
                     raise_if_flow_run_suspension_requested()
                     await self.begin_run()
                     try:
@@ -1665,20 +1736,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @asynccontextmanager
     async def transaction_context(self) -> AsyncGenerator[AsyncTransaction, None]:
-        # refresh cache setting is now repurposes as overwrite transaction record
-        overwrite = (
-            self.task.refresh_cache
-            if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
-        isolation_level = (
-            IsolationLevel(self.task.cache_policy.isolation_level)
-            if self.task.cache_policy
-            and self.task.cache_policy is not NotSet
-            and self.task.cache_policy.isolation_level is not None
-            else None
-        )
-
+        overwrite, isolation_level = self._transaction_settings()
         async with atransaction(
             key=self.compute_transaction_key(),
             store=get_result_store(),
@@ -1721,7 +1779,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = await transaction.read()
         else:
-            result = await call_with_parameters(self.task.fn, parameters)
+            async with self._tag_slot(take=self._tag_slot_deferred):
+                result = await call_with_parameters(self.task.fn, parameters)
         await self.handle_success(result, transaction=transaction)
         return result
 
