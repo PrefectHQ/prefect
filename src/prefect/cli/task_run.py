@@ -16,6 +16,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -81,7 +82,7 @@ async def inspect(
             json_output = orjson.dumps(
                 task_run_json, option=orjson.OPT_INDENT_2
             ).decode()
-            _cli.console.print(json_output, soft_wrap=True)
+            print_verbatim(json_output)
         else:
             _cli.console.print(Pretty(task_run))
 
@@ -181,7 +182,7 @@ async def ls(
     if output and output.lower() == "json":
         task_runs_json = [task_run.model_dump(mode="json") for task_run in task_runs]
         json_output = orjson.dumps(task_runs_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(title="Task Runs")
         table.add_column("ID", justify="right", style="cyan", no_wrap=True)
@@ -355,4 +356,4 @@ async def logs(
 
     if output_json:
         json_output = orjson.dumps(collected_logs, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)

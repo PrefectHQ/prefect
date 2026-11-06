@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import cyclopts
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -134,8 +135,9 @@ async def init(
     except ValueError as exc:
         if "Unknown recipe" in str(exc):
             exit_with_error(
-                f"Unknown recipe {recipe!r} provided - run"
-                " [yellow]`prefect init`[/yellow] to see all available recipes."
+                f"Unknown recipe {escape(repr(recipe))} provided - run"
+                " [yellow]`prefect init`[/yellow] to see all available recipes.",
+                markup=True,
             )
         else:
             raise

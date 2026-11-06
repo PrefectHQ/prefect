@@ -387,7 +387,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
         self._warn_if_nested_submit_would_deadlock(task)
 
-        from prefect.context import FlowRunContext
+        from prefect.context import FlowRunContext, SyncClientContext
         from prefect.task_engine import run_task_async, run_task_sync
 
         task_run_id = uuid7()
@@ -427,6 +427,15 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
                 run_task_sync,
                 **submit_kwargs,
             )
+
+        # The submitted task runs with a copy of this context and reuses its sync
+        # client, which may be owned by a sync task run that returns (and closes
+        # the client) before the submitted task finishes, e.g. a sync task in an
+        # async flow. Keep the client open until the submitted task is done.
+        if (client_ctx := SyncClientContext.get()) and not client_ctx.client._closed:
+            sync_client = client_ctx.client.__enter__()
+            future.add_done_callback(lambda _: sync_client.__exit__(None, None, None))
+
         with self._submission_lock:
             self._active_submission_count += 1
         future.add_done_callback(self._on_executor_future_done)

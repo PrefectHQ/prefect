@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { subSeconds } from "date-fns";
 import { secondsInWeek } from "date-fns/constants";
 import { useCallback, useState } from "react";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import useDebounce from "@/hooks/use-debounce";
+import { useNow } from "@/hooks/use-now";
 
 const BAR_WIDTH = 4;
 const BAR_GAP = 2;
@@ -38,17 +39,29 @@ export const MiniDeploymentActivity = ({
 
 	const effectiveNumberOfBars = debouncedNumberOfBars || numberOfBars;
 
-	const { data: flowRuns } = useQuery(
-		buildFilterFlowRunsQuery({
+	const now = useNow({ interval: 60_000 });
+	const startDate = subSeconds(now, secondsInWeek);
+
+	const { data: flowRuns } = useQuery({
+		...buildFilterFlowRunsQuery({
 			deployments: {
 				operator: "and_",
 				id: { any_: [deploymentId] },
+			},
+			// Bound to the charted window so future scheduled runs don't crowd out recent runs
+			flow_runs: {
+				operator: "and_",
+				start_time: {
+					after_: startDate.toISOString(),
+					before_: now.toISOString(),
+				},
 			},
 			limit: Math.min(60, effectiveNumberOfBars || 60),
 			sort: "START_TIME_DESC",
 			offset: 0,
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 
 	const enrichedFlowRuns =
 		flowRuns?.map((flowRun) => ({
@@ -59,8 +72,8 @@ export const MiniDeploymentActivity = ({
 		<div className="w-full" ref={chartRef}>
 			<FlowRunActivityBarChart
 				enrichedFlowRuns={enrichedFlowRuns}
-				startDate={subSeconds(new Date(), secondsInWeek)}
-				endDate={new Date()}
+				startDate={startDate}
+				endDate={now}
 				barWidth={BAR_WIDTH}
 				numberOfBars={effectiveNumberOfBars}
 				className="h-8 w-full"

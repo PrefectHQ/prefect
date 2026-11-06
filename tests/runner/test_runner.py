@@ -1048,23 +1048,30 @@ class TestRunner:
         )
 
     @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.parametrize(
+        "flow_param, flow_run_param",
+        [("flow", "flow_run"), ("flow_", "run")],
+        ids=["documented-names", "other-names"],
+    )
     async def test_runner_runs_on_crashed_hooks_for_remotely_stored_flows(
         self,
         prefect_client: PrefectClient,
         caplog: pytest.LogCaptureFixture,
         in_temporary_runner_directory: None,
         temp_storage: MockStorage,
+        flow_param: str,
+        flow_run_param: str,
     ):
         runner = Runner(pause_on_shutdown=False)
         temp_storage.code = dedent(
-            """\
+            f"""\
         import os
 
         from prefect import flow
         from prefect.logging.loggers import flow_run_logger
 
-        def on_crashed(flow, flow_run, state):
-            logger = flow_run_logger(flow_run, flow)
+        def on_crashed({flow_param}, {flow_run_param}, state):
+            logger = flow_run_logger({flow_run_param}, {flow_param})
             logger.info("This flow crashed!")
 
         @flow(on_crashed=[on_crashed], log_prints=True)

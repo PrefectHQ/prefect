@@ -21,12 +21,15 @@ jobs:
       matrix:
         python: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          version: "0.13.4"
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.13.5"
           python-version: ${{ matrix.python }}
+      # Other scripts/tests suites have dedicated workflows and dependencies.
       - run: >-
           uv run --no-project --python ${{ matrix.python }}
           --with certifi==2026.10.19 --with pip==26.2.2
-          python -m unittest discover -s scripts/tests -v
+          python -m unittest discover -s scripts/tests -p test_image_ca_trust.py -v

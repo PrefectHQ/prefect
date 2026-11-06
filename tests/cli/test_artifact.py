@@ -1,3 +1,4 @@
+import json
 import sys
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -5,6 +6,8 @@ from uuid import uuid4
 import pytest
 
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import Artifact
+from prefect.settings import PREFECT_CLI_WRAP_LINES, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
 pytestmark = pytest.mark.clear_db
@@ -466,3 +469,59 @@ def test_deleting_artifact_without_key_or_id_raises(
         expected_output_contains="Please provide a key or an artifact_id.",
         expected_code=1,
     )
+
+
+@pytest.fixture
+async def literal_artifact(
+    request: pytest.FixtureRequest, session: "AsyncSession"
+) -> Artifact:
+    artifact = await models.artifacts.create_artifact(
+        session=session,
+        artifact=schemas.core.Artifact(
+            key="literal-artifact",
+            type="markdown",
+            data=request.param[0],
+            description=request.param[1],
+            metadata_=request.param[2],
+        ),
+    )
+    await session.commit()
+    return artifact
+
+
+@pytest.mark.parametrize(
+    "literal_artifact",
+    [
+        ("[red]literal[/red]", "description", {"note": "metadata"}),
+        (":smile:", "description", {"note": "metadata"}),
+        ("literal [/unexpected]", "description", {"note": "metadata"}),
+        (
+            {"nested": ["[bold]value[/bold]", ":warning:"]},
+            "description",
+            {"note": "metadata"},
+        ),
+        ("x" * 600, "description", {"note": "metadata"}),
+        ('café 日本語\n\t"\\', "description", {"note": "metadata"}),
+        (
+            "plain",
+            "[bold]description[/bold] :smile:",
+            {"note": "[red]metadata[/red] :warning:"},
+        ),
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize(
+    "command", [["ls"], ["ls", "--all"], ["inspect", "literal-artifact"]]
+)
+def test_artifact_json_preserves_literal_content(
+    literal_artifact: Artifact, command: list[str]
+):
+    with temporary_settings(updates={PREFECT_CLI_WRAP_LINES: True}):
+        result = invoke_and_assert(
+            ["artifact", *command, "--output", "json"], expected_code=0
+        )
+    output = json.loads(result.stdout)
+    assert len(output) == 1
+    assert output[0]["data"] == literal_artifact.data
+    assert output[0]["description"] == literal_artifact.description
+    assert output[0]["metadata_"] == literal_artifact.metadata_

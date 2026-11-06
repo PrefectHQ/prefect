@@ -1,3 +1,4 @@
+import json
 from typing import TYPE_CHECKING, Any, Optional, Set
 from uuid import UUID
 
@@ -236,7 +237,7 @@ async def aread_flow_run_input(
             return None
         raise
     else:
-        return orjson.loads(value)
+        return json.loads(value)
 
 
 @async_dispatch(aread_flow_run_input)
@@ -261,7 +262,7 @@ def read_flow_run_input(key: str, flow_run_id: Optional[UUID] = None) -> Any:
                 return None
             raise
         else:
-            return orjson.loads(value)
+            return json.loads(value)
 
 
 @client_injector

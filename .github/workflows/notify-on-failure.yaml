@@ -22,25 +22,28 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     steps:
       - name: Format date
+        env:
+          RUN_STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
         run: |
-          formatted_date=$(date -d "${{ github.event.workflow_run.run_started_at }}" "+%b %d at %I:%M %p")
+          formatted_date=$(date -d "$RUN_STARTED_AT" "+%b %d at %I:%M %p")
           echo "FORMATTED_DATE=$formatted_date" >> "$GITHUB_ENV"
 
       - name: Send Slack notification
-        uses: 8398a7/action-slack@v3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         with:
-          status: custom
+          webhook: ${{ secrets.SLACK_WEBHOOK_GHA_JOB_STATUS }}
+          webhook-type: incoming-webhook
           # https://api.slack.com/reference/messaging/attachments
-          custom_payload: |
+          # toJSON quotes each value: display_title is a commit message or
+          # release name, and a bare quote in it would break the payload.
+          payload: |
             {
-              attachments: [{
-                pretext: ':x: Workflow triggered by ${{ github.actor }} failed',
-                title: '${{ github.event.workflow_run.display_title }} #${{github.event.workflow_run.run_number}}',
-                title_link: '${{ github.event.workflow_run.html_url }}',
-                footer: '${{ github.repository }} | ${{ env.FORMATTED_DATE }} UTC',
-                footer_icon: 'https://slack-imgs.com/?c=1&o1=wi32.he32.si&url=https%3A%2F%2Fslack.github.com%2Fstatic%2Fimg%2Ffavicon-neutral.png',
-                color: 'danger',
+              "attachments": [{
+                "pretext": ${{ toJSON(format(':x: Workflow triggered by {0} failed', github.actor)) }},
+                "title": ${{ toJSON(format('{0} #{1}', github.event.workflow_run.display_title, github.event.workflow_run.run_number)) }},
+                "title_link": ${{ toJSON(github.event.workflow_run.html_url) }},
+                "footer": ${{ toJSON(format('{0} | {1} UTC', github.repository, env.FORMATTED_DATE)) }},
+                "footer_icon": "https://slack-imgs.com/?c=1&o1=wi32.he32.si&url=https%3A%2F%2Fslack.github.com%2Fstatic%2Fimg%2Ffavicon-neutral.png",
+                "color": "danger"
               }]
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_GHA_JOB_STATUS }}

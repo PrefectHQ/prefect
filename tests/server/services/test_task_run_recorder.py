@@ -2159,6 +2159,77 @@ async def test_bulk_upsert_detaches_a_task_run_from_its_flow_run(
     assert task_run.flow_run_id is None
 
 
+async def test_bulk_upsert_drops_events_for_missing_flow_runs(
+    session: AsyncSession,
+    flow_run: FlowRun,
+    caplog: pytest.LogCaptureFixture,
+):
+    """An event whose flow run does not exist would violate the `flow_run_id`
+    foreign key and fail the whole batch, so it is dropped on its own and the
+    rest of the batch is recorded.
+    """
+    flow_run_id = flow_run.id
+    valid_task_run_id = str(uuid4())
+    orphan_task_run_id = str(uuid4())
+    missing_flow_run_id = str(uuid4())
+    orphan = upsert_event(missing_flow_run_id, 1, task_run_id=orphan_task_run_id)
+
+    with caplog.at_level("WARNING"):
+        await task_run_recorder.record_bulk_task_run_events(
+            [
+                upsert_event(str(flow_run_id), 0, task_run_id=valid_task_run_id),
+                orphan,
+                upsert_event(None, 2),
+            ]
+        )
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=valid_task_run_id)
+    assert task_run is not None
+    assert task_run.flow_run_id == flow_run_id
+    assert len(await read_task_run_states(session, task_run.id)) == 1
+
+    assert await read_task_run(session=session, task_run_id=orphan_task_run_id) is None
+    assert str(orphan.id) in caplog.text
+    assert missing_flow_run_id in caplog.text
+
+
+async def test_bulk_upsert_with_only_events_for_missing_flow_runs(
+    session: AsyncSession,
+):
+    task_run_id = str(uuid4())
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [upsert_event(str(uuid4()), task_run_id=task_run_id)]
+    )
+
+    assert await read_task_run(session=session, task_run_id=task_run_id) is None
+
+
+async def test_consumer_records_batch_containing_event_for_missing_flow_run(
+    session: AsyncSession,
+    flow_run: FlowRun,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23663"""
+    valid_task_run_id = str(uuid4())
+
+    async with task_run_recorder.consumer(
+        write_batch_size=2, flush_every=1, max_persist_retries=0
+    ) as handler:
+        with caplog.at_level("ERROR"):
+            await handler(message(upsert_event(str(uuid4()), 0)))
+            await handler(
+                message(
+                    upsert_event(str(flow_run.id), 1, task_run_id=valid_task_run_id)
+                )
+            )
+
+    assert "Error flushing" not in caplog.text
+    session.expire_all()
+    assert await read_task_run(session=session, task_run_id=valid_task_run_id)
+
+
 async def test_bulk_upsert_statements_stay_within_the_parameter_budget(
     session: AsyncSession,
     flow_run: FlowRun,

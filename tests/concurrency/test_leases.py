@@ -1,10 +1,12 @@
 import asyncio
 import logging
+import threading
 import time
 from contextlib import contextmanager
 from unittest import mock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+import httpx
 import pytest
 
 from prefect import flow
@@ -13,6 +15,7 @@ from prefect.concurrency._leases import (
     amaintain_concurrency_lease,
     maintain_concurrency_lease,
 )
+from prefect.states import Completed, Running, State
 
 pytestmark = pytest.mark.clear_db
 
@@ -42,6 +45,20 @@ def _wait_for(predicate, timeout: float = 2.0) -> bool:
             return True
         time.sleep(0.01)
     return predicate()
+
+
+def _lease_gone() -> httpx.HTTPStatusError:
+    request = httpx.Request("POST", "http://prefect.test/api/leases/renew")
+    return httpx.HTTPStatusError(
+        "410 Gone", request=request, response=httpx.Response(410, request=request)
+    )
+
+
+def _renewal_thread_finished(lease_id: UUID) -> bool:
+    return not any(
+        thread.name == f"concurrency-lease-renewal-{lease_id}"
+        for thread in threading.enumerate()
+    )
 
 
 def test_maintain_concurrency_lease_renews_lease():
@@ -198,3 +215,106 @@ def test_lease_renewal_failure_logs_via_run_logger_in_flow_context(
         f"failure log did not reach the run logger; got loggers="
         f"{[r.name for r in failure_records]}"
     )
+
+
+@mock.patch(
+    "prefect.concurrency._leases.exponential_backoff_with_jitter", _zero_backoff
+)
+def test_lease_gone_does_not_cancel_when_flow_run_is_final():
+    mock_client = mock.MagicMock()
+    mock_client.renew_concurrency_lease.side_effect = _lease_gone()
+    mock_client.read_flow_run.return_value.state = Completed()
+    lease_id = uuid4()
+    flow_run_id = uuid4()
+
+    with _patch_renewal_client(mock_client):
+        with maintain_concurrency_lease(
+            lease_id=lease_id,
+            lease_duration=60,
+            raise_on_lease_renewal_failure=True,
+            flow_run_id=flow_run_id,
+        ):
+            assert _wait_for(lambda: _renewal_thread_finished(lease_id))
+
+    assert mock_client.renew_concurrency_lease.call_count == 3
+    mock_client.read_flow_run.assert_called_once_with(flow_run_id)
+
+
+@mock.patch(
+    "prefect.concurrency._leases.exponential_backoff_with_jitter", _zero_backoff
+)
+async def test_alease_gone_does_not_cancel_when_flow_run_is_final():
+    mock_client = mock.MagicMock()
+    mock_client.renew_concurrency_lease.side_effect = _lease_gone()
+    mock_client.read_flow_run.return_value.state = Completed()
+    lease_id = uuid4()
+    flow_run_id = uuid4()
+
+    with _patch_renewal_client(mock_client):
+        async with amaintain_concurrency_lease(
+            lease_id=lease_id,
+            lease_duration=60,
+            raise_on_lease_renewal_failure=True,
+            flow_run_id=flow_run_id,
+        ):
+            await asyncio.to_thread(
+                _wait_for, lambda: _renewal_thread_finished(lease_id)
+            )
+            # A cancellation requested by the renewal thread would be delivered here
+            await asyncio.sleep(0.1)
+
+    assert mock_client.renew_concurrency_lease.call_count == 3
+    mock_client.read_flow_run.assert_called_once_with(flow_run_id)
+
+
+@pytest.mark.parametrize(
+    "flow_run_state, renewal_error",
+    [
+        pytest.param(Running(), _lease_gone(), id="lease-gone-flow-run-running"),
+        pytest.param(Completed(), RuntimeError("server down"), id="other-failure"),
+    ],
+)
+@mock.patch(
+    "prefect.concurrency._leases.exponential_backoff_with_jitter", _zero_backoff
+)
+async def test_lease_renewal_failure_cancels_unless_flow_run_released_lease(
+    flow_run_state: State, renewal_error: Exception
+):
+    mock_client = mock.MagicMock()
+    mock_client.renew_concurrency_lease.side_effect = renewal_error
+    mock_client.read_flow_run.return_value.state = flow_run_state
+
+    with _patch_renewal_client(mock_client):
+        with pytest.raises(asyncio.CancelledError):
+            async with amaintain_concurrency_lease(
+                lease_id=uuid4(),
+                lease_duration=60,
+                raise_on_lease_renewal_failure=True,
+                flow_run_id=uuid4(),
+            ):
+                deadline = time.monotonic() + 2
+                while time.monotonic() < deadline:
+                    await asyncio.sleep(0.01)
+                raise AssertionError("Lease renewal failure did not cancel")
+
+
+@mock.patch(
+    "prefect.concurrency._leases.exponential_backoff_with_jitter", _zero_backoff
+)
+async def test_lease_gone_cancels_when_flow_run_cannot_be_read():
+    mock_client = mock.MagicMock()
+    mock_client.renew_concurrency_lease.side_effect = _lease_gone()
+    mock_client.read_flow_run.side_effect = RuntimeError("server down")
+
+    with _patch_renewal_client(mock_client):
+        with pytest.raises(asyncio.CancelledError):
+            async with amaintain_concurrency_lease(
+                lease_id=uuid4(),
+                lease_duration=60,
+                raise_on_lease_renewal_failure=True,
+                flow_run_id=uuid4(),
+            ):
+                deadline = time.monotonic() + 2
+                while time.monotonic() < deadline:
+                    await asyncio.sleep(0.01)
+                raise AssertionError("Lease renewal failure did not cancel")

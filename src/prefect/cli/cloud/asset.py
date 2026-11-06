@@ -12,6 +12,7 @@ from prefect.cli._cloud_utils import confirm_logged_in
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -85,7 +86,7 @@ async def asset_ls(
 
     if output and output.lower() == "json":
         json_output = orjson.dumps(assets, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         if not assets:
             _cli.console.print("No assets found in this workspace.")

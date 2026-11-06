@@ -21,6 +21,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -387,7 +388,7 @@ async def inspect(
                     json_output = orjson.dumps(
                         result_json, option=orjson.OPT_INDENT_2
                     ).decode()
-                    _cli.console.print(json_output, soft_wrap=True)
+                    print_verbatim(json_output)
                 else:
                     _cli.console.print(Pretty(result))
         except ObjectNotFound:
@@ -470,7 +471,7 @@ async def slots(
     if output and output.lower() == "json":
         data = status.model_dump(mode="json")
         json_output = orjson.dumps(data, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
         return
 
     # Header
@@ -575,7 +576,7 @@ async def ls(
             if output and output.lower() == "json":
                 queues_json = [queue.model_dump(mode="json") for queue in sorted_queues]
                 json_output = orjson.dumps(queues_json, option=orjson.OPT_INDENT_2)
-                _cli.console.print(json_output.decode(), soft_wrap=True)
+                print_verbatim(json_output.decode())
                 return
 
             for queue in sorted_queues:
@@ -620,7 +621,7 @@ async def ls(
             if output and output.lower() == "json":
                 queues_json = [queue.model_dump(mode="json") for queue in sorted_queues]
                 json_output = orjson.dumps(queues_json, option=orjson.OPT_INDENT_2)
-                _cli.console.print(json_output.decode(), soft_wrap=True)
+                print_verbatim(json_output.decode())
                 return
 
             for queue in sorted_queues:
@@ -731,7 +732,7 @@ async def preview(
     if output and output.lower() == "json":
         runs_json = [run.model_dump(mode="json") for run in sorted_runs]
         json_output = orjson.dumps(runs_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
         return
 
     for run in sorted_runs:
