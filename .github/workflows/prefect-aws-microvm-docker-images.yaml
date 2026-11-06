@@ -1,0 +1,89 @@
+name: Prefect AWS MicroVM Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      prefect_version:
+        description: 'Prefect version to use'
+        required: true
+        type: string
+      prefect_aws_version:
+        description: 'Prefect AWS version to use'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      prefect_version:
+        description: 'Prefect version to use'
+        required: true
+        type: string
+      prefect_aws_version:
+        description: 'Prefect AWS version to use'
+        required: true
+        type: string
+
+jobs:
+  build-and-push:
+    name: Build and push the prefect-aws MicroVM base image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set version environment variables
+        env:
+          PREFECT_VERSION_INPUT: ${{ inputs.prefect_version || github.event.inputs.prefect_version }}
+          PREFECT_AWS_VERSION_INPUT: ${{ inputs.prefect_aws_version || github.event.inputs.prefect_aws_version }}
+        run: |
+          echo "PREFECT_VERSION=$PREFECT_VERSION_INPUT" >> $GITHUB_ENV
+          echo "PREFECT_AWS_VERSION=$PREFECT_AWS_VERSION_INPUT" >> $GITHUB_ENV
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.PREFECT_AWS_DOCKERHUB_TOKEN }}
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: prefecthq/prefect-aws-microvm
+          tags: |
+            # Full version tag: prefect-aws-version-python-version-prefect-version
+            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python3.12-prefect${{ env.PREFECT_VERSION }}
+            # Version with Python: prefect-aws-version-python-version
+            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python3.12
+            # Minor version with Python (only for stable releases, not rc or dev)
+            type=pep440,pattern={{major}}.{{minor}}-python3.12,value=${{ env.PREFECT_AWS_VERSION }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            # Latest (only for stable releases, not rc or dev)
+            type=raw,value=latest-python3.12,enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            type=raw,value=latest,enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+          flavor: |
+            latest=false
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: src/integrations/prefect-aws
+          file: src/integrations/prefect-aws/Dockerfile.microvm
+          platforms: linux/arm64
+          build-args: |
+            PREFECT_VERSION=${{ env.PREFECT_VERSION }}
+            PREFECT_AWS_VERSION=${{ env.PREFECT_AWS_VERSION }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          pull: true
+          provenance: false
+          cache-from: type=gha,scope=prefect-aws-microvm,ignore-error=true
+          cache-to: type=gha,mode=max,scope=prefect-aws-microvm,ignore-error=true

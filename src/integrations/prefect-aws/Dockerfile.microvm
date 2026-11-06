@@ -1,0 +1,33 @@
+# Base image for running Prefect flow runs in AWS Lambda MicroVMs (ARM64).
+# Build your flow image FROM this one and add your code and dependencies.
+FROM public.ecr.aws/lambda/microvms:al2023-minimal
+
+ARG PREFECT_VERSION
+ARG PREFECT_AWS_VERSION
+ENV PREFECT_VERSION=${PREFECT_VERSION} \
+    PREFECT_AWS_VERSION=${PREFECT_AWS_VERSION} \
+    PYTHON_VERSION=3.12 \
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/opt/prefect/venv \
+    PATH=/opt/prefect/venv/bin:${PATH}
+
+LABEL maintainer="help@prefect.io" \
+    io.prefect.python-version=3.12 \
+    io.prefect.prefect-version=${PREFECT_VERSION} \
+    io.prefect.prefect-aws-version=${PREFECT_AWS_VERSION} \
+    org.label-schema.schema-version="1.0" \
+    org.label-schema.name="prefect-aws-microvm" \
+    org.label-schema.url="https://www.prefect.io/"
+
+RUN dnf install -y python3.12 python3.12-pip \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf \
+    && python3.12 -m venv "${VIRTUAL_ENV}"
+
+RUN pip install --no-cache-dir "prefect==${PREFECT_VERSION}" "prefect-aws==${PREFECT_AWS_VERSION}"
+
+RUN prefect version && python -c "import prefect_aws.microvm"
+
+WORKDIR /opt/prefect
+EXPOSE 8080
+CMD ["python", "-m", "prefect_aws.microvm"]
