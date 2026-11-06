@@ -54,7 +54,19 @@ class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
         """
         ...
 
-    async def revoke_lease(self, lease_id: UUID) -> None: ...
+    async def revoke_lease(self, lease_id: UUID) -> bool | None:
+        """
+        Revoke a resource lease.
+
+        Args:
+            lease_id: The ID of the lease to revoke.
+
+        Returns:
+            True if this call removed the lease, False if it did not exist (it
+            was never created, or was already revoked). None may be returned by
+            legacy implementations that cannot tell the two apart.
+        """
+        ...
 
     async def read_active_lease_ids(
         self, limit: int = 100, offset: int = 0

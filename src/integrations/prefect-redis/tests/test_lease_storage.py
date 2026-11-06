@@ -222,17 +222,20 @@ class TestConcurrencyLeaseStorage:
         assert await storage.read_lease(lease.id) is not None
 
         # Revoke it
-        await storage.revoke_lease(lease.id)
+        assert await storage.revoke_lease(lease.id) is True
 
         # Verify it's gone
         assert await storage.read_lease(lease.id) is None
+
+        # A second revoke of the same lease removes nothing
+        assert await storage.revoke_lease(lease.id) is False
 
     async def test_revoke_nonexistent_lease(self, storage: ConcurrencyLeaseStorage):
         """Test revoking a lease that doesn't exist (should not raise error)."""
         nonexistent_id = uuid4()
 
         # Should not raise an error
-        await storage.revoke_lease(nonexistent_id)
+        assert await storage.revoke_lease(nonexistent_id) is False
 
     async def test_read_active_lease_ids(self, storage: ConcurrencyLeaseStorage):
         """Test reading active lease IDs."""
