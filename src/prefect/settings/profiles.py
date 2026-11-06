@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import warnings
 from collections.abc import Mapping
 from pathlib import Path
@@ -10,6 +12,7 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
+    cast,
 )
 
 import toml
@@ -20,6 +23,7 @@ from pydantic import (
     Field,
     ValidationError,
 )
+from pydantic_settings import EnvSettingsSource
 from typing_extensions import Self
 
 from prefect._internal.compatibility.backports import tomllib
@@ -220,25 +224,32 @@ class Profile(BaseModel):
         try:
             Settings.model_validate(nested_settings)
         except ValidationError as e:
-            errors: list[tuple[Setting, ValidationError]] = []
+            errors_by_setting: dict[Setting, list[Any]] = {}
 
             for error in e.errors():
                 error_path = ".".join(str(loc) for loc in error["loc"])
 
                 for setting in self.settings.keys():
-                    if setting.accessor == error_path:
-                        errors.append(
-                            (
-                                setting,
-                                ValidationError.from_exception_data(
-                                    "ValidationError", [error]
-                                ),
-                            )
-                        )
+                    # A union field reports one error per member type, below
+                    # the field's own path.
+                    if error_path == setting.accessor or error_path.startswith(
+                        f"{setting.accessor}."
+                    ):
+                        errors_by_setting.setdefault(setting, []).append(error)
                         break
 
-            if errors:
-                raise ProfileSettingsValidationError(errors)
+            if errors_by_setting:
+                raise ProfileSettingsValidationError(
+                    [
+                        (
+                            setting,
+                            ValidationError.from_exception_data(
+                                "ValidationError", setting_errors
+                            ),
+                        )
+                        for setting, setting_errors in errors_by_setting.items()
+                    ]
+                )
 
 
 class ProfilesCollection:
@@ -508,6 +519,55 @@ def load_profile(name: str) -> Profile:
         raise ValueError(f"Profile {name!r} not found.")
 
 
+def _decode_json_value(source: EnvSettingsSource, setting: Setting, value: Any) -> Any:
+    """Decode a JSON string the way the profile loader does for the setting's field."""
+    if not isinstance(value, str):
+        return value
+    model: type[BaseModel] = Settings
+    *parents, name = setting.accessor.split(".")
+    for parent in parents:
+        model = cast(type[BaseModel], model.model_fields[parent].annotation)
+    if not source.field_is_complex(model.model_fields[name]):
+        return value
+    try:
+        return json.loads(value)
+    except ValueError:
+        return value
+
+
+def _ensure_profile_is_valid_for_server(profile: Profile) -> None:
+    """
+    Raise a `ValueError` if a value the profile applies is invalid.
+
+    Commands skip an invalid profile value with a warning so the profile can be
+    repaired, but the server must not start without a setting it was configured
+    with, such as its authentication string. Values overridden by environment
+    variables are not checked; values overridden by other sources, such as
+    `prefect.toml`, still are, so the server errs on the side of refusing.
+    """
+    overridden = {
+        setting.name
+        for key, setting in _get_settings_fields(Settings).items()
+        if key in os.environ
+    }
+    source = EnvSettingsSource(Settings)
+    applied = {
+        setting: _decode_json_value(source, setting, value)
+        for setting, value in profile.settings.items()
+        if setting.name not in overridden
+    }
+    try:
+        Profile(name=profile.name, settings=applied).validate_settings()
+    except ProfileSettingsValidationError as exc:
+        names = ", ".join(setting.name for setting, _ in exc.errors)
+        raise ValueError(
+            f"Profile {profile.name!r} has invalid values for {names}. Fix them with "
+            f"`prefect --profile {profile.name} config set` or remove them with "
+            f"`prefect --profile {profile.name} config unset` before starting the "
+            "server."
+        ) from None
+
+
 def update_current_profile(
     settings: dict[str | Setting, Any],
 ) -> Profile:
@@ -536,11 +596,30 @@ def update_current_profile(
     # Ensure the current profile's settings are present
     profiles.update_profile(current_profile.name, current_profile.settings)
     # Then merge the new settings in
-    new_profile = profiles.update_profile(
-        current_profile.name, _cast_settings(settings)
-    )
+    new_settings = _cast_settings(settings)
+    new_profile = profiles.update_profile(current_profile.name, new_settings)
 
-    new_profile.validate_settings()
+    try:
+        new_profile.validate_settings()
+    except ProfileSettingsValidationError as exc:
+        # Only the settings being written can block the update. A value that
+        # was already invalid before this call is reported and left as it is,
+        # so an unrelated command (for example `prefect cloud login`) can still
+        # save its own settings.
+        blocking = [
+            (setting, error) for setting, error in exc.errors if setting in new_settings
+        ]
+        if blocking:
+            raise ProfileSettingsValidationError(blocking) from None
+        for setting, error in exc.errors:
+            problems = "; ".join(item["msg"] for item in error.errors())
+            warnings.warn(
+                f"Profile {new_profile.name!r} has an invalid value for "
+                f"{setting.name}: {problems}. It was left unchanged; fix it with "
+                f"`prefect config set {setting.name}=<value>` or remove it with "
+                f"`prefect config unset {setting.name}`.",
+                stacklevel=2,
+            )
 
     save_profiles(profiles)
 
