@@ -56,6 +56,8 @@ example, `acme.data-pipeline.completed` or `myteam.model.trained` are perfectly
 valid event names. See [custom event grammar](/v3/advanced/use-custom-event-grammar)
 for more on emitting your own events.
 
+Prefect Cloud drops events whose names start with `prefect-cloud.` when a client or a webhook sends them, without returning an error.
+
 ## Quick reference
 
 ### Orchestration events

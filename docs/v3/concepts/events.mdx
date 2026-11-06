@@ -45,7 +45,7 @@ prefect-cloud.user.logged-in
 ```
 
 <Note>
-Event names that start with `prefect.` or `prefect-cloud.` are reserved for events that Prefect emits. Give your custom events your own prefix, such as `acme.`. Prefect Cloud drops events with names that start with `prefect-cloud.` when a client sends them, and returns no error for them.
+Event names that start with `prefect.` or `prefect-cloud.` are reserved for events that Prefect emits. Give your custom events your own prefix, such as `acme.`. Prefect Cloud drops events whose names start with `prefect-cloud.` when a client or a webhook sends them, without returning an error. See [namespace conventions](/v3/api-ref/events#namespace-conventions).
 </Note>
 
 See how to [emit and use custom events](/v3/advanced/use-custom-event-grammar) to trigger automations.
