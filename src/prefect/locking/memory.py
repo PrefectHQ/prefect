@@ -104,23 +104,48 @@ class MemoryLockManager(LockManager):
             existing_lock_acquired = existing_lock_info["lock"].acquire()
 
         if existing_lock_acquired:
+            stale_lock = False
             with self._locks_dict_lock:
+                current_lock_info = self._locks.get(key)
                 if (
-                    expiration_timer := existing_lock_info["expiration_timer"]
-                ) is not None:
-                    expiration_timer.cancel()
-                expiration_timer = None
-                if hold_timeout is not None:
-                    expiration_timer = threading.Timer(
-                        hold_timeout, self._expire_lock, args=(key,)
+                    current_lock_info is None
+                    or current_lock_info["lock"] is not existing_lock_info["lock"]
+                ):
+                    # The entry we waited on expired (its hold timeout
+                    # elapsed, force-releasing this lock object and dropping
+                    # the entry) and the key was re-acquired on a fresh lock
+                    # object. Our acquire() returned True on the stale
+                    # object; overwriting the entry here would silently
+                    # revoke the new holder. Clean up below and retry the
+                    # whole acquisition against the current entry (the retry
+                    # itself must run outside `_locks_dict_lock`).
+                    stale_lock = True
+                    if (
+                        expiration_timer := existing_lock_info["expiration_timer"]
+                    ) is not None:
+                        expiration_timer.cancel()
+                else:
+                    if (
+                        expiration_timer := existing_lock_info["expiration_timer"]
+                    ) is not None:
+                        expiration_timer.cancel()
+                    expiration_timer = None
+                    if hold_timeout is not None:
+                        expiration_timer = threading.Timer(
+                            hold_timeout, self._expire_lock, args=(key,)
+                        )
+                        expiration_timer.start()
+                    self._locks[key] = _LockInfo(
+                        holder=holder,
+                        lock=existing_lock_info["lock"],
+                        expiration_timer=expiration_timer,
                     )
-                    expiration_timer.start()
-                self._locks[key] = _LockInfo(
-                    holder=holder,
-                    lock=existing_lock_info["lock"],
-                    expiration_timer=expiration_timer,
-                )
-            return True
+                    return True
+
+            if stale_lock:
+                if existing_lock_info["lock"].locked():
+                    existing_lock_info["lock"].release()
+                return self.acquire_lock(key, holder, acquire_timeout, hold_timeout)
         return False
 
     async def aacquire_lock(
@@ -159,23 +184,47 @@ class MemoryLockManager(LockManager):
             )
 
         if existing_lock_acquired:
+            stale_lock = False
             with self._locks_dict_lock:
+                current_lock_info = self._locks.get(key)
                 if (
-                    expiration_timer := existing_lock_info["expiration_timer"]
-                ) is not None:
-                    expiration_timer.cancel()
-                expiration_timer = None
-                if hold_timeout is not None:
-                    expiration_timer = threading.Timer(
-                        hold_timeout, self._expire_lock, args=(key,)
+                    current_lock_info is None
+                    or current_lock_info["lock"] is not existing_lock_info["lock"]
+                ):
+                    # Same stale-object race as acquire_lock: the awaited
+                    # entry expired and the key was re-acquired on a fresh
+                    # lock object while we were blocked in to_thread. Clean
+                    # up below and retry outside the dict lock rather than
+                    # revoking the new holder.
+                    stale_lock = True
+                    if (
+                        expiration_timer := existing_lock_info["expiration_timer"]
+                    ) is not None:
+                        expiration_timer.cancel()
+                else:
+                    if (
+                        expiration_timer := existing_lock_info["expiration_timer"]
+                    ) is not None:
+                        expiration_timer.cancel()
+                    expiration_timer = None
+                    if hold_timeout is not None:
+                        expiration_timer = threading.Timer(
+                            hold_timeout, self._expire_lock, args=(key,)
+                        )
+                        expiration_timer.start()
+                    self._locks[key] = _LockInfo(
+                        holder=holder,
+                        lock=existing_lock_info["lock"],
+                        expiration_timer=expiration_timer,
                     )
-                    expiration_timer.start()
-                self._locks[key] = _LockInfo(
-                    holder=holder,
-                    lock=existing_lock_info["lock"],
-                    expiration_timer=expiration_timer,
+                    return True
+
+            if stale_lock:
+                if existing_lock_info["lock"].locked():
+                    existing_lock_info["lock"].release()
+                return await self.aacquire_lock(
+                    key, holder, acquire_timeout, hold_timeout
                 )
-            return True
         return False
 
     def release_lock(self, key: str, holder: str) -> None:

@@ -1,3 +1,4 @@
+import asyncio
 import multiprocessing
 import queue
 import threading
@@ -105,6 +106,86 @@ class TestMemoryLockManager:
         assert manager.is_locked(key=key)
         manager.release_lock(key=key, holder="holder2")
         assert not manager.is_locked(key=key)
+
+    class _ControlledLock:
+        """A lock whose release and acquire-return can be gated from the test."""
+
+        def __init__(self):
+            self.released = threading.Event()
+            self.allow_return = threading.Event()
+            self._locked = True
+
+        def acquire(self, timeout=None):
+            self.released.wait(timeout)
+            self.allow_return.wait()
+            self._locked = True
+            return True
+
+        def release(self):
+            self._locked = False
+            self.released.set()
+
+        def locked(self):
+            return self._locked
+
+    def test_acquire_lock_after_entry_replacement_keeps_new_holder(self):
+        """A waiter on a lock whose entry expired must not revoke the
+        replacement holder (#23727)."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        fake = self._ControlledLock()
+        manager._locks[key] = {"holder": "a", "lock": fake, "expiration_timer": None}
+
+        result = {}
+
+        def waiter():
+            result["acquired"] = manager.acquire_lock(
+                key=key, holder="b", acquire_timeout=0.5
+            )
+
+        thread = threading.Thread(target=waiter)
+        thread.start()
+
+        # expiry path: releases the stale object and drops the entry
+        manager._expire_lock(key)
+        assert key not in manager._locks
+
+        # a third party acquires the now-free key on a fresh lock object
+        assert manager.acquire_lock(key=key, holder="c")
+        assert manager.is_lock_holder(key=key, holder="c")
+
+        # the waiter wakes up on the stale object; it must retry against the
+        # current entry instead of overwriting the new holder's entry
+        fake.allow_return.set()
+        thread.join()
+        # the fresh holder keeps the lock; the waiter's retry times out on it
+        assert result["acquired"] is False
+        assert manager.is_lock_holder(key=key, holder="c")
+        # the stale object was released, not left locked with no entry
+        assert not fake.locked()
+
+    async def test_aacquire_lock_after_entry_replacement_keeps_new_holder(self):
+        """The async path has the same stale-object race; it must retry too."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        fake = self._ControlledLock()
+        manager._locks[key] = {"holder": "a", "lock": fake, "expiration_timer": None}
+
+        waiter_task = asyncio.create_task(
+            manager.aacquire_lock(key=key, holder="b", acquire_timeout=0.5)
+        )
+        await asyncio.sleep(0.1)
+
+        manager._expire_lock(key)
+        assert key not in manager._locks
+
+        assert await manager.aacquire_lock(key=key, holder="c")
+        assert manager.is_lock_holder(key=key, holder="c")
+
+        fake.allow_return.set()
+        assert await waiter_task is False
+        assert manager.is_lock_holder(key=key, holder="c")
+        assert not fake.locked()
 
     def test_raises_if_releasing_with_wrong_holder(self):
         key = str(uuid4())
