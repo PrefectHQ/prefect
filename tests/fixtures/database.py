@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import gc
+import shutil
 import uuid
 import warnings
 from contextlib import asynccontextmanager
@@ -131,6 +132,13 @@ async def clear_db(db, request):
     storage = ConcurrencyLeaseStorage()
     storage.leases.clear()
     storage.expirations.clear()
+
+    # and the leases the default filesystem storage keeps under PREFECT_HOME
+    from prefect.server.concurrency.lease_storage.filesystem import (
+        ConcurrencyLeaseStorage as FilesystemConcurrencyLeaseStorage,
+    )
+
+    shutil.rmtree(FilesystemConcurrencyLeaseStorage().storage_path, ignore_errors=True)
 
     yield
 
