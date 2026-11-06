@@ -542,6 +542,27 @@ async def test_bulk_decrement_active_slots_clamped(
     assert refreshed.active_slots == 0
 
 
+async def test_bulk_decrement_active_slots_inactive_limit(
+    session: AsyncSession,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+):
+    await update_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2Update(active=False),
+        concurrency_limit_id=locked_concurrency_limit.id,
+    )
+
+    assert await bulk_decrement_active_slots(
+        session=session, concurrency_limit_ids=[locked_concurrency_limit.id], slots=1
+    )
+
+    refreshed = await read_concurrency_limit(
+        session=session, concurrency_limit_id=locked_concurrency_limit.id
+    )
+    assert refreshed
+    assert refreshed.active_slots == locked_concurrency_limit.limit - 1
+
+
 async def test_bulk_decrement_active_slots_updates_occupancy_seconds(
     session: AsyncSession,
     locked_concurrency_limit: ConcurrencyLimitV2,
@@ -599,6 +620,33 @@ async def test_bulk_decrement_active_slots_avg_occupancy_seconds_has_minimum(
         assert (
             refreshed.avg_slot_occupancy_seconds == MINIMUM_OCCUPANCY_SECONDS_PER_SLOT
         )
+
+
+async def test_bulk_decrement_active_slots_with_occupancy_on_zero_limit(
+    session: AsyncSession,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+):
+    original_avg = locked_concurrency_limit.avg_slot_occupancy_seconds
+    await update_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2Update(active=False, limit=0),
+        concurrency_limit_id=locked_concurrency_limit.id,
+    )
+
+    assert await bulk_decrement_active_slots(
+        session=session,
+        concurrency_limit_ids=[locked_concurrency_limit.id],
+        slots=1,
+        occupancy_seconds=5.0,
+    )
+
+    refreshed = await read_concurrency_limit(
+        session=session, concurrency_limit_id=locked_concurrency_limit.id
+    )
+    assert refreshed
+    await session.refresh(refreshed)
+    assert refreshed.active_slots == locked_concurrency_limit.active_slots - 1
+    assert refreshed.avg_slot_occupancy_seconds == original_avg
 
 
 async def test_bulk_update_denied_slots(

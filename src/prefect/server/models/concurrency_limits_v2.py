@@ -287,14 +287,11 @@ async def bulk_decrement_active_slots(
     slots: int,
     occupancy_seconds: Optional[float] = None,
 ) -> bool:
+    # Released slots return even if the limit was disabled after they were
+    # acquired; otherwise they stay counted when the limit is enabled again.
     query = (
         sa.update(db.ConcurrencyLimitV2)
-        .where(
-            sa.and_(
-                db.ConcurrencyLimitV2.id.in_(concurrency_limit_ids),
-                db.ConcurrencyLimitV2.active == True,  # noqa
-            )
-        )
+        .where(db.ConcurrencyLimitV2.id.in_(concurrency_limit_ids))
         .values(
             active_slots=sa.case(
                 (active_slots_after_decay(db) - slots < 0, 0),
@@ -312,14 +309,22 @@ async def bulk_decrement_active_slots(
         query = query.values(
             # Update the average occupancy seconds per slot as a weighted
             # average over the last `limit * OCCUPANCY_SAMPLE_MULTIPLIER` samples.
-            avg_slot_occupancy_seconds=db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
-            + (
-                occupancy_seconds_per_slot
-                / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
-            )
-            - (
-                db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
-                / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+            # A held slot can be released after its limit is changed to 0, so
+            # keep the current average instead of dividing by zero.
+            avg_slot_occupancy_seconds=sa.case(
+                (
+                    db.ConcurrencyLimitV2.limit > 0,
+                    db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
+                    + (
+                        occupancy_seconds_per_slot
+                        / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+                    )
+                    - (
+                        db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
+                        / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+                    ),
+                ),
+                else_=db.ConcurrencyLimitV2.avg_slot_occupancy_seconds,
             ),
         )
 
