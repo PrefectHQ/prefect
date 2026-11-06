@@ -356,6 +356,70 @@ async def test_publisher_will_avoid_sending_duplicate_messages_in_same_batch(
     assert not remaining_message
 
 
+async def test_publisher_keeps_messages_published_while_a_flush_awaits_deduplication(
+    redis: Redis, cache: Cache, monkeypatch: pytest.MonkeyPatch
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23791"""
+    original_without_duplicates = cache.without_duplicates
+    flush_in_flight = asyncio.Event()
+    release_flush = asyncio.Event()
+
+    async def without_duplicates_then_pause(
+        attribute: str, messages: list[RedisStreamsMessage]
+    ) -> list[RedisStreamsMessage]:
+        # Pause after the dedup check has read the batch, while the flush is
+        # still awaiting Redis
+        result = await original_without_duplicates(attribute, messages)
+        flush_in_flight.set()
+        await release_flush.wait()
+        return result
+
+    monkeypatch.setattr(cache, "without_duplicates", without_duplicates_then_pause)
+
+    async with Publisher(
+        "message-tests",
+        cache=cache,
+        deduplicate_by="id",
+        batch_size=100,
+        publish_every=timedelta(milliseconds=10),
+    ) as p:
+        await p.publish_data(b"first", {"id": "1"})
+        await asyncio.wait_for(flush_in_flight.wait(), timeout=5)
+        await p.publish_data(b"second", {"id": "2"})
+        release_flush.set()
+
+    entries = await redis.xrange(_stream_key("message-tests"))
+    assert [fields["data"] for _, fields in entries] == ["first", "second"]
+
+
+async def test_publisher_retains_batch_when_deduplication_fails(
+    redis: Redis, cache: Cache, monkeypatch: pytest.MonkeyPatch
+):
+    original_without_duplicates = cache.without_duplicates
+    calls = 0
+
+    async def fail_once(
+        attribute: str, messages: list[RedisStreamsMessage]
+    ) -> list[RedisStreamsMessage]:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RedisConnectionError("boom")
+        return await original_without_duplicates(attribute, messages)
+
+    monkeypatch.setattr(cache, "without_duplicates", fail_once)
+
+    async with Publisher(
+        "message-tests", cache=cache, deduplicate_by="id", batch_size=1
+    ) as p:
+        with pytest.raises(RedisConnectionError):
+            await p.publish_data(b"first", {"id": "1"})
+        await p.publish_data(b"second", {"id": "2"})
+
+    entries = await redis.xrange(_stream_key("message-tests"))
+    assert [fields["data"] for _, fields in entries] == ["first", "second"]
+
+
 async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
     redis: Redis,
     deduplicating_publisher: Publisher,

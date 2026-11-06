@@ -271,6 +271,7 @@ class Publisher(_Publisher):
     async def __aenter__(self) -> Self:
         self._client = get_async_redis_client()
         self._batch: list[RedisStreamsMessage] = []
+        self._flush_lock = asyncio.Lock()
 
         if self.publish_every is not None:
             interval = self.publish_every.total_seconds()
@@ -311,31 +312,38 @@ class Publisher(_Publisher):
             await asyncio.shield(self._publish_current_batch())
 
     async def _publish_current_batch(self) -> None:
-        if not self._batch:
-            return
+        async with self._flush_lock:
+            if not self._batch:
+                return
 
-        if self.deduplicate_by:
-            to_publish = await self.cache.without_duplicates(
-                self.deduplicate_by, self._batch
-            )
-        else:
-            to_publish = list(self._batch)
+            # Take ownership of the batch before awaiting so that messages
+            # published while this flush is in flight land in a fresh batch.
+            batch, self._batch = self._batch, []
 
-        self._batch.clear()
-
-        try:
-            for message in to_publish:
-                await self._client.xadd(
-                    self.stream,
-                    {
-                        "data": message.data,
-                        "attributes": orjson.dumps(message.attributes),
-                    },
-                )
-        except Exception:
             if self.deduplicate_by:
-                await self.cache.forget_duplicates(self.deduplicate_by, to_publish)
-            raise
+                try:
+                    to_publish = await self.cache.without_duplicates(
+                        self.deduplicate_by, batch
+                    )
+                except Exception:
+                    self._batch[:0] = batch
+                    raise
+            else:
+                to_publish = batch
+
+            try:
+                for message in to_publish:
+                    await self._client.xadd(
+                        self.stream,
+                        {
+                            "data": message.data,
+                            "attributes": orjson.dumps(message.attributes),
+                        },
+                    )
+            except Exception:
+                if self.deduplicate_by:
+                    await self.cache.forget_duplicates(self.deduplicate_by, to_publish)
+                raise
 
 
 class Consumer(_Consumer):
