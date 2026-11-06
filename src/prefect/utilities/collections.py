@@ -5,7 +5,7 @@ Utilities for extensions of and operations on Python collections.
 import io
 import itertools
 import types
-from collections import OrderedDict
+from collections import Counter, OrderedDict, defaultdict, deque
 from collections.abc import (
     Callable,
     Collection,
@@ -340,8 +340,10 @@ def visit_collection(
     Supported types:
     - List (including iterators)
     - Tuple
-    - Set
-    - Dict (note: keys are also visited recursively)
+    - Set and frozenset
+    - Deque
+    - Dict, including `defaultdict` and `Counter` (note: keys are also visited
+      recursively)
     - Dataclass
     - Pydantic model
     - Prefect annotations
@@ -489,8 +491,10 @@ def visit_collection(
 
     # --- Sequences
 
-    elif isinstance(expr, (list, tuple, set)):
-        seq = cast(Union[list[Any], tuple[Any], set[Any]], expr)
+    elif isinstance(expr, (list, tuple, set, frozenset, deque)):
+        seq = cast(
+            Union[list[Any], tuple[Any], set[Any], frozenset[Any], deque[Any]], expr
+        )
         items = [visit_nested(o) for o in seq]
         if return_data:
             modified = any(item is not orig for item, orig in zip(items, seq))
@@ -498,6 +502,8 @@ def visit_collection(
                 # Use _make for NamedTuples
                 if hasattr(type(seq), "_make"):
                     result = type(seq)._make(items)
+                elif isinstance(seq, deque):
+                    result = type(seq)(items, maxlen=seq.maxlen)
                 else:
                     result = type(seq)(items)
 
@@ -512,7 +518,13 @@ def visit_collection(
                 for (k1, v1), (k2, v2) in zip(items, mapping.items())
             )
             if modified:
-                result = type(mapping)(items)
+                if isinstance(mapping, defaultdict):
+                    result = type(mapping)(mapping.default_factory, items)
+                elif isinstance(mapping, Counter):
+                    # `Counter(iterable)` would count the pairs themselves
+                    result = type(mapping)(dict(items))
+                else:
+                    result = type(mapping)(items)
 
     # --- Dataclasses
 

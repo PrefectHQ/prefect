@@ -10,6 +10,7 @@ import threading
 import time
 import weakref
 from asyncio import Event, sleep
+from collections import defaultdict, deque
 from functools import partial, wraps
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -3080,6 +3081,41 @@ class TestTaskInputs:
                 TaskRunResult(id=b.state_details.task_run_id),
                 TaskRunResult(id=c.state_details.task_run_id),
             },
+        )
+
+    async def test_task_inputs_populated_with_upstream_futures_in_stdlib_containers(
+        self, prefect_client, events_pipeline
+    ):
+        @task
+        def foo(x):
+            return x
+
+        @task
+        def bar(x, y):
+            return x, y
+
+        @flow
+        def test_flow():
+            a = foo.submit(1)
+            b = foo.submit(2)
+            d = bar(defaultdict(list, {"a": [a]}), deque([b]), return_state=True)
+            return a, b, d
+
+        flow_state = test_flow(return_state=True)
+
+        a, b, d = await flow_state.result()
+        x, y = await d.result()
+
+        assert x == defaultdict(list, {"a": [1]})
+        assert y == deque([2])
+
+        await events_pipeline.process_events()
+
+        task_run = await prefect_client.read_task_run(d.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunResult(id=a.state_details.task_run_id)],
+            y=[TaskRunResult(id=b.state_details.task_run_id)],
         )
 
     async def test_task_inputs_populated_with_subflow_upstream(
