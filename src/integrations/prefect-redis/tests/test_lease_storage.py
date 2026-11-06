@@ -202,6 +202,26 @@ class TestConcurrencyLeaseStorage:
         assert renewed_lease is not None
         assert renewed_lease.expiration > original_expiration
 
+    @pytest.mark.parametrize(
+        "incremented_count", [1, 0], ids=["one-limit", "no-limits"]
+    )
+    async def test_incremented_limit_ids_survive_renewal(
+        self, storage: ConcurrencyLeaseStorage, incremented_count: int
+    ):
+        resource_ids = [uuid4(), uuid4()]
+        metadata = ConcurrencyLimitLeaseMetadata(
+            slots=1, incremented_limit_ids=resource_ids[:incremented_count]
+        )
+        created_lease = await storage.create_lease(
+            resource_ids, timedelta(seconds=300), metadata
+        )
+        assert await storage.renew_lease(created_lease.id, timedelta(seconds=600))
+
+        read_lease = await storage.read_lease(created_lease.id)
+
+        assert read_lease is not None
+        assert read_lease.metadata == metadata
+
     async def test_renew_nonexistent_lease(self, storage: ConcurrencyLeaseStorage):
         """Test renewing a lease that doesn't exist (should not raise error)."""
         nonexistent_id = uuid4()

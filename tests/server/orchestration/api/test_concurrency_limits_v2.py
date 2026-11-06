@@ -462,7 +462,9 @@ async def test_increment_concurrency_limit_with_lease_simple(
     lease = await lease_storage.read_lease(uuid.UUID(response.json()["lease_id"]))
     assert lease
     assert lease.resource_ids == [concurrency_limit.id]
-    assert lease.metadata == ConcurrencyLimitLeaseMetadata(slots=1)
+    assert lease.metadata == ConcurrencyLimitLeaseMetadata(
+        slots=1, incremented_limit_ids=[concurrency_limit.id]
+    )
 
 
 async def test_increment_concurrency_limit_with_lease_and_holder(
@@ -638,7 +640,9 @@ async def test_increment_concurrency_limit_with_lease_ttl(
     lease = await lease_storage.read_lease(uuid.UUID(response.json()["lease_id"]))
     assert lease
     assert lease.resource_ids == [concurrency_limit.id]
-    assert lease.metadata == ConcurrencyLimitLeaseMetadata(slots=1)
+    assert lease.metadata == ConcurrencyLimitLeaseMetadata(
+        slots=1, incremented_limit_ids=[concurrency_limit.id]
+    )
     assert (
         now + timedelta(seconds=60) <= lease.expiration <= now + timedelta(seconds=65)
     )
@@ -1238,6 +1242,312 @@ async def test_decrement_concurrency_limit_with_lease(
     refreshed_limit = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
     assert refreshed_limit.status_code == 200
     assert refreshed_limit.json()["active_slots"] == 0
+
+
+async def test_decrement_with_lease_taken_while_inactive_keeps_other_holders_slot(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/",
+        json={"name": "toggled_limit", "limit": 1, "active": False},
+    )
+    assert response.status_code == 201
+    limit_id = response.json()["id"]
+
+    inactive_acquire = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert inactive_acquire.status_code == 200
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"active": True}
+    )
+    assert response.status_code == 204
+
+    active_acquire = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert active_acquire.status_code == 200
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": inactive_acquire.json()["lease_id"]},
+    )
+    assert response.status_code == 204
+
+    limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
+    assert limit.json()["active_slots"] == 1
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 423
+
+
+async def test_decrement_with_lease_while_inactive_returns_slot(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/",
+        json={"name": "toggled_limit", "limit": 1},
+    )
+    assert response.status_code == 201
+    limit_id = response.json()["id"]
+
+    acquire = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert acquire.status_code == 200
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"active": False}
+    )
+    assert response.status_code == 204
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": acquire.json()["lease_id"]},
+    )
+    assert response.status_code == 204
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"active": True}
+    )
+    assert response.status_code == 204
+
+    limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
+    assert limit.json()["active_slots"] == 0
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("active", [True, False], ids=["active", "inactive"])
+async def test_decrement_with_lease_after_limit_set_to_zero(
+    client: AsyncClient,
+    active: bool,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/",
+        json={"name": "zeroed_limit", "limit": 1},
+    )
+    assert response.status_code == 201
+    limit_id = response.json()["id"]
+
+    acquire = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["zeroed_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert acquire.status_code == 200
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"limit": 0, "active": active}
+    )
+    assert response.status_code == 204
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": acquire.json()["lease_id"]},
+    )
+    assert response.status_code == 204
+
+    limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
+    assert limit.json()["active_slots"] == 0
+
+
+async def test_decrement_with_lease_without_incremented_limit_ids(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/increment",
+        json={"names": [concurrency_limit.name], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+
+    # The shape of a lease written before leases recorded the limits they incremented
+    lease = await get_concurrency_lease_storage().create_lease(
+        resource_ids=[concurrency_limit.id],
+        ttl=timedelta(minutes=5),
+        metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+    )
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": str(lease.id)},
+    )
+    assert response.status_code == 204
+
+    limit = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
+    assert limit.json()["active_slots"] == 0
+
+
+async def test_decrement_with_lease_over_active_and_inactive_limits(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/",
+        json={"name": "active_limit", "limit": 1},
+    )
+    assert response.status_code == 201
+    active_limit_id = response.json()["id"]
+
+    response = await client.post(
+        "/v2/concurrency_limits/",
+        json={"name": "toggled_limit", "limit": 1, "active": False},
+    )
+    assert response.status_code == 201
+    toggled_limit_id = response.json()["id"]
+
+    acquire = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": ["active_limit", "toggled_limit"],
+            "slots": 1,
+            "mode": "concurrency",
+        },
+    )
+    assert acquire.status_code == 200
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{toggled_limit_id}", json={"active": True}
+    )
+    assert response.status_code == 204
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["toggled_limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": acquire.json()["lease_id"]},
+    )
+    assert response.status_code == 204
+
+    active_limit = await client.get(f"/v2/concurrency_limits/{active_limit_id}")
+    assert active_limit.json()["active_slots"] == 0
+    toggled_limit = await client.get(f"/v2/concurrency_limits/{toggled_limit_id}")
+    assert toggled_limit.json()["active_slots"] == 1
+
+
+async def test_task_run_release_of_lease_taken_while_inactive_keeps_other_holders_slot(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/",
+        json={"name": "tag:toggled", "limit": 1, "active": False},
+    )
+    assert response.status_code == 201
+    limit_id = response.json()["id"]
+
+    response = await client.post(
+        "/task_runs/",
+        json={"task_key": "toggled-task", "dynamic_key": "0", "tags": ["toggled"]},
+    )
+    assert response.status_code == 201
+    task_run_id = response.json()["id"]
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": ["tag:toggled"],
+            "slots": 1,
+            "mode": "concurrency",
+            "holder": {"type": "task_run", "id": task_run_id},
+        },
+    )
+    assert response.status_code == 200
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"active": True}
+    )
+    assert response.status_code == 204
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["tag:toggled"], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+
+    response = await client.post(
+        f"/task_runs/{task_run_id}/set_state",
+        json={"state": {"type": "CANCELLED"}, "force": True},
+    )
+    assert response.status_code == 201
+    assert response.json()["status"] == "ACCEPT"
+
+    limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
+    assert limit.json()["active_slots"] == 1
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["tag:toggled"], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 423
+
+
+async def test_task_run_release_while_inactive_returns_slot(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/",
+        json={"name": "tag:toggled", "limit": 1},
+    )
+    assert response.status_code == 201
+    limit_id = response.json()["id"]
+
+    response = await client.post(
+        "/task_runs/",
+        json={"task_key": "toggled-task", "dynamic_key": "0", "tags": ["toggled"]},
+    )
+    assert response.status_code == 201
+    task_run_id = response.json()["id"]
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": ["tag:toggled"],
+            "slots": 1,
+            "mode": "concurrency",
+            "holder": {"type": "task_run", "id": task_run_id},
+        },
+    )
+    assert response.status_code == 200
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"active": False}
+    )
+    assert response.status_code == 204
+
+    response = await client.post(
+        f"/task_runs/{task_run_id}/set_state",
+        json={"state": {"type": "CANCELLED"}, "force": True},
+    )
+    assert response.status_code == 201
+    assert response.json()["status"] == "ACCEPT"
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit_id}", json={"active": True}
+    )
+    assert response.status_code == 204
+
+    limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
+    assert limit.json()["active_slots"] == 0
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": ["tag:toggled"], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
 
 
 async def test_renew_concurrency_lease(

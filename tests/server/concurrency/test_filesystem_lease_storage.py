@@ -221,6 +221,28 @@ class TestFilesystemConcurrencyLeaseStorage:
             "id": read_lease.metadata.holder.id,
         }
 
+    @pytest.mark.parametrize(
+        "incremented_count", [1, 0], ids=["one-limit", "no-limits"]
+    )
+    async def test_incremented_limit_ids_survive_renewal(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        incremented_count: int,
+    ):
+        metadata = ConcurrencyLimitLeaseMetadata(
+            slots=1, incremented_limit_ids=sample_resource_ids[:incremented_count]
+        )
+        created_lease = await storage.create_lease(
+            sample_resource_ids, timedelta(minutes=5), metadata
+        )
+        assert await storage.renew_lease(created_lease.id, timedelta(minutes=10))
+
+        read_lease = await storage.read_lease(created_lease.id)
+
+        assert read_lease is not None
+        assert read_lease.metadata == metadata
+
     async def test_read_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
         lease = await storage.read_lease(non_existing_id)

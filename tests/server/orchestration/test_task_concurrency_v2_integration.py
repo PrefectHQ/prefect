@@ -525,6 +525,53 @@ class TestReleaseTaskConcurrencySlotsV2Integration:
         await session.refresh(v2_limit)
         assert v2_limit.active_slots == 1
 
+    async def test_v2_release_while_inactive_returns_slot(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Any],
+    ) -> None:
+        v2_limit = await self.create_v2_concurrency_limit(session, "toggled", 1)
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+
+        ctx1 = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["toggled"]
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1 = await stack.enter_async_context(
+                SecureTaskConcurrencySlots(ctx1, *running_transition)
+            )
+            await ctx1.validate_proposed_state()
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        await concurrency_limits_v2.update_concurrency_limit(
+            session,
+            concurrency_limit=actions.ConcurrencyLimitV2Update(active=False),
+            concurrency_limit_id=v2_limit.id,
+        )
+
+        ctx2 = await initialize_orchestration(
+            session,
+            "task",
+            *completed_transition,
+            run_override=ctx1.run,
+            run_tags=["toggled"],
+        )
+        ctx2.validated_state = states.State(type=states.StateType.COMPLETED)
+        async with contextlib.AsyncExitStack() as stack:
+            await stack.enter_async_context(
+                ReleaseTaskConcurrencySlots(ctx2, *completed_transition)
+            )
+
+        await concurrency_limits_v2.update_concurrency_limit(
+            session,
+            concurrency_limit=actions.ConcurrencyLimitV2Update(active=True),
+            concurrency_limit_id=v2_limit.id,
+        )
+        await session.refresh(v2_limit)
+        assert v2_limit.active_slots == 0
+
     async def test_release_only_on_terminal_transitions(
         self,
         session: AsyncSession,

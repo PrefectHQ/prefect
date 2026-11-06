@@ -98,9 +98,9 @@ async def _release_concurrency_lease(
                 )
         return
 
-    slots_released = await concurrency_limits_v2.bulk_decrement_active_slots(
+    slots_released = await concurrency_limits_v2.bulk_decrement_active_slots_for_lease(
         session=session,
-        concurrency_limit_ids=lease.resource_ids,
+        lease=lease,
         slots=lease.metadata.slots if lease.metadata else 1,
     )
     if not slots_released:
@@ -422,6 +422,7 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
                             type="task_run",
                             id=context.run.id,
                         ),
+                        incremented_limit_ids=[limit.id for limit in active_v2_limits],
                     ),
                 )
 
