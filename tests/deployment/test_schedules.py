@@ -28,6 +28,88 @@ def test_create_deployment_schedule_create(active: Optional[bool], expected: boo
     assert schedule.active is expected
 
 
+def test_create_deployment_schedule_create_leaves_active_unset_by_default():
+    # When `active` isn't provided, it must stay out of the serialized update
+    # payload so a redeploy doesn't re-activate a paused schedule (#19302).
+    schedule = create_deployment_schedule_create(
+        schedule=CronSchedule(cron="0 0 * * *")
+    )
+    assert "active" not in schedule.model_fields_set
+    assert "active" not in schedule.model_dump(exclude_unset=True)
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_create_deployment_schedule_create_keeps_explicit_active(active: bool):
+    schedule = create_deployment_schedule_create(
+        schedule=CronSchedule(cron="0 0 * * *"), active=active
+    )
+    assert schedule.model_dump(exclude_unset=True)["active"] is active
+
+
+def test_normalize_schedule_wrapper_omits_unset_active():
+    from prefect.schedules import Cron
+
+    (normalized,) = normalize_to_deployment_schedule([Cron("0 0 * * *")])
+    assert "active" not in normalized.model_fields_set
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_normalize_schedule_wrapper_keeps_explicit_active(active: bool):
+    from prefect.schedules import Cron
+
+    (normalized,) = normalize_to_deployment_schedule([Cron("0 0 * * *", active=active)])
+    assert normalized.model_dump(exclude_unset=True)["active"] is active
+
+
+def test_normalize_direct_schedule_constructor_omits_unset_active():
+    # The direct `Schedule` constructor tracks omission the same way the
+    # factories do, so a redeploy preserves a paused schedule (#19302).
+    from prefect.schedules import Schedule
+
+    (normalized,) = normalize_to_deployment_schedule([Schedule(cron="0 0 * * *")])
+    assert "active" not in normalized.model_fields_set
+    assert "active" not in normalized.model_dump(exclude_unset=True)
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_normalize_direct_schedule_constructor_keeps_explicit_active(active: bool):
+    from prefect.schedules import Schedule
+
+    (normalized,) = normalize_to_deployment_schedule(
+        [Schedule(cron="0 0 * * *", active=active)]
+    )
+    assert normalized.model_dump(exclude_unset=True)["active"] is active
+
+
+def test_normalize_replace_keeps_explicit_active_override():
+    # `dataclasses.replace()` replays every init field, so an explicit
+    # `active=False` override applied to a schedule created with `active`
+    # omitted must still be recorded as explicitly provided; otherwise the
+    # pause would be silently dropped from the deployment payload.
+    import dataclasses
+
+    from prefect.schedules import Schedule
+
+    (normalized,) = normalize_to_deployment_schedule(
+        [dataclasses.replace(Schedule(cron="0 0 * * *"), active=False)]
+    )
+    assert normalized.model_dump(exclude_unset=True)["active"] is False
+
+
+def test_normalize_replace_preserves_omitted_active():
+    # Replacing an unrelated field on a schedule created with `active`
+    # omitted must not mark `active` as explicitly provided.
+    import dataclasses
+
+    from prefect.schedules import Schedule
+
+    (normalized,) = normalize_to_deployment_schedule(
+        [dataclasses.replace(Schedule(cron="0 0 * * *"), timezone="America/New_York")]
+    )
+    assert "active" not in normalized.model_fields_set
+    assert "active" not in normalized.model_dump(exclude_unset=True)
+
+
 def test_normalize_none_returns_empty_list():
     assert normalize_to_deployment_schedule(None) == []
 
