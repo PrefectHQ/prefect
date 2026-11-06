@@ -138,6 +138,13 @@ export const TypeStringWithFormatDateTime: Story = {
 };
 TypeStringWithFormatDateTime.storyName = "type:string & format:date-time";
 
+export const DateTimeWithTimezone: Story = {
+	args: {
+		...TypeStringWithFormatDateTime.args,
+		values: { name: "2024-01-15T15:30:00Z" },
+	},
+};
+
 export const TypeStringWithFormatTimeDelta: Story = {
 	args: {
 		schema: {
@@ -230,7 +237,7 @@ export const TypeBooleanWithEnum: Story = {
 			type: "object",
 			properties: {
 				name: {
-					default: true,
+					default: false,
 					title: "Is Active",
 					type: "boolean",
 					enum: [true, false],
@@ -263,10 +270,10 @@ export const TypeIntegerWithEnum: Story = {
 			type: "object",
 			properties: {
 				name: {
-					default: 1,
+					default: 0,
 					title: "Age",
 					type: "integer",
-					enum: [1, 2, 3],
+					enum: [0, 1, 2, 3],
 				},
 			},
 		},

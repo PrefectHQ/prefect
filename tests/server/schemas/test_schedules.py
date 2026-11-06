@@ -1019,20 +1019,12 @@ class TestCronScheduleDaylightSavingsTime:
         zone = ZoneInfo("Europe/Berlin")
         schedule = CronSchedule(cron="30 2 * * *", timezone=zone.key)
         dates = await schedule.get_dates(n=3, start=datetime(2027, 3, 28, tzinfo=zone))
-        expected_first = (
-            "2027-03-28T01:30:00+01:00"
-            if sys.version_info < (3, 13)
-            else "2027-03-28T03:30:00+02:00"
-        )
         assert [value.isoformat() for value in dates] == [
-            expected_first,
+            "2027-03-28T03:30:00+02:00",
             "2027-03-29T02:30:00+02:00",
             "2027-03-30T02:30:00+02:00",
         ]
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
-    )
     @pytest.mark.parametrize(
         "timezone, day",
         [("Europe/Berlin", "2027-03-28"), ("America/New_York", "2024-03-10")],
@@ -1096,10 +1088,6 @@ class TestCronScheduleDaylightSavingsTime:
             ),
         ],
     )
-    @pytest.mark.skipif(
-        sys.version_info < (3, 13),
-        reason="Corrected DST resolution applies to the Python 3.13+ whenever engine",
-    )
     async def test_cron_gap_lookback_preserves_order(
         self, cron: str, timezone: str, start: str, expected: list[str]
     ):
@@ -1126,9 +1114,105 @@ class TestCronScheduleDaylightSavingsTime:
             "2026-10-27T02:30:00+01:00",
         ]
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 13), reason="Legacy Pendulum resolution is unchanged"
+    @pytest.mark.parametrize("minute", [0, 1, 16, 31, 46])
+    async def test_berlin_fall_query_partition_preserves_occurrences(self, minute: int):
+        """Splitting a query during the second hour cannot introduce occurrences."""
+        zone = ZoneInfo("Europe/Berlin")
+        schedule = CronSchedule(cron="*/15 * * * *", timezone=zone.key)
+        start = datetime(2026, 10, 25, tzinfo=zone)
+        split = datetime(2026, 10, 25, 2, minute, tzinfo=zone, fold=1).astimezone(
+            ZoneInfo("UTC")
+        )
+        end = datetime(2026, 10, 25, 4, tzinfo=zone)
+
+        whole = await schedule.get_dates(start=start, end=end)
+        before = await schedule.get_dates(start=start, end=split)
+        after = await schedule.get_dates(start=split, end=end)
+
+        assert {date.timestamp() for date in whole} == {
+            date.timestamp() for date in before + after
+        }
+        assert all(date.timestamp() >= split.timestamp() for date in after)
+        assert not any(date.fold for date in whole + after)
+
+    @pytest.mark.parametrize(
+        "timezone, transition",
+        [
+            ("America/New_York", "2026-03-08T07:00:00+00:00"),
+            ("America/New_York", "2026-11-01T06:00:00+00:00"),
+            ("Europe/Berlin", "2026-03-29T01:00:00+00:00"),
+            ("Europe/Berlin", "2026-10-25T01:00:00+00:00"),
+            ("Australia/Lord_Howe", "2026-04-04T15:00:00+00:00"),
+            ("Australia/Lord_Howe", "2026-10-03T15:30:00+00:00"),
+            ("America/Santiago", "2026-04-05T03:00:00+00:00"),
+            ("America/Santiago", "2026-09-06T04:00:00+00:00"),
+        ],
     )
+    @pytest.mark.parametrize(
+        "cron",
+        [
+            "*/15 * * * *",
+            "0 * * * *",
+            "30 1 * * *",
+            "30 2 * * *",
+            "* * * * *",
+            "0 0 * * *",
+            "45 23 * * *",
+            "*/7 * * * *",
+            "0,30 * * * *",
+        ],
+    )
+    async def test_refill_near_transition_matches_scheduled_series(
+        self, timezone: str, transition: str, cron: str
+    ):
+        """A scheduler refill from any instant near a transition returns exactly
+        the remaining dates of the series scheduled before it."""
+        schedule = CronSchedule(cron=cron, timezone=timezone)
+        transition_at = datetime.fromisoformat(transition)
+        low = transition_at - timedelta(hours=3)
+        high = transition_at + timedelta(hours=3)
+        series = await schedule.get_dates(start=low - timedelta(hours=1), end=high)
+
+        refill = low
+        while refill <= high:
+            dates = await schedule.get_dates(start=refill, end=high)
+            assert [date.timestamp() for date in dates] == [
+                date.timestamp()
+                for date in series
+                if date.timestamp() >= refill.timestamp()
+            ], f"refill at {refill.isoformat()}"
+            refill += timedelta(minutes=7)
+
+    @pytest.mark.parametrize(
+        "timezone, start, expected",
+        [
+            (
+                "Europe/Berlin",
+                "2026-10-25T02:00:00+01:00",
+                "2026-10-25T03:00:00+01:00",
+            ),
+            (
+                "Australia/Lord_Howe",
+                "2026-04-05T01:30:00+10:30",
+                "2026-04-05T02:00:00+10:30",
+            ),
+        ],
+    )
+    async def test_second_fold_seek_preserves_candidate_budget(
+        self, timezone: str, start: str, expected: str
+    ):
+        """An every-second cron skips a fold without exhausting its candidate budget."""
+        schedule = CronSchedule(cron="* * * * * *", timezone=timezone)
+        dates = await schedule.get_dates(
+            n=MAX_ITERATIONS, start=datetime.fromisoformat(start)
+        )
+        expected_start = datetime.fromisoformat(expected)
+
+        assert len(dates) == MAX_ITERATIONS
+        assert [date.timestamp() for date in dates] == [
+            expected_start.timestamp() + second for second in range(MAX_ITERATIONS)
+        ]
+
     @pytest.mark.parametrize(
         "cron, timezone, start_text, expected_first",
         [
@@ -1136,31 +1220,31 @@ class TestCronScheduleDaylightSavingsTime:
                 "0 * * * *",
                 "America/New_York",
                 "2018-11-04T01:00:00",
-                "2018-11-04T06:00:00+00:00",
+                "2018-11-04T07:00:00+00:00",
             ),
             (
                 "* * * * *",
                 "America/New_York",
                 "2018-11-04T01:30:00",
-                "2018-11-04T06:30:00+00:00",
+                "2018-11-04T07:00:00+00:00",
             ),
             (
                 "* * * * *",
                 "America/New_York",
                 "2018-11-04T01:30:00.500000",
-                "2018-11-04T06:31:00+00:00",
+                "2018-11-04T07:00:00+00:00",
             ),
             (
                 "30 2 * * *",
                 "Europe/Berlin",
                 "2026-10-25T02:15:00",
-                "2026-10-25T01:30:00+00:00",
+                "2026-10-26T01:30:00+00:00",
             ),
             (
                 "30 2 * * *",
                 "Europe/Berlin",
                 "2026-10-25T02:30:00",
-                "2026-10-25T01:30:00+00:00",
+                "2026-10-26T01:30:00+00:00",
             ),
             (
                 "30 2 * * *",

@@ -143,7 +143,7 @@ def test_inspect_task_run_with_web_flag(
     invoke_and_assert(
         command=["task-run", "inspect", str(completed_task_run.id), "--web"],
         expected_code=0,
-        expected_output_contains=f"Opened task run {completed_task_run.id!r} in browser.",
+        expected_output_contains=f"Opened task run '{completed_task_run.id}' in browser.",
     )
 
     mock_webbrowser.open_new_tab.assert_called_once()

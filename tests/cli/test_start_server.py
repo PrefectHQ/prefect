@@ -35,7 +35,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
-from prefect.testing.fixtures import is_port_in_use
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
 
@@ -71,29 +70,22 @@ async def wait_for_server(api_url: str, timeout: float | None = None) -> None:
 
 @contextlib.asynccontextmanager
 async def start_server_process(
+    port: int,
     host: str = "127.0.0.1",
 ) -> AsyncIterator[Process]:
     """
-    Runs an instance of the server. Requires a port from 2222-2229 to be available.
-    Uses the same database as the rest of the tests.
+    Runs an instance of the server. Uses the same database as the rest of the tests.
 
     Args:
+        port: The port to bind the server to. Use an OS-assigned port (e.g. the
+            `unused_tcp_port` fixture) so that concurrent xdist workers don't race
+            for the same port; otherwise a test can end up talking to another
+            worker's server while its own process exits with a bind error.
         host: The host address to bind the server to. Defaults to 127.0.0.1.
 
     Yields:
         The anyio Process.
     """
-
-    ports = list(range(2222, 2230))
-
-    while True:
-        try:
-            port = ports.pop()
-        except IndexError as exc:
-            raise RuntimeError("No ports available to run test API.") from exc
-
-        if not is_port_in_use(port):
-            break
 
     out = tempfile.TemporaryFile()  # capture output for test assertions
 
@@ -422,8 +414,8 @@ class TestUvicornSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigint_shutsdown_cleanly(self):
-        async with start_server_process() as server_process:
+    async def test_sigint_shutsdown_cleanly(self, unused_tcp_port: int):
+        async with start_server_process(unused_tcp_port) as server_process:
             server_process.send_signal(signal.SIGINT)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
                 exit_code = await server_process.wait()
@@ -444,8 +436,8 @@ class TestUvicornSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigterm_shutsdown_cleanly(self):
-        async with start_server_process() as server_process:
+    async def test_sigterm_shutsdown_cleanly(self, unused_tcp_port: int):
+        async with start_server_process(unused_tcp_port) as server_process:
             server_process.send_signal(signal.SIGTERM)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
                 exit_code = await server_process.wait()
@@ -466,8 +458,8 @@ class TestUvicornSignalForwarding:
         sys.platform != "win32",
         reason="CTRL_BREAK_EVENT is only defined in Windows",
     )
-    async def test_ctrl_break_shutsdown_cleanly(self):
-        async with start_server_process() as server_process:
+    async def test_ctrl_break_shutsdown_cleanly(self, unused_tcp_port: int):
+        async with start_server_process(unused_tcp_port) as server_process:
             server_process.send_signal(signal.SIGINT)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
                 exit_code = await server_process.wait()
@@ -493,12 +485,12 @@ class TestIPv6Support:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_server_starts_with_ipv6_host(self):
+    async def test_server_starts_with_ipv6_host(self, unused_tcp_port: int):
         """Test that the server can start and respond on an IPv6 address.
 
         Regression test for https://github.com/PrefectHQ/prefect/issues/20343
         """
-        async with start_server_process(host="::1") as server_process:
+        async with start_server_process(unused_tcp_port, host="::1") as server_process:
             server_process.send_signal(signal.SIGTERM)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
                 await server_process.wait()

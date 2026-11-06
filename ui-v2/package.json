@@ -154,7 +154,11 @@
     "vitest": "^5.0.0"
   },
   "overrides": {
-    "eslint": "$eslint"
+    "@ngneat/falso": {
+      "uuid": "$uuid"
+    },
+    "eslint": "$eslint",
+    "postcss-selector-parser": "^7.0.0"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

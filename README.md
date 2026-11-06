@@ -57,7 +57,7 @@ With Prefect, you can build resilient, dynamic data pipelines that react to the 
 
 With just a few lines of code, data teams can confidently automate any data process with features such as scheduling, caching, retries, and event-based automations.
 
-Workflow activity is tracked and can be monitored with a self-hosted [Prefect server](https://www.prefect.io/docs/latest/manage/self-host/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) instance or managed [Prefect Cloud](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) dashboard.
+Workflow activity is tracked and can be monitored with a self-hosted [Prefect server](https://www.prefect.io/docs/v3/how-to-guides/self-hosted/server-cli?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) instance or managed [Prefect Cloud](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) dashboard.
 
 > [!TIP]
 > Prefect flows can handle retries, dependencies, and even complex branching logic

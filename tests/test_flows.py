@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import datetime
 import enum
 import inspect
@@ -57,6 +58,7 @@ from prefect.exceptions import (
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import (
     Flow,
+    FlowStateHook,
     load_flow_arguments_from_entrypoint,
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
@@ -1849,6 +1851,25 @@ class TestFlowParameterTypes:
         # See #22244.
         assert my_flow.serialize_parameters({"x": data}) == {"x": "<Cyclic>"}
 
+    def test_serialize_parameters_falls_back_on_arbitrary_encoder_errors(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        class Uncopyable:
+            def __reduce__(self):
+                raise NotImplementedError
+
+        @dataclasses.dataclass
+        class Holder:
+            value: Uncopyable
+
+        # jsonable_encoder deep-copies dataclasses, so any error raised by
+        # `__reduce__` escapes the encoder. See #23629.
+        assert my_flow.serialize_parameters({"x": Holder(Uncopyable())}) == {
+            "x": "<Holder>"
+        }
+
     def test_flow_parameter_annotations_can_be_non_pydantic_classes(self):
         class Test:
             pass
@@ -3385,6 +3406,138 @@ class TestFlowHooksWithKwargs:
         state = foo_flow(return_state=True)
 
         assert data == dict(name="hook", state=state, kwargs={"foo": 42})
+
+
+def _hooks_by_signature(received: list[tuple[Any, Any, Any]]) -> dict[str, Any]:
+    def alternate_names(flow_, run, state_):
+        received.append((flow_, run, state_))
+
+    def documented_run_name(flow, run, state):
+        received.append((flow, run, state))
+
+    def keyword_only(*, flow, flow_run, state):
+        received.append((flow, flow_run, state))
+
+    def reordered_names(state, flow, flow_run):
+        received.append((flow, flow_run, state))
+
+    async def async_keyword_only(*, flow, flow_run, state):
+        received.append((flow, flow_run, state))
+
+    return {
+        hook.__name__: hook
+        for hook in (
+            alternate_names,
+            documented_run_name,
+            keyword_only,
+            reordered_names,
+            async_keyword_only,
+        )
+    }
+
+
+HOOK_SIGNATURES = [
+    "alternate_names",
+    "documented_run_name",
+    "keyword_only",
+    "reordered_names",
+    "async_keyword_only",
+]
+
+
+class TestFlowHookSignatures:
+    @pytest.mark.parametrize("signature", HOOK_SIGNATURES)
+    def test_hook_receives_flow_flow_run_and_state(self, signature: str):
+        received: list[tuple[Any, Any, Any]] = []
+
+        @flow(on_completion=[_hooks_by_signature(received)[signature]])
+        def foo_flow():
+            pass
+
+        state = foo_flow(return_state=True)
+
+        assert len(received) == 1
+        hook_flow, hook_flow_run, hook_state = received[0]
+        assert hook_flow is foo_flow
+        assert hook_flow_run.id == state.state_details.flow_run_id
+        assert hook_state == state
+
+    @pytest.mark.parametrize("signature", HOOK_SIGNATURES)
+    async def test_hook_receives_flow_flow_run_and_state_in_async_flow(
+        self, signature: str
+    ):
+        received: list[tuple[Any, Any, Any]] = []
+
+        @flow(on_completion=[_hooks_by_signature(received)[signature]])
+        async def foo_flow():
+            pass
+
+        state = await foo_flow(return_state=True)
+
+        assert len(received) == 1
+        hook_flow, hook_flow_run, hook_state = received[0]
+        assert hook_flow is foo_flow
+        assert hook_flow_run.id == state.state_details.flow_run_id
+        assert hook_state == state
+
+    def test_hook_that_raises_type_error_runs_once(self, caplog):
+        calls: list[Any] = []
+
+        def hook(flow, flow_run, state):
+            calls.append(state)
+            raise TypeError("raised inside the hook")
+
+        @flow(on_completion=[hook])
+        def foo_flow():
+            pass
+
+        foo_flow()
+
+        assert len(calls) == 1
+        assert "raised inside the hook" in caplog.text
+
+    def test_hook_with_incompatible_signature_is_not_called(self, caplog):
+        calls: list[Any] = []
+
+        def hook(flow, flow_run):
+            calls.append(flow_run)
+
+        @flow(on_completion=[hook])
+        def foo_flow():
+            pass
+
+        foo_flow()
+
+        assert calls == []
+        assert "must accept the flow, the flow run and the state" in caplog.text
+
+    @pytest.mark.parametrize(
+        "base",
+        [FlowStateHook, FlowStateHook[..., None]],
+        ids=["protocol", "parametrized-protocol"],
+    )
+    def test_flow_state_hook_subclass_receives_flow_flow_run_and_state(self, base: Any):
+        received: list[tuple[Any, Any, Any]] = []
+
+        class Hook(base):
+            def __call__(self, flow, flow_run, state):
+                received.append((flow, flow_run, state))
+
+        hook = Hook()
+
+        @flow
+        def foo_flow():
+            pass
+
+        assert foo_flow.on_completion(hook) is hook
+
+        state = foo_flow(return_state=True)
+
+        assert len(received) == 1
+        hook_flow, hook_flow_run, hook_state = received[0]
+        assert hook_flow is foo_flow
+        assert hook_flow_run.id == state.state_details.flow_run_id
+        assert hook_state == state
 
 
 class TestFlowHooksOnCompletion:

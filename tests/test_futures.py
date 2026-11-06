@@ -5,7 +5,7 @@ import time
 import uuid
 from collections import OrderedDict
 from concurrent.futures import Future
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
 import pytest
@@ -502,6 +502,23 @@ class TestResolveFuturesToResults:
             a=1, foo="bar", b=2
         )
 
+    def test_resolve_futures_transforms_future_in_dataclass_with_non_init_field(
+        self,
+    ):
+        @dataclass
+        class Foo:
+            foo: str
+            attempts: int = field(init=False, default=0)
+
+        future = MockFuture(data="bar")
+        value = Foo(foo=future)
+        value.attempts = 3
+
+        result = resolve_futures_to_results(value)
+
+        assert result.foo == "bar"
+        assert result.attempts == 3
+
     def test_resolves_futures_in_nested_collections(self):
         @dataclass
         class Foo:
@@ -982,8 +999,11 @@ class TestPrefectFutureList:
         mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), failing_future))
         futures = PrefectFutureList(mock_futures)
 
+        # The `TimeoutError` comes from the failed future, not the timeout. A tiny
+        # timeout arms a main-thread SIGALRM that can fire mid-teardown of the
+        # `as_completed` generator on a loaded runner, so use one that won't expire.
         with pytest.raises(TimeoutError):
-            futures.result(timeout=0.01)
+            futures.result(timeout=10)
 
     def test_result_does_not_obscure_other_timeouts(self):
         mock_futures: List[PrefectFuture] = [MockFuture(data=i) for i in range(5)]

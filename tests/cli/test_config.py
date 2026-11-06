@@ -396,6 +396,18 @@ def test_unset_with_unknown_setting():
     )
 
 
+def test_unset_with_unknown_setting_containing_markup():
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "unset", "foo[/x]"],
+        expected_output="""
+            Unknown setting name 'foo[/x]'.
+            """,
+        expected_code=1,
+    )
+
+
 def test_unset_with_setting_not_in_profile():
     save_profiles(
         ProfilesCollection(

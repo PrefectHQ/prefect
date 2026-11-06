@@ -2,11 +2,13 @@
 Utilities for the Prefect REST API server.
 """
 
+import re
 from collections.abc import Coroutine, Sequence
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Callable, get_type_hints
 
 from fastapi import APIRouter, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from starlette.routing import BaseRoute
 
@@ -38,6 +40,62 @@ def method_paths_from_routes(routes: Sequence[BaseRoute]) -> set[str]:
     return method_paths
 
 
+# A JSON `\uD800`-`\uDFFF` escape, or the raw bytes of a surrogate, which
+# `json.loads` decodes with `surrogatepass`
+_SURROGATE_PATTERN = re.compile(rb"\\u[dD][89a-fA-F]|\xed[\xa0-\xbf]")
+
+
+def _find_unpaired_surrogate(
+    value: Any, loc: tuple[str | int, ...]
+) -> tuple[str | int, ...] | None:
+    """Return the location of the first string that is not encodable as UTF-8."""
+    if isinstance(value, str):
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError:
+            return loc
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            if _find_unpaired_surrogate(key, loc) is not None:
+                return loc
+            if (found := _find_unpaired_surrogate(item, (*loc, key))) is not None:
+                return found
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            if (found := _find_unpaired_surrogate(item, (*loc, index))) is not None:
+                return found
+    return None
+
+
+async def _reject_unpaired_surrogates(request: Request) -> None:
+    """
+    Reject JSON bodies containing unpaired surrogates (e.g. `"\\ud800"`), which
+    cannot be encoded as UTF-8 and so can neither be stored nor returned.
+    """
+    if "json" not in request.headers.get("content-type", "application/json"):
+        return
+    if not _SURROGATE_PATTERN.search(await request.body()):
+        return
+    try:
+        body = await request.json()
+    except ValueError:
+        # Leave reporting malformed JSON to FastAPI
+        return
+    loc = _find_unpaired_surrogate(body, ("body",))
+    if loc is not None:
+        raise RequestValidationError(
+            [
+                {
+                    "type": "string_unicode",
+                    "loc": loc,
+                    "msg": "String should not contain unpaired surrogates",
+                    "input": None,
+                }
+            ],
+            body=body,
+        )
+
+
 class PrefectAPIRoute(APIRoute):
     """
     A FastAPIRoute class which attaches an async stack to requests that exits before
@@ -55,6 +113,9 @@ class PrefectAPIRoute(APIRoute):
 
         async def handle_response_scoped_depends(request: Request) -> Response:
             # Create a new stack scoped to exit before the response is returned
+            if self.body_field is not None:
+                await _reject_unpaired_surrogates(request)
+
             response = None
             async with AsyncExitStack() as stack:
                 request.state.response_scoped_stack = stack
