@@ -162,7 +162,20 @@ async def evaluate(
     if count and (trigger.immediate or bucket.start <= now < bucket.end):
         # we are still within the automation time period, so spend the count in the
         # current bucket
-        bucket = await increment_bucket(session, bucket, count, triggering_event)
+        bucket = await increment_bucket(
+            session,
+            bucket,
+            count,
+            triggering_event,
+            max_events=trigger.threshold,
+            # A proactive firing is about the absence of later events, so
+            # the event that opened the bucket is the firing's subject
+            # (e.g. the stuck run in an SLA trigger) and must stay in
+            # the retained list; a reactive firing is caused by a later
+            # event, so its opening event stays dropped (see
+            # increment_bucket's docstring).
+            retain_opening_event=trigger.posture == Posture.Proactive,
+        )
         count = 0
 
     # Reactive automations will fire "eagerly", meaning they will fire as _soon_ as the
@@ -194,6 +207,31 @@ async def evaluate(
             extra=logging_context,
         )
 
+        # Present the counted events in the order they occurred, so an
+        # action template sees every contributing payload, not only the
+        # last one.  Events counted only as held events carry no payload
+        # and are absent here; an empty list falls back to the singular
+        # event in `all_events`, as before.
+        firing_events = sorted(
+            bucket.triggering_events or [],
+            key=lambda event: (event.occurred, event.id),
+        )
+        # A reactive firing is caused by its triggering event, so that
+        # event belongs in the list even when the retained list was
+        # truncated by the storage cap (e.g. threshold 101 with a 100
+        # event cap, where the stored list holds only the first 100).
+        # Without this, the one event that actually caused the firing
+        # would be the one omitted from it.  The append stays within
+        # the threshold: a threshold-0 trigger retains no events at
+        # all, and that contract is preserved.
+        if (
+            triggering_event is not None
+            and len(firing_events) < trigger.threshold
+            and all(event.id != triggering_event.id for event in firing_events)
+        ):
+            firing_events.append(triggering_event)
+            firing_events.sort(key=lambda event: (event.occurred, event.id))
+
         firing = Firing(
             trigger=trigger,
             trigger_states={TriggerState.Triggered},
@@ -203,6 +241,7 @@ async def evaluate(
                 for label, value in zip(sorted(trigger.for_each), bucket.bucketing_key)
             },
             triggering_event=triggering_event or bucket.last_event,
+            triggering_events=firing_events,
         )
 
         await fire(session, firing)
@@ -317,6 +356,9 @@ async def evaluate(
             )
             return await evaluate(session, trigger, bucket, now, triggering_event)
         else:
+            # A count carried into the next window belongs to the event
+            # being evaluated, so carry that event with it; otherwise the
+            # next window would count an event whose payload it never saw.
             return await start_new_bucket(
                 session,
                 trigger,
@@ -324,6 +366,9 @@ async def evaluate(
                 start=start,
                 end=end,
                 count=count,
+                triggering_events=(
+                    [triggering_event] if count > 0 and triggering_event else []
+                ),
             )
 
 
@@ -1008,6 +1053,7 @@ async def read_bucket_by_trigger_id(
     automation_id: UUID,
     trigger_id: UUID,
     bucketing_key: Tuple[str, ...],
+    for_update: bool = False,
 ) -> "ORMAutomationBucket | None":
     """Gets the bucket this event would fall into for the given Automation, if there is
     one currently"""
@@ -1020,6 +1066,12 @@ async def read_bucket_by_trigger_id(
         )
         .execution_options(populate_existing=True)
     )
+    if for_update:
+        # `with_for_update` on the session is for SQLite only (it makes
+        # SQLite `BEGIN IMMEDIATE`); for PostgreSQL, lock the row on read
+        # so a read-modify-write of the bucket cannot interleave with
+        # another handler's increment of the same bucket.
+        query = query.with_for_update()
     result = await session.execute(query)
     return result.scalars().first()
 
@@ -1046,6 +1098,17 @@ async def hold_expect_event(
     return await read_bucket(session, trigger, bucketing_key)
 
 
+# Hard cap on retained triggering events, independent of the trigger
+# threshold: a threshold has no upper bound, so capping retention at the
+# threshold alone lets a large threshold grow the stored JSON list without
+# bound (and every increment reserializes the whole list).  100 covers any
+# realistic automation threshold while bounding per-row storage and
+# per-increment reserialization work; a firing still fires on the exact
+# count, but for thresholds above the cap only the first 100 counted
+# events are exposed.
+MAX_RETAINED_TRIGGERING_EVENTS = 100
+
+
 @db_injector
 async def increment_bucket(
     db: PrefectDBInterface,
@@ -1053,11 +1116,79 @@ async def increment_bucket(
     bucket: "ORMAutomationBucket",
     count: int,
     last_event: Optional[ReceivedEvent],
+    max_events: Optional[int] = None,
+    retain_opening_event: bool = False,
 ) -> "ORMAutomationBucket":
-    """Adds the given count to the bucket, returning the new bucket"""
-    additional_updates: dict[str, ReceivedEvent] = (
+    """Adds the given count to the bucket, returning the new bucket.  The
+    counted event is retained in the bucket, one entry per counted
+    evaluation, so the firing can expose every contributing event; the
+    list mirrors the count, with no deduplication by id, because the
+    count itself increments per evaluation.
+
+    The bucket row is re-read under a write lock before the list is
+    built: the upsert increments `count` atomically, but the retained
+    list is built from the caller's snapshot, so two concurrent handlers
+    would otherwise let the second writer's list replace the first's
+    while the count still reaches the threshold.  On PostgreSQL the
+    session's `with_for_update` flag is ignored (it only makes SQLite
+    `BEGIN IMMEDIATE`), so the lock is taken on the read itself.
+
+    An event that only arms a bucket opened at `initial_count=-1` (the
+    same event matching both `after` and `expect`) is not retained by
+    default: it nets the count to zero, so keeping it would let a
+    threshold-1 reactive firing expose only the arming event and omit
+    the payload that actually caused the firing.  Callers pass
+    `retain_opening_event=True` for proactive triggers, where the
+    firing is about the absence of later events and the opening event
+    is itself the firing's subject (e.g. the stuck run in an SLA
+    trigger); dropping it there would leave the firing with no
+    contributing payload at all.
+
+    If the locked re-read finds no row, the bucket was deleted after
+    the caller read it (another handler already fired and removed
+    it).  In that case nothing is written: re-inserting the caller's
+    stale snapshot would resurrect a fired bucket with its old
+    triggering events.  Callers must therefore only increment buckets
+    they have ensured or read; in production that is exactly what
+    `evaluate` does.
+
+    The retained list is capped at `max_events` (the trigger threshold)
+    and at `MAX_RETAINED_TRIGGERING_EVENTS`, whichever is smaller: a
+    reactive trigger fires as soon as the threshold is met, and a
+    proactive trigger only fires while its count is below the threshold,
+    so events past the threshold cap can never appear in a firing, and
+    the hard cap keeps a large threshold from growing the stored list
+    without bound.  The bucket is deleted when it fires or expires, so
+    retained events are cleaned up with it."""
+    # Re-read under a write lock so the list is built from the latest
+    # committed row, not the caller's possibly stale snapshot.
+    locked_bucket = await read_bucket_by_trigger_id(
+        session,
+        bucket.automation_id,
+        bucket.trigger_id,
+        tuple(bucket.bucketing_key),
+        for_update=True,
+    )
+    if locked_bucket is None:
+        # The row vanished under the lock: another handler fired and
+        # deleted this bucket while this handler waited.  Return the
+        # caller's bucket unchanged and write nothing, so the fired
+        # bucket is not resurrected from a stale snapshot.
+        return bucket
+    bucket = locked_bucket
+    triggering_events = list(bucket.triggering_events or [])
+    if last_event and (bucket.count + count > 0 or retain_opening_event):
+        triggering_events.append(last_event)
+    effective_cap = (
+        min(max_events, MAX_RETAINED_TRIGGERING_EVENTS)
+        if max_events is not None
+        else MAX_RETAINED_TRIGGERING_EVENTS
+    )
+    triggering_events = triggering_events[:effective_cap]
+    additional_updates: dict[str, object] = (
         {"last_event": last_event} if last_event else {}
     )
+    additional_updates["triggering_events"] = triggering_events
     await session.execute(
         db.queries.insert(db.AutomationBucket)
         .values(
@@ -1068,6 +1199,7 @@ async def increment_bucket(
             end=bucket.end,
             count=count,
             last_operation="increment_bucket[insert]",
+            triggering_events=triggering_events,
         )
         .on_conflict_do_update(
             index_elements=[
@@ -1108,10 +1240,13 @@ async def start_new_bucket(
     count: int,
     triggered_at: Optional[prefect.types._datetime.DateTime] = None,
     last_event: Optional[ReceivedEvent] = None,
+    triggering_events: Optional[List[ReceivedEvent]] = None,
 ) -> "ORMAutomationBucket":
     """Ensures that a bucket with the given start and end exists with the given count
     plus any held `expect` events that occurred inside its window, returning the new
-    bucket"""
+    bucket.  `triggering_events` holds the events the carried `count` belongs
+    to; it is empty when the count comes from held events, which carry no
+    payload, or from no event at all."""
     automation = trigger.automation
 
     # The held events are counted inside the upsert rather than in a query of their
@@ -1134,6 +1269,7 @@ async def start_new_bucket(
             last_operation="start_new_bucket[insert]",
             triggered_at=triggered_at,
             last_event=last_event,
+            triggering_events=triggering_events or [],
         )
         .on_conflict_do_update(
             index_elements=[
@@ -1149,6 +1285,7 @@ async def start_new_bucket(
                 updated=prefect.types._datetime.now("UTC"),
                 triggered_at=triggered_at,
                 last_event=last_event,
+                triggering_events=triggering_events or [],
             ),
         )
     )

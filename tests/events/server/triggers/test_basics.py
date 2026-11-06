@@ -211,6 +211,7 @@ async def test_reactive_automation_triggers_can_trigger_immediately(
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=daddy_long_legs_walked,
+            triggering_events=[daddy_long_legs_walked],
         ),
     )
 
@@ -227,6 +228,7 @@ async def test_reactive_automation_triggers_can_trigger_immediately(
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=daddy_long_legs_walked,
+            triggering_events=[daddy_long_legs_walked],
         ),
     )
 
@@ -262,6 +264,7 @@ async def test_reactive_automation_triggers_only_on_expected_events(
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=daddy_long_legs_walked,
+            triggering_events=[daddy_long_legs_walked],
         ),
     )
 
@@ -274,16 +277,24 @@ async def test_reactive_automation_triggers_as_soon_as_it_can(
     assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: DateTime,
 ):
+    # Snapshots of each event as sent: the fixture event is mutated in
+    # place between evaluations, so the firing's retained events can only
+    # be compared against copies taken at send time.
+    sent: List[ReceivedEvent] = []
+
+    sent.append(woodchonk_walked.model_copy())
     await triggers.reactive_evaluation(woodchonk_walked)
     act.assert_not_awaited()
 
     woodchonk_walked.occurred += timedelta(seconds=1)
+    sent.append(woodchonk_walked.model_copy())
     await triggers.reactive_evaluation(woodchonk_walked)
     act.assert_not_awaited()
 
     # it fires here because the threshold of > 2 has been met
 
     woodchonk_walked.occurred += timedelta(seconds=1)
+    sent.append(woodchonk_walked.model_copy())
     await triggers.reactive_evaluation(woodchonk_walked)
     assert_acted_with(
         Firing(
@@ -292,6 +303,7 @@ async def test_reactive_automation_triggers_as_soon_as_it_can(
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=woodchonk_walked,
+            triggering_events=sent[0:3],
         ),
     )
     act.reset_mock()
@@ -299,24 +311,29 @@ async def test_reactive_automation_triggers_as_soon_as_it_can(
     # it will not fire again while we're in the original window
 
     woodchonk_walked.occurred += timedelta(seconds=1)
+    sent.append(woodchonk_walked.model_copy())
     await triggers.reactive_evaluation(woodchonk_walked)
     act.assert_not_awaited()
 
     woodchonk_walked.occurred += timedelta(seconds=1)
+    sent.append(woodchonk_walked.model_copy())
     await triggers.reactive_evaluation(woodchonk_walked)
     act.assert_not_awaited()
 
     # if we jump ahead to a new time window, it will fire again after three events
 
     woodchonk_walked.occurred += timedelta(seconds=20)
+    sent.append(woodchonk_walked.model_copy())
     await triggers.reactive_evaluation(woodchonk_walked)
     act.assert_not_awaited()
 
     woodchonk_walked.occurred += timedelta(seconds=1)
+    sent.append(woodchonk_walked.model_copy())
     await triggers.reactive_evaluation(woodchonk_walked)
     act.assert_not_awaited()
 
     woodchonk_walked.occurred += timedelta(seconds=1)
+    sent.append(woodchonk_walked.model_copy())
     await triggers.reactive_evaluation(woodchonk_walked)
     assert_acted_with(
         Firing(
@@ -325,6 +342,7 @@ async def test_reactive_automation_triggers_as_soon_as_it_can(
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=woodchonk_walked,
+            triggering_events=sent[5:8],
         ),
     )
 
@@ -383,6 +401,7 @@ async def test_reactive_automation_triggers_immediately_even_if_event_matches_af
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=woodchonk_table_for_one,
+            triggering_events=[woodchonk_table_for_one],
         ),
     )
 
@@ -418,23 +437,31 @@ async def test_reactive_automation_triggers_for_each_related_label(
     triggers.load_automation(automation)
     await automations_session.commit()
 
+    # Snapshots as sent, as in the threshold test above.
+    nibbled: List[ReceivedEvent] = []
+    gobbled: List[ReceivedEvent] = []
+
     woodchonk_nibbled.id = uuid4()
     woodchonk_nibbled.occurred += timedelta(seconds=1)
+    nibbled.append(woodchonk_nibbled.model_copy())
     await triggers.reactive_evaluation(woodchonk_nibbled)
     act.assert_not_awaited()
 
     woodchonk_nibbled.id = uuid4()
     woodchonk_nibbled.occurred += timedelta(seconds=1)
+    nibbled.append(woodchonk_nibbled.model_copy())
     await triggers.reactive_evaluation(woodchonk_nibbled)
     act.assert_not_awaited()
 
     woodchonk_gobbled.id = uuid4()
     woodchonk_gobbled.occurred += timedelta(seconds=1)
+    gobbled.append(woodchonk_gobbled.model_copy())
     await triggers.reactive_evaluation(woodchonk_gobbled)
     act.assert_not_awaited()
 
     woodchonk_nibbled.id = uuid4()
     woodchonk_nibbled.occurred += timedelta(seconds=1)
+    nibbled.append(woodchonk_nibbled.model_copy())
     await triggers.reactive_evaluation(woodchonk_nibbled)
     assert_acted_with(
         Firing(
@@ -446,17 +473,20 @@ async def test_reactive_automation_triggers_for_each_related_label(
                 "related:meal:species": "fulva",
             },
             triggering_event=woodchonk_nibbled,
+            triggering_events=nibbled,
         ),
     )
     act.reset_mock()
 
     woodchonk_gobbled.id = uuid4()
     woodchonk_gobbled.occurred += timedelta(seconds=1)
+    gobbled.append(woodchonk_gobbled.model_copy())
     await triggers.reactive_evaluation(woodchonk_gobbled)
     act.assert_not_awaited()
 
     woodchonk_gobbled.id = uuid4()
     woodchonk_gobbled.occurred += timedelta(seconds=1)
+    gobbled.append(woodchonk_gobbled.model_copy())
     await triggers.reactive_evaluation(woodchonk_gobbled)
     assert_acted_with(
         Firing(
@@ -468,6 +498,7 @@ async def test_reactive_automation_triggers_for_each_related_label(
                 "related:meal:species": "cucullaria",
             },
             triggering_event=woodchonk_gobbled,
+            triggering_events=gobbled,
         ),
     )
 
@@ -726,6 +757,7 @@ async def test_follower_messages_are_processed_when_leaders_arrive(
             triggered=frozen_time,  # type: ignore
             triggering_labels={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             triggering_event=failed,  # we reacted due to the Failed event, not Running
+            triggering_events=[failed],
         ),
     )
 
@@ -801,6 +833,7 @@ async def test_old_follower_messages_are_processed_immediately(
             triggered=frozen_time,  # type: ignore
             triggering_labels={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             triggering_event=failed,
+            triggering_events=[failed],
         ),
     )
 
@@ -914,5 +947,93 @@ async def test_lost_followers_are_processed_during_proactive_evaluation(
             triggered=the_future.return_value,
             triggering_labels={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             triggering_event=failed,
+            triggering_events=[failed],
         ),
     )
+
+
+async def test_threshold_firing_exposes_all_contributing_events(
+    effective_automations,
+    chonk_party: Automation,
+    woodchonk_walked: ReceivedEvent,
+    act: mock.AsyncMock,
+):
+    events = [
+        woodchonk_walked.model_copy(
+            update={
+                "id": uuid4(),
+                "payload": {"n": n},
+                "occurred": woodchonk_walked.occurred + timedelta(seconds=n),
+            }
+        )
+        for n in range(3)
+    ]
+
+    for event in events:
+        await triggers.reactive_evaluation(event)
+
+    assert act.await_count == 1
+    firing = act.await_args.args[0]
+    assert isinstance(firing, Firing)
+    assert [e.payload for e in firing.all_events()] == [
+        {"n": 0},
+        {"n": 1},
+        {"n": 2},
+    ]
+    assert firing.triggering_event == events[2]
+    assert firing.all_events()[-1] == firing.triggering_event
+
+
+async def test_threshold_one_firing_exposes_single_event_unchanged(
+    effective_automations,
+    arachnophobia: Automation,
+    daddy_long_legs_walked: ReceivedEvent,
+    act: mock.AsyncMock,
+):
+    await triggers.reactive_evaluation(daddy_long_legs_walked)
+
+    assert act.await_count == 1
+    firing = act.await_args.args[0]
+    assert firing.all_events() == [daddy_long_legs_walked]
+    assert firing.triggering_event == daddy_long_legs_walked
+
+
+async def test_fired_bucket_does_not_carry_events_into_next_window(
+    effective_automations,
+    chonk_party: Automation,
+    woodchonk_walked: ReceivedEvent,
+    act: mock.AsyncMock,
+    automations_session: AsyncSession,
+):
+    assert isinstance(chonk_party.trigger, EventTrigger)
+    trigger = chonk_party.trigger
+
+    for n in range(3):
+        event = woodchonk_walked.model_copy(
+            update={
+                "id": uuid4(),
+                "occurred": woodchonk_walked.occurred + timedelta(seconds=n),
+            }
+        )
+        await triggers.reactive_evaluation(event)
+
+    assert act.await_count == 1
+    act.reset_mock()
+
+    # The window after a firing starts at the fired window's end
+    # (first event + 10s), so the next counted event must land in it;
+    # an event still inside the old window is ignored as late.
+    fresh = woodchonk_walked.model_copy(
+        update={
+            "id": uuid4(),
+            "occurred": woodchonk_walked.occurred + timedelta(seconds=11),
+        }
+    )
+    await triggers.reactive_evaluation(fresh)
+    act.assert_not_awaited()
+
+    bucket = await triggers.read_bucket(
+        automations_session, trigger, trigger.bucketing_key(fresh)
+    )
+    assert bucket is not None
+    assert [e.id for e in bucket.triggering_events] == [fresh.id]
