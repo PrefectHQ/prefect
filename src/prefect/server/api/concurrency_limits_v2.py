@@ -362,7 +362,10 @@ async def bulk_increment_active_slots_with_lease(
     if acquired:
         lease_storage = get_concurrency_lease_storage()
         lease = await lease_storage.create_lease(
-            resource_ids=[limit.id for limit in acquired_limits],
+            # Only active limits were incremented. Releasing the lease decrements
+            # its `resource_ids`, so an inactive limit enabled later must not be
+            # among them or the release would free another holder's slot.
+            resource_ids=[limit.id for limit in acquired_limits if limit.active],
             ttl=timedelta(seconds=lease_duration),
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=slots,
