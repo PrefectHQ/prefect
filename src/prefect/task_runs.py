@@ -4,22 +4,39 @@ import asyncio
 import atexit
 import threading
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Self
 
 import anyio
 from cachetools import TTLCache
-from typing_extensions import Self
 
+from prefect._internal._observation_delivery import (
+    STABLE_CONNECTION_SECONDS,
+    ObservationDelivery,
+    reconnect_delay,
+)
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.threads import get_global_loop
+from prefect.client.orchestration import get_client
+from prefect.client.schemas.filters import (
+    TaskRunFilter,
+    TaskRunFilterId,
+    TaskRunFilterState,
+    TaskRunFilterStateType,
+)
 from prefect.client.schemas.objects import TERMINAL_STATES
+from prefect.client.schemas.sorting import TaskRunSort
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
+from prefect.events.schemas.events import Event
 from prefect.logging.loggers import get_logger
 from prefect.states import State
 
 if TYPE_CHECKING:
     import logging
+
+# How often to read the task runs being waited on while the events stream is down
+TASK_RUN_POLLING_INTERVAL_SECONDS = 10.0
 
 
 class TaskRunWaiter:
@@ -70,18 +87,18 @@ class TaskRunWaiter:
     ```
     """
 
-    _instance: Optional[Self] = None
+    _instance: Self | None = None
     _instance_lock = threading.Lock()
 
     def __init__(self):
-        self.logger: "logging.Logger" = get_logger("TaskRunWaiter")
-        self._consumer_task: "asyncio.Task[None] | None" = None
-        self._observed_completed_task_runs: TTLCache[
-            uuid.UUID, Optional[State[Any]]
-        ] = TTLCache(maxsize=10000, ttl=600)
-        self._completion_events: Dict[uuid.UUID, asyncio.Event] = {}
-        self._completion_callbacks: Dict[uuid.UUID, Callable[[], None]] = {}
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self.logger: logging.Logger = get_logger("TaskRunWaiter")
+        self._consumer_task: asyncio.Task[None] | None = None
+        self._observed_completed_task_runs: TTLCache[uuid.UUID, State[Any] | None] = (
+            TTLCache(maxsize=10000, ttl=600)
+        )
+        self._completion_events: dict[uuid.UUID, asyncio.Event] = {}
+        self._completion_callbacks: dict[uuid.UUID, Callable[[], None]] = {}
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._observed_completed_task_runs_lock = threading.Lock()
         self._completion_events_lock = threading.Lock()
         self._started = False
@@ -102,64 +119,137 @@ class TaskRunWaiter:
         if TYPE_CHECKING:
             assert self._loop is not None
 
-        consumer_started = asyncio.Event()
-        self._consumer_task = self._loop.create_task(
-            self._consume_events(consumer_started)
-        )
-        asyncio.run_coroutine_threadsafe(consumer_started.wait(), self._loop)
+        self._consumer_task = self._loop.create_task(self._deliver_events())
 
         loop_thread.add_shutdown_call(create_call(self.stop))
         atexit.register(self.stop)
         self._started = True
 
-    async def _consume_events(self, consumer_started: asyncio.Event):
-        async with get_events_subscriber(
-            filter=EventFilter(
-                event=EventNameFilter(
-                    name=[
-                        f"prefect.task-run.{state.name.title()}"
-                        for state in TERMINAL_STATES
-                    ],
-                )
-            )
-        ) as subscriber:
-            consumer_started.set()
-            async for event in subscriber:
-                try:
-                    self.logger.debug(
-                        f"Received event: {event.resource['prefect.resource.id']}"
-                    )
-                    task_run_id = uuid.UUID(
-                        event.resource["prefect.resource.id"].replace(
-                            "prefect.task-run.", ""
+    async def _deliver_events(self) -> None:
+        """
+        Deliver terminal task run events for the lifetime of the service.
+
+        `ObservationDelivery` keeps the events stream alive and polls the task runs
+        being waited on while it is down. If it gives up, it is restarted with
+        backoff so that waits in this process do not hang.
+        """
+        loop = asyncio.get_running_loop()
+        failed_attempts = 0
+        unavailable = asyncio.Event()
+        while True:
+            unavailable.clear()
+            delivery = ObservationDelivery(
+                name="TaskRunWaiter",
+                logger=self.logger,
+                subscriber_factory=lambda: get_events_subscriber(
+                    filter=EventFilter(
+                        event=EventNameFilter(
+                            name=[
+                                f"prefect.task-run.{state.name.title()}"
+                                for state in TERMINAL_STATES
+                            ],
                         )
-                    )
+                    ),
+                    reconnection_attempts=0,
+                ),
+                on_event=self._handle_event,
+                check_current_state=self._check_waited_task_runs,
+                on_unavailable=lambda _: unavailable.set(),
+                polling_interval=TASK_RUN_POLLING_INTERVAL_SECONDS,
+            )
+            started_at = loop.time()
+            try:
+                await delivery.start()
+                await unavailable.wait()
+            finally:
+                await delivery.stop()
 
-                    # Extract the state from the event
-                    # All events should have validated_state since we don't support
-                    # new clients with old servers
-                    state_data = State.model_validate(
-                        {
-                            "id": event.id,
-                            "timestamp": event.occurred,
-                            **event.payload["validated_state"],
-                        }
-                    )
-                    state_data.state_details.task_run_id = task_run_id
+            if loop.time() - started_at >= STABLE_CONNECTION_SECONDS:
+                failed_attempts = 0
+            delay = reconnect_delay(failed_attempts)
+            failed_attempts += 1
+            self.logger.error(
+                "TaskRunWaiter lost both the events stream and the API. Restarting"
+                " in %.1f seconds.",
+                delay,
+            )
+            await asyncio.sleep(delay)
 
-                    with self._observed_completed_task_runs_lock:
-                        # Cache the state for a short period of time to avoid
-                        # unnecessary waits
-                        self._observed_completed_task_runs[task_run_id] = state_data
-                    with self._completion_events_lock:
-                        # Set the event for the task run ID if it is in the cache
-                        # so the waiter can wake up the waiting coroutine
-                        if task_run_id in self._completion_events:
-                            self._completion_events[task_run_id].set()
-                        if task_run_id in self._completion_callbacks:
-                            self._completion_callbacks[task_run_id]()
-                except Exception as exc:
-                    self.logger.error(f"Error processing event: {exc}")
+    def _handle_event(self, event: Event) -> None:
+        try:
+            self.logger.debug(
+                f"Received event: {event.resource['prefect.resource.id']}"
+            )
+            task_run_id = uuid.UUID(
+                event.resource["prefect.resource.id"].replace("prefect.task-run.", "")
+            )
+
+            # Extract the state from the event
+            # All events should have validated_state since we don't support
+            # new clients with old servers
+            state_data = State.model_validate(
+                {
+                    "id": event.id,
+                    "timestamp": event.occurred,
+                    **event.payload["validated_state"],
+                }
+            )
+            state_data.state_details.task_run_id = task_run_id
+
+            self._mark_task_run_finished(task_run_id, state_data)
+        except Exception as exc:
+            self.logger.error(f"Error processing event: {exc}")
+
+    async def _check_waited_task_runs(self) -> None:
+        """
+        Read the task runs being waited on and release any that have finished.
+
+        Used while the events stream is down and after it reconnects, since a new
+        subscription only replays recent events.
+        """
+        with self._completion_events_lock:
+            task_run_ids = list(
+                self._completion_events.keys() | self._completion_callbacks.keys()
+            )
+        if not task_run_ids:
+            return
+
+        task_run_filter = TaskRunFilter(
+            id=TaskRunFilterId(any_=task_run_ids),
+            state=TaskRunFilterState(
+                type=TaskRunFilterStateType(any_=list(TERMINAL_STATES))
+            ),
+        )
+        async with get_client() as client:
+            offset = 0
+            while task_runs := await client.read_task_runs(
+                task_run_filter=task_run_filter, sort=TaskRunSort.ID_DESC, offset=offset
+            ):
+                offset += len(task_runs)
+                for task_run in task_runs:
+                    if task_run.state is not None and task_run.state.is_final():
+                        self._mark_task_run_finished(task_run.id, task_run.state)
+
+    def _mark_task_run_finished(
+        self, task_run_id: uuid.UUID, state: State[Any]
+    ) -> None:
+        with self._observed_completed_task_runs_lock:
+            # Cache the state for a short period of time to avoid
+            # unnecessary waits
+            self._observed_completed_task_runs[task_run_id] = state
+        with self._completion_events_lock:
+            # Set the event for the task run ID if it is in the cache
+            # so the waiter can wake up the waiting coroutine
+            if task_run_id in self._completion_events:
+                self._completion_events[task_run_id].set()
+            callback = self._completion_callbacks.pop(task_run_id, None)
+        if callback is not None:
+            try:
+                callback()
+            except Exception:
+                self.logger.exception(
+                    "Error in done callback for task run %s", task_run_id
+                )
 
     def stop(self) -> None:
         """
@@ -174,8 +264,8 @@ class TaskRunWaiter:
 
     @classmethod
     async def wait_for_task_run(
-        cls, task_run_id: uuid.UUID, timeout: Optional[float] = None
-    ) -> Optional[State[Any]]:
+        cls, task_run_id: uuid.UUID, timeout: float | None = None
+    ) -> State[Any] | None:
         """
         Wait for a task run to finish and return its final state.
 
