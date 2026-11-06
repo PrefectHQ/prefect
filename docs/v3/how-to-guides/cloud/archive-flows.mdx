@@ -2,16 +2,16 @@
 title: How to archive and restore flows
 sidebarTitle: Archive flows
 description: Keep your workspace organized by archiving retired flows and restoring them when you need them.
-keywords: ["inactive", "dormant", "managed automations", "unarchive", "run history", "pause and archive"]
+keywords: ["inactive", "dormant", "workspace policies", "unarchive", "run history", "pause and archive"]
 ---
 
 <span class="badge cloud"></span>
 
 Archive flows you no longer use to remove them from the default views without deleting their run history.
-You can archive flows yourself or let managed automations archive dormant flows and restore flows that run again.
+You can archive flows yourself or use workspace policies to archive dormant flows and restore flows that run again.
 
 You need permission to manage flows (`manage_flows`) to archive or unarchive them.
-To configure the managed automations, you also need permission to manage automations.
+To configure workspace policies, you also need permission to manage automations.
 
 ## Archive a flow
 
@@ -94,16 +94,16 @@ With restoration off, the flow stays archived when these runs start.
 
 ## Enable automatic archival and restoration
 
-Prefect Cloud provides two managed automations for flow archival.
-Both are off by default, and you can enable them independently in each workspace.
+Prefect Cloud provides two policies that create automations for flow archival.
+Both policies are off by default, and you can enable them independently in each workspace.
 
 1. Open the workspace menu in the upper left and select **Settings**.
-2. Under **Account Settings → Controls**, make sure **Managed automations** is enabled. If you cannot change this setting, ask an account administrator.
-3. Under **Workspace Settings → Managed Automations**, enable **Dormant flow archival**, **Archived flow restoration**, or both.
+2. Under **Account Settings → Controls**, make sure **Workspace policies** is enabled. If you cannot change this setting, ask an account administrator.
+3. Under **Workspace Settings → Policies**, enable **Dormant flow archival**, **Archived flow restoration**, or both.
 4. For **Dormant flow archival**, set the number of days without runs and select **Save** after changing the setting.
 
-Enabled automations appear in the **Managed** section of the workspace's automations list.
-Enabling managed automations in account controls alone does not opt a workspace into these two automations.
+Automations created by enabled policies appear in the **Workspace policies** section of the workspace's automations list.
+Enabling workspace policies in account controls alone does not turn on either policy for a workspace.
 
 ### Archive dormant flows
 
@@ -149,9 +149,9 @@ The automation groups matching events by flow within a 10-minute window to avoid
 It reacts to the first matching event; the window does not add a 10-minute delay.
 It matches the event names above, so custom state names do not match unless the run also emits one of those events.
 
-### Turn off a managed automation
+### Turn off a policy
 
-Turn off either automation under **Workspace Settings → Managed Automations**.
+Turn off either policy under **Workspace Settings → Policies**.
 Turning off dormant flow archival leaves already archived flows archived.
 You can still unarchive them manually or use archived flow restoration.
 
