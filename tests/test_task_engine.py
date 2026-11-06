@@ -3003,6 +3003,246 @@ class TestGenerators:
             pass
         assert values == [1, 2]
 
+    async def test_generator_finalizer_failure_on_close_does_not_restart(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        A finalizer that raises while the consumer closes the generator must not
+        restart the task body (regression test for #23592).
+        """
+
+        @task(retries=1)
+        async def generator():
+            starts.append("start")
+            try:
+                yield 1
+                yield 2
+            finally:
+                cleanups.append(TaskRunContext.get() is not None)
+                raise ValueError("cleanup failed")
+
+        starts = []
+        cleanups = []
+
+        gen = generator()
+        assert await anext(gen) == 1
+        try:
+            with pytest.raises(ValueError, match="^cleanup failed$"):
+                await gen.aclose()
+        finally:
+            # Disposal only; the observations above are from the first close.
+            try:
+                await gen.aclose()
+            except (RuntimeError, StopAsyncIteration):
+                pass
+
+        assert starts == ["start"]
+        assert cleanups == [True]
+
+    async def test_generator_clean_close_with_retries_runs_cleanup_once(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Early closure with retries enabled runs successful cleanup exactly once
+        without restarting the task body.
+        """
+
+        @task(retries=1)
+        async def generator():
+            starts.append("start")
+            try:
+                yield 1
+                yield 2
+            finally:
+                cleanups.append(TaskRunContext.get() is not None)
+
+        starts = []
+        cleanups = []
+
+        gen = generator()
+        assert await anext(gen) == 1
+        await gen.aclose()
+
+        assert starts == ["start"]
+        assert cleanups == [True]
+
+    async def test_generator_suppressed_exit_on_close_closes_cleanly(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        A generator that suppresses GeneratorExit (e.g. `return` in its finally
+        block) closes cleanly, like an undecorated async generator.
+        """
+
+        @task(retries=1)
+        async def generator():
+            starts.append("start")
+            try:
+                yield 1
+            except GeneratorExit:
+                # suppress the close and fall off the end
+                cleanups.append(TaskRunContext.get() is not None)
+
+        starts = []
+        cleanups = []
+
+        gen = generator()
+        assert await anext(gen) == 1
+        await gen.aclose()
+
+        assert starts == ["start"]
+        assert cleanups == [True]
+
+    async def test_sync_generator_finalizer_failure_on_close_does_not_restart(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Sync mirror of the finalizer-failure regression test for #23592.
+        """
+
+        @task(retries=1)
+        def generator():
+            starts.append("start")
+            try:
+                yield 1
+                yield 2
+            finally:
+                cleanups.append(TaskRunContext.get() is not None)
+                raise ValueError("cleanup failed")
+
+        starts = []
+        cleanups = []
+
+        gen = generator()
+        assert next(gen) == 1
+        try:
+            with pytest.raises(ValueError, match="^cleanup failed$"):
+                gen.close()
+        finally:
+            try:
+                gen.close()
+            except (RuntimeError, StopIteration):
+                pass
+
+        assert starts == ["start"]
+        assert cleanups == [True]
+
+    async def test_sync_generator_clean_close_with_retries_runs_cleanup_once(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Sync mirror of the clean early-close test.
+        """
+
+        @task(retries=1)
+        def generator():
+            starts.append("start")
+            try:
+                yield 1
+                yield 2
+            finally:
+                cleanups.append(TaskRunContext.get() is not None)
+
+        starts = []
+        cleanups = []
+
+        gen = generator()
+        assert next(gen) == 1
+        gen.close()
+
+        assert starts == ["start"]
+        assert cleanups == [True]
+
+    async def test_generator_yields_during_close_raises(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        A generator that yields while handling GeneratorExit makes aclose raise
+        RuntimeError, matching plain async generator semantics.
+        """
+
+        @task(retries=1)
+        async def generator():
+            starts.append("start")
+            try:
+                yield 1
+            finally:
+                yield 99
+
+        starts = []
+
+        gen = generator()
+        assert await anext(gen) == 1
+        with pytest.raises(
+            RuntimeError, match="^async generator ignored GeneratorExit$"
+        ):
+            await gen.aclose()
+
+        assert starts == ["start"]
+
+    async def test_sync_generator_yields_during_close_raises(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Sync mirror: yielding while handling GeneratorExit makes close raise.
+        """
+
+        @task(retries=1)
+        def generator():
+            starts.append("start")
+            try:
+                yield 1
+            finally:
+                yield 99
+
+        starts = []
+
+        gen = generator()
+        assert next(gen) == 1
+        with pytest.raises(RuntimeError, match="^generator ignored GeneratorExit$"):
+            gen.close()
+
+        assert starts == ["start"]
+
+    async def test_generator_finalizer_failure_on_close_rolls_back_transaction(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        A finalizer failure while closing the generator must roll the staged
+        transaction back rather than committing it.
+        """
+
+        events = []
+
+        @task(retries=1)
+        async def generator():
+            events.append("start")
+            try:
+                yield 1
+            finally:
+                raise ValueError("cleanup failed")
+
+        @generator.on_commit
+        def commit(txn):
+            events.append("commit")
+
+        @generator.on_rollback
+        def rollback(txn):
+            events.append("rollback")
+
+        gen = generator()
+        assert await anext(gen) == 1
+        try:
+            with pytest.raises(ValueError, match="^cleanup failed$"):
+                await gen.aclose()
+        finally:
+            try:
+                await gen.aclose()
+            except (RuntimeError, StopAsyncIteration):
+                pass
+
+        assert events == ["start", "rollback"]
+
     def test_generators_can_be_yielded_without_being_consumed(self):
         CONSUMED = []
 
