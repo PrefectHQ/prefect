@@ -3,6 +3,83 @@ title: 3.9
 description: Release notes for Prefect 3.9.0 and 3.9.1, including Python 3.15 support, custom state discovery and filters, and the end of Python 3.10 support.
 ---
 
+## 3.9.2
+
+*Released on November 06, 2026*
+
+**Enhancements ➕➕**
+
+* Reduce deployment writes from queue polling by [@chuqCTC](https://github.com/chuqCTC) in [#23130](https://github.com/PrefectHQ/prefect/pull/23130)
+
+**Bug Fixes 🐞**
+
+* Render list-of-lists table artifacts in `ArtifactDataView` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23359](https://github.com/PrefectHQ/prefect/pull/23359)
+* Preserve datetime instants when changing timezone by [@ashutosh8021](https://github.com/ashutosh8021) in [#23682](https://github.com/PrefectHQ/prefect/pull/23682)
+* Show an invalid name error from `prefect deployment` commands for malformed names by [@LuisFigueroaG](https://github.com/LuisFigueroaG) in [#23680](https://github.com/PrefectHQ/prefect/pull/23680)
+* Fix `[object Object]` displayed in parameters fields by [@uinstinct](https://github.com/uinstinct) in [#23723](https://github.com/PrefectHQ/prefect/pull/23723)
+* Align positional-only argument defaults in source-parsed signatures by [@udsy19](https://github.com/udsy19) in [#23428](https://github.com/PrefectHQ/prefect/pull/23428)
+* Preserve `init=False` dataclass fields in `visit_collection` by [@Kayvan-Zahiri](https://github.com/Kayvan-Zahiri) in [#23270](https://github.com/PrefectHQ/prefect/pull/23270)
+* Release async-acquired locks in `RedisLockManager.release_lock` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23654](https://github.com/PrefectHQ/prefect/pull/23654)
+* Keep recent runs visible in V2 deployment activity charts by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23640](https://github.com/PrefectHQ/prefect/pull/23640)
+* Drop task run events for missing flow runs instead of failing the batch by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23664](https://github.com/PrefectHQ/prefect/pull/23664)
+* Don't crash completed runs when lease renewal gets 410 after terminal state by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23659](https://github.com/PrefectHQ/prefect/pull/23659)
+* Replace stuck readiness tasks when a poll would mark something ready by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23644](https://github.com/PrefectHQ/prefect/pull/23644)
+* Return 422 instead of 503/500 for invalid values in request bodies by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23619](https://github.com/PrefectHQ/prefect/pull/23619)
+* Preserve literal artifact content in CLI JSON output by [@RoryGlenn](https://github.com/RoryGlenn) in [#23692](https://github.com/PrefectHQ/prefect/pull/23692)
+* Preserve literal markup and emoji aliases in all CLI JSON/YAML output by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23695](https://github.com/PrefectHQ/prefect/pull/23695)
+* Fix v1 UI ignoring `PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23710](https://github.com/PrefectHQ/prefect/pull/23710)
+* Accept the same flow state hook signatures in the engine and the runner by [@CassianoE](https://github.com/CassianoE) in [#23715](https://github.com/PrefectHQ/prefect/pull/23715)
+* Keep deployment schedule parameter overrides on partial schedule updates by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23719](https://github.com/PrefectHQ/prefect/pull/23719)
+* Tolerate release of expired locks in `MemoryLockManager` and `FileSystemLockManager` by [@Wilson0511](https://github.com/Wilson0511) in [#23725](https://github.com/PrefectHQ/prefect/pull/23725)
+* Keep inherited sync client open for tasks submitted via `ThreadPoolTaskRunner` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23749](https://github.com/PrefectHQ/prefect/pull/23749)
+* Fall back to UTC when the browser reports no time zone in ui-v2 by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23738](https://github.com/PrefectHQ/prefect/pull/23738)
+* Fix `GitRepository.pull_code()` ignoring `directories` changes on an existing sparse checkout by [@CassianoE](https://github.com/CassianoE) in [#23712](https://github.com/PrefectHQ/prefect/pull/23712)
+* Preserve JSON Schema references in flow parameters by [@ska2704](https://github.com/ska2704) in [#23432](https://github.com/PrefectHQ/prefect/pull/23432)
+* Disable Rich markup by default in `exit_with_error` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23763](https://github.com/PrefectHQ/prefect/pull/23763)
+* Fix IndexError in `prefect block type inspect`/`ls` on empty description by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23762](https://github.com/PrefectHQ/prefect/pull/23762)
+* Fix 500 from flow run resume when run input has an integer beyond 64 bits by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23617](https://github.com/PrefectHQ/prefect/pull/23617)
+* Treat database and connection pool timeouts as client retryable exceptions by [@Tyagiquamar](https://github.com/Tyagiquamar) in [#23741](https://github.com/PrefectHQ/prefect/pull/23741)
+* Stop flow run heartbeats before proposing a terminal state by [@chrisguidry](https://github.com/chrisguidry) in [#23784](https://github.com/PrefectHQ/prefect/pull/23784)
+* Fix automation trigger "Format" button submitting the wizard form by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23776](https://github.com/PrefectHQ/prefect/pull/23776)
+* Return False from `still_connected` after a websocket disconnect message by [@chuqCTC](https://github.com/chuqCTC) in [#23781](https://github.com/PrefectHQ/prefect/pull/23781)
+* Fix `RemoteFileSystem` uploading all files when ignore file excludes everything by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23786](https://github.com/PrefectHQ/prefect/pull/23786)
+* Log pull step failures to the API in the workspace resolver by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23783](https://github.com/PrefectHQ/prefect/pull/23783)
+* Remove a failed script from `sys.modules` in `load_script_as_module` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23772](https://github.com/PrefectHQ/prefect/pull/23772)
+* Surface import errors when the placeholder flow fallback cannot find a non-`def` entrypoint by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23773](https://github.com/PrefectHQ/prefect/pull/23773)
+* Fix `visit_collection` for `defaultdict`, `Counter`, `deque`, and `frozenset` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23794](https://github.com/PrefectHQ/prefect/pull/23794)
+* Keep automations loaded while the triggers service reloads them by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23778](https://github.com/PrefectHQ/prefect/pull/23778)
+* Let `*` match an empty string in `prefect deploy --name` patterns by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23771](https://github.com/PrefectHQ/prefect/pull/23771)
+* Skip locked rows when sweeping held events by [@chuqCTC](https://github.com/chuqCTC) in [#23757](https://github.com/PrefectHQ/prefect/pull/23757)
+
+**Integrations & Dependencies 🤝**
+
+* Bump `pyasn1` from 0.6.4 to 0.6.5 by [@dependabot](https://github.com/dependabot)[bot] in [#23708](https://github.com/PrefectHQ/prefect/pull/23708)
+* Bump `follow-redirects` from 1.16.1 to 1.16.2 in /ui by [@dependabot](https://github.com/dependabot)[bot] in [#23707](https://github.com/PrefectHQ/prefect/pull/23707)
+* Bump `@vitest/mocker` and `vitest` in /ui by [@dependabot](https://github.com/dependabot)[bot] in [#23717](https://github.com/PrefectHQ/prefect/pull/23717)
+* Bump `pydocket` to >=0.27.2 by [@chrisguidry](https://github.com/chrisguidry) in [#23729](https://github.com/PrefectHQ/prefect/pull/23729)
+* Bump `oauthlib` from 4.0.0 to 4.0.1 by [@dependabot](https://github.com/dependabot)[bot] in [#23787](https://github.com/PrefectHQ/prefect/pull/23787)
+
+**Development & Tidiness 🧹**
+
+* Fix flaky `test_results_with_timeout` racing a 10ms SIGALRM by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23423](https://github.com/PrefectHQ/prefect/pull/23423)
+* Fix flaky server signal forwarding tests by using OS-assigned ports by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23716](https://github.com/PrefectHQ/prefect/pull/23716)
+* Fix flaky `FlowRunCard` test by trimming generated flow run names in ui-v2 mocks by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23713](https://github.com/PrefectHQ/prefect/pull/23713)
+* Stop credential-obfuscation git clone tests from hitting GitHub by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23660](https://github.com/PrefectHQ/prefect/pull/23660)
+* Add coverage and protocol docs for releasing expired locks by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23726](https://github.com/PrefectHQ/prefect/pull/23726)
+* Drop two asserts that cannot run inside `pytest.raises` blocks by [@dylanpulver](https://github.com/dylanpulver) in [#23760](https://github.com/PrefectHQ/prefect/pull/23760)
+* Tidy up GitHub Actions workflows by [@gaker](https://github.com/gaker) in [#23761](https://github.com/PrefectHQ/prefect/pull/23761)
+
+**Documentation 📓**
+
+* Send referrers on outbound links and add missing page descriptions by [@madureira-gabriel](https://github.com/madureira-gabriel) in [#23728](https://github.com/PrefectHQ/prefect/pull/23728)
+* Note `init=False` dataclass fields keep resolved values in tasks by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23764](https://github.com/PrefectHQ/prefect/pull/23764)
+* Document reserved event name prefixes by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#23795](https://github.com/PrefectHQ/prefect/pull/23795)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.9.1...3.9.2
+
+
+---
+
 ## 3.9.1 - This hour is a rerun
 
 *Released on October 30, 2026*
