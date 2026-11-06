@@ -128,6 +128,34 @@ class CompositeTrigger(Trigger, abc.ABC):
     type: Literal["compound", "sequence"]
     triggers: List["ServerTriggerTypes"]
     within: Optional[DurationOrSecondsTimeDelta]
+    for_each: Set[str] = Field(
+        default_factory=set,
+        description=(
+            "Evaluate the composite trigger separately for each distinct value of "
+            "these labels on the event that caused each child trigger to fire.  Child "
+            "firings are only paired together when they share the same value for every "
+            "label, rather than being paired by timing alone.  By default, labels refer "
+            "to the primary resource of the triggering event.  You may also refer to "
+            "labels from related resources by specifying `related:<role>:<label>`, "
+            "matching the `for_each` syntax of `EventTrigger`."
+        ),
+    )
+
+    def bucketing_key(self, firing: "Firing") -> List[str]:
+        """Resolve the grouping key for a child firing from the parent's `for_each`.
+
+        Labels are read from the event that caused the child to fire, using the same
+        resolution as `EventTrigger.for_each` (including `related:<role>:<label>`).  An
+        empty `for_each`, or a firing with no triggering event, yields an empty key so
+        that all firings land in a single group — preserving the pre-`for_each`
+        behaviour of pairing by timing alone.
+        """
+        event = firing.triggering_event
+        if not self.for_each or event is None:
+            return []
+        return [
+            event.find_resource_label(label) or "" for label in sorted(self.for_each)
+        ]
 
     def create_automation_state_change_event(
         self, firing: Firing, trigger_state: TriggerState
