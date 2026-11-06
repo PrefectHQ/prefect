@@ -2,6 +2,7 @@ import dataclasses
 import io
 import json
 import uuid
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from typing import Any, NamedTuple
 
@@ -243,6 +244,10 @@ class TestVisitCollection:
             ({3: 4, 6: 7}, {3: -4, -6: 7}),
             ({3: [4, {6: 7}]}, {3: [-4, {-6: 7}]}),
             ({3, 4, 5}, {3, -4, 5}),
+            (frozenset([3, 4, 5]), frozenset([3, -4, 5])),
+            (deque([3, 4]), deque([3, -4])),
+            (defaultdict(list, {3: [4]}), defaultdict(list, {3: [-4]})),
+            (Counter({"a": 2, "b": 3}), Counter({"a": -2, "b": 3})),
             (SimpleDataclass(x=1, y=2), SimpleDataclass(x=1, y=-2)),
             (SimplePydantic(x=1, y=2), SimplePydantic(x=1, y=-2)),
             (ExtraPydantic(x=1, y=2, z=3), ExtraPydantic(x=1, y=-2, z=3)),
@@ -264,6 +269,10 @@ class TestVisitCollection:
             ({3: 4, 6: 7}, {4, 6}),
             ({3: [4, {6: 7}]}, {4, 6}),
             ({3, 4, 5}, {4}),
+            (frozenset([3, 4, 6]), {4, 6}),
+            (deque([3, 4]), {4}),
+            (defaultdict(list, {3: [4]}), {4}),
+            (Counter({"a": 2, "b": 3}), {2}),
             (SimpleDataclass(x=1, y=2), {2}),
             (SimplePydantic(x=1, y=2), {2}),
             (ExtraPydantic(x=1, y=2, z=4), {2, 4}),
@@ -819,6 +828,45 @@ class TestVisitCollection:
         assert isinstance(result, DoneAndNotDoneFutures)
         assert result.done == {2, 4}
         assert result.not_done == {6, 8}
+
+    def test_visit_collection_defaultdict_preserves_default_factory(self):
+        result = visit_collection(
+            defaultdict(list, {"a": [2]}), negative_even_numbers, return_data=True
+        )
+
+        assert type(result) is defaultdict
+        assert result.default_factory is list
+        assert result == {"a": [-2]}
+
+    def test_visit_collection_counter_preserves_counts(self):
+        result = visit_collection(
+            Counter({"a": 2, "b": 3}), negative_even_numbers, return_data=True
+        )
+
+        assert type(result) is Counter
+        assert dict(result) == {"a": -2, "b": 3}
+
+    def test_visit_collection_deque_preserves_maxlen(self):
+        result = visit_collection(
+            deque([3, 4], maxlen=5), negative_even_numbers, return_data=True
+        )
+
+        assert type(result) is deque
+        assert result.maxlen == 5
+        assert list(result) == [3, -4]
+
+    @pytest.mark.parametrize(
+        "val",
+        [
+            frozenset([1, 3]),
+            deque([1, 3]),
+            defaultdict(list, {1: [3]}),
+            Counter({"a": 1}),
+        ],
+    )
+    def test_visit_collection_stdlib_containers_identity_when_unchanged(self, val):
+        result = visit_collection(val, negative_even_numbers, return_data=True)
+        assert result is val
 
 
 class TestRemoveKeys:
