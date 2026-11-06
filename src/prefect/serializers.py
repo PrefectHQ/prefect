@@ -13,6 +13,7 @@ bytes to an object respectively.
 
 import base64
 import io
+import math
 from typing import Any, ClassVar, Generic, Optional, Union, overload
 
 from pydantic import (
@@ -56,6 +57,53 @@ def _get_importable_class(cls: type) -> type:
     return cls
 
 
+# Keys `prefect_json_object_decoder` treats as object markers. A plain dictionary
+# carrying one is not given back as a dictionary, so it cannot travel in `__exc_args__`.
+_DECODER_MARKER_KEYS = frozenset({"__class__", "__exc_type__"})
+
+# How deeply lists and dictionaries may nest inside an exception argument that is
+# carried in `__exc_args__`. Anything nested deeper is left out, which keeps the check
+# and the JSON encoder and decoder well inside the interpreter's recursion limit.
+_MAX_EXC_ARG_DEPTH = 100
+
+
+def _is_json_native(value: Any) -> bool:
+    """
+    Whether `value` survives a JSON round trip unchanged.
+
+    Stricter than "the JSON encoder accepts it": tuples come back as lists, non-finite
+    floats are either rejected or written as invalid JSON, and a dictionary holding one
+    of the decoder's marker keys comes back as whatever that marker names.
+
+    The walk is iterative and stops at `_MAX_EXC_ARG_DEPTH`, so it cannot exhaust the
+    recursion limit however deep the value is. A container that contains itself is
+    infinitely deep, so it is rejected by the same bound.
+    """
+    pending: list[tuple[Any, int]] = [(value, 0)]
+    while pending:
+        item, depth = pending.pop()
+        if isinstance(item, (str, bool, type(None))):
+            continue
+        if isinstance(item, float):
+            if not math.isfinite(item):
+                return False
+            continue
+        if isinstance(item, int):
+            continue
+        if not isinstance(item, (list, dict)) or depth >= _MAX_EXC_ARG_DEPTH:
+            return False
+        if isinstance(item, dict):
+            if not all(
+                isinstance(key, str) and key not in _DECODER_MARKER_KEYS for key in item
+            ):
+                return False
+            children = item.values()
+        else:
+            children = item
+        pending.extend((child, depth + 1) for child in children)
+    return True
+
+
 def prefect_json_object_encoder(obj: Any) -> Any:
     """
     `JSONEncoder.default` for encoding objects into JSON with extended type support.
@@ -63,7 +111,14 @@ def prefect_json_object_encoder(obj: Any) -> Any:
     Raises a `TypeError` to fallback on other encoders on failure.
     """
     if isinstance(obj, BaseException):
-        return {"__exc_type__": to_qualified_name(obj.__class__), "message": str(obj)}
+        encoded: dict[str, Any] = {
+            "__exc_type__": to_qualified_name(obj.__class__),
+            "message": str(obj),
+        }
+        # Arguments that are not JSON native are dropped, so encoding cannot fail.
+        if obj.args and all(_is_json_native(arg) for arg in obj.args):
+            encoded["__exc_args__"] = list(obj.args)
+        return encoded
     elif isinstance(obj, io.IOBase):
         return {
             "__class__": to_qualified_name(obj.__class__),
@@ -101,6 +156,12 @@ def prefect_json_object_decoder(result: dict[str, Any]) -> Any:
             raise ValueError(f"Invalid exception type: {result['__exc_type__']!r}")
         if not (isinstance(exc_cls, type) and issubclass(exc_cls, BaseException)):
             raise ValueError(f"Invalid exception type: {result['__exc_type__']!r}")
+        args = result.get("__exc_args__")
+        if args:
+            try:
+                return exc_cls(*args)
+            except Exception:
+                pass
         return exc_cls(result["message"])
     else:
         return result
