@@ -712,6 +712,51 @@ class TestIntervalScheduleDaylightSavingsTime:
             "03-09 05:00",
         ]
 
+    @pytest.mark.parametrize(
+        "interval, anchor, timezone, start",
+        [
+            # refill after the fall-back transition (OSS-8405)
+            (
+                timedelta(hours=26),
+                datetime(2026, 1, 1, 9, 30),
+                "America/New_York",
+                datetime(2026, 11, 2, 1, 1, tzinfo=ZoneInfo("UTC")),
+            ),
+            # next occurrence lands in the repeated hour after falling back
+            (
+                timedelta(days=2, minutes=30),
+                datetime(2025, 1, 1, 9, 30),
+                "Europe/London",
+                datetime(2027, 10, 31, 0, 59, tzinfo=ZoneInfo("UTC")),
+            ),
+            # southern hemisphere, years after the anchor
+            (
+                timedelta(days=3, hours=23),
+                datetime(2025, 1, 1, 9, 30),
+                "Australia/Sydney",
+                datetime(2027, 4, 5, 12, tzinfo=ZoneInfo("UTC")),
+            ),
+        ],
+    )
+    async def test_mixed_interval_dates_are_consistent_across_start_dates(
+        self,
+        interval: timedelta,
+        anchor: datetime,
+        timezone: str,
+        start: datetime,
+    ):
+        """
+        A mixed day-and-time interval must return the series that stepping from
+        the anchor produces, even when DST changes lie between the anchor and
+        the start date.
+        """
+        anchor = anchor.replace(tzinfo=ZoneInfo(timezone))
+        s = IntervalSchedule(interval=interval, anchor_date=anchor, timezone=timezone)
+        series = await s.get_dates(n=1000, start=anchor)
+        expected = [d for d in series if d >= start][:3]
+
+        assert await s.get_dates(n=3, start=start) == expected
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 13),
