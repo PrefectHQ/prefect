@@ -71,7 +71,9 @@ def test_rejects_versions_other_than_integer_1(version: object):
     if version is None:
         del payload["v"]
 
-    with pytest.raises(InvalidRunHookPayload, match="Unsupported `runHookPayload` version"):
+    with pytest.raises(
+        InvalidRunHookPayload, match="Unsupported `runHookPayload` version"
+    ):
         parse_run_hook_request(make_body(payload))
 
 

@@ -114,7 +114,9 @@ def supervise_flow_run(payload: RunHookPayload) -> int:
     try:
         report_crash(payload.flow_run_id, crash_reason)
     except Exception:
-        logger.exception("Could not report flow run %s as crashed.", payload.flow_run_id)
+        logger.exception(
+            "Could not report flow run %s as crashed.", payload.flow_run_id
+        )
     return 1
 
 
