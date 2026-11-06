@@ -325,7 +325,7 @@ class Publisher(_Publisher):
                     to_publish = await self.cache.without_duplicates(
                         self.deduplicate_by, batch
                     )
-                except Exception:
+                except BaseException:
                     self._batch[:0] = batch
                     raise
             else:
