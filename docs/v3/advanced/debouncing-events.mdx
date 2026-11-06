@@ -5,7 +5,7 @@ description: Learn how to use the within parameter to handle multiple events in 
 keywords: ["debounce", "event", "within", "deduplication", "rate limiting"]
 ---
 
-Prefect allows you to trigger deployment runs based on events. However, when multiple events occur in quick succession, you may want a single flow run to handle all of them rather than spinning up a separate run for each event. For example, when multiple files are uploaded to an S3 bucket simultaneously, or a flurry of [webhook](/v3/concepts/webhooks#webhooks) events are received by Prefect, you typically want to process all files together in one run.
+Prefect allows you to trigger deployment runs based on events. However, when multiple events occur in quick succession, you may want a single flow run to handle all of them rather than spinning up a separate run for each event. For example, when multiple files are uploaded to an S3 bucket simultaneously, or a flurry of [webhook](/v3/concepts/webhooks) events are received by Prefect, you typically want to process all files together in one run.
 
 This pattern is called **debouncing**, and you can implement it using reactive triggers with the `within` parameter of the trigger and the `schedule_after` parameter of the `run-deployment` action.
 
