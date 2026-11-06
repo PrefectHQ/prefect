@@ -386,6 +386,16 @@ Running `always_fails_flow` fails because one of the three returned futures fail
 
 If multiple states are returned, they must be contained in a `set`, `list`, or `tuple`.
 
+These containers may also be nested — for example, returning the results of several `.map()` calls produces a list of lists of futures — but nested aggregation is opt-in. Set `PREFECT_EXPERIMENTS_AGGREGATE_NESTED_STATES=true` to aggregate states at any depth in the same way; by default, only a flat collection of states is aggregated and a nested collection is treated as plain data, so the flow completes.
+
+When nested aggregation is enabled, the collection boundaries are:
+
+- Only `list`, `set`, and `tuple` containers are traversed; any other value mixed in — for example, a number alongside states — means the whole return value is treated as plain data.
+- Empty containers contribute no states to the aggregate.
+- A collection that (transitively) contains itself, or nesting deeper than 1000 levels, is treated as plain data.
+
+To migrate, enable the setting only for flows that intentionally return nested states. If a flow intentionally returns states as data — for example, to inspect them later — keep the setting disabled, or wrap the return value in [`quote`](/v3/api-ref/python/prefect-utilities-annotations#quote) so it is never aggregated. Once a run's final state has been aggregated and persisted, its failure remains retrievable even if the setting is later disabled.
+
 ### Return a manual state
 
 If a flow returns a manually created state, the final state is determined based upon the return value.
