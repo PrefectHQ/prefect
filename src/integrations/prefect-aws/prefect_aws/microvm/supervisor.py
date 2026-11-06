@@ -4,25 +4,33 @@ from __future__ import annotations
 
 import os
 import random
+import signal
+import socket
 import sys
 from pathlib import Path
+from types import FrameType
 from typing import NoReturn
 from uuid import UUID
 
+from prefect._internal.control_listener import configure_from_env
+from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.responses import SetStateStatus
 from prefect.context import refresh_global_settings_context
 from prefect.engine import _drive_run_flow_result, handle_engine_signals
 from prefect.events.worker import EventsWorker
+from prefect.exceptions import Abort, Pause
 from prefect.flow_engine import (
     _run_flow_from_runtime_entrypoint,
     flow_run_logger,
-    load_flow_and_flow_run,
+    load_flow,
+    load_flow_run,
     run_flow,
 )
 from prefect.logging import get_logger
+from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import APILogWorker
 from prefect.states import Crashed
+from prefect.utilities.engine import propose_state_sync
 from prefect_aws.microvm.payload import RunHookPayload
 
 logger = get_logger("prefect_aws.microvm")
@@ -46,17 +54,29 @@ def execute_flow_run(payload: RunHookPayload) -> None:
         _run_flow_from_runtime_entrypoint(payload.flow_run_id, payload.entrypoint)
         return
 
+    # The same sequence as `python -m prefect.engine`.
+    configure_from_env()
     with handle_engine_signals(payload.flow_run_id):
-        flow_run, flow = load_flow_and_flow_run(payload.flow_run_id)
-        run_result = run_flow(
-            flow, flow_run=flow_run, error_logger=flow_run_logger(flow_run=flow_run)
-        )
-        # `run_flow` returns an unstarted coroutine or generator for async and
-        # generator flows; this runs it.
-        _drive_run_flow_result(flow, run_result)
+        flow_run = load_flow_run(flow_run_id=payload.flow_run_id)
+        run_logger = flow_run_logger(flow_run=flow_run)
+        try:
+            flow = load_flow(flow_run)
+        except Exception:
+            run_logger.error(
+                "Unexpected exception encountered when trying to load flow",
+                exc_info=True,
+            )
+            raise
+        with RunMetrics(flow_run, flow):
+            run_result = run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+            # `run_flow` returns an unstarted coroutine or generator for async
+            # and generator flows; this runs it.
+            _drive_run_flow_result(flow, run_result)
 
 
-def run_child(payload: RunHookPayload) -> NoReturn:
+def run_child(
+    payload: RunHookPayload, hook_server_socket: socket.socket | None = None
+) -> NoReturn:
     """
     Run the flow run in a forked child process, then exit the process.
 
@@ -65,15 +85,21 @@ def run_child(payload: RunHookPayload) -> NoReturn:
 
     Args:
         payload: The flow run to execute.
+        hook_server_socket: The lifecycle hook server's listening socket, which
+            the child closes.
     """
     exit_code = 1
     try:
+        if hook_server_socket is not None:
+            hook_server_socket.close()
         # A process restored from a snapshot shares its random state with every
         # other process restored from the same snapshot.
         random.seed(os.urandom(32))
         _make_preferred_oom_victim()
-        # Settings were resolved at import time, before `/run` set the environment.
+        # Settings and logging were configured at import time, before `/run`
+        # set the environment.
         refresh_global_settings_context()
+        setup_logging(incremental=False)
         exit_code = _flow_run_exit_code(payload)
         _drain_api_workers()
     finally:
@@ -83,24 +109,42 @@ def run_child(payload: RunHookPayload) -> NoReturn:
         os._exit(exit_code)
 
 
-def supervise_flow_run(payload: RunHookPayload) -> int:
+def supervise_flow_run(
+    payload: RunHookPayload, hook_server_socket: socket.socket | None = None
+) -> int:
     """
     Run the flow run in a forked child and wait for the child to exit.
 
-    If the child exits nonzero or is killed by a signal, and the flow run is not
-    already in a final state, the flow run is moved to `Crashed`.
+    If the child exits nonzero or is killed by a signal, `Crashed` is proposed
+    for the flow run. SIGTERM sent to this process is forwarded to the child.
+    Call this from the main thread.
 
     Args:
         payload: The flow run to execute.
+        hook_server_socket: The lifecycle hook server's listening socket, closed
+            in the child right after the fork.
 
     Returns:
         The exit code for this process: 0 if the child exited 0, otherwise 1.
     """
     child_pid = os.fork()
     if child_pid == 0:
-        run_child(payload)
+        run_child(payload, hook_server_socket)
 
-    _, wait_status = os.waitpid(child_pid, 0)
+    def forward_sigterm(signum: int, frame: FrameType | None) -> None:
+        try:
+            os.kill(child_pid, signum)
+        except ProcessLookupError:
+            pass
+
+    # As PID 1 in the MicroVM, this process ignores any signal it has no
+    # handler for, so SIGTERM would otherwise never reach the flow run.
+    previous_sigterm_handler = signal.signal(signal.SIGTERM, forward_sigterm)
+    try:
+        wait_status = _reap_until_collected(child_pid)
+    finally:
+        signal.signal(signal.SIGTERM, previous_sigterm_handler)
+
     crash_reason = describe_child_exit(wait_status)
     if crash_reason is None:
         return 0
@@ -141,10 +185,7 @@ def describe_child_exit(wait_status: int) -> str | None:
 
 def report_crash(flow_run_id: UUID, crash_reason: str) -> None:
     """
-    Move a flow run to `Crashed` unless it is already in a final state.
-
-    The state is proposed without `force` first. `force` is used only if the
-    plain proposal is not accepted.
+    Propose `Crashed` for a flow run. A flow run in a final state keeps it.
 
     Args:
         flow_run_id: The ID of the flow run.
@@ -153,22 +194,28 @@ def report_crash(flow_run_id: UUID, crash_reason: str) -> None:
     # This process resolved its settings before `/run` set the API URL and key.
     refresh_global_settings_context()
     with get_client(sync_client=True) as client:
-        flow_run = client.read_flow_run(flow_run_id)
-        if flow_run.state is not None and flow_run.state.is_final():
+        try:
+            state = propose_state_sync(
+                client,
+                Crashed(message=f"Flow run process {crash_reason}."),
+                flow_run_id=flow_run_id,
+            )
+        except (Abort, Pause) as exc:
             logger.info(
-                "Flow run %s is already %s; not reporting a crash.",
+                "Flow run %s keeps its state; Crashed was not accepted: %s",
                 flow_run_id,
-                flow_run.state.type.value,
+                exc,
             )
             return
+        logger.info("Flow run %s is now %s.", flow_run_id, state.type.value)
 
-        crashed = Crashed(message=f"Flow run process {crash_reason}.")
-        result = client.set_flow_run_state(flow_run_id, crashed)
-        if result.status != SetStateStatus.ACCEPT:
-            result = client.set_flow_run_state(flow_run_id, crashed, force=True)
-        logger.info(
-            "Proposed Crashed for flow run %s: %s.", flow_run_id, result.status.value
-        )
+
+def _reap_until_collected(child_pid: int) -> int:
+    # Orphaned grandchildren are reparented to PID 1, so this reaps them too.
+    while True:
+        pid, wait_status = os.waitpid(-1, 0)
+        if pid == child_pid:
+            return wait_status
 
 
 def _flow_run_exit_code(payload: RunHookPayload) -> int:
@@ -179,7 +226,9 @@ def _flow_run_exit_code(payload: RunHookPayload) -> int:
         # unexpected exceptions.
         if exc.code is None:
             return 0
-        return exc.code if isinstance(exc.code, int) else 1
+        exit_code = exc.code if isinstance(exc.code, int) else 1
+        # The OS keeps only the low 8 bits, so 256 would read as success.
+        return exit_code if 0 <= exit_code <= 255 else 1
     except BaseException:
         logger.exception("Flow run %s raised an exception.", payload.flow_run_id)
         return 1

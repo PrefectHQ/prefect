@@ -21,6 +21,7 @@ logger = get_logger("prefect_aws.microvm")
 HOOK_SERVER_PORT = 8080
 HOOK_PATH_PREFIX = "/aws/lambda-microvms/runtime/v1/"
 MAX_REQUEST_BODY_BYTES = 1024 * 1024
+HANDLER_FINISH_TIMEOUT_SECONDS = 10
 
 # Imported before `/ready` returns so that the MicroVM snapshot includes them
 # and a restored MicroVM does not import them again for each flow run.
@@ -57,6 +58,50 @@ class LifecycleHookServer(ThreadingHTTPServer):
         )
         self._run_received = False
         self._run_lock = threading.Lock()
+        self._handlers_finished = threading.Condition()
+        self._active_handlers = 0
+
+    def process_request(self, request: Any, client_address: Any) -> None:
+        # Counted on the serving thread, before the handler thread starts, so
+        # `stop_serving` cannot miss a handler that has not started yet.
+        with self._handlers_finished:
+            self._active_handlers += 1
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._handler_finished()
+            raise
+
+    def process_request_thread(self, request: Any, client_address: Any) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._handler_finished()
+
+    def _handler_finished(self) -> None:
+        with self._handlers_finished:
+            self._active_handlers -= 1
+            self._handlers_finished.notify_all()
+
+    def stop_serving(self, timeout: float = HANDLER_FINISH_TIMEOUT_SECONDS) -> None:
+        """
+        Stop accepting hook requests and wait for the requests in progress to
+        finish, so that no handler thread holds a lock when the process forks.
+
+        Args:
+            timeout: The longest time to wait for requests in progress, in seconds.
+        """
+        self.shutdown()
+        with self._handlers_finished:
+            finished = self._handlers_finished.wait_for(
+                lambda: self._active_handlers == 0, timeout=timeout
+            )
+        if not finished:
+            logger.warning(
+                "%d lifecycle hook requests were still in progress after %s seconds.",
+                self._active_handlers,
+                timeout,
+            )
 
     def claim_run(self) -> bool:
         """Return True for the first `/run` request and False for every later one."""
@@ -79,6 +124,7 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
     """Request handler for `LifecycleHookServer`."""
 
     server: LifecycleHookServer
+    _replied = False
 
     def log_message(self, format: str, *args: Any) -> None:
         logger.debug(format, *args)
@@ -112,14 +158,28 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
             self._reply(409)
             return
 
+        # Every path below submits exactly one outcome; without one,
+        # `wait_for_run_request` blocks forever.
+        outcome: RunHookRequest | InvalidRunHookPayload = InvalidRunHookPayload(
+            "The `/run` request was interrupted."
+        )
         try:
-            run_request = parse_run_hook_request(self._read_body())
+            outcome = self._start_run()
         except InvalidRunHookPayload as exc:
             logger.error("Rejected `/run` request: %s", exc)
-            self._reply(400)
-            self.server.submit_run(exc)
-            return
+            outcome = exc
+            self._reply_if_unanswered(400)
+        except Exception as exc:
+            logger.exception("Could not start a flow run from the `/run` request.")
+            outcome = InvalidRunHookPayload(
+                f"The `/run` request failed with {type(exc).__name__}."
+            )
+            self._reply_if_unanswered(500)
+        finally:
+            self.server.submit_run(outcome)
 
+    def _start_run(self) -> RunHookRequest:
+        run_request = parse_run_hook_request(self._read_body())
         logger.info(
             "Starting flow run %s on MicroVM %s.",
             run_request.payload.flow_run_id,
@@ -127,22 +187,34 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
         )
         os.environ.update(run_request.payload.env)
         self._reply(200)
-        # Submitted after the reply is written, so the fork that follows does
-        # not copy this thread partway through a write.
-        self.server.submit_run(run_request)
+        return run_request
 
     def _read_body(self) -> bytes:
+        content_length = self.headers.get("Content-Length")
+        if content_length is None:
+            raise InvalidRunHookPayload("The request has no Content-Length.")
         try:
-            length = int(self.headers.get("Content-Length") or 0)
+            length = int(content_length)
         except ValueError:
             raise InvalidRunHookPayload("Content-Length is not an integer.") from None
+        if length < 0:
+            raise InvalidRunHookPayload("Content-Length is negative.")
         if length > MAX_REQUEST_BODY_BYTES:
             raise InvalidRunHookPayload(
                 f"Request body is {length} bytes; the limit is {MAX_REQUEST_BODY_BYTES}."
             )
         return self.rfile.read(length)
 
+    def _reply_if_unanswered(self, status: int) -> None:
+        if self._replied:
+            return
+        try:
+            self._reply(status)
+        except OSError:
+            logger.warning("Could not reply %d to the `/run` request.", status)
+
     def _reply(self, status: int) -> None:
+        self._replied = True
         self.send_response(status)
         self.send_header("Content-Length", "0")
         self.end_headers()

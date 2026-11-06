@@ -119,6 +119,11 @@ def test_rejects_malformed_bodies(body: bytes):
     "overrides",
     [
         {"flow_run_id": "not-a-uuid"},
+        {"env": {"PREFECT_API_KEY": "pnu_secret\x00"}},
+        {"env": {"PREFECT_API_KEY\x00": "pnu_secret"}},
+        {"env": {"PREFECT_API_KEY=pnu_secret": "x"}},
+        {"env": {"": "pnu_secret"}},
+        {"env": {"PREFECT_API_KEY": "pnu_secret\ud800"}},
         {"flow_run_id": None},
         {"env": {"PREFECT_API_KEY": "pnu_secret", "COUNT": 3}},
         {"env": ["PREFECT_API_KEY=pnu_secret"]},
@@ -132,7 +137,7 @@ def test_invalid_fields_are_rejected_without_echoing_the_input(
 
     assert "pnu_secret" not in str(exc_info.value)
     assert exc_info.value.__cause__ is None
-    assert exc_info.value.__suppress_context__
+    assert exc_info.value.__context__ is None
 
 
 def test_missing_microvm_id_parses_as_none():
@@ -156,3 +161,46 @@ def test_env_defaults_to_empty():
     request = parse_run_hook_request(make_body(payload))
 
     assert request.payload.env == {}
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        json.dumps({"runHookPayload": '{"v": 1, "env": {"PREFECT_API_KEY": "pnu_secret"'}).encode(),
+        b'{"runHookPayload": "pnu_secret',
+    ],
+)
+def test_json_errors_do_not_carry_the_raw_payload(body: bytes):
+    with pytest.raises(InvalidRunHookPayload, match="is not JSON") as exc_info:
+        parse_run_hook_request(body)
+
+    assert "pnu_secret" not in str(exc_info.value)
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+
+
+def test_lone_surrogate_in_the_run_hook_payload_is_rejected():
+    # `json.dumps` escapes the surrogate, and `json.loads` turns it back into a
+    # lone surrogate, which has no UTF-8 encoding.
+    body = json.dumps({"runHookPayload": "\ud800"}).encode()
+
+    with pytest.raises(InvalidRunHookPayload, match="not valid UTF-8") as exc_info:
+        parse_run_hook_request(body)
+
+    assert exc_info.value.__context__ is None
+
+
+@pytest.mark.parametrize(
+    "env, problem",
+    [
+        ({"PREFECT_API_KEY": "secret\x00"}, "value has NUL"),
+        ({"PREFECT\x00API_KEY": "secret"}, "name is empty or has `=` or NUL"),
+        ({"PREFECT=API_KEY": "secret"}, "name is empty or has `=` or NUL"),
+        ({"": "secret"}, "name is empty or has `=` or NUL"),
+        ({"PREFECT_API_KEY": "secret\ud800"}, "not valid UTF-8"),
+        ({"PREFECT_API_KEY": 3}, "valid string"),
+    ],
+)
+def test_env_entries_that_cannot_be_set_are_rejected(env: object, problem: str):
+    with pytest.raises(InvalidRunHookPayload, match=problem):
+        parse_run_hook_request(make_body(valid_payload(env=env)))

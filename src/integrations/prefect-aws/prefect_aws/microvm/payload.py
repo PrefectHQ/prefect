@@ -6,7 +6,7 @@ import json
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, StrictStr, ValidationError, field_validator
 
 SUPPORTED_PAYLOAD_VERSION = 1
 MAX_RUN_HOOK_PAYLOAD_BYTES = 16 * 1024
@@ -33,9 +33,26 @@ class RunHookPayload(BaseModel):
 
     v: int
     flow_run_id: UUID
-    env: dict[str, str] = {}
+    env: dict[StrictStr, StrictStr] = {}
     entrypoint: str | None = None
     working_dir: str | None = None
+
+    @field_validator("env")
+    @classmethod
+    def _env_is_settable(cls, env: dict[str, str]) -> dict[str, str]:
+        # Messages leave the names and values out because `env` holds credentials.
+        for name, value in env.items():
+            if not name or "=" in name or "\x00" in name:
+                raise ValueError(
+                    "an environment variable name is empty or has `=` or NUL"
+                )
+            if "\x00" in value:
+                raise ValueError("an environment variable value has NUL")
+            if not (_encodes_as_utf8(name) and _encodes_as_utf8(value)):
+                raise ValueError(
+                    "an environment variable name or value is not valid UTF-8"
+                )
+        return env
 
 
 class RunHookRequest(BaseModel):
@@ -66,16 +83,15 @@ def parse_run_hook_request(body: bytes) -> RunHookRequest:
         InvalidRunHookPayload: If the body or payload is malformed, larger than
             `MAX_RUN_HOOK_PAYLOAD_BYTES`, or has an unsupported major version.
     """
-    try:
-        request: Any = json.loads(body)
-    except ValueError as exc:
-        raise InvalidRunHookPayload(f"Request body is not JSON: {exc}") from exc
+    request = _load_json(body, "Request body")
     if not isinstance(request, dict):
         raise InvalidRunHookPayload("Request body is not a JSON object.")
 
     raw_payload = request.get("runHookPayload")
     if not isinstance(raw_payload, str):
         raise InvalidRunHookPayload("Request body has no `runHookPayload` string.")
+    if not _encodes_as_utf8(raw_payload):
+        raise InvalidRunHookPayload("`runHookPayload` is not valid UTF-8.")
     payload_size = len(raw_payload.encode())
     if payload_size > MAX_RUN_HOOK_PAYLOAD_BYTES:
         raise InvalidRunHookPayload(
@@ -83,10 +99,7 @@ def parse_run_hook_request(body: bytes) -> RunHookRequest:
             f" {MAX_RUN_HOOK_PAYLOAD_BYTES}."
         )
 
-    try:
-        payload_fields: Any = json.loads(raw_payload)
-    except ValueError as exc:
-        raise InvalidRunHookPayload(f"`runHookPayload` is not JSON: {exc}") from exc
+    payload_fields = _load_json(raw_payload, "`runHookPayload`")
     if not isinstance(payload_fields, dict):
         raise InvalidRunHookPayload("`runHookPayload` is not a JSON object.")
 
@@ -107,10 +120,30 @@ def parse_run_hook_request(body: bytes) -> RunHookRequest:
             f"{'.'.join(str(part) for part in error['loc'])}: {error['msg']}"
             for error in exc.errors(include_input=False, include_url=False)
         )
-        raise InvalidRunHookPayload(f"Invalid `runHookPayload`: {problems}") from None
+    else:
+        microvm_id = request.get("microvmId")
+        return RunHookRequest(
+            microvm_id=microvm_id if isinstance(microvm_id, str) else None,
+            payload=payload,
+        )
+    # Raised outside the `except` block so its context is not the validation
+    # error, which holds the input values.
+    raise InvalidRunHookPayload(f"Invalid `runHookPayload`: {problems}")
 
-    microvm_id = request.get("microvmId")
-    return RunHookRequest(
-        microvm_id=microvm_id if isinstance(microvm_id, str) else None,
-        payload=payload,
-    )
+
+def _load_json(document: str | bytes, description: str) -> Any:
+    try:
+        return json.loads(document)
+    except ValueError as exc:
+        problem = str(exc)
+    # Raised outside the `except` block so its context is not the decode error,
+    # whose `doc` is the raw payload with the API key.
+    raise InvalidRunHookPayload(f"{description} is not JSON: {problem}")
+
+
+def _encodes_as_utf8(text: str) -> bool:
+    try:
+        text.encode()
+    except UnicodeEncodeError:
+        return False
+    return True

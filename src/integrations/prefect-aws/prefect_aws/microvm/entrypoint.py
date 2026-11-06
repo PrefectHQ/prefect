@@ -30,8 +30,9 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
     ).start()
 
     run_request = server.wait_for_run_request()
+    server.stop_serving()
     if isinstance(run_request, InvalidRunHookPayload):
         return 1
     # The flow run is forked from this thread, so it runs on the child's main
     # thread, where the engine can install its signal handlers.
-    return supervise_flow_run(run_request.payload)
+    return supervise_flow_run(run_request.payload, hook_server_socket=server.socket)
