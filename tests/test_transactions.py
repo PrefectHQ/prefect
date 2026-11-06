@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import threading
 import uuid
+from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -366,6 +367,53 @@ class TestCommitMode:
 
             assert not txn.is_committed()
             assert txn.is_rolled_back()
+
+
+@pytest.mark.parametrize("parent_type", [Transaction, AsyncTransaction])
+@pytest.mark.parametrize("child_type", [Transaction, AsyncTransaction])
+@pytest.mark.parametrize("fail_commit", [True, False])
+async def test_parent_commit_requires_committed_child(
+    parent_type: type[Transaction | AsyncTransaction],
+    child_type: type[Transaction | AsyncTransaction],
+    fail_commit: bool,
+    tmp_path: Path,
+):
+    store = ResultStore(result_storage=LocalFileSystem(basepath=tmp_path / "results"))
+    artifact = tmp_path / "invoice.txt"
+    artifact.write_text("invoice")
+    parent_commits = []
+
+    def on_commit(txn: BaseTransaction):
+        if fail_commit:
+            raise ValueError("billing service unavailable")
+
+    def on_rollback(txn: BaseTransaction):
+        artifact.unlink()
+
+    parent = parent_type(key="parent", store=store)
+    child = child_type(commit_mode=CommitMode.LAZY if fail_commit else CommitMode.EAGER)
+    async with AsyncExitStack() as outer:
+        if isinstance(parent, AsyncTransaction):
+            await outer.enter_async_context(parent)
+        else:
+            outer.enter_context(parent)
+        parent.stage("done", on_commit_hooks=[lambda txn: parent_commits.append(True)])
+        async with AsyncExitStack() as inner:
+            if isinstance(child, AsyncTransaction):
+                await inner.enter_async_context(child)
+            else:
+                inner.enter_context(child)
+            child.stage(
+                "invoice", on_commit_hooks=[on_commit], on_rollback_hooks=[on_rollback]
+            )
+
+    assert child.is_committed() is (not fail_commit)
+    assert parent.is_committed() is (not fail_commit)
+    assert parent.is_rolled_back() is fail_commit
+    assert artifact.exists() is (not fail_commit)
+    assert parent_commits == ([] if fail_commit else [True])
+    with transaction(key="parent", store=store) as reopened:
+        assert reopened.is_committed() is (not fail_commit)
 
 
 class TestRollBacks:
