@@ -849,15 +849,15 @@ We also include Python code that shows how to use an existing storage block and 
 
     ```python gcs_block.py
     from prefect import flow
-    from prefect_gcp import GcpCredentials, GCSBucket
+    from prefect_gcp import GcpCredentials, GcsBucket
 
 
     if __name__ == "__main__":
 
-        gcs_bucket_block = GCSBucket.load("my-code-storage-block")
+        gcs_bucket_block = GcsBucket.load("my-code-storage-block")
 
         # or 
-        # gcs_bucket_block = GCSBucket(
+        # gcs_bucket_block = GcsBucket(
         #     bucket="my-bucket",
         #     folder="my-folder",
         #     credentials=GcpCredentials.load("my-credentials-block")
