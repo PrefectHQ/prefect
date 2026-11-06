@@ -1739,6 +1739,44 @@ class TestRRuleSchedule:
         assert roundtrip_rruleset._rdate[0].tzinfo == expected_tzinfo
         assert roundtrip_rruleset._exdate[0].tzinfo == expected_tzinfo
 
+    async def test_serialization_preserves_rdate_and_exdate_in_another_timezone(
+        self,
+    ):
+        dt_nyc = datetime(2024, 3, 1, 9, tzinfo=ZoneInfo("America/New_York"))
+        rrset = rrule.rruleset(cache=True)
+        rrset.rrule(rrule.rrule(rrule.DAILY, count=3, dtstart=dt_nyc))
+        # 9 AM New York on 2024-03-02 and 2024-03-20, given in UTC
+        rrset.exdate(datetime(2024, 3, 2, 14, tzinfo=ZoneInfo("UTC")))
+        rrset.rdate(datetime(2024, 3, 20, 13, tzinfo=ZoneInfo("UTC")))
+
+        roundtrip_rruleset = RRuleSchedule.from_rrule(rrset).to_rrule()
+
+        assert list(roundtrip_rruleset) == list(rrset)
+
+    @pytest.mark.parametrize("method", ["rdate", "exdate"])
+    async def test_serialization_keeps_second_occurrence_of_repeated_hour(self, method):
+        utc = ZoneInfo("UTC")
+        # the first 01:30 in New York on 2024-11-03
+        first = datetime(2024, 11, 3, 5, 30, tzinfo=utc)
+        # the second 01:30, after falling back from EDT to EST
+        second = datetime(2024, 11, 3, 6, 30, tzinfo=utc)
+        rrset = rrule.rruleset(cache=True)
+        rrset.rrule(
+            rrule.rrule(
+                rrule.DAILY,
+                count=1,
+                dtstart=first.astimezone(ZoneInfo("America/New_York")),
+            )
+        )
+        getattr(rrset, method)(second)
+
+        schedule = RRuleSchedule.from_rrule(rrset)
+        dates = await schedule.get_dates(n=5, start=datetime(2024, 11, 1, tzinfo=utc))
+
+        expected = [first, second] if method == "rdate" else [first]
+        assert [dt.astimezone(utc) for dt in schedule.to_rrule()] == expected
+        assert [dt.astimezone(utc) for dt in dates] == expected
+
     @pytest.mark.xfail(
         reason="we currently cannot roundtrip RRuleSchedule objects for all timezones"
     )

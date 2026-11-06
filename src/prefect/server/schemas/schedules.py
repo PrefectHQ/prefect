@@ -732,6 +732,43 @@ class CronSchedule(PrefectBaseModel):
 DEFAULT_ANCHOR_DATE = datetime.date(2020, 1, 1)
 
 
+def _format_rdate(dt: datetime.datetime, timezone: str) -> str:
+    """
+    Format an RDATE or EXDATE as wall-clock time in the schedule's timezone,
+    which is how `RRuleSchedule.to_rrule()` reads a value ending in `Z` back.
+
+    The second occurrence of a repeated hour has the same wall-clock time as
+    the first, so it is written with its UTC offset instead.
+    """
+    if dt.tzinfo is None:
+        return dt.strftime("%Y%m%dT%H%M%SZ")
+    local = dt.astimezone(dateutil.tz.gettz(timezone))
+    if not (local.fold and dateutil.tz.datetime_ambiguous(local)):
+        return local.strftime("%Y%m%dT%H%M%SZ")
+    if not local.utcoffset():
+        # the parser reads a zero offset as `Z`, so use the first occurrence's
+        first_offset = dateutil.tz.enfold(local, fold=0).utcoffset()
+        assert first_offset is not None
+        local = dt.astimezone(datetime.timezone(first_offset))
+    return local.strftime("%Y%m%dT%H%M%S%z")
+
+
+def _localize_rdate(
+    dt: datetime.datetime, timezone: Optional[datetime.tzinfo]
+) -> datetime.datetime:
+    """
+    Read back an RDATE or EXDATE written by `_format_rdate`.
+    """
+    # A value ending in `Z` parses as `tzutc()`, or as `tzlocal()` when the
+    # local timezone is UTC. `_format_rdate` never writes a zero offset, so
+    # check the offset rather than the tzinfo type.
+    if dt.tzinfo is None or not dt.utcoffset():
+        return dt.replace(tzinfo=timezone)
+    # A value with a UTC offset is already an exact instant. Keep its offset:
+    # datetimes that share a tzinfo compare by wall-clock time and ignore `fold`.
+    return dt
+
+
 class RRuleSchedule(PrefectBaseModel):
     """
     RRule schedule, based on the iCalendar standard
@@ -809,12 +846,12 @@ class RRuleSchedule(PrefectBaseModel):
             if rrule._rdate:
                 rruleset_string += "\n" if rruleset_string else ""
                 rruleset_string += "RDATE:" + ",".join(
-                    rd.strftime("%Y%m%dT%H%M%SZ") for rd in rrule._rdate
+                    _format_rdate(rd, timezone) for rd in rrule._rdate
                 )
             if rrule._exdate:
                 rruleset_string += "\n" if rruleset_string else ""
                 rruleset_string += "EXDATE:" + ",".join(
-                    exd.strftime("%Y%m%dT%H%M%SZ") for exd in rrule._exdate
+                    _format_rdate(exd, timezone) for exd in rrule._exdate
                 )
             return RRuleSchedule(rrule=rruleset_string, timezone=timezone)
         else:
@@ -864,13 +901,13 @@ class RRuleSchedule(PrefectBaseModel):
             # update rdates
             localized_rdates = []
             for rd in rrule._rdate:
-                localized_rdates.append(rd.replace(tzinfo=timezone))
+                localized_rdates.append(_localize_rdate(rd, timezone))
             rrule._rdate = localized_rdates
 
             # update exdates
             localized_exdates = []
             for exd in rrule._exdate:
-                localized_exdates.append(exd.replace(tzinfo=timezone))
+                localized_exdates.append(_localize_rdate(exd, timezone))
             rrule._exdate = localized_exdates
 
             return rrule
@@ -946,9 +983,11 @@ class RRuleSchedule(PrefectBaseModel):
             if end and next_date > end:
                 break
 
-            # ensure no duplicates; weird things can happen with DST
-            if next_date not in dates:
-                dates.add(next_date)
+            # ensure no duplicates; weird things can happen with DST. Compare
+            # instants: datetimes in the same timezone compare by wall-clock
+            # time, so both 01:30s of a fall-back day would count as one.
+            if next_date.timestamp() not in dates:
+                dates.add(next_date.timestamp())
                 yield next_date
 
             # if enough dates have been collected or enough attempts were made, exit
