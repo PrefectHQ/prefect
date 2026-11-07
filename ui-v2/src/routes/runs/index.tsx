@@ -11,8 +11,10 @@ import { categorizeError } from "@/api/error-utils";
 import {
 	buildCountFlowRunsQuery,
 	buildFlowRunHistoryQuery,
+	buildFlowRunsHistoryQuery,
 	buildPaginateFlowRunsQuery,
 	type FlowRunHistoryFilter,
+	type FlowRunsHistoryFilter,
 	type FlowRunsPaginateFilter,
 } from "@/api/flow-runs";
 import {
@@ -341,6 +343,36 @@ export const buildHistoryFilter = (
 	};
 };
 
+const ALL_TIME = {
+	after_: new Date(0).toISOString(),
+	before_: "2100-01-01T00:00:00.000Z",
+};
+
+// Counts every state in one interval with the state type filter left out, so
+// the scatter plot's legend can offer the types the filter currently hides.
+const buildStateCountsFilter = (
+	search?: SearchParams,
+): FlowRunsHistoryFilter => {
+	const { flow_runs, flows, deployments, work_pools } = buildHistoryFilter(
+		search && { ...search, "state-types": undefined },
+	);
+	const range = getDateRangeFilter(search);
+	const start = range?.after_ ?? ALL_TIME.after_;
+	const end = range?.before_ ?? ALL_TIME.before_;
+	return {
+		history_start: start,
+		history_end: end,
+		history_interval_seconds: Math.max(
+			1,
+			(Date.parse(end) - Date.parse(start)) / 1000,
+		),
+		flow_runs,
+		flows,
+		deployments,
+		work_pools,
+	};
+};
+
 export const Route = createFileRoute("/runs/")({
 	validateSearch: searchParams,
 	component: function RouteComponent() {
@@ -481,6 +513,9 @@ export const Route = createFileRoute("/runs/")({
 		const { data: flowRunHistory } = useQuery(
 			buildFlowRunHistoryQuery(buildHistoryFilter(search), 30_000),
 		);
+		const { data: flowRunStateHistory } = useQuery(
+			buildFlowRunsHistoryQuery(buildStateCountsFilter(search), 30_000),
+		);
 
 		const flowRuns = flowRunsPage?.results ?? [];
 		const taskRuns = taskRunsPage?.results ?? [];
@@ -607,6 +642,7 @@ export const Route = createFileRoute("/runs/")({
 				onDateRangeChange={onDateRangeChange}
 				// Scatter plot props
 				flowRunHistory={flowRunHistory}
+				flowRunStateHistory={flowRunStateHistory}
 				scatterPlotDateRange={scatterPlotDateRange}
 				// Task runs props
 				taskRuns={taskRuns}
@@ -638,6 +674,7 @@ export const Route = createFileRoute("/runs/")({
 		flowRunsDeps: buildPaginationBody(search),
 		taskRunsDeps: buildTaskRunsPaginationBody(search),
 		historyDeps: buildHistoryFilter(search),
+		stateCountsDeps: buildStateCountsFilter(search),
 	}),
 	loader: ({ deps, context }) => {
 		// Prefetch all queries without blocking the loader
@@ -652,6 +689,9 @@ export const Route = createFileRoute("/runs/")({
 		);
 		void context.queryClient.prefetchQuery(
 			buildFlowRunHistoryQuery(deps.historyDeps, 30_000),
+		);
+		void context.queryClient.prefetchQuery(
+			buildFlowRunsHistoryQuery(deps.stateCountsDeps, 30_000),
 		);
 
 		// Background async chain: prefetch task run counts for each flow run

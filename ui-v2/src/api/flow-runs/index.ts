@@ -29,6 +29,9 @@ export type FlowRunsCountFilter =
 export type FlowRunHistoryFilter =
 	components["schemas"]["Body_read_flow_run_history_ui_flow_runs_history_post"];
 
+export type FlowRunsHistoryFilter =
+	components["schemas"]["Body_flow_run_history_flow_runs_history_post"];
+
 export type SimpleFlowRun = components["schemas"]["SimpleFlowRun"];
 
 export type CreateNewFlowRun = components["schemas"]["DeploymentFlowRunCreate"];
@@ -111,6 +114,8 @@ export const queryKeyFactory = {
 	history: () => [...queryKeyFactory.all(), "history"] as const,
 	historyWithFilter: (filter: FlowRunHistoryFilter) =>
 		[...queryKeyFactory.history(), filter] as const,
+	stateHistory: (filter: FlowRunsHistoryFilter) =>
+		[...queryKeyFactory.all(), "stateHistory", filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 	input: (id: string, key: string) =>
@@ -345,6 +350,40 @@ export const buildFlowRunHistoryQuery = (
 				},
 			);
 			return res.data ?? ([] satisfies SimpleFlowRun[]);
+		},
+		placeholderData: keepPreviousData,
+		staleTime: 1000,
+		refetchInterval,
+	});
+
+/**
+ * Builds a query configuration for counting flow runs by state in each
+ * interval of a time range
+ *
+ * @param filter - The range, interval size and flow run filters to count over
+ * @param refetchInterval - Interval for refetching the counts (default 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: buckets } = useQuery(buildFlowRunsHistoryQuery({
+ *   history_start: "2024-01-01T00:00:00Z",
+ *   history_end: "2024-01-08T00:00:00Z",
+ *   history_interval_seconds: 604_800,
+ * }));
+ * ```
+ */
+export const buildFlowRunsHistoryQuery = (
+	filter: FlowRunsHistoryFilter,
+	refetchInterval = 30_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.stateHistory(filter),
+		queryFn: async () => {
+			const res = await (await getQueryService()).POST("/flow_runs/history", {
+				body: filter,
+			});
+			return res.data ?? [];
 		},
 		placeholderData: keepPreviousData,
 		staleTime: 1000,

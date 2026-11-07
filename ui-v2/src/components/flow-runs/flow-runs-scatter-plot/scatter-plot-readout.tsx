@@ -27,6 +27,7 @@ type ScatterPlotReadoutProps = {
 	/** Start of the loaded span when the row limit left older runs out. */
 	loadedSince: number | undefined;
 	upcoming: number;
+	canZoom: boolean;
 };
 
 export const ScatterPlotReadout = ({
@@ -35,6 +36,7 @@ export const ScatterPlotReadout = ({
 	totalCount,
 	loadedSince,
 	upcoming,
+	canZoom,
 }: ScatterPlotReadoutProps) => (
 	<div
 		aria-live="polite"
@@ -49,6 +51,7 @@ export const ScatterPlotReadout = ({
 				totalCount={totalCount}
 				loadedSince={loadedSince}
 				upcoming={upcoming}
+				canZoom={canZoom}
 			/>
 		)}
 	</div>
@@ -139,6 +142,7 @@ const SummaryReadout = ({
 	totalCount,
 	loadedSince,
 	upcoming,
+	canZoom,
 }: Omit<ScatterPlotReadoutProps, "run">) => {
 	const loaded = summary.total.toLocaleString();
 	const headline =
@@ -153,7 +157,9 @@ const SummaryReadout = ({
 				})}`;
 	const hints = [
 		loadedSince !== undefined && "Narrow the date range to load older runs.",
-		"Hover or tap a run for details.",
+		canZoom
+			? "Hover or tap a run for details, or drag across the chart to zoom."
+			: "Hover or tap a run for details.",
 		upcoming > 0 &&
 			`${upcoming.toLocaleString()} more scheduled after this window.`,
 	].filter(Boolean);
