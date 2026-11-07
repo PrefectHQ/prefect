@@ -61,6 +61,31 @@ const setupFlowRunsHandlers = (
 };
 
 describe("Runs page", () => {
+	it("requests run history within the default filter's date range from the first request", async () => {
+		setupFlowRunsHandlers();
+		const historyStarts: (string | undefined)[] = [];
+		server.use(
+			http.post(buildApiUrl("/ui/flow_runs/history"), async ({ request }) => {
+				const body = (await request.json()) as {
+					flow_runs?: { expected_start_time?: { after_?: string } };
+				};
+				historyStarts.push(body.flow_runs?.expected_start_time?.after_);
+				return HttpResponse.json([]);
+			}),
+		);
+		await router.navigate({ to: "/dashboard" });
+
+		await renderRunsPage();
+
+		await waitFor(() => {
+			expect(router.state.location.search).toMatchObject({
+				range: "past-7-days",
+			});
+			expect(historyStarts.length).toBeGreaterThan(0);
+		});
+		expect(historyStarts).not.toContain(undefined);
+	});
+
 	it("should render with empty state when no flow runs or task runs exist", async () => {
 		await renderRunsPage();
 		await waitFor(() => {
