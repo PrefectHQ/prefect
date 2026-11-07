@@ -4,6 +4,7 @@ import { STATE_TYPES } from "@/components/flow-runs/flow-runs-list/flow-runs-fil
 import { secondsToApproximateString } from "@/utils/seconds";
 
 type StateType = components["schemas"]["StateType"];
+type HistoryResponse = components["schemas"]["HistoryResponse"];
 
 /** The history endpoint returns at most this many runs, newest first. */
 export const HISTORY_LIMIT = 1000;
@@ -210,6 +211,19 @@ export const summarizeRuns = (runs: readonly SimpleFlowRun[]): RunsSummary => {
 		median: quantile(durations, 0.5),
 		p90: quantile(durations, 0.9),
 	};
+};
+
+/** Runs per state type, summed over every interval and state name. */
+export const countRunsByState = (
+	history: readonly HistoryResponse[],
+): StateCount[] => {
+	const counts = new Map<StateType, number>();
+	for (const interval of history) {
+		for (const { state_type, count_runs } of interval.states) {
+			counts.set(state_type, (counts.get(state_type) ?? 0) + count_runs);
+		}
+	}
+	return inLegendOrder(counts);
 };
 
 export type PlotPoint = {

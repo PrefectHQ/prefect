@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ComponentProps } from "react";
+import { fn } from "storybook/test";
 import type { SimpleFlowRun } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import { createFakeSimpleFlowRunsMultiDay } from "@/mocks";
@@ -73,6 +74,9 @@ export default {
 		startDate: new Date(NOW - 24 * HOUR),
 		endDate: new Date(NOW),
 		totalCount: 300,
+		onRangeChange: fn(),
+		selectedStateTypes: new Set(),
+		onSelectedStateTypesChange: fn(),
 	},
 	decorators: [reactQueryDecorator, routerDecorator],
 	render: function Render(args: ComponentProps<typeof FlowRunsScatterPlot>) {
