@@ -190,6 +190,41 @@ class DataclassWithClassVarNoDefault:
         self.derived = self.x * 2
 
 
+@dataclass(init=False)
+class DataclassWithNonInitInitVar:
+    """InitVar with init=False must still use replace() so __init__ refreshes state."""
+
+    x: int
+    seed: InitVar[int] = dataclasses.field(init=False)
+
+    def __init__(self, x: int):
+        self.x = x
+        self.derived = x * 2
+
+
+@dataclass(frozen=True)
+class FrozenInitVarCopyReturnsSelf:
+    """Frozen InitVar dataclass whose __copy__ returns self."""
+
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        object.__setattr__(self, "_seed", seed)
+
+    def __copy__(self):
+        return self
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarCopyReturnsSelf:
+    x: int
+    seed: InitVar[int]
+
+    def __copy__(self):
+        return self
+
+
 class SimplePydantic(pydantic.BaseModel):
     x: int
     y: int
@@ -375,7 +410,9 @@ class TestVisitCollection:
             FrozenSlotsDataclassWithInitVar,
         ],
     )
-    def test_visit_collection_transforms_dataclass_with_required_init_var(self, cls):
+    def test_visit_collection_transforms_dataclass_with_required_init_var(
+        self, cls: type
+    ):
         token = object()
         inp = cls(x=token, seed=3)
 
@@ -428,6 +465,40 @@ class TestVisitCollection:
         assert result.x == -3
         # replace() re-ran __post_init__; shallow-copy path would leave derived=6
         assert result.derived == -6
+
+    def test_visit_collection_non_init_init_var_still_runs_init(self):
+        # InitVar(init=False) is not required by replace(); taking the shallow-copy
+        # fallback would skip the custom __init__ and leave derived stale.
+        inp = DataclassWithNonInitInitVar(x=3)
+        assert inp.derived == 6
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: -v if isinstance(v, int) else v, return_data=True
+        )
+
+        assert isinstance(result, DataclassWithNonInitInitVar)
+        assert result is not inp
+        assert result.x == -3
+        assert result.derived == -6
+
+    @pytest.mark.parametrize(
+        "cls",
+        [FrozenInitVarCopyReturnsSelf, FrozenSlotsInitVarCopyReturnsSelf],
+    )
+    def test_visit_collection_init_var_copy_returns_self_does_not_mutate_original(
+        self, cls: type
+    ):
+        token = object()
+        inp = cls(x=token, seed=3)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, cls)
+        assert result is not inp
+        assert result.x == 42
+        assert inp.x is token
 
     def test_visit_collection_does_not_consume_generators(self):
         def f():

@@ -246,16 +246,59 @@ class StopVisiting(BaseException):
 
 
 def _is_required_init_var(field: Any) -> bool:
-    """True for InitVar fields that ``replace()`` would require as kwargs.
+    """True for InitVar fields that `replace()` would require as kwargs.
 
-    ``dataclasses.fields()`` omits both InitVar and ClassVar. ClassVar internal
-    fields also have ``init=True`` with missing defaults, so absence from
-    ``fields()`` alone is not enough — check the InitVar marker (or type).
+    `dataclasses.fields()` omits both InitVar and ClassVar. ClassVar internal
+    fields also have `init=True` with missing defaults, so absence from
+    `fields()` alone is not enough — check the InitVar marker (or type).
+    InitVars declared with `init=False` are skipped by `replace()`, so they
+    must not trigger the copy fallback.
     """
+    if not field.init:
+        return False
     if field.default is not MISSING or field.default_factory is not MISSING:
         return False
-    # ``_field_type`` survives postponed annotations; isinstance covers evaluated types.
+    # `_field_type` survives postponed annotations; isinstance covers evaluated types.
     return field._field_type is _FIELD_INITVAR or isinstance(field.type, InitVar)
+
+
+def _copy_dataclass_instance(obj: Any) -> Any:
+    """Return a distinct shallow copy of a dataclass instance.
+
+    `copy.copy` is preferred so `__dict__` / slots / `__copy__` are honored.
+    If `__copy__` returns `self` (valid for some frozen value objects), build a
+    new instance via `__new__` and copy stored state so callers never mutate
+    the original through `object.__setattr__`.
+    """
+    result = copy.copy(obj)
+    if result is not obj:
+        return result
+
+    cls = type(obj)
+    result = object.__new__(cls)
+    obj_dict = getattr(obj, "__dict__", None)
+    if obj_dict is not None:
+        object.__setattr__(result, "__dict__", {**obj_dict})
+
+    for base in cls.__mro__:
+        slots = getattr(base, "__slots__", ())
+        if isinstance(slots, str):
+            slots = (slots,)
+        for name in slots:
+            if name in ("__dict__", "__weakref__"):
+                continue
+            try:
+                object.__setattr__(result, name, getattr(obj, name))
+            except AttributeError:
+                pass
+
+    for f in fields(obj):
+        try:
+            object.__setattr__(result, f.name, getattr(obj, f.name))
+        except AttributeError:
+            pass
+
+    return result
 
 
 @overload
@@ -562,7 +605,7 @@ def visit_collection(
                     _is_required_init_var(f) for f in expr.__dataclass_fields__.values()
                 )
                 if requires_init_var:
-                    result = copy.copy(expr)
+                    result = _copy_dataclass_instance(expr)
                     for f, v in zip(expr_fields, values):
                         object.__setattr__(result, f.name, v)
                 else:
