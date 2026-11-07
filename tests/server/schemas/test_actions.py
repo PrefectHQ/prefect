@@ -511,6 +511,36 @@ class TestDeploymentScheduleValidation:
         assert schedule.max_scheduled_runs == max_scheduled_runs
 
 
+class TestRRuleTimezoneValidationOnWrite:
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    @pytest.mark.parametrize(
+        "timezone", ["fake", "UTC+2", "GMT-5", "America/New_York ", "Not/A_UTC_Zone"]
+    )
+    def test_invalid_timezone(self, schema_type, timezone: str):
+        with pytest.raises(ValidationError):
+            schema_type(schedule=RRuleSchedule(rrule="FREQ=DAILY", timezone=timezone))
+
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    @pytest.mark.parametrize("timezone", ["Etc/GMT+5", "America/Port-au-Prince"])
+    def test_timezone_with_regex_metacharacters(self, schema_type, timezone: str):
+        action = schema_type(
+            schedule=RRuleSchedule(rrule="FREQ=DAILY", timezone=timezone)
+        )
+        assert action.schedule.timezone == timezone
+
+    def test_rrule_schedule_constructed_directly_keeps_invalid_timezone(self):
+        # Schedules stored before timezones were validated are read back
+        # through `RRuleSchedule` directly and must stay loadable.
+        legacy = RRuleSchedule(rrule="FREQ=DAILY", timezone="UTC+2")
+        assert legacy.timezone == "UTC+2"
+
+
 class TestRRuleNormalizationOnWrite:
     """Regression tests for #21362.
 
