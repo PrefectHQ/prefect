@@ -405,6 +405,73 @@ class TestUpdateDeploymentSchedule:
         assert len(flow_runs) == 0
 
 
+class TestLegacyInvalidRRuleTimezone:
+    @pytest.fixture
+    async def legacy_schedule(
+        self,
+        db: PrefectDBInterface,
+        get_server_session: AsyncSessionGetter,
+        deployment,
+    ) -> UUID:
+        # Stored before RRule timezones were validated on write.
+        async with get_server_session() as session:
+            await models.deployments.delete_schedules_for_deployment(
+                session=session, deployment_id=deployment.id
+            )
+            schedule = db.DeploymentSchedule(
+                deployment_id=deployment.id,
+                schedule=schemas.schedules.RRuleSchedule(
+                    rrule="FREQ=DAILY", timezone="UTC+2"
+                ),
+                active=False,
+            )
+            session.add(schedule)
+            await session.commit()
+            return schedule.id
+
+    async def test_legacy_schedule_stays_readable(
+        self,
+        client: AsyncClient,
+        schedules_url: Callable[..., str],
+        deployment,
+        legacy_schedule: UUID,
+    ):
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["schedules"][0]["schedule"]["timezone"] == "UTC+2"
+
+        response = await client.get(schedules_url(deployment.id))
+        assert response.status_code == status.HTTP_200_OK
+        assert [s["id"] for s in response.json()] == [str(legacy_schedule)]
+
+    async def test_legacy_schedule_can_be_repaired(
+        self,
+        get_server_session: AsyncSessionGetter,
+        client: AsyncClient,
+        schedules_url: Callable[..., str],
+        deployment,
+        legacy_schedule: UUID,
+    ):
+        url = schedules_url(deployment.id, schedule_id=legacy_schedule)
+        response = await client.patch(
+            url,
+            json={"schedule": {"rrule": "FREQ=DAILY", "timezone": "UTC+2"}},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+        response = await client.patch(
+            url,
+            json={"schedule": {"rrule": "FREQ=DAILY", "timezone": "Etc/GMT-2"}},
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session, deployment_id=deployment.id
+            )
+        assert [s.schedule.timezone for s in schedules] == ["Etc/GMT-2"]
+
+
 class TestDeleteDeploymentSchedule:
     @pytest.fixture
     async def schedule_to_delete(
