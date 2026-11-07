@@ -2,6 +2,7 @@
 Utilities for extensions of and operations on Python collections.
 """
 
+import copy
 import io
 import itertools
 import types
@@ -17,7 +18,7 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from dataclasses import fields, is_dataclass, replace
+from dataclasses import MISSING, fields, is_dataclass, replace
 from enum import Enum, auto
 from typing import (
     TYPE_CHECKING,
@@ -336,6 +337,9 @@ def visit_collection(
     - When a dataclass is copied, fields declared with `init=False` keep their
       visited values. They are not recomputed by `__init__` or `__post_init__`
       from the new field values; this is intentional.
+    - Dataclasses with a required `InitVar` are copied without
+      `dataclasses.replace()`, which would demand the InitVar. Stored fields
+      keep their visited values; `__post_init__` is not re-run.
 
     Supported types:
     - List (including iterators)
@@ -536,15 +540,31 @@ def visit_collection(
                 getattr(expr, f.name) is not v for f, v in zip(expr_fields, values)
             )
             if modified:
-                result = replace(
-                    expr,
-                    **{f.name: v for f, v in zip(expr_fields, values) if f.init},
+                # Required InitVars are excluded from fields() and are not stored
+                # on the instance, so replace() cannot rebuild the object. Copy
+                # without re-init and set visited stored fields directly.
+                field_names = {f.name for f in expr_fields}
+                requires_init_var = any(
+                    name not in field_names
+                    and f.init
+                    and f.default is MISSING
+                    and f.default_factory is MISSING
+                    for name, f in expr.__dataclass_fields__.items()
                 )
-                # `replace` rejects `init=False` fields and resets them, so set
-                # their visited values directly; this also works on frozen dataclasses
-                for f, v in zip(expr_fields, values):
-                    if not f.init:
+                if requires_init_var:
+                    result = copy.copy(expr)
+                    for f, v in zip(expr_fields, values):
                         object.__setattr__(result, f.name, v)
+                else:
+                    result = replace(
+                        expr,
+                        **{f.name: v for f, v in zip(expr_fields, values) if f.init},
+                    )
+                    # `replace` rejects `init=False` fields and resets them, so set
+                    # their visited values directly; this also works on frozen dataclasses
+                    for f, v in zip(expr_fields, values):
+                        if not f.init:
+                            object.__setattr__(result, f.name, v)
 
     # --- Pydantic models
 

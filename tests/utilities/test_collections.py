@@ -3,7 +3,7 @@ import io
 import json
 import uuid
 from collections import Counter, defaultdict, deque
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from typing import Any, NamedTuple
 
 import numpy as np
@@ -139,6 +139,43 @@ class DataclassWithPostInitField:
 
     def __post_init__(self):
         self.doubled = self.x * 2
+
+
+@dataclass
+class DataclassWithInitVar:
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        self._seed = seed
+
+
+@dataclass(frozen=True)
+class FrozenDataclassWithInitVar:
+    x: int
+    seed: InitVar[int]
+
+
+@dataclass(slots=True)
+class SlotsDataclassWithInitVar:
+    x: int
+    seed: InitVar[int]
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsDataclassWithInitVar:
+    x: int
+    seed: InitVar[int]
+
+
+@dataclass
+class DataclassWithInitVarAndNonInitField:
+    x: int
+    seed: InitVar[int]
+    y: int = dataclasses.field(init=False, default=0)
+
+    def __post_init__(self, seed: int):
+        self.y = seed
 
 
 class SimplePydantic(pydantic.BaseModel):
@@ -316,6 +353,53 @@ class TestVisitCollection:
         # value is kept
         assert result.x == -2
         assert result.doubled == 4
+
+    @pytest.mark.parametrize(
+        "cls",
+        [
+            DataclassWithInitVar,
+            FrozenDataclassWithInitVar,
+            SlotsDataclassWithInitVar,
+            FrozenSlotsDataclassWithInitVar,
+        ],
+    )
+    def test_visit_collection_transforms_dataclass_with_required_init_var(self, cls):
+        token = object()
+        inp = cls(x=token, seed=3)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, cls)
+        assert result is not inp
+        assert result.x == 42
+        assert inp.x is token
+
+    def test_visit_collection_transforms_dataclass_with_init_var_and_non_init_field(
+        self,
+    ):
+        token = object()
+        inp = DataclassWithInitVarAndNonInitField(x=token, seed=3)
+        assert inp.y == 3
+        object.__setattr__(inp, "y", 9)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, DataclassWithInitVarAndNonInitField)
+        assert result.x == 42
+        assert result.y == 9
+        assert inp.x is token
+        assert inp.y == 9
+
+    def test_visit_collection_identity_visitor_keeps_init_var_dataclass(self):
+        inp = DataclassWithInitVar(x=2, seed=3)
+
+        result = visit_collection(inp, visit_fn=lambda v: v, return_data=True)
+
+        assert result is inp
 
     def test_visit_collection_does_not_consume_generators(self):
         def f():
