@@ -18,7 +18,7 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from dataclasses import MISSING, fields, is_dataclass, replace
+from dataclasses import _FIELD_INITVAR, MISSING, InitVar, fields, is_dataclass, replace
 from enum import Enum, auto
 from typing import (
     TYPE_CHECKING,
@@ -243,6 +243,19 @@ class StopVisiting(BaseException):
     When raised, the expression is returned without modification and recursive visits
     in that path will end.
     """
+
+
+def _is_required_init_var(field: Any) -> bool:
+    """True for InitVar fields that ``replace()`` would require as kwargs.
+
+    ``dataclasses.fields()`` omits both InitVar and ClassVar. ClassVar internal
+    fields also have ``init=True`` with missing defaults, so absence from
+    ``fields()`` alone is not enough — check the InitVar marker (or type).
+    """
+    if field.default is not MISSING or field.default_factory is not MISSING:
+        return False
+    # ``_field_type`` survives postponed annotations; isinstance covers evaluated types.
+    return field._field_type is _FIELD_INITVAR or isinstance(field.type, InitVar)
 
 
 @overload
@@ -543,13 +556,10 @@ def visit_collection(
                 # Required InitVars are excluded from fields() and are not stored
                 # on the instance, so replace() cannot rebuild the object. Copy
                 # without re-init and set visited stored fields directly.
-                field_names = {f.name for f in expr_fields}
+                # ClassVars are also excluded from fields() and have init=True
+                # with missing defaults, so detect true InitVars only.
                 requires_init_var = any(
-                    name not in field_names
-                    and f.init
-                    and f.default is MISSING
-                    and f.default_factory is MISSING
-                    for name, f in expr.__dataclass_fields__.items()
+                    _is_required_init_var(f) for f in expr.__dataclass_fields__.values()
                 )
                 if requires_init_var:
                     result = copy.copy(expr)

@@ -1,6 +1,7 @@
 import dataclasses
 import io
 import json
+import typing
 import uuid
 from collections import Counter, defaultdict, deque
 from dataclasses import InitVar, dataclass
@@ -176,6 +177,17 @@ class DataclassWithInitVarAndNonInitField:
 
     def __post_init__(self, seed: int):
         self.y = seed
+
+
+@dataclass
+class DataclassWithClassVarNoDefault:
+    """ClassVar without default must not trigger the InitVar copy path."""
+
+    x: int
+    flag: typing.ClassVar[str]
+
+    def __post_init__(self):
+        self.derived = self.x * 2
 
 
 class SimplePydantic(pydantic.BaseModel):
@@ -400,6 +412,22 @@ class TestVisitCollection:
         result = visit_collection(inp, visit_fn=lambda v: v, return_data=True)
 
         assert result is inp
+
+    def test_visit_collection_classvar_without_default_still_runs_post_init(self):
+        # ClassVar is omitted from fields() like InitVar, but replace() must still
+        # rebuild so __post_init__ refreshes derived attributes.
+        inp = DataclassWithClassVarNoDefault(x=3)
+        assert inp.derived == 6
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: -v if isinstance(v, int) else v, return_data=True
+        )
+
+        assert isinstance(result, DataclassWithClassVarNoDefault)
+        assert result is not inp
+        assert result.x == -3
+        # replace() re-ran __post_init__; shallow-copy path would leave derived=6
+        assert result.derived == -6
 
     def test_visit_collection_does_not_consume_generators(self):
         def f():
