@@ -225,6 +225,51 @@ class FrozenSlotsInitVarCopyReturnsSelf:
         return self
 
 
+class PrivateSlotBase:
+    __slots__ = ("__cache",)
+
+    def cached(self):
+        return self.__cache
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarPrivateSlotCopyReturnsSelf(PrivateSlotBase):
+    """Inherits a name-mangled slot (`_PrivateSlotBase__cache`)."""
+
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        object.__setattr__(self, "_PrivateSlotBase__cache", seed)
+
+    def __copy__(self):
+        return self
+
+
+class WriteOnceDescriptor:
+    """Descriptor whose setter rejects reassignment once a value is stored."""
+
+    def __set_name__(self, owner, name):
+        self._attr = f"_{name}"
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return 0
+        return obj.__dict__[self._attr]
+
+    def __set__(self, obj, value):
+        if self._attr in obj.__dict__:
+            raise AttributeError("write-once field")
+        obj.__dict__[self._attr] = value
+
+
+@dataclass
+class DataclassWithInitVarAndWriteOnceField:
+    x: int
+    seed: InitVar[int]
+    y: int = WriteOnceDescriptor()
+
+
 class SimplePydantic(pydantic.BaseModel):
     x: int
     y: int
@@ -498,6 +543,37 @@ class TestVisitCollection:
         assert isinstance(result, cls)
         assert result is not inp
         assert result.x == 42
+        assert inp.x is token
+
+    def test_visit_collection_init_var_copy_preserves_private_slots(self):
+        token = object()
+        inp = FrozenSlotsInitVarPrivateSlotCopyReturnsSelf(x=token, seed=3)
+        assert inp.cached() == 3
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, FrozenSlotsInitVarPrivateSlotCopyReturnsSelf)
+        assert result is not inp
+        assert result.x == 42
+        assert result.cached() == 3
+        assert inp.x is token
+
+    def test_visit_collection_init_var_copy_skips_setters_for_unchanged_fields(
+        self,
+    ):
+        token = object()
+        inp = DataclassWithInitVarAndWriteOnceField(x=token, seed=3, y=7)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, DataclassWithInitVarAndWriteOnceField)
+        assert result is not inp
+        assert result.x == 42
+        assert result.y == 7
         assert inp.x is token
 
     def test_visit_collection_does_not_consume_generators(self):

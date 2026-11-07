@@ -280,23 +280,17 @@ def _copy_dataclass_instance(obj: Any) -> Any:
     if obj_dict is not None:
         object.__setattr__(result, "__dict__", {**obj_dict})
 
+    # Copy slot values through each class's member descriptors so private
+    # (name-mangled) slots such as `__cache` -> `_Base__cache` are preserved.
     for base in cls.__mro__:
-        slots = getattr(base, "__slots__", ())
-        if isinstance(slots, str):
-            slots = (slots,)
-        for name in slots:
-            if name in ("__dict__", "__weakref__"):
+        for descriptor in vars(base).values():
+            if not isinstance(descriptor, types.MemberDescriptorType):
                 continue
             try:
-                object.__setattr__(result, name, getattr(obj, name))
+                value = descriptor.__get__(obj, cls)
             except AttributeError:
-                pass
-
-    for f in fields(obj):
-        try:
-            object.__setattr__(result, f.name, getattr(obj, f.name))
-        except AttributeError:
-            pass
+                continue
+            descriptor.__set__(result, value)
 
     return result
 
@@ -606,8 +600,12 @@ def visit_collection(
                 )
                 if requires_init_var:
                     result = _copy_dataclass_instance(expr)
+                    # The copy already holds unchanged values; only write the
+                    # fields the visitor changed so descriptor setters on
+                    # untouched fields are not invoked.
                     for f, v in zip(expr_fields, values):
-                        object.__setattr__(result, f.name, v)
+                        if getattr(expr, f.name) is not v:
+                            object.__setattr__(result, f.name, v)
                 else:
                     result = replace(
                         expr,
