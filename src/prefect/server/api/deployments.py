@@ -440,6 +440,9 @@ async def update_deployment(
         # Phase 2: Apply the actual updates. Renamed schedules use
         # their row ID (slug is now NULL); others use slug as before.
         for schedule in schedules_to_patch:
+            # A schedule sent with the deployment carries its full overrides, and
+            # `prefect deploy` leaves `parameters` out when there are none
+            schedule = schedule.model_copy(update={"parameters": schedule.parameters})
             if schedule.replaces:
                 await models.deployments.update_deployment_schedule(
                     session=session,

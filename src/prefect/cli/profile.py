@@ -21,6 +21,7 @@ import prefect.settings
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 from prefect.context import use_profile
@@ -61,7 +62,7 @@ def ls(
             {"name": name, "active": name == current_name} for name in profiles
         ]
         json_output = orjson.dumps(profile_data, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
         return
 
     table = Table(caption="* active profile")
@@ -311,7 +312,7 @@ def inspect(
             setting.name: value for setting, value in profiles[name].settings.items()
         }
         json_output = orjson.dumps(profile_data, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         for setting, value in profiles[name].settings.items():
             _cli.console.print(f"{setting.name}='{value}'")

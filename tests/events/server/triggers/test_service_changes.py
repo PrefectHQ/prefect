@@ -1,5 +1,7 @@
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import timedelta
+from typing import Any, AsyncGenerator
 from unittest import mock
 from uuid import uuid4
 
@@ -15,7 +17,9 @@ from prefect.server.events.schemas.automations import (
     EventTrigger,
     Posture,
 )
+from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
+from prefect.types._datetime import now
 
 pytestmark = pytest.mark.clear_db
 
@@ -268,3 +272,93 @@ async def test_gracefully_handles_errors_during_changes(
 
         (trigger,) = automation.triggers_of_type(EventTrigger)
         assert trigger.id not in triggers.triggers
+
+
+class HeldRead:
+    def __init__(self) -> None:
+        self.reading = asyncio.Event()
+        self.release = asyncio.Event()
+
+
+def hold_automations_session_read(
+    monkeypatch: pytest.MonkeyPatch, method: str, call: int
+) -> HeldRead:
+    """Makes the triggers service's `call`-th `session.<method>(...)` wait until the
+    test releases it, as a slow database query would"""
+    held = HeldRead()
+    calls = 0
+
+    @asynccontextmanager
+    async def automations_session() -> AsyncGenerator[AsyncSession, None]:
+        async with automations.automations_session() as session:
+            original = getattr(session, method)
+
+            async def read(*args: Any, **kwargs: Any) -> Any:
+                nonlocal calls
+                calls += 1
+                if calls == call:
+                    held.reading.set()
+                    await held.release.wait()
+                return await original(*args, **kwargs)
+
+            monkeypatch.setattr(session, method, read)
+            yield session
+
+    monkeypatch.setattr(triggers, "automations_session", automations_session)
+    return held
+
+
+def stuff_happened_to_foo() -> ReceivedEvent:
+    return ReceivedEvent(
+        occurred=now("UTC"),
+        event="stuff.happened",
+        resource={"prefect.resource.id": "foo"},
+        id=uuid4(),
+    )
+
+
+async def test_reconcile_keeps_automations_loaded_while_reading(
+    starting_automations: None, monkeypatch: pytest.MonkeyPatch
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23777"""
+    await triggers.reconcile_automations(force=True)
+    (expected,) = triggers.find_interested_triggers(stuff_happened_to_foo())
+
+    # the first read is the automation state snapshot, the second reads all
+    # automations
+    held = hold_automations_session_read(monkeypatch, "execute", call=2)
+    reload = asyncio.create_task(triggers.reconcile_automations(force=True))
+    try:
+        await held.reading.wait()
+
+        assert triggers.find_interested_triggers(stuff_happened_to_foo()) == [expected]
+    finally:
+        held.release.set()
+        assert await reload is True
+
+    assert triggers.find_interested_triggers(stuff_happened_to_foo()) == [expected]
+
+
+async def test_automation_update_keeps_automation_loaded_while_reading(
+    starting_automations: None, monkeypatch: pytest.MonkeyPatch
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23777"""
+    await triggers.reconcile_automations(force=True)
+    (trigger,) = triggers.find_interested_triggers(stuff_happened_to_foo())
+    automation_id = trigger.automation.id
+
+    held = hold_automations_session_read(monkeypatch, "scalar", call=1)
+    update = asyncio.create_task(
+        triggers.automation_changed(automation_id, "automation__updated")
+    )
+    try:
+        await held.reading.wait()
+
+        assert automation_id in triggers.automations_by_id
+        assert triggers.find_interested_triggers(stuff_happened_to_foo()) == [trigger]
+    finally:
+        held.release.set()
+        await update
+
+    assert automation_id in triggers.automations_by_id
+    assert triggers.find_interested_triggers(stuff_happened_to_foo()) == [trigger]

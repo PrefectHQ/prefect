@@ -215,7 +215,7 @@ class CoiledPushProvisioner:
                 else:
                     raise RuntimeError(
                         "Coiled credentials not found. Please create a new token by"
-                        " running [blue]coiled login[/] and try again."
+                        " running `coiled login` and try again."
                     )
 
             # Create the credentials block

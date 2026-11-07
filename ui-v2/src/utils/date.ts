@@ -61,3 +61,15 @@ export function formatDateTimeRelative(
 
 	return `in ${formatted}`;
 }
+
+/**
+ * Returns the browser's IANA time zone, or "UTC" when the browser doesn't
+ * report one.
+ */
+export function getLocalTimezone(): string {
+	try {
+		return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+	} catch {
+		return "UTC";
+	}
+}

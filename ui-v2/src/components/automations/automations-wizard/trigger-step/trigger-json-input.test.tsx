@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import "@/mocks/mock-json-input";
 import { TriggerJsonInput } from "./trigger-json-input";
 
@@ -171,6 +171,21 @@ describe("TriggerJsonInput", () => {
 		await user.type(textarea, "test");
 
 		expect(textarea).toHaveValue("test");
+	});
+
+	it("does not submit the parent form when format button is clicked", async () => {
+		const user = userEvent.setup();
+		const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+
+		render(
+			<form onSubmit={onSubmit}>
+				<TriggerJsonInputContainer defaultValue='{"type":"event"}' />
+			</form>,
+		);
+
+		await user.click(screen.getByRole("button", { name: "Format" }));
+
+		expect(onSubmit).not.toHaveBeenCalled();
 	});
 
 	it("documentation link opens in new tab", () => {

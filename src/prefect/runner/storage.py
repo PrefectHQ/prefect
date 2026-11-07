@@ -459,11 +459,26 @@ class GitRepository:
             # read-only attribute first to avoid `[WinError 5] Access is denied`.
             _clear_read_only_attributes(git_dir)
 
-            # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
-            if self._directories and not await self.is_sparsely_checked_out():
+            # Make the checkout match the configured directories. The destination
+            # can be reused by runs whose `directories` differ (a redeploy that
+            # changed the list, or deployments sharing a working directory), so
+            # an existing sparse checkout only grows: narrowing it would remove
+            # files that another run may still be using.
+            is_sparse = await self.is_sparsely_checked_out()
+            if self._directories:
                 await run_process(
-                    ["git", "sparse-checkout", "set", "--", *self._directories],
+                    [
+                        "git",
+                        "sparse-checkout",
+                        "add" if is_sparse else "set",
+                        "--",
+                        *self._directories,
+                    ],
                     cwd=self.destination,
+                )
+            elif is_sparse:
+                await run_process(
+                    ["git", "sparse-checkout", "disable"], cwd=self.destination
                 )
 
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)

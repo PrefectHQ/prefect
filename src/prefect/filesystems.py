@@ -547,7 +547,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         counter = 0
         for f in Path(local_path).rglob("*"):
             relative_path = f.relative_to(local_path)
-            if included_files and relative_path.as_posix() not in included_files:
+            if (
+                included_files is not None
+                and relative_path.as_posix() not in included_files
+            ):
                 continue
 
             if to_path.endswith("/"):
@@ -603,7 +606,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         counter = 0
         for f in Path(local_path).rglob("*"):
             relative_path = f.relative_to(local_path)
-            if included_files and relative_path.as_posix() not in included_files:
+            if (
+                included_files is not None
+                and relative_path.as_posix() not in included_files
+            ):
                 continue
 
             if to_path.endswith("/"):
