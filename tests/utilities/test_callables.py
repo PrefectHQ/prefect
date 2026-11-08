@@ -6,6 +6,7 @@ from enum import Enum
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from unittest import result
 
 import pytest
 from pydantic import BaseModel, Field, SecretStr
@@ -892,6 +893,26 @@ class TestGetCallParameters:
         assert isinstance(result["retries"], int)
         assert isinstance(result["tags"], list)
         assert isinstance(result["labels"], list)
+
+    def test_field_default_factory_is_called(self):
+        """Field(default_factory=...) should call the factory, not return FieldInfo."""
+
+        def run(
+            tags: list = Field(default_factory=list),
+            counts: dict = Field(default_factory=dict),
+            items: list = Field(default_factory=lambda: [1, 2, 3]),
+        ):
+            pass
+
+        result = callables.get_call_parameters(run, call_args=(), call_kwargs={})
+        assert result == {
+            "tags": [],
+            "counts": {},
+            "items": [1, 2, 3],
+        }
+        assert isinstance(result["tags"], list)
+        assert isinstance(result["counts"], dict)
+        assert isinstance(result["items"], list)
 
 
 class TestGetParameterDefaults:
