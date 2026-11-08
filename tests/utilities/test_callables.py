@@ -828,11 +828,15 @@ class TestParseFlowDescriptionToSchema:
             z: Annotated[int, Field(description="z from Field")] = Field(
                 default=1, description="z from default Field"
             ),
+            w: Annotated[
+                int, Field(description="w from Field"), Field(description=None)
+            ] = 2,
         ):
             """Function f.
 
             Args:
                 y: y from docstring
+                w: w from docstring
             """
 
         schema = callables.parameter_schema(f)
@@ -861,9 +865,38 @@ class TestParseFlowDescriptionToSchema:
                     "position": 2,
                     "type": "integer",
                 },
+                "w": {
+                    "title": "w",
+                    "description": "w from docstring",
+                    "default": 2,
+                    "position": 3,
+                    "type": "integer",
+                },
             },
             "required": ["x"],
             "definitions": {},
+        }
+
+    def test_flow_with_annotated_fields_pydantic_cannot_merge(self):
+        def f(
+            x: Annotated[
+                tuple[int, ...], Field(default=(1,)), Field(default_factory=tuple)
+            ] = (),
+        ):
+            """Function f.
+
+            Args:
+                x: x from docstring
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi()["properties"] == {
+            "x": {
+                "title": "x",
+                "description": "x from docstring",
+                "default": [],
+                "position": 0,
+            },
         }
 
 

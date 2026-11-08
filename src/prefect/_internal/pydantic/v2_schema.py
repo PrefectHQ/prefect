@@ -50,16 +50,19 @@ def has_v2_type_as_param(signature: inspect.Signature) -> bool:
 
 def _annotated_field_description(annotation: t.Any) -> str | None:
     """
-    Return the description of a `Field` in an `Annotated` type, if any.
+    Return the description of the `Field`s in an `Annotated` type, if any.
 
-    The last `Field` with a description wins, as in pydantic.
+    The `Field`s are merged the way pydantic merges them, so a later `Field`
+    that sets `description=None` or `""` replaces an earlier description.
     """
     if typing.get_origin(annotation) is not typing.Annotated:
         return None
-    for metadata in reversed(typing.get_args(annotation)[1:]):
-        if isinstance(metadata, FieldInfo) and metadata.description:
-            return metadata.description
-    return None
+    try:
+        return FieldInfo.from_annotation(annotation).description
+    except TypeError:
+        # pydantic can't merge these `Field`s, e.g. `default` with
+        # `default_factory`; `generate_parameter_schema` falls back to `Any`
+        return None
 
 
 def process_v2_params(

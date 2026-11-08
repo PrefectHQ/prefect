@@ -1,6 +1,7 @@
 import inspect
 from typing import Annotated
 
+import pytest
 from pydantic import Field
 from pydantic_core import PydanticUndefined
 
@@ -152,3 +153,32 @@ class TestProcessV2Params:
 
         assert name == "name"
         assert field.description == "Second description"
+
+    @pytest.mark.parametrize("cleared_description", [None, ""])
+    @pytest.mark.parametrize(
+        "docstrings, expected_description",
+        [({}, None), ({"name": "Docstring description"}, "Docstring description")],
+    )
+    def test_process_v2_params_with_annotated_fieldinfo_later_field_clears_description(
+        self,
+        cleared_description: str | None,
+        docstrings: dict[str, str],
+        expected_description: str | None,
+    ):
+        """Test that a later FieldInfo in Annotated can clear an earlier description."""
+        param = inspect.Parameter(
+            "name",
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            annotation=Annotated[
+                str,
+                Field(description="Earlier description"),
+                Field(description=cleared_description),
+            ],
+        )
+
+        name, type_, field = process_v2_params(
+            param, position=0, docstrings=docstrings, aliases={}
+        )
+
+        assert name == "name"
+        assert field.description == expected_description
