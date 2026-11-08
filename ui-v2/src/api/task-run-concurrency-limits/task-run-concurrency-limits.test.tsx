@@ -56,6 +56,32 @@ describe("task run concurrency limits hooks", () => {
 		offset: 0,
 	};
 
+	it("useListTaskRunConcurrencyLimits() fetches every page when there are more limits than the server page size", async () => {
+		const allLimits = Array.from({ length: 250 }, (_, i) =>
+			createFakeTaskRunConcurrencyLimit({ id: String(i), tag: `tag-${i}` }),
+		);
+		server.use(
+			http.post(
+				buildApiUrl("/concurrency_limits/filter"),
+				async ({ request }) => {
+					const { offset = 0, limit = 200 } = (await request.json()) as {
+						offset?: number;
+						limit?: number;
+					};
+					return HttpResponse.json(allLimits.slice(offset, offset + limit));
+				},
+			),
+		);
+
+		const { result } = renderHook(
+			() => useListTaskRunConcurrencyLimits(filter),
+			{ wrapper: createWrapper({}) },
+		);
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toEqual(allLimits);
+	});
+
 	/**
 	 * Data Management:
 	 * - Asserts task run concurrency limit list data is fetched based on the APIs invoked for the hook

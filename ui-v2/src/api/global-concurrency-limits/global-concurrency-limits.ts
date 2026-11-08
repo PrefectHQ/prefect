@@ -30,17 +30,36 @@ export const queryKeyFactory = {
 
 // ----- 🔑 Queries 🗄️
 // ----------------------------
+const PAGE_SIZE = 100;
+
 export const buildListGlobalConcurrencyLimitsQuery = (
 	filter: GlobalConcurrencyLimitsFilter = { offset: 0 },
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const res = await (await getQueryService()).POST(
-				"/v2/concurrency_limits/filter",
-				{ body: filter },
-			);
-			return res.data ?? [];
+			const service = await getQueryService();
+			if (filter.limit !== undefined) {
+				const res = await service.POST("/v2/concurrency_limits/filter", {
+					body: filter,
+				});
+				return res.data ?? [];
+			}
+			// The server caps each response at PREFECT_SERVER_API_DEFAULT_LIMIT,
+			// so page through until we get a short page.
+			const limits: Array<GlobalConcurrencyLimit> = [];
+			let offset = filter.offset;
+			for (;;) {
+				const res = await service.POST("/v2/concurrency_limits/filter", {
+					body: { ...filter, offset, limit: PAGE_SIZE },
+				});
+				const page = res.data ?? [];
+				limits.push(...page);
+				if (page.length < PAGE_SIZE) {
+					return limits;
+				}
+				offset += page.length;
+			}
 		},
 		refetchInterval: 30_000,
 	});
