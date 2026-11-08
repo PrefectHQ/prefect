@@ -6,7 +6,6 @@ from enum import Enum
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from unittest import result
 
 import pytest
 from pydantic import BaseModel, Field, SecretStr
