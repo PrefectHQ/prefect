@@ -5,7 +5,7 @@ from datetime import timezone
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Annotated, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pytest
 from pydantic import BaseModel, Field, SecretStr
@@ -818,6 +818,51 @@ class TestParseFlowDescriptionToSchema:
                 },
             },
             "required": ["x", "y"],
+            "definitions": {},
+        }
+
+    def test_flow_with_annotated_field_description(self):
+        def f(
+            x: Annotated[int, Field(description="x from Field")],
+            y: Annotated[int, Field(ge=0)] = 0,
+            z: Annotated[int, Field(description="z from Field")] = Field(
+                default=1, description="z from default Field"
+            ),
+        ):
+            """Function f.
+
+            Args:
+                y: y from docstring
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "title": "x",
+                    "description": "x from Field",
+                    "position": 0,
+                    "type": "integer",
+                },
+                "y": {
+                    "title": "y",
+                    "description": "y from docstring",
+                    "default": 0,
+                    "minimum": 0,
+                    "position": 1,
+                    "type": "integer",
+                },
+                "z": {
+                    "title": "z",
+                    "description": "z from default Field",
+                    "default": 1,
+                    "position": 2,
+                    "type": "integer",
+                },
+            },
+            "required": ["x"],
             "definitions": {},
         }
 

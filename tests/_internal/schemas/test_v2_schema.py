@@ -1,4 +1,5 @@
 import inspect
+from typing import Annotated
 
 from pydantic import Field
 from pydantic_core import PydanticUndefined
@@ -113,3 +114,41 @@ class TestProcessV2Params:
 
         assert name == "name"
         assert field.json_schema_extra == {"position": 5}
+
+    def test_process_v2_params_with_annotated_fieldinfo(self):
+        """Test parameter processing with a FieldInfo in an Annotated type."""
+        param = inspect.Parameter(
+            "name",
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            default="default_name",
+            annotation=Annotated[str, Field(description="Annotated field description")],
+        )
+
+        name, type_, field = process_v2_params(
+            param, position=0, docstrings={"name": "Docstring description"}, aliases={}
+        )
+
+        assert name == "name"
+        assert field.default == "default_name"
+        assert field.title == "name"
+        assert field.description == "Annotated field description"
+
+    def test_process_v2_params_with_annotated_fieldinfo_uses_last_description(self):
+        """Test parameter processing with several FieldInfo objects in Annotated."""
+        param = inspect.Parameter(
+            "name",
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            annotation=Annotated[
+                str,
+                Field(description="First description"),
+                Field(description="Second description"),
+                Field(max_length=10),
+            ],
+        )
+
+        name, type_, field = process_v2_params(
+            param, position=0, docstrings={}, aliases={}
+        )
+
+        assert name == "name"
+        assert field.description == "Second description"
