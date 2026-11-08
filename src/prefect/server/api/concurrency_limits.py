@@ -205,7 +205,7 @@ async def read_concurrency_limits(
             session=session, limit=limit + offset, offset=0
         )
         v2_limits = await cl_v2_models.read_all_concurrency_limits(
-            session=session, limit=limit + offset, offset=0
+            session=session, limit=limit + offset, offset=0, name_prefix="tag:"
         )
 
     # Convert V2 to V1 format

@@ -162,9 +162,14 @@ async def read_all_concurrency_limits(
     session: AsyncSession,
     limit: int,
     offset: int,
+    name_prefix: str | None = None,
 ) -> Sequence[orm_models.ConcurrencyLimitV2]:
     query = sa.select(db.ConcurrencyLimitV2).order_by(db.ConcurrencyLimitV2.name)
 
+    if name_prefix is not None:
+        query = query.where(
+            db.ConcurrencyLimitV2.name.startswith(name_prefix, autoescape=True)
+        )
     if offset is not None:
         query = query.offset(offset)
     if limit is not None:

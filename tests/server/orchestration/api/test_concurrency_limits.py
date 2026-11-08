@@ -456,6 +456,32 @@ class TestV1ToV2Adapter:
         assert len(v2_limits) == 1
         assert v2_limits[0]["concurrency_limit"] == 10
 
+    async def test_filter_ignores_global_limits_when_paginating(self, client):
+        """Global limits sorting before `tag:` must not use up the page."""
+        for i in range(3):
+            response = await client.post(
+                "/v2/concurrency_limits/", json={"name": f"global-{i}", "limit": 1}
+            )
+            assert response.status_code == status.HTTP_201_CREATED
+
+        for tag in ("tag-a", "tag-b"):
+            response = await client.post(
+                "/concurrency_limits/",
+                json=ConcurrencyLimitCreate(tag=tag, concurrency_limit=1).model_dump(
+                    mode="json"
+                ),
+            )
+            assert response.status_code == status.HTTP_201_CREATED
+
+        first = await client.post(
+            "/concurrency_limits/filter", json={"limit": 1, "offset": 0}
+        )
+        second = await client.post(
+            "/concurrency_limits/filter", json={"limit": 1, "offset": 1}
+        )
+        assert [limit["tag"] for limit in first.json()] == ["tag-a"]
+        assert [limit["tag"] for limit in second.json()] == ["tag-b"]
+
     async def test_reset_handles_v2_limits(self, session, client):
         """Test that reset properly handles V2 limits with leases."""
         # Create limit
