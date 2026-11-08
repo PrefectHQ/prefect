@@ -95,7 +95,10 @@ def _resolve_field_info_default(value: Any) -> Any:
     """
     if isinstance(value, pydantic.fields.FieldInfo):
         if value.default_factory is not None:
-            return value.default_factory()
+            try:
+                return value.default_factory()
+            except TypeError:
+                return value.default_factory
         return value.default
     return value
 
