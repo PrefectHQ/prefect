@@ -13,8 +13,10 @@ import pytest
 import sqlalchemy as sa
 from docket import Docket, Worker
 from docket.dependencies import current_execution
+from docket.execution import ExecutionState
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.testing import retry_asserts
 from prefect.server import models, schemas
 from prefect.server.database import (
     PrefectDBInterface,
@@ -520,6 +522,16 @@ VACUUM_TASKS = [
 ]
 
 
+VACUUM_TASK_KEYS = [
+    "db-vacuum:orphaned-logs",
+    "db-vacuum:orphaned-artifacts",
+    "db-vacuum:stale-collections",
+    "db-vacuum:old-flow-runs",
+    "db-vacuum:retention-overrides",
+    "db-vacuum:old-events",
+]
+
+
 @pytest.fixture
 def maintenance_work(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """Replace the helpers that hold the maintenance connection with a short
@@ -587,6 +599,93 @@ async def test_vacuum_tasks_run_one_at_a_time_on_the_maintenance_pool(
 
     assert maintenance_work.max_active == 1
     assert maintenance_work.ran == {task.__name__ for task in VACUUM_TASKS}
+
+
+async def test_vacuum_tasks_all_run_after_a_hold_across_scheduler_cycles(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A scheduler cycle that fires while one vacuum task holds the slot must
+    not stop any waiting task from running, or let two run at once."""
+    monkeypatch.setattr(
+        get_current_settings().server.services.db_vacuum,
+        "event_retention_overrides",
+        {"prefect.flow-run.heartbeat": timedelta(days=7)},
+    )
+    holder_started = asyncio.Event()
+    release_holder = asyncio.Event()
+    ran: set[str] = set()
+    active = 0
+    max_active = 0
+
+    async def hold_maintenance_connection() -> None:
+        nonlocal active, max_active
+        key = current_execution.get().key
+        active += 1
+        max_active = max(max_active, active)
+        try:
+            if key == "db-vacuum:old-flow-runs" and key not in ran:
+                holder_started.set()
+                await release_holder.wait()
+            ran.add(key)
+        finally:
+            active -= 1
+
+    async def batch_delete(*args: object, **kwargs: object) -> int:
+        await hold_maintenance_connection()
+        return 0
+
+    async def reconcile_artifact_collections(
+        *args: object, **kwargs: object
+    ) -> tuple[int, int]:
+        await hold_maintenance_connection()
+        return 0, 0
+
+    async def delete_flow_run_batch(*args: object, **kwargs: object) -> list[uuid.UUID]:
+        await hold_maintenance_connection()
+        return []
+
+    monkeypatch.setattr(db_vacuum, "_batch_delete", batch_delete)
+    monkeypatch.setattr(db_vacuum, "_delete_orphaned_by_flow_run", batch_delete)
+    monkeypatch.setattr(
+        db_vacuum, "_reconcile_artifact_collections", reconcile_artifact_collections
+    )
+    monkeypatch.setattr(db_vacuum, "_delete_flow_run_batch", delete_flow_run_batch)
+
+    async def run_schedulers(docket: Docket) -> None:
+        await schedule_vacuum_tasks(docket=docket)
+        await schedule_event_vacuum_tasks(docket=docket)
+        await schedule_orphan_vacuum_tasks(docket=docket)
+
+    keys = set(VACUUM_TASK_KEYS)
+    waiting_keys = keys - {"db-vacuum:old-flow-runs"}
+
+    async with Docket(name=f"test-db-vacuum-{uuid.uuid4()}", url="memory://") as docket:
+        for task in VACUUM_TASKS:
+            docket.register(task)
+
+        async with Worker(docket, concurrency=len(VACUUM_TASKS)) as worker:
+            worker_loop = asyncio.create_task(worker.run_forever())
+            try:
+                await run_schedulers(docket)
+                await asyncio.wait_for(holder_started.wait(), timeout=10)
+                async for attempt in retry_asserts(max_attempts=100, delay=0.05):
+                    with attempt:
+                        for key in waiting_keys:
+                            execution = await docket.get_execution(key)
+                            assert execution is not None
+                            assert execution.state is ExecutionState.SCHEDULED
+
+                await run_schedulers(docket)
+                release_holder.set()
+
+                async for attempt in retry_asserts(max_attempts=200, delay=0.05):
+                    with attempt:
+                        assert ran == keys
+            finally:
+                worker_loop.cancel()
+                await asyncio.gather(worker_loop, return_exceptions=True)
+
+    assert max_active == 1
 
 
 def _released_vacuum_task(
