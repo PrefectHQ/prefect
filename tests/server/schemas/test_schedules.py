@@ -460,7 +460,9 @@ class TestIntervalScheduleDaylightSavingsTime:
         for very short intervals this occasionally could result in "next" scheduled times that are in the past by one hour.
         """
         anchor_date = (
-            Instant.from_timestamp(1582002945.964696).to_tz("US/Pacific").to_stdlib()
+            Instant.from_timestamp(1582002945.964696)
+            .to_tz("America/Los_Angeles")
+            .to_stdlib()
         )
         current_date = (
             Instant.from_timestamp(1593643144.233938).to_tz("UTC").to_stdlib()
