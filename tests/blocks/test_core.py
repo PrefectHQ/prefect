@@ -66,7 +66,7 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:43d594965566a2412e748d298589cfc183ef3d0b1832afd8283ce49867118f41"
+            == "sha256:0170f6bdcfdab859f8a7724becba29ad359b0116d0a3492356c1028369edbf8c"
         )
         assert block_schema.fields == {
             "title": "MyRegisteredBlock",
@@ -545,7 +545,7 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:991c2bcb7706f96a92a2b551b8957d4184106049e445c7df0b3f61263b48be4b"
+            == "sha256:23eb08106dd16b727f35a805261d8354d68603239fa32543625aff4af4b3008f"
         )
         assert block_schema.fields == {
             "title": "MyOtherRegisteredBlock",

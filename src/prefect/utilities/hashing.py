@@ -68,6 +68,51 @@ def _encode_for_hashing(obj: Any) -> Any:
     return obj
 
 
+def _contains_ambiguous_type(obj: Any, _seen: Optional[set[int]] = None) -> bool:
+    """Return True if plain JSON would erase a type distinction in `obj`.
+
+    JSON serializes tuples exactly like lists, coerces non-string dict
+    keys to strings, and has no set representation, so inputs differing
+    only by those types would hash identically. Those are the only cases
+    that need the type-tagged encoding: for anything else the legacy
+    encoding is already unambiguous, and using it keeps hashes stable
+    across upgrades. That matters for persistent hashes computed with
+    `hash_objects`, such as block schema checksums: re-encoding an
+    unchanged block schema must not change its checksum, or the next
+    save would create a duplicate schema instead of matching the
+    persisted one.
+
+    The top-level `(args, kwargs)` wrapper passed to `hash_objects` is
+    not scanned: callers pass each positional argument and keyword value
+    separately so the wrapper tuple itself never triggers the tagged
+    path. The scan is cycle-safe; unhashable or exotic values that JSON
+    cannot represent are left for the serializer / cloudpickle fallback
+    exactly as before.
+    """
+    if isinstance(obj, (tuple, set, frozenset)):
+        return True
+    if isinstance(obj, dict):
+        if _seen is None:
+            _seen = set()
+        if id(obj) in _seen:
+            return False
+        _seen.add(id(obj))
+        for key, value in obj.items():
+            if not isinstance(key, str):
+                return True
+            if _contains_ambiguous_type(value, _seen):
+                return True
+        return False
+    if isinstance(obj, list):
+        if _seen is None:
+            _seen = set()
+        if id(obj) in _seen:
+            return False
+        _seen.add(id(obj))
+        return any(_contains_ambiguous_type(item, _seen) for item in obj)
+    return False
+
+
 def stable_hash(*args: Union[str, bytes], hash_algo: Callable[..., Any] = _md5) -> str:
     """Given some arguments, produces a stable 64-bit hash of their contents.
 
@@ -111,11 +156,13 @@ def hash_objects(
     """
     Attempt to hash objects by dumping to JSON or serializing with cloudpickle.
 
-    The JSON encoding is type-preserving: tuples hash differently from
-    lists, and int dict keys hash differently from str dict keys, so
-    inputs that differ only by container or key type do not collide.
-    Note that changing the encoding changes the hash values themselves,
-    invalidating cache keys computed by earlier versions.
+    The JSON encoding is type-preserving where it needs to be: tuples hash
+    differently from lists, and int dict keys hash differently from str
+    dict keys, so inputs that differ only by container or key type do not
+    collide. Inputs with no such ambiguity hash exactly as before, so
+    persistent hashes (for example block schema checksums) do not change
+    on upgrade; only cache keys for ambiguous inputs change, which is the
+    point of the fix.
 
     Args:
         *args: Positional arguments to hash
@@ -134,8 +181,16 @@ def hash_objects(
 
     try:
         serializer = JSONSerializer(dumps_kwargs={"sort_keys": True})
+        if any(_contains_ambiguous_type(arg) for arg in args) or any(
+            _contains_ambiguous_type(value) for value in kwargs.values()
+        ):
+            payload = _encode_for_hashing((args, kwargs))
+        else:
+            # Unambiguous inputs hash exactly as before, preserving
+            # persistent hashes such as block schema checksums.
+            payload = (args, kwargs)
         return stable_hash(
-            serializer.dumps(_encode_for_hashing((args, kwargs))),
+            serializer.dumps(payload),
             hash_algo=hash_algo,
         )
     except Exception as e:
