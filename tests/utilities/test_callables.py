@@ -913,6 +913,20 @@ class TestGetCallParameters:
         assert isinstance(result["counts"], dict)
         assert isinstance(result["items"], list)
 
+    def test_field_default_factory_internal_type_error_propagates(self):
+        """A TypeError raised *inside* a zero-arg factory must not be swallowed."""
+
+        def broken_factory():
+            raise TypeError("internal error from factory")
+
+        def run(
+            tags: list = Field(default_factory=broken_factory),
+        ):
+            pass
+
+        with pytest.raises(TypeError, match="internal error from factory"):
+            callables.get_call_parameters(run, call_args=(), call_kwargs={})
+
 
 class TestGetParameterDefaults:
     def test_returns_signature_defaults(self):
