@@ -32,6 +32,14 @@ STABLE_TRANSFORMS: dict[type, Callable[[Any], Any]] = {}
 logger: Logger = get_logger(__name__)
 
 
+def _stable_dataframe(df: Any) -> tuple[Any, ...]:
+    columns = list(df.columns)
+    if not columns:
+        # with no column Series to carry it, the row index must be kept
+        return (columns, [], df.index)
+    return (columns, [df.iloc[:, i] for i in range(len(columns))])
+
+
 def _register_stable_transforms() -> None:
     """
     Some inputs do not reliably produce deterministic byte strings when serialized via
@@ -46,10 +54,7 @@ def _register_stable_transforms() -> None:
     if sys.modules.get("pandas") is not None:
         import pandas as pd  # pyright: ignore
 
-        STABLE_TRANSFORMS[pd.DataFrame] = lambda df: (  # pyright: ignore
-            list(df.columns),
-            [df.iloc[:, i] for i in range(len(df.columns))],
-        )
+        STABLE_TRANSFORMS[pd.DataFrame] = _stable_dataframe  # pyright: ignore
 
 
 @dataclass

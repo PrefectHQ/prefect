@@ -208,9 +208,78 @@ class TestInputsPolicy:
             list(reordered.columns),
         ]
 
-    def test_dataframe_key_is_stable_across_processes(self):
+    @pytest.mark.parametrize(
+        "make_indexes",
+        [
+            pytest.param(lambda pd: ([1, 2], [3, 4, 5]), id="row-count"),
+            pytest.param(lambda pd: (["a", "b"], ["c", "d"]), id="index-labels"),
+            pytest.param(
+                lambda pd: (
+                    pd.MultiIndex.from_tuples([("a", 1), ("b", 2)]),
+                    pd.MultiIndex.from_tuples([("a", 1), ("b", 3)]),
+                ),
+                id="multiindex-labels",
+            ),
+        ],
+    )
+    def test_zero_column_dataframe_cache_respects_row_index(
+        self, tmp_path: Path, make_indexes: Callable[[Any], tuple[Any, Any]]
+    ):
         pd = pytest.importorskip("pandas")
-        df = pd.DataFrame({"b": [10, 20], "a": [1, 2]})
+        first_index, second_index = make_indexes(pd)
+        first = pd.DataFrame(index=first_index)
+        second = pd.DataFrame(index=second_index)
+
+        def legacy_key(_: Any, inputs: dict[str, Any]) -> str | None:
+            return hash_objects({"frame": ([], [])})
+
+        executions = []
+
+        @task(cache_policy=INPUTS, persist_result=True, result_storage=tmp_path)
+        def index_labels(frame) -> list[Any]:
+            executions.append(frame.index.tolist())
+            return frame.index.tolist()
+
+        # Persist a result under the collided key an older version produced.
+        legacy = index_labels.with_options(cache_key_fn=legacy_key)(
+            second, return_state=True
+        )
+        original = index_labels(first, return_state=True)
+        changed = index_labels(second, return_state=True)
+        repeated = index_labels(second.copy(), return_state=True)
+
+        assert legacy.result() == second.index.tolist()
+        assert original.name == "Completed"
+        assert original.result() == first.index.tolist()
+        assert changed.name == "Completed"
+        assert changed.result() == second.index.tolist()
+        assert repeated.name == "Cached"
+        assert repeated.result() == second.index.tolist()
+        assert executions == [
+            second.index.tolist(),
+            first.index.tolist(),
+            second.index.tolist(),
+        ]
+
+    def test_dataframe_with_columns_key_is_unchanged(self):
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame({"b": [10, 20], "a": [1, 2]}, index=[5, 6])
+
+        assert INPUTS.compute_key(None, {"df": df}, {}) == hash_objects(
+            {"df": (list(df.columns), [df["b"], df["a"]])}
+        )
+
+    @pytest.mark.parametrize(
+        "frame_source",
+        [
+            "pd.DataFrame({'b': [10, 20], 'a': [1, 2]})",
+            "pd.DataFrame(index=[3, 4, 5])",
+            "pd.DataFrame(index=pd.MultiIndex.from_tuples([('a', 1), ('b', 2)]))",
+        ],
+    )
+    def test_dataframe_key_is_stable_across_processes(self, frame_source: str):
+        pd = pytest.importorskip("pandas")
+        df = eval(frame_source, {"pd": pd})
         key = INPUTS.compute_key(task_ctx=None, inputs={"df": df}, flow_parameters={})
         result = subprocess.run(
             [
@@ -218,7 +287,7 @@ class TestInputsPolicy:
                 "-c",
                 (
                     "import pandas as pd; from prefect.cache_policies import INPUTS; "
-                    "df = pd.DataFrame({'b': [10, 20], 'a': [1, 2]}); "
+                    f"df = {frame_source}; "
                     "print(INPUTS.compute_key(None, {'df': df}, {}))"
                 ),
             ],
