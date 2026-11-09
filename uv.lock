@@ -313,7 +313,7 @@ wheels = [
 
 [[package]]
 name = "apprise"
-version = "2.0.1"
+version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -325,9 +325,9 @@ dependencies = [
     { name = "tzdata", marker = "sys_platform == 'win32'" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1b/8d/61c02aeb9b7644d915106252b8fc42e5f3b3765343c9fe3bef5489e903a4/apprise-2.0.1.tar.gz", hash = "sha256:8cae8ae5877b9cfd1dddffc17ac1e50f780ab6bdf948f95215e2466ef7230565", size = 3353898, upload-time = "2026-10-03T19:44:56.142Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/92/461f16f50118a99953aed66d5c1c5dc462261bd6cca15862f2eae7b5fcf5/apprise-2.2.0.tar.gz", hash = "sha256:711382b7c366e575276863da72f5473e34db1735a9980f6df464b337a8003ebc", size = 3623620, upload-time = "2026-11-08T03:41:16.767Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/db/0e/b0ca7dde275f100ecc199dba362a8f1783c906393ab0d3f2c148d8500ddc/apprise-2.0.1-py3-none-any.whl", hash = "sha256:2a9b0f4fc906227f70998ea4462184dd605e796d3932e6e7ce0fe0f134048610", size = 2456127, upload-time = "2026-10-03T19:44:53.265Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/7e/e6cbdd70d475bf9da24b6ca7b738a6772c83a91e8c1fe63ae1b4efb1879f/apprise-2.2.0-py3-none-any.whl", hash = "sha256:deac7647c02463f5398f3f5dbba965031a1507adf1b4348ccf5e53e8f0528f51", size = 2680368, upload-time = "2026-11-08T03:41:14.589Z" },
 ]
 
 [[package]]
@@ -1477,7 +1477,7 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.150.0"
+version = "0.162.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -1487,9 +1487,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/ae/3c8fe5ea133a13dbdb0c84e586087aa811f311cb11b00efdb11c364793e6/fastapi-0.150.0.tar.gz", hash = "sha256:97583806e6de1b6fc299866bdb88730fa311ff640829af876c9e847f4c3a3b29", size = 483799, upload-time = "2026-10-19T22:39:44.108Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/53/f6fed628a0c3d6a284125a93f9145b02ecc2c394735a878b5ad9938c8e17/fastapi-0.162.2.tar.gz", hash = "sha256:9ebd2a69b579141315b2447d8e3f518e6fd909abd6c01cac5cc6b06d5c8841f4", size = 530366, upload-time = "2026-11-07T15:41:39.838Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/41/7c472e281c147dae4f1dd4a85d9a1b7f6ce8b919e4053f14c83abb1488c7/fastapi-0.150.0-py3-none-any.whl", hash = "sha256:e566bc3f1347cfacf61f2f9ea1d7ab4576fbcff02eb9747c2807b8ced16d9e9a", size = 145281, upload-time = "2026-10-19T22:39:42.71Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/fb/0dc0f819163bc6b7f9e6802d7d0b1ac180fbbe4e75dbd10655c6a4d77796/fastapi-0.162.2-py3-none-any.whl", hash = "sha256:d0584f9662317e01140df94c64f4bed1d8b059fe35496e30c9c92f70e6e5ff15", size = 151671, upload-time = "2026-11-07T15:41:38.509Z" },
 ]
 
 [[package]]
@@ -3339,9 +3339,6 @@ name = "numpy"
 version = "2.4.6"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version == '3.14.*'",
-    "python_full_version == '3.13.*'",
-    "python_full_version == '3.12.*'",
     "python_full_version < '3.12'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz", hash = "sha256:f3a3570c4a2a16746ac2c31a7c7c7b0c186b95ce902e33db6f28094ed7387dda", size = 20735807, upload-time = "2026-05-18T23:37:14.07Z" }
@@ -3425,6 +3422,9 @@ version = "2.5.4"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15'",
+    "python_full_version == '3.14.*'",
+    "python_full_version == '3.13.*'",
+    "python_full_version == '3.12.*'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/95/b0/c7453d0b6e2073c3264468b106ee1563750cecc910965e67357e3698c83e/numpy-2.5.4.tar.gz", hash = "sha256:9a94cf751c9ad8ebaa835bcd3d40dacf8534ad086b88c38029b65123c7999d2a", size = 20866315, upload-time = "2026-10-10T20:05:31.422Z" }
 wheels = [
@@ -3905,8 +3905,8 @@ name = "pandas"
 version = "2.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.15'" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.15'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "python-dateutil" },
     { name = "pytz" },
     { name = "tzdata" },
@@ -3960,8 +3960,8 @@ name = "pandas-stubs"
 version = "2.3.3.260113"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.15'" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.15'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "types-pytz" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/92/5d/be23854a73fda69f1dbdda7bc10fbd6f930bd1fa87aaec389f00c901c1e8/pandas_stubs-2.3.3.260113.tar.gz", hash = "sha256:076e3724bcaa73de78932b012ec64b3010463d377fa63116f4e6850643d93800", size = 116131, upload-time = "2026-01-13T22:30:16.704Z" }
@@ -4354,8 +4354,8 @@ dev = [
     { name = "mkdocstrings", extra = ["python"] },
     { name = "moto" },
     { name = "mypy" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.15'" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.15'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "opentelemetry-distro" },
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation" },
@@ -4411,7 +4411,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.7.5,<2.0.0" },
     { name = "amplitude-analytics", specifier = ">=1.2.1,<2.0.0" },
     { name = "anyio", specifier = ">=4.4.0,<5.0.0" },
-    { name = "apprise", specifier = ">=1.13.0,<2.1.0" },
+    { name = "apprise", specifier = ">=2.1.0,<3.0.0" },
     { name = "asgi-lifespan", specifier = ">=1.0,<3.0" },
     { name = "asyncpg", specifier = ">=0.23,<1.0.0" },
     { name = "cachetools", specifier = ">=5.3,<8.0" },
@@ -4424,7 +4424,7 @@ requires-dist = [
     { name = "dateparser", specifier = ">=1.1.1,<2.0.0" },
     { name = "docker", specifier = ">=4.0,<8.0" },
     { name = "exceptiongroup", specifier = ">=1.0.0" },
-    { name = "fastapi", specifier = ">=0.139.0,<0.151" },
+    { name = "fastapi", specifier = ">=0.162,<0.163" },
     { name = "fsspec", specifier = ">=2022.5.0" },
     { name = "graphviz", specifier = ">=0.20.1" },
     { name = "griffe", specifier = ">=0.49.0,<3.0.0" },
@@ -4510,7 +4510,7 @@ dev = [
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.28.0" },
     { name = "moto", specifier = ">=5" },
     { name = "mypy", specifier = "==2.4.0" },
-    { name = "numpy", marker = "python_full_version < '3.15'", specifier = "<2.5" },
+    { name = "numpy", marker = "python_full_version < '3.15'", specifier = "<2.6" },
     { name = "numpy", marker = "python_full_version >= '3.15'", specifier = ">=2.5.4" },
     { name = "opentelemetry-distro", specifier = ">=0.48b0,<1.0.0" },
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.27.0,<2.0.0" },
