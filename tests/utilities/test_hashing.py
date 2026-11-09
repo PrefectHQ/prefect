@@ -97,6 +97,8 @@ class TestHashObjects:
             ({"x": {1: "a"}}, {"x": {"1": "a"}}),
             ((1, 2), {"__tuple__": [1, 2]}),
             ({1: "a"}, {"__dict__": [[1, "a"]]}),
+            (((1, 2),), ({"__tuple__": [1, 2]},)),
+            ({1: {"__dict__": [[1, "a"]]}}, {1: {1: "a"}}),
         ],
     )
     def test_hash_objects_distinguishes_types_json_conflates(self, a, b):
@@ -107,6 +109,18 @@ class TestHashObjects:
         assert hash_objects({1: "a", "b": 2, None: 3}) == hash_objects(
             {None: 3, "b": 2, 1: "a"}
         )
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ({"__tuple__": [1, 2]}, "0ec37ee9aedc75d89ae93290c56c0bfa"),
+            ({"a": {"__dict__": [[1, "a"]]}}, "27b3f9b96b0f98ea554f86eb4f8555ca"),
+        ],
+    )
+    def test_hash_objects_is_unchanged_for_json_native_inputs_using_tag_keys(
+        self, value, expected
+    ):
+        assert hash_objects(value) == expected
 
     def test_hash_objects_is_unchanged_for_json_native_inputs(self):
         assert (

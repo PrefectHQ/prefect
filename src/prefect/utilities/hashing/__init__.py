@@ -14,23 +14,33 @@ _md5 = partial(hashlib.md5, usedforsecurity=False)
 _TUPLE_TAG = "__tuple__"
 _DICT_TAG = "__dict__"
 _JSON_KEY_TYPES = (str, int, float, bool, type(None))
+# JSON payloads always start with `[`, so prefixed tagged payloads can never
+# collide with untagged ones
+_TAGGED_PAYLOAD_PREFIX = b"\x00"
 
 
-def _tag_json_lossy_types(obj: Any) -> Any:
+def _tag_json_lossy_types(obj: Any) -> tuple[Any, bool]:
     """
     Recursively tag tuples and dicts with non-string keys so that values JSON would
     otherwise conflate (e.g. `(1, 2)` and `[1, 2]`, `{1: "a"}` and `{"1": "a"}`)
-    serialize differently. Values without such types are returned unchanged.
+    serialize differently.
+
+    Returns the tagged value and whether any tuple or non-string-key dict was found.
     """
     if isinstance(obj, tuple):
-        return {_TUPLE_TAG: [_tag_json_lossy_types(item) for item in obj]}
+        items = [_tag_json_lossy_types(item) for item in obj]
+        return {_TUPLE_TAG: [item for item, _ in items]}, True
     if isinstance(obj, list):
-        return [_tag_json_lossy_types(item) for item in obj]
+        items = [_tag_json_lossy_types(item) for item in obj]
+        return [item for item, _ in items], any(lossy for _, lossy in items)
     if isinstance(obj, dict):
-        if all(isinstance(key, str) for key in obj) and not (
-            len(obj) == 1 and next(iter(obj)) in (_TUPLE_TAG, _DICT_TAG)
-        ):
-            return {key: _tag_json_lossy_types(value) for key, value in obj.items()}
+        if all(isinstance(key, str) for key in obj):
+            tagged = {key: _tag_json_lossy_types(value) for key, value in obj.items()}
+            lossy = any(lossy for _, lossy in tagged.values())
+            if len(obj) == 1 and next(iter(obj)) in (_TUPLE_TAG, _DICT_TAG):
+                # Escape dicts that look like tags so they can't collide with them
+                return {_DICT_TAG: [[key, v] for key, (v, _) in tagged.items()]}, lossy
+            return {key: v for key, (v, _) in tagged.items()}, lossy
         for key in obj:
             if not isinstance(key, _JSON_KEY_TYPES):
                 raise TypeError(
@@ -40,9 +50,9 @@ def _tag_json_lossy_types(obj: Any) -> Any:
         # insertion order, matching `sort_keys=True` for string-keyed dicts
         items = sorted(obj.items(), key=lambda item: json.dumps(item[0]))
         return {
-            _DICT_TAG: [[key, _tag_json_lossy_types(value)] for key, value in items]
-        }
-    return obj
+            _DICT_TAG: [[key, _tag_json_lossy_types(value)[0]] for key, value in items]
+        }, True
+    return obj, False
 
 
 def stable_hash(*args: Union[str, bytes], hash_algo: Callable[..., Any] = _md5) -> str:
@@ -105,11 +115,23 @@ def hash_objects(
 
     try:
         serializer = JSONSerializer(dumps_kwargs={"sort_keys": True})
-        payload = (
-            [_tag_json_lossy_types(arg) for arg in args],
-            {key: _tag_json_lossy_types(value) for key, value in kwargs.items()},
+        tagged_args = [_tag_json_lossy_types(arg) for arg in args]
+        tagged_kwargs = {
+            key: _tag_json_lossy_types(value) for key, value in kwargs.items()
+        }
+        lossy = any(lossy for _, lossy in tagged_args) or any(
+            lossy for _, lossy in tagged_kwargs.values()
         )
-        return stable_hash(serializer.dumps(payload), hash_algo=hash_algo)
+        if not lossy:
+            # Keep hashes for JSON-native inputs identical to previous releases
+            return stable_hash(serializer.dumps((args, kwargs)), hash_algo=hash_algo)
+        payload = (
+            [arg for arg, _ in tagged_args],
+            {key: value for key, (value, _) in tagged_kwargs.items()},
+        )
+        return stable_hash(
+            _TAGGED_PAYLOAD_PREFIX, serializer.dumps(payload), hash_algo=hash_algo
+        )
     except Exception as e:
         json_error = str(e)
 
