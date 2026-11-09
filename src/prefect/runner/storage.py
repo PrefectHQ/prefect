@@ -672,11 +672,15 @@ class GitRepository:
             raise RuntimeError(error_message) from exc_chain
 
         if self._commit_sha:
-            # Fetch the commit
-            await run_process(
-                ["git", "fetch", "origin", self._commit_sha],
-                cwd=self.destination,
-            )
+            # A short SHA cannot be fetched by name from a remote — git fetch
+            # only accepts full SHAs, branch names or tags. After cloning with
+            # --no-checkout the commit is usually already present, so check
+            # first and only fetch when it is genuinely missing.
+            if not await self._has_commit():
+                await run_process(
+                    ["git", "fetch", "origin", self._commit_sha],
+                    cwd=self.destination,
+                )
             await self._checkout_commit(self._commit_sha)
 
         # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory

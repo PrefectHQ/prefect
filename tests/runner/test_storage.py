@@ -1350,6 +1350,8 @@ class TestGitRepository:
     ):
         # pretend the repo doesn't exist
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        # commit is not yet present locally — fetch should run
+        monkeypatch.setattr(GitRepository, "_has_commit", AsyncMock(return_value=False))
 
         repo = GitRepository(
             url="https://github.com/org/repo.git", commit_sha="1234567890"
@@ -1375,6 +1377,46 @@ class TestGitRepository:
             ),
             call(
                 ["git", "checkout", "1234567890"],
+                cwd=Path.cwd() / "repo",
+            ),
+        ]
+
+        mock_run_process.assert_has_awaits(expected_calls)
+        assert mock_run_process.await_args_list == expected_calls
+
+    async def test_clone_repo_with_short_sha_skips_fetch_when_commit_present(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
+        """A short SHA already present after clone should not trigger git fetch.
+
+        git cannot fetch by short SHA from a remote (exit code 128).
+        After cloning with --no-checkout the commit is usually already local,
+        so _clone_repo checks first and skips the fetch when it is present.
+        """
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        # commit IS already present — fetch must be skipped
+        monkeypatch.setattr(GitRepository, "_has_commit", AsyncMock(return_value=True))
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git", commit_sha="1234567"
+        )
+
+        await repo.pull_code()
+
+        expected_calls = [
+            call(
+                [
+                    "git",
+                    "clone",
+                    "https://github.com/org/repo.git",
+                    "--filter=blob:none",
+                    "--no-checkout",
+                    str(Path.cwd() / "repo"),
+                ]
+            ),
+            # No fetch — commit was already present after clone
+            call(
+                ["git", "checkout", "1234567"],
                 cwd=Path.cwd() / "repo",
             ),
         ]
