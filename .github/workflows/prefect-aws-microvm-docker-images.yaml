@@ -57,17 +57,17 @@ jobs:
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: prefecthq/prefect-aws-microvm
+          images: prefecthq/prefect-aws
+          # Every tag ends in -microvm so this image never overwrites a worker image tag.
           tags: |
-            # Full version tag: prefect-aws-version-python-version-prefect-version
-            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python3.12-prefect${{ env.PREFECT_VERSION }}
-            # Version with Python: prefect-aws-version-python-version
-            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python3.12
+            # Full version tag: prefect-aws-version-python-version-prefect-version-microvm
+            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python3.12-prefect${{ env.PREFECT_VERSION }}-microvm
+            # Version with Python: prefect-aws-version-python-version-microvm
+            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python3.12-microvm
             # Minor version with Python (only for stable releases, not rc or dev)
-            type=pep440,pattern={{major}}.{{minor}}-python3.12,value=${{ env.PREFECT_AWS_VERSION }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            type=pep440,pattern={{major}}.{{minor}}-python3.12-microvm,value=${{ env.PREFECT_AWS_VERSION }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
             # Latest (only for stable releases, not rc or dev)
-            type=raw,value=latest-python3.12,enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
-            type=raw,value=latest,enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            type=raw,value=latest-microvm,enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
           flavor: |
             latest=false
 
