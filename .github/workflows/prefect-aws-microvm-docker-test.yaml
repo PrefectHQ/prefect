@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - "src/integrations/prefect-aws/Dockerfile.microvm"
+      - "src/integrations/prefect-aws/Dockerfile.microvm.dockerignore"
+      - "src/integrations/prefect-aws/prefect_aws/microvm/**"
+      - "src/integrations/prefect-aws/pyproject.toml"
       - ".github/workflows/prefect-aws-microvm-docker-images.yaml"
       - ".github/workflows/prefect-aws-microvm-docker-test.yaml"
 
@@ -12,18 +15,11 @@ permissions:
 
 jobs:
   get-versions:
-    name: Get Prefect and prefect-aws versions
+    name: Get the Prefect version
     runs-on: ubuntu-latest
     outputs:
       PREFECT_VERSION: ${{ steps.get_prefect_version.outputs.PREFECT_VERSION }}
-      PREFECT_AWS_VERSION: ${{ steps.get_prefect_aws_version.outputs.PREFECT_AWS_VERSION }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-tags: true
-
       - name: Get latest Prefect version
         id: get_prefect_version
         run: |
@@ -31,16 +27,6 @@ jobs:
           echo "PREFECT_VERSION=$PREFECT_VERSION" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ github.token }}
-
-      - name: Get latest prefect-aws version from tags
-        id: get_prefect_aws_version
-        run: |
-          PREFECT_AWS_VERSION=$(git tag --list 'prefect-aws-*' --sort=-version:refname | head -1 | sed 's/^prefect-aws-//')
-          if [ -z "$PREFECT_AWS_VERSION" ]; then
-            echo "Unable to determine most recent prefect-aws version!"
-            exit 1
-          fi
-          echo "PREFECT_AWS_VERSION=$PREFECT_AWS_VERSION" >> $GITHUB_OUTPUT
 
   test-build:
     name: Test build prefect-aws MicroVM Docker image
@@ -51,7 +37,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # setuptools_scm reads the prefect-aws tags to give the wheel a dev version.
+          fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: "3.12"
+
+      - name: Build the prefect-aws wheel from this pull request
+        id: build_wheel
+        working-directory: src/integrations/prefect-aws
+        run: |
+          uv build --wheel --no-sources --out-dir dist
+          WHEEL_FILENAME=$(basename dist/prefect_aws-*.whl)
+          echo "Built $WHEEL_FILENAME"
+          echo "WHEEL_FILENAME=$WHEEL_FILENAME" >> $GITHUB_OUTPUT
+          echo "WHEEL_VERSION=$(echo "$WHEEL_FILENAME" | cut -d- -f2)" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
@@ -67,20 +71,42 @@ jobs:
           platforms: linux/arm64
           build-args: |
             PREFECT_VERSION=${{ needs.get-versions.outputs.PREFECT_VERSION }}
-            PREFECT_AWS_VERSION=${{ needs.get-versions.outputs.PREFECT_AWS_VERSION }}
+            PREFECT_AWS_VERSION=${{ steps.build_wheel.outputs.WHEEL_VERSION }}
+            PREFECT_AWS_SOURCE=wheel
           push: false
           pull: true
           tags: prefect-aws-microvm-test:latest
           load: true
 
-      - name: Test prefect-aws version in image
+      - name: Test that the image runs the wheel from this pull request
         env:
-          EXPECTED_VERSION: ${{ needs.get-versions.outputs.PREFECT_AWS_VERSION }}
+          EXPECTED_VERSION: ${{ steps.build_wheel.outputs.WHEEL_VERSION }}
+          EXPECTED_WHEEL: ${{ steps.build_wheel.outputs.WHEEL_FILENAME }}
         run: |
-          INSTALLED_VERSION=$(docker run --rm --platform linux/arm64 prefect-aws-microvm-test:latest python -c "import prefect_aws; print(prefect_aws.__version__)")
-          echo "Expected prefect-aws version: $EXPECTED_VERSION"
-          echo "Installed prefect-aws version: $INSTALLED_VERSION"
-          if [ "$INSTALLED_VERSION" != "$EXPECTED_VERSION" ]; then
-            echo "ERROR: Version mismatch!"
-            exit 1
-          fi
+          docker run --rm -i --platform linux/arm64 \
+            -e EXPECTED_VERSION -e EXPECTED_WHEEL \
+            prefect-aws-microvm-test:latest python - <<'EOF'
+          import json
+          import os
+          from importlib.metadata import distribution
+          from urllib.parse import unquote
+
+          import prefect_aws
+          import prefect_aws.microvm
+          import prefect_aws.workers
+
+          expected_version = os.environ["EXPECTED_VERSION"]
+          expected_wheel = os.environ["EXPECTED_WHEEL"]
+          installed = distribution("prefect-aws")
+          direct_url = json.loads(installed.read_text("direct_url.json") or "{}")
+          installed_from = unquote(direct_url.get("url", ""))
+
+          print(f"Expected prefect-aws {expected_version} from {expected_wheel}")
+          print(f"Installed prefect-aws {installed.version} from {installed_from or 'an index'}")
+          if installed.version != expected_version:
+              raise SystemExit("ERROR: the installed prefect-aws version is not the wheel's")
+          if prefect_aws.__version__ != expected_version:
+              raise SystemExit("ERROR: prefect_aws.__version__ is not the wheel's version")
+          if not installed_from.endswith("/" + expected_wheel):
+              raise SystemExit("ERROR: prefect-aws was not installed from this build's wheel")
+          EOF

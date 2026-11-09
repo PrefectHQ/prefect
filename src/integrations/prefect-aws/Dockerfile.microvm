@@ -4,6 +4,10 @@ FROM public.ecr.aws/lambda/microvms:al2023-minimal@sha256:3e45d46e969eb0d34ea954
 
 ARG PREFECT_VERSION
 ARG PREFECT_AWS_VERSION
+# "pypi" installs prefect-aws==PREFECT_AWS_VERSION from PyPI. "wheel" installs the
+# one prefect-aws wheel in the build context's dist/ directory, to test-build
+# source that is not released yet.
+ARG PREFECT_AWS_SOURCE=pypi
 ENV PREFECT_VERSION=${PREFECT_VERSION} \
     PREFECT_AWS_VERSION=${PREFECT_AWS_VERSION} \
     PYTHON_VERSION=3.12 \
@@ -27,7 +31,16 @@ RUN dnf install -y python3.12 python3.12-pip \
     && python3.12 -m venv "${VIRTUAL_ENV}"
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install "prefect==${PREFECT_VERSION}" "prefect-aws==${PREFECT_AWS_VERSION}"
+    --mount=type=bind,target=/tmp/prefect-aws-context \
+    case "${PREFECT_AWS_SOURCE}" in \
+        pypi) uv pip install "prefect==${PREFECT_VERSION}" "prefect-aws==${PREFECT_AWS_VERSION}" ;; \
+        wheel) set -- /tmp/prefect-aws-context/dist/prefect_aws-*.whl \
+            && if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then \
+                echo "Expected one prefect-aws wheel in dist/, found: $*" >&2; exit 1; \
+            fi \
+            && uv pip install "prefect==${PREFECT_VERSION}" "$1" ;; \
+        *) echo "PREFECT_AWS_SOURCE must be pypi or wheel, not ${PREFECT_AWS_SOURCE}" >&2; exit 1 ;; \
+    esac
 
 RUN prefect version && python -c "import prefect_aws.microvm.entrypoint"
 
