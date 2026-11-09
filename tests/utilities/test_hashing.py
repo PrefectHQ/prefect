@@ -1,3 +1,4 @@
+import enum
 import hashlib
 import threading
 from dataclasses import dataclass
@@ -151,6 +152,49 @@ class TestHashObjects:
         assert hash_objects(Payload(x=(1, 2, 3))) != hash_objects(Payload(x=[1, 2, 3]))
         assert hash_objects(Payload(x=(1, 2, 3))) == hash_objects(Payload(x=(1, 2, 3)))
 
+    def test_hash_objects_distinguishes_tuple_from_list_in_later_sibling_model(self):
+        """Regression test for Codex review on
+        https://github.com/PrefectHQ/prefect/pull/23819
+
+        The ambiguity scan records the ids of temporary model dumps in
+        `_seen`. Once a dump was freed, a later sibling model's dump
+        could reuse its id and be skipped as already visited, so the
+        tuple/list distinction inside the later model was missed and
+        both inputs hashed identically.
+        """
+
+        class Payload(BaseModel):
+            x: object
+
+            model_config = {"arbitrary_types_allowed": True}
+
+        assert hash_objects([Payload(x=1), Payload(x=(1, 2, 3))]) != hash_objects(
+            [Payload(x=1), Payload(x=[1, 2, 3])]
+        )
+        assert hash_objects(
+            {"first": Payload(x=1), "second": Payload(x=(1, 2, 3))}
+        ) != hash_objects({"first": Payload(x=1), "second": Payload(x=[1, 2, 3])})
+
+    def test_hash_objects_ignores_set_order_for_same_named_enums(self):
+        """Regression test for Codex review on
+        https://github.com/PrefectHQ/prefect/pull/23819
+
+        Two `Enum` classes with the same name in different modules have
+        members with the same `str()` form and equal hashes, so the set
+        sort key tied and `sorted` kept insertion order. The final JSON
+        includes each member's qualified class, so equal sets built in
+        opposite insertion orders hashed differently.
+        """
+        ColorA = enum.Enum("Color", {"RED": 1}, module="test_module_a")
+        ColorB = enum.Enum("Color", {"RED": 1}, module="test_module_b")
+
+        assert hash_objects({ColorA.RED, ColorB.RED}) == hash_objects(
+            {ColorB.RED, ColorA.RED}
+        )
+        assert hash_objects({ColorA.RED: 1, ColorB.RED: 2}) == hash_objects(
+            {ColorB.RED: 2, ColorA.RED: 1}
+        )
+
     def test_hash_objects_keeps_legacy_hash_for_unambiguous_models(self):
         """A model with no ambiguous container types must keep hashing
         exactly as before, so persistent hashes do not change."""
@@ -162,3 +206,4 @@ class TestHashObjects:
         assert hash_objects(Plain(name="a", count=1)) == hash_objects(
             Plain(name="a", count=1)
         )
+

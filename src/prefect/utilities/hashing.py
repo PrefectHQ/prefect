@@ -15,6 +15,25 @@ from prefect.utilities.importtools import to_qualified_name
 _md5 = partial(hashlib.md5, usedforsecurity=False)
 
 
+def _encoded_sort_key(item: Any) -> tuple[str, str]:
+    """Sort key for encoded set items and dict entries.
+
+    The JSON form is the primary key so equal encoded values sort
+    together, but it can tie for values whose ``str()`` form is the
+    same while their serialized form differs -- for example members
+    named ``Color.RED`` from two different ``Enum`` classes, which
+    also hash equally. Without a tiebreaker, ``sorted`` keeps the
+    set's iteration order for those items, and the final JSON (which
+    includes each value's qualified class) then depends on insertion
+    order, so equal sets hash differently. The qualified class name
+    breaks the tie deterministically.
+    """
+    return (
+        json.dumps(item, sort_keys=True, default=str),
+        to_qualified_name(type(item)),
+    )
+
+
 def _encode_for_hashing(obj: Any) -> Any:
     """Recursively convert a value into a JSON-serializable structure.
 
@@ -60,7 +79,7 @@ def _encode_for_hashing(obj: Any) -> Any:
     if isinstance(obj, (set, frozenset)):
         items = sorted(
             (_encode_for_hashing(item) for item in obj),
-            key=lambda item: json.dumps(item, sort_keys=True, default=str),
+            key=_encoded_sort_key,
         )
         return {
             "__prefect_type__": "set" if isinstance(obj, set) else "frozenset",
@@ -71,9 +90,7 @@ def _encode_for_hashing(obj: Any) -> Any:
             [_encode_for_hashing(key), _encode_for_hashing(value)]
             for key, value in obj.items()
         ]
-        entries.sort(
-            key=lambda entry: json.dumps(entry[0], sort_keys=True, default=str)
-        )
+        entries.sort(key=lambda entry: _encoded_sort_key(entry[0]))
         return {"__prefect_type__": "dict", "entries": entries}
     if isinstance(obj, BaseModel):
         return {
@@ -90,7 +107,11 @@ def _encode_for_hashing(obj: Any) -> Any:
     return obj
 
 
-def _contains_ambiguous_type(obj: Any, _seen: Optional[set[int]] = None) -> bool:
+def _contains_ambiguous_type(
+    obj: Any,
+    _seen: Optional[set[int]] = None,
+    _keepalive: list[Any] | None = None,
+) -> bool:
     """Return True if plain JSON would erase a type distinction in `obj`.
 
     JSON serializes tuples exactly like lists, coerces non-string dict
@@ -116,12 +137,21 @@ def _contains_ambiguous_type(obj: Any, _seen: Optional[set[int]] = None) -> bool
     serializer would use normalizes a tuple field and a list field to the
     same array, so without this the tagged path would never trigger for
     them and the collision would survive inside the wrapper.
+
+    `_seen` records the ids of containers already visited so a cycle
+    terminates. The dumps are temporary objects: once a dump is freed,
+    a later sibling's dump can reuse its id and be wrongly skipped as
+    already visited, so every dump is also kept alive in `_keepalive`
+    until the top-level scan finishes. Both are created together at
+    the top of the scan so every branch shares the same list.
     """
+    if _seen is None:
+        _seen = set()
+    if _keepalive is None:
+        _keepalive = []
     if isinstance(obj, (tuple, set, frozenset)):
         return True
     if isinstance(obj, BaseModel):
-        if _seen is None:
-            _seen = set()
         if id(obj) in _seen:
             return False
         _seen.add(id(obj))
@@ -129,10 +159,9 @@ def _contains_ambiguous_type(obj: Any, _seen: Optional[set[int]] = None) -> bool
             dumped = obj.model_dump(mode="python")
         except Exception:
             return False
-        return _contains_ambiguous_type(dumped, _seen)
+        _keepalive.append(dumped)
+        return _contains_ambiguous_type(dumped, _seen, _keepalive)
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        if _seen is None:
-            _seen = set()
         if id(obj) in _seen:
             return False
         _seen.add(id(obj))
@@ -140,26 +169,23 @@ def _contains_ambiguous_type(obj: Any, _seen: Optional[set[int]] = None) -> bool
             as_dict = dataclasses.asdict(obj)
         except Exception:
             return False
-        return _contains_ambiguous_type(as_dict, _seen)
+        _keepalive.append(as_dict)
+        return _contains_ambiguous_type(as_dict, _seen, _keepalive)
     if isinstance(obj, dict):
-        if _seen is None:
-            _seen = set()
         if id(obj) in _seen:
             return False
         _seen.add(id(obj))
         for key, value in obj.items():
             if not isinstance(key, str):
                 return True
-            if _contains_ambiguous_type(value, _seen):
+            if _contains_ambiguous_type(value, _seen, _keepalive):
                 return True
         return False
     if isinstance(obj, list):
-        if _seen is None:
-            _seen = set()
         if id(obj) in _seen:
             return False
         _seen.add(id(obj))
-        return any(_contains_ambiguous_type(item, _seen) for item in obj)
+        return any(_contains_ambiguous_type(item, _seen, _keepalive) for item in obj)
     return False
 
 
@@ -260,3 +286,4 @@ def hash_objects(
         raise HashError(msg)
 
     return None
+
