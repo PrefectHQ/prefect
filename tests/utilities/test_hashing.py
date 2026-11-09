@@ -61,6 +61,29 @@ class TestFileHash:
 
 
 class TestHashObjects:
+    @pytest.mark.parametrize(
+        "first, second",
+        [
+            ({"x": (1, 2, 3)}, {"x": [1, 2, 3]}),
+            ({1: "a", 2: "b"}, {"1": "a", "2": "b"}),
+            ({"x": [(1, 2)]}, {"x": [[1, 2]]}),
+            ({True: "a"}, {"true": "a"}),
+            ({None: "a"}, {"null": "a"}),
+        ],
+    )
+    def test_hash_objects_distinguishes_types_that_json_erases(self, first, second):
+        """Inputs that differ only by container or key type must hash differently.
+
+        JSON erases the tuple/list distinction and coerces mapping keys to
+        strings, so without type-preserving encoding these inputs would hash
+        identically and a cached result could be served for the wrong input.
+        """
+        assert hash_objects(first) != hash_objects(second)
+
+    def test_hash_objects_is_stable_regardless_of_dict_key_order(self):
+        assert hash_objects({"a": 1, "b": 2}) == hash_objects({"b": 2, "a": 1})
+        assert hash_objects({"x": (1, 2)}) == hash_objects({"x": (1, 2)})
+
     def test_hash_objects_handles_unhashable_objects_gracefully(self):
         """Test that unhashable objects return None by default"""
         lock = threading.Lock()

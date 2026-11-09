@@ -1,4 +1,5 @@
 import hashlib
+import json
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
@@ -6,9 +7,39 @@ from typing import Any, Callable, Optional, Union
 import cloudpickle  # type: ignore  # no stubs available
 
 from prefect.exceptions import HashError
-from prefect.serializers import JSONSerializer
+from prefect.serializers import JSONSerializer, prefect_json_object_encoder
 
 _md5 = partial(hashlib.md5, usedforsecurity=False)
+
+
+def _encode_for_hash(value: Any) -> Any:
+    """Recursively encode a value into a JSON-serializable structure that
+    preserves container and mapping-key types.
+
+    The standard library JSON encoder erases two distinctions that matter
+    for hashing task inputs: tuples serialize exactly like lists, and
+    mapping keys are coerced to strings (so ``{1: "a"}`` and ``{"1": "a"}``
+    serialize identically). To keep distinct inputs hashing differently,
+    tuples are tagged and mappings are encoded as sorted lists of
+    ``[key, value]`` pairs, so key types survive serialization. Any other
+    value is left untouched for the serializer to handle as before.
+    """
+    if isinstance(value, tuple):
+        return {"__prefect_tuple__": [_encode_for_hash(item) for item in value]}
+    if isinstance(value, list):
+        return [_encode_for_hash(item) for item in value]
+    if isinstance(value, dict):
+        pairs = [
+            (_encode_for_hash(key), _encode_for_hash(item))
+            for key, item in value.items()
+        ]
+        pairs.sort(
+            key=lambda pair: json.dumps(
+                pair[0], sort_keys=True, default=prefect_json_object_encoder
+            )
+        )
+        return {"__prefect_dict__": pairs}
+    return value
 
 
 def stable_hash(*args: Union[str, bytes], hash_algo: Callable[..., Any] = _md5) -> str:
@@ -71,7 +102,10 @@ def hash_objects(
 
     try:
         serializer = JSONSerializer(dumps_kwargs={"sort_keys": True})
-        return stable_hash(serializer.dumps((args, kwargs)), hash_algo=hash_algo)
+        return stable_hash(
+            serializer.dumps(_encode_for_hash((args, kwargs))),
+            hash_algo=hash_algo,
+        )
     except Exception as e:
         json_error = str(e)
 
