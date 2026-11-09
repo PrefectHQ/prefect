@@ -62,9 +62,8 @@ def execute_flow_run(payload: RunHookPayload) -> None:
         try:
             flow = load_flow(flow_run)
         except Exception:
-            run_logger.error(
-                "Unexpected exception encountered when trying to load flow",
-                exc_info=True,
+            run_logger.exception(
+                "Unexpected exception encountered when trying to load flow"
             )
             raise
         with RunMetrics(flow_run, flow):
