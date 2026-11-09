@@ -2446,6 +2446,35 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == await third_state.result()
         assert await first_state.result() == 1
 
+    async def test_task_input_hash_distinguishes_tuple_from_list(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23817
+
+        `hash_objects` used to hash tuples exactly like lists, so a task
+        called with a list after a tuple was served the tuple call's
+        cached result.
+        """
+
+        @task(
+            cache_key_fn=task_input_hash,
+            persist_result=True,
+        )
+        def what_type(x):
+            return type(x).__name__
+
+        @flow
+        def bar():
+            return (
+                what_type((1, 2, 3), return_state=True),
+                what_type([1, 2, 3], return_state=True),
+            )
+
+        tuple_state, list_state = bar()
+        assert tuple_state.name == "Completed"
+        assert list_state.name == "Completed"
+
+        assert await tuple_state.result() == "tuple"
+        assert await list_state.result() == "list"
+
     async def test_task_input_hash_between_flows(
         self,
     ):

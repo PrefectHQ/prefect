@@ -83,3 +83,35 @@ class TestHashObjects:
         assert "Unable to create hash" in error_msg
         assert "JSON error" in error_msg
         assert "Pickle error" in error_msg
+
+    def test_hash_objects_distinguishes_tuple_from_list(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23817
+
+        JSON serializes tuples exactly like lists, so without type tagging
+        both inputs hashed identically and the second task call was served
+        the first call's cached result.
+        """
+        assert hash_objects({"x": (1, 2, 3)}) != hash_objects({"x": [1, 2, 3]})
+        assert hash_objects((1, 2)) != hash_objects([1, 2])
+        assert hash_objects({"x": [(1, 2)]}) != hash_objects({"x": [[1, 2]]})
+
+    def test_hash_objects_distinguishes_int_from_str_dict_keys(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23817
+
+        JSON coerces int dict keys to strings, so without type tagging
+        both inputs hashed identically.
+        """
+        assert hash_objects({1: "a", 2: "b"}) != hash_objects({"1": "a", "2": "b"})
+        assert hash_objects({1: "a"}) != hash_objects({"1": "a"})
+        assert hash_objects({True: "a"}) != hash_objects({1: "a"})
+
+    def test_hash_objects_ignores_dict_key_order(self):
+        assert hash_objects({"a": 1, "b": 2}) == hash_objects({"b": 2, "a": 1})
+
+    def test_hash_objects_ignores_set_order(self):
+        assert hash_objects({1, 2, 3}) == hash_objects({3, 2, 1})
+        assert hash_objects({1, 2}) != hash_objects([1, 2])
+
+    def test_hash_objects_equal_inputs_hash_equal(self):
+        assert hash_objects({"x": (1, 2, 3)}) == hash_objects({"x": (1, 2, 3)})
+        assert hash_objects({1: "a"}) == hash_objects({1: "a"})
