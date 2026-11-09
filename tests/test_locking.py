@@ -257,7 +257,7 @@ class TestMemoryLockManager:
 
     def test_acquire_lock_without_timeout_waits_until_release(self):
         """The default no-timeout acquire must block until release, not raise:
-        ``_thread.lock.acquire`` rejects ``timeout=None`` with a TypeError
+        `_thread.lock.acquire` rejects `timeout=None` with a TypeError
         (found in #23789 review of the deadline refactor)."""
         key = str(uuid4())
         manager = MemoryLockManager()
@@ -282,7 +282,7 @@ class TestMemoryLockManager:
 
     async def test_aacquire_lock_without_timeout_waits_until_release(self):
         """The async default no-timeout acquire parks in to_thread without
-        forwarding ``timeout=None`` to ``lock.acquire`` (#23789 review)."""
+        forwarding `timeout=None` to `lock.acquire` (#23789 review)."""
         key = str(uuid4())
         manager = MemoryLockManager()
         assert await manager.aacquire_lock(key=key, holder="a")
