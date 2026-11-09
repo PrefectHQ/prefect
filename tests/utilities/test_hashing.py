@@ -1,8 +1,10 @@
 import hashlib
 import threading
+from dataclasses import dataclass
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import BaseModel
 
 from prefect.exceptions import HashError
 from prefect.utilities.hashing import file_hash, hash_objects, stable_hash
@@ -115,3 +117,48 @@ class TestHashObjects:
     def test_hash_objects_equal_inputs_hash_equal(self):
         assert hash_objects({"x": (1, 2, 3)}) == hash_objects({"x": (1, 2, 3)})
         assert hash_objects({1: "a"}) == hash_objects({1: "a"})
+
+    def test_hash_objects_distinguishes_tuple_from_list_inside_pydantic_model(self):
+        """Regression test for Codex review on
+        https://github.com/PrefectHQ/prefect/pull/23819
+
+        The JSON serializer dumps a Pydantic model with
+        `model_dump(mode="json")`, which normalizes a tuple field and a
+        list field to the same array, so the ambiguity scan must look
+        inside the model or the collision survives there.
+        """
+
+        class Payload(BaseModel):
+            x: object
+
+            model_config = {"arbitrary_types_allowed": True}
+
+        assert hash_objects(Payload(x=(1, 2, 3))) != hash_objects(Payload(x=[1, 2, 3]))
+        assert hash_objects(Payload(x=(1, 2, 3))) == hash_objects(Payload(x=(1, 2, 3)))
+        assert hash_objects({"m": Payload(x=(1, 2, 3))}) != hash_objects(
+            {"m": Payload(x=[1, 2, 3])}
+        )
+
+    def test_hash_objects_distinguishes_tuple_from_list_inside_dataclass(self):
+        """Same wrapper problem as Pydantic models: the JSON serializer
+        flattens a dataclass to a dict, normalizing tuples to lists.
+        """
+
+        @dataclass
+        class Payload:
+            x: object
+
+        assert hash_objects(Payload(x=(1, 2, 3))) != hash_objects(Payload(x=[1, 2, 3]))
+        assert hash_objects(Payload(x=(1, 2, 3))) == hash_objects(Payload(x=(1, 2, 3)))
+
+    def test_hash_objects_keeps_legacy_hash_for_unambiguous_models(self):
+        """A model with no ambiguous container types must keep hashing
+        exactly as before, so persistent hashes do not change."""
+
+        class Plain(BaseModel):
+            name: str
+            count: int
+
+        assert hash_objects(Plain(name="a", count=1)) == hash_objects(
+            Plain(name="a", count=1)
+        )

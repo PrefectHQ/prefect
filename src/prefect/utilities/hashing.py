@@ -1,3 +1,4 @@
+import dataclasses
 import hashlib
 import json
 from functools import partial
@@ -5,9 +6,11 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
 import cloudpickle  # type: ignore  # no stubs available
+from pydantic import BaseModel
 
 from prefect.exceptions import HashError
 from prefect.serializers import JSONSerializer
+from prefect.utilities.importtools import to_qualified_name
 
 _md5 = partial(hashlib.md5, usedforsecurity=False)
 
@@ -26,6 +29,13 @@ def _encode_for_hashing(obj: Any) -> Any:
     Values this cannot represent (bytes, datetimes, arbitrary objects, ...)
     are returned unchanged and handled by the JSON serializer's object
     encoder (or the cloudpickle fallback) exactly as before.
+
+    Pydantic models and dataclasses are unwrapped through their
+    python-mode dump, which preserves container types (a tuple field stays
+    a tuple), so a model holding a tuple hashes differently from the same
+    model holding a list. The JSON-mode dump the serializer would use
+    normalizes both to arrays, which is exactly the collision this
+    encoding exists to prevent.
     """
     if obj is None:
         return {"__prefect_type__": "none", "value": None}
@@ -65,6 +75,18 @@ def _encode_for_hashing(obj: Any) -> Any:
             key=lambda entry: json.dumps(entry[0], sort_keys=True, default=str)
         )
         return {"__prefect_type__": "dict", "entries": entries}
+    if isinstance(obj, BaseModel):
+        return {
+            "__prefect_type__": "pydantic",
+            "__class__": to_qualified_name(obj.__class__),
+            "data": _encode_for_hashing(obj.model_dump(mode="python")),
+        }
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return {
+            "__prefect_type__": "dataclass",
+            "__class__": to_qualified_name(obj.__class__),
+            "data": _encode_for_hashing(dataclasses.asdict(obj)),
+        }
     return obj
 
 
@@ -88,9 +110,37 @@ def _contains_ambiguous_type(obj: Any, _seen: Optional[set[int]] = None) -> bool
     path. The scan is cycle-safe; unhashable or exotic values that JSON
     cannot represent are left for the serializer / cloudpickle fallback
     exactly as before.
+
+    Pydantic models and dataclasses are scanned through their python-mode
+    dump, which preserves container types: the JSON-mode dump the
+    serializer would use normalizes a tuple field and a list field to the
+    same array, so without this the tagged path would never trigger for
+    them and the collision would survive inside the wrapper.
     """
     if isinstance(obj, (tuple, set, frozenset)):
         return True
+    if isinstance(obj, BaseModel):
+        if _seen is None:
+            _seen = set()
+        if id(obj) in _seen:
+            return False
+        _seen.add(id(obj))
+        try:
+            dumped = obj.model_dump(mode="python")
+        except Exception:
+            return False
+        return _contains_ambiguous_type(dumped, _seen)
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        if _seen is None:
+            _seen = set()
+        if id(obj) in _seen:
+            return False
+        _seen.add(id(obj))
+        try:
+            as_dict = dataclasses.asdict(obj)
+        except Exception:
+            return False
+        return _contains_ambiguous_type(as_dict, _seen)
     if isinstance(obj, dict):
         if _seen is None:
             _seen = set()
