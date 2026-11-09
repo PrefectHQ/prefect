@@ -1,4 +1,5 @@
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from contextlib import AsyncExitStack
 from uuid import uuid4
 
 import pytest
@@ -58,6 +59,28 @@ async def test_publishing_with_a_docket_task(
 
     async with Worker(docket) as worker:
         await worker.run_until_finished()
+
+    assert AssertingEventsClient.last
+    assert AssertingEventsClient.last.events == [event]
+
+
+async def test_publishing_after_overlapping_server_lifespans_stop(
+    db: PrefectDBInterface, event: Event
+):
+    async with AsyncExitStack() as first, AsyncExitStack() as second:
+        for lifespan in (first, second):
+            docket = await lifespan.enter_async_context(
+                Docket(name=f"test-docket-{uuid4().hex[:8]}", url="memory://")
+            )
+            docket.register(publish_event)
+            lifespan.enter_context(serving_docket(docket))
+
+        # Stop the first server before the second, rather than in nesting order.
+        await first.aclose()
+
+    async with db.session_context(begin_transaction=True) as session:
+        await session.execute(sa.text("SELECT 1"))
+        publish_after_commit(session, event)
 
     assert AssertingEventsClient.last
     assert AssertingEventsClient.last.events == [event]

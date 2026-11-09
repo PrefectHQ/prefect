@@ -8,27 +8,28 @@ from contextlib import contextmanager
 from docket import Docket
 from docket.dependencies import current_docket
 
-_server_docket: Docket | None = None
+_server_dockets: dict[object, Docket] = {}
 
 
 @contextmanager
 def serving_docket(docket: Docket) -> Generator[None, None, None]:
-    """Publish `docket` as the docket this process uses for background work."""
-    global _server_docket
-
-    previous, _server_docket = _server_docket, docket
+    """Make `docket` available for background work while its server is running."""
+    # Lifespans can overlap without exiting in nesting order. Track each entry
+    # separately, even when multiple lifespans serve the same docket.
+    token = object()
+    _server_dockets[token] = docket
     try:
         yield
     finally:
-        _server_docket = previous
+        del _server_dockets[token]
 
 
 def get_docket() -> Docket | None:
     """The docket this process should use for background work, if it has one.
 
     Inside a docket task this is the docket that scheduled the task; otherwise it's the
-    docket that the server, if one is running in this process, is serving. Code that may
-    also run outside of a server (for example, the orchestration engine driven directly
-    against a session) has to handle `None`.
+    most recently started docket whose server is still running in this process.
+    Code that may also run outside of a server (for example, the orchestration engine
+    driven directly against a session) has to handle `None`.
     """
-    return current_docket.get(None) or _server_docket
+    return current_docket.get(None) or next(reversed(_server_dockets.values()), None)
