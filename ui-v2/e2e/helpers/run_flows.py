@@ -22,15 +22,19 @@ async def get_task_runs_for_flow(flow_run_id, expected_names):
     default name that will never appear in the UI.
     """
     async with get_client() as client:
-        task_runs = []
+        names = set()
         for _ in range(20):
             task_runs = await client.read_task_runs(
                 flow_run_filter=FlowRunFilter(id=FlowRunFilterId(any_=[flow_run_id]))
             )
-            if set(expected_names) <= {tr.name for tr in task_runs}:
+            names = {tr.name for tr in task_runs}
+            if set(expected_names) <= names:
                 return task_runs
             await asyncio.sleep(0.5)
-        return task_runs
+        raise RuntimeError(
+            f"Task runs for flow run {flow_run_id} never reached expected names "
+            f"{sorted(expected_names)}; last seen {sorted(names)}"
+        )
 
 
 def run_simple_task(prefix):
