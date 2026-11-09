@@ -515,6 +515,17 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return self.filesystem.get(from_path, local_path, recursive=True)
 
+    def _put_file(self, local_path: str, remote_path: str, overwrite: bool) -> None:
+        if not overwrite and self.filesystem.exists(remote_path):
+            raise FileExistsError(f"File {remote_path!r} already exists.")
+
+        # fsspec's SMB implementation forwards extra keyword arguments to
+        # `smbclient.open_file`, which rejects `overwrite`
+        if overwrite and not self.basepath.startswith("smb://"):
+            self.filesystem.put_file(local_path, remote_path, overwrite=True)
+        else:
+            self.filesystem.put_file(local_path, remote_path)
+
     async def aput_directory(
         self,
         local_path: Optional[str] = None,
@@ -526,6 +537,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        If `overwrite` is `False`, a `FileExistsError` is raised when a file already exists at the destination.
         """
         if to_path is None:
             to_path = str(self.basepath)
@@ -561,13 +573,9 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             if f.is_dir():
                 pass
             else:
-                f = f.as_posix()
-                if overwrite:
-                    await run_sync_in_worker_thread(
-                        self.filesystem.put_file, f, fpath, overwrite=True
-                    )
-                else:
-                    await run_sync_in_worker_thread(self.filesystem.put_file, f, fpath)
+                await run_sync_in_worker_thread(
+                    self._put_file, f.as_posix(), fpath, overwrite
+                )
 
                 counter += 1
 
@@ -585,6 +593,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        If `overwrite` is `False`, a `FileExistsError` is raised when a file already exists at the destination.
         """
         if to_path is None:
             to_path = str(self.basepath)
@@ -620,11 +629,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             if f.is_dir():
                 pass
             else:
-                f = f.as_posix()
-                if overwrite:
-                    self.filesystem.put_file(f, fpath, overwrite=True)
-                else:
-                    self.filesystem.put_file(f, fpath)
+                self._put_file(f.as_posix(), fpath, overwrite)
 
                 counter += 1
 
@@ -790,7 +795,6 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
             local_path=local_path,
             to_path=to_path,
             ignore_file=ignore_file,
-            overwrite=False,
         )
 
     @async_dispatch(aput_directory)
@@ -808,7 +812,6 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
             local_path=local_path,
             to_path=to_path,
             ignore_file=ignore_file,
-            overwrite=False,
         )
 
     async def aread_path(self, path: str) -> bytes:
