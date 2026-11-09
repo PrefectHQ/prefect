@@ -113,7 +113,15 @@ class MemoryLockManager(LockManager):
         remaining = None if deadline is None else deadline - time.monotonic()
         if deadline is not None and remaining <= 0:
             return False
-        existing_lock_acquired = existing_lock_info["lock"].acquire(timeout=remaining)
+        if remaining is None:
+            # acquire() blocks indefinitely; passing timeout=None to
+            # _thread.lock.acquire raises TypeError, so the documented
+            # no-timeout default must keep the argument-free call
+            existing_lock_acquired = existing_lock_info["lock"].acquire()
+        else:
+            existing_lock_acquired = existing_lock_info["lock"].acquire(
+                timeout=remaining
+            )
 
         if existing_lock_acquired:
             stale_lock = False
@@ -203,9 +211,16 @@ class MemoryLockManager(LockManager):
         remaining = None if deadline is None else deadline - time.monotonic()
         if deadline is not None and remaining <= 0:
             return False
-        existing_lock_acquired = await asyncio.to_thread(
-            existing_lock_info["lock"].acquire, timeout=remaining
-        )
+        if remaining is None:
+            # same no-timeout caveat as the sync path: to_thread must not
+            # forward timeout=None to _thread.lock.acquire (TypeError)
+            existing_lock_acquired = await asyncio.to_thread(
+                existing_lock_info["lock"].acquire
+            )
+        else:
+            existing_lock_acquired = await asyncio.to_thread(
+                existing_lock_info["lock"].acquire, timeout=remaining
+            )
 
         if existing_lock_acquired:
             stale_lock = False

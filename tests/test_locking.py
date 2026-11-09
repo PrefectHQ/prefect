@@ -178,20 +178,27 @@ class TestMemoryLockManager:
         manager = MemoryLockManager()
 
         class _BurnGate:
+            """The stale object's acquire() burns 0.04s of the caller's
+            budget unconditionally, so the retry provably starts with a
+            partially-spent budget.
+
+            The burn must not wait on `released`: `_expire_lock` itself calls
+            `release()` from the main thread, which would end the first wait
+            early and let a budget-restarting retry (~0.0s + a fresh 0.1s)
+            slip under the `< 0.125s` assertion.
+            """
+
             def __init__(self):
-                self.released = threading.Event()
                 self.entered = threading.Event()
                 self._locked = True
 
             def acquire(self, timeout=None):
                 self.entered.set()
-                self.released.wait(0.04)  # stale object freed mid-budget
-                self._locked = True
+                sleep(0.04)  # spend part of the caller's budget
                 return True
 
             def release(self):
                 self._locked = False
-                self.released.set()
 
             def locked(self):
                 return self._locked
@@ -213,7 +220,6 @@ class TestMemoryLockManager:
 
         manager._expire_lock(key)
         assert manager.acquire_lock(key=key, holder="c")
-        fake.released.set()
         thread.join(timeout=5)
 
         total = _time.monotonic() - start
@@ -248,6 +254,46 @@ class TestMemoryLockManager:
         assert await waiter_task is False
         assert manager.is_lock_holder(key=key, holder="c")
         assert not fake.locked()
+
+    def test_acquire_lock_without_timeout_waits_until_release(self):
+        """The default no-timeout acquire must block until release, not raise:
+        ``_thread.lock.acquire`` rejects ``timeout=None`` with a TypeError
+        (found in #23789 review of the deadline refactor)."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        assert manager.acquire_lock(key=key, holder="a")
+
+        result = {}
+
+        def waiter():
+            result["acquired"] = manager.acquire_lock(key=key, holder="b")
+
+        thread = threading.Thread(target=waiter)
+        thread.start()
+        sleep(0.05)  # the waiter is parked on the held lock
+        assert thread.is_alive()
+        manager.release_lock(key=key, holder="a")
+        thread.join(timeout=5)
+        # the waiter was released off the stale object, retried on the fresh
+        # entry and acquired it
+        assert result["acquired"] is True
+        assert manager.is_lock_holder(key=key, holder="b")
+        manager.release_lock(key=key, holder="b")
+
+    async def test_aacquire_lock_without_timeout_waits_until_release(self):
+        """The async default no-timeout acquire parks in to_thread without
+        forwarding ``timeout=None`` to ``lock.acquire`` (#23789 review)."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        assert await manager.aacquire_lock(key=key, holder="a")
+
+        waiter_task = asyncio.create_task(manager.aacquire_lock(key=key, holder="b"))
+        await asyncio.sleep(0.05)  # the waiter is parked in to_thread
+        assert not waiter_task.done()
+        manager.release_lock(key=key, holder="a")
+        assert await asyncio.wait_for(waiter_task, timeout=5) is True
+        assert manager.is_lock_holder(key=key, holder="b")
+        manager.release_lock(key=key, holder="b")
 
     def test_raises_if_releasing_with_wrong_holder(self):
         key = str(uuid4())
