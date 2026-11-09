@@ -6,6 +6,7 @@ import importlib
 import os
 import queue
 import socket
+import socketserver
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -63,6 +64,14 @@ class LifecycleHookServer(ThreadingHTTPServer):
         self._run_lock = threading.Lock()
         self._handlers_finished = threading.Condition()
         self._active_handlers = 0
+
+    def server_bind(self) -> None:
+        # `HTTPServer.server_bind` names the server with `socket.getfqdn`, a reverse
+        # DNS lookup that blocks startup while DNS is slow or unreachable.
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = str(host)
+        self.server_port = port
 
     def process_request(self, request: Any, client_address: Any) -> None:
         # Counted on the serving thread, before the handler thread starts, so

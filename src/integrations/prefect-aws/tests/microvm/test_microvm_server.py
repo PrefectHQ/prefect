@@ -241,6 +241,23 @@ def test_other_hooks_return_200(server: LifecycleHookServer):
     assert response.status == 200
 
 
+def test_binding_the_wildcard_address_skips_the_reverse_dns_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def fail_getfqdn(name: str = "") -> str:
+        raise AssertionError(f"socket.getfqdn({name!r}) was called")
+
+    monkeypatch.setattr(socket, "getfqdn", fail_getfqdn)
+
+    hook_server = LifecycleHookServer(("0.0.0.0", 0))
+    try:
+        assert hook_server.server_name == "0.0.0.0"
+        assert hook_server.server_port == hook_server.server_address[1]
+        assert hook_server.server_port != 0
+    finally:
+        hook_server.server_close()
+
+
 def free_port() -> int:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
