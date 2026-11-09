@@ -110,9 +110,11 @@ class MemoryLockManager(LockManager):
                 existing_lock_info = self._locks[key]
 
         # wait at most until the caller's deadline (no deadline: forever)
-        remaining = None if deadline is None else deadline - time.monotonic()
-        if deadline is not None and remaining <= 0:
-            return False
+        remaining: float | None = None
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
         if remaining is None:
             # acquire() blocks indefinitely; passing timeout=None to
             # _thread.lock.acquire raises TypeError, so the documented
@@ -208,9 +210,11 @@ class MemoryLockManager(LockManager):
                 existing_lock_info = self._locks[key]
 
         # wait at most until the caller's deadline (no deadline: forever)
-        remaining = None if deadline is None else deadline - time.monotonic()
-        if deadline is not None and remaining <= 0:
-            return False
+        remaining: float | None = None
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
         if remaining is None:
             # same no-timeout caveat as the sync path: to_thread must not
             # forward timeout=None to _thread.lock.acquire (TypeError)
