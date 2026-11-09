@@ -159,7 +159,8 @@ async def schedule_vacuum_tasks(
     Each task is enqueued with a deterministic key, so a cycle that overlaps
     a queued or running copy of it deduplicates. A copy that waits for the
     shared concurrency slot does not deduplicate, so a cycle that fires while
-    another vacuum task holds the slot enqueues another copy of it.
+    another vacuum task holds the slot enqueues another copy of it. Docket
+    drops the extra copy when the slot frees, so the task still runs once.
 
     Disabled by default because it permanently deletes flow runs. Enable
     via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.

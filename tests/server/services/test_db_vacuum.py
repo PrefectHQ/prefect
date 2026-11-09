@@ -532,16 +532,44 @@ VACUUM_TASK_KEYS = [
 ]
 
 
-@pytest.fixture
-def maintenance_work(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
-    """Replace the helpers that hold the maintenance connection with a short
-    hold that records which tasks ran and how many overlapped."""
-    work = SimpleNamespace(active=0, max_active=0, ran=set())
+def _stub_maintenance_helpers(
+    monkeypatch: pytest.MonkeyPatch, hold: Callable[[], Awaitable[None]]
+) -> None:
+    """Replace each helper that holds the maintenance connection with `hold`,
+    keeping the helper's return shape."""
     monkeypatch.setattr(
         get_current_settings().server.services.db_vacuum,
         "event_retention_overrides",
         {"prefect.flow-run.heartbeat": timedelta(days=7)},
     )
+
+    async def batch_delete(*args: object, **kwargs: object) -> int:
+        await hold()
+        return 0
+
+    async def reconcile_artifact_collections(
+        *args: object, **kwargs: object
+    ) -> tuple[int, int]:
+        await hold()
+        return 0, 0
+
+    async def delete_flow_run_batch(*args: object, **kwargs: object) -> list[uuid.UUID]:
+        await hold()
+        return []
+
+    monkeypatch.setattr(db_vacuum, "_batch_delete", batch_delete)
+    monkeypatch.setattr(db_vacuum, "_delete_orphaned_by_flow_run", batch_delete)
+    monkeypatch.setattr(
+        db_vacuum, "_reconcile_artifact_collections", reconcile_artifact_collections
+    )
+    monkeypatch.setattr(db_vacuum, "_delete_flow_run_batch", delete_flow_run_batch)
+
+
+@pytest.fixture
+def maintenance_work(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+    """Replace the helpers that hold the maintenance connection with a short
+    hold that records which tasks ran and how many overlapped."""
+    work = SimpleNamespace(active=0, max_active=0, ran=set())
 
     async def hold_maintenance_connection() -> None:
         work.ran.add(current_execution.get().function_name)
@@ -552,32 +580,7 @@ def maintenance_work(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
         finally:
             work.active -= 1
 
-    async def batch_delete(*args: object, **kwargs: object) -> int:
-        await hold_maintenance_connection()
-        return 0
-
-    async def delete_orphaned_by_flow_run(*args: object, **kwargs: object) -> int:
-        await hold_maintenance_connection()
-        return 0
-
-    async def reconcile_artifact_collections(
-        *args: object, **kwargs: object
-    ) -> tuple[int, int]:
-        await hold_maintenance_connection()
-        return 0, 0
-
-    async def delete_flow_run_batch(*args: object, **kwargs: object) -> list[uuid.UUID]:
-        await hold_maintenance_connection()
-        return []
-
-    monkeypatch.setattr(db_vacuum, "_batch_delete", batch_delete)
-    monkeypatch.setattr(
-        db_vacuum, "_delete_orphaned_by_flow_run", delete_orphaned_by_flow_run
-    )
-    monkeypatch.setattr(
-        db_vacuum, "_reconcile_artifact_collections", reconcile_artifact_collections
-    )
-    monkeypatch.setattr(db_vacuum, "_delete_flow_run_batch", delete_flow_run_batch)
+    _stub_maintenance_helpers(monkeypatch, hold_maintenance_connection)
     return work
 
 
@@ -601,63 +604,44 @@ async def test_vacuum_tasks_run_one_at_a_time_on_the_maintenance_pool(
     assert maintenance_work.ran == {task.__name__ for task in VACUUM_TASKS}
 
 
-async def test_vacuum_tasks_all_run_after_a_hold_across_scheduler_cycles(
+async def test_vacuum_tasks_all_run_once_after_a_hold_across_scheduler_cycles(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """A scheduler cycle that fires while one vacuum task holds the slot must
-    not stop any waiting task from running, or let two run at once."""
-    monkeypatch.setattr(
-        get_current_settings().server.services.db_vacuum,
-        "event_retention_overrides",
-        {"prefect.flow-run.heartbeat": timedelta(days=7)},
-    )
-    holder_started = asyncio.Event()
+    not stop a waiting task from running, run it twice, or let two run at once."""
+    holder: list[str] = []
     release_holder = asyncio.Event()
-    ran: set[str] = set()
+    executions: dict[str, set[int]] = {}
     active = 0
     max_active = 0
 
     async def hold_maintenance_connection() -> None:
         nonlocal active, max_active
-        key = current_execution.get().key
+        execution = current_execution.get()
         active += 1
         max_active = max(max_active, active)
         try:
-            if key == "db-vacuum:old-flow-runs" and key not in ran:
-                holder_started.set()
+            if not holder:
+                holder.append(execution.key)
                 await release_holder.wait()
-            ran.add(key)
+            executions.setdefault(execution.key, set()).add(execution.generation)
         finally:
             active -= 1
 
-    async def batch_delete(*args: object, **kwargs: object) -> int:
-        await hold_maintenance_connection()
-        return 0
-
-    async def reconcile_artifact_collections(
-        *args: object, **kwargs: object
-    ) -> tuple[int, int]:
-        await hold_maintenance_connection()
-        return 0, 0
-
-    async def delete_flow_run_batch(*args: object, **kwargs: object) -> list[uuid.UUID]:
-        await hold_maintenance_connection()
-        return []
-
-    monkeypatch.setattr(db_vacuum, "_batch_delete", batch_delete)
-    monkeypatch.setattr(db_vacuum, "_delete_orphaned_by_flow_run", batch_delete)
-    monkeypatch.setattr(
-        db_vacuum, "_reconcile_artifact_collections", reconcile_artifact_collections
-    )
-    monkeypatch.setattr(db_vacuum, "_delete_flow_run_batch", delete_flow_run_batch)
+    _stub_maintenance_helpers(monkeypatch, hold_maintenance_connection)
 
     async def run_schedulers(docket: Docket) -> None:
         await schedule_vacuum_tasks(docket=docket)
         await schedule_event_vacuum_tasks(docket=docket)
         await schedule_orphan_vacuum_tasks(docket=docket)
 
-    keys = set(VACUUM_TASK_KEYS)
-    waiting_keys = keys - {"db-vacuum:old-flow-runs"}
+    async def wait_until_parked(docket: Docket, keys: set[str]) -> None:
+        async for attempt in retry_asserts(max_attempts=100, delay=0.05):
+            with attempt:
+                for key in keys:
+                    execution = await docket.get_execution(key)
+                    assert execution is not None
+                    assert execution.state is ExecutionState.SCHEDULED
 
     async with Docket(name=f"test-db-vacuum-{uuid.uuid4()}", url="memory://") as docket:
         for task in VACUUM_TASKS:
@@ -667,24 +651,26 @@ async def test_vacuum_tasks_all_run_after_a_hold_across_scheduler_cycles(
             worker_loop = asyncio.create_task(worker.run_forever())
             try:
                 await run_schedulers(docket)
-                await asyncio.wait_for(holder_started.wait(), timeout=10)
                 async for attempt in retry_asserts(max_attempts=100, delay=0.05):
                     with attempt:
-                        for key in waiting_keys:
-                            execution = await docket.get_execution(key)
-                            assert execution is not None
-                            assert execution.state is ExecutionState.SCHEDULED
+                        assert holder
+                waiting_keys = set(VACUUM_TASK_KEYS) - set(holder)
+                await wait_until_parked(docket, waiting_keys)
 
                 await run_schedulers(docket)
+                await wait_until_parked(docket, waiting_keys)
                 release_holder.set()
 
                 async for attempt in retry_asserts(max_attempts=200, delay=0.05):
                     with attempt:
-                        assert ran == keys
+                        assert set(executions) == set(VACUUM_TASK_KEYS)
             finally:
                 worker_loop.cancel()
                 await asyncio.gather(worker_loop, return_exceptions=True)
 
+    assert {key: len(generations) for key, generations in executions.items()} == {
+        key: 1 for key in VACUUM_TASK_KEYS
+    }
     assert max_active == 1
 
 
