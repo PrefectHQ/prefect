@@ -1,4 +1,5 @@
 import hashlib
+import json
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
@@ -9,6 +10,39 @@ from prefect.exceptions import HashError
 from prefect.serializers import JSONSerializer
 
 _md5 = partial(hashlib.md5, usedforsecurity=False)
+
+_TUPLE_TAG = "__tuple__"
+_DICT_TAG = "__dict__"
+_JSON_KEY_TYPES = (str, int, float, bool, type(None))
+
+
+def _tag_json_lossy_types(obj: Any) -> Any:
+    """
+    Recursively tag tuples and dicts with non-string keys so that values JSON would
+    otherwise conflate (e.g. `(1, 2)` and `[1, 2]`, `{1: "a"}` and `{"1": "a"}`)
+    serialize differently. Values without such types are returned unchanged.
+    """
+    if isinstance(obj, tuple):
+        return {_TUPLE_TAG: [_tag_json_lossy_types(item) for item in obj]}
+    if isinstance(obj, list):
+        return [_tag_json_lossy_types(item) for item in obj]
+    if isinstance(obj, dict):
+        if all(isinstance(key, str) for key in obj) and not (
+            len(obj) == 1 and next(iter(obj)) in (_TUPLE_TAG, _DICT_TAG)
+        ):
+            return {key: _tag_json_lossy_types(value) for key, value in obj.items()}
+        for key in obj:
+            if not isinstance(key, _JSON_KEY_TYPES):
+                raise TypeError(
+                    f"keys must be str, int, float, bool or None, not {type(key).__name__}"
+                )
+        # Sorted by each key's JSON encoding so the result is independent of
+        # insertion order, matching `sort_keys=True` for string-keyed dicts
+        items = sorted(obj.items(), key=lambda item: json.dumps(item[0]))
+        return {
+            _DICT_TAG: [[key, _tag_json_lossy_types(value)] for key, value in items]
+        }
+    return obj
 
 
 def stable_hash(*args: Union[str, bytes], hash_algo: Callable[..., Any] = _md5) -> str:
@@ -71,7 +105,11 @@ def hash_objects(
 
     try:
         serializer = JSONSerializer(dumps_kwargs={"sort_keys": True})
-        return stable_hash(serializer.dumps((args, kwargs)), hash_algo=hash_algo)
+        payload = (
+            [_tag_json_lossy_types(arg) for arg in args],
+            {key: _tag_json_lossy_types(value) for key, value in kwargs.items()},
+        )
+        return stable_hash(serializer.dumps(payload), hash_algo=hash_algo)
     except Exception as e:
         json_error = str(e)
 
