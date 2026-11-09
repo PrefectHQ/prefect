@@ -309,3 +309,84 @@ def test_main_exits_1_without_running_anything_on_an_invalid_payload(
     poster.join(timeout=10)
     assert exit_code == 1
     supervise.assert_not_called()
+
+
+def test_stop_serving_does_not_wait_out_the_poll_interval():
+    stop_times: list[float] = []
+    for _ in range(5):
+        hook_server = LifecycleHookServer(("127.0.0.1", 0))
+        serving = threading.Thread(target=hook_server.serve_forever, daemon=True)
+        serving.start()
+        # Lets the loop enter its first `select`, so the stop has to wake it.
+        assert request(port_of(hook_server), "GET", "/ready").status == 200
+
+        started = time.monotonic()
+        hook_server.stop_serving()
+        stop_times.append(time.monotonic() - started)
+
+        serving.join(timeout=10)
+        assert not serving.is_alive()
+        hook_server.server_close()
+
+    assert max(stop_times) < 0.1, stop_times
+
+
+def test_stop_serving_wakes_the_loop_through_the_loopback_address(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # Binding sets the server name from a reverse DNS lookup, which can be slow.
+    monkeypatch.setattr(socket, "getfqdn", lambda name="": "localhost")
+    hook_server = LifecycleHookServer(("0.0.0.0", 0))
+    serving = threading.Thread(target=hook_server.serve_forever, daemon=True)
+    serving.start()
+    connect = create_autospec(
+        socket.create_connection, side_effect=socket.create_connection
+    )
+    monkeypatch.setattr(server_module.socket, "create_connection", connect)
+
+    hook_server.stop_serving()
+
+    serving.join(timeout=10)
+    hook_server.server_close()
+    assert connect.call_args_list[0].args[0] == ("127.0.0.1", port_of(hook_server))
+
+
+def test_stop_serving_still_stops_when_the_wake_connection_fails(
+    server: LifecycleHookServer, monkeypatch: pytest.MonkeyPatch
+):
+    connect = create_autospec(
+        socket.create_connection, side_effect=ConnectionRefusedError()
+    )
+    monkeypatch.setattr(server_module.socket, "create_connection", connect)
+    waker_errors: list[threading.ExceptHookArgs] = []
+    monkeypatch.setattr(threading, "excepthook", waker_errors.append)
+
+    started = time.monotonic()
+    server.stop_serving()
+    stop_time = time.monotonic() - started
+
+    connect.assert_called()
+    assert waker_errors == []
+    # Without a wake, the loop notices the shutdown at its next 0.5 s poll.
+    assert stop_time < 2
+
+
+class LateShutdownServer(LifecycleHookServer):
+    def shutdown(self) -> None:
+        time.sleep(0.1)
+        super().shutdown()
+
+
+def test_stop_serving_wakes_the_loop_again_after_an_early_wake():
+    hook_server = LateShutdownServer(("127.0.0.1", 0))
+    serving = threading.Thread(target=hook_server.serve_forever, daemon=True)
+    serving.start()
+
+    started = time.monotonic()
+    hook_server.stop_serving()
+    stop_time = time.monotonic() - started
+
+    serving.join(timeout=10)
+    hook_server.server_close()
+    # 0.1 s of it is the delayed shutdown request; a lost wake adds up to 0.5 s.
+    assert stop_time < 0.3, stop_time

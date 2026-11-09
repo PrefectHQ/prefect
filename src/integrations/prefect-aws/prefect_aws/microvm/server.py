@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import os
 import queue
+import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -22,6 +23,8 @@ HOOK_SERVER_PORT = 8080
 HOOK_PATH_PREFIX = "/aws/lambda-microvms/runtime/v1/"
 MAX_REQUEST_BODY_BYTES = 1024 * 1024
 HANDLER_FINISH_TIMEOUT_SECONDS = 10
+WAKE_INTERVAL_SECONDS = 0.01
+WAKE_CONNECT_TIMEOUT_SECONDS = 1
 
 # Imported before `/ready` returns so that the MicroVM snapshot includes them
 # and a restored MicroVM does not import them again for each flow run.
@@ -91,7 +94,22 @@ class LifecycleHookServer(ThreadingHTTPServer):
         Args:
             timeout: The longest time to wait for requests in progress, in seconds.
         """
-        self.shutdown()
+        # `serve_forever` sees the shutdown request only when `select` returns; a
+        # connection ends that wait, and an early one is served, so wake until
+        # `shutdown` returns.
+        shut_down = threading.Event()
+        waker = threading.Thread(
+            target=self._wake_serving_loop,
+            args=(shut_down,),
+            name="microvm-lifecycle-hooks-waker",
+            daemon=True,
+        )
+        waker.start()
+        try:
+            self.shutdown()
+        finally:
+            shut_down.set()
+            waker.join(timeout=WAKE_CONNECT_TIMEOUT_SECONDS + WAKE_INTERVAL_SECONDS)
         with self._handlers_finished:
             finished = self._handlers_finished.wait_for(
                 lambda: self._active_handlers == 0, timeout=timeout
@@ -102,6 +120,24 @@ class LifecycleHookServer(ThreadingHTTPServer):
                 self._active_handlers,
                 timeout,
             )
+
+    def _wake_serving_loop(self, shut_down: threading.Event) -> None:
+        # The server binds the wildcard address; connect through loopback.
+        loopback = ("127.0.0.1", self.server_address[1])
+        while not shut_down.is_set():
+            try:
+                with socket.create_connection(
+                    loopback, timeout=WAKE_CONNECT_TIMEOUT_SECONDS
+                ):
+                    pass
+            except OSError:
+                logger.debug(
+                    "Could not wake the lifecycle hook server; it stops within "
+                    "its poll interval instead.",
+                    exc_info=True,
+                )
+                return
+            shut_down.wait(WAKE_INTERVAL_SECONDS)
 
     def claim_run(self) -> bool:
         """Return True for the first `/run` request and False for every later one."""
