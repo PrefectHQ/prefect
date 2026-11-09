@@ -113,9 +113,11 @@ class TestMemoryLockManager:
         def __init__(self):
             self.released = threading.Event()
             self.allow_return = threading.Event()
+            self.entered = threading.Event()
             self._locked = True
 
         def acquire(self, timeout=None):
+            self.entered.set()
             self.released.wait(timeout)
             self.allow_return.wait()
             self._locked = True
@@ -146,6 +148,10 @@ class TestMemoryLockManager:
         thread = threading.Thread(target=waiter)
         thread.start()
 
+        # handshake: wait until the waiter is inside the stale object's
+        # acquire before expiring, so the stale-object branch is exercised
+        assert fake.entered.wait(timeout=5)
+
         # expiry path: releases the stale object and drops the entry
         manager._expire_lock(key)
         assert key not in manager._locks
@@ -164,6 +170,59 @@ class TestMemoryLockManager:
         # the stale object was released, not left locked with no entry
         assert not fake.locked()
 
+    def test_acquire_lock_retry_shares_the_acquire_timeout_budget(self):
+        """A stale-entry retry must spend the remaining budget, not restart it (#23727 review)."""
+        import time as _time
+
+        key = str(uuid4())
+        manager = MemoryLockManager()
+
+        class _BurnGate:
+            def __init__(self):
+                self.released = threading.Event()
+                self.entered = threading.Event()
+                self._locked = True
+
+            def acquire(self, timeout=None):
+                self.entered.set()
+                self.released.wait(0.04)  # stale object freed mid-budget
+                self._locked = True
+                return True
+
+            def release(self):
+                self._locked = False
+                self.released.set()
+
+            def locked(self):
+                return self._locked
+
+        fake = _BurnGate()
+        manager._locks[key] = {"holder": "a", "lock": fake, "expiration_timer": None}
+
+        result = {}
+
+        def waiter():
+            result["got"] = manager.acquire_lock(
+                key=key, holder="b", acquire_timeout=0.1
+            )
+
+        thread = threading.Thread(target=waiter)
+        thread.start()
+        assert fake.entered.wait(timeout=5)
+        start = _time.monotonic()
+
+        manager._expire_lock(key)
+        assert manager.acquire_lock(key=key, holder="c")
+        fake.released.set()
+        thread.join(timeout=5)
+
+        total = _time.monotonic() - start
+        # fixed: total ~= the single 0.1s budget; a retry that restarted the
+        # budget would wait ~0.14s (0.04 burned + a fresh 0.1)
+        assert result["got"] is False
+        assert total < 0.125, f"acquire budget restarted across retry: {total:.3f}s"
+        assert manager.is_lock_holder(key=key, holder="c")
+
     async def test_aacquire_lock_after_entry_replacement_keeps_new_holder(self):
         """The async path has the same stale-object race; it must retry too."""
         key = str(uuid4())
@@ -174,7 +233,10 @@ class TestMemoryLockManager:
         waiter_task = asyncio.create_task(
             manager.aacquire_lock(key=key, holder="b", acquire_timeout=0.5)
         )
-        await asyncio.sleep(0.1)
+        # handshake: the waiter must be inside the stale object's acquire
+        # (running in the to_thread worker) before the entry is expired
+        while not fake.entered.is_set():
+            await asyncio.sleep(0.01)
 
         manager._expire_lock(key)
         assert key not in manager._locks

@@ -3,9 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
-from typing import Any, TypedDict
-
-from typing_extensions import Self
+import time
+from typing import Any, Self, TypedDict
 
 from prefect.logging.loggers import get_logger
 
@@ -77,6 +76,20 @@ class MemoryLockManager(LockManager):
         acquire_timeout: float | None = None,
         hold_timeout: float | None = None,
     ) -> bool:
+        # the deadline is computed once so stale-entry retries (see below)
+        # share the caller's acquire budget instead of restarting it
+        deadline = (
+            time.monotonic() + acquire_timeout if acquire_timeout is not None else None
+        )
+        return self._acquire_lock(key, holder, deadline, hold_timeout)
+
+    def _acquire_lock(
+        self,
+        key: str,
+        holder: str,
+        deadline: float | None,
+        hold_timeout: float | None,
+    ) -> bool:
         with self._locks_dict_lock:
             if key not in self._locks:
                 lock = threading.Lock()
@@ -96,12 +109,11 @@ class MemoryLockManager(LockManager):
             else:
                 existing_lock_info = self._locks[key]
 
-        if acquire_timeout is not None:
-            existing_lock_acquired = existing_lock_info["lock"].acquire(
-                timeout=acquire_timeout
-            )
-        else:
-            existing_lock_acquired = existing_lock_info["lock"].acquire()
+        # wait at most until the caller's deadline (no deadline: forever)
+        remaining = None if deadline is None else deadline - time.monotonic()
+        if deadline is not None and remaining <= 0:
+            return False
+        existing_lock_acquired = existing_lock_info["lock"].acquire(timeout=remaining)
 
         if existing_lock_acquired:
             stale_lock = False
@@ -145,7 +157,7 @@ class MemoryLockManager(LockManager):
             if stale_lock:
                 if existing_lock_info["lock"].locked():
                     existing_lock_info["lock"].release()
-                return self.acquire_lock(key, holder, acquire_timeout, hold_timeout)
+                return self._acquire_lock(key, holder, deadline, hold_timeout)
         return False
 
     async def aacquire_lock(
@@ -154,6 +166,19 @@ class MemoryLockManager(LockManager):
         holder: str,
         acquire_timeout: float | None = None,
         hold_timeout: float | None = None,
+    ) -> bool:
+        # share the caller's acquire budget across stale-entry retries
+        deadline = (
+            time.monotonic() + acquire_timeout if acquire_timeout is not None else None
+        )
+        return await self._aacquire_lock(key, holder, deadline, hold_timeout)
+
+    async def _aacquire_lock(
+        self,
+        key: str,
+        holder: str,
+        deadline: float | None,
+        hold_timeout: float | None,
     ) -> bool:
         with self._locks_dict_lock:
             if key not in self._locks:
@@ -174,14 +199,13 @@ class MemoryLockManager(LockManager):
             else:
                 existing_lock_info = self._locks[key]
 
-        if acquire_timeout is not None:
-            existing_lock_acquired = await asyncio.to_thread(
-                existing_lock_info["lock"].acquire, timeout=acquire_timeout
-            )
-        else:
-            existing_lock_acquired = await asyncio.to_thread(
-                existing_lock_info["lock"].acquire
-            )
+        # wait at most until the caller's deadline (no deadline: forever)
+        remaining = None if deadline is None else deadline - time.monotonic()
+        if deadline is not None and remaining <= 0:
+            return False
+        existing_lock_acquired = await asyncio.to_thread(
+            existing_lock_info["lock"].acquire, timeout=remaining
+        )
 
         if existing_lock_acquired:
             stale_lock = False
@@ -222,9 +246,7 @@ class MemoryLockManager(LockManager):
             if stale_lock:
                 if existing_lock_info["lock"].locked():
                     existing_lock_info["lock"].release()
-                return await self.aacquire_lock(
-                    key, holder, acquire_timeout, hold_timeout
-                )
+                return await self._aacquire_lock(key, holder, deadline, hold_timeout)
         return False
 
     def release_lock(self, key: str, holder: str) -> None:
