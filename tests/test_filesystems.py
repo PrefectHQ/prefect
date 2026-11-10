@@ -117,6 +117,39 @@ async def test_remote_put_directory_uploads_nothing_when_ignore_file_excludes_ev
     assert fs.filesystem.find(f"/{tmp_path.name}/ignore-all-{sync}") == []
 
 
+@pytest.mark.parametrize("sync", [False, True])
+async def test_remote_put_directory_respects_overwrite_false(
+    tmp_path: Path, sync: bool
+):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "orders.csv").write_text("original")
+
+    base = f"{tmp_path.name}/overwrite-{sync}"
+    fs = RemoteFileSystem(basepath=f"memory://{base}")
+    if sync:
+        fs.put_directory(local_path=str(source), _sync=True)
+    else:
+        await fs.aput_directory(local_path=str(source))
+
+    (source / "orders.csv").write_text("replacement")
+
+    with pytest.raises(FileExistsError):
+        if sync:
+            fs.put_directory(local_path=str(source), overwrite=False, _sync=True)
+        else:
+            await fs.aput_directory(local_path=str(source), overwrite=False)
+
+    assert fs.filesystem.cat(f"/{base}/orders.csv") == b"original"
+
+    if sync:
+        fs.put_directory(local_path=str(source), _sync=True)
+    else:
+        await fs.aput_directory(local_path=str(source))
+
+    assert fs.filesystem.cat(f"/{base}/orders.csv") == b"replacement"
+
+
 class TestLocalFileSystem:
     async def test_read_write_roundtrip(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))

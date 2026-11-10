@@ -562,12 +562,12 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 pass
             else:
                 f = f.as_posix()
-                if overwrite:
-                    await run_sync_in_worker_thread(
-                        self.filesystem.put_file, f, fpath, overwrite=True
-                    )
-                else:
-                    await run_sync_in_worker_thread(self.filesystem.put_file, f, fpath)
+                await run_sync_in_worker_thread(
+                    self.filesystem.put_file,
+                    f,
+                    fpath,
+                    mode="overwrite" if overwrite else "create",
+                )
 
                 counter += 1
 
@@ -621,10 +621,9 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 pass
             else:
                 f = f.as_posix()
-                if overwrite:
-                    self.filesystem.put_file(f, fpath, overwrite=True)
-                else:
-                    self.filesystem.put_file(f, fpath)
+                self.filesystem.put_file(
+                    f, fpath, mode="overwrite" if overwrite else "create"
+                )
 
                 counter += 1
 
