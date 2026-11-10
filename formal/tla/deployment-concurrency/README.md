@@ -132,7 +132,8 @@ maps to abstract `Running`. `ReleaseFlowConcurrencySlots` skips the entry into
 that pause and releases on its non-`Running` exits, and
 `SecureFlowConcurrencySlots` ignores transitions out of it, so the lease
 identity and occupied slot stay unchanged while the flow engine keeps lease
-renewal active. A reschedule-style pause (`suspend_flow_run`) exits the process
+renewal active. `cleanup_flow_run_concurrency_slots` releases that lease on
+`DeleteFlowRun`. A reschedule-style pause (`suspend_flow_run`) exits the process
 and keeps its existing release mapping. The mapping is covered by
 `tests/server/orchestration/test_core_policy.py::TestFlowConcurrencyLimits::test_blocking_pause_keeps_concurrency_slot_until_run_finishes`.
 
