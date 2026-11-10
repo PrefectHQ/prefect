@@ -290,6 +290,26 @@ Then run another process with the complementary set of services enabled. As long
 
 <Note>
 Some services maintain their own at-least-once semantics at the database or Redis level rather than relying on Docket's run-once guarantee. Running multiple processes with the same service enabled is supported, but starting with one process per service (and scaling up only when you observe a specific bottleneck) keeps operations simple.
+
+### When to scale an individual background service
+
+Use separate `prefect server services start --only <service>` processes when a *specific* service falls behind, not as the default for every deployment.
+
+| Signal | Likely bottleneck | What to try first |
+| --- | --- | --- |
+| Scheduled runs appear late; `PREFECT_API_SERVICES_SCHEDULER_*` loop lags | Scheduler | Add a dedicated scheduler process, or raise scheduler concurrency settings before adding many replicas |
+| Automations fire late after events | Automations / triggers | Isolate automation services; confirm Redis/Docket latency is healthy |
+| Event or log retention grows; trim/vacuum jobs overdue | Persistence / maintenance services | Isolate those services; check Postgres load before adding replicas |
+| API latency is high but background work is fine | API servers | Scale API replicas (`prefect server start --no-services`), not background services |
+| Background CPU high while Postgres waits | Too many service processes fighting the DB | Reduce replicas; fix DB capacity or connection pooling |
+
+**Heuristics:**
+
+1. Confirm the symptom is service backlog (delayed schedules, overdue maintenance), not API or database saturation.
+2. Prefer configuration changes (batch sizes, intervals, Redis/Docket health) before horizontal scale.
+3. Scale one service at a time with `--only`, and keep a single process for services that are not the bottleneck.
+4. If Postgres or Redis is the limiter, adding more service replicas usually makes the backlog worse—capacity-plan the dependency first.
+
 </Note>
 
 ### Database migrations
