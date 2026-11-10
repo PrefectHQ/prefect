@@ -21,8 +21,8 @@ This guide sets up the AWS side:
 - the **MicroVM image** that each flow run runs in
 
 The examples use `123456789012` as your AWS account ID and `us-east-2` as the region. Replace them with your own values.
-Lambda MicroVMs is available only in some AWS regions, so pick a region where it is available.
-`aws lambda-microvms list-managed-microvm-images --region <REGION>` succeeds only in a supported region.
+Lambda MicroVMs is not available in every AWS region; use one where it is.
+`aws lambda-microvms list-managed-microvm-images --region <REGION>` fails in a region without the service.
 
 ## Create the OIDC identity provider
 
@@ -132,7 +132,7 @@ AWS does not define a resource type for this action, so its resource is `*`.
 
 Each MicroVM runs as the execution role.
 Lambda uses it to send the MicroVM's stdout and stderr to CloudWatch Logs, and your flow code uses it to call other AWS services.
-Without the CloudWatch Logs permissions below, the flow run's output never reaches CloudWatch.
+Without the CloudWatch Logs permissions below, the flow run's output never reaches CloudWatch Logs.
 
 ### Trust policy
 
@@ -373,7 +373,7 @@ In Prefect Cloud, open the Lambda MicroVM push work pool's configuration and set
 | Field | Job variable | Value |
 | --- | --- | --- |
 | **AWS Credentials**: role ARN | `aws_credentials.role_arn` | The submission role's ARN |
-| **AWS Credentials**: region name | `aws_credentials.region_name` | The AWS region to run MicroVMs in |
+| **AWS Credentials**: region name | `aws_credentials.region_name` | The AWS region to run MicroVMs in, which must be the MicroVM image's region |
 | **Execution Role ARN** | `execution_role_arn` | The execution role's ARN |
 | **Image ARN** | `image_arn` | The ARN of the MicroVM image to run each flow run in |
 
