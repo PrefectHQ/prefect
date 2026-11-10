@@ -3,6 +3,7 @@ title: Set up AWS for a Lambda MicroVM push work pool
 sidebarTitle: Set up AWS for Lambda MicroVMs
 description: Create the OIDC identity provider and the IAM roles that a Lambda MicroVM push work pool needs in your AWS account.
 keywords: ["aws", "lambda", "microvm", "push work pool", "iam role", "oidc", "web identity", "assumerole", "trust policy", "execution role", "build role"]
+hidden: true
 ---
 
 <span class="badge cloud"></span>
@@ -69,7 +70,7 @@ The token's subject names the Prefect Cloud account, not a workspace, so every w
 
 ### Permissions policy
 
-The submission role needs permission to run, get, and stop MicroVMs from your image, and to pass the execution role to Lambda:
+The submission role needs permission to run, get, and stop MicroVMs from your image, to pass the execution role to Lambda, and to pass network connectors to the MicroVM:
 
 ```json submission-role-permissions-policy.json
 {
@@ -93,6 +94,11 @@ The submission role needs permission to run, get, and stop MicroVMs from your im
           "iam:PassedToService": "lambda.amazonaws.com"
         }
       }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "lambda:PassNetworkConnector",
+      "Resource": "*"
     }
   ]
 }
@@ -101,16 +107,8 @@ The submission role needs permission to run, get, and stop MicroVMs from your im
 AWS authorizes `lambda:RunMicrovm`, `lambda:GetMicrovm`, and `lambda:TerminateMicrovm` against the MicroVM image, so the resource is the image ARN, not an ARN for each MicroVM.
 To allow every image in the account and region, use `arn:aws:lambda:us-east-2:123456789012:microvm-image:*`.
 
-If the work pool attaches egress network connectors to the MicroVM, add `lambda:PassNetworkConnector` to the policy.
-AWS does not define a resource type for this action, so its resource is `*`:
-
-```json
-{
-  "Effect": "Allow",
-  "Action": "lambda:PassNetworkConnector",
-  "Resource": "*"
-}
-```
+AWS attaches a default internet egress network connector to every MicroVM, so the submission role needs `lambda:PassNetworkConnector` even when the work pool sets no connectors.
+AWS does not define a resource type for this action, so its resource is `*`.
 
 ## Create the execution role
 
