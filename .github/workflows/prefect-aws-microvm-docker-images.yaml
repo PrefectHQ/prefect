@@ -54,10 +54,18 @@ jobs:
 
           def parse(name: str) -> Version:
               value = os.environ[name]
-              # Version() accepts surrounding whitespace, which would split a tag line.
+              # Version() strips surrounding whitespace; reject it so the raw value
+              # written to GITHUB_ENV and the tags is the one validated.
               if value != value.strip():
                   raise SystemExit(f"{name} has surrounding whitespace: {value!r}")
-              return Version(value)
+              version = Version(value)
+              if str(version) != value:
+                  raise SystemExit(f"{name} is not in canonical form {str(version)!r}: {value!r}")
+              if version.local is not None:
+                  raise SystemExit(f"{name} has a local version segment: {value!r}")
+              if version.epoch != 0:
+                  raise SystemExit(f"{name} has a non-zero epoch: {value!r}")
+              return version
 
 
           def is_final(version: Version) -> bool:
