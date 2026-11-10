@@ -319,7 +319,9 @@ class IncrementFlowRunCount(
     FlowRunUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
 ):
     """
-    Records the number of times a run enters a running state. For use with retries.
+    Records the number of times a run starts an attempt by entering a running
+    state. Resuming a paused run continues its current attempt. For use with
+    retries.
     """
 
     async def before_transition(
@@ -335,6 +337,17 @@ class IncrementFlowRunCount(
                 api_version = context.parameters.get("api-version", None)
                 if api_version is None or api_version >= Version("0.8.4"):
                     if context.run.empirical_policy.resuming:
+                        return
+
+                    # a blocking pause resumes in the same process with
+                    # `Running`, continuing the attempt that paused
+                    initial_state = context.initial_state
+                    if (
+                        initial_state is not None
+                        and initial_state.is_paused()
+                        and not initial_state.state_details.pause_reschedule
+                        and context.run.run_count > 0
+                    ):
                         return
 
                 # increment the run count
