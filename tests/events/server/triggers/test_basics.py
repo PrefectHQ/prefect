@@ -984,6 +984,37 @@ async def test_threshold_firing_exposes_all_contributing_events(
     assert firing.all_events()[-1] == firing.triggering_event
 
 
+async def test_threshold_firing_with_large_payloads_still_fires(
+    effective_automations,
+    chonk_party: Automation,
+    woodchonk_walked: ReceivedEvent,
+    act: mock.AsyncMock,
+):
+    """Large payloads must not stop a firing: once the retained list hits
+    the serialized-size budget, further events are counted but not
+    retained, and the firing still fires on the exact count with the
+    triggering event appended, so all three payloads stay visible."""
+    events = [
+        woodchonk_walked.model_copy(
+            update={
+                "id": uuid4(),
+                "payload": {"data": "x" * 100_000},
+                "occurred": woodchonk_walked.occurred + timedelta(seconds=n),
+            }
+        )
+        for n in range(3)
+    ]
+
+    for event in events:
+        await triggers.reactive_evaluation(event)
+
+    assert act.await_count == 1
+    firing = act.await_args.args[0]
+    assert isinstance(firing, Firing)
+    assert [e.payload for e in firing.all_events()] == [e.payload for e in events]
+    assert firing.triggering_event == events[2]
+
+
 async def test_threshold_one_firing_exposes_single_event_unchanged(
     effective_automations,
     arachnophobia: Automation,

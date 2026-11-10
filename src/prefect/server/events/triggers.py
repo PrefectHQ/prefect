@@ -1109,6 +1109,26 @@ async def hold_expect_event(
 MAX_RETAINED_TRIGGERING_EVENTS = 100
 
 
+# Hard cap on the serialized size of the retained triggering events: the
+# count cap above bounds the *number* of events, but each event carries
+# an arbitrary payload (a single event may be up to
+# PREFECT_EVENTS_MAXIMUM_SIZE_BYTES, 1.5 MB by default, when it is
+# published), so 100 large events could still make a very large JSON row
+# that every increment reserializes.  256 KiB bounds the row and the
+# per-increment reserialization work; the count still increments exactly
+# and the firing still fires on the exact count.  The list always keeps
+# at least one event, so a firing never loses every payload, and
+# `evaluate` still appends the triggering event when it is missing from
+# the list and under the threshold.
+MAX_RETAINED_TRIGGERING_EVENTS_BYTES = 256 * 1024
+
+
+def _retained_triggering_events_size_bytes(events: list[ReceivedEvent]) -> int:
+    """Serialized size in bytes of the retained list as stored in the
+    bucket row, measured as the compact JSON of the list."""
+    return len(orjson.dumps([event.model_dump(mode="json") for event in events]))
+
+
 @db_injector
 async def increment_bucket(
     db: PrefectDBInterface,
@@ -1158,8 +1178,16 @@ async def increment_bucket(
     proactive trigger only fires while its count is below the threshold,
     so events past the threshold cap can never appear in a firing, and
     the hard cap keeps a large threshold from growing the stored list
-    without bound.  The bucket is deleted when it fires or expires, so
-    retained events are cleaned up with it."""
+    without bound.  Retention also stops once the serialized list
+    reaches `MAX_RETAINED_TRIGGERING_EVENTS_BYTES`: the count cap alone
+    does not bound the row, because each event carries an arbitrary
+    payload.  Skipped events still increment the count and the firing
+    still fires on the exact count; `evaluate` appends the triggering
+    event to the firing when it is missing from the list, so the event
+    that caused the firing stays visible.  At least one event is always
+    retained, so a single oversized event is not dropped outright.
+    The bucket is deleted when it fires or expires, so retained events
+    are cleaned up with it."""
     # Re-read under a write lock so the list is built from the latest
     # committed row, not the caller's possibly stale snapshot.
     locked_bucket = await read_bucket_by_trigger_id(
@@ -1177,7 +1205,21 @@ async def increment_bucket(
         return bucket
     bucket = locked_bucket
     triggering_events = list(bucket.triggering_events or [])
-    if last_event and (bucket.count + count > 0 or retain_opening_event):
+    # Stop retaining further events once the stored list is at the size
+    # budget: the count still increments and the firing still fires on the
+    # exact count, but the row stops growing.  The first event is always
+    # kept, so a single oversized event still leaves its payload visible
+    # to the firing.
+    if (
+        last_event
+        and (bucket.count + count > 0 or retain_opening_event)
+        and (
+            not triggering_events
+            or _retained_triggering_events_size_bytes(triggering_events)
+            + len(last_event.model_dump_json())
+            <= MAX_RETAINED_TRIGGERING_EVENTS_BYTES
+        )
+    ):
         triggering_events.append(last_event)
     effective_cap = (
         min(max_events, MAX_RETAINED_TRIGGERING_EVENTS)

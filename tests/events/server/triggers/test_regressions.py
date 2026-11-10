@@ -1289,6 +1289,91 @@ async def test_increment_bucket_caps_retained_events_independently_of_threshold(
     ]
 
 
+async def test_increment_bucket_bounds_retained_events_by_serialized_size(
+    start_of_test: DateTime,
+    bucketed_automation: Automation,
+    automations_session: AsyncSession,
+):
+    """A count cap alone does not bound the stored row: each event carries
+    an arbitrary payload, so 100 large events could still make a very
+    large JSON row that every increment reserializes.  Retention stops
+    once the serialized list reaches MAX_RETAINED_TRIGGERING_EVENTS_BYTES,
+    while the count itself stays exact."""
+    trigger = bucketed_automation.trigger
+    assert isinstance(trigger, EventTrigger)
+
+    def large_event(n: int) -> ReceivedEvent:
+        return Event(
+            occurred=start_of_test + timedelta(milliseconds=n),
+            event="counted-event",
+            resource={"prefect.resource.id": "some.resource"},
+            payload={"data": "x" * 100_000},
+            id=uuid4(),
+        ).receive()
+
+    retained = [large_event(n) for n in range(2)]
+    bucket = await triggers.start_new_bucket(
+        automations_session,
+        trigger,
+        bucketing_key=(),
+        start=start_of_test,
+        end=start_of_test + timedelta(hours=1),
+        count=len(retained),
+        triggering_events=retained,
+    )
+    assert (
+        triggers._retained_triggering_events_size_bytes(bucket.triggering_events)
+        < triggers.MAX_RETAINED_TRIGGERING_EVENTS_BYTES
+    )
+
+    incremented = await triggers.increment_bucket(
+        automations_session, bucket, count=1, last_event=large_event(2), max_events=1000
+    )
+    assert incremented.count == len(retained) + 1
+    # The third ~100 KiB event would push the stored list past the 256 KiB
+    # budget, so it is counted but not retained.
+    assert [event.id for event in incremented.triggering_events] == [
+        event.id for event in retained
+    ]
+    assert (
+        triggers._retained_triggering_events_size_bytes(incremented.triggering_events)
+        <= triggers.MAX_RETAINED_TRIGGERING_EVENTS_BYTES
+    )
+
+
+async def test_increment_bucket_keeps_at_least_one_oversized_event(
+    start_of_test: DateTime,
+    bucketed_automation: Automation,
+    automations_session: AsyncSession,
+):
+    """A single event larger than the whole size budget is still retained:
+    dropping it would leave a firing with no contributing payload at all."""
+    trigger = bucketed_automation.trigger
+    assert isinstance(trigger, EventTrigger)
+
+    oversized = Event(
+        occurred=start_of_test,
+        event="counted-event",
+        resource={"prefect.resource.id": "some.resource"},
+        payload={"data": "x" * 300_000},
+        id=uuid4(),
+    ).receive()
+    bucket = await triggers.start_new_bucket(
+        automations_session,
+        trigger,
+        bucketing_key=(),
+        start=start_of_test,
+        end=start_of_test + timedelta(hours=1),
+        count=0,
+        triggering_events=[],
+    )
+    incremented = await triggers.increment_bucket(
+        automations_session, bucket, count=1, last_event=oversized, max_events=1000
+    )
+    assert incremented.count == 1
+    assert [event.id for event in incremented.triggering_events] == [oversized.id]
+
+
 async def test_increment_bucket_does_not_resurrect_deleted_bucket(
     db: PrefectDBInterface,
     start_of_test: DateTime,
