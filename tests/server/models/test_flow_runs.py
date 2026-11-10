@@ -1582,7 +1582,8 @@ class TestDeleteFlowRun:
             metadata=ConcurrencyLimitLeaseMetadata(slots=1),
         )
         if not lease_exists:
-            # The lease expired and its slot was already released.
+            # Leases of clients older than the leasing minimum are revoked
+            # while the run keeps its slot.
             await lease_storage.revoke_lease(lease.id)
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
@@ -1607,7 +1608,7 @@ class TestDeleteFlowRun:
         )
         assert concurrency_limit is not None
         await session.refresh(concurrency_limit)
-        assert concurrency_limit.active_slots == (0 if lease_exists else 1)
+        assert concurrency_limit.active_slots == 0
         assert await lease_storage.read_lease(lease.id) is None
 
 

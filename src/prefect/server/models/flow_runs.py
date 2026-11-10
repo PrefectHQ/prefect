@@ -356,13 +356,23 @@ async def cleanup_flow_run_concurrency_slots(
     IMPORTANT: This run may no longer exist in the database when this operation occurs.
     """
 
-    # A blocking pause holds its slot through its lease. Revoke the lease so
-    # the slot is released once; a missing lease was already released on expiry.
+    # A blocking pause keeps its slot, so release it through its lease.
     state = flow_run.state.as_state() if flow_run.state else None
     if flow_run.deployment_id and state and _is_leased_blocking_pause(state):
         lease_id = state.state_details.deployment_concurrency_lease_id
         assert lease_id is not None
-        await _release_concurrency_lease(session=session, lease_id=lease_id)
+        deployment = await models.deployments.read_deployment(
+            session, flow_run.deployment_id
+        )
+        await _release_concurrency_lease(
+            session=session,
+            lease_id=lease_id,
+            fallback_concurrency_limit_ids=(
+                [deployment.concurrency_limit_id]
+                if deployment and deployment.concurrency_limit_id
+                else None
+            ),
+        )
         return
 
     if (

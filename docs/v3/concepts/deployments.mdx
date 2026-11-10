@@ -354,6 +354,10 @@ the schedule interval should exceed this whole period to avoid cancelling the ne
 <Note>
 In-process retries keep the slot during the retry delay.
 
+A blocking pause (`pause_flow_run`) keeps the slot until the run resumes and finishes or the pause times out,
+because the flow run process keeps running while it waits. A suspended run (`suspend_flow_run`) releases its slot,
+because its process exits.
+
 A run must reach `Running` within `grace_period_seconds` of acquiring its slot to keep it reserved; otherwise,
 another run can take the slot.
 </Note>
