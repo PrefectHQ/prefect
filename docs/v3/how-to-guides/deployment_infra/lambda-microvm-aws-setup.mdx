@@ -239,6 +239,7 @@ If your Dockerfile pulls its base image from a private Amazon ECR repository, al
 {
   "Effect": "Allow",
   "Action": [
+    "ecr:BatchCheckLayerAvailability",
     "ecr:BatchGetImage",
     "ecr:GetDownloadUrlForLayer"
   ],
