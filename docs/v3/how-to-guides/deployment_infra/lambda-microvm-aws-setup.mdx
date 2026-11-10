@@ -130,7 +130,7 @@ AWS does not define a resource type for this action, so its resource is `*`.
 
 Each MicroVM runs as the execution role.
 Lambda uses it to send the MicroVM's stdout and stderr to CloudWatch Logs, and your flow code uses it to call other AWS services.
-Without the CloudWatch Logs permissions below, Lambda does not forward stdout and stderr, so the flow run's output never reaches CloudWatch.
+Without the CloudWatch Logs permissions below, the flow run's output never reaches CloudWatch.
 
 ### Trust policy
 
@@ -276,7 +276,7 @@ Pass the build role's ARN when you create or update the MicroVM image.
 ## Build the MicroVM image
 
 Every flow run on the work pool runs in a MicroVM started from your MicroVM image.
-The image must contain your deployment's flow code and every Python package your flows import.
+The image must contain every Python package your flows import, and your flow code unless the deployment pulls it at run time.
 
 ### Write the Dockerfile
 
