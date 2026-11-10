@@ -1602,12 +1602,18 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     f"Flow run {flow_run.id} will not be submitted for"
                     " execution"
                 )
-                await self._mark_flow_run_as_cancelled(
-                    flow_run,
-                    state_updates=dict(
-                        message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
-                    ),
-                )
+                try:
+                    await self._mark_flow_run_as_cancelled(
+                        flow_run,
+                        state_updates=dict(
+                            message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
+                        ),
+                    )
+                except Exception:
+                    run_logger.exception(
+                        f"Failed to mark flow run '{flow_run.id}' as cancelled."
+                        " Cancellation will be retried on the next poll."
+                    )
                 self._release_limit_slot(flow_run.id)
                 self._stop_tracking_submission(flow_run.id)
                 return
@@ -1885,11 +1891,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             run_logger = self.get_flow_run_logger(flow_run)
             run_logger.debug(
                 f"Flow run '{flow_run.id}' was deleted before it could be marked as cancelled"
-            )
-        except Exception:
-            run_logger = self.get_flow_run_logger(flow_run)
-            run_logger.exception(
-                f"Failed to mark flow run '{flow_run.id}' as cancelled"
             )
 
     async def _cancel_run(self, flow_run_id: UUID) -> None:
