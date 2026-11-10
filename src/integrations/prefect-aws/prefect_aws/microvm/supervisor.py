@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import random
 import signal
 import sys
 from pathlib import Path
@@ -11,8 +10,8 @@ from types import FrameType
 from typing import NoReturn
 from uuid import UUID
 
-# These imports stay at module level so that the MicroVM snapshot, taken after
-# `/ready`, already holds every module a flow run needs.
+# These imports stay at module level so that they are loaded at startup and are
+# in the MicroVM snapshot, taken after `/ready`.
 from prefect._internal.control_listener import configure_from_env
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import get_client
@@ -91,9 +90,6 @@ def run_child(payload: RunHookPayload) -> NoReturn:
         # default disposition, whatever handler the parent had.
         signal.signal(signal.SIGTERM, signal.SIG_DFL)
         signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM})
-        # A process restored from a snapshot shares its random state with every
-        # other process restored from the same snapshot.
-        random.seed(os.urandom(32))
         _make_preferred_oom_victim()
         # Settings and logging were configured at import time, before `/run`
         # set the environment.
@@ -123,7 +119,9 @@ def supervise_flow_run(payload: RunHookPayload) -> int:
         The exit code for this process: 0 if the child exited 0, otherwise 1.
     """
     # Blocked across the fork so that a SIGTERM arriving before the forwarding
-    # handler is installed waits for it instead of being lost.
+    # handler is installed waits for it instead of being lost. Every hook handler
+    # has finished or timed out before the fork, so this thread is the only one
+    # that can take SIGTERM.
     previous_signal_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
     try:
         child_pid = os.fork()

@@ -31,8 +31,8 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
 
     run_request = server.wait_for_run_request()
     server.stop_serving()
-    # Frees the hook port for flow code. Only the run and ready hooks are
-    # enabled, so the runtime sends nothing after `/run`.
+    # Frees the hook port for flow code. A hook connection after this point is
+    # refused instead of waiting on a server that no longer answers.
     server.server_close()
     if isinstance(run_request, InvalidRunHookPayload):
         return 1

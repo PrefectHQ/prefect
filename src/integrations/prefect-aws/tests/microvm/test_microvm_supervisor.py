@@ -259,6 +259,8 @@ def test_child_gets_default_sigterm_unblocked_and_parent_mask_is_restored(
 
 
 def test_child_reseeds_random(monkeypatch: pytest.MonkeyPatch):
+    # CPython reseeds `random` in every forked child; this guards against an
+    # interpreter, or a child started some other way, that does not.
     report_read, report_write = os.pipe()
 
     def report_random(payload: RunHookPayload) -> None:
@@ -278,6 +280,20 @@ def test_child_reseeds_random(monkeypatch: pytest.MonkeyPatch):
 
     assert exit_code == 0
     assert child_random != parent_next_random
+
+
+def test_fork_failure_propagates_and_unblocks_sigterm(monkeypatch: pytest.MonkeyPatch):
+    assert not sigterm_is_blocked()
+
+    def fail_to_fork() -> int:
+        raise OSError("fork failed")
+
+    monkeypatch.setattr(supervisor.os, "fork", fail_to_fork)
+
+    with pytest.raises(OSError, match="fork failed"):
+        supervisor.supervise_flow_run(make_payload(uuid4()))
+
+    assert not sigterm_is_blocked()
 
 
 def test_child_makes_itself_the_preferred_oom_victim(

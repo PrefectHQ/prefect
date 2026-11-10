@@ -236,7 +236,9 @@ def test_stop_serving_waits_for_a_request_in_progress(server: LifecycleHookServe
 def test_a_stalled_run_request_times_out_and_hands_off_a_rejection(
     server: LifecycleHookServer, monkeypatch: pytest.MonkeyPatch
 ):
-    assert 0 < LifecycleHookHandler.timeout <= 60
+    assert (
+        0 < LifecycleHookHandler.timeout < server_module.HANDLER_FINISH_TIMEOUT_SECONDS
+    )
     monkeypatch.setattr(LifecycleHookHandler, "timeout", 0.2)
     body = run_body()
     connection = socket.create_connection(("127.0.0.1", port_of(server)), timeout=10)
@@ -253,6 +255,13 @@ def test_a_stalled_run_request_times_out_and_hands_off_a_rejection(
     assert isinstance(rejection, InvalidRunHookPayload)
     assert "TimeoutError" in str(rejection)
     assert os.environ[TEST_ENV_VAR] == "before-run-hook"
+
+
+def test_hook_request_timeout_is_shorter_than_the_stop_serving_wait():
+    assert (
+        server_module.HOOK_REQUEST_TIMEOUT_SECONDS
+        < server_module.HANDLER_FINISH_TIMEOUT_SECONDS
+    )
 
 
 def test_other_hooks_return_200(server: LifecycleHookServer):
