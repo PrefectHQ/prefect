@@ -63,7 +63,7 @@ class TestCreateBlockSchema:
         }
         assert (
             block_schema.checksum
-            == "sha256:4448d5cf2ddb989f7fde8b2c36ec89527ca30e0e8ef041eed8bd15c11fe6cfee"
+            == "sha256:480cd78e33dc758a860cce45e08f78595797381db6ee9d4fb35d375adacbf52d"
         )
         assert block_schema.block_type_id == block_type_x.id
 

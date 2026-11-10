@@ -18,10 +18,10 @@ def _encode_for_hash(value: Any) -> Any:
 
     The standard library JSON encoder erases two distinctions that matter
     for hashing task inputs: tuples serialize exactly like lists, and
-    mapping keys are coerced to strings (so ``{1: "a"}`` and ``{"1": "a"}``
+    mapping keys are coerced to strings (so `{1: "a"}` and `{"1": "a"}`
     serialize identically). To keep distinct inputs hashing differently,
     tuples are tagged and mappings are encoded as sorted lists of
-    ``[key, value]`` pairs, so key types survive serialization. Any other
+    `[key, value]` pairs, so key types survive serialization. Any other
     value is left untouched for the serializer to handle as before.
     """
     if isinstance(value, tuple):
