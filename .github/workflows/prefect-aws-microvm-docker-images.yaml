@@ -22,6 +22,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   build-and-push:
     name: Build and push the prefect-aws MicroVM base image

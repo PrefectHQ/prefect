@@ -1,6 +1,6 @@
 import os
+import random
 import signal
-import socket
 import sys
 import threading
 import time
@@ -154,11 +154,8 @@ def test_sigterm_to_the_parent_is_forwarded_to_the_child(
     child_ready_read, child_ready_write = os.pipe()
 
     def wait_for_sigterm(payload: RunHookPayload) -> None:
-        # The fork copies the test's handler; a MicroVM child starts with the
-        # default disposition, which ends the process.
-        signal.signal(signal.SIGTERM, signal.SIG_DFL)
         os.write(child_ready_write, b"x")
-        time.sleep(10)
+        time.sleep(60)
 
     def send_sigterm_once_the_supervisor_handles_it() -> None:
         os.read(child_ready_read, 1)
@@ -175,7 +172,6 @@ def test_sigterm_to_the_parent_is_forwarded_to_the_child(
     try:
         sender = threading.Thread(target=send_sigterm_once_the_supervisor_handles_it)
         sender.start()
-        started = time.monotonic()
         exit_code = supervisor.supervise_flow_run(make_payload(flow_run.id))
         sender.join()
         handler_after_supervising = signal.getsignal(signal.SIGTERM)
@@ -185,12 +181,115 @@ def test_sigterm_to_the_parent_is_forwarded_to_the_child(
         os.close(child_ready_write)
 
     assert exit_code == 1
-    assert time.monotonic() - started < 10
     assert signals_received_by_the_test == []
     assert handler_after_supervising is test_sigterm_handler
     assert read_state(flow_run.id).message == (
         "Flow run process was killed by signal 15."
     )
+
+
+def test_sigterm_sent_just_after_the_fork_is_forwarded_to_the_child(
+    monkeypatch: pytest.MonkeyPatch, flow_run_in: CreateFlowRun
+):
+    flow_run = flow_run_in(Running())
+    signals_received_by_the_test: list[int] = []
+
+    def test_sigterm_handler(signum: int, frame: FrameType | None) -> None:
+        signals_received_by_the_test.append(signum)
+
+    real_fork = os.fork
+
+    def fork_then_sigterm_the_parent() -> int:
+        child_pid = real_fork()
+        if child_pid != 0:
+            # Sent to this thread, as SIGTERM reaches a single-threaded PID 1,
+            # before the supervisor has installed its forwarding handler.
+            signal.pthread_kill(threading.main_thread().ident, signal.SIGTERM)
+        return child_pid
+
+    def wait_for_sigterm(payload: RunHookPayload) -> None:
+        time.sleep(30)
+
+    monkeypatch.setattr(supervisor.os, "fork", fork_then_sigterm_the_parent)
+    monkeypatch.setattr(supervisor, "execute_flow_run", wait_for_sigterm)
+    previous_handler = signal.signal(signal.SIGTERM, test_sigterm_handler)
+    try:
+        exit_code = supervisor.supervise_flow_run(make_payload(flow_run.id))
+    finally:
+        signal.signal(signal.SIGTERM, previous_handler)
+
+    assert exit_code == 1
+    assert signals_received_by_the_test == []
+    assert read_state(flow_run.id).message == (
+        "Flow run process was killed by signal 15."
+    )
+
+
+def sigterm_is_blocked() -> bool:
+    return signal.SIGTERM in signal.pthread_sigmask(signal.SIG_BLOCK, [])
+
+
+def test_child_gets_default_sigterm_unblocked_and_parent_mask_is_restored(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    assert not sigterm_is_blocked()
+    report_read, report_write = os.pipe()
+
+    def report_sigterm_state(payload: RunHookPayload) -> None:
+        is_default = signal.getsignal(signal.SIGTERM) == signal.SIG_DFL
+        os.write(report_write, f"{is_default} {sigterm_is_blocked()}".encode())
+
+    def test_sigterm_handler(signum: int, frame: FrameType | None) -> None:
+        pass
+
+    monkeypatch.setattr(supervisor, "execute_flow_run", report_sigterm_state)
+    previous_handler = signal.signal(signal.SIGTERM, test_sigterm_handler)
+    try:
+        exit_code = supervisor.supervise_flow_run(make_payload(uuid4()))
+        parent_blocks_sigterm_after_supervising = sigterm_is_blocked()
+    finally:
+        signal.signal(signal.SIGTERM, previous_handler)
+        os.close(report_write)
+    child_report = os.read(report_read, 64)
+    os.close(report_read)
+
+    assert exit_code == 0
+    assert child_report == b"True False"
+    assert not parent_blocks_sigterm_after_supervising
+
+
+def test_child_reseeds_random(monkeypatch: pytest.MonkeyPatch):
+    report_read, report_write = os.pipe()
+
+    def report_random(payload: RunHookPayload) -> None:
+        os.write(report_write, repr(random.random()).encode())
+
+    monkeypatch.setattr(supervisor, "execute_flow_run", report_random)
+    state_before_test = random.getstate()
+    random.seed(1234)
+    try:
+        exit_code = supervisor.supervise_flow_run(make_payload(uuid4()))
+        parent_next_random = random.random()
+    finally:
+        random.setstate(state_before_test)
+        os.close(report_write)
+    child_random = float(os.read(report_read, 64))
+    os.close(report_read)
+
+    assert exit_code == 0
+    assert child_random != parent_next_random
+
+
+def test_child_makes_itself_the_preferred_oom_victim(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    oom_score_adj = tmp_path / "oom_score_adj"
+    monkeypatch.setattr(supervisor, "OOM_SCORE_ADJ_PATH", oom_score_adj)
+    monkeypatch.setattr(supervisor, "execute_flow_run", child_exits_with(0))
+
+    assert supervisor.supervise_flow_run(make_payload(uuid4())) == 0
+
+    assert oom_score_adj.read_text() == "1000"
 
 
 def test_supervisor_reaps_other_exited_children(monkeypatch: pytest.MonkeyPatch):
@@ -207,25 +306,6 @@ def test_supervisor_reaps_other_exited_children(monkeypatch: pytest.MonkeyPatch)
 
     with pytest.raises(ChildProcessError):
         os.waitpid(exited_sibling_pid, os.WNOHANG)
-
-
-def test_child_closes_the_hook_server_socket(monkeypatch: pytest.MonkeyPatch):
-    with socket.create_server(("127.0.0.1", 0)) as hook_server_socket:
-
-        def exit_0_if_the_socket_is_closed(payload: RunHookPayload) -> None:
-            if hook_server_socket.fileno() != -1:
-                raise SystemExit(5)
-
-        monkeypatch.setattr(
-            supervisor, "execute_flow_run", exit_0_if_the_socket_is_closed
-        )
-
-        exit_code = supervisor.supervise_flow_run(
-            make_payload(uuid4()), hook_server_socket=hook_server_socket
-        )
-
-        assert exit_code == 0
-        assert hook_server_socket.fileno() != -1
 
 
 def test_entrypoint_payload_runs_the_runtime_entrypoint_in_working_dir(

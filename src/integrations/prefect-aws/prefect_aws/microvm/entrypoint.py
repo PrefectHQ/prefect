@@ -31,8 +31,11 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
 
     run_request = server.wait_for_run_request()
     server.stop_serving()
+    # Frees the hook port for flow code. Only the run and ready hooks are
+    # enabled, so the runtime sends nothing after `/run`.
+    server.server_close()
     if isinstance(run_request, InvalidRunHookPayload):
         return 1
     # The flow run is forked from this thread, so it runs on the child's main
     # thread, where the engine can install its signal handlers.
-    return supervise_flow_run(run_request.payload, hook_server_socket=server.socket)
+    return supervise_flow_run(run_request.payload)

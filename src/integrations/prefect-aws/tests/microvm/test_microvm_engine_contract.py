@@ -5,6 +5,8 @@ when one of them is removed or its signature changes.
 
 import importlib
 import inspect
+import subprocess
+import sys
 import typing
 from uuid import UUID
 
@@ -14,8 +16,19 @@ import prefect.engine
 import prefect.flow_engine
 from prefect._internal.concurrency.services import QueueService
 from prefect.events.worker import EventsWorker
+from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import APILogWorker
 
+# The MicroVM snapshot is taken after `/ready`, so a module the entrypoint does
+# not import at startup is imported again by every restored MicroVM.
+SNAPSHOT_ENGINE_MODULES = (
+    "prefect",
+    "prefect.client.orchestration",
+    "prefect.engine",
+    "prefect.events.worker",
+    "prefect.flow_engine",
+    "prefect.logging.handlers",
+)
 POSITIONAL_OR_KEYWORD = inspect.Parameter.POSITIONAL_OR_KEYWORD
 NO_DEFAULT = inspect.Parameter.empty
 
@@ -48,6 +61,16 @@ def test_drive_run_flow_result_signature():
     ]
 
 
+def test_setup_logging_accepts_incremental():
+    parameters = inspect.signature(setup_logging).parameters
+
+    assert "incremental" in parameters
+    assert parameters["incremental"].kind in (
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        inspect.Parameter.KEYWORD_ONLY,
+    )
+
+
 @pytest.mark.parametrize("worker", [QueueService, APILogWorker, EventsWorker])
 def test_drain_all_accepts_a_timeout(worker: type[QueueService[typing.Any]]):
     parameters = inspect.signature(worker.drain_all).parameters
@@ -74,3 +97,21 @@ def test_drain_all_accepts_a_timeout(worker: type[QueueService[typing.Any]]):
 )
 def test_engine_functions_the_entrypoint_calls_import(module: str, name: str):
     assert callable(getattr(importlib.import_module(module), name))
+
+
+def test_importing_the_entrypoint_loads_the_engine_modules():
+    script = (
+        "import sys\n"
+        "import prefect_aws.microvm.entrypoint\n"
+        "print(*(name for name in sys.argv[1:] if name not in sys.modules))\n"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script, *SNAPSHOT_ENGINE_MODULES],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=120,
+    )
+
+    assert result.stdout.split() == []

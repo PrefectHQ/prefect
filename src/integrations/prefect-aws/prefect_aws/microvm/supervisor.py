@@ -5,13 +5,14 @@ from __future__ import annotations
 import os
 import random
 import signal
-import socket
 import sys
 from pathlib import Path
 from types import FrameType
 from typing import NoReturn
 from uuid import UUID
 
+# These imports stay at module level so that the MicroVM snapshot, taken after
+# `/ready`, already holds every module a flow run needs.
 from prefect._internal.control_listener import configure_from_env
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import get_client
@@ -36,6 +37,7 @@ from prefect_aws.microvm.payload import RunHookPayload
 logger = get_logger("prefect_aws.microvm")
 
 CHILD_OOM_SCORE_ADJ = 1000
+OOM_SCORE_ADJ_PATH = Path("/proc/self/oom_score_adj")
 WORKER_DRAIN_TIMEOUT_SECONDS = 5
 
 
@@ -73,9 +75,7 @@ def execute_flow_run(payload: RunHookPayload) -> None:
             _drive_run_flow_result(flow, run_result)
 
 
-def run_child(
-    payload: RunHookPayload, hook_server_socket: socket.socket | None = None
-) -> NoReturn:
+def run_child(payload: RunHookPayload) -> NoReturn:
     """
     Run the flow run in a forked child process, then exit the process.
 
@@ -84,13 +84,13 @@ def run_child(
 
     Args:
         payload: The flow run to execute.
-        hook_server_socket: The lifecycle hook server's listening socket, which
-            the child closes.
     """
     exit_code = 1
     try:
-        if hook_server_socket is not None:
-            hook_server_socket.close()
+        # The parent blocks SIGTERM across the fork; the flow run gets the
+        # default disposition, whatever handler the parent had.
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM})
         # A process restored from a snapshot shares its random state with every
         # other process restored from the same snapshot.
         random.seed(os.urandom(32))
@@ -108,9 +108,7 @@ def run_child(
         os._exit(exit_code)
 
 
-def supervise_flow_run(
-    payload: RunHookPayload, hook_server_socket: socket.socket | None = None
-) -> int:
+def supervise_flow_run(payload: RunHookPayload) -> int:
     """
     Run the flow run in a forked child and wait for the child to exit.
 
@@ -120,15 +118,20 @@ def supervise_flow_run(
 
     Args:
         payload: The flow run to execute.
-        hook_server_socket: The lifecycle hook server's listening socket, closed
-            in the child right after the fork.
 
     Returns:
         The exit code for this process: 0 if the child exited 0, otherwise 1.
     """
-    child_pid = os.fork()
+    # Blocked across the fork so that a SIGTERM arriving before the forwarding
+    # handler is installed waits for it instead of being lost.
+    previous_signal_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
+    try:
+        child_pid = os.fork()
+    except BaseException:
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous_signal_mask)
+        raise
     if child_pid == 0:
-        run_child(payload, hook_server_socket)
+        run_child(payload)
 
     def forward_sigterm(signum: int, frame: FrameType | None) -> None:
         try:
@@ -138,7 +141,10 @@ def supervise_flow_run(
 
     # As PID 1 in the MicroVM, this process ignores any signal it has no
     # handler for, so SIGTERM would otherwise never reach the flow run.
-    previous_sigterm_handler = signal.signal(signal.SIGTERM, forward_sigterm)
+    try:
+        previous_sigterm_handler = signal.signal(signal.SIGTERM, forward_sigterm)
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous_signal_mask)
     try:
         wait_status = _reap_until_collected(child_pid)
     finally:
@@ -238,7 +244,7 @@ def _make_preferred_oom_victim() -> None:
     # Under memory pressure the kernel then kills this child before the parent,
     # which is the process that reports the crash.
     try:
-        Path("/proc/self/oom_score_adj").write_text(str(CHILD_OOM_SCORE_ADJ))
+        OOM_SCORE_ADJ_PATH.write_text(str(CHILD_OOM_SCORE_ADJ))
     except OSError:
         logger.warning("Could not set the flow run process's oom_score_adj.")
 

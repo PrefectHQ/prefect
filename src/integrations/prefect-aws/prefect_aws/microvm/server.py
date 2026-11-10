@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import os
 import queue
 import socket
@@ -26,22 +25,7 @@ MAX_REQUEST_BODY_BYTES = 1024 * 1024
 HANDLER_FINISH_TIMEOUT_SECONDS = 10
 WAKE_INTERVAL_SECONDS = 0.01
 WAKE_CONNECT_TIMEOUT_SECONDS = 1
-
-# Imported before `/ready` returns so that the MicroVM snapshot includes them
-# and a restored MicroVM does not import them again for each flow run.
-ENGINE_MODULES = (
-    "prefect",
-    "prefect.client.orchestration",
-    "prefect.events.worker",
-    "prefect.flow_engine",
-    "prefect.logging.handlers",
-)
-
-
-def import_engine_modules() -> None:
-    """Import the modules a flow run needs, so the snapshot includes them."""
-    for module_name in ENGINE_MODULES:
-        importlib.import_module(module_name)
+HOOK_REQUEST_TIMEOUT_SECONDS = 30
 
 
 class LifecycleHookServer(ThreadingHTTPServer):
@@ -97,8 +81,10 @@ class LifecycleHookServer(ThreadingHTTPServer):
 
     def stop_serving(self, timeout: float = HANDLER_FINISH_TIMEOUT_SECONDS) -> None:
         """
-        Stop accepting hook requests and wait for the requests in progress to
-        finish, so that no handler thread holds a lock when the process forks.
+        Stop accepting hook requests and wait up to `timeout` seconds for the
+        requests in progress to finish, so that no handler thread holds a lock
+        when the process forks. Requests still in progress after `timeout` are
+        logged and left running.
 
         Args:
             timeout: The longest time to wait for requests in progress, in seconds.
@@ -171,33 +157,28 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
     """Request handler for `LifecycleHookServer`."""
 
     server: LifecycleHookServer
+    # A client that stalls mid-request would otherwise hold its handler, and a
+    # stalled `/run` would hold the flow run, forever.
+    timeout = HOOK_REQUEST_TIMEOUT_SECONDS
     _replied = False
 
     def log_message(self, format: str, *args: Any) -> None:
         logger.debug(format, *args)
 
     def do_GET(self) -> None:
-        if self._hook_name() == "ready":
-            self._ready()
-        else:
-            self._reply(200)
+        self._reply(200)
 
     def do_POST(self) -> None:
         hook_name = self._hook_name()
-        if hook_name == "ready":
-            self._ready()
-        elif hook_name == "run":
+        if hook_name == "run":
             self._run()
-        else:
+            return
+        if hook_name != "ready":
             logger.debug("Ignoring lifecycle hook %r.", hook_name)
-            self._reply(200)
+        self._reply(200)
 
     def _hook_name(self) -> str:
         return self.path.split("?", 1)[0].removeprefix(HOOK_PATH_PREFIX).strip("/")
-
-    def _ready(self) -> None:
-        import_engine_modules()
-        self._reply(200)
 
     def _run(self) -> None:
         if not self.server.claim_run():

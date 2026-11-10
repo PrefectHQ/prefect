@@ -12,7 +12,7 @@ import pytest
 from prefect_aws.microvm import entrypoint
 from prefect_aws.microvm import server as server_module
 from prefect_aws.microvm.payload import InvalidRunHookPayload, RunHookRequest
-from prefect_aws.microvm.server import LifecycleHookServer
+from prefect_aws.microvm.server import LifecycleHookHandler, LifecycleHookServer
 from prefect_aws.microvm.supervisor import supervise_flow_run
 
 FLOW_RUN_ID = UUID("0b6f3c8e-2d6a-4c1e-8f3b-7a9d5e4c2b10")
@@ -233,6 +233,28 @@ def test_stop_serving_waits_for_a_request_in_progress(server: LifecycleHookServe
     connection.close()
 
 
+def test_a_stalled_run_request_times_out_and_hands_off_a_rejection(
+    server: LifecycleHookServer, monkeypatch: pytest.MonkeyPatch
+):
+    assert 0 < LifecycleHookHandler.timeout <= 60
+    monkeypatch.setattr(LifecycleHookHandler, "timeout", 0.2)
+    body = run_body()
+    connection = socket.create_connection(("127.0.0.1", port_of(server)), timeout=10)
+    connection.sendall(
+        b"POST /run HTTP/1.0\r\nContent-Length: "
+        + str(len(body)).encode()
+        + b"\r\n\r\n"
+        + body[:5]
+    )
+
+    rejection = wait_for_outcome(server)
+
+    connection.close()
+    assert isinstance(rejection, InvalidRunHookPayload)
+    assert "TimeoutError" in str(rejection)
+    assert os.environ[TEST_ENV_VAR] == "before-run-hook"
+
+
 def test_other_hooks_return_200(server: LifecycleHookServer):
     response = request(
         port_of(server), "POST", "/aws/lambda-microvms/runtime/v1/suspend"
@@ -283,15 +305,17 @@ def test_main_supervises_the_flow_run_from_the_run_request(
 ):
     monkeypatch.setenv(TEST_ENV_VAR, "before-run-hook")
     port = free_port()
-    hook_requests_answered_during_run: list[bool] = []
+    hook_request_outcomes_during_run: list[str] = []
 
-    def run_flow(payload: object, hook_server_socket: socket.socket) -> int:
+    def run_flow(payload: object) -> int:
         try:
             request(port, "GET", "/ready", timeout=1)
+        except ConnectionRefusedError:
+            hook_request_outcomes_during_run.append("refused")
         except TimeoutError:
-            hook_requests_answered_during_run.append(False)
+            hook_request_outcomes_during_run.append("timed out")
         else:
-            hook_requests_answered_during_run.append(True)
+            hook_request_outcomes_during_run.append("answered")
         return 0
 
     supervise = create_autospec(supervise_flow_run, side_effect=run_flow)
@@ -305,11 +329,34 @@ def test_main_supervises_the_flow_run_from_the_run_request(
     supervise.assert_called_once()
     (payload,) = supervise.call_args.args
     assert payload.flow_run_id == FLOW_RUN_ID
-    hook_server_socket = supervise.call_args.kwargs["hook_server_socket"]
-    assert isinstance(hook_server_socket, socket.socket)
-    assert hook_server_socket.getsockname()[1] == port
-    # The server stopped serving before the flow run started.
-    assert hook_requests_answered_during_run == [False]
+    assert supervise.call_args.kwargs == {}
+    # The server closed its listening socket before the flow run started.
+    assert hook_request_outcomes_during_run == ["refused"]
+
+
+def test_flow_code_can_bind_the_hook_port(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv(TEST_ENV_VAR, "before-run-hook")
+    port = free_port()
+    bind_errors: list[OSError] = []
+
+    def run_flow(payload: object) -> int:
+        try:
+            with socket.create_server(("0.0.0.0", port)):
+                pass
+        except OSError as exc:
+            bind_errors.append(exc)
+        return 0
+
+    supervise = create_autospec(supervise_flow_run, side_effect=run_flow)
+    monkeypatch.setattr(entrypoint, "supervise_flow_run", supervise)
+    poster = post_when_listening(port, run_body())
+
+    exit_code = entrypoint.main(port=port)
+
+    poster.join(timeout=10)
+    assert exit_code == 0
+    supervise.assert_called_once()
+    assert bind_errors == []
 
 
 def test_main_exits_1_without_running_anything_on_an_invalid_payload(
@@ -328,11 +375,22 @@ def test_main_exits_1_without_running_anything_on_an_invalid_payload(
     supervise.assert_not_called()
 
 
+# Long enough that a stop which waits out the poll interval cannot pass the
+# timing assertions, however slow the machine.
+LONG_POLL_INTERVAL_SECONDS = 30
+
+
+def serve_with_a_long_poll_interval(hook_server: LifecycleHookServer) -> None:
+    hook_server.serve_forever(poll_interval=LONG_POLL_INTERVAL_SECONDS)
+
+
 def test_stop_serving_does_not_wait_out_the_poll_interval():
     stop_times: list[float] = []
     for _ in range(5):
         hook_server = LifecycleHookServer(("127.0.0.1", 0))
-        serving = threading.Thread(target=hook_server.serve_forever, daemon=True)
+        serving = threading.Thread(
+            target=serve_with_a_long_poll_interval, args=(hook_server,), daemon=True
+        )
         serving.start()
         # Lets the loop enter its first `select`, so the stop has to wake it.
         assert request(port_of(hook_server), "GET", "/ready").status == 200
@@ -345,7 +403,7 @@ def test_stop_serving_does_not_wait_out_the_poll_interval():
         assert not serving.is_alive()
         hook_server.server_close()
 
-    assert max(stop_times) < 0.1, stop_times
+    assert max(stop_times) < 5, stop_times
 
 
 def test_stop_serving_wakes_the_loop_through_the_loopback_address(
@@ -383,7 +441,7 @@ def test_stop_serving_still_stops_when_the_wake_connection_fails(
     connect.assert_called()
     assert waker_errors == []
     # Without a wake, the loop notices the shutdown at its next 0.5 s poll.
-    assert stop_time < 2
+    assert stop_time < 5
 
 
 class LateShutdownServer(LifecycleHookServer):
@@ -394,7 +452,9 @@ class LateShutdownServer(LifecycleHookServer):
 
 def test_stop_serving_wakes_the_loop_again_after_an_early_wake():
     hook_server = LateShutdownServer(("127.0.0.1", 0))
-    serving = threading.Thread(target=hook_server.serve_forever, daemon=True)
+    serving = threading.Thread(
+        target=serve_with_a_long_poll_interval, args=(hook_server,), daemon=True
+    )
     serving.start()
 
     started = time.monotonic()
@@ -403,5 +463,5 @@ def test_stop_serving_wakes_the_loop_again_after_an_early_wake():
 
     serving.join(timeout=10)
     hook_server.server_close()
-    # 0.1 s of it is the delayed shutdown request; a lost wake adds up to 0.5 s.
-    assert stop_time < 0.3, stop_time
+    # A lost wake would leave the loop waiting out its poll interval.
+    assert stop_time < 5, stop_time

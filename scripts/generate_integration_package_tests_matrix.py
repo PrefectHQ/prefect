@@ -31,6 +31,10 @@ CORE_FILES_USED_BY_INTEGRATIONS: dict[str, set[str]] = {
         "src/prefect/_internal/concurrency/services.py",
         "src/prefect/_internal/control_listener.py",
         "src/prefect/_internal/metrics.py",
+        "src/prefect/utilities/engine/__init__.py",
+        "src/prefect/logging/configuration.py",
+        "src/prefect/logging/handlers.py",
+        "src/prefect/events/worker.py",
     },
 }
 
