@@ -118,12 +118,9 @@ def supervise_flow_run(payload: RunHookPayload) -> int:
     Returns:
         The exit code for this process: 0 if the child exited 0, otherwise 1.
     """
-    # Blocked across the fork so that a SIGTERM arriving before the forwarding
-    # handler is installed waits for it instead of being lost. A stalled hook
-    # handler times out before `stop_serving`'s wait ends, so normally this thread
-    # is the only one that can take SIGTERM. A handler kept alive by a slow
-    # trickle of bytes, or any other thread with SIGTERM unblocked, could still
-    # take it.
+    # Blocked across the fork so a SIGTERM that arrives before the forwarding
+    # handler is installed waits for it instead of being lost. A hook handler still
+    # running past `stop_serving`'s wait, one trickling bytes, could take it instead.
     previous_signal_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
     try:
         child_pid = os.fork()

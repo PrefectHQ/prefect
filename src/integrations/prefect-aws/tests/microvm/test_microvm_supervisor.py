@@ -4,7 +4,7 @@ import signal
 import sys
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import FrameType
 from unittest.mock import MagicMock, create_autospec
@@ -229,6 +229,16 @@ def sigterm_is_blocked() -> bool:
     return signal.SIGTERM in signal.pthread_sigmask(signal.SIG_BLOCK, [])
 
 
+@pytest.fixture
+def restore_signal_mask() -> Iterator[None]:
+    mask_before_test = signal.pthread_sigmask(signal.SIG_BLOCK, [])
+    try:
+        yield
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, mask_before_test)
+
+
+@pytest.mark.usefixtures("restore_signal_mask")
 def test_child_gets_default_sigterm_unblocked_and_parent_mask_is_restored(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -282,6 +292,7 @@ def test_child_reseeds_random(monkeypatch: pytest.MonkeyPatch):
     assert child_random != parent_next_random
 
 
+@pytest.mark.usefixtures("restore_signal_mask")
 def test_fork_failure_propagates_and_unblocks_sigterm(monkeypatch: pytest.MonkeyPatch):
     assert not sigterm_is_blocked()
 
