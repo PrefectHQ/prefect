@@ -1,6 +1,7 @@
 import glob
 import logging
 import os
+import shutil
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -178,8 +179,36 @@ async def test_shell_run_command_throw_exception_on_nonzero_exit_code():
         await test_flow()
 
 
+# "café" appears literally in the script, so it is only 4 characters long if
+# PowerShell decodes the script as UTF-8; [char]0xE9 makes PowerShell write a
+# non-ASCII character that the caller has to decode.
+NON_ASCII_COMMAND = '$s = "café"; Write-Output $s.Length; Write-Output $s; [char]0xE9'
+NON_ASCII_OUTPUT = ["4", "café", "é"]
+
+
+async def test_shell_run_command_non_ascii_windows():
+    @flow
+    async def test_flow():
+        return await shell_run_command(
+            command=NON_ASCII_COMMAND, return_all=True, shell="powershell"
+        )
+
+    assert [line.rstrip() for line in await test_flow()] == NON_ASCII_OUTPUT
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="pwsh is not installed")
+async def test_shell_run_command_non_ascii_pwsh():
+    @flow
+    async def test_flow():
+        return await shell_run_command(
+            command=NON_ASCII_COMMAND, return_all=True, shell="pwsh", extension=".ps1"
+        )
+
+    assert [line.rstrip() for line in await test_flow()] == NON_ASCII_OUTPUT
+
+
 class AsyncIter:
-    def __init__(self, items):
+    def __init__(self, items, **kwargs):
         self.items = items
 
     async def __aiter__(self):
@@ -238,6 +267,22 @@ class TestShellOperation:
         assert "triggered with 1 commands running" in records[0].message
         assert "testing" in records[1].message
         assert "completed with return code 0" in records[2].message
+
+    @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_non_ascii(self, method):
+        op = ShellOperation(commands=[NON_ASCII_COMMAND])
+        assert await self.execute(op, method) == NON_ASCII_OUTPUT
+
+    @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_using_statement_first(self, method):
+        # PowerShell only accepts `using` statements at the top of a script.
+        op = ShellOperation(
+            commands=[
+                "using namespace System.Text",
+                "Write-Output ([StringBuilder]::new('ok')).ToString()",
+            ]
+        )
+        assert await self.execute(op, method) == ["ok"]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_current_env(self, method):
