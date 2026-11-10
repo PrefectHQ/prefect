@@ -53,21 +53,42 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.PREFECT_AWS_DOCKERHUB_TOKEN }}
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: "3.12"
+
+      - name: Classify the prefect-aws version
+        id: aws_version
+        run: |
+          uv run --no-project --with packaging python - <<'EOF'
+          import os
+
+          from packaging.version import Version
+
+          version = Version(os.environ["PREFECT_AWS_VERSION"])
+          stable = not (version.is_prerelease or version.is_postrelease or version.is_devrelease)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"minor={version.major}.{version.minor}\n")
+              output.write(f"stable={str(stable).lower()}\n")
+          EOF
+
       - name: Generate Docker metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: prefecthq/prefect-aws
-          # Every tag ends in -microvm so this image never overwrites a worker image tag.
+          # Every tag is a raw value ending in -microvm, so this image never
+          # overwrites a worker image tag.
           tags: |
             # Full version tag: prefect-aws-version-python-version-prefect-version-microvm
             type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python3.12-prefect${{ env.PREFECT_VERSION }}-microvm
             # Version with Python: prefect-aws-version-python-version-microvm
             type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python3.12-microvm
-            # Minor version with Python (only for stable releases, not rc or dev)
-            type=pep440,pattern={{major}}.{{minor}}-python3.12-microvm,value=${{ env.PREFECT_AWS_VERSION }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
-            # Latest (only for stable releases, not rc or dev)
-            type=raw,value=latest-microvm,enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            # Minor version with Python (only for a final prefect-aws release and a non-dev prefect)
+            type=raw,value=${{ steps.aws_version.outputs.minor }}-python3.12-microvm,enable=${{ steps.aws_version.outputs.stable == 'true' && !contains(env.PREFECT_VERSION, 'dev') }}
+            # Latest (only for a final prefect-aws release and a non-dev prefect)
+            type=raw,value=latest-microvm,enable=${{ steps.aws_version.outputs.stable == 'true' && !contains(env.PREFECT_VERSION, 'dev') }}
           flavor: |
             latest=false
 

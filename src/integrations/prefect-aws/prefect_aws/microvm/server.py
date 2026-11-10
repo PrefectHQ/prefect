@@ -119,6 +119,8 @@ class LifecycleHookServer(ThreadingHTTPServer):
         finally:
             shut_down.set()
             waker.join(timeout=WAKE_CONNECT_TIMEOUT_SECONDS + WAKE_INTERVAL_SECONDS)
+            if waker.is_alive():
+                logger.debug("The lifecycle hook server waker thread is still running.")
         with self._handlers_finished:
             finished = self._handlers_finished.wait_for(
                 lambda: self._active_handlers == 0, timeout=timeout

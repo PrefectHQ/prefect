@@ -351,8 +351,6 @@ def test_stop_serving_does_not_wait_out_the_poll_interval():
 def test_stop_serving_wakes_the_loop_through_the_loopback_address(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    # Binding sets the server name from a reverse DNS lookup, which can be slow.
-    monkeypatch.setattr(socket, "getfqdn", lambda name="": "localhost")
     hook_server = LifecycleHookServer(("0.0.0.0", 0))
     serving = threading.Thread(target=hook_server.serve_forever, daemon=True)
     serving.start()
