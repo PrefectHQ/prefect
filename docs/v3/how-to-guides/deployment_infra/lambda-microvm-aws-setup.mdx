@@ -21,6 +21,8 @@ This guide sets up the AWS side:
 - the **MicroVM image** that each flow run runs in
 
 The examples use `123456789012` as your AWS account ID and `us-east-2` as the region. Replace them with your own values.
+Lambda MicroVMs is available only in some AWS regions, so pick a region where it is available.
+`aws lambda-microvms list-managed-microvm-images --region <REGION>` succeeds only in a supported region.
 
 ## Create the OIDC identity provider
 
@@ -172,7 +174,15 @@ Without the CloudWatch Logs permissions below, the flow run's output never reach
 ```
 
 MicroVMs write to the log group `/aws/lambda-microvms/<IMAGE_NAME>` by default.
-If you set **Log Group** on the work pool, grant the same three actions on that log group instead.
+If you set **Log Group** on the work pool, grant the same three actions on that log group and its log streams instead.
+`logs:CreateLogStream` and `logs:PutLogEvents` authorize against the log stream's ARN, so the log group's ARN alone does not cover them:
+
+```json
+"Resource": [
+  "arn:aws:logs:us-east-2:123456789012:log-group:<LOG_GROUP>",
+  "arn:aws:logs:us-east-2:123456789012:log-group:<LOG_GROUP>:*"
+]
+```
 
 Add statements for anything your flows do in AWS, such as reading from S3 or writing to DynamoDB.
 
@@ -228,7 +238,9 @@ The build role reads the build zip from your S3 bucket and writes build logs to 
 }
 ```
 
-If your Dockerfile pulls its base image from a private Amazon ECR repository, also add these two statements:
+If your Dockerfile pulls its base image from a private Amazon ECR repository, the repository must be in the same AWS account as the MicroVM image.
+To use a base image from another account, replicate it into a repository in this account first.
+Add these two statements to the build role:
 
 ```json
 {
@@ -309,6 +321,7 @@ The image's command starts the process that answers the MicroVM lifecycle hooks 
 ### Create the image
 
 Lambda builds the image from a zip file in S3.
+The bucket must be in the same region as the MicroVM image, or the build fails with `S3_CROSS_REGION_ACCESS_DENIED`.
 Put the Dockerfile at the top level of the zip, next to the files it copies, and upload the zip to the bucket the build role can read:
 
 ```bash
@@ -338,6 +351,7 @@ Create the image with the build role and the ARM64 CPU configuration:
 
 ```bash
 aws lambda-microvms create-microvm-image \
+  --region us-east-2 \
   --name <IMAGE_NAME> \
   --code-artifact uri=s3://<BUILD_BUCKET>/my-flows.zip \
   --base-image-arn arn:aws:lambda:us-east-2:aws:microvm-image:al2023-1 \
@@ -346,10 +360,10 @@ aws lambda-microvms create-microvm-image \
   --hooks file://hooks.json
 ```
 
-`--base-image-arn` is the Lambda-managed base image. `aws lambda-microvms list-managed-microvm-images` lists the ones available in your region.
+`--base-image-arn` is the Lambda-managed base image. `aws lambda-microvms list-managed-microvm-images --region us-east-2` lists the ones available in your region.
 
 The command returns the image's ARN, and the build continues in the background.
-The image is ready when `aws lambda-microvms get-microvm-image --image-identifier <IMAGE_ARN> --query state --output text` returns `CREATED`.
+The image is ready when `aws lambda-microvms get-microvm-image --region us-east-2 --image-identifier <IMAGE_ARN> --query state --output text` returns `CREATED`.
 `CREATE_FAILED` means the build failed. Its logs are in CloudWatch Logs under `/aws/lambda-microvms/<IMAGE_NAME>`.
 
 ## Configure the work pool
