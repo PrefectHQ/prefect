@@ -138,6 +138,13 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
 
         <Note>
         If `PREFECT_API_URL` isn't set, Prefect starts a temporary server for each run instead of using the one you started, so your runs won't appear in the UI at `http://localhost:4200`.
+
+        `prefect config set` changes whichever profile is active. If you already use another profile, such as one for Prefect Cloud, create and switch to a separate profile for this tutorial before running the command above:
+        ```bash
+        prefect profile create quickstart
+        prefect profile use quickstart
+        ```
+        See [Profiles](/v3/concepts/settings-and-profiles#profiles) for more on managing them.
         </Note>
       </Step>
       <Step title="What code should run?">
