@@ -25,17 +25,29 @@ The examples use `123456789012` as your AWS account ID and `us-east-2` as the re
 ## Create the OIDC identity provider
 
 Create an OpenID Connect (OIDC) identity provider in your AWS account for Prefect Cloud's token issuer.
-You only need to do this once per AWS account. If you already created it for a [Prefect Managed work pool](/v3/how-to-guides/deployment_infra/managed-aws-federated-identity), reuse it.
+You only need to do this once per AWS account.
 
 ```bash
 aws iam create-open-id-connect-provider \
   --url https://api.prefect.cloud/oidc-provider \
-  --client-id-list prefect-cloud
+  --client-id-list prefect-cloud:lambda-microvm
 ```
 
-The provider URL is `https://api.prefect.cloud/oidc-provider` and the audience (client ID) is `prefect-cloud`.
+The provider URL is `https://api.prefect.cloud/oidc-provider`.
+Prefect Cloud issues Lambda MicroVM work pool tokens with the audience (client ID) `prefect-cloud:lambda-microvm`.
+AWS rejects a token whose audience is not in the provider's client ID list.
 The command returns an ARN like `arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider`.
 The submission role's trust policy uses this ARN.
+
+If the provider already exists, for example because you created it for a [Prefect Managed work pool](/v3/how-to-guides/deployment_infra/managed-aws-federated-identity), add the MicroVM audience to it:
+
+```bash
+aws iam add-client-id-to-open-id-connect-provider \
+  --open-id-connect-provider-arn arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider \
+  --client-id prefect-cloud:lambda-microvm
+```
+
+The provider keeps its existing `prefect-cloud` audience, so the roles that already trust it keep working.
 
 ## Create the submission role
 
@@ -43,7 +55,7 @@ Prefect Cloud assumes the submission role with `sts:AssumeRoleWithWebIdentity` e
 
 ### Trust policy
 
-The trust policy allows Prefect Cloud's OIDC provider to assume the role, and only with a token issued for your Prefect Cloud account:
+The trust policy allows Prefect Cloud's OIDC provider to assume the role, and only with a token issued for the Lambda MicroVM work pools of one Prefect Cloud workspace:
 
 ```json submission-role-trust-policy.json
 {
@@ -57,8 +69,8 @@ The trust policy allows Prefect Cloud's OIDC provider to assume the role, and on
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "api.prefect.cloud/oidc-provider:aud": "prefect-cloud",
-          "api.prefect.cloud/oidc-provider:sub": "prefect:account:<PREFECT_ACCOUNT_ID>"
+          "api.prefect.cloud/oidc-provider:aud": "prefect-cloud:lambda-microvm",
+          "api.prefect.cloud/oidc-provider:sub": "prefect:account:<PREFECT_ACCOUNT_ID>:workspace:<PREFECT_WORKSPACE_ID>"
         }
       }
     }
@@ -66,8 +78,11 @@ The trust policy allows Prefect Cloud's OIDC provider to assume the role, and on
 }
 ```
 
-Replace `<PREFECT_ACCOUNT_ID>` with your Prefect Cloud account ID.
-The token's subject is your Prefect Cloud account ID, so every workspace in the account can use this role.
+Replace `<PREFECT_ACCOUNT_ID>` and `<PREFECT_WORKSPACE_ID>` with your Prefect Cloud account ID and workspace ID.
+Both IDs are in the workspace's URL in Prefect Cloud: `https://app.prefect.cloud/account/<PREFECT_ACCOUNT_ID>/workspace/<PREFECT_WORKSPACE_ID>`.
+
+The role trusts only the Lambda MicroVM work pools of the one workspace it names.
+A workspace that needs its own Lambda MicroVM work pool gets its own submission role.
 
 ### Permissions policy
 
