@@ -9,7 +9,7 @@ hidden: true
 <span class="badge cloud"></span>
 
 A Lambda MicroVM push work pool runs each flow run in an [AWS Lambda MicroVM](https://docs.aws.amazon.com/lambda/latest/dg/lambda-microvms-guide.html) in your AWS account.
-Prefect Cloud starts, checks on, and stops the MicroVMs, so you do not run a worker.
+Prefect Cloud starts, polls, and stops the MicroVMs, so you do not run a worker.
 Prefect Cloud does not store AWS access keys for this. It assumes an IAM role in your account with short-lived OIDC credentials.
 
 This guide sets up the AWS side:
@@ -67,7 +67,7 @@ The trust policy allows Prefect Cloud's OIDC provider to assume the role, and on
 ```
 
 Replace `<PREFECT_ACCOUNT_ID>` with your Prefect Cloud account ID.
-The token's subject names the Prefect Cloud account, not a workspace, so every workspace in that account can use this role.
+The token's subject is your Prefect Cloud account ID, so every workspace in the account can use this role.
 
 ### Permissions policy
 
@@ -105,7 +105,7 @@ The submission role needs permission to run, get, and stop MicroVMs from your im
 }
 ```
 
-AWS authorizes `lambda:RunMicrovm`, `lambda:GetMicrovm`, and `lambda:TerminateMicrovm` against the MicroVM image, so the resource is the image ARN, not an ARN for each MicroVM.
+AWS authorizes `lambda:RunMicrovm`, `lambda:GetMicrovm`, and `lambda:TerminateMicrovm` against the MicroVM image, so the resource is the image ARN.
 To allow every image in the account and region, use `arn:aws:lambda:us-east-2:123456789012:microvm-image:*`.
 
 AWS attaches a default internet egress network connector to every MicroVM, so the submission role needs `lambda:PassNetworkConnector` even when the work pool sets no connectors.
@@ -213,13 +213,21 @@ The build role reads the build zip from your S3 bucket and writes build logs to 
 }
 ```
 
-If your image's base image is in a private Amazon ECR repository, also allow `ecr:GetAuthorizationToken`:
+If your Dockerfile pulls its base image from a private Amazon ECR repository, also add these two statements:
 
 ```json
 {
   "Effect": "Allow",
   "Action": "ecr:GetAuthorizationToken",
   "Resource": "*"
+},
+{
+  "Effect": "Allow",
+  "Action": [
+    "ecr:BatchGetImage",
+    "ecr:GetDownloadUrlForLayer"
+  ],
+  "Resource": "arn:aws:ecr:us-east-2:123456789012:repository/<ECR_REPOSITORY_NAME>"
 }
 ```
 
@@ -260,8 +268,12 @@ The image must contain your deployment's flow code and every Python package your
 Build your image `FROM` the `prefecthq/prefect-aws` MicroVM image. Its tags end in `-microvm`:
 
 - `latest-microvm` is the latest release.
+- `<MAJOR.MINOR>-python3.12-microvm` follows the latest release in a prefect-aws minor version.
 - `<PREFECT_AWS_VERSION>-python3.12-microvm` pins a prefect-aws version.
 - `<PREFECT_AWS_VERSION>-python3.12-prefect<PREFECT_VERSION>-microvm` pins both prefect-aws and Prefect.
+
+`latest-microvm` and the minor version tag move only when both the prefect-aws and Prefect versions are final releases.
+A pre-release, post-release, or development release does not move them.
 
 ```dockerfile Dockerfile
 FROM prefecthq/prefect-aws:latest-microvm
@@ -272,7 +284,11 @@ COPY flows/ /opt/prefect/flows/
 ```
 
 The image's working directory is `/opt/prefect`.
-Its command starts the process that answers the MicroVM lifecycle hooks and runs the flow run, so do not set `CMD` or `ENTRYPOINT` in your Dockerfile.
+The work pool resolves the deployment's entrypoint from this directory, so the example's `COPY flows/ /opt/prefect/flows/` pairs with an entrypoint like `flows/etl.py:etl`.
+If the deployment has exactly one pull step and it is `set_working_directory`, the work pool resolves the entrypoint from that step's directory instead, and that directory must exist in the image.
+A deployment with a storage block or other pull steps pulls its code at run time instead.
+
+The image's command starts the process that answers the MicroVM lifecycle hooks and runs the flow run, so do not set `CMD` or `ENTRYPOINT` in your Dockerfile.
 
 ### Create the image
 
@@ -317,7 +333,8 @@ aws lambda-microvms create-microvm-image \
 `--base-image-arn` is the Lambda-managed base image. `aws lambda-microvms list-managed-microvm-images` lists the ones available in your region.
 
 The command returns the image's ARN, and the build continues in the background.
-The image is ready when `aws lambda-microvms get-microvm-image --image-identifier <IMAGE_ARN> --query state` returns `CREATED`.
+The image is ready when `aws lambda-microvms get-microvm-image --image-identifier <IMAGE_ARN> --query state --output text` returns `CREATED`.
+`CREATE_FAILED` means the build failed. Its logs are in CloudWatch Logs under `/aws/lambda-microvms/<IMAGE_NAME>`.
 
 ## Configure the work pool
 
