@@ -130,6 +130,15 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
         ```
 
         Both commands start a server at [`http://localhost:4200`](http://localhost:4200). Keep this process running for this tutorial.
+
+        Then, in a new terminal window, point Prefect at your server so your flow runs show up in its UI. This saves the setting to your active [profile](/v3/concepts/settings-and-profiles), so you only need to do it once:
+        ```bash
+        prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+        ```
+
+        <Note>
+        If `PREFECT_API_URL` isn't set, Prefect starts a temporary server for each run instead of using the one you started, so your runs won't appear in the UI at `http://localhost:4200`.
+        </Note>
       </Step>
       <Step title="What code should run?">
         Let's start with a boring Python script that fetches a list of customer ids and processes them all in parallel. You can find this code and other examples hosted in our [quickstart repository](https://github.com/PrefectHQ/quickstart/blob/main/01_getting_started.py). 
