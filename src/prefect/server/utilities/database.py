@@ -781,3 +781,17 @@ def get_max_query_parameters() -> int:
         return 32_767
     else:
         return 999
+
+
+def is_unique_violation(exc: sa.exc.DBAPIError) -> bool:
+    """
+    Whether a database error is a unique constraint violation, on either
+    PostgreSQL (SQLSTATE 23505) or SQLite.
+    """
+    orig = exc.orig
+    if getattr(orig, "sqlstate", None) == "23505":
+        return True
+    return getattr(orig, "sqlite_errorname", None) in {
+        "SQLITE_CONSTRAINT_UNIQUE",
+        "SQLITE_CONSTRAINT_PRIMARYKEY",
+    }

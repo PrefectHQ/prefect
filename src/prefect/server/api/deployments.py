@@ -31,6 +31,7 @@ from prefect.server.schemas.responses import (
     FlowRunBulkCreateResponse,
     FlowRunCreateResult,
 )
+from prefect.server.utilities.database import is_unique_violation
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.types._datetime import now
@@ -1290,7 +1291,7 @@ async def create_deployment_schedules(
                 schedules=schedules,
             )
         except sa.exc.IntegrityError as e:
-            if "duplicate key value violates unique constraint" in str(e):
+            if is_unique_violation(e):
                 raise HTTPException(
                     status.HTTP_409_CONFLICT,
                     detail="Schedule slugs must be unique within a deployment.",
