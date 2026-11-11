@@ -319,6 +319,29 @@ class TestTransferDAG:
         # Should have TransferSkipped exception
         assert len([r for r in results.values() if isinstance(r, TransferSkipped)]) == 1
 
+    async def test_execute_processes_dependents_of_skipped_resource(self):
+        """A skipped resource already exists, so its dependents still run."""
+        dag = TransferDAG()
+        dependency = MockMigratableResource(
+            uuid.uuid4(), "dep_skip", migrate_success=False
+        )
+        root = MockMigratableResource(uuid.uuid4(), "root")
+        dag.add_node(dependency)
+        dag.add_node(root)
+        dag.add_edge(root.source_id, dependency.source_id)  # root depends on dependency
+
+        async def process_node(node: MigratableProtocol):
+            await node.migrate()
+            return "success"
+
+        results = await dag.execute_concurrent(process_node)
+
+        assert dependency.migrate_called
+        assert isinstance(results[dependency.source_id], TransferSkipped)
+        assert root.migrate_called
+        assert results[root.source_id] == "success"
+        assert dag._status[root.source_id].state == NodeState.COMPLETED
+
     async def test_execute_with_failed_resource(self):
         """Test execution with failed resource."""
         dag = TransferDAG()

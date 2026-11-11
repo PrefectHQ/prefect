@@ -256,6 +256,24 @@ class TransferDAG:
         limiter = anyio.CapacityLimiter(max_workers)
         processing: set[uuid.UUID] = set()
 
+        satisfied: set[uuid.UUID] = set()
+
+        def is_satisfied(nid: uuid.UUID) -> bool:
+            return self._status[nid].state == NodeState.COMPLETED or nid in satisfied
+
+        async def release_dependents(nid: uuid.UUID, tg: TaskGroup):
+            """Start dependents of `nid` whose dependencies are all satisfied."""
+            async with self._lock:
+                for did in self._status[nid].dependents:
+                    dst = self._status[did]
+                    if dst.state == NodeState.PENDING:
+                        if all(is_satisfied(d) for d in dst.dependencies):
+                            dst.state = NodeState.READY
+                            # Start the newly ready task immediately
+                            if did not in processing:
+                                processing.add(did)
+                                tg.start_soon(worker, did, tg)
+
         async def worker(nid: uuid.UUID, tg: TaskGroup):
             """Process a single node."""
             node = self.nodes[nid]
@@ -276,26 +294,18 @@ class TransferDAG:
                     self._status[nid].state = NodeState.COMPLETED
                     logger.debug(f"Completed {node}")
 
-                    # Mark dependents as ready if all their dependencies are satisfied
-                    async with self._lock:
-                        for did in self._status[nid].dependents:
-                            dst = self._status[did]
-                            if dst.state == NodeState.PENDING:
-                                if all(
-                                    self._status[d].state == NodeState.COMPLETED
-                                    for d in dst.dependencies
-                                ):
-                                    dst.state = NodeState.READY
-                                    # Start the newly ready task immediately
-                                    if did not in processing:
-                                        processing.add(did)
-                                        tg.start_soon(worker, did, tg)
+                    await release_dependents(nid, tg)
 
                 except TransferSkipped as e:
                     results[nid] = e
                     self._status[nid].state = NodeState.SKIPPED
                     self._status[nid].error = e
                     logger.debug(f"Skipped {node}: {e}")
+
+                    # A resource that raised TransferSkipped already exists at the
+                    # destination, so its dependents can still be processed.
+                    satisfied.add(nid)
+                    await release_dependents(nid, tg)
 
                 except Exception as e:
                     results[nid] = e
