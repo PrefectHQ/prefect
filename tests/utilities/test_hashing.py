@@ -1,5 +1,6 @@
 import enum
 import hashlib
+import tempfile
 import threading
 from dataclasses import dataclass
 from unittest.mock import MagicMock
@@ -152,6 +153,72 @@ class TestHashObjects:
         assert hash_objects(Payload(x=(1, 2, 3))) != hash_objects(Payload(x=[1, 2, 3]))
         assert hash_objects(Payload(x=(1, 2, 3))) == hash_objects(Payload(x=(1, 2, 3)))
 
+    def test_hash_objects_distinguishes_tuple_from_list_inside_dataclass_with_file_field(
+        self,
+    ):
+        """Regression test for review feedback on
+        https://github.com/PrefectHQ/prefect/pull/23819
+
+        `dataclasses.asdict` deep-copies field values, so a dataclass
+        holding a non-deepcopyable value raised inside the tagged encoder
+        and the whole hash failed, while the same input without the tuple
+        hashed fine on the legacy path. Dataclasses are now read field by
+        field, so the non-deepcopyable leaf no longer kills the tagged
+        encoding for its siblings.
+        """
+
+        @dataclass
+        class Payload:
+            x: object
+            res: object
+
+        with tempfile.TemporaryFile() as f:
+            assert hash_objects(Payload(x=(1, 2, 3), res=f)) != hash_objects(
+                Payload(x=[1, 2, 3], res=f)
+            )
+            assert hash_objects(Payload(x=(1, 2, 3), res=f)) == hash_objects(
+                Payload(x=(1, 2, 3), res=f)
+            )
+
+    def test_hash_objects_hashes_dataclass_with_file_field_next_to_tuple(self):
+        """Regression test for review feedback on
+        https://github.com/PrefectHQ/prefect/pull/23819
+
+        With a tuple sibling triggering the tagged path, `dataclasses.asdict`
+        raised on the file field and the hash came back None, even though
+        the same dataclass next to a list hashed fine on the legacy path.
+        """
+
+        @dataclass
+        class Payload:
+            x: object
+            res: object
+
+        with tempfile.TemporaryFile() as f:
+            assert (
+                hash_objects({"t": (1, 2), "d": Payload(x=(1, 2), res=f)}) is not None
+            )
+            assert hash_objects(
+                {"t": (1, 2), "d": Payload(x=(1, 2), res=f)}
+            ) != hash_objects({"t": [1, 2], "d": Payload(x=[1, 2], res=f)})
+
+    def test_hash_objects_returns_none_for_dataclass_holding_lock_next_to_tuple(self):
+        """A dataclass holding a threading.Lock next to a tuple still cannot
+        be hashed: neither the JSON encoder nor cloudpickle can represent a
+        lock. This matches main, where the same inputs also return None, so
+        it is not a regression from the tagged encoding.
+        """
+
+        @dataclass
+        class Payload:
+            x: object
+            lock: object
+
+        assert (
+            hash_objects({"t": (1, 2), "d": Payload(x=(1, 2), lock=threading.Lock())})
+            is None
+        )
+
     def test_hash_objects_distinguishes_tuple_from_list_in_later_sibling_model(self):
         """Regression test for Codex review on
         https://github.com/PrefectHQ/prefect/pull/23819
@@ -206,4 +273,3 @@ class TestHashObjects:
         assert hash_objects(Plain(name="a", count=1)) == hash_objects(
             Plain(name="a", count=1)
         )
-

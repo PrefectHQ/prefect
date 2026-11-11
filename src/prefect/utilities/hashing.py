@@ -50,11 +50,15 @@ def _encode_for_hashing(obj: Any) -> Any:
     encoder (or the cloudpickle fallback) exactly as before.
 
     Pydantic models and dataclasses are unwrapped through their
-    python-mode dump, which preserves container types (a tuple field stays
-    a tuple), so a model holding a tuple hashes differently from the same
-    model holding a list. The JSON-mode dump the serializer would use
-    normalizes both to arrays, which is exactly the collision this
-    encoding exists to prevent.
+    python-mode dump (models) or field by field (dataclasses), which
+    preserves container types (a tuple field stays a tuple), so a model
+    holding a tuple hashes differently from the same model holding a
+    list. The JSON-mode dump the serializer would use normalizes both
+    to arrays, which is exactly the collision this encoding exists to
+    prevent. Dataclass fields are read directly instead of going
+    through ``dataclasses.asdict`` so their values are never
+    deep-copied: a field holding a lock or a file must not break the
+    encoding of its siblings.
     """
     if obj is None:
         return {"__prefect_type__": "none", "value": None}
@@ -102,7 +106,12 @@ def _encode_for_hashing(obj: Any) -> Any:
         return {
             "__prefect_type__": "dataclass",
             "__class__": to_qualified_name(obj.__class__),
-            "data": _encode_for_hashing(dataclasses.asdict(obj)),
+            "data": _encode_for_hashing(
+                {
+                    field.name: getattr(obj, field.name)
+                    for field in dataclasses.fields(obj)
+                }
+            ),
         }
     return obj
 
@@ -132,11 +141,15 @@ def _contains_ambiguous_type(
     cannot represent are left for the serializer / cloudpickle fallback
     exactly as before.
 
-    Pydantic models and dataclasses are scanned through their python-mode
-    dump, which preserves container types: the JSON-mode dump the
-    serializer would use normalizes a tuple field and a list field to the
-    same array, so without this the tagged path would never trigger for
-    them and the collision would survive inside the wrapper.
+    Pydantic models are scanned through their python-mode dump and
+    dataclasses field by field, which preserves container types: the
+    JSON-mode dump the serializer would use normalizes a tuple field and
+    a list field to the same array, so without this the tagged path
+    would never trigger for them and the collision would survive inside
+    the wrapper. Dataclass fields are read directly instead of going
+    through ``dataclasses.asdict`` so their values are never
+    deep-copied: a field holding a lock or a file must not make the scan
+    miss the ambiguity in a sibling field.
 
     `_seen` records the ids of containers already visited so a cycle
     terminates. The dumps are temporary objects: once a dump is freed,
@@ -166,11 +179,12 @@ def _contains_ambiguous_type(
             return False
         _seen.add(id(obj))
         try:
-            as_dict = dataclasses.asdict(obj)
+            values = [getattr(obj, field.name) for field in dataclasses.fields(obj)]
         except Exception:
             return False
-        _keepalive.append(as_dict)
-        return _contains_ambiguous_type(as_dict, _seen, _keepalive)
+        return any(
+            _contains_ambiguous_type(value, _seen, _keepalive) for value in values
+        )
     if isinstance(obj, dict):
         if id(obj) in _seen:
             return False
@@ -286,4 +300,3 @@ def hash_objects(
         raise HashError(msg)
 
     return None
-
