@@ -4,12 +4,13 @@ Routes for interacting with Deployment objects.
 
 import datetime
 import logging
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from uuid import UUID
 
 import jsonschema.exceptions
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -62,6 +63,40 @@ def _multiple_schedules_error(deployment_id) -> HTTPException:
     )
 
 
+async def _hydrate_schedule_parameters(
+    session: AsyncSession,
+    schedules: Sequence[
+        schemas.actions.DeploymentScheduleCreate
+        | schemas.actions.DeploymentScheduleUpdate
+    ],
+) -> None:
+    """
+    Hydrate the parameter overrides of `schedules` in place, the same way
+    deployment parameters are hydrated, so that scheduled runs receive values
+    rather than the dehydrated form the UI sends.
+    """
+    schedules_with_parameters = [
+        schedule for schedule in schedules if schedule.parameters
+    ]
+    if not schedules_with_parameters:
+        return
+
+    try:
+        ctx = await HydrationContext.build(
+            session=session,
+            raise_on_error=True,
+            render_jinja=True,
+            render_workspace_variables=True,
+        )
+        for schedule in schedules_with_parameters:
+            schedule.parameters = hydrate(schedule.parameters, ctx)
+    except HydrationError as exc:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Error hydrating schedule parameters: {exc}",
+        )
+
+
 @router.post("/")
 async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
@@ -105,6 +140,8 @@ async def create_deployment(
                 work_pool,
                 deployment,
             )
+
+        await _hydrate_schedule_parameters(session, deployment.schedules)
 
         # hydrate the input model into a full model
         deployment_dict: dict = deployment.model_dump(
@@ -224,6 +261,8 @@ async def update_deployment(
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
+
+        await _hydrate_schedule_parameters(session, deployment.schedules)
 
         # Checking how we should handle schedule updates
         # If not all existing schedules have slugs then we'll fall back to the existing logic where are schedules are recreated to match the request.
@@ -1283,6 +1322,8 @@ async def create_deployment_schedules(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
 
+        await _hydrate_schedule_parameters(session, schedules)
+
         try:
             created = await models.deployments.create_deployment_schedules(
                 session=session,
@@ -1319,6 +1360,8 @@ async def update_deployment_schedule(
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
+
+        await _hydrate_schedule_parameters(session, [schedule])
 
         updated = await models.deployments.update_deployment_schedule(
             session=session,
