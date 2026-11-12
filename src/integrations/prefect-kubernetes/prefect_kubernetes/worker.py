@@ -188,6 +188,9 @@ if TYPE_CHECKING:
 # Captures flow return type
 R = TypeVar("R")
 
+# Bounds cleaning up per-job Secrets, which runs shielded from cancellation
+JOB_SECRET_CLEANUP_TIMEOUT_SECONDS = 30
+
 
 def _get_default_job_manifest_template() -> Dict[str, Any]:
     """Returns the default job manifest template used by the Kubernetes worker."""
@@ -1185,10 +1188,13 @@ class KubernetesWorker(
 
         try:
             if configuration.registry_credentials:
-                job_secret_names.append(
-                    await self._create_image_pull_secret(
-                        configuration=configuration, client=client
-                    )
+                # Tracked before the request, which may create the Secret and fail
+                pull_secret_name = self._job_secret_name(configuration, "pull")
+                job_secret_names.append(pull_secret_name)
+                await self._create_image_pull_secret(
+                    secret_name=pull_secret_name,
+                    configuration=configuration,
+                    client=client,
                 )
 
             batch_client = BatchV1Api(client)
@@ -1208,11 +1214,11 @@ class KubernetesWorker(
                         configuration.job_manifest,
                     )
         except BaseException as exc:
-            # No Job owns the per-job Secrets yet, so delete them on any failure,
+            # No Job owns the per-job Secrets yet, so clean them up on any failure,
             # including transport errors and cancellation.
-            with anyio.CancelScope(shield=True):
-                await self._delete_job_secrets(
-                    job_secret_names, configuration.namespace, client
+            with anyio.move_on_after(JOB_SECRET_CLEANUP_TIMEOUT_SECONDS, shield=True):
+                await self._clean_up_job_secrets(
+                    exc, job_secret_names, configuration, client
                 )
             if not isinstance(exc, ApiException):
                 raise
@@ -1231,12 +1237,25 @@ class KubernetesWorker(
                 f"Unable to create Kubernetes job{message}"
             ) from exc
 
-        for secret_name in job_secret_names:
+        await self._set_job_secret_owners(
+            job_secret_names, [job], configuration.namespace, client
+        )
+        return job
+
+    async def _set_job_secret_owners(
+        self,
+        secret_names: list[str],
+        jobs: list["V1Job"],
+        namespace: str,
+        client: "ApiClient",
+    ) -> None:
+        """Makes the Jobs the owners of the per-job Secrets."""
+        for secret_name in secret_names:
             try:
                 await self._set_secret_owner_reference(
                     secret_name=secret_name,
-                    namespace=configuration.namespace,
-                    job=job,
+                    namespace=namespace,
+                    jobs=jobs,
                     client=client,
                 )
             except Exception:
@@ -1246,22 +1265,95 @@ class KubernetesWorker(
                     secret_name,
                 )
 
-        return job
-
-    async def _delete_job_secrets(
-        self, secret_names: list[str], namespace: str, client: "ApiClient"
+    async def _clean_up_job_secrets(
+        self,
+        exc: BaseException,
+        secret_names: list[str],
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
     ) -> None:
-        """Deletes per-job Secrets after the Job could not be created."""
+        """Cleans up the per-job Secrets after Job creation failed.
+
+        A failure other than a rejection by the API server may have created the
+        Job anyway. The Secrets are then owned by any Job that references them,
+        and deleted only if there is none.
+        """
+        if not secret_names:
+            return
+        namespace = configuration.namespace
+        rejected = (
+            isinstance(exc, ApiException)
+            and exc.status is not None
+            and exc.status < 500
+        )
+        if not rejected:
+            try:
+                jobs = await self._jobs_referencing_secrets(
+                    secret_names, configuration, client
+                )
+            except Exception:
+                self._logger.warning(
+                    "Could not check whether the Job was created; keeping secrets %r, "
+                    "which a created Job may need.",
+                    secret_names,
+                )
+                return
+            if jobs:
+                await self._set_job_secret_owners(secret_names, jobs, namespace, client)
+                return
+
         for secret_name in secret_names:
             try:
                 await CoreV1Api(client).delete_namespaced_secret(
                     name=secret_name, namespace=namespace
                 )
+            except ApiException as delete_exc:
+                # The Secret's creation may have failed as well
+                if delete_exc.status != 404:
+                    self._logger.warning(
+                        "Failed to clean up secret %r after Job creation failure",
+                        secret_name,
+                    )
             except Exception:
                 self._logger.warning(
                     "Failed to clean up secret %r after Job creation failure",
                     secret_name,
                 )
+
+    async def _jobs_referencing_secrets(
+        self,
+        secret_names: list[str],
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
+    ) -> list["V1Job"]:
+        """The flow run's Jobs whose manifest references any of the Secrets."""
+        labels = configuration.job_manifest["metadata"].get("labels") or {}
+        flow_run_id = labels.get("prefect.io/flow-run-id")
+        if not flow_run_id:
+            return []
+        job_list = await BatchV1Api(client).list_namespaced_job(
+            namespace=configuration.namespace,
+            label_selector=f"prefect.io/flow-run-id={flow_run_id}",
+        )
+        # Secret names end in a random suffix, so a match is the submitted Job
+        return [
+            job
+            for job in job_list.items
+            if self._pod_secret_names(job) & set(secret_names)
+        ]
+
+    @staticmethod
+    def _pod_secret_names(job: "V1Job") -> set[str]:
+        """Names of the Secrets the Job's pod pulls images or env vars from."""
+        pod_spec = job.spec.template.spec
+        names = {ref.name for ref in pod_spec.image_pull_secrets or []}
+        for container in pod_spec.containers or []:
+            names.update(
+                source.secret_ref.name
+                for source in container.env_from or []
+                if source.secret_ref
+            )
+        return names
 
     async def _service_account_image_pull_secrets(
         self,
@@ -1295,14 +1387,15 @@ class KubernetesWorker(
 
     async def _create_image_pull_secret(
         self,
+        secret_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
-    ) -> str:
+    ) -> None:
         """Stores the job's registry credentials in a per-job image pull Secret.
 
         Adds the Secret to the pod's `imagePullSecrets`, after any the job
         manifest lists or, if it lists none, after those of the pod's
-        ServiceAccount, and returns its name.
+        ServiceAccount.
         """
         credentials = configuration.registry_credentials
         assert credentials is not None, "Expected registry credentials to be set"
@@ -1314,10 +1407,6 @@ class KubernetesWorker(
                 configuration, client
             )
 
-        generate_name = configuration.job_manifest["metadata"].get(
-            "generateName", "prefect-job-"
-        )
-        secret_name = f"{generate_name.rstrip('-')}-pull-{uuid.uuid4().hex[:8]}"
         secret = V1Secret(
             api_version="v1",
             kind="Secret",
@@ -1332,12 +1421,21 @@ class KubernetesWorker(
             # Secret string_data is automatically base64-encoded by the K8s API
             string_data={".dockerconfigjson": credentials.to_docker_config_json()},
         )
-        created = await CoreV1Api(client).create_namespaced_secret(
+        await CoreV1Api(client).create_namespaced_secret(
             namespace=configuration.namespace, body=secret
         )
 
-        pod_spec["imagePullSecrets"] = [*pull_secrets, {"name": created.metadata.name}]
-        return created.metadata.name
+        pod_spec["imagePullSecrets"] = [*pull_secrets, {"name": secret_name}]
+
+    @staticmethod
+    def _job_secret_name(
+        configuration: KubernetesWorkerJobConfiguration, kind: str
+    ) -> str:
+        """A unique name for a per-job Secret, based on the job's name."""
+        generate_name = configuration.job_manifest["metadata"].get(
+            "generateName", "prefect-job-"
+        )
+        return f"{generate_name.rstrip('-')}-{kind}-{uuid.uuid4().hex[:8]}"
 
     @staticmethod
     def _job_secret_labels(job_labels: dict[str, str] | None) -> dict[str, str]:
@@ -1437,10 +1535,10 @@ class KubernetesWorker(
         self,
         secret_name: str,
         namespace: str,
-        job: "V1Job",
+        jobs: list["V1Job"],
         client: "ApiClient",
     ) -> None:
-        """Patches the Secret to set the Job as its owner for automatic GC."""
+        """Patches the Secret to set the Jobs as its owners for automatic GC."""
         core_client = CoreV1Api(client)
         body = {
             "metadata": {
@@ -1451,6 +1549,7 @@ class KubernetesWorker(
                         "name": job.metadata.name,
                         "uid": job.metadata.uid,
                     }
+                    for job in jobs
                 ]
             }
         }

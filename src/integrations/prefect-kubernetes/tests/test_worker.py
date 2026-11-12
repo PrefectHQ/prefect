@@ -17,8 +17,13 @@ import pytest
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Pod
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import (
+    V1Container,
+    V1Job,
+    V1JobSpec,
     V1LocalObjectReference,
     V1ObjectMeta,
+    V1PodSpec,
+    V1PodTemplateSpec,
     V1Secret,
 )
 from kubernetes_asyncio.config import ConfigException
@@ -4277,7 +4282,13 @@ class TestRegistryCredentials:
         return FlowRun(flow_id=uuid.uuid4(), name="my-flow-run-name")
 
     @pytest.fixture
-    def pull_secret(self, mock_core_client):
+    def pull_secret(self, mock_core_client, monkeypatch):
+        monkeypatch.setattr(
+            KubernetesWorker,
+            "_job_secret_name",
+            staticmethod(lambda configuration, kind: f"test-{kind}-secret"),
+        )
+
         def create_secret(namespace, body):
             secret = MagicMock()
             secret.metadata.name = (
@@ -4362,7 +4373,6 @@ class TestRegistryCredentials:
         mock_watch,
         mock_pods_stream_that_returns_running_pod,
         mock_batch_client,
-        pull_secret,
     ):
         mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
 
@@ -4603,14 +4613,12 @@ class TestRegistryCredentials:
         self,
         flow_run,
         mock_core_client,
-        mock_watch,
-        mock_pods_stream_that_returns_running_pod,
         mock_batch_client,
         pull_secret,
         error,
     ):
-        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
         mock_batch_client.return_value.create_namespaced_job.side_effect = error
+        mock_batch_client.return_value.list_namespaced_job.return_value.items = []
 
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
             KubernetesWorker.get_default_base_job_template(),
@@ -4621,6 +4629,120 @@ class TestRegistryCredentials:
             with pytest.raises(type(error)):
                 await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
 
+        mock_batch_client.return_value.list_namespaced_job.assert_called_once_with(
+            namespace=configuration.namespace,
+            label_selector=f"prefect.io/flow-run-id={flow_run.id}",
+        )
+        mock_core_client.return_value.delete_namespaced_secret.assert_called_once_with(
+            name="test-pull-secret", namespace=configuration.namespace
+        )
+
+    async def test_job_created_despite_the_error_owns_the_secret(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+    ):
+        mock_batch_client.return_value.create_namespaced_job.side_effect = (
+            ConnectionError("response lost")
+        )
+        created_job = V1Job(
+            metadata=V1ObjectMeta(name="created-job", uid="created-uid"),
+            spec=V1JobSpec(
+                template=V1PodTemplateSpec(
+                    spec=V1PodSpec(
+                        containers=[V1Container(name="prefect-job")],
+                        image_pull_secrets=[
+                            V1LocalObjectReference(name="test-pull-secret")
+                        ],
+                    )
+                )
+            ),
+        )
+        other_job = V1Job(
+            metadata=V1ObjectMeta(name="other-job", uid="other-uid"),
+            spec=V1JobSpec(
+                template=V1PodTemplateSpec(
+                    spec=V1PodSpec(containers=[V1Container(name="prefect-job")])
+                )
+            ),
+        )
+        mock_batch_client.return_value.list_namespaced_job.return_value.items = [
+            other_job,
+            created_job,
+        ]
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            with pytest.raises(ConnectionError):
+                await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        mock_core_client.return_value.delete_namespaced_secret.assert_not_called()
+        patch_call = mock_core_client.return_value.patch_namespaced_secret.call_args
+        assert patch_call.kwargs["name"] == "test-pull-secret"
+        assert patch_call.kwargs["body"]["metadata"]["ownerReferences"] == [
+            {
+                "apiVersion": "batch/v1",
+                "kind": "Job",
+                "name": "created-job",
+                "uid": "created-uid",
+            }
+        ]
+
+    async def test_keeps_secret_when_the_job_cannot_be_checked(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+    ):
+        mock_batch_client.return_value.create_namespaced_job.side_effect = (
+            ConnectionError("connection lost")
+        )
+        mock_batch_client.return_value.list_namespaced_job.side_effect = (
+            ConnectionError("connection lost")
+        )
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            with pytest.raises(ConnectionError):
+                await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        mock_core_client.return_value.delete_namespaced_secret.assert_not_called()
+        mock_core_client.return_value.patch_namespaced_secret.assert_not_called()
+
+    async def test_cleans_up_secret_when_its_creation_fails_without_api_error(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+    ):
+        # The Secret may exist although the response was lost
+        mock_core_client.return_value.create_namespaced_secret.side_effect = (
+            ConnectionError("response lost")
+        )
+        mock_batch_client.return_value.list_namespaced_job.return_value.items = []
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            with pytest.raises(ConnectionError):
+                await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        mock_batch_client.return_value.create_namespaced_job.assert_not_called()
         mock_core_client.return_value.delete_namespaced_secret.assert_called_once_with(
             name="test-pull-secret", namespace=configuration.namespace
         )
