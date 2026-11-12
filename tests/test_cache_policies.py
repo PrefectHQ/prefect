@@ -275,6 +275,8 @@ class TestInputsPolicy:
             "pd.DataFrame({'b': [10, 20], 'a': [1, 2]})",
             "pd.DataFrame(index=[3, 4, 5])",
             "pd.DataFrame(index=pd.MultiIndex.from_tuples([('a', 1), ('b', 2)]))",
+            "pd.DataFrame(index=pd.Index([3, 4], name='row'))",
+            "pd.DataFrame(index=pd.date_range('2024-01-01', periods=2, tz='UTC'))",
         ],
     )
     def test_dataframe_key_is_stable_across_processes(self, frame_source: str):
