@@ -4834,6 +4834,34 @@ class TestRegistryCredentials:
             name="test-pull-secret", namespace=configuration.namespace
         )
 
+    async def test_existing_secret_with_the_same_name_is_left_alone(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+    ):
+        # The generated name is already taken by another job's Secret
+        mock_core_client.return_value.create_namespaced_secret.side_effect = (
+            ApiException(status=409, reason="AlreadyExists")
+        )
+        mock_batch_client.return_value.list_namespaced_job.return_value.items = [
+            self._job("other-job", image_pull_secret="test-pull-secret"),
+        ]
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            with pytest.raises(InfrastructureError, match="AlreadyExists"):
+                await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        mock_batch_client.return_value.create_namespaced_job.assert_not_called()
+        mock_core_client.return_value.delete_namespaced_secret.assert_not_called()
+        mock_core_client.return_value.patch_namespaced_secret.assert_not_called()
+
     async def test_secret_creation_failure_is_an_infrastructure_error(
         self,
         flow_run,

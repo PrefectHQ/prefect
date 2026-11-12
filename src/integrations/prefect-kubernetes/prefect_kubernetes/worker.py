@@ -1191,11 +1191,17 @@ class KubernetesWorker(
                 # Tracked before the request, which may create the Secret and fail
                 pull_secret_name = self._job_secret_name(configuration, "pull")
                 job_secret_names.append(pull_secret_name)
-                await self._create_image_pull_secret(
-                    secret_name=pull_secret_name,
-                    configuration=configuration,
-                    client=client,
-                )
+                try:
+                    await self._create_image_pull_secret(
+                        secret_name=pull_secret_name,
+                        configuration=configuration,
+                        client=client,
+                    )
+                except ApiException as exc:
+                    # Rejected, so not created here; a 409 means another job's Secret
+                    if exc.status is not None and exc.status < 500:
+                        job_secret_names.remove(pull_secret_name)
+                    raise
 
             batch_client = BatchV1Api(client)
             retry_settings = settings.worker.create_job_retry
