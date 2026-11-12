@@ -189,13 +189,11 @@ def Interval(
     """
     if isinstance(interval, (float, int)):
         interval = datetime.timedelta(seconds=interval)
-    if anchor_date is None:
-        anchor_date = _UNSET
     if parameters is None:
         parameters = {}
     return Schedule(
         interval=interval,
-        anchor_date=anchor_date,
+        anchor_date=_UNSET if anchor_date is None else anchor_date,
         timezone=timezone,
         active=active,
         parameters=parameters,
