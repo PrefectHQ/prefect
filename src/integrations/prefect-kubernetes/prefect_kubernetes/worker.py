@@ -1188,20 +1188,11 @@ class KubernetesWorker(
 
         try:
             if configuration.registry_credentials:
-                # Tracked before the request, which may create the Secret and fail
-                pull_secret_name = self._job_secret_name(configuration, "pull")
-                job_secret_names.append(pull_secret_name)
-                try:
-                    await self._create_image_pull_secret(
-                        secret_name=pull_secret_name,
-                        configuration=configuration,
-                        client=client,
-                    )
-                except ApiException as exc:
-                    # Rejected, so not created here; a 409 means another job's Secret
-                    if exc.status is not None and exc.status < 500:
-                        job_secret_names.remove(pull_secret_name)
-                    raise
+                await self._create_image_pull_secret(
+                    configuration=configuration,
+                    client=client,
+                    job_secret_names=job_secret_names,
+                )
 
             batch_client = BatchV1Api(client)
             retry_settings = settings.worker.create_job_retry
@@ -1221,10 +1212,9 @@ class KubernetesWorker(
                     )
         except BaseException as exc:
             # Also on transport errors and cancellation, after which Jobs may exist
-            with anyio.move_on_after(JOB_SECRET_CLEANUP_TIMEOUT_SECONDS, shield=True):
-                await self._settle_job_secrets(
-                    job_secret_names, None, configuration, client
-                )
+            await self._settle_job_secrets_in_time(
+                job_secret_names, None, configuration, client
+            )
             if not isinstance(exc, ApiException):
                 raise
 
@@ -1242,8 +1232,9 @@ class KubernetesWorker(
                 f"Unable to create Kubernetes job{message}"
             ) from exc
 
-        with anyio.move_on_after(JOB_SECRET_CLEANUP_TIMEOUT_SECONDS, shield=True):
-            await self._settle_job_secrets(job_secret_names, job, configuration, client)
+        await self._settle_job_secrets_in_time(
+            job_secret_names, job, configuration, client
+        )
         return job
 
     async def _set_job_secret_owners(
@@ -1269,6 +1260,28 @@ class KubernetesWorker(
                     secret_name,
                 )
 
+    async def _settle_job_secrets_in_time(
+        self,
+        secret_names: list[str],
+        created_job: "V1Job | None",
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
+    ) -> None:
+        """Settles the per-job Secrets, shielded from cancellation and bounded."""
+        with anyio.move_on_after(
+            JOB_SECRET_CLEANUP_TIMEOUT_SECONDS, shield=True
+        ) as scope:
+            await self._settle_job_secrets(
+                secret_names, created_job, configuration, client
+            )
+        if scope.cancelled_caught:
+            self._logger.warning(
+                "Timed out after %ss settling secrets %r; they may lack an owner "
+                "and outlive their Job.",
+                JOB_SECRET_CLEANUP_TIMEOUT_SECONDS,
+                secret_names,
+            )
+
     async def _settle_job_secrets(
         self,
         secret_names: list[str],
@@ -1286,6 +1299,11 @@ class KubernetesWorker(
         if not secret_names:
             return
         namespace = configuration.namespace
+        if created_job is not None:
+            # The known owner first, in case looking up the others runs out of time
+            await self._set_job_secret_owners(
+                secret_names, [created_job], namespace, client
+            )
         try:
             jobs = await self._jobs_referencing_secrets(
                 secret_names, configuration, client
@@ -1297,12 +1315,14 @@ class KubernetesWorker(
                     "which a created Job may need.",
                     secret_names,
                 )
+            return
+        if created_job is not None:
+            if all(job.metadata.uid == created_job.metadata.uid for job in jobs):
                 return
-            jobs = []
-        if created_job is not None and created_job.metadata.uid not in {
-            job.metadata.uid for job in jobs
-        }:
-            jobs.append(created_job)
+            jobs = [
+                created_job,
+                *(job for job in jobs if job.metadata.uid != created_job.metadata.uid),
+            ]
         if jobs:
             await self._set_job_secret_owners(secret_names, jobs, namespace, client)
             return
@@ -1395,15 +1415,15 @@ class KubernetesWorker(
 
     async def _create_image_pull_secret(
         self,
-        secret_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
+        job_secret_names: list[str],
     ) -> None:
         """Stores the job's registry credentials in a per-job image pull Secret.
 
-        Adds the Secret to the pod's `imagePullSecrets`, after any the job
-        manifest lists or, if it lists none, after those of the pod's
-        ServiceAccount.
+        Adds the Secret to `job_secret_names` while this call may have created
+        it, and to the pod's `imagePullSecrets`, after any the job manifest lists
+        or, if it lists none, after those of the pod's ServiceAccount.
         """
         credentials = configuration.registry_credentials
         assert credentials is not None, "Expected registry credentials to be set"
@@ -1415,6 +1435,7 @@ class KubernetesWorker(
                 configuration, client
             )
 
+        secret_name = self._job_secret_name(configuration, "pull")
         secret = V1Secret(
             api_version="v1",
             kind="Secret",
@@ -1429,9 +1450,17 @@ class KubernetesWorker(
             # Secret string_data is automatically base64-encoded by the K8s API
             string_data={".dockerconfigjson": credentials.to_docker_config_json()},
         )
-        await CoreV1Api(client).create_namespaced_secret(
-            namespace=configuration.namespace, body=secret
-        )
+        # Tracked before the request, which may create the Secret and still fail
+        job_secret_names.append(secret_name)
+        try:
+            await CoreV1Api(client).create_namespaced_secret(
+                namespace=configuration.namespace, body=secret
+            )
+        except ApiException as exc:
+            # Rejected, so not created here; a 409 means another job's Secret
+            if exc.status is not None and exc.status < 500:
+                job_secret_names.remove(secret_name)
+            raise
 
         pod_spec["imagePullSecrets"] = [*pull_secrets, {"name": secret_name}]
 

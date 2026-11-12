@@ -4598,6 +4598,8 @@ class TestRegistryCredentials:
 
         mock_core_client.return_value.create_namespaced_secret.assert_not_called()
         mock_batch_client.return_value.create_namespaced_job.assert_not_called()
+        # Never created, so a Secret of the same name belongs to another job
+        mock_core_client.return_value.delete_namespaced_secret.assert_not_called()
 
     async def test_sets_job_as_owner(
         self,
@@ -4777,8 +4779,42 @@ class TestRegistryCredentials:
 
         patch_call = mock_core_client.return_value.patch_namespaced_secret.call_args
         assert patch_call.kwargs["body"]["metadata"]["ownerReferences"] == [
-            self._owner("lost-job"),
             self._owner("returned-job"),
+            self._owner("lost-job"),
+        ]
+
+    async def test_returned_job_owns_the_secret_when_the_lookup_times_out(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "prefect_kubernetes.worker.JOB_SECRET_CLEANUP_TIMEOUT_SECONDS", 0.1
+        )
+        mock_batch_client.return_value.create_namespaced_job.return_value = self._job(
+            "returned-job", image_pull_secret="test-pull-secret"
+        )
+
+        async def hang(*args, **kwargs):
+            await anyio.sleep_forever()
+
+        mock_batch_client.return_value.list_namespaced_job.side_effect = hang
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            job = await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        assert job.metadata.name == "returned-job"
+        patch_call = mock_core_client.return_value.patch_namespaced_secret.call_args
+        assert patch_call.kwargs["body"]["metadata"]["ownerReferences"] == [
+            self._owner("returned-job")
         ]
 
     async def test_keeps_secret_when_the_job_cannot_be_checked(
