@@ -410,8 +410,12 @@ class TestUpdateDeploymentSchedule:
                 {"__prefect_kind": "json", "value": "[1, 2]"},
                 "Parameters must be a JSON object",
             ),
+            (
+                {"x": {"__prefect_kind": []}},
+                "Invalid __prefect_kind: expected a string, got []",
+            ),
         ],
-        ids=["invalid-json", "not-an-object"],
+        ids=["invalid-json", "not-an-object", "non-string-kind"],
     )
     async def test_update_with_parameters_that_fail_to_hydrate(
         self,

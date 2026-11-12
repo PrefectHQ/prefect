@@ -5,6 +5,7 @@ from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     InvalidJinja,
     InvalidJSON,
+    InvalidPrefectKind,
     TemplateNotFound,
     ValidJinja,
     ValueNotFound,
@@ -75,6 +76,29 @@ class TestHydrateRaiseOnError:
         values = {"param": {"__prefect_kind": "none", "value": "5"}}
 
         hydrate(values, ctx=HydrationContext(raise_on_error=False))
+
+
+class TestHydrateWithNonStringPrefectKind:
+    @pytest.mark.parametrize(
+        "kind", [[], {}, 1, None], ids=["list", "dict", "int", "none"]
+    )
+    def test_hydrate_returns_error(self, kind: object):
+        assert hydrate({"param": {"__prefect_kind": kind, "value": "hello"}}) == {
+            "param": InvalidPrefectKind(detail=f"expected a string, got {kind!r}")
+        }
+
+    @pytest.mark.parametrize(
+        "kind", [[], {}, 1, None], ids=["list", "dict", "int", "none"]
+    )
+    def test_hydrate_raises_error(self, kind: object):
+        with pytest.raises(InvalidPrefectKind) as exc:
+            hydrate(
+                {"param": {"__prefect_kind": kind, "value": "hello"}},
+                ctx=HydrationContext(raise_on_error=True),
+            )
+        assert (
+            str(exc.value) == f"Invalid __prefect_kind: expected a string, got {kind!r}"
+        )
 
 
 class TestHydrateWithNonePrefectKind:
