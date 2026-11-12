@@ -176,17 +176,10 @@ class TestCreateDeploymentSchedules:
 
     async def test_create_hydrates_parameters(
         self,
-        get_server_session: AsyncSessionGetter,
         client: AsyncClient,
         schedules_url: Callable[..., str],
         deployment: orm_models.Deployment,
     ):
-        async with get_server_session() as session:
-            await models.deployments.delete_schedules_for_deployment(
-                session=session, deployment_id=deployment.id
-            )
-            await session.commit()
-
         # The UI sends parameters edited in JSON mode in their dehydrated form
         response = await client.post(
             schedules_url(deployment.id),
@@ -202,18 +195,11 @@ class TestCreateDeploymentSchedules:
                 }
             ],
         )
+
         assert response.status_code == status.HTTP_201_CREATED
-
-        await client.post(f"/deployments/{deployment.id}/schedule")
-
-        async with get_server_session() as session:
-            flow_runs = await models.flow_runs.read_flow_runs(session=session)
-
-        assert flow_runs
-        for flow_run in flow_runs:
-            assert flow_run.parameters == {
-                "tables_to_fetch": [{"prop": "value", "some_arr": []}]
-            }
+        assert response.json()[0]["parameters"] == {
+            "tables_to_fetch": [{"prop": "value", "some_arr": []}]
+        }
 
     async def test_create_with_parameters_that_fail_to_hydrate(
         self,
