@@ -16,7 +16,7 @@ from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from time import sleep
-from typing import Any, Coroutine, Generator, List, Union
+from typing import Any, Callable, Coroutine, Generator, List, Union
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -2123,6 +2123,37 @@ class TestRunnerDeployment:
             assert updated.schedules[0].active is True
             if expected_cron == "0 4 * * *":
                 assert updated.schedules[0].id == before.schedules[0].id
+
+    @pytest.mark.parametrize(
+        "schedule_kwargs",
+        [
+            pytest.param(lambda: {"cron": "10 * * * *"}, id="cron"),
+            pytest.param(lambda: {"interval": 3600}, id="interval"),
+            pytest.param(lambda: {"schedule": Cron("10 * * * *")}, id="Cron"),
+            pytest.param(lambda: {"schedule": Interval(3600)}, id="Interval"),
+        ],
+    )
+    async def test_aapply_keeps_paused_schedule_paused(
+        self,
+        prefect_client: PrefectClient,
+        schedule_kwargs: Callable[[], dict[str, Any]],
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        deployment_id = await RunnerDeployment.from_flow(
+            dummy_flow_1, name="paused-schedule", **schedule_kwargs()
+        ).aapply()
+        (schedule,) = (await prefect_client.read_deployment(deployment_id)).schedules
+        await prefect_client.update_deployment_schedule(
+            deployment_id, schedule.id, active=False
+        )
+
+        # redeploy the same code
+        await RunnerDeployment.from_flow(
+            dummy_flow_1, name="paused-schedule", **schedule_kwargs()
+        ).aapply()
+
+        (schedule,) = (await prefect_client.read_deployment(deployment_id)).schedules
+        assert schedule.active is False
 
     @pytest.mark.parametrize("sync", [False, True])
     @pytest.mark.parametrize("clear_schedules", [False, True])

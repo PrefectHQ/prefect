@@ -1,5 +1,5 @@
 import datetime
-from typing import List
+from typing import Any, List
 from unittest import mock
 from uuid import uuid4
 
@@ -1249,6 +1249,39 @@ class TestCreateDeployment:
         assert response.status_code == 200
         assert response.json().get("schedules") == []
 
+    async def test_upsert_deployment_keeps_active_state_of_unchanged_schedules(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        data = {
+            "name": "My Deployment",
+            "flow_id": str(flow.id),
+            # schedules without slugs that only differ in their parameters
+            "schedules": [
+                {"schedule": {"cron": "0 9 * * *"}, "parameters": {"x": 1}},
+                {"schedule": {"cron": "0 9 * * *"}, "parameters": {"x": 2}},
+            ],
+        }
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+        ids = {s["parameters"]["x"]: s["id"] for s in response.json()["schedules"]}
+        response = await client.patch(
+            f"/deployments/{deployment_id}/schedules/{ids[1]}", json={"active": False}
+        )
+        assert response.status_code == 204
+
+        # upsert the same schedules without `active`
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 200, response.text
+
+        assert {
+            schedule["parameters"]["x"]: schedule["active"]
+            for schedule in response.json()["schedules"]
+        } == {1: False, 2: True}
+
     async def test_create_deployment_with_oversized_parameters_returns_422(
         self,
         client: AsyncClient,
@@ -2395,7 +2428,7 @@ class TestUpdateDeployment:
         client,
         flow,
     ):
-        """When a schedule is provided without active or a slug, active should default to true."""
+        """A changed schedule provided without active or a slug defaults to active."""
         schedule1 = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
@@ -2443,6 +2476,89 @@ class TestUpdateDeployment:
         assert response.status_code == 200
         assert len(response.json()["schedules"]) == 1
         assert response.json()["schedules"][0]["active"] is True
+
+    @pytest.mark.parametrize(
+        "created, redeployed, expected_active",
+        [
+            pytest.param(
+                {"cron": "10 * * * *"},
+                {"schedule": {"cron": "10 * * * *"}},
+                False,
+                id="unchanged",
+            ),
+            pytest.param(
+                {"cron": "10 * * * *"},
+                {"schedule": {"cron": "10 * * * *"}, "active": True},
+                True,
+                id="explicit-active",
+            ),
+            # without an `anchor_date`, an interval is anchored when it's saved
+            pytest.param(
+                {"interval": 3600},
+                {"schedule": {"interval": 3600}},
+                False,
+                id="generated-anchor-date",
+            ),
+            pytest.param(
+                {"interval": 3600, "anchor_date": "2026-01-01T09:00Z"},
+                {"schedule": {"interval": 3600, "anchor_date": "2026-01-01T09:00Z"}},
+                False,
+                id="unchanged-anchor-date",
+            ),
+            pytest.param(
+                {"interval": 3600, "anchor_date": "2026-01-01T09:00Z"},
+                {"schedule": {"interval": 3600, "anchor_date": "2026-01-01T09:30Z"}},
+                True,
+                id="changed-anchor-date",
+            ),
+            # a bare minutely rrule gets a recent `DTSTART` that moves with each deploy
+            pytest.param(
+                {"rrule": "DTSTART:20261110T080000\nRRULE:FREQ=MINUTELY"},
+                {"schedule": {"rrule": "DTSTART:20261112T190500\nRRULE:FREQ=MINUTELY"}},
+                False,
+                id="generated-dtstart",
+            ),
+            pytest.param(
+                {"rrule": "DTSTART:20261110T080000\nRRULE:FREQ=MINUTELY"},
+                {"schedule": {"rrule": "DTSTART:20261112T190530\nRRULE:FREQ=MINUTELY"}},
+                True,
+                id="changed-dtstart",
+            ),
+        ],
+    )
+    async def test_update_deployment_keeps_active_state_of_unchanged_schedules(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+        created: dict[str, Any],
+        redeployed: dict[str, Any],
+        expected_active: bool,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "schedules": [{"schedule": created}],
+            },
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+        (schedule,) = response.json()["schedules"]
+        response = await client.patch(
+            f"/deployments/{deployment_id}/schedules/{schedule['id']}",
+            json={"active": False},
+        )
+        assert response.status_code == 204
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}", json={"schedules": [redeployed]}
+        )
+        assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert [s["active"] for s in response.json()["schedules"]] == [expected_active]
 
     async def test_update_deployment_with_multiple_schedules_and_existing_slugs_422(
         self,

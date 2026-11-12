@@ -1,18 +1,21 @@
 import datetime
-from typing import Optional
+from typing import Optional, Union
 
 import pytest
 
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
+    SCHEDULE_TYPES,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
+    construct_schedule,
 )
 from prefect.deployments.schedules import (
     create_deployment_schedule_create,
     normalize_to_deployment_schedule,
 )
+from prefect.schedules import Cron, Interval, RRule, Schedule
 from prefect.server.schemas.schedules import CronSchedule as ServerCronSchedule
 
 
@@ -26,6 +29,29 @@ def test_create_deployment_schedule_create(active: Optional[bool], expected: boo
     )
     assert schedule.schedule.cron == "0 0 * * *"
     assert schedule.active is expected
+    assert ("active" in schedule.model_fields_set) is (active is not None)
+
+
+@pytest.mark.parametrize(
+    "schedule, expected_sent",
+    [
+        (CronSchedule(cron="0 0 * * *"), set()),
+        (construct_schedule(interval=3600), set()),
+        (Cron("0 0 * * *"), set()),
+        (Cron("0 0 * * *", active=True), {"active"}),
+        (Interval(3600), set()),
+        (Interval(3600, anchor_date=datetime.datetime(2026, 1, 1)), {"anchor_date"}),
+        (RRule("RRULE:FREQ=DAILY", active=False), {"active"}),
+    ],
+)
+def test_normalize_sends_only_values_the_caller_set(
+    schedule: Union[SCHEDULE_TYPES, Schedule], expected_sent: set[str]
+):
+    # Redeploys send schedules with `exclude_unset=True`, so values the caller
+    # didn't set don't override the server's, e.g. a paused schedule (#19302)
+    (normalized,) = normalize_to_deployment_schedule([schedule])
+    payload = normalized.model_dump(exclude_unset=True)
+    assert {"active", "anchor_date"} & {*payload, *payload["schedule"]} == expected_sent
 
 
 def test_normalize_none_returns_empty_list():
