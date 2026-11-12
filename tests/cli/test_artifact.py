@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -14,6 +15,13 @@ pytestmark = pytest.mark.clear_db
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+# `artifact ls` renders `updated` relative to the wall clock at render time, and
+# CLI startup can take over a second under CI load, so accept any recent value
+# rather than only the sub-second rendering ("now" / "a few seconds ago").
+RECENTLY_UPDATED = re.compile(
+    r"\b(now|a few seconds ago|a second ago|\d+ seconds ago)\b"
+)
 
 
 @pytest.fixture(autouse=True)
@@ -107,15 +115,15 @@ def test_listing_artifacts_after_creating_artifacts(
     assert artifact.key is not None, "artifact key should not be None"
     assert artifact.updated is not None, "artifact updated should not be None"
 
-    invoke_and_assert(
+    result = invoke_and_assert(
         ["artifact", "ls"],
         expected_output_contains=[
             str(artifact.id),
             str(artifact.key),
             str(artifact.type),
-            "a few seconds ago" if sys.version_info < (3, 13) else "now",
         ],
     )
+    assert RECENTLY_UPDATED.search(result.stdout), result.stdout
 
 
 def test_listing_artifacts_after_creating_artifacts_with_null_fields(
@@ -126,14 +134,14 @@ def test_listing_artifacts_after_creating_artifacts_with_null_fields(
     assert artifact.key is not None, "artifact key should not be None"
     assert artifact.updated is not None, "artifact updated should not be None"
 
-    invoke_and_assert(
+    result = invoke_and_assert(
         ["artifact", "ls"],
         expected_output_contains=[
             str(artifact.id),
             str(artifact.key),
-            "a few seconds ago" if sys.version_info < (3, 13) else "now",
         ],
     )
+    assert RECENTLY_UPDATED.search(result.stdout), result.stdout
 
 
 def test_listing_artifacts_with_limit(
