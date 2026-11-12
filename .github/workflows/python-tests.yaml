@@ -161,20 +161,17 @@ jobs:
           - id: runner-worker-settings-input-cli
             name: Runner, Worker, Settings, Input, and CLI Tests
             modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
+        # Postgres runs duration-balanced groups in run-canonical-tests
+        # instead of these static test types.
         database:
-          - "postgres:14"
           - "sqlite"
-        python-version:
+        python-version: &python-test-versions
           - "3.11"
           - "3.12"
           - "3.13"
           - "3.14"
           - "3.15"
         exclude:
-          # The canonical Python 3.12/Postgres lane uses duration-balanced
-          # groups in run-canonical-tests instead of these static test types.
-          - database: "postgres:14"
-            python-version: "3.12"
           - database: "sqlite"
             test-type:
               id: client-modules
@@ -339,7 +336,7 @@ jobs:
     needs: prepare-canonical-test-durations
     runs-on: ubuntu-latest
     name: >-
-      Canonical Tests: group ${{ matrix.group }}/18 - python:3.12, postgres:14
+      Canonical Tests: group ${{ matrix.group }}/18 - python:${{ matrix.python-version }}, postgres:14
     timeout-minutes: 15
 
     services: *python-test-services
@@ -349,7 +346,7 @@ jobs:
       matrix:
         group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
         database: ["postgres:14"]
-        python-version: ["3.12"]
+        python-version: *python-test-versions
 
     steps:
       - *python-test-checkout
@@ -398,10 +395,13 @@ jobs:
           echo "exit_code=${pytest_exit_code}" >> "$GITHUB_OUTPUT"
           exit "$pytest_exit_code"
 
+      # Every Python version splits with the Python 3.12 baseline, but only
+      # Python 3.12 publishes group durations for the merged cache.
       - name: Validate group test durations
         id: validate_canonical_durations
         if: >-
           ${{ !cancelled()
+          && matrix.python-version == '3.12'
           && (steps.canonical_tests.outputs.exit_code == '0'
           || steps.canonical_tests.outputs.exit_code == '1') }}
         run: |
