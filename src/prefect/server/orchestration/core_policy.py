@@ -958,13 +958,20 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         # renewing its lease while it waits for the run to resume, so the run
         # keeps its slot. Revoking the lease here would fail the engine's next
         # renewal and cancel the paused run. A reschedule-style pause
-        # (`suspend_flow_run`) exits the process, so its slot is released.
+        # (`suspend_flow_run`) exits the process, so its slot is released. So
+        # is the slot of a run whose lease is already gone (for example, one
+        # revoked for an old client), so that a paused run holds its slot only
+        # through a live lease.
         if (
             proposed_state_type == states.StateType.PAUSED
             and context.proposed_state
             and not context.proposed_state.state_details.pause_reschedule
             and context.initial_state
-            and context.initial_state.state_details.deployment_concurrency_lease_id
+            and (
+                lease_id
+                := context.initial_state.state_details.deployment_concurrency_lease_id
+            )
+            and await get_concurrency_lease_storage().read_lease(lease_id=lease_id)
         ):
             return
 
@@ -980,7 +987,13 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
                 session=context.session,
                 deployment_id=context.run.deployment_id,
             )
-            if deployment and deployment.concurrency_limit_id:
+            # A paused run holds its slot only through a live lease. A missing
+            # lease was released when the run paused or when the lease expired.
+            if (
+                deployment
+                and deployment.concurrency_limit_id
+                and not _is_leased_blocking_pause(context.initial_state)
+            ):
                 fallback_concurrency_limit_ids = [deployment.concurrency_limit_id]
 
             await _release_concurrency_lease(
