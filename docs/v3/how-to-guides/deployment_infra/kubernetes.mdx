@@ -525,6 +525,20 @@ image pull secret, add `create`, `patch`, and `delete` permissions on secrets to
     verbs: ["create", "patch", "delete"]
 ```
 
+Kubernetes adds a ServiceAccount's `imagePullSecrets` only to pods that list none,
+so with `registry_credentials` the worker lists them in the pod itself.
+To let it read them, add `get` on serviceaccounts to the Role:
+
+{/* pmd-metadata: notest */}
+```yaml
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+```
+
+Without it, the worker logs a warning and the pod gets only the image pull secret
+for `registry_credentials`.
+
 ### Observer permissions
 
 The Kubernetes worker includes an observer that watches for pod and job events to

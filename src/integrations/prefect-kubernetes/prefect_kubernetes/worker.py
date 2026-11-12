@@ -1207,20 +1207,15 @@ class KubernetesWorker(
                         configuration.namespace,
                         configuration.job_manifest,
                     )
-        except kubernetes_asyncio.client.exceptions.ApiException as exc:
-            # Clean up the orphaned per-job Secrets if Job creation failed
-            for secret_name in job_secret_names:
-                try:
-                    core_client = CoreV1Api(client)
-                    await core_client.delete_namespaced_secret(
-                        name=secret_name,
-                        namespace=configuration.namespace,
-                    )
-                except Exception:
-                    self._logger.warning(
-                        "Failed to clean up secret %r after Job creation failure",
-                        secret_name,
-                    )
+        except BaseException as exc:
+            # No Job owns the per-job Secrets yet, so delete them on any failure,
+            # including transport errors and cancellation.
+            with anyio.CancelScope(shield=True):
+                await self._delete_job_secrets(
+                    job_secret_names, configuration.namespace, client
+                )
+            if not isinstance(exc, ApiException):
+                raise
 
             # Parse the reason and message from the response if feasible
             message = ""
@@ -1253,6 +1248,51 @@ class KubernetesWorker(
 
         return job
 
+    async def _delete_job_secrets(
+        self, secret_names: list[str], namespace: str, client: "ApiClient"
+    ) -> None:
+        """Deletes per-job Secrets after the Job could not be created."""
+        for secret_name in secret_names:
+            try:
+                await CoreV1Api(client).delete_namespaced_secret(
+                    name=secret_name, namespace=namespace
+                )
+            except Exception:
+                self._logger.warning(
+                    "Failed to clean up secret %r after Job creation failure",
+                    secret_name,
+                )
+
+    async def _service_account_image_pull_secrets(
+        self,
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
+    ) -> list[dict[str, str]]:
+        """The `imagePullSecrets` of the pod's ServiceAccount.
+
+        Kubernetes adds them only to pods that list none, so they must be listed
+        explicitly once the pod gets its own.
+        """
+        pod_spec = configuration.job_manifest["spec"]["template"]["spec"]
+        name = (
+            pod_spec.get("serviceAccountName")
+            or pod_spec.get("serviceAccount")
+            or "default"
+        )
+        try:
+            service_account = await CoreV1Api(client).read_namespaced_service_account(
+                name=name, namespace=configuration.namespace
+            )
+        except ApiException as exc:
+            self._logger.warning(
+                "Could not read the image pull secrets of ServiceAccount %r (%s); "
+                "the pod only gets the pull Secret for its registry credentials.",
+                name,
+                exc.reason,
+            )
+            return []
+        return [{"name": ref.name} for ref in service_account.image_pull_secrets or []]
+
     async def _create_image_pull_secret(
         self,
         configuration: KubernetesWorkerJobConfiguration,
@@ -1261,10 +1301,18 @@ class KubernetesWorker(
         """Stores the job's registry credentials in a per-job image pull Secret.
 
         Adds the Secret to the pod's `imagePullSecrets`, after any the job
-        manifest already lists, and returns its name.
+        manifest lists or, if it lists none, after those of the pod's
+        ServiceAccount, and returns its name.
         """
         credentials = configuration.registry_credentials
         assert credentials is not None, "Expected registry credentials to be set"
+
+        pod_spec = configuration.job_manifest["spec"]["template"]["spec"]
+        pull_secrets = list(pod_spec.get("imagePullSecrets") or [])
+        if not pull_secrets:
+            pull_secrets = await self._service_account_image_pull_secrets(
+                configuration, client
+            )
 
         generate_name = configuration.job_manifest["metadata"].get(
             "generateName", "prefect-job-"
@@ -1288,11 +1336,7 @@ class KubernetesWorker(
             namespace=configuration.namespace, body=secret
         )
 
-        pod_spec = configuration.job_manifest["spec"]["template"]["spec"]
-        pod_spec["imagePullSecrets"] = [
-            *(pod_spec.get("imagePullSecrets") or []),
-            {"name": created.metadata.name},
-        ]
+        pod_spec["imagePullSecrets"] = [*pull_secrets, {"name": created.metadata.name}]
         return created.metadata.name
 
     @staticmethod

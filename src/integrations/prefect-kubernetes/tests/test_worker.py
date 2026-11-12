@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import re
@@ -16,6 +17,7 @@ import pytest
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Pod
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import (
+    V1LocalObjectReference,
     V1ObjectMeta,
     V1Secret,
 )
@@ -4288,6 +4290,8 @@ class TestRegistryCredentials:
         mock_core_client.return_value.create_namespaced_secret.side_effect = (
             create_secret
         )
+        service_account = mock_core_client.return_value.read_namespaced_service_account
+        service_account.return_value.image_pull_secrets = None
 
     def _created_job_manifest(self, mock_batch_client) -> dict:
         return mock_batch_client.return_value.create_namespaced_job.call_args[0][1]
@@ -4442,6 +4446,96 @@ class TestRegistryCredentials:
             {"name": "existing-secret"},
             {"name": "test-pull-secret"},
         ]
+        # The pod lists its own, so Kubernetes wouldn't add the ServiceAccount's
+        mock_core_client.return_value.read_namespaced_service_account.assert_not_called()
+
+    async def test_keeps_image_pull_secrets_from_the_service_account(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        pull_secret,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+        service_account = mock_core_client.return_value.read_namespaced_service_account
+        service_account.return_value.image_pull_secrets = [
+            V1LocalObjectReference(name="service-account-secret")
+        ]
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {
+                "image": "foo",
+                "service_account_name": "my-service-account",
+                "registry_credentials": self.CREDENTIALS,
+            },
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            await k8s_worker.run(flow_run, configuration)
+
+        service_account.assert_called_once_with(
+            name="my-service-account", namespace=configuration.namespace
+        )
+        pod_spec = self._created_job_manifest(mock_batch_client)["spec"]["template"][
+            "spec"
+        ]
+        assert pod_spec["imagePullSecrets"] == [
+            {"name": "service-account-secret"},
+            {"name": "test-pull-secret"},
+        ]
+
+    async def test_reads_the_default_service_account(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        pull_secret,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            await k8s_worker.run(flow_run, configuration)
+
+        mock_core_client.return_value.read_namespaced_service_account.assert_called_once_with(
+            name="default", namespace=configuration.namespace
+        )
+
+    async def test_unreadable_service_account_adds_only_the_pull_secret(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        pull_secret,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+        mock_core_client.return_value.read_namespaced_service_account.side_effect = (
+            ApiException(status=403, reason="Forbidden")
+        )
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            await k8s_worker.run(flow_run, configuration)
+
+        pod_spec = self._created_job_manifest(mock_batch_client)["spec"]["template"][
+            "spec"
+        ]
+        assert pod_spec["imagePullSecrets"] == [{"name": "test-pull-secret"}]
 
     async def test_sets_job_as_owner(
         self,
@@ -4497,6 +4591,35 @@ class TestRegistryCredentials:
             configuration.prepare_for_flow_run(flow_run=flow_run)
             with pytest.raises(InfrastructureError):
                 await k8s_worker.run(flow_run, configuration)
+
+        mock_core_client.return_value.delete_namespaced_secret.assert_called_once_with(
+            name="test-pull-secret", namespace=configuration.namespace
+        )
+
+    @pytest.mark.parametrize(
+        "error", [ConnectionError("connection lost"), asyncio.CancelledError()]
+    )
+    async def test_cleans_up_secret_when_job_creation_fails_without_api_error(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        pull_secret,
+        error,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+        mock_batch_client.return_value.create_namespaced_job.side_effect = error
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            with pytest.raises(type(error)):
+                await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
 
         mock_core_client.return_value.delete_namespaced_secret.assert_called_once_with(
             name="test-pull-secret", namespace=configuration.namespace
