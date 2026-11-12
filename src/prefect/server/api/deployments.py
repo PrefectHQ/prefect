@@ -89,7 +89,17 @@ async def _hydrate_schedule_parameters(
             render_workspace_variables=True,
         )
         for schedule in schedules_with_parameters:
-            schedule.parameters = hydrate(schedule.parameters, ctx)
+            parameters = hydrate(schedule.parameters, ctx)
+            # A wrapper around all the overrides can hydrate to any JSON value
+            if not isinstance(parameters, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "Error hydrating schedule parameters: Parameters must be a"
+                        " JSON object"
+                    ),
+                )
+            schedule.parameters = parameters
     except HydrationError as exc:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,

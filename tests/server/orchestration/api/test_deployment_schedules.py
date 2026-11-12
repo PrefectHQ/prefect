@@ -429,8 +429,7 @@ class TestUpdateDeploymentSchedule:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert (
-            f"Error hydrating schedule parameters: {error}"
-            in response.json()["detail"]
+            f"Error hydrating schedule parameters: {error}" in response.json()["detail"]
         )
 
     async def test_404_non_existent_deployment(
