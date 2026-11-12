@@ -174,6 +174,7 @@ from prefect_kubernetes.observer import start_observer, stop_observer
 from prefect_kubernetes.settings import KubernetesSettings
 from prefect_kubernetes.utilities import (
     KeepAliveClientRequest,
+    _is_transient_kubernetes_error,
     _slugify_label_key,
     _slugify_label_value,
     _slugify_name,
@@ -1458,7 +1459,7 @@ class KubernetesWorker(
             )
         except ApiException as exc:
             # Rejected, so not created here; a 409 means another job's Secret
-            if exc.status is not None and exc.status < 500:
+            if not _is_transient_kubernetes_error(exc):
                 job_secret_names.remove(secret_name)
             raise
 
@@ -1569,16 +1570,7 @@ class KubernetesWorker(
         )
 
     @retry(
-        # A rejection won't change; server errors and lost connections may
-        retry=retry_if_exception(
-            lambda exc: (
-                not (
-                    isinstance(exc, ApiException)
-                    and exc.status is not None
-                    and exc.status < 500
-                )
-            )
-        ),
+        retry=retry_if_exception(_is_transient_kubernetes_error),
         stop=stop_after_attempt(3),
         wait=wait_random(0, 1),
         reraise=True,

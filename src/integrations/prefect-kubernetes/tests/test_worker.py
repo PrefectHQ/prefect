@@ -4635,7 +4635,12 @@ class TestRegistryCredentials:
 
     @pytest.mark.parametrize(
         "error",
-        [ApiException(status=503, reason="Unavailable"), ConnectionError("lost")],
+        [
+            ApiException(status=408, reason="Request Timeout"),
+            ApiException(status=429, reason="Too Many Requests"),
+            ApiException(status=503, reason="Unavailable"),
+            ConnectionError("lost"),
+        ],
     )
     async def test_retries_transient_owner_reference_failures(
         self,
