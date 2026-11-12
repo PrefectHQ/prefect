@@ -1345,11 +1345,18 @@ class TestGitRepository:
             result = repo.to_pull_step()
             assert result == expected_output
 
+    @pytest.mark.parametrize("has_commit", [True, False])
     async def test_clone_repo_with_commit_sha(
-        self, mock_run_process: AsyncMock, monkeypatch
+        self,
+        mock_run_process: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+        has_commit: bool,
     ):
         # pretend the repo doesn't exist
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        monkeypatch.setattr(
+            GitRepository, "_has_commit", AsyncMock(return_value=has_commit)
+        )
 
         repo = GitRepository(
             url="https://github.com/org/repo.git", commit_sha="1234567890"
@@ -1357,7 +1364,17 @@ class TestGitRepository:
 
         await repo.pull_code()
 
-        # Verify the expected git commands were called in order
+        # Only fetch the commit when the clone doesn't already contain it
+        fetch_calls = (
+            []
+            if has_commit
+            else [
+                call(
+                    ["git", "fetch", "origin", "1234567890"],
+                    cwd=Path.cwd() / "repo",
+                )
+            ]
+        )
         expected_calls = [
             call(
                 [
@@ -1369,10 +1386,7 @@ class TestGitRepository:
                     str(Path.cwd() / "repo"),
                 ]
             ),
-            call(
-                ["git", "fetch", "origin", "1234567890"],
-                cwd=Path.cwd() / "repo",
-            ),
+            *fetch_calls,
             call(
                 ["git", "checkout", "1234567890"],
                 cwd=Path.cwd() / "repo",
@@ -1785,6 +1799,13 @@ class TestGitRepositoryCommitSha:
         repo = await self._pull(upstream.url, base_path, sha_c)
         assert _git("rev-parse", "HEAD", cwd=repo.destination) == sha_c
         assert (repo.destination / "f.txt").read_text() == "C"
+
+    async def test_pull_code_clones_and_checks_out_short_sha(
+        self, upstream: _Upstream, base_path: Path
+    ):
+        repo = await self._pull(upstream.url, base_path, upstream.sha_a[:7])
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == upstream.sha_a
+        assert (repo.destination / "f.txt").read_text() == "A"
 
     async def test_pull_code_checks_out_local_commit_without_fetching(
         self, upstream: _Upstream, base_path: Path

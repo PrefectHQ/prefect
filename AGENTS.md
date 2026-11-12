@@ -159,6 +159,10 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 - Details in `<details>` tag
 - Include relevant links
 
+## Responding to Reviews
+
+- After pushing changes that address a review requesting changes, re-request review from that reviewer (e.g. `gh pr edit <number> --add-reviewer <username>`)
+
 ## Code Review Rules
 
 When reviewing changes, read and apply [REVIEW.md](REVIEW.md).
