@@ -240,8 +240,8 @@ You can override the credentials on each deployment through `job_variables`, for
 
 A work pool keeps the base job template it was created with, so a pool created before
 `registry_credentials` existed ignores the variable, even if its template was never customized.
-To use it, refresh the pool's template with the current default, with a version of
-`prefect-kubernetes` that has `registry_credentials` installed:
+To use it, refresh the pool's template with the current default. The command reads the default
+from the installed `prefect-kubernetes`, so run it where a version with `registry_credentials` is installed:
 
 ```bash
 prefect work-pool get-default-base-job-template --type kubernetes --file template.json
