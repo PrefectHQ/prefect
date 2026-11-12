@@ -4575,6 +4575,30 @@ class TestRegistryCredentials:
         ]
         assert pod_spec["imagePullSecrets"] == [{"name": "test-pull-secret"}]
 
+    async def test_transient_service_account_error_fails_the_submission(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+    ):
+        mock_core_client.return_value.read_namespaced_service_account.side_effect = (
+            ApiException(status=503, reason="Service Unavailable")
+        )
+        mock_batch_client.return_value.list_namespaced_job.return_value.items = []
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            with pytest.raises(InfrastructureError, match="Service Unavailable"):
+                await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        mock_core_client.return_value.create_namespaced_secret.assert_not_called()
+        mock_batch_client.return_value.create_namespaced_job.assert_not_called()
+
     async def test_sets_job_as_owner(
         self,
         flow_run,

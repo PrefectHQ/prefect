@@ -1375,6 +1375,9 @@ class KubernetesWorker(
                 name=name, namespace=configuration.namespace
             )
         except ApiException as exc:
+            # Only a missing permission or account; anything else may be transient
+            if exc.status not in (403, 404):
+                raise
             self._logger.warning(
                 "Could not read the image pull secrets of ServiceAccount %r (%s); "
                 "the pod only gets the pull Secret for its registry credentials.",
