@@ -284,7 +284,7 @@ async def reset_concurrency_limit_by_tag(
             # Create new leases for slot_override if provided
             if slot_override:
                 for task_run_id in slot_override:
-                    await cl_v2_models.bulk_increment_active_slots(
+                    incremented = await cl_v2_models.bulk_increment_active_slots(
                         session=session,
                         concurrency_limit_ids=[model.id],
                         slots=1,
@@ -297,6 +297,7 @@ async def reset_concurrency_limit_by_tag(
                             holder=ConcurrencyLeaseHolder(
                                 type="task_run", id=task_run_id
                             ),
+                            incremented_limit_ids=[model.id] if incremented else [],
                         ),
                     )
             return
