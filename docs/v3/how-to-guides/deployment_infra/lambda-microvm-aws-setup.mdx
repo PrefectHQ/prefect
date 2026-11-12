@@ -402,7 +402,7 @@ aws lambda-microvms get-microvm \
 
 If the reason is `Internal service error.`, build a new version of the image from the same files.
 Building a new version from the same files has fixed this in our testing.
-Pass the image's ARN as `--image-identifier` in place of `--name`, with the same other flags you passed to `create-microvm-image`:
+Pass the image's ARN as `--image-identifier` in place of `--name`:
 
 ```bash
 aws lambda-microvms update-microvm-image \
@@ -415,11 +415,15 @@ aws lambda-microvms update-microvm-image \
   --hooks file://hooks.json
 ```
 
-Repeat every flag you passed to `create-microvm-image`, because a setting you leave out is not carried over from the previous version.
+Repeat every flag you passed to `create-microvm-image` except `--name` and `--tags`, because a build setting you leave out is not carried over from the previous version.
 For example, if you created the image with `--resources` and leave it out here, the new version gets the default memory instead.
 
+The new version is ready when `aws lambda-microvms get-microvm-image --region us-east-2 --image-identifier <IMAGE_ARN> --query state --output text` returns `UPDATED`.
+`UPDATE_FAILED` means the build failed. Its logs are in CloudWatch Logs under `/aws/lambda-microvms/<IMAGE_NAME>`.
+Fix the failure and build the version again before you run the check.
+
 The image keeps its ARN, so the work pool's **Image ARN** stays the same and the pool's next runs use the new version.
-After the new version finishes building, run the check again.
+When the new version is ready, run the check again.
 If the new version's runs crash the same way, contact AWS Support with the MicroVM IDs.
 
 ## Further reading
