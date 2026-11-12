@@ -381,6 +381,27 @@ Its default of 5 matches AWS's default [`RunMicrovm` quota](https://docs.aws.ama
 Raise the setting only after AWS raises that quota in the pool's region.
 This is a work pool setting, so a deployment's job variable overrides do not change it.
 
+## Check a new image before you rely on it
+
+An image build can report success and still produce MicroVMs that stop at startup.
+After you build an image, or a new version of one, and point a work pool at it, run about 5 flow runs of a small deployment on that pool.
+Confirm that each run reaches Completed.
+
+If the runs crash, read the crashed flow run's state message in Prefect.
+It names the MicroVM and the reason AWS gave, for example `MicroVM <MICROVM_ID> terminated before the flow run finished: Internal service error.`
+You can also read the MicroVM's state reason with the AWS CLI:
+
+```bash
+aws lambda-microvms get-microvm \
+  --region us-east-2 \
+  --microvm-identifier <MICROVM_ID> \
+  --query stateReason \
+  --output text
+```
+
+If the reason is `Internal service error.`, build the image again from the same zip file.
+Then set the work pool's **Image ARN** to the new image's ARN and run the check again.
+
 ## Further reading
 
 - [Run flows on serverless compute](/v3/how-to-guides/deployment_infra/serverless)
