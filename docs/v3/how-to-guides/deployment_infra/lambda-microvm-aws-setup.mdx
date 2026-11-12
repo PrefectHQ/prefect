@@ -362,6 +362,10 @@ In Prefect Cloud, open the Lambda MicroVM push work pool's configuration and set
 | **Execution Role ARN** | `execution_role_arn` | The execution role's ARN |
 | **Image ARN** | `image_arn` | The ARN of the MicroVM image to run each flow run in |
 
+The pool's **Launches per second** setting (`launches_per_second`) is how many MicroVMs the pool starts per second.
+Its default of 5 matches AWS's default `RunMicrovm` rate quota of 5 per second per account, so after AWS raises your account's quota, set the pool to the new rate.
+This is a work pool setting, so a deployment's job variable overrides do not change it.
+
 ## Further reading
 
 - [Run flows on serverless compute](/v3/how-to-guides/deployment_infra/serverless)
