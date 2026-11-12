@@ -1214,11 +1214,10 @@ class KubernetesWorker(
                         configuration.job_manifest,
                     )
         except BaseException as exc:
-            # No Job owns the per-job Secrets yet, so clean them up on any failure,
-            # including transport errors and cancellation.
+            # Also on transport errors and cancellation, after which Jobs may exist
             with anyio.move_on_after(JOB_SECRET_CLEANUP_TIMEOUT_SECONDS, shield=True):
-                await self._clean_up_job_secrets(
-                    exc, job_secret_names, configuration, client
+                await self._settle_job_secrets(
+                    job_secret_names, None, configuration, client
                 )
             if not isinstance(exc, ApiException):
                 raise
@@ -1237,9 +1236,8 @@ class KubernetesWorker(
                 f"Unable to create Kubernetes job{message}"
             ) from exc
 
-        await self._set_job_secret_owners(
-            job_secret_names, [job], configuration.namespace, client
-        )
+        with anyio.move_on_after(JOB_SECRET_CLEANUP_TIMEOUT_SECONDS, shield=True):
+            await self._settle_job_secrets(job_secret_names, job, configuration, client)
         return job
 
     async def _set_job_secret_owners(
@@ -1265,42 +1263,43 @@ class KubernetesWorker(
                     secret_name,
                 )
 
-    async def _clean_up_job_secrets(
+    async def _settle_job_secrets(
         self,
-        exc: BaseException,
         secret_names: list[str],
+        created_job: "V1Job | None",
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
     ) -> None:
-        """Cleans up the per-job Secrets after Job creation failed.
+        """Gives the per-job Secrets an owner, or deletes them if no Job needs them.
 
-        A failure other than a rejection by the API server may have created the
-        Job anyway. The Secrets are then owned by any Job that references them,
-        and deleted only if there is none.
+        A lost response can create a Job that the worker never sees, or that a
+        retry then reports as a conflict. Every Job of the flow run that
+        references the Secrets therefore becomes an owner, so the Secrets live
+        as long as any of them, and are deleted only if there is none.
         """
         if not secret_names:
             return
         namespace = configuration.namespace
-        rejected = (
-            isinstance(exc, ApiException)
-            and exc.status is not None
-            and exc.status < 500
-        )
-        if not rejected:
-            try:
-                jobs = await self._jobs_referencing_secrets(
-                    secret_names, configuration, client
-                )
-            except Exception:
+        try:
+            jobs = await self._jobs_referencing_secrets(
+                secret_names, configuration, client
+            )
+        except Exception:
+            if created_job is None:
                 self._logger.warning(
                     "Could not check whether the Job was created; keeping secrets %r, "
                     "which a created Job may need.",
                     secret_names,
                 )
                 return
-            if jobs:
-                await self._set_job_secret_owners(secret_names, jobs, namespace, client)
-                return
+            jobs = []
+        if created_job is not None and created_job.metadata.uid not in {
+            job.metadata.uid for job in jobs
+        }:
+            jobs.append(created_job)
+        if jobs:
+            await self._set_job_secret_owners(secret_names, jobs, namespace, client)
+            return
 
         for secret_name in secret_names:
             try:
