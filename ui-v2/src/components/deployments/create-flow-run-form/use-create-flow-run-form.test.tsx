@@ -231,4 +231,172 @@ describe("useCreateFlowRunForm", () => {
 			expect(requestBody.tags).toEqual(["copied-tag"]);
 		});
 	});
+
+	describe("parameters JSON mode", () => {
+		it("prefills the JSON document from the current parameter values", async () => {
+			const deployment = createFakeDeployment({ parameters: {} });
+
+			const { result } = await renderUseCreateFlowRunForm(deployment, {
+				config: { nested: { value: 1 } },
+				name: "copied",
+			});
+
+			act(() => {
+				result.current.onParametersInputModeChange("json");
+			});
+
+			expect(result.current.parametersInputMode).toBe("json");
+			expect(JSON.parse(result.current.parametersJson)).toEqual({
+				config: { nested: { value: 1 } },
+				name: "copied",
+			});
+		});
+
+		it("unwraps json prefect kind values from the schema form", async () => {
+			const deployment = createFakeDeployment({ parameters: {} });
+
+			const { result } = await renderUseCreateFlowRunForm(deployment, {
+				config: { __prefect_kind: "json", value: '{"a": [1, 2]}' },
+			});
+
+			act(() => {
+				result.current.onParametersInputModeChange("json");
+			});
+
+			expect(JSON.parse(result.current.parametersJson)).toEqual({
+				config: { a: [1, 2] },
+			});
+		});
+
+		it("applies valid JSON edits to the parameter values", async () => {
+			const deployment = createFakeDeployment({ parameters: {} });
+
+			const { result } = await renderUseCreateFlowRunForm(deployment, {
+				foo: "bar",
+			});
+
+			act(() => {
+				result.current.onParametersInputModeChange("json");
+			});
+			act(() => {
+				result.current.onParametersJsonChange('{"foo": "edited", "n": 2}');
+			});
+
+			expect(result.current.parametersJsonError).toBeNull();
+			expect(result.current.parametersFormValues).toEqual({
+				foo: "edited",
+				n: 2,
+			});
+
+			act(() => {
+				result.current.onParametersInputModeChange("form");
+			});
+
+			expect(result.current.parametersInputMode).toBe("form");
+			expect(result.current.parametersFormValues).toEqual({
+				foo: "edited",
+				n: 2,
+			});
+		});
+
+		it.each([
+			["{not json", "Invalid JSON"],
+			["[1, 2]", "Parameters must be a JSON object"],
+			["null", "Parameters must be a JSON object"],
+		])("rejects %s and stays in JSON mode", async (value, error) => {
+			const deployment = createFakeDeployment({ parameters: {} });
+
+			const { result } = await renderUseCreateFlowRunForm(deployment, {
+				foo: "bar",
+			});
+
+			act(() => {
+				result.current.onParametersInputModeChange("json");
+			});
+			act(() => {
+				result.current.onParametersJsonChange(value);
+			});
+
+			expect(result.current.parametersJsonError).toBe(error);
+			expect(result.current.parametersFormValues).toEqual({ foo: "bar" });
+
+			act(() => {
+				result.current.onParametersInputModeChange("form");
+			});
+
+			expect(result.current.parametersInputMode).toBe("json");
+		});
+
+		it("submits the JSON document as the parameters object", async () => {
+			const deployment = createFakeDeployment({
+				parameters: {},
+				enforce_parameter_schema: false,
+			});
+			let requestBody: Record<string, unknown> = {};
+			server.use(
+				http.post(
+					buildApiUrl("/deployments/:id/create_flow_run"),
+					async ({ request }) => {
+						requestBody = (await request.json()) as Record<string, unknown>;
+						return HttpResponse.json(createFakeFlowRun({ id: "new-run-id" }));
+					},
+				),
+			);
+
+			const { result } = await renderUseCreateFlowRunForm(deployment, {
+				foo: "bar",
+			});
+
+			act(() => {
+				result.current.onParametersInputModeChange("json");
+			});
+			act(() => {
+				result.current.onParametersJsonChange(
+					'{"foo": "edited", "config": {"nested": [1, 2]}}',
+				);
+			});
+
+			await act(async () => {
+				await result.current.form.handleSubmit(result.current.onCreate)();
+			});
+
+			await waitFor(() => {
+				expect(requestBody.parameters).toEqual({
+					foo: "edited",
+					config: { nested: [1, 2] },
+				});
+			});
+		});
+
+		it("does not submit while the JSON document is invalid", async () => {
+			const deployment = createFakeDeployment({
+				parameters: {},
+				enforce_parameter_schema: false,
+			});
+			let requested = false;
+			server.use(
+				http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+					requested = true;
+					return HttpResponse.json(createFakeFlowRun({ id: "new-run-id" }));
+				}),
+			);
+
+			const { result } = await renderUseCreateFlowRunForm(deployment, {
+				foo: "bar",
+			});
+
+			act(() => {
+				result.current.onParametersInputModeChange("json");
+			});
+			act(() => {
+				result.current.onParametersJsonChange("{not json");
+			});
+
+			await act(async () => {
+				await result.current.form.handleSubmit(result.current.onCreate)();
+			});
+
+			expect(requested).toBe(false);
+		});
+	});
 });

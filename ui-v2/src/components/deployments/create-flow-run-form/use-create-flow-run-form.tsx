@@ -11,6 +11,8 @@ import {
 } from "@/api/flow-runs";
 import { useSchemaForm } from "@/components/schemas";
 import type { SchemaFormValues } from "@/components/schemas/types/values";
+import { isRecord } from "@/components/schemas/utilities/guards";
+import { removePrefectKindValues } from "@/components/schemas/utilities/removePrefectKindValues";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/utils/date";
 import { createFakeFlowRunName } from "./create-fake-flow-run-name";
@@ -81,6 +83,8 @@ const formSchema = z.object({
 });
 
 export type CreateFlowRunSchema = z.infer<typeof formSchema>;
+
+export type ParametersInputMode = "form" | "json";
 
 export type AdditionalOptionsOverrides = {
 	message?: string;
@@ -169,9 +173,59 @@ export const useCreateFlowRunForm = (
 		validateForm: validateParametersForm,
 	} = useSchemaForm(initialParameterValues);
 
+	const [parametersInputMode, setParametersInputMode] =
+		useState<ParametersInputMode>("form");
+	const [parametersJson, setParametersJson] = useState("");
+	const [parametersJsonError, setParametersJsonError] = useState<string | null>(
+		null,
+	);
+
 	const { createDeploymentFlowRun } = useDeploymentCreateFlowRun();
 
+	const onParametersInputModeChange = (mode: ParametersInputMode) => {
+		if (mode === parametersInputMode) {
+			return;
+		}
+
+		if (mode === "json") {
+			setParametersJson(
+				JSON.stringify(removePrefectKindValues(parametersFormValues), null, 2),
+			);
+			setParametersJsonError(null);
+		} else if (parametersJsonError) {
+			return;
+		}
+
+		setParametersInputMode(mode);
+	};
+
+	// Valid JSON is applied to the schema form values right away, so validation,
+	// submission, and switching back to the form all use the latest JSON document.
+	const onParametersJsonChange = (value: string) => {
+		setParametersJson(value);
+
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(value);
+		} catch {
+			setParametersJsonError("Invalid JSON");
+			return;
+		}
+
+		if (!isRecord(parsed)) {
+			setParametersJsonError("Parameters must be a JSON object");
+			return;
+		}
+
+		setParametersJsonError(null);
+		setParametersFormValues(parsed);
+	};
+
 	const onCreate = async (values: CreateFlowRunSchema) => {
+		if (parametersInputMode === "json" && parametersJsonError) {
+			return;
+		}
+
 		if (values.parameter_openapi_schema && values.enforce_parameter_schema) {
 			try {
 				await validateParametersForm({
@@ -212,6 +266,7 @@ export const useCreateFlowRunForm = (
 					setParametersFormValues(
 						overrideParameters ?? deployment.parameters ?? {},
 					);
+					setParametersInputMode("form");
 				},
 				onError: (error) => {
 					const message =
@@ -229,6 +284,11 @@ export const useCreateFlowRunForm = (
 		parametersFormValues,
 		setParametersFormValues,
 		parameterFormErrors,
+		parametersInputMode,
+		onParametersInputModeChange,
+		parametersJson,
+		onParametersJsonChange,
+		parametersJsonError,
 	};
 };
 
