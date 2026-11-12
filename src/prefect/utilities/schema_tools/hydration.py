@@ -187,8 +187,10 @@ def handler(kind: PrefectKind) -> Callable[[Handler], Handler]:
 
 
 def call_handler(kind: PrefectKind, obj: dict[str, Any], ctx: HydrationContext) -> Any:
-    if not isinstance(kind, str):
-        res = InvalidPrefectKind(detail=f"expected a string, got {kind!r}")
+    # Unhashable kinds can't be looked up in `_handlers`; other unrecognized
+    # kinds pass `value` through below
+    if isinstance(kind, (dict, list)):
+        res = InvalidPrefectKind(detail=f"expected a string, got {type(kind).__name__}")
     elif kind not in _handlers:
         return obj.get("value", None)
     else:
