@@ -462,7 +462,9 @@ async def test_increment_concurrency_limit_with_lease_simple(
     lease = await lease_storage.read_lease(uuid.UUID(response.json()["lease_id"]))
     assert lease
     assert lease.resource_ids == [concurrency_limit.id]
-    assert lease.metadata == ConcurrencyLimitLeaseMetadata(slots=1)
+    assert lease.metadata == ConcurrencyLimitLeaseMetadata(
+        slots=1, incremented_limit_ids=[concurrency_limit.id]
+    )
 
 
 async def test_increment_concurrency_limit_with_lease_and_holder(
@@ -638,7 +640,9 @@ async def test_increment_concurrency_limit_with_lease_ttl(
     lease = await lease_storage.read_lease(uuid.UUID(response.json()["lease_id"]))
     assert lease
     assert lease.resource_ids == [concurrency_limit.id]
-    assert lease.metadata == ConcurrencyLimitLeaseMetadata(slots=1)
+    assert lease.metadata == ConcurrencyLimitLeaseMetadata(
+        slots=1, incremented_limit_ids=[concurrency_limit.id]
+    )
     assert (
         now + timedelta(seconds=60) <= lease.expiration <= now + timedelta(seconds=65)
     )
@@ -1304,6 +1308,8 @@ async def test_increment_with_lease_excludes_inactive_limits_from_lease(
     )
     assert lease
     assert lease.resource_ids == [concurrency_limit.id]
+    assert lease.metadata
+    assert lease.metadata.incremented_limit_ids == [concurrency_limit.id]
 
 
 async def test_renew_concurrency_lease(

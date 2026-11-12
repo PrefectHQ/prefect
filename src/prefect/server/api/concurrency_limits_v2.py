@@ -361,15 +361,16 @@ async def bulk_increment_active_slots_with_lease(
 
     if acquired:
         lease_storage = get_concurrency_lease_storage()
+        incremented_limit_ids = [limit.id for limit in acquired_limits if limit.active]
         lease = await lease_storage.create_lease(
-            # Only active limits were incremented. Releasing the lease decrements
-            # its `resource_ids`, so an inactive limit enabled later must not be
-            # among them or the release would free another holder's slot.
-            resource_ids=[limit.id for limit in acquired_limits if limit.active],
+            # Only active limits were incremented. Servers that release from
+            # `resource_ids` must not decrement an inactive limit enabled later.
+            resource_ids=incremented_limit_ids,
             ttl=timedelta(seconds=lease_duration),
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=slots,
                 holder=holder,
+                incremented_limit_ids=incremented_limit_ids,
             ),
         )
         return ConcurrencyLimitWithLeaseResponse(
@@ -442,9 +443,9 @@ async def bulk_decrement_active_slots_with_lease(
     occupancy_seconds = (datetime.now(timezone.utc) - lease.created_at).total_seconds()
 
     async with db.session_context(begin_transaction=True) as session:
-        await models.concurrency_limits_v2.bulk_decrement_active_slots(
+        await models.concurrency_limits_v2.bulk_decrement_active_slots_for_lease(
             session=session,
-            concurrency_limit_ids=lease.resource_ids,
+            lease=lease,
             slots=lease.metadata.slots if lease.metadata else 0,
             occupancy_seconds=occupancy_seconds,
         )

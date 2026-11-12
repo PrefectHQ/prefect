@@ -58,6 +58,7 @@ from prefect.server.orchestration.core_policy import (
     UpdateFlowRunTrackerOnTasks,
     ValidateDeploymentConcurrencyAtRunning,
     WaitForScheduledTime,
+    _release_concurrency_lease,
 )
 from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
@@ -5942,3 +5943,29 @@ class TestPreserveDeploymentConcurrencyLeaseId:
         assert (
             ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease_id
         )
+
+
+async def test_missing_lease_fallback_does_not_release_inactive_limit(
+    session: AsyncSession,
+):
+    # The fallback cannot tell whether the missing lease's slot was already
+    # released, so it must not take another holder's slot from an inactive limit.
+    limit = await concurrency_limits_v2.create_concurrency_limit(
+        session=session,
+        concurrency_limit=schemas.core.ConcurrencyLimitV2(
+            name=f"inactive-{uuid4()}", limit=1, active=False, active_slots=1
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to release"):
+        await _release_concurrency_lease(
+            session=session,
+            lease_id=uuid4(),
+            fallback_concurrency_limit_ids=[limit.id],
+        )
+
+    refreshed = await concurrency_limits_v2.read_concurrency_limit(
+        session=session, concurrency_limit_id=limit.id
+    )
+    assert refreshed
+    assert refreshed.active_slots == 1

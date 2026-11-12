@@ -106,7 +106,9 @@ class TestRevokeExpiredLease:
         lease = await lease_storage.create_lease(
             resource_ids=[concurrency_limit.id],
             ttl=timedelta(seconds=-1),
-            metadata=ConcurrencyLimitLeaseMetadata(slots=2),
+            metadata=ConcurrencyLimitLeaseMetadata(
+                slots=2, incremented_limit_ids=[concurrency_limit.id]
+            ),
         )
 
         await revoke_expired_lease(
@@ -119,6 +121,36 @@ class TestRevokeExpiredLease:
         limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
         await session.refresh(limits[0])
         assert limits[0].active_slots == 0
+
+    async def test_revoke_expired_legacy_lease_does_not_release_inactive_limit(
+        self, lease_storage, concurrency_limit, session: AsyncSession
+    ):
+        # A lease without `incremented_limit_ids` may name a limit that was
+        # inactive when it acquired, so these slots can belong to other holders.
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 2)
+        await update_concurrency_limit(
+            session,
+            ConcurrencyLimitV2Update(active=False),
+            concurrency_limit_id=concurrency_limit.id,
+        )
+        await session.commit()
+
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=2),
+        )
+
+        await revoke_expired_lease(
+            lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+
+        assert len(lease_storage.leases) == 0
+        limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
+        await session.refresh(limits[0])
+        assert limits[0].active_slots == 2
 
     async def test_does_not_revoke_lease_renewed_after_expiry_scan(
         self, lease_storage, concurrency_limit, session: AsyncSession
