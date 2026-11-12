@@ -1341,21 +1341,31 @@ class KubernetesWorker(
 
         for secret_name in secret_names:
             try:
-                await CoreV1Api(client).delete_namespaced_secret(
-                    name=secret_name, namespace=namespace
-                )
-            except ApiException as delete_exc:
-                # The Secret's creation may have failed as well
-                if delete_exc.status != 404:
-                    self._logger.warning(
-                        "Failed to clean up secret %r after Job creation failure",
-                        secret_name,
-                    )
+                await self._delete_job_secret(secret_name, namespace, client)
             except Exception:
                 self._logger.warning(
                     "Failed to clean up secret %r after Job creation failure",
                     secret_name,
                 )
+
+    @retry(
+        retry=retry_if_exception(_is_transient_kubernetes_error),
+        stop=stop_after_attempt(3),
+        wait=wait_random(0, 1),
+        reraise=True,
+    )
+    async def _delete_job_secret(
+        self, secret_name: str, namespace: str, client: "ApiClient"
+    ) -> None:
+        """Deletes a per-job Secret, which may never have been created."""
+        try:
+            await CoreV1Api(client).delete_namespaced_secret(
+                name=secret_name, namespace=namespace
+            )
+        except ApiException as exc:
+            # Never created, or deleted by an attempt whose response was lost
+            if exc.status != 404:
+                raise
 
     async def _jobs_referencing_secrets(
         self,
