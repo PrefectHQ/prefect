@@ -3419,16 +3419,19 @@ class TestResumingFlows:
         initialize_orchestration,
     ):
         initial_state_type = states.StateType.PAUSED
-        proposed_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
             session,
             "flow",
             *intended_transition,
+            proposed_state_name="Resuming",
         )
         ctx.run.deployment_id = deployment.id
         the_future = now("UTC") + timedelta(minutes=5)
-        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=the_future, pause_reschedule=True
+        )
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
 
@@ -3437,6 +3440,28 @@ class TestResumingFlows:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.run.empirical_policy.resuming
+
+    async def test_does_not_mark_flow_run_as_resuming_when_blocking_pause_resumes(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        # The resumed run is already running; a resuming indicator left on it
+        # would make its next attempt skip the run count increment.
+        intended_transition = (states.StateType.PAUSED, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        the_future = now("UTC") + timedelta(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
+
+        async with HandleResumingPausedFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert not ctx.run.empirical_policy.resuming
 
     async def test_resets_pause_metadata_when_blocking_pause_is_rescheduled(
         self,
