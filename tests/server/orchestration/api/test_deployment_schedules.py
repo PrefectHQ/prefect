@@ -8,7 +8,7 @@ from fastapi import status
 from httpx import AsyncClient
 
 from prefect.server import models, schemas
-from prefect.server.database import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, orm_models
 from prefect.types._datetime import now
 from tests.server import AsyncSessionGetter
 
@@ -174,6 +174,71 @@ class TestCreateDeploymentSchedules:
 
         assert response.status_code == status.HTTP_409_CONFLICT
 
+    async def test_create_hydrates_parameters(
+        self,
+        get_server_session: AsyncSessionGetter,
+        client: AsyncClient,
+        schedules_url: Callable[..., str],
+        deployment: orm_models.Deployment,
+    ):
+        async with get_server_session() as session:
+            await models.deployments.delete_schedules_for_deployment(
+                session=session, deployment_id=deployment.id
+            )
+            await session.commit()
+
+        # The UI sends parameters edited in JSON mode in their dehydrated form
+        response = await client.post(
+            schedules_url(deployment.id),
+            json=[
+                {
+                    "schedule": {"interval": 3600},
+                    "parameters": {
+                        "tables_to_fetch": {
+                            "__prefect_kind": "json",
+                            "value": '[{"prop": "value", "some_arr": []}]',
+                        }
+                    },
+                }
+            ],
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        await client.post(f"/deployments/{deployment.id}/schedule")
+
+        async with get_server_session() as session:
+            flow_runs = await models.flow_runs.read_flow_runs(session=session)
+
+        assert flow_runs
+        for flow_run in flow_runs:
+            assert flow_run.parameters == {
+                "tables_to_fetch": [{"prop": "value", "some_arr": []}]
+            }
+
+    async def test_create_with_parameters_that_fail_to_hydrate(
+        self,
+        client: AsyncClient,
+        schedules_url: Callable[..., str],
+        deployment: orm_models.Deployment,
+    ):
+        response = await client.post(
+            schedules_url(deployment.id),
+            json=[
+                {
+                    "schedule": {"interval": 3600},
+                    "parameters": {
+                        "x": {"__prefect_kind": "json", "value": '{"invalid": json}'}
+                    },
+                }
+            ],
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            "Error hydrating schedule parameters: Invalid JSON: Expecting value:"
+            in response.json()["detail"]
+        )
+
     async def test_404_non_existent_deployment(
         self,
         client: AsyncClient,
@@ -332,6 +397,45 @@ class TestUpdateDeploymentSchedule:
         )
 
         assert the_schedule.parameters == {"foo": "bar"}
+
+    async def test_update_hydrates_parameters(
+        self,
+        get_server_session: AsyncSessionGetter,
+        client: AsyncClient,
+        deployment_with_schedules: orm_models.Deployment,
+        schedules_url: Callable[..., str],
+        schedule_to_update: schemas.core.DeploymentSchedule,
+    ):
+        url = schedules_url(
+            deployment_with_schedules.id, schedule_id=schedule_to_update.id
+        )
+        response = await client.patch(
+            url,
+            json={
+                "parameters": {
+                    "tables_to_fetch": {
+                        "__prefect_kind": "json",
+                        "value": '[{"prop": "value", "some_arr": []}]',
+                    }
+                }
+            },
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+            )
+
+        the_schedule = next(
+            schedule for schedule in schedules if schedule.id == schedule_to_update.id
+        )
+
+        assert the_schedule.parameters == {
+            "tables_to_fetch": [{"prop": "value", "some_arr": []}]
+        }
 
     async def test_404_non_existent_deployment(
         self,
