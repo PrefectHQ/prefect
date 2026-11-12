@@ -80,25 +80,34 @@ class TestHydrateRaiseOnError:
 
 class TestHydrateWithNonStringPrefectKind:
     @pytest.mark.parametrize(
-        "kind", [[], {}, 1, None], ids=["list", "dict", "int", "none"]
+        "kind, detail",
+        [([], "expected a string, got list"), ({}, "expected a string, got dict")],
+        ids=["list", "dict"],
     )
-    def test_hydrate_returns_error(self, kind: object):
+    def test_hydrate_returns_error(self, kind: object, detail: str):
         assert hydrate({"param": {"__prefect_kind": kind, "value": "hello"}}) == {
-            "param": InvalidPrefectKind(detail=f"expected a string, got {kind!r}")
+            "param": InvalidPrefectKind(detail=detail)
         }
 
     @pytest.mark.parametrize(
-        "kind", [[], {}, 1, None], ids=["list", "dict", "int", "none"]
+        "kind, detail",
+        [([], "expected a string, got list"), ({}, "expected a string, got dict")],
+        ids=["list", "dict"],
     )
-    def test_hydrate_raises_error(self, kind: object):
+    def test_hydrate_raises_error(self, kind: object, detail: str):
         with pytest.raises(InvalidPrefectKind) as exc:
             hydrate(
                 {"param": {"__prefect_kind": kind, "value": "hello"}},
                 ctx=HydrationContext(raise_on_error=True),
             )
-        assert (
-            str(exc.value) == f"Invalid __prefect_kind: expected a string, got {kind!r}"
-        )
+        assert str(exc.value) == f"Invalid __prefect_kind: {detail}"
+
+    @pytest.mark.parametrize("kind", [1, None], ids=["int", "none"])
+    def test_hydrate_passes_value_through(self, kind: object):
+        """Like unrecognized string kinds, these pass `value` through."""
+        assert hydrate({"param": {"__prefect_kind": kind, "value": "hello"}}) == {
+            "param": "hello"
+        }
 
 
 class TestHydrateWithNonePrefectKind:

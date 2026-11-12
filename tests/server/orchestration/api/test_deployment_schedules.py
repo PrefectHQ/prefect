@@ -412,10 +412,10 @@ class TestUpdateDeploymentSchedule:
             ),
             (
                 {"x": {"__prefect_kind": []}},
-                "Invalid __prefect_kind: expected a string, got []",
+                "Invalid __prefect_kind: expected a string, got list",
             ),
         ],
-        ids=["invalid-json", "not-an-object", "non-string-kind"],
+        ids=["invalid-json", "not-an-object", "list-kind"],
     )
     async def test_update_with_parameters_that_fail_to_hydrate(
         self,
