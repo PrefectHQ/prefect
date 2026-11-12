@@ -238,8 +238,18 @@ The worker needs [permission to manage Secrets](#secret-management-permissions).
 You can override the credentials on each deployment through `job_variables`, for example
 `{"registry_credentials": "{{ prefect.blocks.docker-registry-credentials.my-registry }}"}`.
 
-If your work pool uses a custom base job template, add a `registry_credentials` variable
-and `"registry_credentials": "{{ registry_credentials }}"` to its `job_configuration`.
+A work pool keeps the base job template it was created with, so a pool created before
+`registry_credentials` existed ignores the variable, even if its template was never customized.
+To use it, refresh the pool's template with the current default, with a version of
+`prefect-kubernetes` that has `registry_credentials` installed:
+
+```bash
+prefect work-pool get-default-base-job-template --type kubernetes --file template.json
+prefect work-pool update my-pool --base-job-template template.json
+```
+
+If the pool's template is customized, add a `registry_credentials` variable
+and `"registry_credentials": "{{ registry_credentials }}"` to its `job_configuration` instead.
 
 **Finished Job TTL**
 
