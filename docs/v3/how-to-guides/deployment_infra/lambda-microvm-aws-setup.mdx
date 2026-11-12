@@ -171,6 +171,9 @@ If you set **Log Group** on the work pool, grant the same three actions on that 
 
 Add statements for anything your flows do in AWS, such as reading from S3 or writing to DynamoDB.
 
+A deployment pull step that runs in the MicroVM and calls AWS also uses the execution role, unless you give the step its own credentials.
+For example, `prefect_aws.deployments.steps.pull_from_s3` without `credentials` needs `s3:ListBucket` on the bucket and `s3:GetObject` on its objects.
+
 ## Create the build role
 
 Lambda assumes the build role while it builds your MicroVM image from a zip file in S3.
@@ -220,6 +223,16 @@ The build role reads the build zip from your S3 bucket and writes build logs to 
       "Resource": "arn:aws:logs:us-east-2:123456789012:log-group:/aws/lambda-microvms/*"
     }
   ]
+}
+```
+
+If the build bucket uses SSE-KMS encryption with a customer managed key, add this statement to the build role, and allow the build role in the key's key policy:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "kms:Decrypt",
+  "Resource": "arn:aws:kms:us-east-2:123456789012:key/<KMS_KEY_ID>"
 }
 ```
 
@@ -299,7 +312,8 @@ COPY flows/ /opt/prefect/flows/
 The image's working directory is `/opt/prefect`.
 The work pool resolves the deployment's entrypoint from this directory, so the example's `COPY flows/ /opt/prefect/flows/` pairs with an entrypoint like `flows/etl.py:etl`.
 If the deployment has exactly one pull step and it is `set_working_directory`, the work pool resolves the entrypoint from that step's directory instead, and that directory must exist in the image.
-A deployment with a storage block or other pull steps pulls its code at run time instead.
+A deployment with a storage block, or with a pull step that fetches code such as `git_clone` or `pull_from_s3`, pulls its code at run time instead.
+Steps such as `pip_install_requirements` and `run_shell_script` do not fetch the flow's code, so with only those steps the code must still be in the image.
 
 The image's command starts the process that answers the MicroVM lifecycle hooks and runs the flow run, so do not set `CMD` or `ENTRYPOINT` in your Dockerfile.
 
@@ -363,7 +377,8 @@ In Prefect Cloud, open the Lambda MicroVM push work pool's configuration and set
 | **Image ARN** | `image_arn` | The ARN of the MicroVM image to run each flow run in |
 
 The pool's **Launches per second** setting (`launches_per_second`) is how many MicroVMs the pool starts per second.
-Its default of 5 matches AWS's default `RunMicrovm` rate quota of 5 per second per account, so after AWS raises your account's quota, set the pool to the new rate.
+Its default of 5 matches AWS's default [`RunMicrovm` quota](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html#api-requests) of 5 requests per second per account and region.
+Raise the setting only after AWS raises that quota in the pool's region.
 This is a work pool setting, so a deployment's job variable overrides do not change it.
 
 ## Further reading
