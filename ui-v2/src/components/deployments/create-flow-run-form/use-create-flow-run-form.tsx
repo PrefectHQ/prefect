@@ -159,6 +159,7 @@ export const useCreateFlowRunForm = (
 	const [initialFormValues] = useState(() =>
 		createDefaultValues(deployment, overrideAdditionalOptions),
 	);
+	const hasParametersSchema = Boolean(deployment.parameter_openapi_schema);
 	const [initialParameterValues] = useState(
 		() => overrideParameters ?? deployment.parameters ?? {},
 	);
@@ -173,9 +174,14 @@ export const useCreateFlowRunForm = (
 		validateForm: validateParametersForm,
 	} = useSchemaForm(initialParameterValues);
 
+	const initialParametersInputMode: ParametersInputMode = hasParametersSchema
+		? "form"
+		: "json";
 	const [parametersInputMode, setParametersInputMode] =
-		useState<ParametersInputMode>("form");
-	const [parametersJson, setParametersJson] = useState("");
+		useState<ParametersInputMode>(initialParametersInputMode);
+	const [parametersJson, setParametersJson] = useState(() =>
+		hasParametersSchema ? "" : formatParametersJson(initialParameterValues),
+	);
 	const [parametersJsonError, setParametersJsonError] = useState<string | null>(
 		null,
 	);
@@ -188,11 +194,13 @@ export const useCreateFlowRunForm = (
 		}
 
 		if (mode === "json") {
-			setParametersJson(
-				JSON.stringify(removePrefectKindValues(parametersFormValues), null, 2),
-			);
+			const values = removePrefectKindValues(parametersFormValues);
+			if (isRecord(values)) {
+				setParametersFormValues(values);
+			}
+			setParametersJson(formatParametersJson(values));
 			setParametersJsonError(null);
-		} else if (parametersJsonError) {
+		} else if (!hasParametersSchema || parametersJsonError) {
 			return;
 		}
 
@@ -266,7 +274,14 @@ export const useCreateFlowRunForm = (
 					setParametersFormValues(
 						overrideParameters ?? deployment.parameters ?? {},
 					);
-					setParametersInputMode("form");
+					setParametersInputMode(initialParametersInputMode);
+					setParametersJson(
+						hasParametersSchema
+							? ""
+							: formatParametersJson(
+									overrideParameters ?? deployment.parameters ?? {},
+								),
+					);
 				},
 				onError: (error) => {
 					const message =
@@ -308,6 +323,10 @@ const DEFAULT_STATE = {
 		untrackable_result: false,
 	},
 };
+
+function formatParametersJson(values: unknown): string {
+	return JSON.stringify(values, null, 2);
+}
 
 function createPayload(
 	parameterValues: SchemaFormValues,

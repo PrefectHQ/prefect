@@ -84,29 +84,31 @@ export const CreateFlowRunForm = ({
 					)}
 				/>
 
-				{parametersOpenAPISchema && (
-					<div className="pt-4 border-t">
-						<Tabs
-							value={parametersInputMode}
-							onValueChange={(value) =>
-								onParametersInputModeChange(value === "json" ? "json" : "form")
-							}
-						>
-							<div className="flex items-center justify-between mb-2">
-								<h3 className="text-2xl font-semibold tracking-tight">
-									Parameters
-								</h3>
-								<TabsList>
-									<TabsTrigger
-										value="form"
-										disabled={parametersJsonError !== null}
-									>
-										Form
-									</TabsTrigger>
-									<TabsTrigger value="json">JSON</TabsTrigger>
-								</TabsList>
-							</div>
+				<div className="pt-4 border-t">
+					<Tabs
+						value={parametersInputMode}
+						onValueChange={(value) =>
+							onParametersInputModeChange(value === "json" ? "json" : "form")
+						}
+					>
+						<div className="flex items-center justify-between mb-2">
+							<h3 className="text-2xl font-semibold tracking-tight">
+								Parameters
+							</h3>
+							<TabsList>
+								<TabsTrigger
+									value="form"
+									disabled={
+										!parametersOpenAPISchema || parametersJsonError !== null
+									}
+								>
+									Form
+								</TabsTrigger>
+								<TabsTrigger value="json">JSON</TabsTrigger>
+							</TabsList>
+						</div>
 
+						{parametersOpenAPISchema && (
 							<TabsContent value="form">
 								<LazySchemaForm
 									schema={
@@ -118,29 +120,31 @@ export const CreateFlowRunForm = ({
 									kinds={["json"]}
 								/>
 							</TabsContent>
+						)}
 
-							<TabsContent value="json" className="flex flex-col gap-2">
-								<JsonInput
-									aria-label="Parameters JSON"
-									className="min-h-[200px]"
-									value={parametersJson}
-									onChange={onParametersJsonChange as JsonInputOnChange}
-								/>
-								{parametersJsonError ? (
+						<TabsContent value="json" className="flex flex-col gap-2">
+							<JsonInput
+								aria-label="Parameters JSON"
+								className="min-h-[200px]"
+								value={parametersJson}
+								onChange={onParametersJsonChange as JsonInputOnChange}
+							/>
+							{parametersJsonError ? (
+								<p className="text-destructive text-sm">
+									{parametersJsonError}
+								</p>
+							) : (
+								parameterFormErrors.length > 0 && (
 									<p className="text-destructive text-sm">
-										{parametersJsonError}
+										Parameters do not match the schema. Switch to the form to
+										see details.
 									</p>
-								) : (
-									parameterFormErrors.length > 0 && (
-										<p className="text-destructive text-sm">
-											Parameters do not match the schema. Switch to the form to
-											see details.
-										</p>
-									)
-								)}
-							</TabsContent>
-						</Tabs>
+								)
+							)}
+						</TabsContent>
+					</Tabs>
 
+					{parametersOpenAPISchema && (
 						<FormField
 							control={form.control}
 							name="enforce_parameter_schema"
@@ -158,8 +162,8 @@ export const CreateFlowRunForm = ({
 								</FormItem>
 							)}
 						/>
-					</div>
-				)}
+					)}
+				</div>
 
 				<div className="pt-4 border-t">
 					<FormField

@@ -19,6 +19,8 @@ import {
 
 type HookResult = ReturnType<typeof useCreateFlowRunForm>;
 
+const PARAMETERS_SCHEMA = { type: "object", properties: {} };
+
 const renderUseCreateFlowRunForm = async (
 	initialDeployment: Deployment,
 	initialOverride: Record<string, unknown> | undefined = undefined,
@@ -234,7 +236,10 @@ describe("useCreateFlowRunForm", () => {
 
 	describe("parameters JSON mode", () => {
 		it("prefills the JSON document from the current parameter values", async () => {
-			const deployment = createFakeDeployment({ parameters: {} });
+			const deployment = createFakeDeployment({
+				parameters: {},
+				parameter_openapi_schema: PARAMETERS_SCHEMA,
+			});
 
 			const { result } = await renderUseCreateFlowRunForm(deployment, {
 				config: { nested: { value: 1 } },
@@ -253,7 +258,10 @@ describe("useCreateFlowRunForm", () => {
 		});
 
 		it("unwraps json prefect kind values from the schema form", async () => {
-			const deployment = createFakeDeployment({ parameters: {} });
+			const deployment = createFakeDeployment({
+				parameters: {},
+				parameter_openapi_schema: PARAMETERS_SCHEMA,
+			});
 
 			const { result } = await renderUseCreateFlowRunForm(deployment, {
 				config: { __prefect_kind: "json", value: '{"a": [1, 2]}' },
@@ -269,7 +277,10 @@ describe("useCreateFlowRunForm", () => {
 		});
 
 		it("applies valid JSON edits to the parameter values", async () => {
-			const deployment = createFakeDeployment({ parameters: {} });
+			const deployment = createFakeDeployment({
+				parameters: {},
+				parameter_openapi_schema: PARAMETERS_SCHEMA,
+			});
 
 			const { result } = await renderUseCreateFlowRunForm(deployment, {
 				foo: "bar",
@@ -304,7 +315,10 @@ describe("useCreateFlowRunForm", () => {
 			["[1, 2]", "Parameters must be a JSON object"],
 			["null", "Parameters must be a JSON object"],
 		])("rejects %s and stays in JSON mode", async (value, error) => {
-			const deployment = createFakeDeployment({ parameters: {} });
+			const deployment = createFakeDeployment({
+				parameters: {},
+				parameter_openapi_schema: PARAMETERS_SCHEMA,
+			});
 
 			const { result } = await renderUseCreateFlowRunForm(deployment, {
 				foo: "bar",
@@ -330,6 +344,7 @@ describe("useCreateFlowRunForm", () => {
 		it("submits the JSON document as the parameters object", async () => {
 			const deployment = createFakeDeployment({
 				parameters: {},
+				parameter_openapi_schema: PARAMETERS_SCHEMA,
 				enforce_parameter_schema: false,
 			});
 			let requestBody: Record<string, unknown> = {};
@@ -368,9 +383,66 @@ describe("useCreateFlowRunForm", () => {
 			});
 		});
 
+		it("submits unwrapped values after switching to JSON without editing", async () => {
+			const deployment = createFakeDeployment({
+				parameters: {},
+				parameter_openapi_schema: PARAMETERS_SCHEMA,
+				enforce_parameter_schema: false,
+			});
+			let requestBody: Record<string, unknown> = {};
+			server.use(
+				http.post(
+					buildApiUrl("/deployments/:id/create_flow_run"),
+					async ({ request }) => {
+						requestBody = (await request.json()) as Record<string, unknown>;
+						return HttpResponse.json(createFakeFlowRun({ id: "new-run-id" }));
+					},
+				),
+			);
+
+			const { result } = await renderUseCreateFlowRunForm(deployment, {
+				config: { __prefect_kind: "json", value: '{"a": [1, 2]}' },
+			});
+
+			act(() => {
+				result.current.onParametersInputModeChange("json");
+			});
+
+			await act(async () => {
+				await result.current.form.handleSubmit(result.current.onCreate)();
+			});
+
+			await waitFor(() => {
+				expect(requestBody.parameters).toEqual({ config: { a: [1, 2] } });
+			});
+		});
+
+		it("starts in JSON mode when the deployment has no parameter schema", async () => {
+			const deployment = createFakeDeployment({
+				parameters: {},
+				parameter_openapi_schema: null,
+			});
+
+			const { result } = await renderUseCreateFlowRunForm(deployment, {
+				config: { nested: [1, 2] },
+			});
+
+			expect(result.current.parametersInputMode).toBe("json");
+			expect(JSON.parse(result.current.parametersJson)).toEqual({
+				config: { nested: [1, 2] },
+			});
+
+			act(() => {
+				result.current.onParametersInputModeChange("form");
+			});
+
+			expect(result.current.parametersInputMode).toBe("json");
+		});
+
 		it("does not submit while the JSON document is invalid", async () => {
 			const deployment = createFakeDeployment({
 				parameters: {},
+				parameter_openapi_schema: PARAMETERS_SCHEMA,
 				enforce_parameter_schema: false,
 			});
 			let requested = false;
