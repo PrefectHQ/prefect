@@ -4633,6 +4633,54 @@ class TestRegistryCredentials:
             }
         ]
 
+    @pytest.mark.parametrize(
+        "error",
+        [ApiException(status=503, reason="Unavailable"), ConnectionError("lost")],
+    )
+    async def test_retries_transient_owner_reference_failures(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+        error,
+    ):
+        mock_batch_client.return_value.list_namespaced_job.return_value.items = []
+        patch = mock_core_client.return_value.patch_namespaced_secret
+        patch.side_effect = [error, None]
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        assert patch.call_count == 2
+        assert patch.call_args.kwargs["name"] == "test-pull-secret"
+
+    async def test_does_not_retry_a_rejected_owner_reference(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+    ):
+        mock_batch_client.return_value.list_namespaced_job.return_value.items = []
+        patch = mock_core_client.return_value.patch_namespaced_secret
+        patch.side_effect = ApiException(status=403, reason="Forbidden")
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        assert patch.call_count == 1
+
     async def test_cleans_up_secret_on_job_creation_failure(
         self,
         flow_run,

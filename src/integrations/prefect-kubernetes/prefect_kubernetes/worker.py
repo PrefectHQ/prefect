@@ -1568,6 +1568,21 @@ class KubernetesWorker(
             namespace=namespace, body=secret
         )
 
+    @retry(
+        # A rejection won't change; server errors and lost connections may
+        retry=retry_if_exception(
+            lambda exc: (
+                not (
+                    isinstance(exc, ApiException)
+                    and exc.status is not None
+                    and exc.status < 500
+                )
+            )
+        ),
+        stop=stop_after_attempt(3),
+        wait=wait_random(0, 1),
+        reraise=True,
+    )
     async def _set_secret_owner_reference(
         self,
         secret_name: str,
