@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from packaging.version import Version
 
 from prefect.server import models
 from prefect.server.orchestration.global_policy import (
@@ -558,3 +559,87 @@ class TestPausingRules:
             await ctx.validate_proposed_state()
 
         assert ctx.run.run_count == 42
+
+    async def test_resuming_blocking_pause_does_not_increment_run_count(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        # A blocking pause resumes in the same process with `Running`, so the
+        # run continues its current attempt instead of starting a new one.
+        intended_transition = (states.StateType.PAUSED, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            initial_details={"pause_reschedule": False, "pause_key": "1"},
+            flow_run_count=1,
+        )
+
+        assert not ctx.run.empirical_policy.resuming
+
+        async with IncrementFlowRunCount(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.run.run_count == 1
+
+    async def test_resuming_blocking_pause_before_first_run_increments_run_count(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        # A run forced into a blocking pause before it ever ran has no attempt
+        # to continue.
+        intended_transition = (states.StateType.PAUSED, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            initial_details={"pause_reschedule": False, "pause_key": "1"},
+        )
+
+        async with IncrementFlowRunCount(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.run.run_count == 1
+
+    async def test_running_from_reschedule_pause_increments_run_count(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        # A reschedule-style pause exits the process, so entering `Running`
+        # without the resuming indicator starts a new attempt.
+        intended_transition = (states.StateType.PAUSED, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            initial_details={"pause_reschedule": True, "pause_key": "1"},
+            flow_run_count=1,
+        )
+
+        async with IncrementFlowRunCount(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.run.run_count == 2
+
+    async def test_resuming_blocking_pause_increments_run_count_for_old_clients(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        intended_transition = (states.StateType.PAUSED, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            initial_details={"pause_reschedule": False, "pause_key": "1"},
+            flow_run_count=1,
+        )
+        ctx.parameters["api-version"] = Version("0.8.3")
+
+        async with IncrementFlowRunCount(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.run.run_count == 2

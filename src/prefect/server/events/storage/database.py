@@ -197,6 +197,37 @@ async def read_events(
     return select_events_query_result.scalars().unique().all()
 
 
+def _replace_null_bytes(value: Any) -> Any:
+    """Replace null bytes with U+FFFD in every string in a JSON-compatible value."""
+    if isinstance(value, str):
+        return value.replace("\x00", "\ufffd")
+    if isinstance(value, dict):
+        return {
+            _replace_null_bytes(key): _replace_null_bytes(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_replace_null_bytes(item) for item in value]
+    return value
+
+
+def _sanitize_event_strings(event: ReceivedEvent) -> ReceivedEvent:
+    """Replace null bytes in an event's strings with U+FFFD.
+
+    PostgreSQL rejects null bytes (0x00) in `text` columns with
+    `CharacterNotInRepertoireError` and in `jsonb` columns with
+    `UntranslatableCharacterError`. Events are inserted in batches, so one such
+    event would fail every event written with it. Unlike log messages, the null
+    bytes are replaced rather than removed, so that a label like
+    `prefect.resource.id` can't become empty.
+    """
+    if "\\u0000" not in event.model_dump_json():
+        return event
+    return ReceivedEvent.model_validate(
+        _replace_null_bytes(event.model_dump(mode="json"))
+    )
+
+
 async def write_events(session: AsyncSession, events: list[ReceivedEvent]) -> None:
     """
     Write events to the database.
@@ -206,6 +237,7 @@ async def write_events(session: AsyncSession, events: list[ReceivedEvent]) -> No
         events: the events to insert
     """
     if events:
+        events = [_sanitize_event_strings(event) for event in events]
         dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
         if dialect.name == "postgresql":
             await _write_postgres_events(session, events)
