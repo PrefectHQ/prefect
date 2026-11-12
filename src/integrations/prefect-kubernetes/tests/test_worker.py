@@ -4923,6 +4923,35 @@ class TestRegistryCredentials:
             name="test-pull-secret", namespace=configuration.namespace
         )
 
+    async def test_secret_created_before_any_job_request_is_deleted_without_lookup(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+    ):
+        # The Secret may exist although the response was lost; no Job can
+        mock_core_client.return_value.create_namespaced_secret.side_effect = (
+            ConnectionError("response lost")
+        )
+        mock_batch_client.return_value.list_namespaced_job.side_effect = (
+            ConnectionError("connection lost")
+        )
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            with pytest.raises(ConnectionError):
+                await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        mock_batch_client.return_value.list_namespaced_job.assert_not_called()
+        mock_core_client.return_value.delete_namespaced_secret.assert_called_once_with(
+            name="test-pull-secret", namespace=configuration.namespace
+        )
+
     async def test_existing_secret_with_the_same_name_is_left_alone(
         self,
         flow_run,

@@ -1187,6 +1187,8 @@ class KubernetesWorker(
             if env_secret_name:
                 job_secret_names.append(env_secret_name)
 
+        # Until a Job request is sent, no Job can reference the Secrets
+        job_requested = False
         try:
             if configuration.registry_credentials:
                 await self._create_image_pull_secret(
@@ -1195,6 +1197,7 @@ class KubernetesWorker(
                     job_secret_names=job_secret_names,
                 )
 
+            job_requested = True
             batch_client = BatchV1Api(client)
             retry_settings = settings.worker.create_job_retry
             async for attempt in AsyncRetrying(
@@ -1214,7 +1217,7 @@ class KubernetesWorker(
         except BaseException as exc:
             # Also on transport errors and cancellation, after which Jobs may exist
             await self._settle_job_secrets_in_time(
-                job_secret_names, None, configuration, client
+                job_secret_names, None, job_requested, configuration, client
             )
             if not isinstance(exc, ApiException):
                 raise
@@ -1234,7 +1237,7 @@ class KubernetesWorker(
             ) from exc
 
         await self._settle_job_secrets_in_time(
-            job_secret_names, job, configuration, client
+            job_secret_names, job, True, configuration, client
         )
         return job
 
@@ -1265,6 +1268,7 @@ class KubernetesWorker(
         self,
         secret_names: list[str],
         created_job: "V1Job | None",
+        job_requested: bool,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
     ) -> None:
@@ -1273,7 +1277,7 @@ class KubernetesWorker(
             JOB_SECRET_CLEANUP_TIMEOUT_SECONDS, shield=True
         ) as scope:
             await self._settle_job_secrets(
-                secret_names, created_job, configuration, client
+                secret_names, created_job, job_requested, configuration, client
             )
         if scope.cancelled_caught:
             self._logger.warning(
@@ -1287,6 +1291,7 @@ class KubernetesWorker(
         self,
         secret_names: list[str],
         created_job: "V1Job | None",
+        job_requested: bool,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
     ) -> None:
@@ -1295,7 +1300,8 @@ class KubernetesWorker(
         A lost response can create a Job that the worker never sees, or that a
         retry then reports as a conflict. Every Job of the flow run that
         references the Secrets therefore becomes an owner, so the Secrets live
-        as long as any of them, and are deleted only if there is none.
+        as long as any of them, and are deleted only if there is none. Without a
+        Job request, there is none.
         """
         if not secret_names:
             return
@@ -1305,28 +1311,33 @@ class KubernetesWorker(
             await self._set_job_secret_owners(
                 secret_names, [created_job], namespace, client
             )
-        try:
-            jobs = await self._jobs_referencing_secrets(
-                secret_names, configuration, client
-            )
-        except Exception:
-            if created_job is None:
-                self._logger.warning(
-                    "Could not check whether the Job was created; keeping secrets %r, "
-                    "which a created Job may need.",
-                    secret_names,
+        if job_requested:
+            try:
+                jobs = await self._jobs_referencing_secrets(
+                    secret_names, configuration, client
                 )
-            return
-        if created_job is not None:
-            if all(job.metadata.uid == created_job.metadata.uid for job in jobs):
+            except Exception:
+                if created_job is None:
+                    self._logger.warning(
+                        "Could not check whether the Job was created; keeping "
+                        "secrets %r, which a created Job may need.",
+                        secret_names,
+                    )
                 return
-            jobs = [
-                created_job,
-                *(job for job in jobs if job.metadata.uid != created_job.metadata.uid),
-            ]
-        if jobs:
-            await self._set_job_secret_owners(secret_names, jobs, namespace, client)
-            return
+            if created_job is not None:
+                if all(job.metadata.uid == created_job.metadata.uid for job in jobs):
+                    return
+                jobs = [
+                    created_job,
+                    *(
+                        job
+                        for job in jobs
+                        if job.metadata.uid != created_job.metadata.uid
+                    ),
+                ]
+            if jobs:
+                await self._set_job_secret_owners(secret_names, jobs, namespace, client)
+                return
 
         for secret_name in secret_names:
             try:
