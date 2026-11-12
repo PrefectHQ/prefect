@@ -538,6 +538,9 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         If `overwrite` is `False`, a `FileExistsError` is raised when a file already exists at the destination.
+        This check is best-effort: it is not atomic, so concurrent writers to the same destination may still
+        overwrite each other. Files are uploaded one at a time, so files uploaded before a conflicting file
+        is found are left in place.
         """
         if to_path is None:
             to_path = str(self.basepath)
@@ -594,6 +597,9 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         If `overwrite` is `False`, a `FileExistsError` is raised when a file already exists at the destination.
+        This check is best-effort: it is not atomic, so concurrent writers to the same destination may still
+        overwrite each other. Files are uploaded one at a time, so files uploaded before a conflicting file
+        is found are left in place.
         """
         if to_path is None:
             to_path = str(self.basepath)
