@@ -2446,6 +2446,24 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == await third_state.result()
         assert await first_state.result() == 1
 
+    async def test_task_input_hash_distinguishes_tuples_from_lists(self):
+        @task(cache_key_fn=task_input_hash, persist_result=True)
+        def foo(x):
+            return type(x).__name__
+
+        @flow
+        def bar():
+            return (
+                foo((1, 2, 3), return_state=True),
+                foo([1, 2, 3], return_state=True),
+            )
+
+        tuple_state, list_state = bar()
+        assert tuple_state.name == "Completed"
+        assert list_state.name == "Completed"
+        assert await tuple_state.result() == "tuple"
+        assert await list_state.result() == "list"
+
     async def test_task_input_hash_between_flows(
         self,
     ):
@@ -4407,6 +4425,29 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
+
+    def test_map_can_take_futures_in_variadic_keywords(self):
+        @task
+        def numbers() -> list[int]:
+            return [1, 2, 3]
+
+        @task
+        def add(**kwargs: int) -> tuple[int, set[UUID]]:
+            context = TaskRunContext.get()
+            assert context is not None
+            upstream_ids = {
+                value.id for value in context.task_run.task_inputs["kwargs"]
+            }
+            return kwargs["x"] + kwargs["y"], upstream_ids
+
+        @flow
+        def my_flow() -> tuple[set[UUID], list[tuple[int, set[UUID]]]]:
+            x = numbers.submit()
+            y = numbers.submit()
+            return {x.task_run_id, y.task_run_id}, add.map(x=x, y=y).result()
+
+        upstream_ids, results = my_flow()
+        assert results == [(value, upstream_ids) for value in [2, 4, 6]]
 
     @staticmethod
     @task
