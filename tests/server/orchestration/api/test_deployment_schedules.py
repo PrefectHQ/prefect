@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 from uuid import UUID, uuid4
 
 import pytest
@@ -201,30 +201,6 @@ class TestCreateDeploymentSchedules:
             "tables_to_fetch": [{"prop": "value", "some_arr": []}]
         }
 
-    async def test_create_with_parameters_that_fail_to_hydrate(
-        self,
-        client: AsyncClient,
-        schedules_url: Callable[..., str],
-        deployment: orm_models.Deployment,
-    ):
-        response = await client.post(
-            schedules_url(deployment.id),
-            json=[
-                {
-                    "schedule": {"interval": 3600},
-                    "parameters": {
-                        "x": {"__prefect_kind": "json", "value": '{"invalid": json}'}
-                    },
-                }
-            ],
-        )
-
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert (
-            "Error hydrating schedule parameters: Invalid JSON: Expecting value:"
-            in response.json()["detail"]
-        )
-
     async def test_404_non_existent_deployment(
         self,
         client: AsyncClient,
@@ -422,6 +398,40 @@ class TestUpdateDeploymentSchedule:
         assert the_schedule.parameters == {
             "tables_to_fetch": [{"prop": "value", "some_arr": []}]
         }
+
+    @pytest.mark.parametrize(
+        "parameters, error",
+        [
+            (
+                {"x": {"__prefect_kind": "json", "value": '{"invalid": json}'}},
+                "Invalid JSON: Expecting value:",
+            ),
+            (
+                {"__prefect_kind": "json", "value": "[1, 2]"},
+                "Parameters must be a JSON object",
+            ),
+        ],
+        ids=["invalid-json", "not-an-object"],
+    )
+    async def test_update_with_parameters_that_fail_to_hydrate(
+        self,
+        client: AsyncClient,
+        deployment_with_schedules: orm_models.Deployment,
+        schedules_url: Callable[..., str],
+        schedule_to_update: schemas.core.DeploymentSchedule,
+        parameters: dict[str, Any],
+        error: str,
+    ):
+        url = schedules_url(
+            deployment_with_schedules.id, schedule_id=schedule_to_update.id
+        )
+        response = await client.patch(url, json={"parameters": parameters})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            f"Error hydrating schedule parameters: {error}"
+            in response.json()["detail"]
+        )
 
     async def test_404_non_existent_deployment(
         self,
