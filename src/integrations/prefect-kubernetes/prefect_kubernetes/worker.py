@@ -136,7 +136,14 @@ from kubernetes_asyncio.client.models import (
     V1ObjectMeta,
     V1Secret,
 )
-from pydantic import Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 from tenacity import (
     AsyncRetrying,
     retry,
@@ -258,6 +265,57 @@ class KubernetesImagePullPolicy(enum.Enum):
     NEVER = "Never"
 
 
+class KubernetesRegistryCredentials(BaseModel):
+    """
+    Credentials for pulling a flow run's image from a private registry.
+
+    The fields match `prefect_docker.credentials.DockerRegistryCredentials`, and the
+    JSON schema carries that block type's slug, so a reference to an existing
+    `DockerRegistryCredentials` block can be selected for the `registry_credentials`
+    job variable without installing `prefect-docker` alongside the worker.
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={
+            "block_type_slug": "docker-registry-credentials",
+            "secret_fields": ["password"],
+            "block_schema_references": {},
+        },
+    )
+
+    username: str = Field(description="The username to log into the registry with.")
+    password: SecretStr = Field(
+        description="The password to log into the registry with."
+    )
+    registry_url: str = Field(
+        description=(
+            "The URL to the registry, as passed to `docker login`. Generally, "
+            '"http" or "https" can be omitted.'
+        ),
+        examples=["index.docker.io"],
+    )
+
+    def to_docker_config_json(self) -> str:
+        """Returns the content of a `kubernetes.io/dockerconfigjson` Secret."""
+        username = self.username
+        password = self.password.get_secret_value()
+        auth = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode(
+            "utf-8"
+        )
+        return json.dumps(
+            {
+                "auths": {
+                    self.registry_url: {
+                        "username": username,
+                        "password": password,
+                        "auth": auth,
+                    }
+                }
+            }
+        )
+
+
 class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     """
     Configuration class used by the Kubernetes worker.
@@ -298,6 +356,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     job_watch_timeout_seconds: Optional[int] = Field(default=None)
     pod_watch_timeout_seconds: int = Field(default=60)
     stream_output: bool = Field(default=True)
+    registry_credentials: Optional[KubernetesRegistryCredentials] = Field(default=None)
 
     env: Union[Dict[str, Optional[str]], List[Dict[str, Any]]] = Field(
         default_factory=dict
@@ -782,6 +841,15 @@ class KubernetesWorkerVariables(BaseVariables):
         default=None,
         description="The Kubernetes cluster config to use for job creation.",
     )
+    registry_credentials: Optional[KubernetesRegistryCredentials] = Field(
+        default=None,
+        description=(
+            "Credentials for pulling the job's image from a private registry, such as "
+            "a DockerRegistryCredentials block. The worker stores them in an image "
+            "pull Secret for each job, which is deleted together with the job. The "
+            "worker needs permission to create, patch and delete Secrets."
+        ),
+    )
     cpu_request: Optional[str] = Field(
         default=None,
         title="CPU Request",
@@ -1106,13 +1174,23 @@ class KubernetesWorker(
                     "and `PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_AUTH_STRING_SECRET_KEY` environment variables."
                 )
 
-        env_secret_name: str | None = None
+        # Secrets created for this job only, owned by the Job once it exists.
+        job_secret_names: list[str] = []
         if settings.worker.store_env_as_secret:
             env_secret_name = await self._store_env_as_secret(
                 configuration=configuration, client=client
             )
+            if env_secret_name:
+                job_secret_names.append(env_secret_name)
 
         try:
+            if configuration.registry_credentials:
+                job_secret_names.append(
+                    await self._create_image_pull_secret(
+                        configuration=configuration, client=client
+                    )
+                )
+
             batch_client = BatchV1Api(client)
             retry_settings = settings.worker.create_job_retry
             async for attempt in AsyncRetrying(
@@ -1130,18 +1208,18 @@ class KubernetesWorker(
                         configuration.job_manifest,
                     )
         except kubernetes_asyncio.client.exceptions.ApiException as exc:
-            # Clean up the orphaned env Secret if Job creation failed
-            if env_secret_name:
+            # Clean up the orphaned per-job Secrets if Job creation failed
+            for secret_name in job_secret_names:
                 try:
                     core_client = CoreV1Api(client)
                     await core_client.delete_namespaced_secret(
-                        name=env_secret_name,
+                        name=secret_name,
                         namespace=configuration.namespace,
                     )
                 except Exception:
                     self._logger.warning(
-                        "Failed to clean up env secret %r after Job creation failure",
-                        env_secret_name,
+                        "Failed to clean up secret %r after Job creation failure",
+                        secret_name,
                     )
 
             # Parse the reason and message from the response if feasible
@@ -1158,22 +1236,75 @@ class KubernetesWorker(
                 f"Unable to create Kubernetes job{message}"
             ) from exc
 
-        if env_secret_name:
+        for secret_name in job_secret_names:
             try:
                 await self._set_secret_owner_reference(
-                    secret_name=env_secret_name,
+                    secret_name=secret_name,
                     namespace=configuration.namespace,
                     job=job,
                     client=client,
                 )
             except Exception:
                 self._logger.warning(
-                    "Failed to set owner reference on env secret %r; "
+                    "Failed to set owner reference on secret %r; "
                     "it will not be automatically cleaned up when the Job is deleted",
-                    env_secret_name,
+                    secret_name,
                 )
 
         return job
+
+    async def _create_image_pull_secret(
+        self,
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
+    ) -> str:
+        """Stores the job's registry credentials in a per-job image pull Secret.
+
+        Adds the Secret to the pod's `imagePullSecrets`, after any the job
+        manifest already lists, and returns its name.
+        """
+        credentials = configuration.registry_credentials
+        assert credentials is not None, "Expected registry credentials to be set"
+
+        generate_name = configuration.job_manifest["metadata"].get(
+            "generateName", "prefect-job-"
+        )
+        secret_name = f"{generate_name.rstrip('-')}-pull-{uuid.uuid4().hex[:8]}"
+        secret = V1Secret(
+            api_version="v1",
+            kind="Secret",
+            type="kubernetes.io/dockerconfigjson",
+            metadata=V1ObjectMeta(
+                name=secret_name,
+                namespace=configuration.namespace,
+                labels=self._job_secret_labels(
+                    configuration.job_manifest["metadata"].get("labels", {})
+                ),
+            ),
+            # Secret string_data is automatically base64-encoded by the K8s API
+            string_data={".dockerconfigjson": credentials.to_docker_config_json()},
+        )
+        created = await CoreV1Api(client).create_namespaced_secret(
+            namespace=configuration.namespace, body=secret
+        )
+
+        pod_spec = configuration.job_manifest["spec"]["template"]["spec"]
+        pod_spec["imagePullSecrets"] = [
+            *(pod_spec.get("imagePullSecrets") or []),
+            {"name": created.metadata.name},
+        ]
+        return created.metadata.name
+
+    @staticmethod
+    def _job_secret_labels(job_labels: dict[str, str] | None) -> dict[str, str]:
+        """Labels for a Secret created for one job, with its flow-run-id label."""
+        secret_labels = {"app.kubernetes.io/managed-by": "prefect"}
+        if job_labels:
+            # Propagate the flow-run-id label for auditability
+            flow_run_id = job_labels.get("prefect.io/flow-run-id")
+            if flow_run_id:
+                secret_labels["prefect.io/flow-run-id"] = flow_run_id
+        return secret_labels
 
     async def _store_env_as_secret(
         self,
@@ -1242,17 +1373,10 @@ class KubernetesWorker(
     ) -> "V1Secret":
         """Creates a Kubernetes Secret containing the given env var key-value pairs."""
         core_client = CoreV1Api(client)
-        secret_labels = {"app.kubernetes.io/managed-by": "prefect"}
-        if labels:
-            # Propagate the flow-run-id label for auditability
-            flow_run_id = labels.get("prefect.io/flow-run-id")
-            if flow_run_id:
-                secret_labels["prefect.io/flow-run-id"] = flow_run_id
-
         metadata = V1ObjectMeta(
             name=name,
             namespace=namespace,
-            labels=secret_labels,
+            labels=self._job_secret_labels(labels),
         )
         # Secret string_data is automatically base64-encoded by the K8s API
         secret = V1Secret(

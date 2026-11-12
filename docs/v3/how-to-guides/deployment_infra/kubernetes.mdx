@@ -228,6 +228,19 @@ Select from the dropdown options to specify when to pull the image.
 When using the `IfNotPresent` policy, make sure to use unique image tags, or
 old images may get cached on your nodes.
 
+**Registry Credentials**
+
+Select a `DockerRegistryCredentials` block to pull the image from a private registry.
+For each flow run, the worker stores the credentials in an image pull Secret,
+adds it to the pod's `imagePullSecrets`, and makes the Job its owner, so Kubernetes
+deletes the Secret together with the Job.
+The worker needs [permission to manage Secrets](#secret-management-permissions).
+You can override the credentials on each deployment through `job_variables`, for example
+`{"registry_credentials": "{{ prefect.blocks.docker-registry-credentials.my-registry }}"}`.
+
+If your work pool uses a custom base job template, add a `registry_credentials` variable
+and `"registry_credentials": "{{ registry_credentials }}"` to its `job_configuration`.
+
 **Finished Job TTL**
 
 Number of seconds before finished jobs are automatically cleaned up by the Kubernetes
@@ -492,7 +505,8 @@ add secret permissions to the Role:
 If you enable the worker to store generated flow-run environment variables in a
 per-job Kubernetes secret instead of embedding them directly in the Job manifest
 (by setting `PREFECT_INTEGRATIONS_KUBERNETES_WORKER_STORE_ENV_AS_SECRET=true`),
-add `create`, `patch`, and `delete` permissions on secrets to the Role:
+or set the `registry_credentials` job variable so the worker creates a per-job
+image pull secret, add `create`, `patch`, and `delete` permissions on secrets to the Role:
 
 {/* pmd-metadata: notest */}
 ```yaml
