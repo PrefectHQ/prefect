@@ -4426,6 +4426,29 @@ class TestTaskMap:
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
+    def test_map_can_take_futures_in_variadic_keywords(self):
+        @task
+        def numbers() -> list[int]:
+            return [1, 2, 3]
+
+        @task
+        def add(**kwargs: int) -> tuple[int, set[UUID]]:
+            context = TaskRunContext.get()
+            assert context is not None
+            upstream_ids = {
+                value.id for value in context.task_run.task_inputs["kwargs"]
+            }
+            return kwargs["x"] + kwargs["y"], upstream_ids
+
+        @flow
+        def my_flow() -> tuple[set[UUID], list[tuple[int, set[UUID]]]]:
+            x = numbers.submit()
+            y = numbers.submit()
+            return {x.task_run_id, y.task_run_id}, add.map(x=x, y=y).result()
+
+        upstream_ids, results = my_flow()
+        assert results == [(value, upstream_ids) for value in [2, 4, 6]]
+
     @staticmethod
     @task
     def echo(x):
