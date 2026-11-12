@@ -18,6 +18,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
+from prefect._internal.schemas.validators import normalize_rrule_string
 from prefect._internal.uuid7 import uuid7
 from prefect.logging import get_logger
 from prefect.server import models, schemas
@@ -107,6 +108,63 @@ async def _delete_scheduled_runs(
         )
 
     await session.execute(delete_query)
+
+
+def _without_generated_dtstart(rrule: str) -> str:
+    """Strip a `DTSTART` that `normalize_rrule_string` could have added to `rrule`."""
+    dtstart, _, rule = rrule.partition("\n")
+    try:
+        anchor = datetime.datetime.strptime(dtstart, "DTSTART:%Y%m%dT%H%M%S")
+    except ValueError:
+        return rrule
+    return rule if normalize_rrule_string(rule, now=anchor) == rrule else rrule
+
+
+def _is_same_schedule(
+    existing: schemas.core.DeploymentSchedule,
+    schedule: schemas.core.DeploymentSchedule
+    | schemas.actions.DeploymentScheduleCreate
+    | schemas.actions.DeploymentScheduleUpdate,
+) -> bool:
+    """Whether `schedule` is `existing` sent again: with the same slug or, without
+    slugs, with the same parameters and definition apart from generated values."""
+    if existing.slug != schedule.slug:
+        return False
+    if schedule.slug is not None:
+        return True
+    if schedule.schedule is None or existing.parameters != schedule.parameters:
+        return False
+    # An interval that's sent without an `anchor_date` is anchored when it's saved
+    exclude = {"anchor_date"} - schedule.schedule.model_fields_set
+    definitions = [
+        s.model_dump(exclude=exclude) for s in (existing.schedule, schedule.schedule)
+    ]
+    for definition in definitions:
+        if "rrule" in definition:
+            definition["rrule"] = _without_generated_dtstart(definition["rrule"])
+    return definitions[0] == definitions[1]
+
+
+def _active_for_replacement(
+    schedule: schemas.core.DeploymentSchedule
+    | schemas.actions.DeploymentScheduleCreate
+    | schemas.actions.DeploymentScheduleUpdate,
+    existing_schedules: list[schemas.core.DeploymentSchedule],
+) -> bool:
+    """The `active` state of a schedule that replaces a deployment's schedules.
+
+    A schedule sent without `active` keeps the state of the existing schedule it
+    matches, and each existing schedule is matched at most once. Schedules that
+    don't match one are active.
+    """
+    match = next(
+        (e for e in existing_schedules if _is_same_schedule(e, schedule)), None
+    )
+    if match is not None:
+        existing_schedules.remove(match)
+    if schedule.active is not None and "active" in schedule.model_fields_set:
+        return schedule.active
+    return match.active if match is not None else True
 
 
 @db_injector
@@ -220,6 +278,11 @@ async def create_deployment(
         future_only=True,
     )
 
+    existing_schedules = (
+        await read_deployment_schedules(session=session, deployment_id=deployment_id)
+        if schedules
+        else []
+    )
     await delete_schedules_for_deployment(session=session, deployment_id=deployment_id)
 
     if schedules:
@@ -229,7 +292,7 @@ async def create_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=schedule.active,
+                    active=_active_for_replacement(schedule, existing_schedules),
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )
@@ -387,6 +450,9 @@ async def update_deployment(
     if should_update_schedules:
         # If schedules were provided, remove the existing schedules and
         # replace them with the new ones.
+        existing_schedules = await read_deployment_schedules(
+            session=session, deployment_id=deployment_id
+        )
         await delete_schedules_for_deployment(
             session=session, deployment_id=deployment_id
         )
@@ -396,7 +462,7 @@ async def update_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=schedule.active if schedule.active is not None else True,
+                    active=_active_for_replacement(schedule, existing_schedules),
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )

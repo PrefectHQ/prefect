@@ -392,10 +392,12 @@ def construct_schedule(
     if interval:
         if isinstance(interval, (int, float)):
             interval = datetime.timedelta(seconds=interval)
-        if not anchor_date:
-            anchor_date = now()
+        # A missing `anchor_date` defaults to now but stays unset, so it isn't
+        # sent when a deployment is updated
         schedule = IntervalSchedule(
-            interval=interval, anchor_date=anchor_date, timezone=timezone
+            interval=interval,
+            timezone=timezone,
+            **({"anchor_date": anchor_date} if anchor_date else {}),
         )
     elif cron:
         schedule = CronSchedule(cron=cron, timezone=timezone)
