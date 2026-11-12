@@ -4783,9 +4783,11 @@ class TestRegistryCredentials:
         pull_secret,
     ):
         # A Job with a fixed name, created by an attempt whose response was lost
-        mock_batch_client.return_value.create_namespaced_job.side_effect = ApiException(
-            status=409, reason="Conflict"
-        )
+        mock_batch_client.return_value.create_namespaced_job.side_effect = [
+            ConnectionError("response lost"),
+            ApiException(status=409, reason="Conflict"),
+            ApiException(status=409, reason="Conflict"),
+        ]
         mock_batch_client.return_value.list_namespaced_job.return_value.items = [
             self._job("fixed-name", image_pull_secret="test-pull-secret"),
         ]
@@ -4956,6 +4958,66 @@ class TestRegistryCredentials:
 
         assert delete.call_count == 3
         warning.assert_not_called()
+
+    async def test_rejected_job_requests_delete_secrets_without_lookup(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+    ):
+        # No permission to create or list Jobs
+        mock_batch_client.return_value.create_namespaced_job.side_effect = ApiException(
+            status=403, reason="Forbidden"
+        )
+        mock_batch_client.return_value.list_namespaced_job.side_effect = ApiException(
+            status=403, reason="Forbidden"
+        )
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            with pytest.raises(InfrastructureError):
+                await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        mock_batch_client.return_value.list_namespaced_job.assert_not_called()
+        mock_core_client.return_value.delete_namespaced_secret.assert_called_once_with(
+            name="test-pull-secret", namespace=configuration.namespace
+        )
+
+    async def test_rejection_after_an_unclear_attempt_still_looks_for_the_job(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        pull_secret,
+    ):
+        mock_batch_client.return_value.create_namespaced_job.side_effect = [
+            ConnectionError("response lost"),
+            ApiException(status=403, reason="Forbidden"),
+            ApiException(status=403, reason="Forbidden"),
+        ]
+        mock_batch_client.return_value.list_namespaced_job.return_value.items = [
+            self._job("created-job", image_pull_secret="test-pull-secret"),
+        ]
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "registry_credentials": self.CREDENTIALS},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            with pytest.raises(InfrastructureError):
+                await k8s_worker._create_job(configuration, MagicMock(spec=ApiClient))
+
+        mock_core_client.return_value.delete_namespaced_secret.assert_not_called()
+        patch_call = mock_core_client.return_value.patch_namespaced_secret.call_args
+        assert patch_call.kwargs["body"]["metadata"]["ownerReferences"] == [
+            self._owner("created-job")
+        ]
 
     async def test_secret_created_before_any_job_request_is_deleted_without_lookup(
         self,

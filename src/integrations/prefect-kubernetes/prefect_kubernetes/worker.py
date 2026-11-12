@@ -1187,8 +1187,8 @@ class KubernetesWorker(
             if env_secret_name:
                 job_secret_names.append(env_secret_name)
 
-        # Until a Job request is sent, no Job can reference the Secrets
-        job_requested = False
+        # Only a Job request with an unclear outcome may have created a Job
+        job_may_exist = False
         try:
             if configuration.registry_credentials:
                 await self._create_image_pull_secret(
@@ -1197,7 +1197,6 @@ class KubernetesWorker(
                     job_secret_names=job_secret_names,
                 )
 
-            job_requested = True
             batch_client = BatchV1Api(client)
             retry_settings = settings.worker.create_job_retry
             async for attempt in AsyncRetrying(
@@ -1210,14 +1209,21 @@ class KubernetesWorker(
                 reraise=True,
             ):
                 with attempt:
-                    job = await batch_client.create_namespaced_job(
-                        configuration.namespace,
-                        configuration.job_manifest,
-                    )
+                    try:
+                        job = await batch_client.create_namespaced_job(
+                            configuration.namespace,
+                            configuration.job_manifest,
+                        )
+                    except BaseException as exc:
+                        if not isinstance(
+                            exc, ApiException
+                        ) or _is_transient_kubernetes_error(exc):
+                            job_may_exist = True
+                        raise
         except BaseException as exc:
             # Also on transport errors and cancellation, after which Jobs may exist
             await self._settle_job_secrets_in_time(
-                job_secret_names, None, job_requested, configuration, client
+                job_secret_names, None, job_may_exist, configuration, client
             )
             if not isinstance(exc, ApiException):
                 raise
@@ -1268,7 +1274,7 @@ class KubernetesWorker(
         self,
         secret_names: list[str],
         created_job: "V1Job | None",
-        job_requested: bool,
+        job_may_exist: bool,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
     ) -> None:
@@ -1277,7 +1283,7 @@ class KubernetesWorker(
             JOB_SECRET_CLEANUP_TIMEOUT_SECONDS, shield=True
         ) as scope:
             await self._settle_job_secrets(
-                secret_names, created_job, job_requested, configuration, client
+                secret_names, created_job, job_may_exist, configuration, client
             )
         if scope.cancelled_caught:
             self._logger.warning(
@@ -1291,7 +1297,7 @@ class KubernetesWorker(
         self,
         secret_names: list[str],
         created_job: "V1Job | None",
-        job_requested: bool,
+        job_may_exist: bool,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
     ) -> None:
@@ -1300,8 +1306,8 @@ class KubernetesWorker(
         A lost response can create a Job that the worker never sees, or that a
         retry then reports as a conflict. Every Job of the flow run that
         references the Secrets therefore becomes an owner, so the Secrets live
-        as long as any of them, and are deleted only if there is none. Without a
-        Job request, there is none.
+        as long as any of them, and are deleted only if there is none. If every
+        Job request was rejected, there is none.
         """
         if not secret_names:
             return
@@ -1311,7 +1317,7 @@ class KubernetesWorker(
             await self._set_job_secret_owners(
                 secret_names, [created_job], namespace, client
             )
-        if job_requested:
+        if job_may_exist:
             try:
                 jobs = await self._jobs_referencing_secrets(
                     secret_names, configuration, client
