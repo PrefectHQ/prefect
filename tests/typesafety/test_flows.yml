@@ -158,3 +158,35 @@
 
     @flow(on_completion=[too_few])  # E:
     def my_flow() -> None: ...
+
+- case: prefect_flow_decorator_task_runner
+  checkers: [mypy, pyright, ty]
+  should_pass: true
+  main: |
+    from prefect import flow
+    from prefect.task_runners import ProcessPoolTaskRunner, ThreadPoolTaskRunner
+
+    @flow(task_runner=ThreadPoolTaskRunner(max_workers=3))
+    def thread_pool_flow() -> None: ...
+
+    @flow(task_runner=ProcessPoolTaskRunner(max_workers=4))
+    def process_pool_flow() -> None: ...
+
+    @flow(task_runner=ThreadPoolTaskRunner)
+    def task_runner_class_flow() -> None: ...
+
+- case: prefect_flow_task_runner_options
+  checkers: [mypy, pyright, ty]
+  should_pass: true
+  main: |
+    from prefect.flows import Flow, InfrastructureBoundFlow
+    from prefect.task_runners import ThreadPoolTaskRunner
+
+    def my_fn() -> None: ...
+
+    my_flow = Flow(my_fn, task_runner=ThreadPoolTaskRunner(max_workers=3))
+    my_flow.with_options(task_runner=ThreadPoolTaskRunner(max_workers=3))
+    my_flow.with_options(task_runner=ThreadPoolTaskRunner)
+
+    def rebind(bound_flow: InfrastructureBoundFlow[[], None]) -> None:
+        bound_flow.with_options(task_runner=ThreadPoolTaskRunner(max_workers=3))
