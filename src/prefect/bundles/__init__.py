@@ -174,15 +174,11 @@ def _is_local_module(module_name: str, module_path: str | None = None) -> bool:
     if module_name in sys.builtin_module_names:
         return False
 
-    # Check if it's in the standard library (Python 3.10+)
-    if hasattr(sys, "stdlib_module_names"):
-        # Check both full module name and base module name
-        base_module = module_name.split(".")[0]
-        if (
-            module_name in sys.stdlib_module_names
-            or base_module in sys.stdlib_module_names
-        ):
-            return False
+    # Check if it's in the standard library
+    # Check both full module name and base module name
+    base_module = module_name.split(".")[0]
+    if module_name in sys.stdlib_module_names or base_module in sys.stdlib_module_names:
+        return False
 
     # If we have the module path, check if it's in site-packages or dist-packages
     if module_path:

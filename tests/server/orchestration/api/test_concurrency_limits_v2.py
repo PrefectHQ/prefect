@@ -390,6 +390,22 @@ async def test_increment_concurrency_limit_slots_gt_zero_422(
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease", "decrement"])
+async def test_bulk_slot_endpoints_reject_empty_names_422(
+    endpoint: str,
+    client: AsyncClient,
+):
+    response = await client.post(
+        f"/v2/concurrency_limits/{endpoint}",
+        json={"names": [], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 422
+    errors = response.json()["exception_detail"]
+    assert [(error["loc"], error["type"]) for error in errors] == [
+        (["body", "names"], "too_short")
+    ]
+
+
 @pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_slots_with_unknown_name(
     endpoint: str,

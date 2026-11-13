@@ -797,9 +797,6 @@ class TestLocalDependencyDiscovery:
         assert not _is_local_module("os")
         assert not _is_local_module("json")
 
-    @pytest.mark.skipif(
-        not hasattr(sys, "stdlib_module_names"), reason="Requires Python 3.10+"
-    )
     def test_is_local_module_stdlib(self):
         """Test that standard library modules are not considered local."""
         assert not _is_local_module("logging")

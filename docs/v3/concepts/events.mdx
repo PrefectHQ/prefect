@@ -33,16 +33,24 @@ Events adhere to a structured [specification](https://app.prefect.cloud/api/docs
 
 ## Event grammar
 
-Events can be named arbitrarily, but are recommended to follow a consistent and informative grammar. An event describes a resource and an action it took—
-or that was taken—on that resource.
+Name your custom events with your own prefix and a consistent, informative grammar. An event describes a resource and an action it took, or that was taken on that resource. For example:
 
-For example, events emitted automatically by Prefect objects take the following form:
+```
+acme.order.completed
+acme.data-pipeline.run.failed
+```
+
+Events that Prefect emits use the reserved `prefect.` and `prefect-cloud.` prefixes, for example:
 
 ```
 prefect.block.write-method.called
 prefect-cloud.automation.action.executed
 prefect-cloud.user.logged-in
 ```
+
+<Note>
+Don't use the `prefect.` or `prefect-cloud.` prefixes for your own events. Prefect Cloud drops events whose names start with `prefect-cloud.` when a client or a webhook sends them, without returning an error. See [namespace conventions](/v3/api-ref/events#namespace-conventions).
+</Note>
 
 See how to [emit and use custom events](/v3/advanced/use-custom-event-grammar) to trigger automations.
 

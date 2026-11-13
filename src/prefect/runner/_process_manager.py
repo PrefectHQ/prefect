@@ -368,6 +368,15 @@ class ProcessManager:
         """
         return set(self._process_map.keys())
 
+    def flow_run_count(self) -> int:
+        """Return the number of tracked flow runs.
+
+        Reads the map's length without iterating it, so callers on another
+        thread, such as the runner webserver, cannot fail while runs are added
+        or removed.
+        """
+        return len(self._process_map)
+
     async def wait_for_exit(self, flow_run_id: UUID, grace_seconds: float = 30) -> bool:
         """Wait for a tracked process to exit without sending a signal.
 

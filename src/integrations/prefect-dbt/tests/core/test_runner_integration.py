@@ -1,5 +1,6 @@
 """Integration tests for PrefectDbtRunner against a real DuckDB dbt project."""
 
+import asyncio
 import logging
 import shutil
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import Any
 import pytest
 import yaml
 from dbt.cli.main import dbtRunner
+from dbt.contracts.results import NodeStatus
 
 duckdb = pytest.importorskip("duckdb", reason="duckdb required for integration tests")
 pytest.importorskip(
@@ -16,6 +18,12 @@ pytest.importorskip(
 
 from prefect_dbt.core.runner import PrefectDbtRunner  # noqa: E402
 from prefect_dbt.core.settings import PrefectDbtSettings  # noqa: E402
+
+from prefect import flow  # noqa: E402
+from prefect.client.orchestration import get_client  # noqa: E402
+from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterId  # noqa: E402
+from prefect.client.schemas.objects import StateType  # noqa: E402
+from prefect.context import get_run_context  # noqa: E402
 
 pytestmark = pytest.mark.integration
 
@@ -135,3 +143,80 @@ def test_runner_lifecycle_hooks_with_real_dbt_invocation(dbt_project, caplog):
         "dbt hook broken_post_model failed during post_model." in record.getMessage()
         for record in caplog.records
     )
+
+
+@pytest.mark.skipif(
+    not hasattr(NodeStatus, "PartialSuccess"), reason="microbatch requires dbt>=1.9"
+)
+@pytest.mark.parametrize(
+    "failing_batch_id, expected_state",
+    [(None, StateType.COMPLETED), (2, StateType.FAILED)],
+)
+def test_runner_microbatch_model_creates_single_terminal_task_run(
+    dbt_project, failing_batch_id, expected_state
+):
+    """dbt emits a `NodeStart`/`NodeFinished` pair per microbatch batch, all with
+    the model's `unique_id`; the model must still map to one task run that
+    reaches a terminal state."""
+    models_dir = dbt_project / "models" / "microbatch"
+    models_dir.mkdir()
+    (models_dir / "source_events.sql").write_text(
+        "{{ config(materialized='table', event_time='event_at') }}\n"
+        "select i as id, timestamp '2026-01-01' + to_days(i) as event_at\n"
+        "from range(3) as t(i)\n"
+    )
+    failing_expr = (
+        f"case when id = {failing_batch_id} then error('boom') end"
+        if failing_batch_id is not None
+        else "null"
+    )
+    (models_dir / "events_microbatch.sql").write_text(
+        "{{ config(\n"
+        "    materialized='incremental',\n"
+        "    incremental_strategy='microbatch',\n"
+        "    event_time='event_at',\n"
+        "    begin='2026-01-01',\n"
+        "    batch_size='day',\n"
+        ") }}\n"
+        f"select *, {failing_expr} as failure from {{{{ ref('source_events') }}}}\n"
+    )
+
+    settings = PrefectDbtSettings(project_dir=dbt_project, profiles_dir=dbt_project)
+    runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
+    post_model_node_ids: list[str | None] = []
+
+    @runner.post_model
+    def post_model(ctx):
+        post_model_node_ids.append(ctx.node_id)
+
+    @flow
+    def run_microbatch():
+        runner.invoke(
+            [
+                "build",
+                "--select",
+                "+events_microbatch",
+                "--event-time-start",
+                "2026-01-01",
+                "--event-time-end",
+                "2026-01-04",
+            ]
+        )
+        return get_run_context().flow_run.id
+
+    flow_run_id = run_microbatch()
+
+    async def read_task_runs():
+        async with get_client() as client:
+            return await client.read_task_runs(
+                flow_run_filter=FlowRunFilter(id=FlowRunFilterId(any_=[flow_run_id]))
+            )
+
+    task_runs = asyncio.run(read_task_runs())
+    microbatch_task_runs = [
+        task_run for task_run in task_runs if "events_microbatch" in task_run.name
+    ]
+    assert len(microbatch_task_runs) == 1
+    assert microbatch_task_runs[0].state.type == expected_state
+    assert all(task_run.state.is_final() for task_run in task_runs)
+    assert post_model_node_ids.count("model.test_project.events_microbatch") == 1

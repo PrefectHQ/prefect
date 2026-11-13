@@ -9,19 +9,39 @@ except ModuleNotFoundError:
     import tomli as tomllib  # type: ignore[no-redef]
 
 PYTHON_VERSIONS = [
-    "3.10",
     "3.11",
     "3.12",
     "3.13",
+    "3.14",
 ]
 
-SKIP_VERSIONS: dict[str, list[str]] = {
-    "prefect-ray": ["3.13"],
-}
+SKIP_VERSIONS: dict[str, list[str]] = {}
 
 COMPAT_PYTHON_VERSION = "3.12"
 
 INTEGRATIONS_DIR = Path(__file__).resolve().parent.parent / "src" / "integrations"
+
+# Integrations that call private `prefect` functions, and the core files that
+# define the names they import. A change to one of these files runs that
+# integration's tests.
+CORE_FILES_USED_BY_INTEGRATIONS: dict[str, set[str]] = {
+    "prefect-aws": {
+        "src/prefect/engine.py",
+        "src/prefect/flow_engine.py",
+        "src/prefect/context.py",
+        "src/prefect/_internal/concurrency/services.py",
+        "src/prefect/_internal/control_listener.py",
+        "src/prefect/_internal/metrics.py",
+        "src/prefect/client/orchestration/__init__.py",
+        "src/prefect/exceptions.py",
+        "src/prefect/states.py",
+        "src/prefect/utilities/engine/__init__.py",
+        "src/prefect/logging/configuration.py",
+        "src/prefect/logging/handlers.py",
+        "src/prefect/logging/loggers.py",
+        "src/prefect/events/worker.py",
+    },
+}
 
 
 def get_compat_versions(package: str) -> dict[str, list[str]]:
@@ -53,6 +73,9 @@ def get_changed_packages(commit_range: str) -> list[str]:
             package_name = parts[2]
             if package_name.startswith("prefect-"):
                 packages.add(package_name)
+    for package, core_files in CORE_FILES_USED_BY_INTEGRATIONS.items():
+        if core_files.intersection(changed_files):
+            packages.add(package)
     return list(packages)
 
 

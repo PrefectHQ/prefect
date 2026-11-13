@@ -18,6 +18,7 @@ from sqlalchemy.exc import IntegrityError
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.server.api.workers import schedule_readiness_update
 from prefect.server.database import (
     PrefectDBInterface,
     provide_database_interface,
@@ -45,7 +46,7 @@ async def create_work_queue(
     If a work queue with the same name already exists, an error
     will be raised.
 
-    For more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.
+    For more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.
     """
 
     try:
@@ -189,22 +190,42 @@ async def read_work_queue_runs(
     if x_prefect_ui:
         return flow_runs
 
-    await docket.add(
-        mark_work_queues_ready,
-        key=f"mark_work_queues_ready:{work_queue_id}",
-    )(
-        polled_work_queue_ids=[work_queue_id],
-        ready_work_queue_ids=(
-            [work_queue_id] if work_queue.status == WorkQueueStatus.NOT_READY else []
-        ),
-    )
+    work_queue_becoming_ready = work_queue.status == WorkQueueStatus.NOT_READY
+    if work_queue_becoming_ready:
+        deployments_becoming_ready = True
+    else:
+        async with db.session_context() as session:
+            deployments_becoming_ready = (
+                await models.deployments.has_not_ready_deployments(
+                    session=session, work_queue_ids=[work_queue_id]
+                )
+            )
 
-    await docket.add(
+    # Record every poll before background-task deduplication can discard it.
+    async with db.session_context(begin_transaction=True) as session:
+        await models.work_queues.record_work_queue_polls(
+            session=session,
+            polled_work_queue_ids=[work_queue_id],
+            ready_work_queue_ids=[],
+        )
+
+    if work_queue_becoming_ready:
+        await schedule_readiness_update(
+            docket,
+            mark_work_queues_ready,
+            key=f"mark_work_queues_ready:{work_queue_id}",
+            becoming_ready=True,
+        )(
+            polled_work_queue_ids=[],
+            ready_work_queue_ids=[work_queue_id],
+        )
+
+    await schedule_readiness_update(
+        docket,
         mark_deployments_ready,
         key=f"mark_deployments_ready:work_queue:{work_queue_id}",
-    )(
-        work_queue_ids=[work_queue_id],
-    )
+        becoming_ready=deployments_becoming_ready,
+    )(work_queue_ids=[work_queue_id], skip_recently_polled=True)
 
     return flow_runs
 

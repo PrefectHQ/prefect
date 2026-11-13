@@ -2,8 +2,10 @@ import json
 import os
 import subprocess
 import sys
+import time
 import uuid
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from typing import Any
 from unittest.mock import ANY, AsyncMock, MagicMock
@@ -14,14 +16,19 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect
+import prefect.bundles as bundles_module
+import prefect.workers.process as process_module
 from prefect import flow
 from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.client.schemas.objects import Deployment, FlowRun, StateType, WorkPool
 from prefect.flows import bind_flow_to_infrastructure
+from prefect.logging.loggers import flow_run_logger
 from prefect.runner import _workspace_starter
+from prefect.runner._flow_run_executor import FlowRunExecutorContext
 from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._starter_bundle import BundleExecutionStarter
 from prefect.server import models
 from prefect.server.database.orm_models import Flow
 from prefect.server.schemas.actions import (
@@ -32,6 +39,7 @@ from prefect.settings import (
     PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES,
     temporary_settings,
 )
+from prefect.states import Cancelling
 from prefect.types._datetime import now
 from prefect.utilities.processutils import command_to_string
 from prefect.workers.process import (
@@ -45,24 +53,6 @@ pytestmark = pytest.mark.clear_db
 @flow
 def example_process_worker_flow():
     return 1
-
-
-@pytest.fixture
-def patch_run_process(monkeypatch: pytest.MonkeyPatch):
-    def patch_run_process(returncode: int = 0, pid: int = 1000):
-        mock_run_process = AsyncMock()
-        mock_process = MagicMock()
-        mock_process.returncode = returncode
-        mock_process.pid = pid
-        mock_run_process.return_value = mock_process
-
-        monkeypatch.setattr(
-            "prefect.workers.process.Runner._run_process", mock_run_process
-        )
-
-        return mock_run_process
-
-    return patch_run_process
 
 
 @pytest.fixture
@@ -1089,10 +1079,10 @@ async def test_submit_adhoc_run_with_existing_flow_run_reuses_id(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Test that _submit_adhoc_run with flow_run parameter reuses the flow run ID."""
-    # Mock execute_bundle to prevent actual execution
-    mock_execute_bundle = AsyncMock()
+    # Mock bundle execution to prevent actually running the flow
+    mock_submit = AsyncMock()
     monkeypatch.setattr(
-        "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+        "prefect.runner._flow_run_executor.FlowRunExecutor.submit", mock_submit
     )
 
     @flow
@@ -1128,10 +1118,10 @@ async def test_submit_adhoc_run_with_existing_flow_run_sets_pending_state(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Test that _submit_adhoc_run sets the state to Pending when retrying."""
-    # Mock execute_bundle to prevent actual execution
-    mock_execute_bundle = AsyncMock()
+    # Mock bundle execution to prevent actually running the flow
+    mock_submit = AsyncMock()
     monkeypatch.setattr(
-        "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+        "prefect.runner._flow_run_executor.FlowRunExecutor.submit", mock_submit
     )
 
     @flow
@@ -1157,13 +1147,13 @@ async def test_submit_adhoc_run_with_existing_flow_run_sets_pending_state(
             flow_run=initial_flow_run,
         )
 
-        # execute_bundle should have been called (which means state was set to Pending first)
-        mock_execute_bundle.assert_called()
+        # The bundle should have been submitted (which means state was set to Pending first)
+        mock_submit.assert_awaited_once()
 
         # Verify the flow run state was set to Pending before execution
         retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
         # The state should have been set to Pending (or a subsequent state after execution)
-        # Since we mocked execute_bundle, the state should still be Pending
+        # Since we mocked bundle execution, the state should still be Pending
         assert retried_flow_run.state is not None
         assert retried_flow_run.state.type == client_schemas.StateType.PENDING
 
@@ -1174,10 +1164,10 @@ async def test_submit_adhoc_run_without_flow_run_creates_new_run(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Test that _submit_adhoc_run creates a new flow run when flow_run is None."""
-    # Mock execute_bundle to prevent actual execution
-    mock_execute_bundle = AsyncMock()
+    # Mock bundle execution to prevent actually running the flow
+    mock_submit = AsyncMock()
     monkeypatch.setattr(
-        "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+        "prefect.runner._flow_run_executor.FlowRunExecutor.submit", mock_submit
     )
 
     @flow
@@ -1233,9 +1223,9 @@ async def test_submit_adhoc_run_passes_worker_id_for_attribution(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """_submit_adhoc_run should pass worker_id to prepare_for_flow_run for attribution."""
-    mock_execute_bundle = AsyncMock()
+    mock_submit = AsyncMock()
     monkeypatch.setattr(
-        "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+        "prefect.runner._flow_run_executor.FlowRunExecutor.submit", mock_submit
     )
 
     @flow
@@ -1266,3 +1256,133 @@ async def test_submit_adhoc_run_passes_worker_id_for_attribution(
     assert len(prepare_calls) == 1
     assert prepare_calls[0]["worker_id"] == worker.backend_id
     assert prepare_calls[0]["worker_name"] == worker.name
+
+
+@pytest.fixture
+def skip_bundle_dependency_capture(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Bundles record `uv pip freeze` output as dependencies and install them before
+    # execution; an empty freeze keeps these tests from installing anything.
+    monkeypatch.setattr(
+        bundles_module.subprocess, "check_output", MagicMock(return_value=b"")
+    )
+
+
+async def test_submit_adhoc_run_executes_bundle_through_flow_run_executor(
+    process_work_pool: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    starter_spy = MagicMock(wraps=BundleExecutionStarter)
+    monkeypatch.setattr(process_module, "BundleExecutionStarter", starter_spy)
+
+    captured: dict[str, Any] = {}
+    original_create_executor = FlowRunExecutorContext.create_executor
+
+    def capture_create_executor(
+        self_ctx: FlowRunExecutorContext, *args: Any, **kwargs: Any
+    ) -> Any:
+        captured.update(
+            kwargs, flow_run=args[0], control_channel=self_ctx.control_channel
+        )
+        executor = original_create_executor(self_ctx, *args, **kwargs)
+        executor.submit = AsyncMock(return_value=None)
+        captured["submit"] = executor.submit
+        return executor
+
+    monkeypatch.setattr(
+        FlowRunExecutorContext, "create_executor", capture_create_executor
+    )
+
+    @flow
+    def test_flow():
+        return "adhoc"
+
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        await worker._submit_adhoc_run(
+            flow=test_flow,
+            parameters={},
+            job_variables={
+                "working_dir": str(tmp_path),
+                "env": {"ADHOC_TEST_VAR": "present"},
+            },
+        )
+
+    captured["submit"].assert_awaited_once()
+    # The worker already created the flow run as Pending.
+    assert captured["propose_submitting"] is False
+
+    starter_kwargs = starter_spy.call_args.kwargs
+    assert starter_kwargs["bundle"]["flow_run"]["id"] == str(captured["flow_run"].id)
+    assert starter_kwargs["cwd"] == tmp_path
+    assert starter_kwargs["env"]["ADHOC_TEST_VAR"] == "present"
+    assert starter_kwargs["control_channel"] is captured["control_channel"]
+
+    # Runner-side hooks resolve to the submitted flow object.
+    assert await captured["resolve_flow"](captured["flow_run"]) is test_flow
+
+
+@pytest.mark.usefixtures("use_hosted_api_server", "skip_bundle_dependency_capture")
+async def test_submit_adhoc_run_cancels_bundle_and_runs_cancellation_hooks(
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    caplog: pytest.LogCaptureFixture,
+):
+    @flow
+    def flow_to_cancel():
+        time.sleep(100)
+
+    @flow_to_cancel.on_cancellation
+    def log_cancellation(flow: Any, flow_run: Any, state: Any) -> None:
+        flow_run_logger(flow_run, flow).info("This ad hoc flow was cancelled!")
+
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        async with anyio.create_task_group() as tg:
+            flow_run = await tg.start(
+                partial(worker._submit_adhoc_run, flow=flow_to_cancel, parameters={})
+            )
+
+            with anyio.fail_after(60):
+                while True:
+                    flow_run = await prefect_client.read_flow_run(flow_run.id)
+                    assert flow_run.state is not None
+                    if flow_run.state.is_running():
+                        break
+                    await anyio.sleep(0.5)
+
+            await prefect_client.set_flow_run_state(
+                flow_run_id=flow_run.id, state=Cancelling()
+            )
+
+    flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert flow_run.state is not None
+    assert flow_run.state.is_cancelled()
+    assert "This ad hoc flow was cancelled!" in caplog.text
+
+
+@pytest.mark.usefixtures("use_hosted_api_server", "skip_bundle_dependency_capture")
+async def test_submit_adhoc_run_runs_crashed_hooks_once(
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    tmp_path: Path,
+):
+    hook_marker = tmp_path / "crashed-hook.txt"
+
+    @flow
+    def crashing_flow():
+        os._exit(7)
+
+    @crashing_flow.on_crashed
+    def record_crash(flow: Any, flow_run: Any, state: Any) -> None:
+        with hook_marker.open("a") as marker:
+            marker.write("ran\n")
+
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        async with anyio.create_task_group() as tg:
+            flow_run = await tg.start(
+                partial(worker._submit_adhoc_run, flow=crashing_flow, parameters={})
+            )
+
+    flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert flow_run.state is not None
+    assert flow_run.state.is_crashed()
+    assert hook_marker.read_text().splitlines() == ["ran"]

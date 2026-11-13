@@ -584,7 +584,7 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
         timeout_message = (
             f"Timed out waiting for all futures to complete within {timeout} seconds"
         )
-        deadline = time.monotonic() + timeout if timeout is not None else None
+        deadline = time.monotonic() + timeout if timeout else None
 
         try:
             # `as_completed` de-duplicates internally; each unique future is
@@ -638,7 +638,7 @@ def as_completed(
     pending = unique_futures
     deadline: float | None = None
     try:
-        with timeout_context(timeout, timeout_exc_type=_WaitTimeoutError):
+        with timeout_context(timeout or None, timeout_exc_type=_WaitTimeoutError):
             done = {f for f in unique_futures if f._final_state}  # type: ignore[privateUsage]
             pending = unique_futures - done
             yield from done

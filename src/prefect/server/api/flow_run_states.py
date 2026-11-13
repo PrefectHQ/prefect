@@ -27,7 +27,7 @@ async def read_flow_run_state(
     """
     Get a flow run state by id.
 
-    For more information, see https://docs.prefect.io/v3/concepts/flows#final-state-determination.
+    For more information, see https://www.prefect.io/docs/v3/concepts/flows#final-state-determination.
     """
     async with db.session_context() as session:
         flow_run_state = await models.flow_run_states.read_flow_run_state(

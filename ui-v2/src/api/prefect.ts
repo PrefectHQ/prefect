@@ -52,7 +52,7 @@ export interface paths {
          * @description Creates a new flow from the provided schema. If a flow with the
          *     same name already exists, the existing flow is returned.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/flows.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/flows.
          */
         post: operations["create_flow_flows__post"];
         delete?: never;
@@ -209,7 +209,7 @@ export interface paths {
          *
          *     If no state is provided, the flow run will be created in a PENDING state.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/flows.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/flows.
          */
         post: operations["create_flow_run_flow_runs__post"];
         delete?: never;
@@ -591,7 +591,7 @@ export interface paths {
          *
          *     If no state is provided, the task run will be created in a PENDING state.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/tasks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/tasks.
          */
         post: operations["create_task_run_task_runs__post"];
         delete?: never;
@@ -739,7 +739,7 @@ export interface paths {
          * Read Flow Run State
          * @description Get a flow run state by id.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/flows#final-state-determination.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/flows#final-state-determination.
          */
         get: operations["read_flow_run_state_flow_run_states__id__get"];
         put?: never;
@@ -781,7 +781,7 @@ export interface paths {
          * Read Task Run State
          * @description Get a task run state by id.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/tasks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/tasks.
          */
         get: operations["read_task_run_state_task_run_states__id__get"];
         put?: never;
@@ -812,6 +812,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/observed-states": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Observed States
+         * @description Discover exact state names and types from retained run transitions.
+         *
+         *     Search by case-insensitive name or type prefix. Timestamps describe retained
+         *     history; deleting runs can change them or remove a state from the results.
+         */
+        get: operations["read_observed_states_observed_states_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deployments/": {
         parameters: {
             query?: never;
@@ -829,7 +852,7 @@ export interface paths {
          *     If the deployment has an active schedule, flow runs will be scheduled.
          *     When upserting, any scheduled runs from the existing deployment will be deleted.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/deployments.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/deployments.
          */
         post: operations["create_deployment_deployments__post"];
         delete?: never;
@@ -1249,7 +1272,7 @@ export interface paths {
          * Create Logs
          * @description Create new logs from the provided schema.
          *
-         *     For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/add-logging.
+         *     For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/add-logging.
          */
         post: operations["create_logs_logs__post"];
         delete?: never;
@@ -1291,7 +1314,7 @@ export interface paths {
          * Create Concurrency Limit
          * @description Create a task run concurrency limit.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/tag-based-concurrency-limits.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/tag-based-concurrency-limits.
          */
         post: operations["create_concurrency_limit_concurrency_limits__post"];
         delete?: never;
@@ -1447,7 +1470,7 @@ export interface paths {
          * Create Concurrency Limit V2
          * @description Create a task run concurrency limit.
          *
-         *     For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/global-concurrency-limits.
+         *     For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/global-concurrency-limits.
          */
         post: operations["create_concurrency_limit_v2_v2_concurrency_limits__post"];
         delete?: never;
@@ -1590,7 +1613,7 @@ export interface paths {
          * Create Block Type
          * @description Create a new block type.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/blocks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
         post: operations["create_block_type_block_types__post"];
         delete?: never;
@@ -1728,7 +1751,7 @@ export interface paths {
          * Create Block Document
          * @description Create a new block document.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/blocks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
         post: operations["create_block_document_block_documents__post"];
         delete?: never;
@@ -1810,7 +1833,7 @@ export interface paths {
          * @description Creates a new work pool. If a work pool with the same
          *     name already exists, an error will be raised.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/work-pools.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/work-pools.
          */
         post: operations["create_work_pool_work_pools__post"];
         delete?: never;
@@ -1943,7 +1966,7 @@ export interface paths {
          * @description Creates a new work pool queue. If a work pool queue with the same
          *     name already exists, an error will be raised.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.
          */
         post: operations["create_work_queue_work_pools__work_pool_name__queues_post"];
         delete?: never;
@@ -2070,7 +2093,7 @@ export interface paths {
          * Read Task Workers
          * @description Read active task workers. Optionally filter by task keys.
          *
-         *     For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/run-background-tasks.
+         *     For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/run-background-tasks.
          */
         post: operations["read_task_workers_task_workers_filter_post"];
         delete?: never;
@@ -2095,7 +2118,7 @@ export interface paths {
          *     If a work queue with the same name already exists, an error
          *     will be raised.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.
          */
         post: operations["create_work_queue_work_queues__post"];
         delete?: never;
@@ -2246,7 +2269,7 @@ export interface paths {
          * Create Artifact
          * @description Create an artifact.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/artifacts.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/artifacts.
          */
         post: operations["create_artifact_artifacts__post"];
         delete?: never;
@@ -2396,7 +2419,7 @@ export interface paths {
          * Create Block Schema
          * @description Create a block schema.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/blocks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
         post: operations["create_block_schema_block_schemas__post"];
         delete?: never;
@@ -2477,7 +2500,7 @@ export interface paths {
          * Read Available Block Capabilities
          * @description Get available block capabilities.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/blocks.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
         get: operations["read_available_block_capabilities_block_capabilities__get"];
         put?: never;
@@ -2521,7 +2544,7 @@ export interface paths {
          * Create Variable
          * @description Create a variable.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/variables.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/variables.
          */
         post: operations["create_variable_variables__post"];
         delete?: never;
@@ -2635,7 +2658,7 @@ export interface paths {
          * Create Events
          * @description Record a batch of Events.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/events.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/events.
          */
         post: operations["create_events_events_post"];
         delete?: never;
@@ -2722,7 +2745,7 @@ export interface paths {
          * Create Automation
          * @description Create an automation.
          *
-         *     For more information, see https://docs.prefect.io/v3/concepts/automations.
+         *     For more information, see https://www.prefect.io/docs/v3/concepts/automations.
          */
         post: operations["create_automation_automations__post"];
         delete?: never;
@@ -3566,22 +3589,22 @@ export interface components {
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
              */
-            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"];
+            trigger: components["schemas"]["EventTrigger-Output"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"];
             /**
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Output"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Output"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Output"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Id
              * Format: uuid
@@ -3620,22 +3643,22 @@ export interface components {
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
              */
-            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"];
+            trigger: components["schemas"]["EventTrigger-Input"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"];
             /**
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Owner Resource
              * @description The resource to which this automation belongs
@@ -3649,6 +3672,8 @@ export interface components {
              * @default and_
              */
             operator: components["schemas"]["Operator"];
+            /** @description Filter criteria for `Automation.id` */
+            id?: components["schemas"]["AutomationFilterId"] | null;
             /** @description Filter criteria for `Automation.name` */
             name?: components["schemas"]["AutomationFilterName"] | null;
             /** @description Filter criteria for `Automation.created` */
@@ -3666,6 +3691,17 @@ export interface components {
              * @description Only include automations created before this datetime
              */
             before_?: string | null;
+        };
+        /**
+         * AutomationFilterId
+         * @description Filter by `Automation.id`.
+         */
+        AutomationFilterId: {
+            /**
+             * Any
+             * @description A list of automation ids to include
+             */
+            any_?: string[] | null;
         };
         /**
          * AutomationFilterName
@@ -3755,22 +3791,22 @@ export interface components {
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
              */
-            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"];
+            trigger: components["schemas"]["EventTrigger-Input"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"];
             /**
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment-Input"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
         };
         /**
          * BlockDocument
@@ -4396,6 +4432,10 @@ export interface components {
             flows?: components["schemas"]["FlowFilter"];
             deployments?: components["schemas"]["DeploymentFilter"];
         };
+        /** Body_count_automations_automations_count_post */
+        Body_count_automations_automations_count_post: {
+            automations?: components["schemas"]["AutomationFilter"] | null;
+        };
         /** Body_count_block_documents_block_documents_count_post */
         Body_count_block_documents_block_documents_count_post: {
             block_documents?: components["schemas"]["BlockDocumentFilter"] | null;
@@ -4555,7 +4595,7 @@ export interface components {
             scheduled_before?: string;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4580,7 +4620,7 @@ export interface components {
             scheduled_after?: string;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4620,7 +4660,7 @@ export interface components {
             sort: components["schemas"]["DeploymentSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4641,7 +4681,7 @@ export interface components {
             work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4661,7 +4701,7 @@ export interface components {
             sort: components["schemas"]["FlowSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4680,7 +4720,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4693,7 +4733,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4713,7 +4753,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4729,7 +4769,7 @@ export interface components {
             automations?: components["schemas"]["AutomationFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4753,7 +4793,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4767,7 +4807,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4782,7 +4822,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4795,7 +4835,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4825,7 +4865,7 @@ export interface components {
             sort: components["schemas"]["DeploymentSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4877,7 +4917,7 @@ export interface components {
             work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4897,7 +4937,7 @@ export interface components {
             sort: components["schemas"]["FlowSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4917,7 +4957,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4933,7 +4973,7 @@ export interface components {
             sort: components["schemas"]["LogSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4946,7 +4986,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4972,7 +5012,7 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -4993,7 +5033,7 @@ export interface components {
             sort: components["schemas"]["VariableSort"];
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5012,7 +5052,7 @@ export interface components {
             flow_run_limit: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5026,7 +5066,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5039,7 +5079,7 @@ export interface components {
             page: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5053,7 +5093,7 @@ export interface components {
             scheduled_before?: string;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5067,7 +5107,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5081,7 +5121,7 @@ export interface components {
             work_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5095,7 +5135,7 @@ export interface components {
             offset: number;
             /**
              * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
         };
@@ -5454,9 +5494,9 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
+            triggers: (components["schemas"]["EventTrigger-Input"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
             /** Within */
-            within: number | null;
+            within: number | string | null;
             /** Require */
             require: number | ("any" | "all");
         };
@@ -5479,7 +5519,7 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
+            triggers: (components["schemas"]["EventTrigger-Output"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
             /** Within */
             within: number | null;
             /** Require */
@@ -6418,7 +6458,7 @@ export interface components {
              * Schedule
              * @description The schedule for the deployment.
              */
-            schedule: components["schemas"]["IntervalSchedule"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"];
+            schedule: components["schemas"]["IntervalSchedule-Output"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"];
             /**
              * Active
              * @description Whether or not the schedule is active.
@@ -6455,7 +6495,7 @@ export interface components {
              * Schedule
              * @description The schedule for the deployment.
              */
-            schedule: components["schemas"]["IntervalSchedule"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"];
+            schedule: components["schemas"]["IntervalSchedule-Input"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"];
             /**
              * Max Scheduled Runs
              * @description The maximum number of scheduled runs for the schedule.
@@ -6490,7 +6530,7 @@ export interface components {
              * Schedule
              * @description The schedule for the deployment.
              */
-            schedule?: components["schemas"]["IntervalSchedule"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"] | null;
+            schedule?: components["schemas"]["IntervalSchedule-Input"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"] | null;
             /**
              * Max Scheduled Runs
              * @description The maximum number of scheduled runs for the schedule.
@@ -6621,6 +6661,12 @@ export interface components {
          * @description Settings for configuring deployments defaults
          */
         DeploymentsSettings: {
+            /**
+             * Clear Schedules On Empty
+             * @description Clear existing schedules when an empty schedules list is passed to RunnerDeployment.apply or aapply, including via prefect deploy. This opt-in setting will be removed when clearing becomes the default, after a deprecation period of at least six months or three minor releases, whichever is longer.
+             * @default false
+             */
+            clear_schedules_on_empty: boolean;
             /**
              * Default Work Pool Name
              * @description The default work pool to use when creating deployments.
@@ -6909,7 +6955,75 @@ export interface components {
          * @description A trigger that fires based on the presence or absence of events within a given
          *     period of time.
          */
-        EventTrigger: {
+        "EventTrigger-Input": {
+            /**
+             * Type
+             * @default event
+             * @constant
+             */
+            type: "event";
+            /**
+             * Id
+             * Format: uuid
+             * @description The unique ID of this trigger
+             */
+            id?: string;
+            /**
+             * Match
+             * @description Labels for resources which this trigger will match.
+             */
+            match?: components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            };
+            /**
+             * Match Related
+             * @description Labels for related resources which this trigger will match.
+             */
+            match_related?: components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            } | (components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            })[];
+            /**
+             * After
+             * @description The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`
+             */
+            after?: string[];
+            /**
+             * Expect
+             * @description The event(s) this trigger is expecting to see.  If empty, this trigger will match any event.  Events may include trailing wildcards, like `prefect.flow-run.*`
+             */
+            expect?: string[];
+            /**
+             * For Each
+             * @description Evaluate the trigger separately for each distinct value of these labels on the resource.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`.  This will use the value of that label for the first related resource in that role.  For example, `"for_each": ["related:flow:prefect.resource.id"]` would evaluate the trigger for each flow.
+             */
+            for_each?: string[];
+            /**
+             * Posture
+             * @description The posture of this trigger, either Reactive or Proactive.  Reactive triggers respond to the _presence_ of the expected events, while Proactive triggers respond to the _absence_ of those expected events.
+             * @enum {string}
+             */
+            posture: "Reactive" | "Proactive";
+            /**
+             * Threshold
+             * @description The number of events required for this trigger to fire (for Reactive triggers), or the number of events expected (for Proactive triggers)
+             * @default 1
+             */
+            threshold: number;
+            /**
+             * Within
+             * @description The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers
+             * @default PT0S
+             */
+            within: number | string;
+        };
+        /**
+         * EventTrigger
+         * @description A trigger that fires based on the presence or absence of events within a given
+         *     period of time.
+         */
+        "EventTrigger-Output": {
             /**
              * Type
              * @default event
@@ -8480,7 +8594,50 @@ export interface components {
          *             if not provided, the current timestamp will be used.
          *         timezone (str, optional): a valid timezone string.
          */
-        IntervalSchedule: {
+        "IntervalSchedule-Input": {
+            /** Interval */
+            interval: number | string;
+            /**
+             * Anchor Date
+             * Format: date-time
+             * @example 2020-01-01T00:00:00Z
+             */
+            anchor_date?: string;
+            /**
+             * Timezone
+             * @example America/New_York
+             */
+            timezone?: string | null;
+        };
+        /**
+         * IntervalSchedule
+         * @description A schedule formed by adding `interval` increments to an `anchor_date`. If no
+         *     `anchor_date` is supplied, the current UTC time is used.  If a
+         *     timezone-naive datetime is provided for `anchor_date`, it is assumed to be
+         *     in the schedule's timezone (or UTC). Even if supplied with an IANA timezone,
+         *     anchor dates are always stored as UTC offsets, so a `timezone` can be
+         *     provided to determine localization behaviors like DST boundary handling. If
+         *     none is provided it will be inferred from the anchor date.
+         *
+         *     NOTE: If the `IntervalSchedule` `anchor_date` or `timezone` is provided in a
+         *     DST-observing timezone, then the schedule will adjust itself appropriately.
+         *     Intervals greater than 24 hours will follow DST conventions, while intervals
+         *     of less than 24 hours will follow UTC intervals. For example, an hourly
+         *     schedule will fire every UTC hour, even across DST boundaries. When clocks
+         *     are set back, this will result in two runs that *appear* to both be
+         *     scheduled for 1am local time, even though they are an hour apart in UTC
+         *     time. For longer intervals, like a daily schedule, the interval schedule
+         *     will adjust for DST boundaries so that the clock-hour remains constant. This
+         *     means that a daily schedule that always fires at 9am will observe DST and
+         *     continue to fire at 9am in the local time zone.
+         *
+         *     Args:
+         *         interval (datetime.timedelta): an interval to schedule on.
+         *         anchor_date (DateTime, optional): an anchor date to schedule increments against;
+         *             if not provided, the current timestamp will be used.
+         *         timezone (str, optional): a valid timezone string.
+         */
+        "IntervalSchedule-Output": {
             /** Interval */
             interval: number;
             /**
@@ -8815,6 +8972,40 @@ export interface components {
             /** Artifacts */
             artifacts: components["schemas"]["GraphArtifact"][];
         };
+        /**
+         * ObservedState
+         * @description An exact state type/name pair and the bounds of its retained transitions.
+         */
+        ObservedState: {
+            /**
+             * State Type
+             * @description The state type.
+             */
+            state_type: string;
+            /**
+             * State Name
+             * @description The exact state name.
+             */
+            state_name: string;
+            /**
+             * First Seen
+             * Format: date-time
+             * @description Earliest retained transition timestamp.
+             */
+            first_seen: string;
+            /**
+             * Last Seen
+             * Format: date-time
+             * @description Latest retained transition timestamp.
+             */
+            last_seen: string;
+        };
+        /**
+         * ObservedStateSort
+         * @description Supported ordering for observed state discovery.
+         * @enum {string}
+         */
+        ObservedStateSort: "NAME_ASC" | "LAST_SEEN_DESC";
         /**
          * Operator
          * @description Operators for combining filter criteria.
@@ -9238,7 +9429,50 @@ export interface components {
          * RunDeployment
          * @description Runs the given deployment with the given parameters
          */
-        RunDeployment: {
+        "RunDeployment-Input": {
+            /**
+             * Type
+             * @default run-deployment
+             * @constant
+             */
+            type: "run-deployment";
+            /**
+             * Source
+             * @description Whether this Action applies to a specific selected deployment (given by `deployment_id`), or to a deployment that is inferred from the triggering event.  If the source is 'inferred', the `deployment_id` may not be set.  If the source is 'selected', the `deployment_id` must be set.
+             * @default selected
+             * @enum {string}
+             */
+            source: "selected" | "inferred";
+            /**
+             * Deployment Id
+             * @description The identifier of the deployment
+             */
+            deployment_id?: string | null;
+            /**
+             * Parameters
+             * @description The parameters to pass to the deployment, or None to use the deployment's default parameters
+             */
+            parameters?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Job Variables
+             * @description The job variables to pass to the created flow run, or None to use the deployment's default job variables
+             */
+            job_variables?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Schedule After
+             * @description The amount of time to wait before running the deployment. Defaults to running the deployment immediately.
+             */
+            schedule_after?: number | string;
+        };
+        /**
+         * RunDeployment
+         * @description Runs the given deployment with the given parameters
+         */
+        "RunDeployment-Output": {
             /**
              * Type
              * @default run-deployment
@@ -9581,9 +9815,9 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
+            triggers: (components["schemas"]["EventTrigger-Input"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
             /** Within */
-            within: number | null;
+            within: number | string | null;
         };
         /**
          * SequenceTrigger
@@ -9604,7 +9838,7 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
+            triggers: (components["schemas"]["EventTrigger-Output"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
             /** Within */
             within: number | null;
         };
@@ -9875,7 +10109,7 @@ export interface components {
             name: string;
             /**
              * Url
-             * @description The URL of the Redis server to use for Docket.
+             * @description The URL of the Redis server to use for Docket. Supports the memory:// (single-server only), redis://, rediss://, redis+sentinel:// and rediss+sentinel:// schemes; the Sentinel schemes discover the current master through the listed Sentinel daemons and follow failover automatically (requires pydocket>=0.23.1).
              * @default memory://
              */
             url: string;
@@ -10085,7 +10319,7 @@ export interface components {
         ServerServicesDBVacuumSettings: {
             /**
              * Enabled
-             * @description Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).
+             * @description Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs', 'orphans'. Defaults to 'events'. Enabling 'flow_runs' also enables lower-frequency orphan cleanup; 'orphans' can enable that cleanup independently. For backward compatibility, 'true' maps to all vacuum types and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).
              * @default [
              *       "events"
              *     ]
@@ -10097,6 +10331,12 @@ export interface components {
              * @default 3600
              */
             loop_seconds: number;
+            /**
+             * Orphan Cleanup Loop Seconds
+             * @description The database vacuum service will scan for orphaned logs and artifacts this often, in seconds. Defaults to `86400` (24 hours).
+             * @default 86400
+             */
+            orphan_cleanup_loop_seconds: number;
             /**
              * Retention Period
              * Format: duration
@@ -11556,7 +11796,7 @@ export interface components {
          * @description Defines task run sorting options.
          * @enum {string}
          */
-        TaskRunSort: "ID_DESC" | "EXPECTED_START_TIME_ASC" | "EXPECTED_START_TIME_DESC" | "NAME_ASC" | "NAME_DESC" | "NEXT_SCHEDULED_START_TIME_ASC" | "END_TIME_DESC";
+        TaskRunSort: "ID_DESC" | "EXPECTED_START_TIME_ASC" | "EXPECTED_START_TIME_DESC" | "NAME_ASC" | "NAME_DESC" | "NEXT_SCHEDULED_START_TIME_ASC" | "END_TIME_DESC" | "DURATION_DESC" | "DURATION_ASC";
         /**
          * TaskRunUpdate
          * @description Data used by the Prefect REST API to update a task run
@@ -14381,6 +14621,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["State"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_observed_states_observed_states_get: {
+        parameters: {
+            query?: {
+                query?: string | null;
+                order_by?: components["schemas"]["ObservedStateSort"];
+                limit?: number;
+            };
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservedState"][];
                 };
             };
             /** @description Validation Error */
@@ -18657,7 +18932,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_count_automations_automations_count_post"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

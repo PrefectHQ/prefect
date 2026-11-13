@@ -58,7 +58,7 @@
                     "Flows"
                 ],
                 "summary": "Create Flow",
-                "description": "Creates a new flow from the provided schema. If a flow with the\nsame name already exists, the existing flow is returned.\n\nFor more information, see https://docs.prefect.io/v3/concepts/flows.",
+                "description": "Creates a new flow from the provided schema. If a flow with the\nsame name already exists, the existing flow is returned.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/flows.",
                 "operationId": "create_flow_flows__post",
                 "parameters": [
                     {
@@ -535,7 +535,7 @@
                     "Flow Runs"
                 ],
                 "summary": "Create Flow Run",
-                "description": "Create a flow run. If a flow run with the same flow_id and\nidempotency key already exists, the existing flow run will be returned.\n\nIf no state is provided, the flow run will be created in a PENDING state.\n\nFor more information, see https://docs.prefect.io/v3/concepts/flows.",
+                "description": "Create a flow run. If a flow run with the same flow_id and\nidempotency key already exists, the existing flow run will be returned.\n\nIf no state is provided, the flow run will be created in a PENDING state.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/flows.",
                 "operationId": "create_flow_run_flow_runs__post",
                 "parameters": [
                     {
@@ -999,7 +999,7 @@
                             "type": "string",
                             "format": "date-time",
                             "description": "Only include runs that start or end after this time.",
-                            "default": "0001-01-01T00:00:00+00:00",
+                            "default": "0001-01-01T00:00:00Z",
                             "title": "Since"
                         },
                         "description": "Only include runs that start or end after this time."
@@ -1753,7 +1753,7 @@
                     "Task Runs"
                 ],
                 "summary": "Create Task Run",
-                "description": "Create a task run. If a task run with the same flow_run_id,\ntask_key, and dynamic_key already exists, the existing task\nrun will be returned.\n\nIf no state is provided, the task run will be created in a PENDING state.\n\nFor more information, see https://docs.prefect.io/v3/concepts/tasks.",
+                "description": "Create a task run. If a task run with the same flow_run_id,\ntask_key, and dynamic_key already exists, the existing task\nrun will be returned.\n\nIf no state is provided, the task run will be created in a PENDING state.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/tasks.",
                 "operationId": "create_task_run_task_runs__post",
                 "parameters": [
                     {
@@ -2246,7 +2246,7 @@
                     "Flow Run States"
                 ],
                 "summary": "Read Flow Run State",
-                "description": "Get a flow run state by id.\n\nFor more information, see https://docs.prefect.io/v3/concepts/flows#final-state-determination.",
+                "description": "Get a flow run state by id.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/flows#final-state-determination.",
                 "operationId": "read_flow_run_state_flow_run_states__id__get",
                 "parameters": [
                     {
@@ -2358,7 +2358,7 @@
                     "Task Run States"
                 ],
                 "summary": "Read Task Run State",
-                "description": "Get a task run state by id.\n\nFor more information, see https://docs.prefect.io/v3/concepts/tasks.",
+                "description": "Get a task run state by id.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/tasks.",
                 "operationId": "read_task_run_state_task_run_states__id__get",
                 "parameters": [
                     {
@@ -2464,13 +2464,98 @@
                 }
             }
         },
+        "/observed-states": {
+            "get": {
+                "tags": [
+                    "Observed States"
+                ],
+                "summary": "Read Observed States",
+                "description": "Discover exact state names and types from retained run transitions.\n\nSearch by case-insensitive name or type prefix. Timestamps describe retained\nhistory; deleting runs can change them or remove a state from the results.",
+                "operationId": "read_observed_states_observed_states_get",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "maxLength": 100
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Query"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/ObservedStateSort",
+                            "default": "LAST_SEEN_DESC"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 200,
+                            "minimum": 1,
+                            "default": 200,
+                            "title": "Limit"
+                        }
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ObservedState"
+                                    },
+                                    "title": "Response Read Observed States Observed States Get"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/deployments/": {
             "post": {
                 "tags": [
                     "Deployments"
                 ],
                 "summary": "Create Deployment",
-                "description": "Creates a new deployment from the provided schema. If a deployment with\nthe same name and flow_id already exists, the deployment is updated.\n\nIf the deployment has an active schedule, flow runs will be scheduled.\nWhen upserting, any scheduled runs from the existing deployment will be deleted.\n\nFor more information, see https://docs.prefect.io/v3/concepts/deployments.",
+                "description": "Creates a new deployment from the provided schema. If a deployment with\nthe same name and flow_id already exists, the deployment is updated.\n\nIf the deployment has an active schedule, flow runs will be scheduled.\nWhen upserting, any scheduled runs from the existing deployment will be deleted.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/deployments.",
                 "operationId": "create_deployment_deployments__post",
                 "parameters": [
                     {
@@ -3843,7 +3928,7 @@
                     "Logs"
                 ],
                 "summary": "Create Logs",
-                "description": "Create new logs from the provided schema.\n\nFor more information, see https://docs.prefect.io/v3/how-to-guides/workflows/add-logging.",
+                "description": "Create new logs from the provided schema.\n\nFor more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/add-logging.",
                 "operationId": "create_logs_logs__post",
                 "parameters": [
                     {
@@ -3954,7 +4039,7 @@
                     "Concurrency Limits"
                 ],
                 "summary": "Create Concurrency Limit",
-                "description": "Create a task run concurrency limit.\n\nFor more information, see https://docs.prefect.io/v3/concepts/tag-based-concurrency-limits.",
+                "description": "Create a task run concurrency limit.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/tag-based-concurrency-limits.",
                 "operationId": "create_concurrency_limit_concurrency_limits__post",
                 "parameters": [
                     {
@@ -4445,7 +4530,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Create Concurrency Limit V2",
-                "description": "Create a task run concurrency limit.\n\nFor more information, see https://docs.prefect.io/v3/how-to-guides/workflows/global-concurrency-limits.",
+                "description": "Create a task run concurrency limit.\n\nFor more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/global-concurrency-limits.",
                 "operationId": "create_concurrency_limit_v2_v2_concurrency_limits__post",
                 "parameters": [
                     {
@@ -4993,7 +5078,7 @@
                     "Block types"
                 ],
                 "summary": "Create Block Type",
-                "description": "Create a new block type.\n\nFor more information, see https://docs.prefect.io/v3/concepts/blocks.",
+                "description": "Create a new block type.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/blocks.",
                 "operationId": "create_block_type_block_types__post",
                 "parameters": [
                     {
@@ -5501,7 +5586,7 @@
                     "Block documents"
                 ],
                 "summary": "Create Block Document",
-                "description": "Create a new block document.\n\nFor more information, see https://docs.prefect.io/v3/concepts/blocks.",
+                "description": "Create a new block document.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/blocks.",
                 "operationId": "create_block_document_block_documents__post",
                 "parameters": [
                     {
@@ -5829,7 +5914,7 @@
                     "Work Pools"
                 ],
                 "summary": "Create Work Pool",
-                "description": "Creates a new work pool. If a work pool with the same\nname already exists, an error will be raised.\n\nFor more information, see https://docs.prefect.io/v3/concepts/work-pools.",
+                "description": "Creates a new work pool. If a work pool with the same\nname already exists, an error will be raised.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/work-pools.",
                 "operationId": "create_work_pool_work_pools__post",
                 "parameters": [
                     {
@@ -6275,7 +6360,7 @@
                     "Work Pools"
                 ],
                 "summary": "Create Work Queue",
-                "description": "Creates a new work pool queue. If a work pool queue with the same\nname already exists, an error will be raised.\n\nFor more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.",
+                "description": "Creates a new work pool queue. If a work pool queue with the same\nname already exists, an error will be raised.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.",
                 "operationId": "create_work_queue_work_pools__work_pool_name__queues_post",
                 "parameters": [
                     {
@@ -6774,7 +6859,7 @@
                     "Task Workers"
                 ],
                 "summary": "Read Task Workers",
-                "description": "Read active task workers. Optionally filter by task keys.\n\nFor more information, see https://docs.prefect.io/v3/how-to-guides/workflows/run-background-tasks.",
+                "description": "Read active task workers. Optionally filter by task keys.\n\nFor more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/run-background-tasks.",
                 "operationId": "read_task_workers_task_workers_filter_post",
                 "parameters": [
                     {
@@ -6830,7 +6915,7 @@
                     "Work Queues"
                 ],
                 "summary": "Create Work Queue",
-                "description": "Creates a new work queue.\n\nIf a work queue with the same name already exists, an error\nwill be raised.\n\nFor more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.",
+                "description": "Creates a new work queue.\n\nIf a work queue with the same name already exists, an error\nwill be raised.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.",
                 "operationId": "create_work_queue_work_queues__post",
                 "parameters": [
                     {
@@ -7356,7 +7441,7 @@
                     "Artifacts"
                 ],
                 "summary": "Create Artifact",
-                "description": "Create an artifact.\n\nFor more information, see https://docs.prefect.io/v3/concepts/artifacts.",
+                "description": "Create an artifact.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/artifacts.",
                 "operationId": "create_artifact_artifacts__post",
                 "parameters": [
                     {
@@ -7838,7 +7923,7 @@
                     "Block schemas"
                 ],
                 "summary": "Create Block Schema",
-                "description": "Create a block schema.\n\nFor more information, see https://docs.prefect.io/v3/concepts/blocks.",
+                "description": "Create a block schema.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/blocks.",
                 "operationId": "create_block_schema_block_schemas__post",
                 "parameters": [
                     {
@@ -8119,7 +8204,7 @@
                     "Block capabilities"
                 ],
                 "summary": "Read Available Block Capabilities",
-                "description": "Get available block capabilities.\n\nFor more information, see https://docs.prefect.io/v3/concepts/blocks.",
+                "description": "Get available block capabilities.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/blocks.",
                 "operationId": "read_available_block_capabilities_block_capabilities__get",
                 "parameters": [
                     {
@@ -8220,7 +8305,7 @@
                     "Variables"
                 ],
                 "summary": "Create Variable",
-                "description": "Create a variable.\n\nFor more information, see https://docs.prefect.io/v3/concepts/variables.",
+                "description": "Create a variable.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/variables.",
                 "operationId": "create_variable_variables__post",
                 "parameters": [
                     {
@@ -8724,7 +8809,7 @@
                     "Events"
                 ],
                 "summary": "Create Events",
-                "description": "Record a batch of Events.\n\nFor more information, see https://docs.prefect.io/v3/concepts/events.",
+                "description": "Record a batch of Events.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/events.",
                 "operationId": "create_events_events_post",
                 "parameters": [
                     {
@@ -8943,7 +9028,7 @@
                     "Automations"
                 ],
                 "summary": "Create Automation",
-                "description": "Create an automation.\n\nFor more information, see https://docs.prefect.io/v3/concepts/automations.",
+                "description": "Create an automation.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/automations.",
                 "operationId": "create_automation_automations__post",
                 "parameters": [
                     {
@@ -10808,7 +10893,7 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/EventTrigger"
+                                "$ref": "#/components/schemas/EventTrigger-Output"
                             },
                             {
                                 "$ref": "#/components/schemas/CompoundTrigger-Output"
@@ -10827,7 +10912,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Output"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -10887,7 +10972,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Output"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -10947,7 +11032,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Output"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11071,7 +11156,7 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/EventTrigger"
+                                "$ref": "#/components/schemas/EventTrigger-Input"
                             },
                             {
                                 "$ref": "#/components/schemas/CompoundTrigger-Input"
@@ -11090,7 +11175,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11150,7 +11235,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11210,7 +11295,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11530,7 +11615,7 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/EventTrigger"
+                                "$ref": "#/components/schemas/EventTrigger-Input"
                             },
                             {
                                 "$ref": "#/components/schemas/CompoundTrigger-Input"
@@ -11549,7 +11634,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11609,7 +11694,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -11669,7 +11754,7 @@
                                     "$ref": "#/components/schemas/DoNothing"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/RunDeployment"
+                                    "$ref": "#/components/schemas/RunDeployment-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseDeployment"
@@ -12789,8 +12874,8 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "title": "Names",
-                        "min_items": 1
+                        "minItems": 1,
+                        "title": "Names"
                     },
                     "occupancy_seconds": {
                         "anyOf": [
@@ -12919,8 +13004,8 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "title": "Names",
-                        "min_items": 1
+                        "minItems": 1,
+                        "title": "Names"
                     },
                     "mode": {
                         "type": "string",
@@ -12963,8 +13048,8 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "title": "Names",
-                        "min_items": 1
+                        "minItems": 1,
+                        "title": "Names"
                     },
                     "mode": {
                         "type": "string",
@@ -13143,8 +13228,8 @@
                             "format": "uuid"
                         },
                         "type": "array",
-                        "title": "Flow Ids",
-                        "max_items": 200
+                        "maxItems": 200,
+                        "title": "Flow Ids"
                     }
                 },
                 "type": "object",
@@ -13335,8 +13420,8 @@
                             "format": "uuid"
                         },
                         "type": "array",
-                        "title": "Flow Run Ids",
-                        "max_items": 200
+                        "maxItems": 200,
+                        "title": "Flow Run Ids"
                     }
                 },
                 "type": "object",
@@ -13662,8 +13747,8 @@
                             "format": "uuid"
                         },
                         "type": "array",
-                        "title": "Flow Ids",
-                        "max_items": 200
+                        "maxItems": 200,
+                        "title": "Flow Ids"
                     }
                 },
                 "type": "object",
@@ -15459,7 +15544,7 @@
                         "items": {
                             "anyOf": [
                                 {
-                                    "$ref": "#/components/schemas/EventTrigger"
+                                    "$ref": "#/components/schemas/EventTrigger-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/CompoundTrigger-Input"
@@ -15476,6 +15561,10 @@
                         "anyOf": [
                             {
                                 "type": "number"
+                            },
+                            {
+                                "type": "string",
+                                "format": "duration"
                             },
                             {
                                 "type": "null"
@@ -15526,7 +15615,7 @@
                         "items": {
                             "anyOf": [
                                 {
-                                    "$ref": "#/components/schemas/EventTrigger"
+                                    "$ref": "#/components/schemas/EventTrigger-Output"
                                 },
                                 {
                                     "$ref": "#/components/schemas/CompoundTrigger-Output"
@@ -17537,7 +17626,7 @@
                     "schedule": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/IntervalSchedule"
+                                "$ref": "#/components/schemas/IntervalSchedule-Output"
                             },
                             {
                                 "$ref": "#/components/schemas/CronSchedule"
@@ -17607,7 +17696,7 @@
                     "schedule": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/IntervalSchedule"
+                                "$ref": "#/components/schemas/IntervalSchedule-Input"
                             },
                             {
                                 "$ref": "#/components/schemas/CronSchedule"
@@ -17687,7 +17776,7 @@
                     "schedule": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/IntervalSchedule"
+                                "$ref": "#/components/schemas/IntervalSchedule-Input"
                             },
                             {
                                 "$ref": "#/components/schemas/CronSchedule"
@@ -18016,6 +18105,15 @@
             },
             "DeploymentsSettings": {
                 "properties": {
+                    "clear_schedules_on_empty": {
+                        "type": "boolean",
+                        "title": "Clear Schedules On Empty",
+                        "description": "Clear existing schedules when an empty schedules list is passed to RunnerDeployment.apply or aapply, including via prefect deploy. This opt-in setting will be removed when clearing becomes the default, after a deprecation period of at least six months or three minor releases, whichever is longer.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY"
+                        ]
+                    },
                     "default_work_pool_name": {
                         "anyOf": [
                             {
@@ -18629,7 +18727,162 @@
                 "title": "EventTextFilter",
                 "description": "Filter by text search across event content."
             },
-            "EventTrigger": {
+            "EventTrigger-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "const": "event",
+                        "title": "Type",
+                        "default": "event"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "match": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "title": "Match",
+                        "description": "Labels for resources which this trigger will match."
+                    },
+                    "match_related": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ResourceSpecification"
+                                        },
+                                        {
+                                            "additionalProperties": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "string"
+                                                    },
+                                                    {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    }
+                                                ]
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "title": "Match Related",
+                        "description": "Labels for related resources which this trigger will match."
+                    },
+                    "after": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "After",
+                        "description": "The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`"
+                    },
+                    "expect": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "Expect",
+                        "description": "The event(s) this trigger is expecting to see.  If empty, this trigger will match any event.  Events may include trailing wildcards, like `prefect.flow-run.*`"
+                    },
+                    "for_each": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "For Each",
+                        "description": "Evaluate the trigger separately for each distinct value of these labels on the resource.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`.  This will use the value of that label for the first related resource in that role.  For example, `\"for_each\": [\"related:flow:prefect.resource.id\"]` would evaluate the trigger for each flow."
+                    },
+                    "posture": {
+                        "type": "string",
+                        "enum": [
+                            "Reactive",
+                            "Proactive"
+                        ],
+                        "title": "Posture",
+                        "description": "The posture of this trigger, either Reactive or Proactive.  Reactive triggers respond to the _presence_ of the expected events, while Proactive triggers respond to the _absence_ of those expected events."
+                    },
+                    "threshold": {
+                        "type": "integer",
+                        "title": "Threshold",
+                        "description": "The number of events required for this trigger to fire (for Reactive triggers), or the number of events expected (for Proactive triggers)",
+                        "default": 1
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "string",
+                                "format": "duration"
+                            }
+                        ],
+                        "minimum": 0.0,
+                        "title": "Within",
+                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
+                        "default": "PT0S"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "posture"
+                ],
+                "title": "EventTrigger",
+                "description": "A trigger that fires based on the presence or absence of events within a given\nperiod of time."
+            },
+            "EventTrigger-Output": {
                 "properties": {
                     "type": {
                         "type": "string",
@@ -18763,6 +19016,7 @@
                     },
                     "within": {
                         "type": "number",
+                        "minimum": 0.0,
                         "title": "Within",
                         "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
                         "default": 0.0
@@ -22070,7 +22324,52 @@
                 "type": "object",
                 "title": "InternalSettings"
             },
-            "IntervalSchedule": {
+            "IntervalSchedule-Input": {
+                "properties": {
+                    "interval": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "exclusiveMinimum": 0.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Interval"
+                    },
+                    "anchor_date": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Anchor Date",
+                        "examples": [
+                            "2020-01-01T00:00:00Z"
+                        ]
+                    },
+                    "timezone": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Timezone",
+                        "examples": [
+                            "America/New_York"
+                        ]
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "interval"
+                ],
+                "title": "IntervalSchedule",
+                "description": "A schedule formed by adding `interval` increments to an `anchor_date`. If no\n`anchor_date` is supplied, the current UTC time is used.  If a\ntimezone-naive datetime is provided for `anchor_date`, it is assumed to be\nin the schedule's timezone (or UTC). Even if supplied with an IANA timezone,\nanchor dates are always stored as UTC offsets, so a `timezone` can be\nprovided to determine localization behaviors like DST boundary handling. If\nnone is provided it will be inferred from the anchor date.\n\nNOTE: If the `IntervalSchedule` `anchor_date` or `timezone` is provided in a\nDST-observing timezone, then the schedule will adjust itself appropriately.\nIntervals greater than 24 hours will follow DST conventions, while intervals\nof less than 24 hours will follow UTC intervals. For example, an hourly\nschedule will fire every UTC hour, even across DST boundaries. When clocks\nare set back, this will result in two runs that *appear* to both be\nscheduled for 1am local time, even though they are an hour apart in UTC\ntime. For longer intervals, like a daily schedule, the interval schedule\nwill adjust for DST boundaries so that the clock-hour remains constant. This\nmeans that a daily schedule that always fires at 9am will observe DST and\ncontinue to fire at 9am in the local time zone.\n\nArgs:\n    interval (datetime.timedelta): an interval to schedule on.\n    anchor_date (DateTime, optional): an anchor date to schedule increments against;\n        if not provided, the current timestamp will be used.\n    timezone (str, optional): a valid timezone string."
+            },
+            "IntervalSchedule-Output": {
                 "properties": {
                     "interval": {
                         "type": "number",
@@ -22738,6 +23037,50 @@
                     "artifacts"
                 ],
                 "title": "Node"
+            },
+            "ObservedState": {
+                "properties": {
+                    "state_type": {
+                        "type": "string",
+                        "title": "State Type",
+                        "description": "The state type."
+                    },
+                    "state_name": {
+                        "type": "string",
+                        "title": "State Name",
+                        "description": "The exact state name."
+                    },
+                    "first_seen": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "First Seen",
+                        "description": "Earliest retained transition timestamp."
+                    },
+                    "last_seen": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Last Seen",
+                        "description": "Latest retained transition timestamp."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "state_type",
+                    "state_name",
+                    "first_seen",
+                    "last_seen"
+                ],
+                "title": "ObservedState",
+                "description": "An exact state type/name pair and the bounds of its retained transitions."
+            },
+            "ObservedStateSort": {
+                "type": "string",
+                "enum": [
+                    "NAME_ASC",
+                    "LAST_SEEN_DESC"
+                ],
+                "title": "ObservedStateSort",
+                "description": "Supported ordering for observed state discovery."
             },
             "Operator": {
                 "type": "string",
@@ -23418,7 +23761,83 @@
                 "title": "ResumeWorkQueue",
                 "description": "Resumes a Work Queue"
             },
-            "RunDeployment": {
+            "RunDeployment-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "const": "run-deployment",
+                        "title": "Type",
+                        "default": "run-deployment"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "selected",
+                            "inferred"
+                        ],
+                        "title": "Source",
+                        "description": "Whether this Action applies to a specific selected deployment (given by `deployment_id`), or to a deployment that is inferred from the triggering event.  If the source is 'inferred', the `deployment_id` may not be set.  If the source is 'selected', the `deployment_id` must be set.",
+                        "default": "selected"
+                    },
+                    "deployment_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Deployment Id",
+                        "description": "The identifier of the deployment"
+                    },
+                    "parameters": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Parameters",
+                        "description": "The parameters to pass to the deployment, or None to use the deployment's default parameters"
+                    },
+                    "job_variables": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Job Variables",
+                        "description": "The job variables to pass to the created flow run, or None to use the deployment's default job variables"
+                    },
+                    "schedule_after": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "string",
+                                "format": "duration"
+                            }
+                        ],
+                        "title": "Schedule After",
+                        "description": "The amount of time to wait before running the deployment. Defaults to running the deployment immediately."
+                    }
+                },
+                "type": "object",
+                "title": "RunDeployment",
+                "description": "Runs the given deployment with the given parameters"
+            },
+            "RunDeployment-Output": {
                 "properties": {
                     "type": {
                         "type": "string",
@@ -23477,6 +23896,7 @@
                     },
                     "schedule_after": {
                         "type": "number",
+                        "minimum": 0.0,
                         "title": "Schedule After",
                         "description": "The amount of time to wait before running the deployment. Defaults to running the deployment immediately."
                     }
@@ -24051,7 +24471,7 @@
                         "items": {
                             "anyOf": [
                                 {
-                                    "$ref": "#/components/schemas/EventTrigger"
+                                    "$ref": "#/components/schemas/EventTrigger-Input"
                                 },
                                 {
                                     "$ref": "#/components/schemas/CompoundTrigger-Input"
@@ -24068,6 +24488,10 @@
                         "anyOf": [
                             {
                                 "type": "number"
+                            },
+                            {
+                                "type": "string",
+                                "format": "duration"
                             },
                             {
                                 "type": "null"
@@ -24102,7 +24526,7 @@
                         "items": {
                             "anyOf": [
                                 {
-                                    "$ref": "#/components/schemas/EventTrigger"
+                                    "$ref": "#/components/schemas/EventTrigger-Output"
                                 },
                                 {
                                     "$ref": "#/components/schemas/CompoundTrigger-Output"
@@ -27848,7 +28272,9 @@
                     "NAME_ASC",
                     "NAME_DESC",
                     "NEXT_SCHEDULED_START_TIME_ASC",
-                    "END_TIME_DESC"
+                    "END_TIME_DESC",
+                    "DURATION_DESC",
+                    "DURATION_ASC"
                 ],
                 "title": "TaskRunSort",
                 "description": "Defines task run sorting options."

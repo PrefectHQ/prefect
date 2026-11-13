@@ -59,7 +59,7 @@ indefinitely by default.
 - True if the lock was successfully acquired; False otherwise.
 
 
-#### `await_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `await_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 await_for_lock(self, key: str, timeout: Optional[float] = None) -> bool
@@ -76,7 +76,7 @@ Wait for the corresponding transaction record to become free.
 otherwise.
 
 
-#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_lock_holder(self, key: str, holder: str) -> bool
@@ -92,7 +92,7 @@ Check if the current holder is the lock holder for the transaction record.
 - True if the current holder is the lock holder; False otherwise.
 
 
-#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_locked(self, key: str) -> bool
@@ -115,13 +115,19 @@ release_lock(self, key: str, holder: str) -> None
 
 Releases the lock on the corresponding transaction record.
 
+If the lock no longer exists (e.g. it expired or was already released),
+this method is a no-op.
+
 **Args:**
 - `key`: Unique identifier for the transaction record.
 - `holder`: Unique identifier for the holder of the lock. Must match the
 holder provided when acquiring the lock.
 
+**Raises:**
+- `ValueError`: If the lock is held by a different holder.
 
-#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool

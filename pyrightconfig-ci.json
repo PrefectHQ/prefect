@@ -149,6 +149,7 @@
 		"src/prefect/server/worker_communication/cleanup_queue/__init__.py",
 		"src/prefect/server/worker_communication/cleanup_queue/memory.py",
 		"src/prefect/types/_datetime.py",
+		"src/prefect/types/_datetime_deprecations.py",
 		"src/prefect/utilities/asyncutils/__init__.py",
 		"src/prefect/utilities/collections.py",
 		"src/prefect/utilities/templating/__init__.py",

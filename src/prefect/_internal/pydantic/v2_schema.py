@@ -48,6 +48,23 @@ def has_v2_type_as_param(signature: inspect.Signature) -> bool:
     return False
 
 
+def _annotated_field_description(annotation: t.Any) -> str | None:
+    """
+    Return the description of the `Field`s in an `Annotated` type, if any.
+
+    The `Field`s are merged the way pydantic merges them, so a later `Field`
+    that sets `description=None` or `""` replaces an earlier description.
+    """
+    if typing.get_origin(annotation) is not typing.Annotated:
+        return None
+    try:
+        return FieldInfo.from_annotation(annotation).description
+    except TypeError:
+        # pydantic can't merge these `Field`s, e.g. `default` with
+        # `default_factory`; `generate_parameter_schema` falls back to `Any`
+        return None
+
+
 def process_v2_params(
     param: inspect.Parameter,
     *,
@@ -72,10 +89,6 @@ def process_v2_params(
 
     existing_field = param.default if isinstance(param.default, FieldInfo) else None
     default_value = existing_field.default if existing_field else param.default
-    if existing_field and existing_field.description:
-        description = existing_field.description
-    else:
-        description = docstrings.get(param.name)
 
     extra: dict[str, typing.Any] = {}
     if existing_field and isinstance(existing_field.json_schema_extra, dict):
@@ -84,6 +97,21 @@ def process_v2_params(
 
     # still ensure 'position' is always set
     extra.setdefault("position", position)
+
+    # `*args` and `**kwargs` accept any number of values, including none
+    if param.kind is inspect.Parameter.VAR_POSITIONAL:
+        type_ = list[type_]
+        default_value = []
+    elif param.kind is inspect.Parameter.VAR_KEYWORD:
+        type_ = dict[str, type_]
+        default_value = {}
+
+    # after the `*args`/`**kwargs` wrapping, so a `Field` in their annotation
+    # keeps describing each value
+    if existing_field and existing_field.description:
+        description = existing_field.description
+    else:
+        description = _annotated_field_description(type_) or docstrings.get(param.name)
 
     field = pydantic.Field(
         default=... if default_value is param.empty else default_value,

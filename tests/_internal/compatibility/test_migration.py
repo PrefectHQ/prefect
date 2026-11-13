@@ -68,4 +68,3 @@ def test_moved_in_v3(module):
 def test_removed_in_v3(module):
     with pytest.raises(PrefectImportError):
         import_from(module)
-        assert False, f"{module} should not have been importable"

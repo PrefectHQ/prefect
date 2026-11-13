@@ -39,7 +39,7 @@ repos:
           )$
   - repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
-    rev: 0.6.17
+    rev: 0.13.4
     hooks:
       - id: uv-lock
 
@@ -59,7 +59,7 @@ repos:
             "run",
             "--isolated",
             "-p",
-            "3.10",
+            "3.11",
             "--with",
             "pydantic>=2.9.0",
             "scripts/generate_settings_types.py",

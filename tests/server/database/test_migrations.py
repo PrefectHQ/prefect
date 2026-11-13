@@ -1842,3 +1842,34 @@ async def test_drop_db_removes_all_tables(db):
 
     # Recreate the database for other tests
     await db.create_db()
+
+
+async def test_observed_state_covering_indexes(
+    db: PrefectDBInterface, database_engine: AsyncEngine
+):
+    """The paired revision adds covering indexes only on SQLite and rolls back."""
+
+    async def indexes(table: str) -> dict[str, list[str]]:
+        async with database_engine.connect() as connection:
+            return await connection.run_sync(
+                lambda conn: {
+                    index["name"]: index["column_names"]
+                    for index in sa.inspect(conn).get_indexes(table)
+                }
+            )
+
+    previous = "8f5eda7c1dd7" if db.dialect.name == "sqlite" else "e7f54680bce3"
+    try:
+        await run_sync_in_worker_thread(alembic_downgrade, revision=previous)
+        for table in ("flow_run_state", "task_run_state"):
+            assert f"ix_{table}__type_name_timestamp" not in await indexes(table)
+        await run_sync_in_worker_thread(alembic_upgrade)
+        for table in ("flow_run_state", "task_run_state"):
+            actual = await indexes(table)
+            name = f"ix_{table}__type_name_timestamp"
+            if db.dialect.name == "sqlite":
+                assert actual[name] == ["type", "name", "timestamp"]
+            else:
+                assert name not in actual
+    finally:
+        await run_sync_in_worker_thread(alembic_upgrade)

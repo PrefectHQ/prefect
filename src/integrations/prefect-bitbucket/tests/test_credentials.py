@@ -12,8 +12,8 @@ def test_bitbucket_credentials(token):
     assert isinstance(credentials_block, Block)
 
 
-def ensure_valid_bitbucket_username_passes():
-    """Ensure invalid char username raises."""
+def test_valid_bitbucket_username_passes():
+    """Ensure a username of valid characters is allowed."""
     try:
         BitBucketCredentials(token="token", username="validusername")
     except Exception as exc:

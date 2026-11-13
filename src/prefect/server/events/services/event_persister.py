@@ -152,34 +152,65 @@ async def create_handler(
                     await session.commit()
                     logger.debug("Finished persisting events.")
                     consecutive_failures = 0  # Reset on success
+            except asyncio.CancelledError:
+                # Database drivers can surface connection failures as
+                # CancelledError; keep the batch rather than losing it
+                handle_failed_flush(batch)
+                raise
             except Exception:
-                consecutive_failures += 1
-                if consecutive_failures >= max_flush_retries:
-                    logger.error(
-                        "Max flush retries (%d) reached, dropping %d events",
-                        max_flush_retries,
-                        len(batch),
-                        exc_info=True,
+                handle_failed_flush(batch)
+
+    def handle_failed_flush(batch: List[ReceivedEvent]) -> None:
+        nonlocal consecutive_failures
+
+        consecutive_failures += 1
+        if consecutive_failures >= max_flush_retries:
+            logger.error(
+                "Max flush retries (%d) reached, dropping %d events",
+                max_flush_retries,
+                len(batch),
+                exc_info=True,
+            )
+            consecutive_failures = 0
+        else:
+            logger.debug(
+                "Error flushing events (attempt %d/%d), restoring to queue",
+                consecutive_failures,
+                max_flush_retries,
+                exc_info=True,
+            )
+            for restored, event in enumerate(batch):
+                try:
+                    queue.put_nowait(event)
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Event queue full (%d/%d), dropping %d events that failed to flush",
+                        queue.qsize(),
+                        queue_max_size,
+                        len(batch) - restored,
                     )
-                    consecutive_failures = 0
-                else:
-                    logger.debug(
-                        "Error flushing events (attempt %d/%d), restoring to queue",
-                        consecutive_failures,
-                        max_flush_retries,
-                        exc_info=True,
-                    )
-                    for event in batch:
-                        queue.put_nowait(event)
+                    break
+
+    stopping = False
 
     async def flush_periodically():
-        try:
-            while True:
+        while True:
+            try:
                 await asyncio.sleep(flush_every.total_seconds())
                 if queue.qsize():
                     await flush()
-        except asyncio.CancelledError:
-            return
+            except asyncio.CancelledError:
+                if stopping:
+                    return
+                # Not a shutdown request (e.g. a CancelledError raised by the
+                # database driver during an outage); exiting here would stop
+                # periodic flushing for the life of the service
+                logger.warning(
+                    "Periodic flush was unexpectedly cancelled; continuing",
+                    exc_info=True,
+                )
+            except Exception:
+                logger.exception("Error during periodic flush; continuing")
 
     async def message_handler(message: Message):
         if not message.data:
@@ -213,6 +244,9 @@ async def create_handler(
     try:
         yield message_handler
     finally:
+        stopping = True
         periodic_flush.cancel()
+        # let an in-flight periodic flush restore its batch before the final flush
+        await asyncio.wait([periodic_flush])
         if queue.qsize():
             await flush()

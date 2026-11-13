@@ -139,3 +139,5 @@ automation = Automation.read(id=automation.id)
 # or by name
 automation = Automation.read(name="woodchonk")
 ```
+
+If an automation uses an action type that your installed version of Prefect doesn't recognize, such as a newer Prefect Cloud action, reading it returns that action as an `UnknownAction` instead of raising a validation error. `UnknownAction` keeps every field of the original action, so updating the automation sends the action back unchanged.

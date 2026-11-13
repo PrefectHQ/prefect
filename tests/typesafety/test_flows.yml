@@ -83,3 +83,78 @@
     main:7: note:     def __call__.*
     main:7: note:     def __call__.*
     main:7: note:     def __call__.*
+
+- case: prefect_flow_state_hook_parameter_names
+  checkers: [mypy, pyright, ty]
+  should_pass: true
+  main: |
+    from typing import Any
+    from prefect import flow
+    from prefect.client.schemas.objects import FlowRun
+    from prefect.flows import Flow
+    from prefect.states import State
+
+    def named(flow: Flow[..., Any], flow_run: FlowRun, state: State) -> None: ...
+    def documented_run_name(flow: Flow[..., Any], run: FlowRun, state: State) -> None: ...
+    def other_names(f: Flow[..., Any], r: FlowRun, s: State) -> None: ...
+    async def async_named(flow: Flow[..., Any], flow_run: FlowRun, state: State) -> None: ...
+
+    @flow(on_completion=[named, documented_run_name, other_names, async_named])
+    def my_flow() -> None: ...
+
+    @my_flow.on_failure
+    def decorated(flow: Flow[..., Any], flow_run: FlowRun, state: State) -> None: ...
+
+    def call_decorated(f: Flow[..., Any], r: FlowRun, s: State) -> None:
+        decorated(f, r, s)
+        decorated(flow=f, flow_run=r, state=s)
+
+- case: prefect_flow_state_hook_subclass
+  checkers: [mypy, pyright, ty]
+  should_pass: true
+  main: |
+    from typing import Any
+    from prefect import flow
+    from prefect.flows import FlowStateHook
+
+    class Notify(FlowStateHook):
+        __name__ = "notify"
+
+        def __call__(self, flow: Any, flow_run: Any, state: Any) -> None: ...
+
+    class NotifyOnFailure(FlowStateHook[..., None]):
+        __name__ = "notify_on_failure"
+
+        def __call__(self, flow: Any, flow_run: Any, state: Any) -> None: ...
+
+    @flow(on_completion=[Notify()])
+    def my_flow() -> None: ...
+
+    my_flow.on_failure(NotifyOnFailure())
+
+- case: prefect_flow_state_hook_list
+  checkers: [mypy, pyright, ty]
+  should_pass: true
+  main: |
+    from typing import Any
+    from prefect import flow
+    from prefect.flows import Flow, FlowStateHook
+
+    def build(hooks: list[FlowStateHook[..., Any]]) -> Flow[[], None]:
+        @flow(on_completion=hooks)
+        def my_flow() -> None: ...
+
+        return my_flow.with_options(on_failure=hooks)
+
+- case: prefect_flow_state_hook_wrong_parameter_count
+  checkers: [mypy, pyright, ty]
+  main: |
+    from typing import Any
+    from prefect import flow
+    from prefect.client.schemas.objects import FlowRun
+    from prefect.flows import Flow
+
+    def too_few(flow: Flow[..., Any], flow_run: FlowRun) -> None: ...
+
+    @flow(on_completion=[too_few])  # E:
+    def my_flow() -> None: ...

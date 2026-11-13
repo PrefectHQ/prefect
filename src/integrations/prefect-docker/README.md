@@ -7,4 +7,4 @@
         <img src="https://img.shields.io/pypi/dm/prefect-docker?color=26272B&labelColor=090422" /></a>
 </p>
 
-See the docs at [https://docs.prefect.io/integrations/prefect-docker](https://docs.prefect.io/integrations/prefect-docker) for more information.
+See the docs at [https://www.prefect.io/docs/integrations/prefect-docker](https://www.prefect.io/docs/integrations/prefect-docker) for more information.

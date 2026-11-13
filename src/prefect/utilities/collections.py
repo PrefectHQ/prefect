@@ -5,7 +5,7 @@ Utilities for extensions of and operations on Python collections.
 import io
 import itertools
 import types
-from collections import OrderedDict
+from collections import Counter, OrderedDict, defaultdict, deque
 from collections.abc import (
     Callable,
     Collection,
@@ -13,6 +13,7 @@ from collections.abc import (
     Hashable,
     Iterable,
     Iterator,
+    Mapping,
     Sequence,
     Set,
 )
@@ -208,7 +209,7 @@ def extract_instances(
 
     if len(types_collection) == 1:
         [type_] = types_collection
-        return ret[type_]
+        return ret.get(type_, [])
 
     return ret
 
@@ -316,7 +317,7 @@ def visit_collection(
     max_depth: int = -1,
     context: Optional[dict[str, VT]] = None,
     remove_annotations: bool = False,
-    _seen: Optional[dict[int, Any]] = None,
+    _seen: Optional[dict[tuple[int, Optional[type[Any]]], Any]] = None,
 ) -> Optional[Any]:
     """
     Visits and potentially transforms every element of an arbitrary Python collection.
@@ -332,12 +333,17 @@ def visit_collection(
     - When `return_data` is `False`, no copies are created, and only side effects from
       `visit_fn` are applied. This mode is faster and should be used when no transformation
       of the collection is required, because it never has to copy any data.
+    - When a dataclass is copied, fields declared with `init=False` keep their
+      visited values. They are not recomputed by `__init__` or `__post_init__`
+      from the new field values; this is intentional.
 
     Supported types:
     - List (including iterators)
     - Tuple
-    - Set
-    - Dict (note: keys are also visited recursively)
+    - Set and frozenset
+    - Deque
+    - Dict, including `defaultdict` and `Counter` (note: keys are also visited
+      recursively)
     - Dataclass
     - Pydantic model
     - Prefect annotations
@@ -428,15 +434,19 @@ def visit_collection(
     # If we have reached the maximum depth or we have already visited this object,
     # return the result if we are returning data, otherwise return None
     obj_id = id(expr)
+    annotation = context.get("annotation") if context is not None else None
+    seen_key = (obj_id, type(annotation) if annotation is not None else None)
     if max_depth == 0:
         return result if return_data else None
-    elif obj_id in _seen:
+    elif seen_key in _seen:
         # Return the cached transformed result
-        return _seen[obj_id] if return_data else None
+        return _seen[seen_key][1] if return_data else None
 
     # Mark this object as being processed to handle circular references
-    # We'll update with the actual result later
-    _seen[obj_id] = expr
+    # We'll update with the actual result later. The object is stored next to
+    # its result so it stays alive and its id cannot be reused by a different
+    # object during this traversal.
+    _seen[seen_key] = (expr, expr)
 
     # Then visit every item in the expression if it is a collection
 
@@ -483,8 +493,10 @@ def visit_collection(
 
     # --- Sequences
 
-    elif isinstance(expr, (list, tuple, set)):
-        seq = cast(Union[list[Any], tuple[Any], set[Any]], expr)
+    elif isinstance(expr, (list, tuple, set, frozenset, deque)):
+        seq = cast(
+            Union[list[Any], tuple[Any], set[Any], frozenset[Any], deque[Any]], expr
+        )
         items = [visit_nested(o) for o in seq]
         if return_data:
             modified = any(item is not orig for item, orig in zip(items, seq))
@@ -492,6 +504,8 @@ def visit_collection(
                 # Use _make for NamedTuples
                 if hasattr(type(seq), "_make"):
                     result = type(seq)._make(items)
+                elif isinstance(seq, deque):
+                    result = type(seq)(items, maxlen=seq.maxlen)
                 else:
                     result = type(seq)(items)
 
@@ -506,7 +520,13 @@ def visit_collection(
                 for (k1, v1), (k2, v2) in zip(items, mapping.items())
             )
             if modified:
-                result = type(mapping)(items)
+                if isinstance(mapping, defaultdict):
+                    result = type(mapping)(mapping.default_factory, items)
+                elif isinstance(mapping, Counter):
+                    # `Counter(iterable)` would count the pairs themselves
+                    result = type(mapping)(dict(items))
+                else:
+                    result = type(mapping)(items)
 
     # --- Dataclasses
 
@@ -519,8 +539,14 @@ def visit_collection(
             )
             if modified:
                 result = replace(
-                    expr, **{f.name: v for f, v in zip(expr_fields, values)}
+                    expr,
+                    **{f.name: v for f, v in zip(expr_fields, values) if f.init},
                 )
+                # `replace` rejects `init=False` fields and resets them, so set
+                # their visited values directly; this also works on frozen dataclasses
+                for f, v in zip(expr_fields, values):
+                    if not f.init:
+                        object.__setattr__(result, f.name, v)
 
     # --- Pydantic models
 
@@ -541,13 +567,15 @@ def visit_collection(
                 model_instance = expr.model_construct(
                     _fields_set=expr.model_fields_set, **updated_data
                 )
-                for private_attr in expr.__private_attributes__:
-                    setattr(model_instance, private_attr, getattr(expr, private_attr))
+                # Only copy private attributes that have values; unset
+                # private attributes are absent from `__pydantic_private__`
+                for private_attr, value in (expr.__pydantic_private__ or {}).items():
+                    setattr(model_instance, private_attr, value)
                 result = model_instance
 
     # Update the cache with the final transformed result
     if return_data:
-        _seen[obj_id] = result
+        _seen[seen_key] = (expr, result)
 
     if return_data:
         return result
@@ -615,6 +643,21 @@ def distinct(
         yield item
 
 
+def _canonical_int_or_key(key: Any) -> Any:
+    """
+    Convert a string like `"1"` or `"-1"` to an int, leaving any other key
+    (including non-canonical forms like `"01"`) unchanged.
+    """
+    if isinstance(key, str):
+        try:
+            int_key = int(key)
+        except ValueError:
+            return key
+        if str(int_key) == key:
+            return int_key
+    return key
+
+
 @overload
 def get_from_dict(
     dct: NestedDict[str, VT], keys: Union[str, list[str]], default: None = None
@@ -643,7 +686,9 @@ def get_from_dict(
         keys: The sequence of keys to use for access. Can be a
             dot-separated string or a list of keys. List indices can be included
             in the sequence as either integer keys or as string indices in square
-            brackets.
+            brackets. When indexing a dictionary, a string key is matched
+            exactly first and only falls back to the equivalent integer key
+            (e.g. `"1"` -> `1`) if no exact match exists.
         default: The default value to return if the requested key path does not
             exist. Defaults to None.
 
@@ -656,6 +701,7 @@ def get_from_dict(
     get_from_dict({'a': {'b': {'c': [1, 2, 3, 4]}}}, 'a.b.c[1]') # 2
     get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, ['a', 'b', 1, 'c', 1]) # 2
     get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, 'a.b.1.c.2', 'default') # 'default'
+    get_from_dict({'years': {'2026': 42}}, 'years.2026') # 42
     ```
     """
     if isinstance(keys, str):
@@ -663,13 +709,16 @@ def get_from_dict(
     value = dct
     try:
         for key in keys:
-            try:
-                # Try to cast to int to handle list indices
-                key = int(key)
-            except ValueError:
-                # If it's not an int, use the key as-is
-                # for dict lookup
-                pass
+            if isinstance(value, Mapping):
+                # Prefer an exact match so numeric string keys like "2026" resolve
+                if key not in value:
+                    key = _canonical_int_or_key(key)
+            else:
+                try:
+                    # Try to cast to int to handle list indices
+                    key = int(key)
+                except ValueError:
+                    pass
             value = value[key]  # type: ignore
         return cast(VT, value)
     except (TypeError, KeyError, IndexError):

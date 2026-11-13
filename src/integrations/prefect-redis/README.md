@@ -7,4 +7,4 @@
         <img src="https://img.shields.io/pypi/dm/prefect-redis?color=0052FF&labelColor=090422" /></a>
 </p>
 
-For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
+For more information about how to use Prefect, please refer to the [Prefect documentation](https://www.prefect.io/docs/).

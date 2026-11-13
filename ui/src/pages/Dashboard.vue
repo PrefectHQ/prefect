@@ -100,7 +100,7 @@
   const route = useRoute()
   const browserUiSettings = ref<Settings | null>(UiSettings.settings)
   const serverSettings = await prefectApi.admin.getSettings()
-  const showPromotionalContent = computed(() => serverSettings.PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT)
+  const showPromotionalContent = computed(() => serverSettings.server.ui.show_promotional_content)
   const canSwitchToV2 = computed(() => {
     return browserUiSettings.value !== null && isUiAvailable(browserUiSettings.value, 'v2')
   })

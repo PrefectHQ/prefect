@@ -50,7 +50,7 @@ export const TaskRunsListItem = ({
 					{isSelectable && (
 						<Checkbox
 							checked={checked ?? false}
-							onCheckedChange={onCheckedChange}
+							onCheckedChange={(checked) => onCheckedChange?.(checked === true)}
 						/>
 					)}
 					<TaskRunBreadcrumbs taskRun={taskRun} flow={flow} flowRun={flowRun} />

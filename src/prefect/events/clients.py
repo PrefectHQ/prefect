@@ -791,9 +791,19 @@ class PrefectEventSubscriber:
                         # Match __anext__ backoff pattern: no delay for first 2 attempts,
                         # then 1 second delay
                         await asyncio.sleep(1)
+        except BaseException:
+            # Callers do not exit a context that failed to enter, so close any
+            # socket left open by a partial (failed or cancelled) setup here.
+            await self._close_partial_connection()
+            raise
         finally:
             EVENT_WEBSOCKET_CONNECTIONS.labels(self.client_name, "out", "initial").inc()
         return self
+
+    async def _close_partial_connection(self) -> None:
+        if self._websocket:
+            self._websocket = None
+            await self._connect.__aexit__(None, None, None)
 
     async def _reconnect(self) -> None:
         logger.debug("Reconnecting...")

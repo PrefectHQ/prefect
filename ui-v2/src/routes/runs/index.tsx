@@ -24,13 +24,16 @@ import {
 import {
 	DATE_RANGE_PRESETS,
 	type DateRangeUrlState,
-	FLOW_RUN_STATES,
-	type FlowRunState,
 	type PaginationState,
 	SORT_FILTERS,
 	type SortFilters,
 	urlStateToDateRangeValue,
 } from "@/components/flow-runs/flow-runs-list";
+import {
+	buildStateFilter,
+	parseStateNames,
+	STATE_TYPES,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import { RunsPage } from "@/components/runs/runs-page";
 import {
 	useApplyDefaultFilterOnMount,
@@ -47,7 +50,7 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useRunsFilters } from "@/hooks/use-runs-filters";
 
-const searchParams = z.object({
+export const searchParams = z.object({
 	tab: z.enum(["flow-runs", "task-runs"]).optional().default("flow-runs"),
 	// Flow runs pagination params
 	page: z.number().int().positive().optional().default(1).catch(1),
@@ -55,7 +58,11 @@ const searchParams = z.object({
 	sort: z.enum(SORT_FILTERS).optional().default("START_TIME_DESC"),
 	"hide-subflows": z.boolean().optional().default(false),
 	"flow-run-search": z.string().optional().default(""),
-	state: z.string().optional().default(""),
+	state: z
+		.union([z.string(), z.array(z.string())])
+		.optional()
+		.default(""),
+	"state-types": z.array(z.enum(STATE_TYPES)).optional(),
 	flows: z.string().optional().default(""),
 	deployments: z.string().optional().default(""),
 	"work-pools": z.string().optional().default(""),
@@ -74,16 +81,6 @@ const searchParams = z.object({
 });
 
 type SearchParams = z.infer<typeof searchParams>;
-
-// Helper to parse state string to array of FlowRunState
-const parseStateFilter = (stateString: string): FlowRunState[] => {
-	if (!stateString) return [];
-	return stateString
-		.split(",")
-		.filter((s): s is FlowRunState =>
-			FLOW_RUN_STATES.includes(s as FlowRunState),
-		);
-};
 
 // Helper to get date range from search params
 const getDateRangeFilter = (
@@ -133,18 +130,21 @@ const parseTagsFilter = (tagsString: string): string[] => {
 	return tagsString.split(",").filter((s) => s.trim().length > 0);
 };
 
-const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
+export const buildPaginationBody = (
+	search?: SearchParams,
+): FlowRunsPaginateFilter => {
 	const hideSubflows = search?.["hide-subflows"];
 	const flowRunSearch = search?.["flow-run-search"];
-	const stateFilters = parseStateFilter(search?.state ?? "");
+	const stateFilter = buildStateFilter(
+		parseStateNames(search?.state),
+		search?.["state-types"],
+	);
 	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
 	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
 	const workPoolsFilter = parseWorkPoolsFilter(search?.["work-pools"] ?? "");
 	const tagsFilter = parseTagsFilter(search?.tags ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
-	// Map state names to state types for the API filter
-	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
 	const flowIds = flowsFilter.length > 0 ? flowsFilter : undefined;
 	const deploymentIds =
 		deploymentsFilter.length > 0 ? deploymentsFilter : undefined;
@@ -155,7 +155,7 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const hasFilters =
 		hideSubflows ||
 		flowRunSearch ||
-		stateNames ||
+		stateFilter ||
 		flowIds ||
 		deploymentIds ||
 		tagsFilter.length > 0 ||
@@ -169,12 +169,7 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 				...(flowRunSearch && {
 					name: { like_: flowRunSearch },
 				}),
-				...(stateNames && {
-					state: {
-						operator: "and_" as const,
-						name: { any_: stateNames },
-					},
-				}),
+				...(stateFilter && { state: stateFilter }),
 				...(tagsFilter.length > 0 && {
 					tags: { operator: "and_" as const, any_: tagsFilter },
 				}),
@@ -210,38 +205,34 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	};
 };
 
-const buildTaskRunsPaginationBody = (
+export const buildTaskRunsPaginationBody = (
 	search?: SearchParams,
 ): TaskRunsPaginateFilter => {
 	const taskRunSearch = search?.["task-run-search"];
-	const stateFilters = parseStateFilter(search?.state ?? "");
+	const stateFilter = buildStateFilter(
+		parseStateNames(search?.state),
+		search?.["state-types"],
+	);
 	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
 	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
 	const tagsFilter = parseTagsFilter(search?.tags ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
 	// Build task_runs filter only if we have task-specific filters to apply
-	const taskRunsFilter = taskRunSearch
-		? {
-				operator: "and_" as const,
-				name: { like_: taskRunSearch },
-			}
-		: undefined;
+	const taskRunsFilter =
+		taskRunSearch || stateFilter
+			? {
+					operator: "and_" as const,
+					...(taskRunSearch && { name: { like_: taskRunSearch } }),
+					...(stateFilter && { state: stateFilter }),
+				}
+			: undefined;
 
-	// Build flow_runs filter from shared filters (state, tags, date range)
-	// These filters apply to the flow runs that the task runs belong to
-	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
-	const hasFlowRunsFilters =
-		stateNames || tagsFilter.length > 0 || dateRangeFilter;
+	// Tags and dates apply to the parent flow; states apply to each task.
+	const hasFlowRunsFilters = tagsFilter.length > 0 || dateRangeFilter;
 	const flowRunsFilter = hasFlowRunsFilters
 		? {
 				operator: "and_" as const,
-				...(stateNames && {
-					state: {
-						operator: "and_" as const,
-						name: { any_: stateNames },
-					},
-				}),
 				...(tagsFilter.length > 0 && {
 					tags: { operator: "and_" as const, any_: tagsFilter },
 				}),
@@ -277,18 +268,21 @@ const buildTaskRunsPaginationBody = (
 	};
 };
 
-const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
+export const buildHistoryFilter = (
+	search?: SearchParams,
+): FlowRunHistoryFilter => {
 	const hideSubflows = search?.["hide-subflows"];
 	const flowRunSearch = search?.["flow-run-search"];
-	const stateFilters = parseStateFilter(search?.state ?? "");
+	const stateFilter = buildStateFilter(
+		parseStateNames(search?.state),
+		search?.["state-types"],
+	);
 	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
 	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
 	const workPoolsFilter = parseWorkPoolsFilter(search?.["work-pools"] ?? "");
 	const tagsFilter = parseTagsFilter(search?.tags ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
-	// Map state names to state types for the API filter
-	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
 	const flowIds = flowsFilter.length > 0 ? flowsFilter : undefined;
 	const deploymentIds =
 		deploymentsFilter.length > 0 ? deploymentsFilter : undefined;
@@ -299,7 +293,7 @@ const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 	const hasFilters =
 		hideSubflows ||
 		flowRunSearch ||
-		stateNames ||
+		stateFilter ||
 		tagsFilter.length > 0 ||
 		dateRangeFilter;
 	const flowRunsFilter = hasFilters
@@ -311,12 +305,7 @@ const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 				...(flowRunSearch && {
 					name: { like_: flowRunSearch },
 				}),
-				...(stateNames && {
-					state: {
-						operator: "and_" as const,
-						name: { any_: stateNames },
-					},
-				}),
+				...(stateFilter && { state: stateFilter }),
 				...(tagsFilter.length > 0 && {
 					tags: { operator: "and_" as const, any_: tagsFilter },
 				}),
@@ -432,12 +421,14 @@ export const Route = createFileRoute("/runs/")({
 		// Consolidated filter state
 		const {
 			states: selectedStates,
+			stateTypes: selectedStateTypes,
 			flows: selectedFlows,
 			deployments: selectedDeployments,
 			workPools: selectedWorkPools,
 			tags: selectedTags,
 			dateRange,
 			onStatesChange: onStateFilterChange,
+			onStateTypesChange,
 			onFlowsChange: onFlowFilterChange,
 			onDeploymentsChange: onDeploymentFilterChange,
 			onWorkPoolsChange: onWorkPoolFilterChange,
@@ -601,6 +592,8 @@ export const Route = createFileRoute("/runs/")({
 				flowRunSearch={flowRunSearch}
 				onFlowRunSearchChange={onFlowRunSearchChange}
 				selectedStates={selectedStates}
+				selectedStateTypes={selectedStateTypes}
+				onStateTypesChange={onStateTypesChange}
 				onStateFilterChange={onStateFilterChange}
 				selectedFlows={selectedFlows}
 				onFlowFilterChange={onFlowFilterChange}

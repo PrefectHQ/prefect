@@ -6,6 +6,7 @@ Build configuration for `prefect-client`, a lightweight subset of `prefect` publ
 
 - **Dependency changes in root `pyproject.toml` that affect client-side code must be mirrored in `client/pyproject.toml`.** This is the most common source of build failures.
 - **New imports in `src/prefect/` can break this build** if they pull in server-only dependencies. The build strips server code, so any import that reaches `server/database`, `server/models`, etc. from client-side code will fail.
+- **`whenever` is required by `prefect` on all Pythons but by `prefect-client` only on 3.13+.** Server-only code (e.g. `server/schemas/schedules.py`) may import it unconditionally; code shipped in `prefect-client` must keep it behind `sys.version_info >= (3, 13)` like `types/_datetime.py`. Repo tests won't catch a violation because dev installs always include `whenever`. Marker-only differences like this must be allowlisted explicitly in `tests/client/test_prefect_client_build.py`.
 - **The build is tested automatically on every PR** via `.github/workflows/prefect-client.yaml`.
 
 ## How It Works

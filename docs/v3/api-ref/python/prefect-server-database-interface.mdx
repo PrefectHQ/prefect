@@ -71,7 +71,7 @@ AutomationBucket(self) -> type[orm_models.AutomationBucket]
 An automation bucket model
 
 
-#### `AutomationEventFollower` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L337" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `AutomationEventFollower` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 AutomationEventFollower(self) -> type[orm_models.AutomationEventFollower]
@@ -80,7 +80,16 @@ AutomationEventFollower(self) -> type[orm_models.AutomationEventFollower]
 A model capturing one event following another event
 
 
-#### `AutomationRelatedResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L325" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `AutomationHeldEvent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L325" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+AutomationHeldEvent(self) -> type[orm_models.AutomationHeldEvent]
+```
+
+An `expect` event held for an automation bucket that opens later
+
+
+#### `AutomationRelatedResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L330" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 AutomationRelatedResource(self) -> type[orm_models.AutomationRelatedResource]
@@ -143,7 +152,7 @@ BlockType(self) -> type[orm_models.BlockType]
 A block type model
 
 
-#### `CompositeTriggerChildFiring` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L330" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `CompositeTriggerChildFiring` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 CompositeTriggerChildFiring(self) -> type[orm_models.CompositeTriggerChildFiring]
@@ -206,7 +215,7 @@ DeploymentSchedule(self) -> type[orm_models.DeploymentSchedule]
 A deployment schedule orm model
 
 
-#### `Event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `Event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L347" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Event(self) -> type[orm_models.Event]
@@ -215,7 +224,7 @@ Event(self) -> type[orm_models.Event]
 An event model
 
 
-#### `EventResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L347" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `EventResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L352" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 EventResource(self) -> type[orm_models.EventResource]

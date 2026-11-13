@@ -63,7 +63,7 @@ describe("FlowRunArtifacts", () => {
 		).toBeInTheDocument();
 		expect(screen.getByRole("link", { name: /documentation/ })).toHaveAttribute(
 			"href",
-			"https://docs.prefect.io/v3/develop/artifacts",
+			"https://www.prefect.io/docs/v3/develop/artifacts",
 		);
 	});
 
@@ -112,5 +112,28 @@ describe("FlowRunArtifacts", () => {
 			sort: "ID_DESC",
 			offset: 0,
 		});
+	});
+
+	it("links each artifact card to that artifact, not its key's version list", async () => {
+		const keyedArtifact = createFakeArtifact({
+			id: "artifact-from-this-run",
+			key: "daily-report",
+			flow_run_id: mockFlowRun.id,
+		});
+		server.use(
+			http.post(buildApiUrl("/artifacts/filter"), () => {
+				return HttpResponse.json([keyedArtifact]);
+			}),
+		);
+
+		render(<FlowRunArtifactsRouter flowRun={mockFlowRun} />, {
+			wrapper: createWrapper(),
+		});
+
+		const link = await screen.findByRole("link", { name: /daily-report/ });
+		expect(link).toHaveAttribute(
+			"href",
+			"/artifacts/artifact/artifact-from-this-run",
+		);
 	});
 });

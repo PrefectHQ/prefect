@@ -446,7 +446,8 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
 
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
-    MIN_SQLITE_VERSION = (3, 24, 0)
+    # Python 3.11+'s sqlite3 module requires window functions (SQLite >= 3.25.0)
+    MIN_SQLITE_VERSION = (3, 25, 0)
 
     async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
