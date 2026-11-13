@@ -1,13 +1,16 @@
 import logging
 import os
+import threading
 from pathlib import Path, PosixPath, WindowsPath
 
 import pytest
 
 from prefect.utilities.filesystem import (
+    chdir_lock,
     filter_files,
     get_open_file_limit,
     relative_path_to_current_platform,
+    tmpchdir,
 )
 
 
@@ -363,3 +366,68 @@ def test_get_open_file_limit_exception_windows(monkeypatch):
         ctypes.cdll.ucrtbase, "_getmaxstdio", mock_getmaxstdio_invalid_args
     )
     assert get_open_file_limit() == 200
+
+
+class TestTmpchdir:
+    def test_changes_and_restores_working_directory(self, tmp_path: Path):
+        original = Path.cwd()
+
+        with tmpchdir(str(tmp_path)):
+            assert Path.cwd() == tmp_path.resolve()
+
+        assert Path.cwd() == original
+
+    def test_nested_contexts_on_same_thread(self, tmp_path: Path):
+        original = Path.cwd()
+        outer = tmp_path / "outer"
+        inner = tmp_path / "inner"
+        outer.mkdir()
+        inner.mkdir()
+
+        with tmpchdir(str(outer)):
+            assert Path.cwd() == outer.resolve()
+            with tmpchdir(str(inner)):
+                assert Path.cwd() == inner.resolve()
+            assert Path.cwd() == outer.resolve()
+
+        assert Path.cwd() == original
+
+    def test_nested_contexts_restore_after_exception(self, tmp_path: Path):
+        original = Path.cwd()
+        outer = tmp_path / "outer"
+        inner = tmp_path / "inner"
+        outer.mkdir()
+        inner.mkdir()
+
+        with tmpchdir(str(outer)):
+            with pytest.raises(ValueError, match="boom"), tmpchdir(str(inner)):
+                raise ValueError("boom")
+            assert Path.cwd() == outer.resolve()
+
+        assert Path.cwd() == original
+
+    def test_other_threads_are_excluded_while_context_is_active(self, tmp_path: Path):
+        acquired_by_other_thread: list[bool] = []
+
+        def try_acquire():
+            acquired = chdir_lock.acquire(blocking=False)
+            if acquired:
+                chdir_lock.release()
+            acquired_by_other_thread.append(acquired)
+
+        with tmpchdir(str(tmp_path)):
+            with tmpchdir(str(tmp_path)):
+                thread = threading.Thread(target=try_acquire)
+                thread.start()
+                thread.join()
+            assert acquired_by_other_thread == [False]
+
+            thread = threading.Thread(target=try_acquire)
+            thread.start()
+            thread.join()
+            assert acquired_by_other_thread == [False, False]
+
+        thread = threading.Thread(target=try_acquire)
+        thread.start()
+        thread.join()
+        assert acquired_by_other_thread == [False, False, True]
