@@ -305,6 +305,7 @@ def post_when_listening(port: int, body: bytes) -> threading.Thread:
     return thread
 
 
+@pytest.mark.usefixtures("api_from_environment")
 def test_main_supervises_the_flow_run_from_the_run_request(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -339,6 +340,7 @@ def test_main_supervises_the_flow_run_from_the_run_request(
     assert hook_request_outcomes_during_run == ["refused"]
 
 
+@pytest.mark.usefixtures("api_from_environment")
 def test_flow_code_can_bind_the_hook_port(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv(TEST_ENV_VAR, "before-run-hook")
     port = free_port()
@@ -364,6 +366,7 @@ def test_flow_code_can_bind_the_hook_port(monkeypatch: pytest.MonkeyPatch):
     assert bind_errors == []
 
 
+@pytest.mark.usefixtures("api_from_environment")
 def test_main_exits_1_without_running_anything_on_an_invalid_payload(
     monkeypatch: pytest.MonkeyPatch,
 ):

@@ -1,5 +1,10 @@
+import http.client
+import json
+import socket
+import threading
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 
@@ -50,3 +55,44 @@ def flow_run_in() -> Callable[[State], FlowRun]:
             return client.read_flow_run(flow_run.id)
 
     return create
+
+
+@pytest.fixture
+def hook_port() -> int:
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+@pytest.fixture
+def post_run_hook() -> Callable[..., threading.Thread]:
+    """
+    Return a function that posts a `/run` request for a flow run, with the given
+    environment and payload version, once the hook server on a port is listening.
+    """
+
+    def post_when_listening(
+        port: int, flow_run_id: UUID, env: dict[str, str], version: int = 1
+    ) -> threading.Thread:
+        run_hook_payload = {"v": version, "flow_run_id": str(flow_run_id), "env": env}
+        body = json.dumps(
+            {"microvmId": "microvm-abc", "runHookPayload": json.dumps(run_hook_payload)}
+        ).encode()
+
+        def post() -> None:
+            for _ in range(100):
+                connection = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+                try:
+                    connection.request("POST", "/run", body=body)
+                    connection.getresponse().read()
+                    return
+                except ConnectionRefusedError:
+                    threading.Event().wait(0.05)
+                finally:
+                    connection.close()
+
+        thread = threading.Thread(target=post, daemon=True)
+        thread.start()
+        return thread
+
+    return post_when_listening

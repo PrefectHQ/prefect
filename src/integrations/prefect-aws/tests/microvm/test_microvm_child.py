@@ -1,16 +1,16 @@
-"""Runs a real flow in the forked child against the test harness."""
+"""Runs a real flow through the entrypoint, in the forked child, against the test harness."""
 
 import contextvars
 import logging
 import sys
 import textwrap
-from collections.abc import Iterator
+import threading
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from uuid import UUID
 
 import pytest
-from prefect_aws.microvm import supervisor
-from prefect_aws.microvm.payload import RunHookPayload
+from prefect_aws.microvm import entrypoint
 
 import prefect.context
 from prefect.client.orchestration import get_client
@@ -39,6 +39,8 @@ FLOW_SOURCE = textwrap.dedent(
     """
 )
 UNREACHABLE_API_URL = "http://127.0.0.1:9/api"
+
+PostRunHook = Callable[..., threading.Thread]
 
 
 @pytest.fixture
@@ -86,20 +88,42 @@ def read_log_messages(flow_run_id: UUID) -> list[str]:
     return [log.message for log in logs]
 
 
+def run_main_for(
+    monkeypatch: pytest.MonkeyPatch,
+    post_run_hook: PostRunHook,
+    port: int,
+    flow_run_id: UUID,
+    run_env: dict[str, str],
+) -> int:
+    # Registered so that the values `/run` writes are undone after the test.
+    for name, value in run_env.items():
+        monkeypatch.setenv(name, value)
+    poster = post_run_hook(port, flow_run_id, run_env)
+    # An empty context has no harness settings, so the parent and child read
+    # the global settings, as they do in a MicroVM.
+    exit_code = contextvars.Context().run(entrypoint.main, port)
+    poster.join(timeout=10)
+    return exit_code
+
+
 @pytest.mark.usefixtures("settings_resolved_before_run")
 def test_flow_run_completes_in_the_child_with_its_logs_in_the_api(
-    monkeypatch: pytest.MonkeyPatch, flow_entrypoint: str
+    monkeypatch: pytest.MonkeyPatch,
+    flow_entrypoint: str,
+    post_run_hook: PostRunHook,
+    hook_port: int,
 ):
     flow_run_id = create_pending_flow_run(flow_entrypoint)
     # The deployment path: `load_flow` reads the entrypoint from the environment,
     # which stands in for the deployment's code here.
-    monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", flow_entrypoint)
-    monkeypatch.setenv("PREFECT_LOGGING_LEVEL", "DEBUG")
-    payload = RunHookPayload(v=1, flow_run_id=flow_run_id)
+    run_env = {
+        "PREFECT__FLOW_ENTRYPOINT": flow_entrypoint,
+        "PREFECT_LOGGING_LEVEL": "DEBUG",
+    }
 
-    # An empty context has no harness settings, so the child reads the global
-    # settings, as the MicroVM entrypoint does.
-    exit_code = contextvars.Context().run(supervisor.supervise_flow_run, payload)
+    exit_code = run_main_for(
+        monkeypatch, post_run_hook, hook_port, flow_run_id, run_env
+    )
 
     assert exit_code == 0
     with get_client(sync_client=True) as client:
@@ -113,15 +137,18 @@ def test_flow_run_completes_in_the_child_with_its_logs_in_the_api(
 
 @pytest.mark.usefixtures("settings_resolved_before_run")
 def test_flow_load_failure_is_logged_to_the_flow_run(
-    monkeypatch: pytest.MonkeyPatch, flow_entrypoint: str, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    flow_entrypoint: str,
+    tmp_path: Path,
+    post_run_hook: PostRunHook,
+    hook_port: int,
 ):
     flow_run_id = create_pending_flow_run(flow_entrypoint)
-    monkeypatch.setenv(
-        "PREFECT__FLOW_ENTRYPOINT", f"{tmp_path / 'missing.py'}:microvm_flow"
-    )
-    payload = RunHookPayload(v=1, flow_run_id=flow_run_id)
+    run_env = {"PREFECT__FLOW_ENTRYPOINT": f"{tmp_path / 'missing.py'}:microvm_flow"}
 
-    exit_code = contextvars.Context().run(supervisor.supervise_flow_run, payload)
+    exit_code = run_main_for(
+        monkeypatch, post_run_hook, hook_port, flow_run_id, run_env
+    )
 
     assert exit_code == 1
     with get_client(sync_client=True) as client:

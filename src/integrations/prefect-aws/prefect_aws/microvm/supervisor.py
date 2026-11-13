@@ -91,9 +91,9 @@ def run_child(payload: RunHookPayload) -> NoReturn:
         signal.signal(signal.SIGTERM, signal.SIG_DFL)
         signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM})
         _make_preferred_oom_victim()
-        # Settings and logging were configured at import time, before `/run`
-        # set the environment.
-        refresh_global_settings_context()
+        # Logging was configured at import time, before `/run` set the
+        # environment. A fresh setup also replaces the console handler, whose
+        # lock a parent thread writing a log line at the fork may still hold.
         setup_logging(incremental=False)
         exit_code = _flow_run_exit_code(payload)
         _drain_api_workers()
