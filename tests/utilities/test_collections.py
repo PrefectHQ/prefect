@@ -10,7 +10,14 @@ import numpy as np
 import pydantic
 import pytest
 
-from prefect.utilities.annotations import BaseAnnotation, opaque, quote
+from prefect.exceptions import UpstreamTaskError
+from prefect.states import Failed
+from prefect.utilities.annotations import (
+    BaseAnnotation,
+    allow_failure,
+    opaque,
+    quote,
+)
 from prefect.utilities.collections import (
     AutoEnum,
     StopVisiting,
@@ -25,6 +32,7 @@ from prefect.utilities.collections import (
     set_in_dict,
     visit_collection,
 )
+from prefect.utilities.engine import resolve_inputs, resolve_inputs_sync
 
 
 class ExampleAnnotation(BaseAnnotation):
@@ -1036,3 +1044,29 @@ class TestDeepMergeDicts:
     )
     def test_deep_merge_dicts(self, dicts, expected):
         assert deep_merge_dicts(*dicts) == expected
+
+
+class TestVisitCollectionAnnotationCache:
+    def test_aliased_nested_input_does_not_reuse_allow_failure_resolution_sync(self):
+        failed = Failed(data=ValueError("upstream failed"))
+        shared = [failed]
+        with pytest.raises(UpstreamTaskError):
+            resolve_inputs_sync({"items": [allow_failure(shared), shared]})
+
+    async def test_aliased_nested_input_does_not_reuse_allow_failure_resolution_async(
+        self,
+    ):
+        failed = Failed(data=ValueError("upstream failed"))
+        shared = [failed]
+        with pytest.raises(UpstreamTaskError):
+            await resolve_inputs({"items": [allow_failure(shared), shared]})
+
+    def test_aliased_nested_input_same_annotation_context_reuses_result(self):
+        err = ValueError("upstream failed")
+        failed = Failed(data=err)
+        shared = [failed]
+        resolved = resolve_inputs_sync(
+            {"items": [allow_failure(shared), allow_failure(shared)]}
+        )
+        assert resolved["items"][0] == [err]
+        assert resolved["items"][1] is resolved["items"][0]
