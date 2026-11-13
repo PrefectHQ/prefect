@@ -210,7 +210,26 @@ async def create_deployment(
         )
 
 
-@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/{id:uuid}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "The deployment parameters could not be hydrated."
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "The deployment or concurrency limit was not found."
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": (
+                "The job variables are not valid for the work pool, or parameter"
+                " schema enforcement is enabled and the parameters do not match"
+                " the deployment's parameter schema, or the deployment does not"
+                " have a valid parameter schema."
+            )
+        },
+    },
+)
 async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
@@ -861,7 +880,34 @@ async def pause_deployment(
         await session.commit()
 
 
-@router.post("/{id:uuid}/create_flow_run")
+@router.post(
+    "/{id:uuid}/create_flow_run",
+    responses={
+        status.HTTP_200_OK: {
+            "description": (
+                "An existing flow run with the same idempotency key was returned."
+            )
+        },
+        status.HTTP_201_CREATED: {
+            "description": "A new flow run was created.",
+            "model": schemas.responses.FlowRunResponse,
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "description": (
+                "The flow run parameters could not be hydrated, or a work queue"
+                " was given for a deployment that has no work pool."
+            )
+        },
+        status.HTTP_404_NOT_FOUND: {"description": "The deployment was not found."},
+        status.HTTP_409_CONFLICT: {
+            "description": (
+                "Parameter schema enforcement is enabled and the parameters do not"
+                " match the deployment's parameter schema, or the deployment does"
+                " not have a valid parameter schema."
+            )
+        },
+    },
+)
 async def create_flow_run_from_deployment(
     flow_run: schemas.actions.DeploymentFlowRunCreate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),

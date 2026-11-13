@@ -2646,6 +2646,15 @@
                     "204": {
                         "description": "Successful Response"
                     },
+                    "400": {
+                        "description": "The deployment parameters could not be hydrated."
+                    },
+                    "404": {
+                        "description": "The deployment or concurrency limit was not found."
+                    },
+                    "409": {
+                        "description": "The job variables are not valid for the work pool, or parameter schema enforcement is enabled and the parameters do not match the deployment's parameter schema, or the deployment does not have a valid parameter schema."
+                    },
                     "422": {
                         "description": "Validation Error",
                         "content": {
@@ -3304,7 +3313,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Successful Response",
+                        "description": "An existing flow run with the same idempotency key was returned.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3312,6 +3321,25 @@
                                 }
                             }
                         }
+                    },
+                    "201": {
+                        "description": "A new flow run was created.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The flow run parameters could not be hydrated, or a work queue was given for a deployment that has no work pool."
+                    },
+                    "404": {
+                        "description": "The deployment was not found."
+                    },
+                    "409": {
+                        "description": "Parameter schema enforcement is enabled and the parameters do not match the deployment's parameter schema, or the deployment does not have a valid parameter schema."
                     },
                     "422": {
                         "description": "Validation Error",

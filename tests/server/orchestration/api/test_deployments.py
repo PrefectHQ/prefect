@@ -1729,6 +1729,11 @@ class TestPaginateDeployments:
 
 
 class TestUpdateDeployment:
+    async def test_openapi_documents_error_responses(self, client):
+        response = await client.get("/openapi.json")
+        responses = response.json()["paths"]["/deployments/{id}"]["patch"]["responses"]
+        assert set(responses) == {"204", "400", "404", "409", "422"}
+
     async def test_update_deployment_clears_job_variables_with_empty_dict(
         self, client, flow, work_pool
     ):
@@ -3953,6 +3958,16 @@ class TestCreateFlowRunFromDeployment:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "is not associated with a work pool" in response.json()["detail"]
+
+    async def test_openapi_documents_create_flow_run_responses(self, client):
+        response = await client.get("/openapi.json")
+        responses = response.json()["paths"]["/deployments/{id}/create_flow_run"][
+            "post"
+        ]["responses"]
+        assert set(responses) == {"200", "201", "400", "404", "409", "422"}
+        assert responses["201"]["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/FlowRunResponse"
+        }
 
     async def test_create_flow_run_enforces_parameter_schema(
         self,
