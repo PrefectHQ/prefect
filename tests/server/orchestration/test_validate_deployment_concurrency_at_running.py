@@ -97,17 +97,22 @@ class TestValidateDeploymentConcurrencyAtRunning:
         assert ctx.proposed_state is not None
         assert ctx.proposed_state.state_details.deployment_concurrency_lease_id is None
 
+    @pytest.mark.parametrize(
+        "initial_state_type",
+        [states.StateType.PENDING, states.StateType.RUNNING],
+    )
     async def test_renews_lease_when_valid(
         self,
         session: AsyncSession,
         initialize_orchestration,
         flow: orm_models.Flow,
+        initial_state_type: states.StateType,
     ):
         """Test that a valid lease is renewed successfully."""
         deployment = await self.create_deployment_with_concurrency_limit(
             session, 1, flow, grace_period=60
         )
-        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        running_transition = (initial_state_type, states.StateType.RUNNING)
 
         # Create a lease
         assert deployment.concurrency_limit_id is not None
@@ -142,17 +147,22 @@ class TestValidateDeploymentConcurrencyAtRunning:
             ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease.id
         )
 
+    @pytest.mark.parametrize(
+        "initial_state_type",
+        [states.StateType.PENDING, states.StateType.RUNNING],
+    )
     async def test_reacquires_slot_after_lease_expiry(
         self,
         session: AsyncSession,
         initialize_orchestration,
         flow: orm_models.Flow,
+        initial_state_type: states.StateType,
     ):
         """Test that a slot is re-acquired when lease has expired."""
         deployment = await self.create_deployment_with_concurrency_limit(
             session, 1, flow
         )
-        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        running_transition = (initial_state_type, states.StateType.RUNNING)
 
         # Create a lease and immediately expire it by revoking
         assert deployment.concurrency_limit_id is not None
@@ -198,17 +208,22 @@ class TestValidateDeploymentConcurrencyAtRunning:
         assert new_lease_id is not None
         assert new_lease_id != lease.id
 
+    @pytest.mark.parametrize(
+        "initial_state_type",
+        [states.StateType.PENDING, states.StateType.RUNNING],
+    )
     async def test_cancels_when_no_slots_available(
         self,
         session: AsyncSession,
         initialize_orchestration,
         flow: orm_models.Flow,
+        initial_state_type: states.StateType,
     ):
         """Test that flow is cancelled when no slots available after lease expiry."""
         deployment = await self.create_deployment_with_concurrency_limit(
             session, 1, flow
         )
-        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        running_transition = (initial_state_type, states.StateType.RUNNING)
 
         # Create first lease and let flow1 acquire a slot
         assert deployment.concurrency_limit_id is not None
@@ -354,6 +369,83 @@ class TestValidateDeploymentConcurrencyAtRunning:
         )
         assert limit is not None
         assert limit.active_slots == 1, "Only Flow2 should have an active slot"
+
+    async def test_full_policy_restarted_running_run_reacquires_reaped_lease(
+        self,
+        session: AsyncSession,
+        initialize_orchestration,
+        flow: orm_models.Flow,
+    ):
+        """
+        A restarted process for a run that is still RUNNING (e.g. a Kubernetes
+        Job pod restart after an OOMKill) must not keep a reaped lease ID.
+        """
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        assert deployment.concurrency_limit_id is not None
+        limit_id = deployment.concurrency_limit_id
+
+        acquired = await models.concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[limit_id],
+            slots=1,
+        )
+        assert acquired
+        await session.commit()
+
+        lease_storage = get_concurrency_lease_storage()
+        old_lease = await lease_storage.create_lease(
+            resource_ids=[limit_id],
+            ttl=datetime.timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        await revoke_expired_lease(
+            old_lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+        assert await lease_storage.read_lease(old_lease.id) is None
+
+        restart_transition = (states.StateType.RUNNING, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *restart_transition,
+            deployment_id=deployment.id,
+            initial_details={"deployment_concurrency_lease_id": old_lease.id},
+            client_version="3.5.0",
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in CoreFlowPolicy.compile_transition_rules(
+                ctx.initial_state_type, ctx.proposed_state_type
+            ):
+                ctx = await stack.enter_async_context(rule(ctx, *restart_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state is not None
+        assert ctx.validated_state.type == states.StateType.RUNNING
+        new_lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert new_lease_id is not None
+        assert new_lease_id != old_lease.id
+        await session.commit()
+
+        new_lease = await lease_storage.read_lease(new_lease_id)
+        assert new_lease is not None
+        assert new_lease.resource_ids == [limit_id]
+        assert new_lease.metadata is not None
+        assert new_lease.metadata.holder is not None
+        assert new_lease.metadata.holder.id == ctx.run.id
+
+        async with provide_database_interface().session_context() as read_session:
+            limit = await models.concurrency_limits_v2.read_concurrency_limit(
+                session=read_session,
+                concurrency_limit_id=limit_id,
+            )
+            assert limit is not None
+            assert limit.active_slots == 1
 
     @pytest.mark.xfail(
         strict=True,

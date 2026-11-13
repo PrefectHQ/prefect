@@ -720,14 +720,18 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
 
 class ValidateDeploymentConcurrencyAtRunning(FlowRunOrchestrationRule):
     """
-    Validates and renews deployment concurrency leases at the PENDING→RUNNING transition.
+    Validates and renews deployment concurrency leases when a flow run starts running.
 
     This prevents concurrency violations that occur when the lease reaper reclaims slots
     from PENDING flows. Without this validation, a flow can lose its slot while provisioning
     infrastructure and still transition to RUNNING, violating the concurrency limit.
+
+    RUNNING→RUNNING is validated too: infrastructure that restarts a killed process
+    (e.g. a Kubernetes Job's pod restart) begins a new attempt of a run that is still
+    RUNNING, and its lease may have been reaped while the previous process was dying.
     """
 
-    FROM_STATES = {states.StateType.PENDING}
+    FROM_STATES = {states.StateType.PENDING, states.StateType.RUNNING}
     TO_STATES = {states.StateType.RUNNING}
 
     async def before_transition(
