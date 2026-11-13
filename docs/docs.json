@@ -386,6 +386,16 @@
                         ]
                       },
                       {
+                        "group": "prefect_aws.microvm",
+                        "pages": [
+                          "integrations/prefect-aws/api-ref/prefect_aws-microvm-__init__",
+                          "integrations/prefect-aws/api-ref/prefect_aws-microvm-entrypoint",
+                          "integrations/prefect-aws/api-ref/prefect_aws-microvm-payload",
+                          "integrations/prefect-aws/api-ref/prefect_aws-microvm-server",
+                          "integrations/prefect-aws/api-ref/prefect_aws-microvm-supervisor"
+                        ]
+                      },
+                      {
                         "group": "prefect_aws.templates",
                         "pages": [
                           "integrations/prefect-aws/api-ref/prefect_aws-templates-__init__",
