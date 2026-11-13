@@ -4,7 +4,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._process_manager import (
+    ProcessHandle,
+    _WindowsSpawnProcessTerminationScope,
+)
 from prefect.runner._starter_direct import DirectSubprocessStarter
 
 pytestmark = pytest.mark.clear_db
@@ -76,6 +79,26 @@ class TestDirectSubprocessStarter:
         handle = mock_task_status.started.call_args[0][0]
         assert isinstance(handle, ProcessHandle)
         assert handle.pid == 123
+
+    async def test_start_uses_spawn_termination_scope_on_windows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr("prefect.runner._process_manager.sys.platform", "win32")
+        mock_process = MagicMock(pid=123)
+        mock_task_status = MagicMock()
+
+        starter = DirectSubprocessStarter(flow=MagicMock())
+
+        with patch(
+            "prefect.runner._starter_direct.run_flow_in_subprocess",
+            return_value=mock_process,
+        ):
+            await starter.start(MagicMock(), task_status=mock_task_status)
+
+        handle = mock_task_status.started.call_args[0][0]
+        assert isinstance(
+            handle.termination_scope, _WindowsSpawnProcessTerminationScope
+        )
 
     async def test_start_passes_heartbeat_env(self):
         mock_flow = MagicMock()
