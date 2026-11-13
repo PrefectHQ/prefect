@@ -112,10 +112,10 @@ split-path failure is covered by
 `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_full_policy_wait_after_reacquisition_releases_capacity`.
 The same rule also runs for `Running` -> `Running`, when infrastructure such as
 a Kubernetes Job restarts a killed process for a run whose server state is
-still `Running`. The model has no process restart: a restarted attempt whose
-lease is live refines to `Renew`, and one whose lease was reaped takes the same
-reacquire or cancel branches as PENDING, so it adds no new slot writer. Covered
-by
+still `Running`. A restarted attempt whose lease is live refines to `Renew`;
+`ClaimReacquire` and `CancelAfterLostLease` are also enabled from `Running`
+for one whose lease was reaped. These transitions reach no new distinct
+states, so the target baseline is unchanged. Covered by
 `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_full_policy_restarted_running_run_reacquires_reaped_lease`.
 `CancelStaleReap` and
 `SkipFallbackRelease` are the proposed safe branches. `ClaimTerminalRelease`

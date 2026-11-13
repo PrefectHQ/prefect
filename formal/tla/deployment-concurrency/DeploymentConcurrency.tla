@@ -363,7 +363,7 @@ CommitReap(j) ==
 
 CancelAfterLostLease(r) ==
     LET l == stateLease[r] IN
-    /\ runState[r] = "Pending"
+    /\ runState[r] \in {"Pending", "Running"}
     /\ l # NoLease
     /\ leaseState[l] = "Absent"
     /\ runState' = [runState EXCEPT ![r] = "Cancelled"]
@@ -534,9 +534,11 @@ ClaimAcquire(r, l) ==
         badForeignDecrement, badStaleReap
         >>
 
+(* A restarted process re-proposes Running for a run that is still        *)
+(* Running, so reacquisition also applies from Running.                     *)
 ClaimReacquire(r, l) ==
     LET old == stateLease[r] IN
-    /\ runState[r] = "Pending"
+    /\ runState[r] \in {"Pending", "Running"}
     /\ old # NoLease
     /\ leaseState[old] = "Absent"
     /\ ~claim[old]
