@@ -459,11 +459,21 @@ class TestIntervalScheduleDaylightSavingsTime:
         Tests the situation where a long duration has passed since the start date that crosses a DST boundary;
         for very short intervals this occasionally could result in "next" scheduled times that are in the past by one hour.
         """
+        # Use the canonical IANA ID; legacy aliases like `US/Pacific` are absent
+        # from some system tz databases (e.g. Ubuntu without `tzdata-legacy`).
         anchor_date = (
-            Instant.from_timestamp(1582002945.964696).to_tz("US/Pacific").to_stdlib()
+            Instant.from_timestamp(1582002945.964696)
+            .to_tz("America/Los_Angeles")
+            .to_stdlib()
         )
         current_date = (
             Instant.from_timestamp(1593643144.233938).to_tz("UTC").to_stdlib()
+        )
+        # The anchor is in PST and the current date falls in PDT, so the
+        # schedule must cross a DST boundary.
+        assert anchor_date.utcoffset() == timedelta(hours=-8)
+        assert current_date.astimezone(anchor_date.tzinfo).utcoffset() == timedelta(
+            hours=-7
         )
         s = IntervalSchedule(
             interval=timedelta(minutes=1, seconds=15), anchor_date=anchor_date

@@ -351,6 +351,10 @@ class Transaction(BaseTransaction):
                 else:
                     child.commit()
 
+                if not child.is_committed():
+                    self.rollback()
+                    return False
+
             for hook in self.on_commit_hooks:
                 self.run_hook(hook, "commit")
 
@@ -510,6 +514,10 @@ class AsyncTransaction(BaseTransaction):
                     await child.commit()
                 else:
                     child.commit()
+
+                if not child.is_committed():
+                    await self.rollback()
+                    return False
 
             for hook in self.on_commit_hooks:
                 await self.run_hook(hook, "commit")

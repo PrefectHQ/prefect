@@ -317,7 +317,7 @@ def visit_collection(
     max_depth: int = -1,
     context: Optional[dict[str, VT]] = None,
     remove_annotations: bool = False,
-    _seen: Optional[dict[int, Any]] = None,
+    _seen: Optional[dict[tuple[int, Optional[type[Any]]], Any]] = None,
 ) -> Optional[Any]:
     """
     Visits and potentially transforms every element of an arbitrary Python collection.
@@ -434,17 +434,19 @@ def visit_collection(
     # If we have reached the maximum depth or we have already visited this object,
     # return the result if we are returning data, otherwise return None
     obj_id = id(expr)
+    annotation = context.get("annotation") if context is not None else None
+    seen_key = (obj_id, type(annotation) if annotation is not None else None)
     if max_depth == 0:
         return result if return_data else None
-    elif obj_id in _seen:
+    elif seen_key in _seen:
         # Return the cached transformed result
-        return _seen[obj_id][1] if return_data else None
+        return _seen[seen_key][1] if return_data else None
 
     # Mark this object as being processed to handle circular references
     # We'll update with the actual result later. The object is stored next to
     # its result so it stays alive and its id cannot be reused by a different
     # object during this traversal.
-    _seen[obj_id] = (expr, expr)
+    _seen[seen_key] = (expr, expr)
 
     # Then visit every item in the expression if it is a collection
 
@@ -573,7 +575,7 @@ def visit_collection(
 
     # Update the cache with the final transformed result
     if return_data:
-        _seen[obj_id] = (expr, result)
+        _seen[seen_key] = (expr, result)
 
     if return_data:
         return result
