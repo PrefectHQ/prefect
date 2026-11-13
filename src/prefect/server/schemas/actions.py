@@ -30,6 +30,7 @@ from prefect._internal.schemas.validators import (
     validate_parameter_size_field,
     validate_parameters_conform_to_schema,
     validate_parent_and_ref_diff,
+    validate_rrule_schedule_timezone,
     validate_schedule_max_scheduled_runs,
 )
 from prefect.server.utilities.schemas import get_class_fields_only
@@ -102,8 +103,13 @@ class FlowUpdate(ActionBaseModel):
 # Fields that accept `None` (e.g. `DeploymentScheduleUpdate.schedule`)
 # use `Optional[NormalizedSchedule]` directly — Pydantic only runs the
 # `AfterValidator` on the non-None branch.
+#
+# RRule timezones are validated here too, rather than on RRuleSchedule, so
+# that schedules already stored with an invalid timezone stay readable.
 NormalizedSchedule = Annotated[
-    schemas.schedules.SCHEDULE_TYPES, AfterValidator(normalize_schedule_rrule)
+    schemas.schedules.SCHEDULE_TYPES,
+    AfterValidator(validate_rrule_schedule_timezone),
+    AfterValidator(normalize_schedule_rrule),
 ]
 
 

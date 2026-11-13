@@ -472,6 +472,19 @@ def normalize_schedule_rrule(schedule: _T) -> _T:
     return type(schedule)(rrule=normalized, timezone=schedule.timezone)  # type: ignore[call-arg]
 
 
+def validate_rrule_schedule_timezone(schedule: _T) -> _T:
+    """`AfterValidator` for server action-schema schedule fields.
+
+    The server's `RRuleSchedule` timezone pattern is unanchored, so it accepts
+    any string that merely contains a timezone name (e.g. "UTC+2"). It is not
+    tightened on the class itself so that schedules already stored with such a
+    timezone stay readable; invalid timezones are rejected on writes instead.
+    """
+    if isinstance(getattr(schedule, "rrule", None), str):
+        default_timezone(getattr(schedule, "timezone", None))
+    return schedule
+
+
 ### STATE SCHEMA VALIDATORS ###
 
 

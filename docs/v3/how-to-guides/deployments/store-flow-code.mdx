@@ -254,7 +254,7 @@ If using the Python `deploy` method with a private repository that references a 
         )
 
         flow.from_source(
-            source=source,
+            source=github_repo,
             entrypoint="bb_private_repo_credentials_block.py:my_flow",
         ).deploy(
             name="private-bitbucket-deploy",
@@ -689,7 +689,7 @@ We also include Python code that shows how to use an existing storage block and 
             entrypoint="my_file.py:my_flow"
         ).deploy(
             name="my-aws-s3-deployment", 
-            work_pool_name="my-work-pool"
+            work_pool_name="my-work-pool",
             job_variables={"env": {"EXTRA_PIP_PACKAGES": "prefect-aws"} }, 
         )
     ```
@@ -849,15 +849,15 @@ We also include Python code that shows how to use an existing storage block and 
 
     ```python gcs_block.py
     from prefect import flow
-    from prefect_gcp import GcpCredentials, GCSBucket
+    from prefect_gcp import GcpCredentials, GcsBucket
 
 
     if __name__ == "__main__":
 
-        gcs_bucket_block = GCSBucket.load("my-code-storage-block")
+        gcs_bucket_block = GcsBucket.load("my-code-storage-block")
 
         # or 
-        # gcs_bucket_block = GCSBucket(
+        # gcs_bucket_block = GcsBucket(
         #     bucket="my-bucket",
         #     folder="my-folder",
         #     credentials=GcpCredentials.load("my-credentials-block")
@@ -877,7 +877,7 @@ We also include Python code that shows how to use an existing storage block and 
     build: null
 
     push:
-    - prefect_gcp.deployment.steps.push_to_gcs:
+    - prefect_gcp.deployments.steps.push_to_gcs:
         id: push_code
         requires: prefect-gcp>=0.6
         bucket: my-bucket
@@ -885,27 +885,27 @@ We also include Python code that shows how to use an existing storage block and 
         credentials: "{{ prefect.blocks.gcp-credentials.my-credentials-block }}" # if explicit authentication is required 
 
     pull:
-    - prefect_gcp.deployment.steps.pull_from_gcs:
+    - prefect_gcp.deployments.steps.pull_from_gcs:
         id: pull_code
         requires: prefect-gcp>=0.6
         bucket: '{{ push_code.bucket }}'
-        folder: '{{ pull_code.folder }}'
+        folder: '{{ push_code.folder }}'
         credentials: "{{ prefect.blocks.gcp-credentials.my-credentials-block }}" # if explicit authentication is required 
     
     deployments:
     - name: my-gcs-deployment
-        version: null
-        tags: []
-        concurrency_limit: null
-        description: null
-        entrypoint: my_file.py:my_flow
-        parameters: {}
-        work_pool:
-          name: my-work-pool
-          work_queue_name: null
-          job_variables: {}
-        enforce_parameter_schema: true
-        schedules: []
+      version: null
+      tags: []
+      concurrency_limit: null
+      description: null
+      entrypoint: my_file.py:my_flow
+      parameters: {}
+      work_pool:
+        name: my-work-pool
+        work_queue_name: null
+        job_variables: {}
+      enforce_parameter_schema: true
+      schedules: []
     ```
     </CodeGroup>
     
