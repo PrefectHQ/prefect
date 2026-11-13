@@ -205,26 +205,20 @@ async def read_concurrency_limits(
             session=session, limit=limit + offset, offset=0
         )
         v2_limits = await cl_v2_models.read_all_concurrency_limits(
-            session=session, limit=limit + offset, offset=0
+            session=session, limit=limit + offset, offset=0, name_prefix="tag:"
         )
 
     # Convert V2 to V1 format
     converted_v2: list[schemas.core.ConcurrencyLimit] = []
-    lease_storage = get_concurrency_lease_storage()
-
     for v2_limit in v2_limits:
         if not v2_limit.name.startswith("tag:"):
             continue
-        tag = v2_limit.name.removeprefix("tag:")
-        holders = await lease_storage.list_holders_for_limit(v2_limit.id)
-        active_slots = [h.id for _, h in holders if h.type == "task_run"]
-
         converted_v2.append(
             schemas.core.ConcurrencyLimit(
                 id=v2_limit.id,
-                tag=tag,
+                tag=v2_limit.name.removeprefix("tag:"),
                 concurrency_limit=v2_limit.limit,
-                active_slots=active_slots,
+                active_slots=[],
                 created=v2_limit.created,
                 updated=v2_limit.updated,
             )
@@ -232,9 +226,18 @@ async def read_concurrency_limits(
 
     # Merge and deduplicate by tag (prefer V2)
     seen_tags = {cl.tag for cl in converted_v2}
+    v2_ids = {cl.id for cl in converted_v2}
     combined = converted_v2 + [cl for cl in v1_limits if cl.tag not in seen_tags]
+    page = combined[offset : offset + limit]
 
-    return combined[offset : offset + limit]
+    # Only look up lease holders for the V2 limits on this page
+    lease_storage = get_concurrency_lease_storage()
+    for cl in page:
+        if cl.id in v2_ids:
+            holders = await lease_storage.list_holders_for_limit(cl.id)
+            cl.active_slots = [h.id for _, h in holders if h.type == "task_run"]
+
+    return page
 
 
 @router.post("/tag/{tag}/reset")

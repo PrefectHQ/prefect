@@ -56,6 +56,38 @@ describe("global concurrency limits hooks", () => {
 		expect(result.current.data).toEqual(mockList);
 	});
 
+	it("fetches every page when there are more limits than the server page size", async () => {
+		const allLimits = Array.from({ length: 250 }, (_, i) =>
+			createFakeGlobalConcurrencyLimit({ id: String(i) }),
+		);
+		server.use(
+			http.post(
+				buildApiUrl("/v2/concurrency_limits/filter"),
+				async ({ request }) => {
+					// Behaves like a server with PREFECT_SERVER_API_DEFAULT_LIMIT=50
+					const SERVER_LIMIT = 50;
+					const { offset = 0, limit = SERVER_LIMIT } =
+						(await request.json()) as {
+							offset?: number;
+							limit?: number;
+						};
+					if (limit > SERVER_LIMIT) {
+						return HttpResponse.json(null, { status: 422 });
+					}
+					return HttpResponse.json(allLimits.slice(offset, offset + limit));
+				},
+			),
+		);
+
+		const { result } = renderHook(
+			() => useListGlobalConcurrencyLimits(filter),
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toEqual(allLimits);
+	});
+
 	it("has a 30s refetch interval", () => {
 		const query = buildListGlobalConcurrencyLimitsQuery();
 		expect(query.refetchInterval).toBe(30_000);
