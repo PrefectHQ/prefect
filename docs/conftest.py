@@ -4,10 +4,10 @@ from typing import Union
 from unittest import mock
 
 import pytest
-
 from prefect.server.database.orm_models import Mapped, Run, mapped_column, sa
 
 SKIP_FILES = {
+    "docs/v3/how-to-guides/workflows/query-redis-adbc.mdx": "Requires an external Redis server with Search and the Redis native ADBC driver",
     "docs/v3/concepts/deployments.mdx": "Needs database fixtures",
     "docs/v3/how-to-guides/deployment_infra/run-flows-in-local-processes.mdx": "Needs blocks setup",
     "docs/v3/develop/blocks.mdx": "Block subclasses defined in docs cannot be properly registered due to test environment limitations",
