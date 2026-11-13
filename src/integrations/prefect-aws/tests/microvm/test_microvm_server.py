@@ -4,7 +4,7 @@ import os
 import socket
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from unittest.mock import create_autospec
 from uuid import UUID
 
@@ -285,32 +285,17 @@ def test_binding_the_wildcard_address_skips_the_reverse_dns_lookup(
         hook_server.server_close()
 
 
-def free_port() -> int:
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 0))
-        return probe.getsockname()[1]
-
-
-def post_when_listening(port: int, body: bytes) -> threading.Thread:
-    def post() -> None:
-        for _ in range(100):
-            try:
-                request(port, "POST", "/run", body)
-                return
-            except ConnectionRefusedError:
-                threading.Event().wait(0.05)
-
-    thread = threading.Thread(target=post, daemon=True)
-    thread.start()
-    return thread
+RUN_HOOK_ENV = {TEST_ENV_VAR: "from-run-hook"}
 
 
 @pytest.mark.usefixtures("api_from_environment")
 def test_main_supervises_the_flow_run_from_the_run_request(
     monkeypatch: pytest.MonkeyPatch,
+    post_run_hook: Callable[..., threading.Thread],
+    hook_port: int,
 ):
     monkeypatch.setenv(TEST_ENV_VAR, "before-run-hook")
-    port = free_port()
+    port = hook_port
     hook_request_outcomes_during_run: list[str] = []
 
     def run_flow(payload: object) -> int:
@@ -326,7 +311,7 @@ def test_main_supervises_the_flow_run_from_the_run_request(
 
     supervise = create_autospec(supervise_flow_run, side_effect=run_flow)
     monkeypatch.setattr(entrypoint, "supervise_flow_run", supervise)
-    poster = post_when_listening(port, run_body())
+    poster = post_run_hook(port, FLOW_RUN_ID, RUN_HOOK_ENV)
 
     exit_code = entrypoint.main(port=port)
 
@@ -341,9 +326,13 @@ def test_main_supervises_the_flow_run_from_the_run_request(
 
 
 @pytest.mark.usefixtures("api_from_environment")
-def test_flow_code_can_bind_the_hook_port(monkeypatch: pytest.MonkeyPatch):
+def test_flow_code_can_bind_the_hook_port(
+    monkeypatch: pytest.MonkeyPatch,
+    post_run_hook: Callable[..., threading.Thread],
+    hook_port: int,
+):
     monkeypatch.setenv(TEST_ENV_VAR, "before-run-hook")
-    port = free_port()
+    port = hook_port
     bind_errors: list[OSError] = []
 
     def run_flow(payload: object) -> int:
@@ -356,7 +345,7 @@ def test_flow_code_can_bind_the_hook_port(monkeypatch: pytest.MonkeyPatch):
 
     supervise = create_autospec(supervise_flow_run, side_effect=run_flow)
     monkeypatch.setattr(entrypoint, "supervise_flow_run", supervise)
-    poster = post_when_listening(port, run_body())
+    poster = post_run_hook(port, FLOW_RUN_ID, RUN_HOOK_ENV)
 
     exit_code = entrypoint.main(port=port)
 
@@ -369,12 +358,14 @@ def test_flow_code_can_bind_the_hook_port(monkeypatch: pytest.MonkeyPatch):
 @pytest.mark.usefixtures("api_from_environment")
 def test_main_exits_1_without_running_anything_on_an_invalid_payload(
     monkeypatch: pytest.MonkeyPatch,
+    post_run_hook: Callable[..., threading.Thread],
+    hook_port: int,
 ):
     monkeypatch.setenv(TEST_ENV_VAR, "before-run-hook")
     supervise = create_autospec(supervise_flow_run, return_value=0)
     monkeypatch.setattr(entrypoint, "supervise_flow_run", supervise)
-    port = free_port()
-    poster = post_when_listening(port, run_body(v=99))
+    port = hook_port
+    poster = post_run_hook(port, FLOW_RUN_ID, RUN_HOOK_ENV, 99)
 
     exit_code = entrypoint.main(port=port)
 

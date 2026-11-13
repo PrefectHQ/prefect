@@ -15,17 +15,15 @@ from prefect_aws.microvm.supervisor import report_crash, supervise_flow_run
 
 logger = get_logger("prefect_aws.microvm")
 
-API_HOST_LOOKUP_TIMEOUT_SECONDS = 5
 DEFAULT_PORTS = {"http": 80, "https": 443}
 
 
 def warm_name_lookup() -> None:
     """
-    Resolve `localhost` once, so that the resolver is loaded and initialized
-    before the MicroVM snapshot is taken.
-
-    A lookup error is logged and ignored.
+    Resolve `localhost` once. A lookup error is logged and ignored.
     """
+    # In a restored MicroVM the first name lookup in a process is slow. One made
+    # before the snapshot shortens it.
     try:
         socket.getaddrinfo("localhost", None, type=socket.SOCK_STREAM)
     except OSError:
@@ -45,16 +43,17 @@ def start_api_host_lookup(api_url: str | None) -> threading.Thread | None:
     """
     if not api_url:
         return None
-    parsed_url = urlsplit(api_url)
-    if parsed_url.scheme not in DEFAULT_PORTS or not parsed_url.hostname:
-        return None
     try:
+        parsed_url = urlsplit(api_url)
+        if parsed_url.scheme not in DEFAULT_PORTS or not parsed_url.hostname:
+            return None
+        hostname = parsed_url.hostname
         port = parsed_url.port or DEFAULT_PORTS[parsed_url.scheme]
     except ValueError:
         return None
     lookup = threading.Thread(
         target=_resolve_api_host,
-        args=(parsed_url.hostname, port),
+        args=(hostname, port),
         name="microvm-api-host-lookup",
         daemon=True,
     )
@@ -75,9 +74,12 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
         rejected, the run's settings could not be loaded, or the flow run's
         process failed.
     """
-    # The first name lookup in a restored MicroVM is slow; one before `/ready`
-    # is in the snapshot and makes the later lookups fast.
-    warm_name_lookup()
+    # On its own thread, so that a stalled lookup cannot delay the answer to
+    # `/ready`.
+    name_lookup_warm_up = threading.Thread(
+        target=warm_name_lookup, name="microvm-name-lookup-warm-up", daemon=True
+    )
+    name_lookup_warm_up.start()
     server = LifecycleHookServer(("0.0.0.0", port))
     threading.Thread(
         target=server.serve_forever, name="microvm-lifecycle-hooks", daemon=True
@@ -89,6 +91,8 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
         return 1
 
     flow_run_id = run_request.payload.flow_run_id
+    # In a restored MicroVM the first name lookup in a process is slow. A process
+    # forked after a lookup inherits the warmed state.
     api_host_lookup = start_api_host_lookup(os.environ.get("PREFECT_API_URL"))
     hook_server_stopper = threading.Thread(
         target=_stop_hook_server,
@@ -111,16 +115,14 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
         hook_server_stopper.join()
         return 1
 
-    # No hook handler may hold a lock across the fork. `stop_serving` bounds
-    # this wait.
+    # Waits for the hook handlers in progress, up to `stop_serving`'s timeout,
+    # so that they finish before the fork.
     hook_server_stopper.join()
+    # No thread may be inside the C library's name lookup when the process
+    # forks. The resolver's own timeout and attempts bound these waits.
+    name_lookup_warm_up.join()
     if api_host_lookup is not None:
-        api_host_lookup.join(timeout=API_HOST_LOOKUP_TIMEOUT_SECONDS)
-        if api_host_lookup.is_alive():
-            logger.warning(
-                "The Prefect API host lookup did not finish within %s seconds.",
-                API_HOST_LOOKUP_TIMEOUT_SECONDS,
-            )
+        api_host_lookup.join()
 
     # The flow run is forked from this thread, so it runs on the child's main
     # thread, where the engine can install its signal handlers.
@@ -137,7 +139,7 @@ def _stop_hook_server(server: LifecycleHookServer) -> None:
 def _resolve_api_host(hostname: str, port: int) -> None:
     try:
         socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
-    except OSError:
+    except (OSError, UnicodeError):
         logger.debug(
             "Could not resolve the Prefect API host %s.", hostname, exc_info=True
         )

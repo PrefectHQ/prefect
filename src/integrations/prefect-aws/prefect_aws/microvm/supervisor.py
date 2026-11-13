@@ -14,7 +14,7 @@ from uuid import UUID
 # in the MicroVM snapshot, taken after `/ready`.
 from prefect._internal.control_listener import configure_from_env
 from prefect._internal.metrics import RunMetrics
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.context import refresh_global_settings_context
 from prefect.engine import _drive_run_flow_result, handle_engine_signals
 from prefect.events.worker import EventsWorker
@@ -90,11 +90,11 @@ def run_child(payload: RunHookPayload) -> NoReturn:
         # default disposition, whatever handler the parent had.
         signal.signal(signal.SIGTERM, signal.SIG_DFL)
         signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM})
-        _make_preferred_oom_victim()
         # Logging was configured at import time, before `/run` set the
         # environment. A fresh setup also replaces the console handler, whose
         # lock a parent thread writing a log line at the fork may still hold.
         setup_logging(incremental=False)
+        _make_preferred_oom_victim()
         exit_code = _flow_run_exit_code(payload)
         _drain_api_workers()
     finally:
@@ -110,7 +110,9 @@ def supervise_flow_run(payload: RunHookPayload) -> int:
 
     If the child exits nonzero or is killed by a signal, `Crashed` is proposed
     for the flow run. SIGTERM sent to this process is forwarded to the child.
-    Call this from the main thread.
+    Call this from the main thread, after refreshing the global settings
+    context from the environment that `/run` set; the child inherits those
+    settings.
 
     Args:
         payload: The flow run to execute.
@@ -193,9 +195,24 @@ def report_crash(flow_run_id: UUID, crash_reason: str) -> None:
         flow_run_id: The ID of the flow run.
         crash_reason: How the flow run's process ended, for the state message.
     """
-    # This process resolved its settings before `/run` set the API URL and key.
-    refresh_global_settings_context()
-    with get_client(sync_client=True) as client:
+    # When the settings from the `/run` environment fail to load, the crash is
+    # still reported, with the API URL and key read directly from the environment
+    # and the import-time settings for everything else.
+    try:
+        refresh_global_settings_context()
+    except Exception:
+        logger.warning(
+            "Could not load the settings to report flow run %s as crashed. Using "
+            "PREFECT_API_URL and PREFECT_API_KEY from the environment.",
+            flow_run_id,
+            exc_info=True,
+        )
+        client = SyncPrefectClient(
+            os.environ["PREFECT_API_URL"], api_key=os.environ.get("PREFECT_API_KEY")
+        )
+    else:
+        client = get_client(sync_client=True)
+    with client:
         try:
             state = propose_state_sync(
                 client,
