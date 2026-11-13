@@ -1,6 +1,7 @@
 """ECS worker service stack - deploys to existing cluster with event infrastructure."""
 
 from aws_cdk import (
+    Acknowledgment,
     CfnCondition,
     CfnOutput,
     CfnParameter,
@@ -9,6 +10,7 @@ from aws_cdk import (
     RemovalPolicy,
     SecretValue,
     Stack,
+    Validations,
 )
 from aws_cdk import (
     aws_ec2 as ec2,
@@ -446,6 +448,12 @@ class EcsServiceStack(Stack):
         secret.node.default_child.cfn_options.condition = (
             self.create_new_api_key_secret_condition
         )
+        Validations.of(secret).acknowledge(
+            Acknowledgment(
+                id="CloudFormation-Validate::W1030",
+                reason="The secret is only created when its parameter is non-empty",
+            )
+        )
 
         return secret
 
@@ -462,6 +470,12 @@ class EcsServiceStack(Stack):
         # Apply condition so it's only created when needed
         secret.node.default_child.cfn_options.condition = (
             self.create_new_auth_string_secret_condition
+        )
+        Validations.of(secret).acknowledge(
+            Acknowledgment(
+                id="CloudFormation-Validate::W1030",
+                reason="The secret is only created when its parameter is non-empty",
+            )
         )
 
         return secret
