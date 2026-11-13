@@ -198,11 +198,6 @@ class LifecycleHookServer(ThreadingHTTPServer):
             neither happened in time.
         """
         if not self._run_reply_finished.wait(RUN_REPLY_WAIT_SECONDS):
-            logger.warning(
-                "The 200 reply to the `/run` request has not finished after %s "
-                "seconds; starting the flow run without waiting for it.",
-                RUN_REPLY_WAIT_SECONDS,
-            )
             return None
         return self._run_reply_sent
 
@@ -285,8 +280,9 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
             self._reply_to_run()
 
     def _reply_to_run(self) -> None:
-        # The runtime's response to a failed `/run` reply is not documented, so
-        # `main` does not start a run whose acknowledgement failed.
+        # This catches a 200 reply whose write fails. The runtime's response to
+        # a failed `/run` reply is not documented, so `main` does not start the
+        # run after one.
         reply_sent = False
         try:
             self._reply(200)

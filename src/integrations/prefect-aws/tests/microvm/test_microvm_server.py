@@ -246,9 +246,7 @@ def test_a_failed_200_reply_to_run_hands_off_the_request_and_records_the_failure
 
 
 def test_wait_for_run_reply_returns_none_after_the_wait_limit_without_a_reply(
-    server: LifecycleHookServer,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+    server: LifecycleHookServer, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setattr(server_module, "RUN_REPLY_WAIT_SECONDS", 0.3)
 
@@ -258,10 +256,6 @@ def test_wait_for_run_reply_returns_none_after_the_wait_limit_without_a_reply(
 
     assert run_reply_sent is None
     assert 0.3 <= waited < 5
-    assert (
-        "The 200 reply to the `/run` request has not finished after 0.3 seconds; "
-        "starting the flow run without waiting for it."
-    ) in caplog.messages
 
 
 def test_second_run_is_refused(server: LifecycleHookServer):

@@ -91,7 +91,8 @@ def post_run_hook() -> Iterator[Callable[..., threading.Thread]]:
     environment and payload version, once the hook server on a port is listening.
 
     A request that cannot be sent within `RUN_HOOK_POST_DEADLINE_SECONDS` fails
-    the test.
+    the test. A request whose reply fails is posted again, unless
+    `retry_after_send` is False.
     """
     test_finished = threading.Event()
     posters: list[threading.Thread] = []
@@ -106,7 +107,12 @@ def post_run_hook() -> Iterator[Callable[..., threading.Thread]]:
         )
 
     def post_when_listening(
-        port: int, flow_run_id: UUID, env: dict[str, str], version: int = 1
+        port: int,
+        flow_run_id: UUID,
+        env: dict[str, str],
+        version: int = 1,
+        *,
+        retry_after_send: bool = True,
     ) -> threading.Thread:
         run_hook_payload = {"v": version, "flow_run_id": str(flow_run_id), "env": env}
         body = json.dumps(
@@ -130,11 +136,15 @@ def post_run_hook() -> Iterator[Callable[..., threading.Thread]]:
                 connection = http.client.HTTPConnection(
                     "127.0.0.1", port, timeout=remaining
                 )
+                request_sent = False
                 try:
                     connection.request("POST", "/run", body=body)
+                    request_sent = True
                     connection.getresponse().read()
                     return
                 except OSError as exc:
+                    if request_sent and not retry_after_send:
+                        return
                     last_error = exc
                     test_finished.wait(0.05)
                 finally:

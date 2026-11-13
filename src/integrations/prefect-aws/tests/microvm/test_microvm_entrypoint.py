@@ -1,5 +1,4 @@
 import http.client
-import json
 import logging.config
 import os
 import signal
@@ -10,7 +9,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 from unittest.mock import call, create_autospec
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from prefect_aws.microvm import entrypoint, supervisor
@@ -800,42 +799,9 @@ def fail_to_send_200(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(LifecycleHookHandler, "send_response", send_response)
 
 
-def post_run_once_listening(port: int, flow_run_id: UUID) -> threading.Thread:
-    """
-    Post one `/run` request once the hook server on `port` is listening, and
-    ignore a failed reply. `post_run_hook` would post again after a failed reply.
-    """
-
-    def post() -> None:
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
-            try:
-                probe = socket.create_connection(("127.0.0.1", port), timeout=1)
-            except OSError:
-                time.sleep(0.05)
-                continue
-            probe.close()
-            break
-        connection = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
-        run_hook_payload = {"v": 1, "flow_run_id": str(flow_run_id), "env": {}}
-        body = json.dumps(
-            {"microvmId": "microvm-abc", "runHookPayload": json.dumps(run_hook_payload)}
-        ).encode()
-        try:
-            connection.request("POST", "/run", body=body)
-            connection.getresponse().read()
-        except OSError:
-            pass
-        finally:
-            connection.close()
-
-    poster = threading.Thread(target=post, daemon=True)
-    poster.start()
-    return poster
-
-
 def test_main_exits_1_without_forking_when_the_run_reply_fails(
     monkeypatch: pytest.MonkeyPatch,
+    post_run_hook: PostRunHook,
     hook_port: int,
     caplog: pytest.LogCaptureFixture,
 ):
@@ -843,7 +809,7 @@ def test_main_exits_1_without_forking_when_the_run_reply_fails(
     supervise = patch_supervise(monkeypatch, lambda payload: 0)
     signal_mask_before_main = blocked_signals()
     flow_run_id = uuid4()
-    poster = post_run_once_listening(hook_port, flow_run_id)
+    poster = post_run_hook(hook_port, flow_run_id, {}, retry_after_send=False)
 
     exit_code = entrypoint.main(port=hook_port)
     poster.join(timeout=10)
@@ -863,11 +829,11 @@ def test_main_forks_after_the_run_reply_is_sent(
     run_reply_results: list[bool | None] = []
     original_wait_for_run_reply = LifecycleHookServer.wait_for_run_reply
 
-    def record_run_reply(server: LifecycleHookServer) -> bool | None:
+    def wait_and_record(server: LifecycleHookServer) -> bool | None:
         run_reply_results.append(original_wait_for_run_reply(server))
         return run_reply_results[-1]
 
-    monkeypatch.setattr(LifecycleHookServer, "wait_for_run_reply", record_run_reply)
+    monkeypatch.setattr(LifecycleHookServer, "wait_for_run_reply", wait_and_record)
     supervise = patch_supervise(monkeypatch, lambda payload: 0)
 
     assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
@@ -877,18 +843,26 @@ def test_main_forks_after_the_run_reply_is_sent(
 
 
 def test_main_forks_when_the_run_reply_has_not_finished_in_time(
-    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+    monkeypatch: pytest.MonkeyPatch,
+    post_run_hook: PostRunHook,
+    hook_port: int,
+    caplog: pytest.LogCaptureFixture,
 ):
-    monkeypatch.setattr(
-        LifecycleHookServer,
-        "wait_for_run_reply",
-        create_autospec(LifecycleHookServer.wait_for_run_reply, return_value=None),
+    wait_for_run_reply = create_autospec(
+        LifecycleHookServer.wait_for_run_reply, return_value=None
     )
+    monkeypatch.setattr(LifecycleHookServer, "wait_for_run_reply", wait_for_run_reply)
     supervise = patch_supervise(monkeypatch, lambda payload: 0)
 
     assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
 
+    wait_for_run_reply.assert_called_once()
+    assert isinstance(wait_for_run_reply.call_args.args[0], LifecycleHookServer)
     supervise.assert_called_once()
+    assert (
+        "The 200 reply to the `/run` request has not finished after 1 seconds; "
+        "starting the flow run without waiting for it."
+    ) in caplog.messages
 
 
 def test_threads_started_by_main_block_sigterm(

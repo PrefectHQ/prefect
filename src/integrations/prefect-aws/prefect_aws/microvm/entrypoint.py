@@ -11,7 +11,11 @@ from urllib.parse import urlsplit
 from prefect.context import refresh_global_settings_context
 from prefect.logging import get_logger
 from prefect_aws.microvm.payload import InvalidRunHookPayload, RunHookRequest
-from prefect_aws.microvm.server import HOOK_SERVER_PORT, LifecycleHookServer
+from prefect_aws.microvm.server import (
+    HOOK_SERVER_PORT,
+    RUN_REPLY_WAIT_SECONDS,
+    LifecycleHookServer,
+)
 from prefect_aws.microvm.supervisor import report_crash, supervise_flow_run
 
 logger = get_logger("prefect_aws.microvm")
@@ -78,8 +82,10 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
 
     Returns:
         0 if the flow run's process exited 0. 1 if the `/run` request was
-        rejected, the 200 reply to it could not be sent, the run's settings
-        could not be loaded, or the flow run's process failed.
+        rejected, the run's settings could not be loaded, the write of the 200
+        reply to the `/run` request failed, or the flow run's process failed.
+        The runtime's response to a failed `/run` reply is not documented, so
+        the flow run is not started after one.
     """
     # As PID 1, a thread that takes a SIGTERM with no handler drops it. The
     # warm-up and server threads start with SIGTERM blocked, so a SIGTERM after
@@ -164,7 +170,14 @@ def _run(
     name_lookup_warm_up.join()
     if api_host_lookup is not None:
         api_host_lookup.join()
-    if server.wait_for_run_reply() is False:
+    run_reply_sent = server.wait_for_run_reply()
+    if run_reply_sent is None:
+        logger.warning(
+            "The 200 reply to the `/run` request has not finished after %s "
+            "seconds; starting the flow run without waiting for it.",
+            RUN_REPLY_WAIT_SECONDS,
+        )
+    elif not run_reply_sent:
         logger.error(
             "Flow run %s is not started because the reply to its `/run` "
             "request could not be sent.",
