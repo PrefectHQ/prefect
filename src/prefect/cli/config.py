@@ -69,11 +69,13 @@ def set_(
     except ProfileSettingsValidationError as exc:
         help_message = ""
         for setting, problem in exc.errors:
+            help_message += (
+                f"[bold red]Validation error(s) for setting[/bold red] "
+                f"[blue]{escape(setting.name)}[/blue]\n\n"
+            )
             for error in problem.errors():
-                help_message += (
-                    f"[bold red]Validation error(s) for setting[/bold red] "
-                    f"[blue]{escape(setting.name)}[/blue]\n\n - {escape(error['msg'])}\n\n"
-                )
+                help_message += f" - {escape(error['msg'])}\n"
+            help_message += "\n"
         exit_with_error(help_message, markup=True)
 
     for setting, value in parsed_settings.items():

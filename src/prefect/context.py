@@ -26,7 +26,7 @@ from typing import (
 )
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
 from typing_extensions import Self
 
 import prefect.settings
@@ -38,7 +38,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.objects import RunType
 from prefect.events.worker import EventsWorker
-from prefect.exceptions import MissingContextError
+from prefect.exceptions import MissingContextError, ProfileSettingsValidationError
 from prefect.logging.configuration import ensure_logging_setup
 from prefect.results import (
     ResultStore,
@@ -1054,7 +1054,29 @@ def use_profile(
             if key in _get_settings_fields(Settings):
                 profile_settings.pop(_get_settings_fields(Settings)[key], None)
 
-    new_settings = settings.copy_with_update(updates=profile_settings)
+    try:
+        new_settings = settings.copy_with_update(updates=profile_settings)
+    except ValidationError:
+        # An invalid value in the profile is reported and skipped, as the profile
+        # loader does for the active profile, so switching to the profile still
+        # works. An error that no single value causes is raised as before.
+        try:
+            Profile(name=profile.name, settings=profile_settings).validate_settings()
+        except ProfileSettingsValidationError as exc:
+            for setting, error in exc.errors:
+                problems = "; ".join(item["msg"] for item in error.errors())
+                fix = f"prefect --profile {profile.name}"
+                warnings.warn(
+                    f"Ignoring invalid value for setting {setting.name} in profile "
+                    f"{profile.name!r}: {problems}. Fix it with "
+                    f"`{fix} config set {setting.name}=<value>` or remove it with "
+                    f"`{fix} config unset {setting.name}`.",
+                    stacklevel=3,
+                )
+                profile_settings.pop(setting, None)
+        else:
+            raise
+        new_settings = settings.copy_with_update(updates=profile_settings)
 
     with SettingsContext(profile=profile, settings=new_settings) as ctx:
         yield ctx
