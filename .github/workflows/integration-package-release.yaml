@@ -150,3 +150,13 @@ jobs:
       prefect_version: ${{ needs.get-prefect-version.outputs.PREFECT_VERSION }}
       prefect_aws_version: ${{ needs.build-pypi-dists.outputs.PACKAGE_VERSION }}
     secrets: inherit
+
+  trigger-microvm-docker-build:
+    name: Build the prefect-aws MicroVM Docker image
+    needs: [build-pypi-dists, publish-pypi-dists, get-prefect-version]
+    if: needs.build-pypi-dists.outputs.PACKAGE_NAME == 'prefect-aws'
+    uses: ./.github/workflows/prefect-aws-microvm-docker-images.yaml
+    with:
+      prefect_version: ${{ needs.get-prefect-version.outputs.PREFECT_VERSION }}
+      prefect_aws_version: ${{ needs.build-pypi-dists.outputs.PACKAGE_VERSION }}
+    secrets: inherit

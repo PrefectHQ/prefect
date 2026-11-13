@@ -1,0 +1,140 @@
+name: Prefect AWS MicroVM Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      prefect_version:
+        description: 'Prefect version to use'
+        required: true
+        type: string
+      prefect_aws_version:
+        description: 'Prefect AWS version to use'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      prefect_version:
+        description: 'Prefect version to use'
+        required: true
+        type: string
+      prefect_aws_version:
+        description: 'Prefect AWS version to use'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    name: Build and push the prefect-aws MicroVM base image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: "3.12"
+
+      # Runs before the inputs are written to GITHUB_ENV, so a value with a
+      # newline fails here instead of adding lines to the env file.
+      - name: Classify the prefect-aws and prefect versions
+        id: versions
+        env:
+          PREFECT_VERSION_INPUT: ${{ inputs.prefect_version || github.event.inputs.prefect_version }}
+          PREFECT_AWS_VERSION_INPUT: ${{ inputs.prefect_aws_version || github.event.inputs.prefect_aws_version }}
+        run: |
+          uv run --no-project --with packaging python - <<'EOF'
+          import os
+
+          from packaging.version import Version
+
+
+          def parse(name: str) -> Version:
+              value = os.environ[name]
+              # Version() strips surrounding whitespace; reject it so the raw value
+              # written to GITHUB_ENV and the tags is the one validated.
+              if value != value.strip():
+                  raise SystemExit(f"{name} has surrounding whitespace: {value!r}")
+              version = Version(value)
+              if str(version) != value:
+                  raise SystemExit(f"{name} is not in canonical form {str(version)!r}: {value!r}")
+              if version.local is not None:
+                  raise SystemExit(f"{name} has a local version segment: {value!r}")
+              if version.epoch != 0:
+                  raise SystemExit(f"{name} has a non-zero epoch: {value!r}")
+              return version
+
+
+          def is_final(version: Version) -> bool:
+              return not (version.is_prerelease or version.is_postrelease or version.is_devrelease)
+
+
+          aws_version = parse("PREFECT_AWS_VERSION_INPUT")
+          prefect_version = parse("PREFECT_VERSION_INPUT")
+          stable = is_final(aws_version) and is_final(prefect_version)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"minor={aws_version.major}.{aws_version.minor}\n")
+              output.write(f"stable={str(stable).lower()}\n")
+          EOF
+
+      - name: Set version environment variables
+        env:
+          PREFECT_VERSION_INPUT: ${{ inputs.prefect_version || github.event.inputs.prefect_version }}
+          PREFECT_AWS_VERSION_INPUT: ${{ inputs.prefect_aws_version || github.event.inputs.prefect_aws_version }}
+        run: |
+          echo "PREFECT_VERSION=$PREFECT_VERSION_INPUT" >> $GITHUB_ENV
+          echo "PREFECT_AWS_VERSION=$PREFECT_AWS_VERSION_INPUT" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.PREFECT_AWS_DOCKERHUB_TOKEN }}
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: prefecthq/prefect-aws
+          # Every tag is a raw value ending in -microvm, so this image never
+          # overwrites a worker image tag.
+          tags: |
+            # Full version tag: prefect-aws-version-python-version-prefect-version-microvm
+            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python3.12-prefect${{ env.PREFECT_VERSION }}-microvm
+            # Version with Python: prefect-aws-version-python-version-microvm
+            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python3.12-microvm
+            # Minor version with Python (only when prefect-aws and prefect are both final releases)
+            type=raw,value=${{ steps.versions.outputs.minor }}-python3.12-microvm,enable=${{ steps.versions.outputs.stable == 'true' }}
+            # Latest (only when prefect-aws and prefect are both final releases)
+            type=raw,value=latest-microvm,enable=${{ steps.versions.outputs.stable == 'true' }}
+          flavor: |
+            latest=false
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: src/integrations/prefect-aws
+          file: src/integrations/prefect-aws/Dockerfile.microvm
+          platforms: linux/arm64
+          build-args: |
+            PREFECT_VERSION=${{ env.PREFECT_VERSION }}
+            PREFECT_AWS_VERSION=${{ env.PREFECT_AWS_VERSION }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          pull: true
+          provenance: false
+          cache-from: type=gha,scope=prefect-aws-microvm,ignore-error=true
+          cache-to: type=gha,mode=max,scope=prefect-aws-microvm,ignore-error=true
