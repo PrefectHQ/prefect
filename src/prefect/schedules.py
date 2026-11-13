@@ -6,13 +6,22 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
-from functools import partial
 from typing import Any
 
 from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
+
+
+class _Unset:
+    """Default for `active` and `anchor_date` arguments that aren't provided."""
+
+    def __repr__(self) -> str:
+        return "<unset>"
+
+
+_UNSET: Any = _Unset()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -35,7 +44,8 @@ class Schedule:
             This behaves like fcron and enables you to e.g. define a job that
             executes each 2nd friday of a month by setting the days of month and
             the weekday.
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If not provided, new schedules
+            are active and redeploying keeps an existing schedule's state.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
     """
@@ -44,15 +54,26 @@ class Schedule:
     cron: str | None = None
     rrule: str | None = None
     timezone: str | None = None
-    anchor_date: datetime.datetime = dataclasses.field(
-        default_factory=partial(datetime.datetime.now, tz=datetime.timezone.utc)
-    )
+    anchor_date: datetime.datetime = _UNSET
     day_or: bool = True
-    active: bool = True
+    active: bool = _UNSET
     parameters: dict[str, Any] = dataclasses.field(default_factory=dict)
     slug: str | None = None
 
     def __post_init__(self) -> None:
+        omitted = frozenset(
+            name for name in ("active", "anchor_date") if getattr(self, name) is _UNSET
+        )
+        if "active" in omitted:
+            object.__setattr__(self, "active", True)
+        if "anchor_date" in omitted:
+            object.__setattr__(
+                self, "anchor_date", datetime.datetime.now(tz=datetime.timezone.utc)
+            )
+        # Updating a deployment leaves out what wasn't provided, so redeploying keeps
+        # the schedule's state on the server. Not a field, so `asdict()` round-trips.
+        object.__setattr__(self, "_omitted", omitted)
+
         defined_fields = [
             field
             for field in ["interval", "cron", "rrule"]
@@ -74,7 +95,7 @@ def Cron(
     /,
     timezone: str | None = None,
     day_or: bool = True,
-    active: bool = True,
+    active: bool = _UNSET,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -90,7 +111,8 @@ def Cron(
             This behaves like fcron and enables you to e.g. define a job that
             executes each 2nd friday of a month by setting the days of month and
             the weekday.
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If not provided, new schedules
+            are active and redeploying keeps an existing schedule's state.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
 
@@ -130,7 +152,7 @@ def Interval(
     /,
     anchor_date: datetime.datetime | None = None,
     timezone: str | None = None,
-    active: bool = True,
+    active: bool = _UNSET,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -142,7 +164,8 @@ def Interval(
             it will be interpreted as seconds.
         anchor_date: The anchor date to use for the schedule.
         timezone: A valid timezone string in IANA tzdata format (e.g. America/New_York).
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If not provided, new schedules
+            are active and redeploying keeps an existing schedule's state.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
 
@@ -170,13 +193,11 @@ def Interval(
     """
     if isinstance(interval, (float, int)):
         interval = datetime.timedelta(seconds=interval)
-    if anchor_date is None:
-        anchor_date = datetime.datetime.now(tz=datetime.timezone.utc)
     if parameters is None:
         parameters = {}
     return Schedule(
         interval=interval,
-        anchor_date=anchor_date,
+        anchor_date=_UNSET if anchor_date is None else anchor_date,
         timezone=timezone,
         active=active,
         parameters=parameters,
@@ -188,7 +209,7 @@ def RRule(
     rrule: str,
     /,
     timezone: str | None = None,
-    active: bool = True,
+    active: bool = _UNSET,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -198,7 +219,8 @@ def RRule(
     Args:
         rrule: A valid RRule string (e.g. "RRULE:FREQ=DAILY;INTERVAL=1").
         timezone: A valid timezone string in IANA tzdata format (e.g. America/New_York).
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If not provided, new schedules
+            are active and redeploying keeps an existing schedule's state.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
 

@@ -27,6 +27,8 @@ or day-of-month adjustments.
 When you create or edit a schedule, you can set the `active` property to `False` in Python (or `false` in a YAML file) to
 deactivate the schedule.
 This is useful to keep the schedule configuration but temporarily stop the schedule from creating new flow runs.
+If you leave `active` unset, redeploying keeps an existing schedule's state, so a schedule that you paused stays paused.
+Schedules without a `slug` count as existing when their definition and parameters are unchanged.
 </Tip>
 
 ### Cron
