@@ -96,13 +96,15 @@ def _documented_422_schema(
         ("/flows/", {}),
         ("/flow_runs/filter", {"limit": "ten"}),
         ("/flow_runs/filter", {"limit": 500}),
+        ("/templates/validate", "{{ broken"),
+        ("/templates/validate", 5),
     ],
 )
 async def test_422_responses_match_openapi_schema(
     client: AsyncClient,
     openapi_schema: dict[str, Any],
     path: str,
-    body: dict[str, Any],
+    body: Any,
 ):
     response = await client.post(path, json=body)
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

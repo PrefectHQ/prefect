@@ -804,3 +804,17 @@ class WorkQueueConcurrencyStatus(PrefectBaseModel):
     limit: int = Field(description="Page size.")
     pages: int = Field(description="Total number of pages.")
     page: int = Field(description="Current page number (1-indexed).")
+
+
+class TemplateValidationErrorDetail(PrefectBaseModel):
+    """Where and why a template failed validation."""
+
+    line: int
+    message: Optional[str] = None
+    source: str
+
+
+class TemplateValidationErrorResponse(PrefectBaseModel):
+    """The 422 body sent when a template fails validation."""
+
+    error: TemplateValidationErrorDetail

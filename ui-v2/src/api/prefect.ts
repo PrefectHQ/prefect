@@ -11907,6 +11907,25 @@ export interface components {
              */
             resource_metrics_interval_seconds: number;
         };
+        /**
+         * TemplateValidationErrorDetail
+         * @description Where and why a template failed validation.
+         */
+        TemplateValidationErrorDetail: {
+            /** Line */
+            line: number;
+            /** Message */
+            message?: string | null;
+            /** Source */
+            source: string;
+        };
+        /**
+         * TemplateValidationErrorResponse
+         * @description The 422 body sent when a template fails validation.
+         */
+        TemplateValidationErrorResponse: {
+            error: components["schemas"]["TemplateValidationErrorDetail"];
+        };
         /** TestingSettings */
         TestingSettings: {
             /**
@@ -19055,13 +19074,13 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidRequestResponse"] | components["schemas"]["HTTPErrorResponse"];
+                    "application/json": components["schemas"]["TemplateValidationErrorResponse"] | components["schemas"]["InvalidRequestResponse"] | components["schemas"]["HTTPErrorResponse"];
                 };
             };
         };
@@ -19088,13 +19107,13 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidRequestResponse"] | components["schemas"]["HTTPErrorResponse"];
+                    "application/json": components["schemas"]["TemplateValidationErrorResponse"] | components["schemas"]["InvalidRequestResponse"] | components["schemas"]["HTTPErrorResponse"];
                 };
             };
         };

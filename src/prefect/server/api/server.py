@@ -42,7 +42,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.constants import REF_PREFIX
-from fastapi.openapi.utils import get_openapi
+from fastapi.openapi.utils import get_openapi, validation_error_definition
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from packaging.version import Version
@@ -348,17 +348,13 @@ _HTTP_ERROR_RESPONSE_SCHEMA: dict[str, Any] = {
 
 def _document_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
     """
-    Replace FastAPI's default `HTTPValidationError` 422 response schema with the
-    bodies the Prefect API sends: `InvalidRequestResponse` from the request
-    validation handler, or `HTTPErrorResponse` from an `HTTPException`.
+    Document the 422 bodies the Prefect API sends: `InvalidRequestResponse` from
+    the request validation handler, or `HTTPErrorResponse` from an
+    `HTTPException`. These replace FastAPI's default `HTTPValidationError`, and
+    are added to any 422 body that a route declares.
     """
-    schemas = schema.get("components", {}).get("schemas", {})
-    if schemas.pop("HTTPValidationError", None) is None:
-        return schema
-
-    schemas["InvalidRequestResponse"] = _INVALID_REQUEST_RESPONSE_SCHEMA
-    schemas["HTTPErrorResponse"] = _HTTP_ERROR_RESPONSE_SCHEMA
     default_ref = f"{REF_PREFIX}HTTPValidationError"
+    documented = False
     for path_item in schema.get("paths", {}).values():
         for operation in path_item.values():
             content = (
@@ -367,13 +363,25 @@ def _document_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
                 .get("content", {})
                 .get("application/json", {})
             )
-            if content.get("schema", {}).get("$ref") == default_ref:
-                content["schema"] = {
-                    "anyOf": [
-                        {"$ref": f"{REF_PREFIX}InvalidRequestResponse"},
-                        {"$ref": f"{REF_PREFIX}HTTPErrorResponse"},
-                    ]
-                }
+            ref = content.get("schema", {}).get("$ref")
+            if ref is None:
+                continue
+            route_bodies = [] if ref == default_ref else [{"$ref": ref}]
+            content["schema"] = {
+                "anyOf": [
+                    *route_bodies,
+                    {"$ref": f"{REF_PREFIX}InvalidRequestResponse"},
+                    {"$ref": f"{REF_PREFIX}HTTPErrorResponse"},
+                ]
+            }
+            documented = True
+
+    if documented:
+        schemas = schema.setdefault("components", {}).setdefault("schemas", {})
+        schemas.pop("HTTPValidationError", None)
+        schemas.setdefault("ValidationError", validation_error_definition)
+        schemas["InvalidRequestResponse"] = _INVALID_REQUEST_RESPONSE_SCHEMA
+        schemas["HTTPErrorResponse"] = _HTTP_ERROR_RESPONSE_SCHEMA
     return schema
 
 
