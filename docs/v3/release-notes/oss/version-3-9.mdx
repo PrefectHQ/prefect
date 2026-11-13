@@ -3,6 +3,68 @@ title: 3.9
 description: Release notes for Prefect 3.9.0 and 3.9.1, including Python 3.15 support, custom state discovery and filters, and the end of Python 3.10 support.
 ---
 
+## 3.9.3 - `aclose()`ing time
+
+*Released on November 13, 2026*
+
+**Enhancements ➕➕**
+
+* Add search and ordering to the automations page by [@uinstinct](https://github.com/uinstinct) in [#23048](https://github.com/PrefectHQ/prefect/pull/23048)
+* Align flow runs timeline ticks to local time boundaries by [@theluckystrike](https://github.com/theluckystrike) in [#23272](https://github.com/PrefectHQ/prefect/pull/23272)
+
+**Bug Fixes 🐞**
+
+* Fix early closure of async generator flows by [@desertaxle](https://github.com/desertaxle) in [#23886](https://github.com/PrefectHQ/prefect/pull/23886)
+* Fix retry restart of async generator tasks closed during finalizer failure by [@dfbustosus](https://github.com/dfbustosus) in [#23739](https://github.com/PrefectHQ/prefect/pull/23739)
+* Fix parallel tasks failing when using kwargs by [@uinstinct](https://github.com/uinstinct) in [#23820](https://github.com/PrefectHQ/prefect/pull/23820)
+* Fix parent transactions committing after child commit failure by [@uinstinct](https://github.com/uinstinct) in [#23790](https://github.com/PrefectHQ/prefect/pull/23790)
+* Separate `visit_collection` cache entries by annotation type by [@HarshithJeevan-pixel](https://github.com/HarshithJeevan-pixel) in [#23851](https://github.com/PrefectHQ/prefect/pull/23851)
+* Preserve tuple and non-string key types in `hash_objects` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23818](https://github.com/PrefectHQ/prefect/pull/23818)
+* Fix SQLAlchemy cursor reuse for parameterized fetches by [@shion233](https://github.com/shion233) in [#23847](https://github.com/PrefectHQ/prefect/pull/23847)
+* Replace null bytes in events before writing them to the database by [@dayan02dev](https://github.com/dayan02dev) in [#23853](https://github.com/PrefectHQ/prefect/pull/23853)
+* Don't count resuming a blocking pause as a new flow run attempt by [@mansur-akhmadi](https://github.com/mansur-akhmadi) in [#23839](https://github.com/PrefectHQ/prefect/pull/23839)
+* Keep workers alive when reading the deployment fails before submission by [@mansur-akhmadi](https://github.com/mansur-akhmadi) in [#23836](https://github.com/PrefectHQ/prefect/pull/23836)
+* Skip fetching a pinned commit that the clone already contains by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23814](https://github.com/PrefectHQ/prefect/pull/23814)
+* Keep `Annotated[T, Field(description=...)]` descriptions in flow parameter schemas by [@CassianoE](https://github.com/CassianoE) in [#23809](https://github.com/PrefectHQ/prefect/pull/23809)
+* Show the script error from `prefect deploy` and `prefect flow serve` for flows that fail to load by [@CassianoE](https://github.com/CassianoE) in [#23807](https://github.com/PrefectHQ/prefect/pull/23807)
+* Generate automatic Dockerfile in `DockerImage` build context by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23747](https://github.com/PrefectHQ/prefect/pull/23747)
+* Raise when `RemoteFileSystem.put_directory(overwrite=False)` hits an existing file by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23816](https://github.com/PrefectHQ/prefect/pull/23816)
+* Reject invalid timezones in server-side `RRuleSchedule` by [@udsy19](https://github.com/udsy19) in [#23688](https://github.com/PrefectHQ/prefect/pull/23688)
+* Keep `RDATE`/`EXDATE` instants in `RRuleSchedule.from_rrule()` by [@arieleven](https://github.com/arieleven) in [#23436](https://github.com/PrefectHQ/prefect/pull/23436)
+* Preserve IANA timezone when `dateutil` resolves via `tzdata` on Windows by [@dltsum](https://github.com/dltsum) in [#23295](https://github.com/PrefectHQ/prefect/pull/23295)
+* Hydrate schedule parameter overrides on every schedule write path by [@dayan02dev](https://github.com/dayan02dev) in [#23856](https://github.com/PrefectHQ/prefect/pull/23856)
+* Read `.env` once per process when loading settings by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23533](https://github.com/PrefectHQ/prefect/pull/23533)
+
+**Integrations & Dependencies 🤝**
+
+* Bump `soupsieve` from 2.9 to 4.0 by [@dependabot](https://github.com/dependabot)[bot] in [#23872](https://github.com/PrefectHQ/prefect/pull/23872)
+
+**Development & Tidiness 🧹**
+
+* Run duration-balanced Postgres test groups on every Python version by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23863](https://github.com/PrefectHQ/prefect/pull/23863)
+* Run duration-balanced SQLite test groups by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23865](https://github.com/PrefectHQ/prefect/pull/23865)
+* Fix flaky UI E2E tests reading stale default task run names by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23829](https://github.com/PrefectHQ/prefect/pull/23829)
+* Reserve hosted test API server port before starting uvicorn by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23799](https://github.com/PrefectHQ/prefect/pull/23799)
+* Fix flaky `artifact ls` tests that assert a sub-second "updated" time by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23866](https://github.com/PrefectHQ/prefect/pull/23866)
+* Use canonical IANA zone in interval schedule DST test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23855](https://github.com/PrefectHQ/prefect/pull/23855)
+* Make the delete-block message assertions actually run by [@dylanpulver](https://github.com/dylanpulver) in [#23767](https://github.com/PrefectHQ/prefect/pull/23767)
+* Direct agents to re-request review after addressing requested changes by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23828](https://github.com/PrefectHQ/prefect/pull/23828)
+
+**Documentation 📓**
+
+* Document flow archival and restoration policies by [@nathandpeterson](https://github.com/nathandpeterson) in [#23546](https://github.com/PrefectHQ/prefect/pull/23546)
+* Rename managed automation to workspace policy by [@nathandpeterson](https://github.com/nathandpeterson) in [#23800](https://github.com/PrefectHQ/prefect/pull/23800)
+* Fix broken examples in the store-flow-code guide by [@ZainnQureshii](https://github.com/ZainnQureshii) in [#23801](https://github.com/PrefectHQ/prefect/pull/23801)
+* Set `PREFECT_API_URL` in the open source quickstart by [@masonmenges](https://github.com/masonmenges) in [#23842](https://github.com/PrefectHQ/prefect/pull/23842)
+* Document OIDC identity tokens for Modal push work pools by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23545](https://github.com/PrefectHQ/prefect/pull/23545)
+* Document that the automatic Dockerfile uses the `DockerImage` build context by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#23868](https://github.com/PrefectHQ/prefect/pull/23868)
+* Document `ClassVar` annotations for custom block metadata by [@ashutosh8021](https://github.com/ashutosh8021) in [#23827](https://github.com/PrefectHQ/prefect/pull/23827)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.9.2...3.9.3
+
+
+---
+
 ## 3.9.2 - It’s okay to let go of a lock that already let go of you
 
 *Released on November 06, 2026*
