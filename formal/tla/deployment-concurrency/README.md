@@ -110,6 +110,13 @@ accepted PENDING reacquisition branch, covered by
 A later rule's nullification must leave no claim and refines to stuttering; the
 split-path failure is covered by
 `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_full_policy_wait_after_reacquisition_releases_capacity`.
+The same rule also runs for `Running` -> `Running`, when infrastructure such as
+a Kubernetes Job restarts a killed process for a run whose server state is
+still `Running`. The model has no process restart: a restarted attempt whose
+lease is live refines to `Renew`, and one whose lease was reaped takes the same
+reacquire or cancel branches as PENDING, so it adds no new slot writer. Covered
+by
+`tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_full_policy_restarted_running_run_reacquires_reaped_lease`.
 `CancelStaleReap` and
 `SkipFallbackRelease` are the proposed safe branches. `ClaimTerminalRelease`
 also covers atomic claim release during flow-run deletion; `Terminal` abstracts
@@ -157,5 +164,5 @@ with SQL accounting, and the target claim protocol remains unimplemented.
 
 Review the model when deployment or global concurrency changes admission,
 renewal, expiry scanning, terminal release, flow-run deletion, lease
-persistence, acquisition failure handling, queue delivery, PENDING
-reacquisition, transition nullification, or accounting.
+persistence, acquisition failure handling, queue delivery, PENDING or
+restarted-RUNNING reacquisition, transition nullification, or accounting.
