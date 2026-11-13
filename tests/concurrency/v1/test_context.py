@@ -3,6 +3,7 @@ import time as _time
 from unittest import mock
 from uuid import UUID, uuid4
 
+import anyio
 import pytest
 
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
@@ -11,7 +12,7 @@ from prefect.concurrency.v1.context import ConcurrencyContext
 from prefect.concurrency.v1.sync import concurrency
 from prefect.server.schemas.core import ConcurrencyLimit
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.timeout import timeout, timeout_async
+from prefect.utilities.timeout import timeout
 
 pytestmark = pytest.mark.clear_db
 
@@ -21,20 +22,24 @@ async def test_concurrency_context_releases_slots_async(
 ):
     task_run_id = UUID("00000000-0000-0000-0000-000000000000")
 
-    async def expensive_task():
+    async def expensive_task(cancel_scope: anyio.CancelScope):
         async with aconcurrency(v1_concurrency_limit.tag, task_run_id):
             response = await prefect_client.read_concurrency_limit_by_tag(
                 v1_concurrency_limit.tag
             )
             assert response.active_slots == [task_run_id]
 
-            # Occupy the slot for longer than the timeout
+            # Cancel only once the slot is held. A wall-clock timeout can fire
+            # while acquisition is still in flight on a slow runner, after the
+            # server has granted the slot but before the release is registered.
+            cancel_scope.cancel()
             await asyncio.sleep(10)
 
-    with pytest.raises(TimeoutError):
-        with timeout_async(seconds=1):
-            with ConcurrencyContext():
-                await expensive_task()
+    with anyio.CancelScope() as cancel_scope:
+        with ConcurrencyContext():
+            await expensive_task(cancel_scope)
+
+    assert cancel_scope.cancelled_caught
 
     response = await prefect_client.read_concurrency_limit_by_tag(
         v1_concurrency_limit.tag
