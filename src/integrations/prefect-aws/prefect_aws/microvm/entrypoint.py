@@ -155,6 +155,12 @@ def _run(
     hook_server_stopper.join()
     # No thread may be inside the C library's name lookup when the process
     # forks. The resolver's own timeout and attempts bound this wait.
+    if name_lookup_warm_up.is_alive():
+        logger.warning(
+            "The name lookup started before the image snapshot has not finished. "
+            "Flow run %s will wait for it before it starts.",
+            flow_run_id,
+        )
     name_lookup_warm_up.join()
     if api_host_lookup is not None:
         api_host_lookup.join()

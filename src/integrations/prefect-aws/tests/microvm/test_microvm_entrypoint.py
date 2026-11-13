@@ -171,11 +171,21 @@ def test_main_starts_the_name_lookup_warm_up_and_hands_it_to_the_hook_server(
     assert warm_ups_given_to_the_server == [warm_up]
 
 
-def test_main_forks_only_after_a_slow_name_lookup_warm_up_has_finished(
-    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+def test_main_warns_and_forks_only_after_a_slow_name_lookup_warm_up_has_finished(
+    monkeypatch: pytest.MonkeyPatch,
+    post_run_hook: PostRunHook,
+    hook_port: int,
+    caplog: pytest.LogCaptureFixture,
 ):
     release_warm_up = threading.Event()
-    slow_warm_up = threading.Thread(target=release_warm_up.wait, daemon=True)
+
+    def finish_warm_up_after_release() -> None:
+        release_warm_up.wait()
+        # Keeps the warm-up running past the point where `main` would fork
+        # without waiting for it.
+        time.sleep(0.3)
+
+    slow_warm_up = threading.Thread(target=finish_warm_up_after_release, daemon=True)
 
     def start_slow_warm_up() -> threading.Thread:
         slow_warm_up.start()
@@ -188,6 +198,13 @@ def test_main_forks_only_after_a_slow_name_lookup_warm_up_has_finished(
             entrypoint.start_name_lookup_warm_up, side_effect=start_slow_warm_up
         ),
     )
+    original_stop_hook_server = entrypoint._stop_hook_server
+
+    def stop_then_release_warm_up(server: LifecycleHookServer) -> None:
+        original_stop_hook_server(server)
+        release_warm_up.set()
+
+    monkeypatch.setattr(entrypoint, "_stop_hook_server", stop_then_release_warm_up)
     warm_up_alive_at_supervise: list[bool] = []
 
     def run_flow(payload: RunHookPayload) -> int:
@@ -195,18 +212,38 @@ def test_main_forks_only_after_a_slow_name_lookup_warm_up_has_finished(
         return 0
 
     patch_supervise(monkeypatch, run_flow)
-    # Released only after `/run` is posted, so the warm-up is still running
-    # when `main` reaches the fork.
-    release_timer = threading.Timer(0.5, release_warm_up.set)
-    release_timer.daemon = True
-    release_timer.start()
+    flow_run_id = uuid4()
     try:
-        exit_code = run_main(post_run_hook, hook_port, uuid4(), {})
+        exit_code = run_main(post_run_hook, hook_port, flow_run_id, {})
     finally:
         release_warm_up.set()
 
     assert exit_code == 0
     assert warm_up_alive_at_supervise == [False]
+    assert (
+        "The name lookup started before the image snapshot has not finished. "
+        f"Flow run {flow_run_id} will wait for it before it starts."
+    ) in caplog.messages
+
+
+def test_main_does_not_warn_about_a_finished_name_lookup_warm_up(
+    monkeypatch: pytest.MonkeyPatch,
+    post_run_hook: PostRunHook,
+    hook_port: int,
+    caplog: pytest.LogCaptureFixture,
+):
+    monkeypatch.setattr(
+        entrypoint,
+        "start_name_lookup_warm_up",
+        create_autospec(
+            entrypoint.start_name_lookup_warm_up, side_effect=finished_thread
+        ),
+    )
+    patch_supervise(monkeypatch, lambda payload: 0)
+
+    assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
+
+    assert not any("name lookup started" in message for message in caplog.messages)
 
 
 @pytest.mark.parametrize(

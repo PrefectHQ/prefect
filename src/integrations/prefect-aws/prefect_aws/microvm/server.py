@@ -175,8 +175,8 @@ class LifecycleHookServer(ThreadingHTTPServer):
         """Wait up to `RUN_REPLY_WAIT_SECONDS` for `allow_run_reply`."""
         if not self._run_reply_allowed.wait(RUN_REPLY_WAIT_SECONDS):
             logger.warning(
-                "Answering the `/run` request after %s seconds without the "
-                "flow run's process blocking SIGTERM first.",
+                "Answering the `/run` request after %s seconds before SIGTERM "
+                "was blocked.",
                 RUN_REPLY_WAIT_SECONDS,
             )
 
@@ -190,9 +190,8 @@ class LifecycleHookServer(ThreadingHTTPServer):
         self._name_lookup_warm_up.join(NAME_LOOKUP_WARM_UP_WAIT_SECONDS)
         if self._name_lookup_warm_up.is_alive():
             logger.warning(
-                "The name lookups before `/ready` did not finish within %s "
-                "seconds, so this image's name lookup is slow. The first Prefect "
-                "API lookup after a restore will not be warm.",
+                "Name lookups before `/ready` took longer than %s seconds; each "
+                "run will wait for them before it starts.",
                 NAME_LOOKUP_WARM_UP_WAIT_SECONDS,
             )
 
@@ -257,6 +256,9 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
             # `main` blocks SIGTERM before it allows the reply, so a SIGTERM
             # sent after the 200 is held for the flow run's process.
             self.server.wait_until_run_reply_allowed()
+            # A failed 200 still runs the flow run: the runtime's handling of a
+            # failed `/run` reply is not documented, and the flow run's state
+            # rules refuse a duplicate start of the same run.
             self._reply_if_unanswered(200)
 
     def _start_run(self) -> RunHookRequest:

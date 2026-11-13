@@ -51,7 +51,9 @@ def request(
 
 
 @pytest.fixture
-def server(monkeypatch: pytest.MonkeyPatch) -> Iterator[LifecycleHookServer]:
+def server_without_run_reply(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[LifecycleHookServer]:
     # Registers the variable with monkeypatch so the value `/run` writes is undone.
     monkeypatch.setenv(TEST_ENV_VAR, "before-run-hook")
     hook_server = LifecycleHookServer(("127.0.0.1", 0))
@@ -60,6 +62,13 @@ def server(monkeypatch: pytest.MonkeyPatch) -> Iterator[LifecycleHookServer]:
     yield hook_server
     hook_server.shutdown()
     hook_server.server_close()
+
+
+@pytest.fixture
+def server(server_without_run_reply: LifecycleHookServer) -> LifecycleHookServer:
+    # A valid `/run` is answered at once instead of after `RUN_REPLY_WAIT_SECONDS`.
+    server_without_run_reply.allow_run_reply()
+    return server_without_run_reply
 
 
 def port_of(server: LifecycleHookServer) -> int:
@@ -90,8 +99,12 @@ def serve_hook_server() -> Iterator[Callable[[LifecycleHookServer], int]]:
 
 @pytest.mark.parametrize("method", ["GET", "POST"])
 def test_ready_is_answered_after_the_name_lookup_warm_up_finishes(
-    serve_hook_server: Callable[[LifecycleHookServer], int], method: str
+    serve_hook_server: Callable[[LifecycleHookServer], int],
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
 ):
+    # Far above the release below, so `/ready` cannot be answered by the cap.
+    monkeypatch.setattr(server_module, "NAME_LOOKUP_WARM_UP_WAIT_SECONDS", 30)
     release_warm_up = threading.Event()
     warm_up = threading.Thread(target=release_warm_up.wait, daemon=True)
     warm_up.start()
@@ -134,14 +147,13 @@ def test_ready_is_answered_after_the_wait_limit_when_the_warm_up_stalls(
     assert response.status == 200
     assert warm_up_alive_at_answer
     assert 0.3 <= waited < 5
-    assert any(
-        "did not finish within 0.3 seconds" in message for message in caplog.messages
-    )
+    assert any("took longer than 0.3 seconds" in message for message in caplog.messages)
 
 
 def test_run_is_answered_only_after_allow_run_reply(
-    server: LifecycleHookServer, monkeypatch: pytest.MonkeyPatch
+    server_without_run_reply: LifecycleHookServer, monkeypatch: pytest.MonkeyPatch
 ):
+    server = server_without_run_reply
     monkeypatch.setattr(server_module, "RUN_REPLY_WAIT_SECONDS", 30)
     replies: list[tuple[int, float]] = []
     poster = threading.Thread(
@@ -169,10 +181,11 @@ def test_run_is_answered_only_after_allow_run_reply(
 
 
 def test_run_is_answered_after_the_wait_limit_without_allow_run_reply(
-    server: LifecycleHookServer,
+    server_without_run_reply: LifecycleHookServer,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ):
+    server = server_without_run_reply
     monkeypatch.setattr(server_module, "RUN_REPLY_WAIT_SECONDS", 0.3)
 
     started = time.monotonic()
@@ -182,9 +195,9 @@ def test_run_is_answered_after_the_wait_limit_without_allow_run_reply(
     assert response.status == 200
     assert 0.3 <= waited < 5
     assert isinstance(server.wait_for_run_request(), RunHookRequest)
-    assert any(
-        "Answering the `/run` request after 0.3 seconds" in message
-        for message in caplog.messages
+    assert (
+        "Answering the `/run` request after 0.3 seconds before SIGTERM was blocked."
+        in caplog.messages
     )
 
 
@@ -200,6 +213,31 @@ def test_run_applies_env_returns_200_and_hands_off_the_request(
     assert isinstance(run_request, RunHookRequest)
     assert run_request.microvm_id == "microvm-abc"
     assert run_request.payload.flow_run_id == FLOW_RUN_ID
+
+
+def test_a_failed_200_reply_to_run_still_hands_off_the_request(
+    server: LifecycleHookServer,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    original_send_response = LifecycleHookHandler.send_response
+
+    def fail_to_send_200(
+        handler: LifecycleHookHandler, code: int, message: str | None = None
+    ) -> None:
+        if code == 200:
+            raise BrokenPipeError("the runtime closed the connection")
+        original_send_response(handler, code, message)
+
+    monkeypatch.setattr(LifecycleHookHandler, "send_response", fail_to_send_200)
+
+    with pytest.raises(ConnectionError):
+        request(port_of(server), "POST", "/run", run_body())
+
+    run_request = wait_for_outcome(server)
+    assert isinstance(run_request, RunHookRequest)
+    assert run_request.payload.flow_run_id == FLOW_RUN_ID
+    assert "Could not reply 200 to the `/run` request." in caplog.messages
 
 
 def test_second_run_is_refused(server: LifecycleHookServer):
