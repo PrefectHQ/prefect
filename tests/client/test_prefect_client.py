@@ -718,7 +718,9 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
 
     flow_id = await prefect_client.create_flow(foo)
     schedule = DeploymentScheduleCreate(
-        schedule=IntervalSchedule(interval=timedelta(days=1))
+        schedule=IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=DateTime(2020, 1, 1)
+        )
     )
 
     deployment_id = await prefect_client.create_deployment(

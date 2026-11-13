@@ -163,6 +163,13 @@ class DeploymentClient(BaseClient):
                     mode="json", exclude_unset=True
                 )
             )
+        # Leave out schedule fields the caller didn't set, so that upserting a
+        # deployment doesn't override them on the server, e.g. re-activate a schedule
+        # that was paused
+        payload["schedules"] = [
+            schedule.model_dump(mode="json", exclude_unset=True)
+            for schedule in deployment_create.schedules
+        ]
 
         try:
             response = self.request("POST", "/deployments/", json=payload)
@@ -870,6 +877,13 @@ class DeploymentAsyncClient(BaseAsyncClient):
                     mode="json", exclude_unset=True
                 )
             )
+        # Leave out schedule fields the caller didn't set, so that upserting a
+        # deployment doesn't override them on the server, e.g. re-activate a schedule
+        # that was paused
+        payload["schedules"] = [
+            schedule.model_dump(mode="json", exclude_unset=True)
+            for schedule in deployment_create.schedules
+        ]
 
         try:
             response = await self.request("POST", "/deployments/", json=payload)
