@@ -1,3 +1,4 @@
+import http.client
 import logging.config
 import os
 import signal
@@ -13,8 +14,12 @@ from uuid import uuid4
 
 import pytest
 from prefect_aws.microvm import entrypoint, supervisor
-from prefect_aws.microvm.payload import RunHookPayload
-from prefect_aws.microvm.server import LifecycleHookServer
+from prefect_aws.microvm.payload import (
+    InvalidRunHookPayload,
+    RunHookPayload,
+    RunHookRequest,
+)
+from prefect_aws.microvm.server import LifecycleHookHandler, LifecycleHookServer
 from prefect_aws.microvm.supervisor import report_crash, supervise_flow_run
 
 from prefect.client.orchestration import SyncPrefectClient, get_client
@@ -661,3 +666,59 @@ def test_crash_report_fallback_without_an_api_url_constructs_no_client(
     assert f"Could not report flow run {flow_run_id} as crashed." not in (
         caplog.messages
     )
+
+
+def test_hook_threads_block_sigterm_and_the_main_thread_does_not_before_run(
+    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+):
+    signals_blocked_in_ready_handler: list[set[signal.Signals]] = []
+    original_do_get = LifecycleHookHandler.do_GET
+
+    def record_mask_then_answer(handler: LifecycleHookHandler) -> None:
+        signals_blocked_in_ready_handler.append(blocked_signals())
+        original_do_get(handler)
+
+    monkeypatch.setattr(LifecycleHookHandler, "do_GET", record_mask_then_answer)
+    signals_blocked_in_main_waiting_for_run: list[set[signal.Signals]] = []
+    original_wait = LifecycleHookServer.wait_for_run_request
+
+    def record_mask_then_wait(
+        server: LifecycleHookServer,
+    ) -> RunHookRequest | InvalidRunHookPayload:
+        signals_blocked_in_main_waiting_for_run.append(blocked_signals())
+        return original_wait(server)
+
+    monkeypatch.setattr(
+        LifecycleHookServer, "wait_for_run_request", record_mask_then_wait
+    )
+    patch_supervise(monkeypatch, lambda payload: 0)
+
+    # Posts `/run` only after `/ready` is answered, because `/run` stops the server.
+    def get_ready_then_post_run() -> None:
+        deadline = time.monotonic() + 5
+        try:
+            while time.monotonic() < deadline:
+                connection = http.client.HTTPConnection(
+                    "127.0.0.1", hook_port, timeout=1
+                )
+                try:
+                    connection.request("GET", "/ready")
+                    connection.getresponse().read()
+                    return
+                except OSError:
+                    time.sleep(0.05)
+                finally:
+                    connection.close()
+        finally:
+            post_run_hook(hook_port, uuid4(), {})
+
+    requester = threading.Thread(target=get_ready_then_post_run, daemon=True)
+    requester.start()
+    exit_code = entrypoint.main(port=hook_port)
+    requester.join(timeout=10)
+
+    assert exit_code == 0
+    assert len(signals_blocked_in_ready_handler) == 1
+    assert signal.SIGTERM in signals_blocked_in_ready_handler[0]
+    assert len(signals_blocked_in_main_waiting_for_run) == 1
+    assert signal.SIGTERM not in signals_blocked_in_main_waiting_for_run[0]

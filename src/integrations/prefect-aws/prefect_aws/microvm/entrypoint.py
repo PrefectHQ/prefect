@@ -106,9 +106,18 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
     """
     warm_name_lookup()
     server = LifecycleHookServer(("0.0.0.0", port))
-    threading.Thread(
-        target=server.serve_forever, name="microvm-lifecycle-hooks", daemon=True
-    ).start()
+    # As PID 1, a server or handler thread that takes a SIGTERM drops it. The
+    # threads inherit this block, so a SIGTERM after `/run` waits for the
+    # forwarding handler. The main thread still takes a SIGTERM before `/run`.
+    signal_mask_before_server = signal.pthread_sigmask(
+        signal.SIG_BLOCK, {signal.SIGTERM}
+    )
+    try:
+        threading.Thread(
+            target=server.serve_forever, name="microvm-lifecycle-hooks", daemon=True
+        ).start()
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, signal_mask_before_server)
 
     run_request = server.wait_for_run_request()
     # As PID 1 this process drops a SIGTERM it has no handler for. Blocked, the

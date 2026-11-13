@@ -127,8 +127,7 @@ def supervise_flow_run(
         The exit code for this process: 0 if the child exited 0, otherwise 1.
     """
     # Blocked across the fork so a SIGTERM that arrives before the forwarding
-    # handler is installed waits for it instead of being lost. A hook handler still
-    # running past `stop_serving`'s wait, one trickling bytes, could take it instead.
+    # handler is installed waits for it instead of being lost.
     signal_mask_on_entry = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
     if restored_signal_mask is None:
         restored_signal_mask = signal_mask_on_entry
