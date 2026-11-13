@@ -1,7 +1,9 @@
 import http.client
 import json
 import os
+import signal
 import socket
+import sys
 import threading
 import time
 from collections.abc import Callable, Iterator
@@ -286,8 +288,13 @@ def test_binding_the_wildcard_address_skips_the_reverse_dns_lookup(
 
 
 RUN_HOOK_ENV = {TEST_ENV_VAR: "from-run-hook"}
+requires_posix_signals = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="`main` and `post_run_hook` use signal functions that Windows lacks.",
+)
 
 
+@requires_posix_signals
 @pytest.mark.usefixtures("api_from_environment")
 def test_main_supervises_the_flow_run_from_the_run_request(
     monkeypatch: pytest.MonkeyPatch,
@@ -295,12 +302,11 @@ def test_main_supervises_the_flow_run_from_the_run_request(
     hook_port: int,
 ):
     monkeypatch.setenv(TEST_ENV_VAR, "before-run-hook")
-    port = hook_port
     hook_request_outcomes_during_run: list[str] = []
 
-    def run_flow(payload: object) -> int:
+    def run_flow(payload: object, restored_signal_mask: object = None) -> int:
         try:
-            request(port, "GET", "/ready", timeout=1)
+            request(hook_port, "GET", "/ready", timeout=1)
         except ConnectionRefusedError:
             hook_request_outcomes_during_run.append("refused")
         except TimeoutError:
@@ -311,20 +317,24 @@ def test_main_supervises_the_flow_run_from_the_run_request(
 
     supervise = create_autospec(supervise_flow_run, side_effect=run_flow)
     monkeypatch.setattr(entrypoint, "supervise_flow_run", supervise)
-    poster = post_run_hook(port, FLOW_RUN_ID, RUN_HOOK_ENV)
+    signal_mask_before_main = signal.pthread_sigmask(signal.SIG_BLOCK, set())
+    poster = post_run_hook(hook_port, FLOW_RUN_ID, RUN_HOOK_ENV)
 
-    exit_code = entrypoint.main(port=port)
+    exit_code = entrypoint.main(port=hook_port)
 
     poster.join(timeout=10)
     assert exit_code == 0
     supervise.assert_called_once()
     (payload,) = supervise.call_args.args
     assert payload.flow_run_id == FLOW_RUN_ID
-    assert supervise.call_args.kwargs == {}
+    assert supervise.call_args.kwargs == {
+        "restored_signal_mask": signal_mask_before_main
+    }
     # The server closed its listening socket before the flow run started.
     assert hook_request_outcomes_during_run == ["refused"]
 
 
+@requires_posix_signals
 @pytest.mark.usefixtures("api_from_environment")
 def test_flow_code_can_bind_the_hook_port(
     monkeypatch: pytest.MonkeyPatch,
@@ -332,12 +342,11 @@ def test_flow_code_can_bind_the_hook_port(
     hook_port: int,
 ):
     monkeypatch.setenv(TEST_ENV_VAR, "before-run-hook")
-    port = hook_port
     bind_errors: list[OSError] = []
 
-    def run_flow(payload: object) -> int:
+    def run_flow(payload: object, restored_signal_mask: object = None) -> int:
         try:
-            with socket.create_server(("0.0.0.0", port)):
+            with socket.create_server(("0.0.0.0", hook_port)):
                 pass
         except OSError as exc:
             bind_errors.append(exc)
@@ -345,9 +354,9 @@ def test_flow_code_can_bind_the_hook_port(
 
     supervise = create_autospec(supervise_flow_run, side_effect=run_flow)
     monkeypatch.setattr(entrypoint, "supervise_flow_run", supervise)
-    poster = post_run_hook(port, FLOW_RUN_ID, RUN_HOOK_ENV)
+    poster = post_run_hook(hook_port, FLOW_RUN_ID, RUN_HOOK_ENV)
 
-    exit_code = entrypoint.main(port=port)
+    exit_code = entrypoint.main(port=hook_port)
 
     poster.join(timeout=10)
     assert exit_code == 0
@@ -355,6 +364,7 @@ def test_flow_code_can_bind_the_hook_port(
     assert bind_errors == []
 
 
+@requires_posix_signals
 @pytest.mark.usefixtures("api_from_environment")
 def test_main_exits_1_without_running_anything_on_an_invalid_payload(
     monkeypatch: pytest.MonkeyPatch,
@@ -364,10 +374,9 @@ def test_main_exits_1_without_running_anything_on_an_invalid_payload(
     monkeypatch.setenv(TEST_ENV_VAR, "before-run-hook")
     supervise = create_autospec(supervise_flow_run, return_value=0)
     monkeypatch.setattr(entrypoint, "supervise_flow_run", supervise)
-    port = hook_port
-    poster = post_run_hook(port, FLOW_RUN_ID, RUN_HOOK_ENV, 99)
+    poster = post_run_hook(hook_port, FLOW_RUN_ID, RUN_HOOK_ENV, 99)
 
-    exit_code = entrypoint.main(port=port)
+    exit_code = entrypoint.main(port=hook_port)
 
     poster.join(timeout=10)
     assert exit_code == 1

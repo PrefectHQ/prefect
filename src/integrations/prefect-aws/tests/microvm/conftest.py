@@ -135,6 +135,8 @@ def post_run_hook() -> Iterator[Callable[..., threading.Thread]]:
         yield post_when_listening
     finally:
         test_finished.set()
-        for poster in posters:
-            poster.join(timeout=RUN_HOOK_POST_DEADLINE_SECONDS)
-        signal.signal(signal.SIGINT, previous_sigint_handler)
+        try:
+            for poster in posters:
+                poster.join(timeout=RUN_HOOK_POST_DEADLINE_SECONDS)
+        finally:
+            signal.signal(signal.SIGINT, previous_sigint_handler)

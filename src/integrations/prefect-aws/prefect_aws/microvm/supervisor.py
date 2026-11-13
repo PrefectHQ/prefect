@@ -92,7 +92,8 @@ def run_child(payload: RunHookPayload) -> NoReturn:
         signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM})
         # Logging was configured at import time, before `/run` set the
         # environment. A fresh setup also replaces the console handler, whose
-        # lock a parent thread writing a log line at the fork may still hold.
+        # rich console lock a parent thread writing a log line at the fork may
+        # still hold.
         setup_logging(incremental=False)
         _make_preferred_oom_victim()
         exit_code = _flow_run_exit_code(payload)
@@ -104,7 +105,9 @@ def run_child(payload: RunHookPayload) -> NoReturn:
         os._exit(exit_code)
 
 
-def supervise_flow_run(payload: RunHookPayload) -> int:
+def supervise_flow_run(
+    payload: RunHookPayload, restored_signal_mask: set[signal.Signals] | None = None
+) -> int:
     """
     Run the flow run in a forked child and wait for the child to exit.
 
@@ -116,6 +119,9 @@ def supervise_flow_run(payload: RunHookPayload) -> int:
 
     Args:
         payload: The flow run to execute.
+        restored_signal_mask: The signal mask to set once SIGTERM is forwarded
+            to the child. Defaults to the mask when this is called. A SIGTERM
+            that is pending when the mask is set is forwarded to the child.
 
     Returns:
         The exit code for this process: 0 if the child exited 0, otherwise 1.
@@ -123,11 +129,13 @@ def supervise_flow_run(payload: RunHookPayload) -> int:
     # Blocked across the fork so a SIGTERM that arrives before the forwarding
     # handler is installed waits for it instead of being lost. A hook handler still
     # running past `stop_serving`'s wait, one trickling bytes, could take it instead.
-    previous_signal_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
+    signal_mask_on_entry = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
+    if restored_signal_mask is None:
+        restored_signal_mask = signal_mask_on_entry
     try:
         child_pid = os.fork()
     except BaseException:
-        signal.pthread_sigmask(signal.SIG_SETMASK, previous_signal_mask)
+        signal.pthread_sigmask(signal.SIG_SETMASK, restored_signal_mask)
         raise
     if child_pid == 0:
         run_child(payload)
@@ -143,7 +151,7 @@ def supervise_flow_run(payload: RunHookPayload) -> int:
     try:
         previous_sigterm_handler = signal.signal(signal.SIGTERM, forward_sigterm)
     finally:
-        signal.pthread_sigmask(signal.SIG_SETMASK, previous_signal_mask)
+        signal.pthread_sigmask(signal.SIG_SETMASK, restored_signal_mask)
     try:
         wait_status = _reap_until_collected(child_pid)
     finally:
@@ -196,19 +204,29 @@ def report_crash(flow_run_id: UUID, crash_reason: str) -> None:
         crash_reason: How the flow run's process ended, for the state message.
     """
     # When the settings from the `/run` environment fail to load, the crash is
-    # still reported, with the API URL and key read directly from the environment
-    # and the import-time settings for everything else.
+    # still reported, with the API URL and credentials read directly from the
+    # environment and the import-time settings for everything else.
     try:
         refresh_global_settings_context()
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.warning(
             "Could not load the settings to report flow run %s as crashed. Using "
-            "PREFECT_API_URL and PREFECT_API_KEY from the environment.",
+            "PREFECT_API_URL, PREFECT_API_KEY, and PREFECT_API_AUTH_STRING from "
+            "the environment.",
             flow_run_id,
-            exc_info=True,
         )
+        api_url = os.environ.get("PREFECT_API_URL")
+        if not api_url:
+            logger.error(
+                "Could not report flow run %s as crashed because PREFECT_API_URL "
+                "is not set.",
+                flow_run_id,
+            )
+            return
         client = SyncPrefectClient(
-            os.environ["PREFECT_API_URL"], api_key=os.environ.get("PREFECT_API_KEY")
+            api_url,
+            auth_string=os.environ.get("PREFECT_API_AUTH_STRING"),
+            api_key=os.environ.get("PREFECT_API_KEY"),
         )
     else:
         client = get_client(sync_client=True)

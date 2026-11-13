@@ -1,11 +1,12 @@
-import http.client
 import logging.config
 import os
+import signal
 import socket
 import sys
 import threading
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 from unittest.mock import call, create_autospec
 from uuid import uuid4
@@ -16,11 +17,11 @@ from prefect_aws.microvm.payload import RunHookPayload
 from prefect_aws.microvm.server import LifecycleHookServer
 from prefect_aws.microvm.supervisor import report_crash, supervise_flow_run
 
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.client.schemas.objects import FlowRun, State
 from prefect.context import refresh_global_settings_context
 from prefect.settings import get_current_settings
-from prefect.states import Running, StateType
+from prefect.states import Crashed, Running, StateType
 
 pytestmark = [
     pytest.mark.skipif(sys.platform == "win32", reason="The MicroVM entrypoint forks."),
@@ -45,7 +46,12 @@ def run_main(post_run_hook: PostRunHook, port: int, *post_args: Any) -> int:
 def patch_supervise(
     monkeypatch: pytest.MonkeyPatch, side_effect: Callable[[RunHookPayload], int]
 ) -> Any:
-    supervise = create_autospec(supervise_flow_run, side_effect=side_effect)
+    def run_flow(
+        payload: RunHookPayload, restored_signal_mask: set[signal.Signals] | None = None
+    ) -> int:
+        return side_effect(payload)
+
+    supervise = create_autospec(supervise_flow_run, side_effect=run_flow)
     monkeypatch.setattr(entrypoint, "supervise_flow_run", supervise)
     return supervise
 
@@ -81,136 +87,125 @@ def slow_to_close_hook_server(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(entrypoint, "LifecycleHookServer", SlowToCloseHookServer)
 
 
-def test_warm_name_lookup_resolves_localhost(monkeypatch: pytest.MonkeyPatch):
+LOCALHOST_HOSTS_FILE = "127.0.0.1\tlocalhost\n::1\tlocalhost ip6-localhost\n"
+FILES_FIRST_NSSWITCH_CONF = "passwd: files\nhosts: files dns\n"
+NUMERIC_LOOKUP = call("127.0.0.1", None, type=socket.SOCK_STREAM)
+LOCALHOST_LOOKUP = call("localhost", None, type=socket.SOCK_STREAM)
+
+
+def use_name_service_files(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    hosts_file: str | bytes | None,
+    nsswitch_conf: str | bytes | None,
+) -> None:
+    for attribute, name, content in [
+        ("HOSTS_FILE_PATH", "hosts", hosts_file),
+        ("NSSWITCH_CONF_PATH", "nsswitch.conf", nsswitch_conf),
+    ]:
+        path = tmp_path / name
+        if isinstance(content, str):
+            path.write_text(content)
+        elif isinstance(content, bytes):
+            path.write_bytes(content)
+        monkeypatch.setattr(entrypoint, attribute, path)
+
+
+def test_warm_name_lookup_looks_up_localhost_when_the_hosts_file_answers_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    use_name_service_files(
+        monkeypatch, tmp_path, LOCALHOST_HOSTS_FILE, FILES_FIRST_NSSWITCH_CONF
+    )
     getaddrinfo = patch_getaddrinfo(monkeypatch, return_value=[])
 
     entrypoint.warm_name_lookup()
 
-    getaddrinfo.assert_called_once_with("localhost", None, type=socket.SOCK_STREAM)
+    assert getaddrinfo.call_args_list == [NUMERIC_LOOKUP, LOCALHOST_LOOKUP]
 
 
-def test_warm_name_lookup_ignores_a_lookup_error(monkeypatch: pytest.MonkeyPatch):
+@pytest.mark.parametrize(
+    "hosts_file, nsswitch_conf",
+    [
+        ("127.0.0.1\tmicrovm\n", FILES_FIRST_NSSWITCH_CONF),
+        ("# 127.0.0.1 localhost\n", FILES_FIRST_NSSWITCH_CONF),
+        ("localhost\n", FILES_FIRST_NSSWITCH_CONF),
+        (LOCALHOST_HOSTS_FILE, "hosts: dns files\n"),
+        (LOCALHOST_HOSTS_FILE, "hosts: resolve [!UNAVAIL=return] files\n"),
+        (LOCALHOST_HOSTS_FILE, "hosts:\n"),
+        (LOCALHOST_HOSTS_FILE, "passwd: files\n"),
+        (LOCALHOST_HOSTS_FILE, "# hosts: files dns\n"),
+        (None, FILES_FIRST_NSSWITCH_CONF),
+        (LOCALHOST_HOSTS_FILE, None),
+        (LOCALHOST_HOSTS_FILE, b"hosts: files \xff\n"),
+    ],
+    ids=[
+        "no-localhost-entry",
+        "localhost-only-in-a-comment",
+        "localhost-as-the-address",
+        "dns-first",
+        "resolve-first",
+        "no-hosts-sources",
+        "no-hosts-line",
+        "hosts-line-commented-out",
+        "no-hosts-file",
+        "no-nsswitch-conf",
+        "nsswitch-conf-not-utf-8",
+    ],
+)
+def test_warm_name_lookup_skips_localhost_unless_the_hosts_file_answers_it(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    hosts_file: str | None,
+    nsswitch_conf: str | bytes | None,
+):
+    use_name_service_files(monkeypatch, tmp_path, hosts_file, nsswitch_conf)
+    getaddrinfo = patch_getaddrinfo(monkeypatch, return_value=[])
+
+    entrypoint.warm_name_lookup()
+
+    assert getaddrinfo.call_args_list == [NUMERIC_LOOKUP]
+
+
+def test_warm_name_lookup_ignores_lookup_errors(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    use_name_service_files(
+        monkeypatch, tmp_path, LOCALHOST_HOSTS_FILE, FILES_FIRST_NSSWITCH_CONF
+    )
     getaddrinfo = patch_getaddrinfo(
         monkeypatch, side_effect=socket.gaierror("no resolver")
     )
 
     entrypoint.warm_name_lookup()
 
-    getaddrinfo.assert_called_once()
+    assert getaddrinfo.call_args_list == [NUMERIC_LOOKUP, LOCALHOST_LOOKUP]
 
 
-def test_hook_server_answers_ready_while_the_name_lookup_warm_up_is_blocked(
+def test_main_warms_name_lookup_before_creating_the_hook_server(
     monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
 ):
-    release_warm_up = threading.Event()
+    events: list[str] = []
 
-    def block_for_localhost(host: Any, *args: Any, **kwargs: Any) -> Any:
-        if host == "localhost":
-            release_warm_up.wait()
-            return []
-        return real_getaddrinfo(host, *args, **kwargs)
+    class RecordingHookServer(LifecycleHookServer):
+        def __init__(self, server_address: tuple[str, int]) -> None:
+            events.append("hook server created")
+            super().__init__(server_address)
 
-    patch_getaddrinfo(monkeypatch, side_effect=block_for_localhost)
-    patch_supervise(monkeypatch, lambda payload: 0)
-    ready_answers_while_blocked: list[int] = []
-
-    # Posts `/run` only after `/ready` is answered, because `/run` stops the server.
-    def probe_ready_then_post_run() -> None:
-        deadline = time.monotonic() + 5
-        try:
-            while time.monotonic() < deadline:
-                connection = http.client.HTTPConnection(
-                    "127.0.0.1", hook_port, timeout=1
-                )
-                try:
-                    connection.request("GET", "/ready")
-                    status = connection.getresponse().status
-                except OSError:
-                    time.sleep(0.05)
-                    continue
-                finally:
-                    connection.close()
-                if not release_warm_up.is_set():
-                    ready_answers_while_blocked.append(status)
-                return
-        finally:
-            release_warm_up.set()
-            post_run_hook(hook_port, uuid4(), {})
-
-    prober = threading.Thread(target=probe_ready_then_post_run, daemon=True)
-    prober.start()
-    try:
-        exit_code = entrypoint.main(port=hook_port)
-    finally:
-        release_warm_up.set()
-    prober.join(timeout=10)
-
-    assert exit_code == 0
-    assert ready_answers_while_blocked == [200]
-
-
-def test_main_forks_only_after_the_name_lookup_warm_up_has_finished(
-    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
-):
-    release_warm_up = threading.Event()
-    warm_up_finished = threading.Event()
-
-    def slow_warm_up() -> None:
-        release_warm_up.wait()
-        warm_up_finished.set()
-
-    def start_release_timer(api_url: str | None) -> None:
-        release_timer = threading.Timer(0.2, release_warm_up.set)
-        release_timer.daemon = True
-        release_timer.start()
-
+    monkeypatch.setattr(entrypoint, "LifecycleHookServer", RecordingHookServer)
     monkeypatch.setattr(
         entrypoint,
         "warm_name_lookup",
-        create_autospec(entrypoint.warm_name_lookup, side_effect=slow_warm_up),
-    )
-    # The 0.2 second wait starts at `/run`, so that only the join before the
-    # fork can account for it.
-    monkeypatch.setattr(
-        entrypoint,
-        "start_api_host_lookup",
         create_autospec(
-            entrypoint.start_api_host_lookup, side_effect=start_release_timer
+            entrypoint.warm_name_lookup,
+            side_effect=lambda: events.append("name lookup warmed"),
         ),
     )
-    warm_up_finished_at_supervise: list[bool] = []
-
-    def run_flow(payload: RunHookPayload) -> int:
-        warm_up_finished_at_supervise.append(warm_up_finished.is_set())
-        return 0
-
-    patch_supervise(monkeypatch, run_flow)
-    try:
-        exit_code = run_main(post_run_hook, hook_port, uuid4(), {})
-    finally:
-        release_warm_up.set()
-
-    assert exit_code == 0
-    assert warm_up_finished_at_supervise == [True]
-
-
-def test_main_runs_the_flow_run_when_localhost_does_not_resolve(
-    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
-):
-    def fail_for_localhost(host: Any, *args: Any, **kwargs: Any) -> Any:
-        if host == "localhost":
-            raise socket.gaierror("no resolver")
-        return real_getaddrinfo(host, *args, **kwargs)
-
-    getaddrinfo = patch_getaddrinfo(monkeypatch, side_effect=fail_for_localhost)
-    supervise = patch_supervise(monkeypatch, lambda payload: 0)
+    patch_supervise(monkeypatch, lambda payload: 0)
 
     assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
 
-    assert call("localhost", None, type=socket.SOCK_STREAM) in (
-        getaddrinfo.call_args_list
-    )
-    supervise.assert_called_once()
+    assert events == ["name lookup warmed", "hook server created"]
 
 
 @pytest.mark.parametrize(
@@ -489,3 +484,180 @@ def test_invalid_run_request_exits_1_without_a_lookup_or_a_settings_refresh(
     start_lookup.assert_not_called()
     refresh.assert_not_called()
     supervise.assert_not_called()
+
+
+def blocked_signals() -> set[signal.Signals]:
+    return signal.pthread_sigmask(signal.SIG_BLOCK, set())
+
+
+def test_main_blocks_sigterm_from_run_and_hands_supervise_the_earlier_mask(
+    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+):
+    assert signal.SIGTERM not in blocked_signals()
+    sigterm_blocked_at_refresh: list[bool] = []
+    monkeypatch.setattr(
+        entrypoint,
+        "refresh_global_settings_context",
+        create_autospec(
+            refresh_global_settings_context,
+            side_effect=lambda: sigterm_blocked_at_refresh.append(
+                signal.SIGTERM in blocked_signals()
+            ),
+        ),
+    )
+    sigterm_blocked_at_supervise: list[bool] = []
+
+    def run_flow(
+        payload: RunHookPayload, restored_signal_mask: set[signal.Signals] | None = None
+    ) -> int:
+        sigterm_blocked_at_supervise.append(signal.SIGTERM in blocked_signals())
+        return 0
+
+    supervise = create_autospec(supervise_flow_run, side_effect=run_flow)
+    monkeypatch.setattr(entrypoint, "supervise_flow_run", supervise)
+    signal_mask_before_main = blocked_signals()
+
+    assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
+
+    assert sigterm_blocked_at_refresh == [True]
+    assert sigterm_blocked_at_supervise == [True]
+    assert supervise.call_args.kwargs == {
+        "restored_signal_mask": signal_mask_before_main
+    }
+    assert blocked_signals() == signal_mask_before_main
+
+
+def test_main_unblocks_sigterm_when_the_settings_fail_to_load(
+    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+):
+    register_unloadable_settings_env(monkeypatch)
+    monkeypatch.setattr(entrypoint, "report_crash", create_autospec(report_crash))
+    patch_supervise(monkeypatch, lambda payload: 0)
+    signal_mask_before_main = blocked_signals()
+
+    assert run_main(post_run_hook, hook_port, uuid4(), UNLOADABLE_SETTINGS_ENV) == 1
+
+    assert blocked_signals() == signal_mask_before_main
+
+
+def test_main_unblocks_sigterm_after_an_invalid_run_request(
+    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+):
+    patch_supervise(monkeypatch, lambda payload: 0)
+    signal_mask_before_main = blocked_signals()
+
+    assert run_main(post_run_hook, hook_port, uuid4(), {}, 99) == 1
+
+    assert blocked_signals() == signal_mask_before_main
+
+
+def test_sigterm_during_a_slow_api_host_lookup_is_forwarded_to_the_child(
+    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+):
+    main_thread_id = threading.main_thread().ident
+    assert main_thread_id is not None
+    sigterm_sent = threading.Event()
+
+    def send_sigterm_then_finish() -> None:
+        signal.pthread_kill(main_thread_id, signal.SIGTERM)
+        sigterm_sent.set()
+        time.sleep(0.2)
+
+    def start_slow_lookup(api_url: str | None) -> threading.Thread:
+        lookup = threading.Thread(target=send_sigterm_then_finish, daemon=True)
+        lookup.start()
+        return lookup
+
+    monkeypatch.setattr(
+        entrypoint,
+        "start_api_host_lookup",
+        create_autospec(
+            entrypoint.start_api_host_lookup, side_effect=start_slow_lookup
+        ),
+    )
+    # The child exits 0 on its own unless the SIGTERM reaches it.
+    monkeypatch.setattr(supervisor, "execute_flow_run", lambda payload: time.sleep(5))
+    report = create_autospec(report_crash)
+    monkeypatch.setattr(supervisor, "report_crash", report)
+    sigterms_handled_by_the_test: list[int] = []
+    previous_sigterm_handler = signal.signal(
+        signal.SIGTERM,
+        lambda signum, frame: sigterms_handled_by_the_test.append(signum),
+    )
+    flow_run_id = uuid4()
+    try:
+        exit_code = run_main(post_run_hook, hook_port, flow_run_id, {})
+    finally:
+        signal.signal(signal.SIGTERM, previous_sigterm_handler)
+
+    assert sigterm_sent.is_set()
+    assert sigterms_handled_by_the_test == []
+    assert exit_code == 1
+    report.assert_called_once_with(flow_run_id, "was killed by signal 15")
+
+
+def register_env_for_run(monkeypatch: pytest.MonkeyPatch, *names: str) -> None:
+    # Registers each variable as unset, so that the value `/run` writes is undone
+    # after the test.
+    for name in names:
+        monkeypatch.setenv(name, "")
+        monkeypatch.delenv(name)
+
+
+def test_crash_report_fallback_uses_the_api_key_and_auth_string_from_run(
+    monkeypatch: pytest.MonkeyPatch,
+    post_run_hook: PostRunHook,
+    hook_port: int,
+    api_from_environment: str,
+):
+    register_unloadable_settings_env(monkeypatch)
+    register_env_for_run(monkeypatch, "PREFECT_API_KEY", "PREFECT_API_AUTH_STRING")
+    client_class = create_autospec(SyncPrefectClient)
+    monkeypatch.setattr(supervisor, "SyncPrefectClient", client_class)
+    propose = create_autospec(
+        supervisor.propose_state_sync, return_value=Crashed(message="crashed")
+    )
+    monkeypatch.setattr(supervisor, "propose_state_sync", propose)
+    patch_supervise(monkeypatch, lambda payload: 0)
+    flow_run_id = uuid4()
+    run_env = {
+        **UNLOADABLE_SETTINGS_ENV,
+        "PREFECT_API_KEY": "key-from-run",
+        "PREFECT_API_AUTH_STRING": "admin:auth-from-run",
+    }
+
+    assert run_main(post_run_hook, hook_port, flow_run_id, run_env) == 1
+
+    client_class.assert_called_once_with(
+        api_from_environment,
+        auth_string="admin:auth-from-run",
+        api_key="key-from-run",
+    )
+    propose.assert_called_once()
+    assert propose.call_args.kwargs["flow_run_id"] == flow_run_id
+
+
+def test_crash_report_fallback_without_an_api_url_constructs_no_client(
+    monkeypatch: pytest.MonkeyPatch,
+    post_run_hook: PostRunHook,
+    hook_port: int,
+    caplog: pytest.LogCaptureFixture,
+):
+    register_unloadable_settings_env(monkeypatch)
+    monkeypatch.delenv("PREFECT_API_URL")
+    client_class = create_autospec(SyncPrefectClient)
+    monkeypatch.setattr(supervisor, "SyncPrefectClient", client_class)
+    supervise = patch_supervise(monkeypatch, lambda payload: 0)
+    flow_run_id = uuid4()
+
+    assert run_main(post_run_hook, hook_port, flow_run_id, UNLOADABLE_SETTINGS_ENV) == 1
+
+    client_class.assert_not_called()
+    supervise.assert_not_called()
+    assert (
+        f"Could not report flow run {flow_run_id} as crashed because "
+        "PREFECT_API_URL is not set."
+    ) in caplog.messages
+    assert f"Could not report flow run {flow_run_id} as crashed." not in (
+        caplog.messages
+    )
