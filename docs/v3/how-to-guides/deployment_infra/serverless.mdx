@@ -74,6 +74,8 @@ To use automatic infrastructure provisioning, you need:
     - iam:CreateRole
     - iam:GetRole
     - iam:AttachRolePolicy
+    - iam:GetRolePolicy
+    - iam:PutRolePolicy
     - iam:ListRoles
     - iam:PassRole
 
@@ -702,8 +704,8 @@ Click **Create** to configure your push work pool by selecting a push option in 
     write the token to a file and point `AWS_WEB_IDENTITY_TOKEN_FILE` at it before creating any boto3 clients.
     boto3 then assumes the role from the token file and re-assumes it whenever the temporary credentials expire,
     so runs that last longer than the role's maximum session duration keep working. Each re-assumption reuses the
-    same token, because Modal sets `MODAL_IDENTITY_TOKEN` once when the sandbox starts. A run must finish before
-    the token expires; the token's `exp` claim gives the expiration time:
+    same token, because Modal sets `MODAL_IDENTITY_TOKEN` once when the sandbox starts. Further credential
+    refreshes require an unexpired identity token; its `exp` claim gives the expiration time:
 
     {/* pmd-metadata: notest */}
     ```python

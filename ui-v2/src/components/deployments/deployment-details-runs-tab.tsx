@@ -1,12 +1,11 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import type { Deployment } from "@/api/deployments";
+import type { StateType } from "@/api/flow-runs/constants";
 import { useFilterFlowRunswithFlows } from "@/api/flow-runs/use-filter-flow-runs-with-flows";
 import { usePaginateFlowRunswithFlows } from "@/api/flow-runs/use-paginate-flow-runs-with-flows";
 import { FlowRunCard } from "@/components/flow-runs/flow-run-card";
 import {
-	FLOW_RUN_STATES_NO_SCHEDULED,
-	type FlowRunState,
 	FlowRunsFilters,
 	FlowRunsList,
 	FlowRunsPagination,
@@ -15,6 +14,10 @@ import {
 	type SortFilters,
 	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
+import {
+	buildStateFilter,
+	NON_SCHEDULED_STATE_TYPES,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
 
@@ -30,7 +33,7 @@ export const DeploymentDetailsRunsTab = ({
 	const [pagination, onChangePagination] = usePagination();
 	const [search, setSearch] = useSearch();
 	const [sort, setSort] = useSort();
-	const [filter, setFilter] = useFilter();
+	const [filter, setFilter, stateTypes, setStateTypes] = useFilter();
 	const resetFilters = useResetFilters();
 
 	const { data } = usePaginateFlowRunswithFlows({
@@ -40,10 +43,7 @@ export const DeploymentDetailsRunsTab = ({
 		},
 		flow_runs: {
 			name: { like_: search || undefined },
-			state: {
-				name: { any_: filter.length === 0 ? undefined : filter },
-				operator: "or_",
-			},
+			state: buildStateFilter(filter, stateTypes),
 			operator: "and_",
 		},
 		limit: pagination.limit,
@@ -89,6 +89,10 @@ export const DeploymentDetailsRunsTab = ({
 					<FlowRunsFilters
 						search={{ value: search, onChange: setSearch }}
 						sort={{ value: sort, onSelect: setSort }}
+						stateTypeFilter={{
+							value: new Set(stateTypes),
+							onSelect: setStateTypes,
+						}}
 						stateFilter={{
 							value: new Set(filter),
 							onSelect: setFilter,
@@ -199,6 +203,7 @@ function useSearch() {
 					...prev,
 					runs: {
 						...runs,
+						page: 1,
 						flowRuns: {
 							...runs?.flowRuns,
 							name: value,
@@ -245,31 +250,57 @@ function useFilter() {
 	const { runs } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 
+	const flowRuns = runs?.flowRuns;
+	const filter = useMemo(() => flowRuns?.state ?? [], [flowRuns]);
+	const stateTypes = useMemo<StateType[]>(
+		() =>
+			flowRuns?.stateTypes ??
+			(flowRuns?.state === undefined ? NON_SCHEDULED_STATE_TYPES : []),
+		[flowRuns],
+	);
+
 	const onFilter = useCallback(
-		(value?: Set<FlowRunState>) => {
+		(value?: Set<string>) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
 					...prev,
 					runs: {
 						...runs,
+						page: 1,
 						flowRuns: {
 							...runs?.flowRuns,
 							state: value ? Array.from(value) : undefined,
+							stateTypes,
 						},
 					},
 				}),
 				replace: true,
 			});
 		},
-		[navigate, runs],
+		[navigate, runs, stateTypes],
 	);
 
-	const filter = useMemo(
-		() =>
-			runs?.flowRuns?.state ??
-			(FLOW_RUN_STATES_NO_SCHEDULED satisfies Array<FlowRunState>),
-		[runs?.flowRuns?.state],
+	const setStateTypes = useCallback(
+		(types: Set<StateType>) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					runs: {
+						...prev.runs,
+						page: 1,
+						flowRuns: {
+							...prev.runs?.flowRuns,
+							state: filter,
+							stateTypes: [...types],
+						},
+					},
+				}),
+				replace: true,
+			});
+		},
+		[navigate, filter],
 	);
-	return [filter, onFilter] as const;
+	return [filter, onFilter, stateTypes, setStateTypes] as const;
 }

@@ -23,6 +23,7 @@ Each subpackage owns its own `AGENTS.md` with entry points and pitfalls specific
 - `templating/` → Placeholder detection and value application for Prefect's `{{ }}` templating (see `templating/AGENTS.md`)
 - `engine/` → Result-to-state linking, SIGTERM bridge management, and control-intent coordination (see `engine/AGENTS.md`)
 - `filesystem/` → File filtering, path normalization, `tmpchdir` (see `filesystem/AGENTS.md`)
+- `hashing/` → Stable hashing (`stable_hash`, `file_hash`, `hash_objects`) and cache-key/checksum stability contracts (see `hashing/AGENTS.md`)
 
 ## Flat modules
 
@@ -33,7 +34,6 @@ These modules have no dedicated intent node yet. Promote any one of them to a su
 - `dispatch.py` — Dynamic type dispatch registry
 - `importtools.py` — Dynamic imports, aliased module loading, script-to-module conversion
 - `pydantic.py` — Pydantic v1/v2 compatibility shims, custom serializers, type dispatch integration
-- `hashing.py` — Stable hashing (`stable_hash`, `file_hash`, `hash_objects`)
 - `dockerutils.py` — Docker image building, Python version detection, Docker client helpers
 - `timeout.py` — Timeout context managers for async/sync code
 - `services.py` — Client metrics server and resilient service loop with backoff

@@ -4250,7 +4250,7 @@
           "name": "Kubernetes Cluster Config",
           "slug": "kubernetes-cluster-config",
           "logo_url": "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/kubernetes.png",
-          "documentation_url": "https://docs.prefect.io/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig",
+          "documentation_url": "https://www.prefect.io/docs/integrations/prefect-kubernetes",
           "description": "Stores configuration for interaction with Kubernetes clusters.\n\nSee `from_file` for creation.",
           "code_example": "Load a saved Kubernetes cluster config:\n```python\nfrom prefect.blocks.kubernetes import KubernetesClusterConfig\n\ncluster_config_block = KubernetesClusterConfig.load(\"BLOCK_NAME\")\n```",
           "block_schema": {

@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import sys
 from contextlib import contextmanager
+from functools import cache
 from typing import Annotated, Any, Union, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
@@ -127,6 +128,7 @@ def parse_datetime(dt: str) -> datetime.datetime:
         return cast(datetime.datetime, _wrap_pendulum_value(pendulum.parse(dt)))
 
 
+@cache
 def get_timezones() -> tuple[str, ...]:
     return tuple(available_timezones())
 
@@ -211,10 +213,13 @@ def _whenever_zdt_from_py(dt: datetime.datetime) -> Any:
 
     whenever >= 0.10.0 accepts a stdlib datetime directly in the constructor.
     Older versions require the `from_py_datetime()` classmethod.
+
+    Server cron schedules call this on Python 3.11 and 3.12 as well, where
+    `_WHENEVER_NEW_API` is never probed, so detect the API on the class.
     """
     from whenever import ZonedDateTime
 
-    if _WHENEVER_NEW_API:
+    if hasattr(ZonedDateTime, "to_stdlib"):
         return ZonedDateTime(dt)  # type: ignore[arg-type]
     return ZonedDateTime.from_py_datetime(dt)
 

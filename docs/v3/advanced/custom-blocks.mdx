@@ -1,5 +1,6 @@
 ---
 title: How to create custom blocks
+description: Define custom block types by subclassing Block, register them, add secret fields, customize their display, and update existing block types.
 sidebarTitle: Create custom blocks
 keywords: ["custom block", "block type", "configuration", "extend", "pydantic"]
 ---
@@ -130,6 +131,29 @@ Available metadata fields include:
 | `_logo_url`        | URL pointing to an image that should be displayed for the block type in the UI. Default to `None`.                                           |
 | `_description`     | Short description of block type. Defaults to docstring, if provided.                                                                         |
 | `_code_example`    | Short code snippet shown in UI for how to load/use block type. Defaults to first example provided in the docstring of the class, if provided. |
+
+These metadata attributes are class variables. If you add type annotations, use `ClassVar` to preserve that behavior:
+
+```python
+from typing import ClassVar
+
+from prefect.blocks.core import Block
+
+
+class StorageLocation(Block):
+    bucket: str
+
+    _block_type_name: ClassVar[str] = "Storage Location"
+    _block_type_slug: ClassVar[str] = "storage-location"
+
+
+location = StorageLocation(bucket="reports")
+print(location.get_block_type_name())  # Storage Location
+print(location.get_block_type_slug())  # storage-location
+```
+
+A plain annotation such as `_block_type_name: str = "Storage Location"` does not preserve the inherited class variable and can leave the metadata at its default value.
+You can also override these attributes without type annotations, for example `_block_type_name = "Storage Location"`.
 
 ### Update custom `Block` types
 

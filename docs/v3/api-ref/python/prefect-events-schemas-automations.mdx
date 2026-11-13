@@ -7,7 +7,7 @@ sidebarTitle: automations
 
 ## Functions
 
-### `trigger_discriminator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `trigger_discriminator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L453" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 trigger_discriminator(value: Any) -> str
@@ -23,7 +23,7 @@ Discriminator for triggers that defaults to 'event' if no type is specified.
 
 **Methods:**
 
-#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 auto() -> str
@@ -166,7 +166,7 @@ coerce_match(cls, v: Any) -> Any
 coerce_match_related(cls, v: Any) -> Any
 ```
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L252" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self, indent: int = 0) -> str
@@ -175,17 +175,17 @@ describe_for_cli(self, indent: int = 0) -> str
 Return a human-readable description of this trigger for the CLI
 
 
-#### `enforce_minimum_within_for_proactive_triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enforce_minimum_within_for_proactive_triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enforce_minimum_within_for_proactive_triggers(cls, data: Dict[str, Any]) -> Dict[str, Any]
 ```
 
-### `MetricTriggerOperator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L274" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MetricTriggerOperator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L275" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `PrefectMetric` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectMetric` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L282" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `MetricTriggerQuery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MetricTriggerQuery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines a subset of the Trigger subclass, which is specific
@@ -195,7 +195,7 @@ and breaching conditions for the Automation
 
 **Methods:**
 
-#### `enforce_minimum_range` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L328" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enforce_minimum_range` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enforce_minimum_range(cls, value: timedelta) -> timedelta
@@ -219,7 +219,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `MetricTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L334" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MetricTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L344" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A trigger that fires based on the results of a metric query.
@@ -239,7 +239,7 @@ coerce_match(cls, v: Any) -> Any
 coerce_match_related(cls, v: Any) -> Any
 ```
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L351" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L361" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self, indent: int = 0) -> str
@@ -248,7 +248,7 @@ describe_for_cli(self, indent: int = 0) -> str
 Return a human-readable description of this trigger for the CLI
 
 
-### `CompositeTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CompositeTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L375" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Requires some number of triggers to have fired within the given time period.
@@ -289,7 +289,7 @@ owner_resource(self) -> Optional[str]
 set_deployment_id(self, deployment_id: UUID) -> None
 ```
 
-### `CompoundTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CompoundTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L392" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A composite trigger that requires some number of triggers to have
@@ -298,7 +298,7 @@ fired within the given time period
 
 **Methods:**
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L411" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self, indent: int = 0) -> str
@@ -307,13 +307,13 @@ describe_for_cli(self, indent: int = 0) -> str
 Return a human-readable description of this trigger for the CLI
 
 
-#### `validate_require` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L389" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_require` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_require(self) -> Self
 ```
 
-### `SequenceTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SequenceTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A composite trigger that requires some number of triggers to have fired
@@ -322,7 +322,7 @@ within the given time period in a specific order
 
 **Methods:**
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self, indent: int = 0) -> str
@@ -331,7 +331,7 @@ describe_for_cli(self, indent: int = 0) -> str
 Return a human-readable description of this trigger for the CLI
 
 
-### `AutomationCore` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationCore` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L487" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines an action a user wants to take when a certain number of events
@@ -358,4 +358,4 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `Automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L532" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

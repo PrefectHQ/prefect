@@ -16,7 +16,6 @@ import { FlowRunsList } from "@/components/flow-runs/flow-runs-list";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import type { SortFilters } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter.constants";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
-import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import {
 	FlowRunsPagination,
 	type PaginationState,
@@ -31,7 +30,7 @@ type FlowRunSubflowsProps = {
 export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 	const queryClient = useQueryClient();
 	const [search, setSearch] = useState("");
-	const [stateFilter, setStateFilter] = useState<Set<FlowRunState>>(new Set());
+	const [stateFilter, setStateFilter] = useState<Set<string>>(new Set());
 	const [sort, setSort] = useState<SortFilters>("START_TIME_DESC");
 	const [pagination, setPagination] = useState<PaginationState>({
 		page: 1,
@@ -127,7 +126,7 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 		setPagination((prev) => ({ ...prev, page: 1 }));
 	};
 
-	const handleStateFilterChange = (newFilters: Set<FlowRunState>) => {
+	const handleStateFilterChange = (newFilters: Set<string>) => {
 		setStateFilter(newFilters);
 		setPagination((prev) => ({ ...prev, page: 1 }));
 	};

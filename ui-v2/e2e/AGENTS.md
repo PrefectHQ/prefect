@@ -272,14 +272,14 @@ Scope events-page tests to specific resources using the `resource` query paramet
 const resourceFilter = encodeURIComponent(
   JSON.stringify([
     flowRunResourceId,
-    "prefect.deployment.",
-    "prefect.work-pool.",
+    deploymentResourceId,
+    workPoolResourceId,
   ]),
 );
 await page.goto(`/events?resource=${resourceFilter}`);
 ```
 
-Pass the resource IDs (or prefixes) of the resources your test cares about. This keeps the result set small regardless of how much background activity other shards produce.
+Pass the exact, unique resource IDs your test emitted. Prefix filters like `"prefect.deployment."` match every event of that resource type from other shards and reintroduce the overflow.
 
 ### Pagination Tests — Use a Small Limit
 

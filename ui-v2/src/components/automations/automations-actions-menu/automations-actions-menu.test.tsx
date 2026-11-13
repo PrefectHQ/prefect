@@ -128,7 +128,7 @@ describe("AutomationsActionsMenu", () => {
 		expect(docsLink).toBeVisible();
 		expect(docsLink).toHaveAttribute(
 			"href",
-			expect.stringContaining("docs.prefect.io"),
+			expect.stringContaining("www.prefect.io/docs"),
 		);
 	});
 });

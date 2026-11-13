@@ -615,7 +615,13 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
 
             bucketing_key = trigger.bucketing_key(event)
 
-            async with automations_session(begin_transaction=True) as session:
+            # `with_for_update=True` makes SQLite start with `BEGIN IMMEDIATE` so the
+            # write lock is held before the bucket is read; a deferred transaction
+            # that reads first cannot be upgraded to a write if another connection
+            # commits in between and fails immediately with "database is locked".
+            async with automations_session(
+                begin_transaction=True, with_for_update=True
+            ) as session:
                 try:
                     bucket: Optional["ORMAutomationBucket"] = None
 
@@ -852,26 +858,54 @@ async def automation_changed(
     global automation_state_snapshot
 
     async with _automations_lock():
-        if event in ("automation__deleted", "automation__updated"):
+        if event == "automation__deleted":
             forget_automation(automation_id)
 
         async with automations_session() as session:
             if event in ("automation__created", "automation__updated"):
                 automation = await read_automation(session, automation_id)
+
+                # Swap the automation without awaiting so that concurrent
+                # evaluations never see it missing while it is being re-read
+                if event == "automation__updated":
+                    forget_automation(automation_id)
                 load_automation(automation)
+
             automation_state_snapshot = await read_automation_state_snapshot(session)
 
 
 @db_injector
 async def load_automations(db: PrefectDBInterface, session: AsyncSession):
-    """Loads all automations for the given set of accounts"""
+    """Replaces the loaded automations with all automations from the database"""
     query = sa.select(db.Automation)
 
     logger.debug("Loading automations")
 
     result = await session.execute(query)
-    for automation in result.scalars().all():
-        load_automation(Automation.model_validate(automation, from_attributes=True))
+    automations = [
+        Automation.model_validate(automation, from_attributes=True)
+        for automation in result.scalars().all()
+    ]
+
+    # Swap the loaded automations without awaiting so that concurrent evaluations
+    # see either the previous set of automations or the new one, never an empty or
+    # partially loaded set
+    previous_automations = automations_by_id.copy()
+    previous_triggers = triggers.copy()
+    previous_triggers_by_expect = {k: v.copy() for k, v in _triggers_by_expect.items()}
+    previous_next_proactive_runs = next_proactive_runs.copy()
+
+    clear_loaded_automations()
+    try:
+        for automation in automations:
+            load_automation(automation)
+    except Exception:
+        clear_loaded_automations()
+        automations_by_id.update(previous_automations)
+        triggers.update(previous_triggers)
+        _triggers_by_expect.update(previous_triggers_by_expect)
+        next_proactive_runs.update(previous_next_proactive_runs)
+        raise
 
     logger.debug(
         "Loaded %s automations with %s triggers", len(automations_by_id), len(triggers)
@@ -906,24 +940,7 @@ async def reconcile_automations(force: bool = False) -> bool:
             if not force and current_snapshot == automation_state_snapshot:
                 return False
 
-            previous_automations = automations_by_id.copy()
-            previous_triggers = triggers.copy()
-            previous_triggers_by_expect = {
-                k: v.copy() for k, v in _triggers_by_expect.items()
-            }
-            previous_next_proactive_runs = next_proactive_runs.copy()
-
-            clear_loaded_automations()
-
-            try:
-                await load_automations(session)
-            except Exception:
-                clear_loaded_automations()
-                automations_by_id.update(previous_automations)
-                triggers.update(previous_triggers)
-                _triggers_by_expect.update(previous_triggers_by_expect)
-                next_proactive_runs.update(previous_next_proactive_runs)
-                raise
+            await load_automations(session)
 
             automation_state_snapshot = current_snapshot
             return True
@@ -1005,17 +1022,17 @@ async def read_bucket_by_trigger_id(
 ) -> "ORMAutomationBucket | None":
     """Gets the bucket this event would fall into for the given Automation, if there is
     one currently"""
-    query = sa.select(db.AutomationBucket).where(
-        db.AutomationBucket.automation_id == automation_id,
-        db.AutomationBucket.trigger_id == trigger_id,
-        db.AutomationBucket.bucketing_key == bucketing_key,
+    query = (
+        sa.select(db.AutomationBucket)
+        .where(
+            db.AutomationBucket.automation_id == automation_id,
+            db.AutomationBucket.trigger_id == trigger_id,
+            db.AutomationBucket.bucketing_key == bucketing_key,
+        )
+        .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
-    bucket = result.scalars().first()
-    if bucket:
-        await session.refresh(bucket)
-
-    return bucket
+    return result.scalars().first()
 
 
 async def hold_expect_event(

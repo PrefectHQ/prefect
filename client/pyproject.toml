@@ -71,7 +71,7 @@ dependencies = [
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
-Documentation = "https://docs.prefect.io"
+Documentation = "https://www.prefect.io/docs"
 Source = "https://github.com/PrefectHQ/prefect"
 Tracker = "https://github.com/PrefectHQ/prefect/issues"
 [project.optional-dependencies]

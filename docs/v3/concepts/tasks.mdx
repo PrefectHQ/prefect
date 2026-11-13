@@ -166,7 +166,9 @@ When a task receives parameters, Prefect traverses their contents to resolve any
 `PrefectFuture` or `State` objects nested inside. If a field inside a dataclass
 or named tuple is resolved to a new value, Prefect reconstructs the container
 object using `dataclasses.replace()`, which calls `__init__` and `__post_init__`
-again on the new copy.
+again on the new copy. Dataclass fields declared with `field(init=False)` keep
+their resolved values on the new copy instead of being recomputed by
+`__init__` or `__post_init__`.
 
 <Note>
 Pydantic models are reconstructed with `model_construct()`, which skips

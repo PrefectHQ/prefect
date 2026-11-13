@@ -11,7 +11,7 @@ sidebarTitle: automations
 
 **Methods:**
 
-#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 auto() -> str
@@ -24,7 +24,7 @@ Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 **Methods:**
 
-#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 auto() -> str
@@ -287,7 +287,7 @@ period of time.
 
 **Methods:**
 
-#### `bucketing_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L450" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `bucketing_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L451" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bucketing_key(self, event: ReceivedEvent) -> Tuple[str, ...]
@@ -305,13 +305,13 @@ coerce_match(cls, v: Any) -> Any
 coerce_match_related(cls, v: Any) -> Any
 ```
 
-#### `covers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L392" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `covers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 covers(self, event: ReceivedEvent) -> bool
 ```
 
-#### `create_automation_state_change_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L464" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_automation_state_change_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L465" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_automation_state_change_event(self, firing: Firing, trigger_state: TriggerState) -> ReceivedEvent
@@ -321,13 +321,13 @@ Returns a ReceivedEvent for an automation state change
 into a triggered or resolved state.
 
 
-#### `enforce_minimum_within_for_proactive_triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enforce_minimum_within_for_proactive_triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L359" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enforce_minimum_within_for_proactive_triggers(cls, data: Dict[str, Any] | Any) -> Dict[str, Any]
 ```
 
-#### `event_pattern` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L409" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `event_pattern` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 event_pattern(self) -> re.Pattern[str]
@@ -337,13 +337,13 @@ A regular expression which may be evaluated against any event string to
 determine if this trigger would be interested in the event
 
 
-#### `expects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L441" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `expects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 expects(self, event: str) -> bool
 ```
 
-#### `immediate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `immediate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 immediate(self) -> bool
@@ -352,19 +352,19 @@ immediate(self) -> bool
 Does this reactive trigger fire immediately for all events?
 
 
-#### `meets_threshold` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L455" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `meets_threshold` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 meets_threshold(self, event_count: int) -> bool
 ```
 
-#### `starts_after` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `starts_after` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L430" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 starts_after(self, event: str) -> bool
 ```
 
-### `AutomationCore` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L516" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationCore` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L517" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines an action a user wants to take when a certain number of events
@@ -379,7 +379,7 @@ do or don't happen to the matching resources
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `prevent_run_deployment_loops` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prevent_run_deployment_loops` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L573" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prevent_run_deployment_loops(self) -> Self
@@ -400,7 +400,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `trigger_by_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L564" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `trigger_by_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L565" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 trigger_by_id(self, trigger_id: UUID) -> Optional[Trigger]
@@ -409,7 +409,7 @@ trigger_by_id(self, trigger_id: UUID) -> Optional[Trigger]
 Returns the trigger with the given ID, or None if no such trigger exists
 
 
-#### `triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L556" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L557" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 triggers(self) -> Sequence[Trigger]
@@ -418,7 +418,7 @@ triggers(self) -> Sequence[Trigger]
 Returns all triggers within this automation
 
 
-#### `triggers_of_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `triggers_of_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L561" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 triggers_of_type(self, trigger_type: Type[T]) -> Sequence[T]
@@ -427,23 +427,23 @@ triggers_of_type(self, trigger_type: Type[T]) -> Sequence[T]
 Returns all triggers of the specified type within this automation
 
 
-### `Automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L645" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L646" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L651" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L652" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: Any) -> Self
 ```
 
-### `AutomationCreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L666" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationCreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L667" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `AutomationUpdate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L672" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationUpdate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L673" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `AutomationPartialUpdate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L676" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationPartialUpdate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L677" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `AutomationSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L680" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L681" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines automations sorting options.
@@ -451,7 +451,7 @@ Defines automations sorting options.
 
 **Methods:**
 
-#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 auto() -> str
@@ -460,7 +460,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `Firing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L689" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Firing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L690" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Represents one instance of a trigger firing
@@ -468,13 +468,13 @@ Represents one instance of a trigger firing
 
 **Methods:**
 
-#### `all_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L754" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `all_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L755" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 all_events(self) -> Sequence[ReceivedEvent]
 ```
 
-#### `all_firings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L749" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `all_firings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L750" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 all_firings(self) -> Sequence[Firing]
@@ -498,13 +498,13 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `validate_trigger_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L744" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_trigger_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L745" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_trigger_states(cls, value: set[TriggerState]) -> set[TriggerState]
 ```
 
-### `TriggeredAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L761" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TriggeredAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L762" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An action caused as the result of an automation
@@ -512,19 +512,19 @@ An action caused as the result of an automation
 
 **Methods:**
 
-#### `all_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L825" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `all_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L826" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 all_events(self) -> Sequence[ReceivedEvent]
 ```
 
-#### `all_firings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L822" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `all_firings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L823" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 all_firings(self) -> Sequence[Firing]
 ```
 
-#### `idempotency_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L812" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `idempotency_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/automations.py#L813" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 idempotency_key(self) -> str

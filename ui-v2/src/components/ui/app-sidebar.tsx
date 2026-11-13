@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import { useState } from "react";
 import { buildGetSettingsQuery } from "@/api/admin";
 import { buildUiSettingsQuery } from "@/api/ui-settings";
@@ -14,6 +14,7 @@ import {
 	SidebarGroup,
 	SidebarHeader,
 	SidebarMenu,
+	SidebarMenuAction,
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
@@ -22,12 +23,17 @@ import {
 	UiVersionSwitchDialog,
 	type UiVersionSwitchDialogValues,
 } from "@/components/ui-version-switch";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { isUiAvailable } from "@/utils/ui-version";
 
 export function AppSidebar() {
 	const auth = useAuthSafe();
 	const navigate = useNavigate();
 	const [isSwitchDialogOpen, setIsSwitchDialogOpen] = useState(false);
+	const [isV1ShortcutHidden, setIsV1ShortcutHidden] = useLocalStorage(
+		"prefect-v1-ui-shortcut-hidden",
+		false,
+	);
 
 	const handleLogout = () => {
 		auth?.logout();
@@ -202,11 +208,18 @@ export function AppSidebar() {
 							)}
 						</Link>
 					</SidebarMenuItem>
-					{canSwitchToV1 && (
+					{canSwitchToV1 && !isV1ShortcutHidden && (
 						<SidebarMenuItem>
 							<SidebarMenuButton onClick={() => setIsSwitchDialogOpen(true)}>
 								<span>Switch to V1 UI</span>
 							</SidebarMenuButton>
+							<SidebarMenuAction
+								aria-label="Hide Switch to V1 UI shortcut"
+								title="Hide shortcut (still available in Settings)"
+								onClick={() => setIsV1ShortcutHidden(true)}
+							>
+								<X aria-hidden="true" />
+							</SidebarMenuAction>
 						</SidebarMenuItem>
 					)}
 					{authRequired && (

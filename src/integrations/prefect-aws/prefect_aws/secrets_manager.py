@@ -367,7 +367,7 @@ class AwsSecret(SecretBlock):
 
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/aws.png"  # type: ignore
     _block_type_name = "AWS Secret"
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # type: ignore
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-aws"  # type: ignore
 
     aws_credentials: AwsCredentials
     secret_name: str = Field(default=..., description="The name of the secret.")

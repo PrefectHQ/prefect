@@ -443,6 +443,72 @@ def test_load_script_as_module_does_not_leak_sys_modules_on_repeated_loads(
     )
 
 
+def test_load_script_as_module_removes_failed_script_from_sys_modules(
+    tmp_path: Path,
+):
+    helpers = tmp_path / "failing_helpers_mod.py"
+    helpers.write_text(
+        "import some_dependency_not_installed\n\n\ndef shared():\n    pass\n"
+    )
+    flows = tmp_path / "flows_importing_failing_helpers.py"
+    flows.write_text("from failing_helpers_mod import shared\n")
+
+    before = set(sys.modules)
+    try:
+        with pytest.raises(ScriptError) as exc_info:
+            load_script_as_module(str(helpers))
+        assert isinstance(exc_info.value.user_exc, ModuleNotFoundError)
+        assert "failing_helpers_mod" not in sys.modules
+
+        # A script importing the failed one should see the original error, not
+        # an `ImportError` from a half-run module left in `sys.modules`
+        with pytest.raises(ScriptError) as exc_info:
+            load_script_as_module(str(flows))
+        assert isinstance(exc_info.value.user_exc, ModuleNotFoundError)
+        assert "some_dependency_not_installed" in str(exc_info.value.user_exc)
+        assert "failing_helpers_mod" not in sys.modules
+    finally:
+        for k in set(sys.modules) - before:
+            sys.modules.pop(k, None)
+
+
+def test_load_script_as_module_removes_failed_script_with_fallback_name(
+    tmp_path: Path,
+):
+    dir_a = tmp_path / "a"
+    dir_b = tmp_path / "b"
+    dir_a.mkdir()
+    dir_b.mkdir()
+    (dir_a / "dup_failing_script.py").write_text("x = 1\n")
+    (dir_b / "dup_failing_script.py").write_text("raise ValueError('boom')\n")
+
+    before = set(sys.modules)
+    try:
+        loaded = load_script_as_module(str(dir_a / "dup_failing_script.py"))
+        assert sys.modules["dup_failing_script"] is loaded
+
+        with pytest.raises(ScriptError):
+            load_script_as_module(str(dir_b / "dup_failing_script.py"))
+
+        # The successfully loaded module keeps its entry; the failed one leaves none
+        assert set(sys.modules) - before == {"dup_failing_script"}
+        assert sys.modules["dup_failing_script"] is loaded
+    finally:
+        for k in set(sys.modules) - before:
+            sys.modules.pop(k, None)
+
+
+def test_load_script_as_module_removes_script_that_raises_base_exception(
+    tmp_path: Path,
+):
+    script = tmp_path / "exiting_script_mod.py"
+    script.write_text("import sys\n\nsys.exit(3)\n")
+
+    with pytest.raises(SystemExit):
+        load_script_as_module(str(script))
+    assert "exiting_script_mod" not in sys.modules
+
+
 def test_concurrent_script_loading(tmpdir: Path):
     """Test that loading multiple scripts concurrently is thread-safe.
 

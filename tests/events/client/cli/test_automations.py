@@ -42,7 +42,10 @@ def interactive_console(monkeypatch):
             sys.stdin.seek(position)
         return sys.stdin.read(1)
 
-    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
+    try:
+        monkeypatch.setattr("readchar._posix_read.readchar", readchar)
+    except (ImportError, AttributeError):
+        monkeypatch.setattr("readchar._win_read.readchar", readchar)
 
 
 @pytest.fixture
@@ -933,7 +936,12 @@ def test_deleting_all_automations(
     read_automations: mock.AsyncMock,
     various_automations: List[Automation],
 ):
-    read_automations.return_value = various_automations
+    read_automations.side_effect = [
+        various_automations,
+        [],
+        various_automations,
+        [],
+    ]
     invoke_and_assert(
         ["automations", "delete", "--all"],
         prompts_and_responses=[
@@ -954,7 +962,10 @@ def test_deleting_all_automations_aborted(
     read_automations: mock.AsyncMock,
     various_automations: List[Automation],
 ):
-    read_automations.return_value = various_automations
+    read_automations.side_effect = [
+        various_automations,
+        [],
+    ]
     invoke_and_assert(
         ["automations", "delete", "--all"],
         prompts_and_responses=[
@@ -968,6 +979,35 @@ def test_deleting_all_automations_aborted(
     )
 
     delete_automation.assert_not_called()
+
+
+def test_deleting_all_automations_across_pages(
+    delete_automation: mock.AsyncMock,
+    read_automations: mock.AsyncMock,
+    various_automations: List[Automation],
+):
+    page1 = various_automations[:3]
+    page2 = various_automations[3:]
+    read_automations.side_effect = [
+        page1,
+        page2,
+        [],
+        page1,
+        page2,
+        [],
+    ]
+    invoke_and_assert(
+        ["automations", "delete", "--all"],
+        prompts_and_responses=[
+            (
+                f"Are you sure you want to delete all {len(various_automations)} automations?",
+                "y",
+            )
+        ],
+        expected_code=0,
+        expected_output_contains=[f"Deleted {len(various_automations)} automations."],
+    )
+    assert delete_automation.await_count == len(various_automations)
 
 
 def test_deleting_all_automations_when_none_exist(

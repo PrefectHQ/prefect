@@ -1979,6 +1979,196 @@ class TestKubernetesWorker:
             namespace=configuration.namespace,
         )
 
+    async def test_concurrent_flow_runs_share_api_key_secret(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        enable_store_api_key_in_secret,
+    ):
+        secrets = {}
+        initial_reads = 0
+        both_reads_finished = anyio.Event()
+
+        async def read_secret(name, namespace):
+            nonlocal initial_reads
+            if (name, namespace) in secrets:
+                return secrets[name, namespace]
+            initial_reads += 1
+            if initial_reads == 2:
+                both_reads_finished.set()
+            await both_reads_finished.wait()
+            raise ApiException(status=404)
+
+        async def create_secret(namespace, body):
+            key = (body.metadata.name, namespace)
+            if key in secrets:
+                raise ApiException(status=409, reason="AlreadyExists")
+            secrets[key] = body
+            return body
+
+        mock_core_client.return_value.read_namespaced_secret.side_effect = read_secret
+        mock_core_client.return_value.create_namespaced_secret.side_effect = (
+            create_secret
+        )
+        mock_core_client.return_value.replace_namespaced_secret.side_effect = (
+            ApiException(status=403)
+        )
+
+        with temporary_settings(updates={PREFECT_API_KEY: "fake"}):
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                async with anyio.create_task_group() as task_group:
+                    for _ in range(2):
+                        submitted_run = flow_run.model_copy(update={"id": uuid.uuid4()})
+                        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+                            KubernetesWorker.get_default_base_job_template(), {}
+                        )
+                        configuration.prepare_for_flow_run(submitted_run)
+                        task_group.start_soon(
+                            k8s_worker.run, submitted_run, configuration
+                        )
+
+                secret_name = f"prefect-{_slugify_name(k8s_worker.name)}-api-key"
+                assert secrets[secret_name, "default"].data == {
+                    "value": base64.b64encode(b"fake").decode("utf-8")
+                }
+                job_calls = (
+                    mock_batch_client.return_value.create_namespaced_job.await_args_list
+                )
+                assert len(job_calls) == 2
+                for job_call in job_calls:
+                    env = job_call.args[1]["spec"]["template"]["spec"]["containers"][0][
+                        "env"
+                    ]
+                    assert {
+                        "name": "PREFECT_API_KEY",
+                        "valueFrom": {
+                            "secretKeyRef": {"name": secret_name, "key": "value"}
+                        },
+                    } in env
+
+    async def test_updates_api_key_after_secret_creation_conflict(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_batch_client,
+        enable_store_api_key_in_secret,
+    ):
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(), {}
+        )
+        with temporary_settings(updates={PREFECT_API_KEY: "fake"}):
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                existing_secret = V1Secret(
+                    metadata=V1ObjectMeta(
+                        name=f"prefect-{_slugify_name(k8s_worker.name)}-api-key",
+                        namespace=configuration.namespace,
+                    ),
+                    data={"value": base64.b64encode(b"old").decode("utf-8")},
+                )
+                mock_core_client.return_value.read_namespaced_secret.side_effect = [
+                    ApiException(status=404),
+                    existing_secret,
+                ]
+                mock_core_client.return_value.create_namespaced_secret.side_effect = (
+                    ApiException(status=409, reason="AlreadyExists")
+                )
+                mock_core_client.return_value.replace_namespaced_secret.return_value = (
+                    existing_secret
+                )
+
+                configuration.prepare_for_flow_run(flow_run)
+                await k8s_worker.run(flow_run, configuration)
+
+                assert existing_secret.data == {
+                    "value": base64.b64encode(b"fake").decode("utf-8")
+                }
+                mock_batch_client.return_value.create_namespaced_job.assert_awaited_once()
+
+    async def test_updates_api_key_after_secret_update_conflict(self, mock_core_client):
+        secrets = [
+            V1Secret(
+                metadata=V1ObjectMeta(
+                    name="worker-api-key", namespace="default", resource_version=version
+                ),
+                data={"value": base64.b64encode(b"old").decode("utf-8")},
+            )
+            for version in ("stale", "current")
+        ]
+
+        async def replace_secret(name, namespace, body):
+            if body.metadata.resource_version != "current":
+                raise ApiException(status=409, reason="Conflict")
+            return body
+
+        mock_core_client.return_value.read_namespaced_secret.side_effect = secrets
+        mock_core_client.return_value.replace_namespaced_secret.side_effect = (
+            replace_secret
+        )
+        worker = KubernetesWorker(work_pool_name="test")
+
+        secret = await worker._upsert_secret(
+            name="worker-api-key", value="fake", namespace="default", client=MagicMock()
+        )
+
+        assert secret.metadata.resource_version == "current"
+        assert secret.data == {"value": base64.b64encode(b"fake").decode("utf-8")}
+
+    @pytest.mark.parametrize("operation", ["create", "replace"])
+    async def test_secret_conflict_retries_are_bounded(
+        self, mock_core_client, operation
+    ):
+        core_client = mock_core_client.return_value
+        if operation == "create":
+            core_client.read_namespaced_secret.side_effect = ApiException(status=404)
+        else:
+            core_client.read_namespaced_secret.side_effect = [
+                V1Secret(data={"value": "old"}) for _ in range(3)
+            ]
+        error = ApiException(status=409, reason="Conflict")
+        operation_mock = getattr(core_client, f"{operation}_namespaced_secret")
+        operation_mock.side_effect = error
+        worker = KubernetesWorker(work_pool_name="test")
+
+        with pytest.raises(ApiException) as exc_info:
+            await worker._upsert_secret(
+                name="worker-api-key",
+                value="fake",
+                namespace="default",
+                client=MagicMock(),
+            )
+
+        assert exc_info.value is error
+        assert operation_mock.await_count == 3
+
+    @pytest.mark.parametrize("operation", ["read", "create", "replace"])
+    @pytest.mark.parametrize("status", [403, 500])
+    async def test_secret_api_errors_propagate(
+        self, mock_core_client, operation, status
+    ):
+        core_client = mock_core_client.return_value
+        if operation == "create":
+            core_client.read_namespaced_secret.side_effect = ApiException(status=404)
+        else:
+            core_client.read_namespaced_secret.return_value = V1Secret(
+                data={"value": "old"}
+            )
+        error = ApiException(status=status)
+        operation_mock = getattr(core_client, f"{operation}_namespaced_secret")
+        operation_mock.side_effect = error
+        worker = KubernetesWorker(work_pool_name="test")
+
+        with pytest.raises(ApiException) as exc_info:
+            await worker._upsert_secret(
+                name="worker-api-key",
+                value="fake",
+                namespace="default",
+                client=MagicMock(),
+            )
+
+        assert exc_info.value is error
+        operation_mock.assert_awaited_once()
+
     async def test_store_api_key_in_existing_secret(
         self,
         flow_run,
@@ -2004,7 +2194,7 @@ class TestKubernetesWorker:
                             namespace=configuration.namespace,
                         ),
                         data={
-                            "value": base64.b64encode("fake".encode("utf-8")).decode(
+                            "value": base64.b64encode("old".encode("utf-8")).decode(
                                 "utf-8"
                             )
                         },

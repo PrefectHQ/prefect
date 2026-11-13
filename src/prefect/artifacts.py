@@ -34,7 +34,7 @@ logger: "logging.Logger" = get_logger("artifacts")
 class Artifact(ArtifactRequest):
     """
     An artifact is a piece of data that is created by a flow or task run.
-    https://docs.prefect.io/latest/develop/artifacts
+    https://www.prefect.io/docs/latest/develop/artifacts
 
     Arguments:
         type: A string identifying the type of artifact.

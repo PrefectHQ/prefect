@@ -104,7 +104,7 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
     """
 
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
     url: SecretStr = Field(
         default=...,
@@ -173,7 +173,7 @@ class SlackWebhook(AppriseNotificationBlock):
         "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/slack.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     url: SecretStr = Field(
@@ -270,7 +270,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-teams.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     url: SecretStr = Field(
@@ -332,7 +332,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/pagerduty.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     # PagerDuty requires a valid severity level from its PAGERDUTY_SEVERITY_MAP
@@ -488,7 +488,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
         "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/twilio.png"
     )  # noqa
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     account_sid: str = Field(
@@ -563,7 +563,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
         "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/opsgenie.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     apikey: SecretStr = Field(
@@ -688,7 +688,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/mattermost.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     hostname: str = Field(
@@ -790,7 +790,7 @@ class DiscordWebhook(AbstractAppriseNotificationBlock):
         "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/discord.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     webhook_id: SecretStr = Field(
@@ -895,7 +895,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/webhook.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     name: str = Field(title="Name", description="Name of the webhook.")
@@ -1065,7 +1065,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
         "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/email.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     api_key: SecretStr = Field(

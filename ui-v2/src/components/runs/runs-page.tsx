@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import type { FlowRun, SimpleFlowRun } from "@/api/flow-runs";
+import type { StateType } from "@/api/flow-runs/constants";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { TaskRunResponse } from "@/api/task-runs";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
@@ -9,7 +10,6 @@ import {
 	type DateRangeUrlState,
 	DeploymentFilter,
 	FlowFilter,
-	type FlowRunState,
 	FlowRunsList,
 	FlowRunsPagination,
 	FlowRunsRowCount,
@@ -23,6 +23,7 @@ import {
 } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/saved-filters-menu";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
+import { StateTypeFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-type-filter";
 import { WorkPoolFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/work-pool-filter";
 import { FlowRunsScatterPlot } from "@/components/flow-runs/flow-runs-scatter-plot";
 import {
@@ -77,8 +78,10 @@ type RunsPageProps = {
 	onHideSubflowsChange: (hideSubflows: boolean) => void;
 	flowRunSearch: string;
 	onFlowRunSearchChange: (search: string) => void;
-	selectedStates: Set<FlowRunState>;
-	onStateFilterChange: (states: Set<FlowRunState>) => void;
+	selectedStates: Set<string>;
+	selectedStateTypes?: Set<StateType>;
+	onStateTypesChange?: (types: Set<StateType>) => void;
+	onStateFilterChange: (states: Set<string>) => void;
 	selectedFlows: Set<string>;
 	onFlowFilterChange: (flows: Set<string>) => void;
 	selectedDeployments: Set<string>;
@@ -137,6 +140,8 @@ export const RunsPage = ({
 	flowRunSearch,
 	onFlowRunSearchChange,
 	selectedStates,
+	selectedStateTypes = new Set(),
+	onStateTypesChange,
 	onStateFilterChange,
 	selectedFlows,
 	onFlowFilterChange,
@@ -246,8 +251,19 @@ export const RunsPage = ({
 							onValueChange={onDateRangeChange}
 						/>
 					</div>
+					{onStateTypesChange && (
+						<div className="flex flex-col gap-1 w-full lg:w-auto">
+							<Label className="text-xs text-muted-foreground">
+								State types
+							</Label>
+							<StateTypeFilter
+								selectedFilters={selectedStateTypes}
+								onSelectFilter={onStateTypesChange}
+							/>
+						</div>
+					)}
 					<div className="flex flex-col gap-1 w-full lg:w-auto">
-						<Label className="text-xs text-muted-foreground">States</Label>
+						<Label className="text-xs text-muted-foreground">State names</Label>
 						<StateFilter
 							selectedFilters={selectedStates}
 							onSelectFilter={onStateFilterChange}
