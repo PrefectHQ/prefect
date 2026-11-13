@@ -352,3 +352,76 @@ async def test_clear_old_child_firings(
         session=automations_session, trigger=saw_a_red_and_green_dragon
     )
     assert len(child_firings) == 1
+
+
+async def test_bucketing_key_distinguishes_child_firings(
+    automations_session: AsyncSession,
+    raise_the_alarm: Automation,
+    saw_a_red_and_green_dragon: CompoundTrigger,
+    saw_a_red_dragon: EventTrigger,
+    baby_red_dragon_passed_by: ReceivedEvent,
+    old_red_dragon_passed_by: ReceivedEvent,
+    frozen_time: DateTime,
+):
+    """Two firings of the same child trigger with different bucketing keys coexist
+    rather than overwriting one another (the correctness fix behind #23510)."""
+    await upsert_child_firing(
+        session=automations_session,
+        firing=Firing(
+            trigger=saw_a_red_dragon,
+            trigger_states={TriggerState.Triggered},
+            triggered=frozen_time,
+            triggering_labels={},
+            triggering_event=baby_red_dragon_passed_by,
+        ),
+        bucketing_key=["whelp"],
+    )
+    await upsert_child_firing(
+        session=automations_session,
+        firing=Firing(
+            trigger=saw_a_red_dragon,
+            trigger_states={TriggerState.Triggered},
+            triggered=frozen_time,
+            triggering_labels={},
+            triggering_event=old_red_dragon_passed_by,
+        ),
+        bucketing_key=["old"],
+    )
+    automations_session.expunge_all()
+
+    # both groups persist
+    all_firings = await get_child_firings(
+        session=automations_session, trigger=saw_a_red_and_green_dragon
+    )
+    assert len(all_firings) == 2
+
+    # get_child_firings filters to the requested group
+    whelp = await get_child_firings(
+        session=automations_session,
+        trigger=saw_a_red_and_green_dragon,
+        bucketing_key=["whelp"],
+    )
+    assert len(whelp) == 1
+    assert whelp[0].child_firing.triggering_event.id == baby_red_dragon_passed_by.id
+
+
+async def test_bucketing_key_defaults_to_empty(
+    automations_session: AsyncSession,
+    raise_the_alarm: Automation,
+    saw_a_red_and_green_dragon: CompoundTrigger,
+    saw_a_red_dragon: EventTrigger,
+    baby_red_dragon_passed_by: ReceivedEvent,
+    frozen_time: DateTime,
+):
+    """Omitting the bucketing key stores an empty key, preserving prior behaviour."""
+    res = await upsert_child_firing(
+        session=automations_session,
+        firing=Firing(
+            trigger=saw_a_red_dragon,
+            trigger_states={TriggerState.Triggered},
+            triggered=frozen_time,
+            triggering_labels={},
+            triggering_event=baby_red_dragon_passed_by,
+        ),
+    )
+    assert res.bucketing_key == []
