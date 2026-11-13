@@ -141,6 +141,38 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert data["metadata"]["slots"] == 5
         assert len(data["resource_ids"]) == 2
 
+    async def test_create_lease_with_incremented_limit_ids(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        metadata = ConcurrencyLimitLeaseMetadata(
+            slots=1, incremented_limit_ids=sample_resource_ids[:1]
+        )
+        lease = await storage.create_lease(
+            sample_resource_ids, timedelta(minutes=5), metadata
+        )
+
+        read_lease = await storage.read_lease(lease.id)
+        assert read_lease is not None
+        assert read_lease.metadata is not None
+        assert read_lease.metadata.incremented_limit_ids == sample_resource_ids[:1]
+
+    async def test_read_legacy_lease_without_incremented_limit_ids(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        lease = await storage.create_lease(
+            sample_resource_ids,
+            timedelta(minutes=5),
+            ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        with open(storage._lease_file_path(lease.id)) as f:
+            data = json.load(f)
+        assert "incremented_limit_ids" not in data["metadata"]
+
+        read_lease = await storage.read_lease(lease.id)
+        assert read_lease is not None
+        assert read_lease.metadata is not None
+        assert read_lease.metadata.incremented_limit_ids is None
+
     async def test_create_lease_with_holder(
         self,
         storage: ConcurrencyLeaseStorage,
