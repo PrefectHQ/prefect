@@ -583,6 +583,11 @@ def create_api_app(
 
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
+    if RequestValidationError not in fast_api_app_kwargs.get("exception_handlers", {}):
+        api_app.add_exception_handler(
+            RequestValidationError,
+            validation_exception_handler,
+        )
 
     if logfire:
         logfire.instrument_fastapi(api_app)  # pyright: ignore

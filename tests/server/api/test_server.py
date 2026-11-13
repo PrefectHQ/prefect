@@ -15,6 +15,8 @@ import jsonschema
 import pytest
 import sqlalchemy as sa
 import toml
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
@@ -131,11 +133,32 @@ def test_openapi_schema_does_not_document_fastapi_validation_error_body(
         )
 
 
-def test_api_app_without_validation_handler_keeps_fastapi_422_schema():
-    schema = create_api_app(ignore_cache=True).openapi()
+async def test_api_app_uses_prefect_validation_handler_by_default():
+    api_app = create_api_app(ignore_cache=True)
 
-    assert "HTTPValidationError" in schema["components"]["schemas"]
-    assert "InvalidRequestResponse" not in schema["components"]["schemas"]
+    async with AsyncClient(
+        transport=ASGITransport(app=api_app), base_url="http://test"
+    ) as client:
+        response = await client.post("/flows/", json={})
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.json()["exception_message"] == "Invalid request received."
+    assert "InvalidRequestResponse" in api_app.openapi()["components"]["schemas"]
+
+
+def test_api_app_with_other_validation_handler_keeps_fastapi_422_schema():
+    api_app = create_api_app(
+        ignore_cache=True,
+        fast_api_app_kwargs={
+            "exception_handlers": {
+                RequestValidationError: request_validation_exception_handler
+            }
+        },
+    )
+
+    schemas = api_app.openapi()["components"]["schemas"]
+    assert "HTTPValidationError" in schemas
+    assert "InvalidRequestResponse" not in schemas
 
 
 def test_create_app_openapi_documents_prefect_422_responses():
