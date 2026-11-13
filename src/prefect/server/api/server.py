@@ -583,7 +583,9 @@ def create_api_app(
 
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
-    if RequestValidationError not in fast_api_app_kwargs.get("exception_handlers", {}):
+    if RequestValidationError not in (
+        fast_api_app_kwargs.get("exception_handlers") or {}
+    ):
         api_app.add_exception_handler(
             RequestValidationError,
             validation_exception_handler,
