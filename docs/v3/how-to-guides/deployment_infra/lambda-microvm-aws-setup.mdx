@@ -1,0 +1,435 @@
+---
+title: Set up AWS for a Lambda MicroVM push work pool
+sidebarTitle: Set up AWS for Lambda MicroVMs
+description: Create the OIDC identity provider, the IAM roles, and the MicroVM image that a Lambda MicroVM push work pool needs in your AWS account.
+keywords: ["aws", "lambda", "microvm", "push work pool", "iam role", "oidc", "web identity", "assumerole", "trust policy", "execution role", "build role", "microvm image"]
+hidden: true
+---
+
+<span class="badge cloud"></span>
+
+A Lambda MicroVM push work pool runs each flow run in an [AWS Lambda MicroVM](https://docs.aws.amazon.com/lambda/latest/dg/lambda-microvms-guide.html) in your AWS account.
+Prefect Cloud starts, polls, and stops the MicroVMs, so you do not run a worker.
+Prefect Cloud does not store AWS access keys for this. It assumes an IAM role in your account with short-lived OIDC credentials.
+
+This guide sets up the AWS side:
+
+- an OIDC identity provider for Prefect Cloud's token issuer
+- a **submission role** that Prefect Cloud assumes to run MicroVMs
+- an **execution role** that each MicroVM runs as
+- a **build role** that Lambda uses to build your MicroVM image
+- the **MicroVM image** that each flow run runs in
+
+The examples use `123456789012` as your AWS account ID and `us-east-2` as the region. Replace them with your own values.
+Lambda MicroVMs is not available in every AWS region; use one where it is.
+`aws lambda-microvms list-managed-microvm-images --region <REGION>` fails in a region without the service.
+
+## Create the OIDC identity provider
+
+Create an OpenID Connect (OIDC) identity provider in your AWS account for Prefect Cloud's token issuer.
+You only need to do this once per AWS account.
+
+```bash
+aws iam create-open-id-connect-provider \
+  --url https://api.prefect.cloud/oidc-provider \
+  --client-id-list prefect-cloud
+```
+
+This command returns an ARN similar to `arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider`.
+Use that ARN in the trust policy for any IAM role that Prefect Cloud should assume.
+
+If you already created this provider for a [Prefect Managed work pool](/v3/how-to-guides/deployment_infra/managed-aws-federated-identity), use the existing provider and skip this step.
+
+## Create the submission role
+
+Prefect Cloud assumes the submission role with `sts:AssumeRoleWithWebIdentity` each time it runs, checks, or stops a MicroVM.
+
+### Trust policy
+
+The trust policy allows `sts:AssumeRoleWithWebIdentity` from the OIDC provider you created in the previous step:
+
+```json submission-role-trust-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "api.prefect.cloud/oidc-provider:aud": "prefect-cloud",
+          "api.prefect.cloud/oidc-provider:sub": "prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>"
+        }
+      }
+    }
+  ]
+}
+```
+
+Replace `<PREFECT_CLOUD_ACCOUNT_ID>` with your Prefect Cloud account ID, which follows `/account/` in your Prefect Cloud URL.
+
+### Permissions policy
+
+The submission role needs permission to run, get, and stop MicroVMs from your image, to pass the execution role to Lambda, and to pass network connectors to the MicroVM:
+
+```json submission-role-permissions-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lambda:RunMicrovm",
+        "lambda:GetMicrovm",
+        "lambda:TerminateMicrovm"
+      ],
+      "Resource": "arn:aws:lambda:us-east-2:123456789012:microvm-image:<IMAGE_NAME>"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::123456789012:role/<EXECUTION_ROLE_NAME>",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "lambda:PassNetworkConnector",
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+AWS authorizes `lambda:RunMicrovm`, `lambda:GetMicrovm`, and `lambda:TerminateMicrovm` against the MicroVM image, so the resource is the image ARN.
+To allow every image in the account and region, use `arn:aws:lambda:us-east-2:123456789012:microvm-image:*`.
+
+AWS attaches a default internet egress network connector to every MicroVM, so the submission role needs `lambda:PassNetworkConnector` even when the work pool sets no connectors.
+AWS does not define a resource type for this action, so its resource is `*`.
+
+## Create the execution role
+
+Each MicroVM runs as the execution role.
+Lambda uses it to send the MicroVM's stdout and stderr to CloudWatch Logs, and your flow code uses it to call other AWS services.
+Without the CloudWatch Logs permissions below, the flow run's output never reaches CloudWatch Logs.
+
+### Trust policy
+
+```json execution-role-trust-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Action": [
+        "sts:AssumeRole",
+        "sts:TagSession"
+      ]
+    }
+  ]
+}
+```
+
+### Permissions policy
+
+```json execution-role-permissions-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-2:123456789012:log-group:/aws/lambda-microvms/*"
+    }
+  ]
+}
+```
+
+MicroVMs write to the log group `/aws/lambda-microvms/<IMAGE_NAME>` by default.
+If you set **Log Group** on the work pool, grant the same three actions on that log group and its log streams instead.
+`logs:CreateLogStream` and `logs:PutLogEvents` authorize against the log stream's ARN, so the log group's ARN alone does not cover them:
+
+```json
+"Resource": [
+  "arn:aws:logs:us-east-2:123456789012:log-group:<LOG_GROUP>",
+  "arn:aws:logs:us-east-2:123456789012:log-group:<LOG_GROUP>:*"
+]
+```
+
+Add statements for anything your flows do in AWS, such as reading from S3 or writing to DynamoDB.
+
+A deployment pull step that runs in the MicroVM and calls AWS also uses the execution role, unless you give the step its own credentials.
+For example, `prefect_aws.deployments.steps.pull_from_s3` without `credentials` needs `s3:ListBucket` on the bucket and `s3:GetObject` on its objects.
+
+## Create the build role
+
+Lambda assumes the build role while it builds your MicroVM image from a zip file in S3.
+
+### Trust policy
+
+The build role uses the same trust policy as the execution role:
+
+```json build-role-trust-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Action": [
+        "sts:AssumeRole",
+        "sts:TagSession"
+      ]
+    }
+  ]
+}
+```
+
+### Permissions policy
+
+The build role reads the build zip from your S3 bucket and writes build logs to CloudWatch Logs:
+
+```json build-role-permissions-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::<BUILD_BUCKET>/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-2:123456789012:log-group:/aws/lambda-microvms/*"
+    }
+  ]
+}
+```
+
+If the build bucket uses SSE-KMS encryption with a customer managed key, add this statement to the build role, and allow the build role in the key's key policy:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "kms:Decrypt",
+  "Resource": "arn:aws:kms:us-east-2:123456789012:key/<KMS_KEY_ID>"
+}
+```
+
+If your Dockerfile pulls its base image from a private Amazon ECR repository, the repository must be in the same AWS account as the MicroVM image.
+To use a base image from another account, replicate it into a repository in this account first.
+Add these two statements to the build role:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "ecr:GetAuthorizationToken",
+  "Resource": "*"
+},
+{
+  "Effect": "Allow",
+  "Action": [
+    "ecr:BatchCheckLayerAvailability",
+    "ecr:BatchGetImage",
+    "ecr:GetDownloadUrlForLayer"
+  ],
+  "Resource": "arn:aws:ecr:us-east-2:123456789012:repository/<ECR_REPOSITORY_NAME>"
+}
+```
+
+## Create the roles with the AWS CLI
+
+With the policy files above saved locally, these commands create the three roles.
+The role names are examples.
+
+```bash
+aws iam create-role --role-name prefect-microvm-submission \
+  --assume-role-policy-document file://submission-role-trust-policy.json
+aws iam put-role-policy --role-name prefect-microvm-submission \
+  --policy-name prefect-microvm-submission \
+  --policy-document file://submission-role-permissions-policy.json
+
+aws iam create-role --role-name prefect-microvm-execution \
+  --assume-role-policy-document file://execution-role-trust-policy.json
+aws iam put-role-policy --role-name prefect-microvm-execution \
+  --policy-name prefect-microvm-execution \
+  --policy-document file://execution-role-permissions-policy.json
+
+aws iam create-role --role-name prefect-microvm-build \
+  --assume-role-policy-document file://build-role-trust-policy.json
+aws iam put-role-policy --role-name prefect-microvm-build \
+  --policy-name prefect-microvm-build \
+  --policy-document file://build-role-permissions-policy.json
+```
+
+Pass the build role's ARN when you create or update the MicroVM image.
+
+## Build the MicroVM image
+
+Every flow run on the work pool runs in a MicroVM started from your MicroVM image.
+The image must contain every Python package your flows import, and your flow code unless the deployment pulls it at run time.
+
+### Write the Dockerfile
+
+Build your image `FROM` the `prefecthq/prefect-aws` MicroVM image. Its tags end in `-microvm`:
+
+- `latest-microvm` is the latest release.
+- `<MAJOR.MINOR>-python3.12-microvm` follows the latest release in a prefect-aws minor version.
+- `<PREFECT_AWS_VERSION>-python3.12-microvm` pins a prefect-aws version.
+- `<PREFECT_AWS_VERSION>-python3.12-prefect<PREFECT_VERSION>-microvm` pins both prefect-aws and Prefect.
+
+`latest-microvm` and the minor version tag move only when both the prefect-aws and Prefect versions are final releases.
+A pre-release, post-release, or development release does not move them.
+
+```dockerfile Dockerfile
+FROM prefecthq/prefect-aws:latest-microvm
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY flows/ /opt/prefect/flows/
+```
+
+The image's working directory is `/opt/prefect`.
+The work pool resolves the deployment's entrypoint from this directory, so the example's `COPY flows/ /opt/prefect/flows/` pairs with an entrypoint like `flows/etl.py:etl`.
+If the deployment has exactly one pull step and it is `set_working_directory`, the work pool resolves the entrypoint from that step's directory instead, and that directory must exist in the image.
+A deployment with a storage block, or with a pull step that fetches code such as `git_clone` or `pull_from_s3`, pulls its code at run time instead.
+Steps such as `pip_install_requirements` and `run_shell_script` do not fetch the flow's code, so with only those steps the code must still be in the image.
+
+The image's command starts the process that answers the MicroVM lifecycle hooks and runs the flow run, so do not set `CMD` or `ENTRYPOINT` in your Dockerfile.
+
+### Create the image
+
+Lambda builds the image from a zip file in S3.
+The bucket must be in the same region as the MicroVM image, or the build fails with `S3_CROSS_REGION_ACCESS_DENIED`.
+Put the Dockerfile at the top level of the zip, next to the files it copies, and upload the zip to the bucket the build role can read:
+
+```bash
+zip -r my-flows.zip Dockerfile requirements.txt flows
+aws s3 cp my-flows.zip s3://<BUILD_BUCKET>/my-flows.zip
+```
+
+The prefect-aws MicroVM image answers the lifecycle hooks on port 8080.
+Prefect Cloud starts each flow run through the run hook, and Lambda calls the ready hook when the image build finishes.
+Enable both hooks on that port:
+
+```json hooks.json
+{
+  "port": 8080,
+  "microvmHooks": {
+    "run": "ENABLED",
+    "runTimeoutInSeconds": 30
+  },
+  "microvmImageHooks": {
+    "ready": "ENABLED",
+    "readyTimeoutInSeconds": 600
+  }
+}
+```
+
+Create the image with the build role and the ARM64 CPU configuration:
+
+```bash
+aws lambda-microvms create-microvm-image \
+  --region us-east-2 \
+  --name <IMAGE_NAME> \
+  --code-artifact uri=s3://<BUILD_BUCKET>/my-flows.zip \
+  --base-image-arn arn:aws:lambda:us-east-2:aws:microvm-image:al2023-1 \
+  --build-role-arn arn:aws:iam::123456789012:role/prefect-microvm-build \
+  --cpu-configurations architecture=ARM_64 \
+  --hooks file://hooks.json
+```
+
+`--base-image-arn` is the Lambda-managed base image. `aws lambda-microvms list-managed-microvm-images --region us-east-2` lists the ones available in your region.
+
+The command returns the image's ARN, and the build continues in the background.
+The image is ready when `aws lambda-microvms get-microvm-image --region us-east-2 --image-identifier <IMAGE_ARN> --query state --output text` returns `CREATED`.
+`CREATE_FAILED` means the build failed. Its logs are in CloudWatch Logs under `/aws/lambda-microvms/<IMAGE_NAME>`.
+
+## Configure the work pool
+
+In Prefect Cloud, open the Lambda MicroVM push work pool's configuration and set these fields:
+
+| Field | Job variable | Value |
+| --- | --- | --- |
+| **AWS Credentials**: role ARN | `aws_credentials.role_arn` | The submission role's ARN |
+| **AWS Credentials**: region name | `aws_credentials.region_name` | The AWS region to run MicroVMs in, which must be the MicroVM image's region |
+| **Execution Role ARN** | `execution_role_arn` | The execution role's ARN |
+| **Image ARN** | `image_arn` | The ARN of the MicroVM image to run each flow run in |
+
+The pool's **Launches per second** setting (`launches_per_second`) is how many MicroVMs the pool starts per second.
+Its default of 5 matches AWS's default [`RunMicrovm` quota](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html#api-requests) of 5 requests per second per account and region.
+Raise the setting only after AWS raises that quota in the pool's region.
+This is a work pool setting, so a deployment's job variable overrides do not change it.
+
+## Check a new image before you rely on it
+
+An image build can report success and still produce MicroVMs that stop at startup.
+A bad build can fail only some of its MicroVMs, so one completed run does not show that the image is good.
+After you create the image or build a new version of it, run about 5 flow runs of a small deployment on a work pool that uses the image.
+Confirm that each run reaches Completed.
+
+If the runs crash, open the crashed flow run's page in Prefect Cloud and read its state message.
+It names the MicroVM and the reason AWS gave, for example `MicroVM <MICROVM_ID> terminated before the flow run finished: Internal service error.`
+You can also read the MicroVM's state reason with the AWS CLI:
+
+```bash
+aws lambda-microvms get-microvm \
+  --region us-east-2 \
+  --microvm-identifier <MICROVM_ID> \
+  --query stateReason \
+  --output text
+```
+
+If the reason is `Internal service error.`, build a new version of the image from the same files.
+Building a new version from the same files has fixed this in our testing.
+Pass the image's ARN as `--image-identifier` in place of `--name`:
+
+```bash
+aws lambda-microvms update-microvm-image \
+  --region us-east-2 \
+  --image-identifier <IMAGE_ARN> \
+  --code-artifact uri=s3://<BUILD_BUCKET>/my-flows.zip \
+  --base-image-arn arn:aws:lambda:us-east-2:aws:microvm-image:al2023-1 \
+  --build-role-arn arn:aws:iam::123456789012:role/prefect-microvm-build \
+  --cpu-configurations architecture=ARM_64 \
+  --hooks file://hooks.json
+```
+
+Repeat every flag you passed to `create-microvm-image` except `--name` and `--tags`, because a build setting you leave out is not carried over from the previous version.
+For example, if you created the image with `--resources` and leave it out here, the new version gets the default memory instead.
+
+The new version is ready when `aws lambda-microvms get-microvm-image --region us-east-2 --image-identifier <IMAGE_ARN> --query state --output text` returns `UPDATED`.
+`UPDATE_FAILED` means the build failed. Its logs are in CloudWatch Logs under `/aws/lambda-microvms/<IMAGE_NAME>`.
+Fix the failure and build the version again before you run the check.
+
+The image keeps its ARN, so the work pool's **Image ARN** stays the same and the pool's next runs use the new version.
+When the new version is ready, run the check again.
+If the new version's runs crash the same way, contact AWS Support with the MicroVM IDs.
+
+## Further reading
+
+- [Run flows on serverless compute](/v3/how-to-guides/deployment_infra/serverless)
+- [Override job variables](/v3/how-to-guides/deployments/customize-job-variables)
+- [AWS Lambda MicroVMs security](https://docs.aws.amazon.com/lambda/latest/dg/microvms-security.html)
+- [AWS Lambda MicroVMs monitoring](https://docs.aws.amazon.com/lambda/latest/dg/microvms-monitoring.html)
+- [Actions, resources, and condition keys for AWS Lambda](https://docs.aws.amazon.com/service-authorization/latest/reference/list_lambda.html)
