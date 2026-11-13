@@ -796,7 +796,12 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
     # Cancel only once the handshake is actually in flight, rather than after a
     # fixed timeout that can elapse before the socket is even opened under load
     setup = asyncio.create_task(subscriber.__aenter__())
-    await awaiting_auth_response.wait()
+    handshake = asyncio.create_task(awaiting_auth_response.wait())
+    await asyncio.wait({setup, handshake}, return_when=asyncio.FIRST_COMPLETED)
+    handshake.cancel()
+    if setup.done():
+        setup.result()  # surface an early setup failure
+        pytest.fail("setup completed without waiting on the auth response")
     setup.cancel()
     with pytest.raises(asyncio.CancelledError):
         await setup
