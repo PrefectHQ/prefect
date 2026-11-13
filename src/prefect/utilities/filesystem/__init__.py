@@ -123,7 +123,7 @@ def filter_files(
     return included_files
 
 
-chdir_lock: threading.Lock = threading.Lock()
+chdir_lock: threading.RLock = threading.RLock()
 
 
 def _normalize_path(path: Union[str, Path]) -> str:
@@ -151,15 +151,20 @@ def tmpchdir(path: str):
     """
     Change current-working directories for the duration of the context,
     with special handling for UNC paths on Windows.
+
+    Contexts may be nested within the same thread. Other threads block until
+    the outermost context exits.
     """
-    path = _normalize_path(path)
-
-    if os.path.isfile(path) or (not os.path.exists(path) and not path.endswith("/")):
-        path = os.path.dirname(path)
-
-    owd = os.getcwd()
-
     with chdir_lock:
+        path = _normalize_path(path)
+
+        if os.path.isfile(path) or (
+            not os.path.exists(path) and not path.endswith("/")
+        ):
+            path = os.path.dirname(path)
+
+        owd = os.getcwd()
+
         try:
             # On Windows with UNC paths, we need to handle the directory change carefully
             if os.name == "nt" and path.startswith("\\\\"):
