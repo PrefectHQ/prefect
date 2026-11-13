@@ -2524,6 +2524,12 @@ class TestUpdateDeployment:
                 True,
                 id="changed-dtstart",
             ),
+            pytest.param(
+                {"rrule": "DTSTART:20261110T080000\nRRULE:FREQ=MINUTELY"},
+                {"schedule": {"rrule": "DTSTART:20990101T090000\nRRULE:FREQ=MINUTELY"}},
+                True,
+                id="future-dtstart",
+            ),
         ],
     )
     async def test_update_deployment_keeps_active_state_of_unchanged_schedules(
@@ -2559,6 +2565,39 @@ class TestUpdateDeployment:
 
         response = await client.get(f"/deployments/{deployment_id}")
         assert [s["active"] for s in response.json()["schedules"]] == [expected_active]
+
+    async def test_update_deployment_matches_unchanged_schedules_first(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        anchored = {"interval": 3600, "anchor_date": "2026-01-01T09:00Z"}
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "schedules": [{"schedule": anchored, "active": False}],
+            },
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        # an interval without `anchor_date` doesn't take the unchanged schedule's state
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={
+                "schedules": [{"schedule": {"interval": 3600}}, {"schedule": anchored}]
+            },
+        )
+        assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert sorted(
+            (s["schedule"]["anchor_date"].startswith("2026-01-01T09:00"), s["active"])
+            for s in response.json()["schedules"]
+        ) == [(False, True), (True, False)]
 
     async def test_update_deployment_with_multiple_schedules_and_existing_slugs_422(
         self,
