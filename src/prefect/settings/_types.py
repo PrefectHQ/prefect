@@ -26,6 +26,7 @@ SettingAccessor: TypeAlias = Literal[
     "cloud.max_log_size",
     "cloud.ui_url",
     "debug_mode",
+    "deployments.clear_schedules_on_empty",
     "deployments.default_docker_build_namespace",
     "deployments.default_work_pool_name",
     "events.worker_max_queue_size",

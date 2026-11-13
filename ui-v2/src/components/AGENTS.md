@@ -36,6 +36,13 @@ This directory contains React components for the Prefect UI migration from Vue t
 - Use `Form` component from `@/components/ui/form` to wrap forms
 - Use `FormField` component from `@/components/ui/form` to wrap form fields
 - Use `Stepper` component for wizard-like flows
+- Non-submit `Button`s inside a form (format, add item, etc.) must set `type="button"` — `@/components/ui/button` renders a native `<button>` with no default `type`, so clicks submit the enclosing form (including whole wizard forms)
+
+## Schema Forms
+
+- `SchemaForm` (`@/components/schemas`) edits free-form objects (no `properties`) with a JSON editor, so its `values` can contain `{ __prefect_kind: "json", value: "<json string>" }` wrappers. The API stores block documents and work pool base job template defaults as plain JSON — call `removePrefectKindValues(values)` from `@/components/schemas/utilities/removePrefectKindValues` before submitting schema form values to the API
+- Block document inputs emit and accept `{ $ref: { block_document_id } }`, the same shape the API expects, so no extra conversion is needed for them
+- Schema `$ref`s may point to `#/definitions/...` while the schema stores them under `$defs` (Pydantic emits `$defs`; the server rewrites refs to `#/definitions/`). `getSchemaDefinition` checks both containers
 
 ## Icon Usage
 

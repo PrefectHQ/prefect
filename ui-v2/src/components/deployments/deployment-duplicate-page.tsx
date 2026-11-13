@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { DeploymentActionHeader } from "./deployment-action-header";
 import { DeploymentForm } from "./deployment-form";
 
@@ -11,6 +12,7 @@ export const DeploymentDuplicatePage = ({
 	id,
 }: DeploymentDuplicatePageProps) => {
 	const { data } = useSuspenseQuery(buildDeploymentDetailsQuery(id));
+	usePageTitle(`Duplicate Deployment: ${data.name}`);
 
 	return (
 		<div className="flex flex-col gap-4">

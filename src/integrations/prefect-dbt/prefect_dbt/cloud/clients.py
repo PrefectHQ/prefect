@@ -1,6 +1,6 @@
 """Module containing clients for interacting with the dbt Cloud API"""
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from httpx import AsyncClient, Response
 from sgqlc.endpoint.http import HTTPEndpoint
@@ -37,8 +37,8 @@ class DbtCloudAdministrativeClient:
         self,
         http_method: str,
         path: str,
-        params: Optional[Dict[str, Any]] = None,
-        json: Optional[Dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> Response:
         """
         Call an endpoint in the dbt Cloud API.
@@ -66,7 +66,7 @@ class DbtCloudAdministrativeClient:
         project_id: int,
         environment_id: int,
         name: str,
-        execute_steps: Optional[List[str]] = None,
+        execute_steps: list[str] | None = None,
         **kwargs: Any,
     ) -> Response:
         """
@@ -82,7 +82,7 @@ class DbtCloudAdministrativeClient:
         Returns:
             The response from the dbt Cloud administrative API.
         """
-        job_data: Dict[str, Any] = {
+        job_data: dict[str, Any] = {
             "project_id": project_id,
             "environment_id": environment_id,
             "name": name,
@@ -113,7 +113,7 @@ class DbtCloudAdministrativeClient:
     async def get_job(
         self,
         job_id: int,
-        order_by: Optional[str] = None,
+        order_by: str | None = None,
     ) -> Response:
         """
         Return job details for a job on an account.
@@ -131,7 +131,7 @@ class DbtCloudAdministrativeClient:
         )
 
     async def trigger_job_run(
-        self, job_id: int, options: Optional[TriggerJobRunOptions] = None
+        self, job_id: int, options: TriggerJobRunOptions | None = None
     ) -> Response:
         """
         Sends a request to the [trigger job run endpoint](https://docs.getdbt.com/dbt-cloud/api-v2#tag/Jobs/operation/triggerRun)
@@ -156,9 +156,8 @@ class DbtCloudAdministrativeClient:
     async def get_run(
         self,
         run_id: int,
-        include_related: Optional[
-            List[Literal["trigger", "job", "debug_logs", "run_steps"]]
-        ] = None,
+        include_related: list[Literal["trigger", "job", "debug_logs", "run_steps"]]
+        | None = None,
     ) -> Response:
         """
         Sends a request to the [get run endpoint](https://docs.getdbt.com/dbt-cloud/api-v2#tag/Runs/operation/getRunById)
@@ -180,7 +179,7 @@ class DbtCloudAdministrativeClient:
         )
 
     async def list_run_artifacts(
-        self, run_id: int, step: Optional[int] = None
+        self, run_id: int, step: int | None = None
     ) -> Response:
         """
         Sends a request to the [list run artifacts endpoint](https://docs.getdbt.com/dbt-cloud/api-v2#tag/Runs/operation/listArtifactsByRunId)
@@ -202,7 +201,7 @@ class DbtCloudAdministrativeClient:
         )
 
     async def get_run_artifact(
-        self, run_id: int, path: str, step: Optional[int] = None
+        self, run_id: int, path: str, step: int | None = None
     ) -> Response:
         """
         Sends a request to the [get run artifact endpoint](https://docs.getdbt.com/dbt-cloud/api-v2#tag/Runs/operation/getArtifactsByRunId)
@@ -284,9 +283,9 @@ class DbtCloudMetadataClient:
     def query(
         self,
         query: str,
-        variables: Optional[Dict] = None,
-        operation_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        variables: dict | None = None,
+        operation_name: str | None = None,
+    ) -> dict[str, Any]:
         """
         Run a GraphQL query against the dbt Cloud metadata API.
 

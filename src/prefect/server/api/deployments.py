@@ -20,7 +20,7 @@ from prefect.server.api.validation import (
     validate_job_variables_for_deployment,
     validate_job_variables_for_deployment_flow_run,
 )
-from prefect.server.api.workers import WorkerLookups
+from prefect.server.api.workers import WorkerLookups, schedule_readiness_update
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
@@ -78,7 +78,7 @@ async def create_deployment(
     If the deployment has an active schedule, flow runs will be scheduled.
     When upserting, any scheduled runs from the existing deployment will be deleted.
 
-    For more information, see https://docs.prefect.io/v3/concepts/deployments.
+    For more information, see https://www.prefect.io/docs/v3/concepts/deployments.
     """
 
     data = deployment.model_dump(exclude_unset=True)
@@ -440,6 +440,9 @@ async def update_deployment(
         # Phase 2: Apply the actual updates. Renamed schedules use
         # their row ID (slug is now NULL); others use slug as before.
         for schedule in schedules_to_patch:
+            # A schedule sent with the deployment carries its full overrides, and
+            # `prefect deploy` leaves `parameters` out when there are none
+            schedule = schedule.model_copy(update={"parameters": schedule.parameters})
             if schedule.replaces:
                 await models.deployments.update_deployment_schedule(
                     session=session,
@@ -656,10 +659,16 @@ async def get_scheduled_flow_runs_for_deployments(
             for orm_flow_run in orm_flow_runs
         ]
 
+        becoming_ready = await models.deployments.has_not_ready_deployments(
+            session=session, deployment_ids=deployment_ids
+        )
+
     sorted_deployment_ids = ",".join(str(d) for d in sorted(deployment_ids))
-    await docket.add(
+    await schedule_readiness_update(
+        docket,
         mark_deployments_ready,
         key=f"mark_deployments_ready:deployments:{sorted_deployment_ids}",
+        becoming_ready=becoming_ready,
     )(
         deployment_ids=deployment_ids,
     )

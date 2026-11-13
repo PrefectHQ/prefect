@@ -204,6 +204,66 @@ describe("SchemaFormInputEnum", () => {
 	});
 
 	describe("single select — no chips", () => {
+		test.each([
+			{ property: { type: "integer" as const, enum: [0, 1] }, value: 0 },
+			{
+				property: { type: "boolean" as const, enum: [false, true] },
+				value: false,
+			},
+		])("displays a selected enum value of $value", ({ property, value }) => {
+			render(
+				<TestSchemaForm
+					schema={{
+						type: "object",
+						properties: {
+							status: { ...property, title: "Status" },
+						},
+					}}
+					values={{ status: value }}
+				/>,
+			);
+
+			expect(
+				screen.getByRole("button", { name: /select status/i }),
+			).toHaveTextContent(String(value));
+		});
+
+		test("displays zero after selecting it from an unset enum", async () => {
+			const user = userEvent.setup();
+			const spy = vi.fn();
+
+			function Wrapper() {
+				const [values, setValues] = useState<Record<string, unknown>>({});
+				spy.mockImplementation((value: Record<string, unknown>) =>
+					setValues(value),
+				);
+
+				return (
+					<TestSchemaForm
+						schema={{
+							type: "object",
+							properties: {
+								status: { type: "integer", title: "Status", enum: [0, 1] },
+							},
+						}}
+						values={values}
+						onValuesChange={spy}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+			const trigger = screen.getByRole("button", { name: /select status/i });
+			expect(trigger).toHaveTextContent("Select");
+			await user.click(trigger);
+			await user.click(await screen.findByRole("option", { name: "0" }));
+
+			await waitFor(() => {
+				expect(spy).toHaveBeenLastCalledWith({ status: 0 });
+				expect(trigger).toHaveTextContent("0");
+			});
+		});
+
 		test("does not render chips for single-select enum", () => {
 			render(
 				<TestSchemaForm schema={singleEnumSchema} values={{ name: "foo" }} />,

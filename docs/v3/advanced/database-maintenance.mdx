@@ -221,7 +221,7 @@ The vacuum service has three independently scheduled components controlled by `P
 
 - **Event vacuum** (`events`): Cleans up old events and event resources. Enabled by default.
 - **Flow run vacuum** (`flow_runs`): Cleans up old flow runs with their logs and artifacts. Disabled by default.
-- **Orphan reconciliation** (`orphans`): Finds and removes orphaned logs and artifacts, then reconciles stale artifact collections. Automatically enabled with `flow_runs`, but runs less frequently because each pass can scan the full child tables. You can also enable it independently.
+- **Orphan reconciliation** (`orphans`): Finds and removes orphaned logs and artifacts, then reconciles stale artifact collections. Automatically enabled with `flow_runs`, but runs less frequently because each pass walks every `flow_run_id` in the child tables. You can also enable it independently.
 
 To enable flow run cleanup in addition to the default event cleanup:
 
@@ -285,7 +285,7 @@ The event vacuum only runs when the event persister service is also enabled (`PR
 Flow run selection, orphan reconciliation, and event cleanup use transaction batches controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`. Once a locked flow run batch is deleted, its logs and artifacts are deleted in their own batches of the same size, so a run with many child rows does not create one large transaction.
 
 <Note>
-Orphan reconciliation uses anti-joins that can scan the full `log` and `artifact` tables. It runs once every 24 hours by default instead of on the normal hourly vacuum loop. Increase `PREFECT_SERVER_SERVICES_DB_VACUUM_ORPHAN_CLEANUP_LOOP_SECONDS` if those scans affect database performance. You do not need to add `orphans` when `flow_runs` is enabled; the separate value is for running orphan cleanup without deleting old flow runs.
+Orphan reconciliation walks the distinct `flow_run_id` values in the `log` and `artifact` tables in index order, in pages of `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`, and deletes rows for flow runs that no longer exist. Each query reads one slice of the `flow_run_id` index instead of scanning the full table. It runs once every 24 hours by default instead of on the normal hourly vacuum loop. Increase `PREFECT_SERVER_SERVICES_DB_VACUUM_ORPHAN_CLEANUP_LOOP_SECONDS` if that pass affects database performance. You do not need to add `orphans` when `flow_runs` is enabled; the separate value is for running orphan cleanup without deleting old flow runs.
 </Note>
 
 ### Tune the vacuum for your workload

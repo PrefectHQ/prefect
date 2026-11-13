@@ -14,17 +14,17 @@
 #
 # * **Python** gives you the flexibility to integrate with any data source, API, or system your analytics need.
 # * **dbt Core** handles the heavy lifting of SQL transformations, testing, and documentation.
-# * **Prefect** wraps the entire workflow in battle-tested orchestration: automatic [retries](https://docs.prefect.io/v3/develop/write-tasks#retries), [scheduling](https://docs.prefect.io/v3/deploy/index#workflow-scheduling-and-parametrization), and [observability](https://docs.prefect.io/v3/develop/logging#prefect-loggers).
+# * **Prefect** wraps the entire workflow in battle-tested orchestration: automatic [retries](https://www.prefect.io/docs/v3/develop/write-tasks#retries), [scheduling](https://www.prefect.io/docs/v3/deploy/index#workflow-scheduling-and-parametrization), and [observability](https://www.prefect.io/docs/v3/develop/logging#prefect-loggers).
 #
 # The result? Your analytics team gets reliable, observable data pipelines that leverage the strengths of both platforms. Point this combo at any warehouse and it will transform your data while providing enterprise-grade workflow management.
 #
-# > **Note**: This example uses **dbt Core** (the open-source CLI). For dbt Cloud integration, see the [dbt Cloud guide](https://docs.prefect.io/integrations/prefect-dbt/dbt-cloud) in the Prefect documentation.
+# > **Note**: This example uses **dbt Core** (the open-source CLI). For dbt Cloud integration, see the [dbt Cloud guide](https://www.prefect.io/docs/integrations/prefect-dbt/dbt-cloud) in the Prefect documentation.
 #
 # This example demonstrates these Prefect features:
-# * [`@task`](https://docs.prefect.io/v3/develop/write-tasks#write-and-run-tasks) – wrap dbt commands in retries & observability.
-# * [`log_prints`](https://docs.prefect.io/v3/develop/logging#configure-logging) – surface dbt output automatically in Prefect logs.
-# * Automatic [**retries**](https://docs.prefect.io/v3/develop/write-tasks#retries) with exponential back-off for flaky network connections.
-# * [**prefect-dbt integration**](https://docs.prefect.io/integrations/prefect-dbt) – native dbt execution with enhanced logging and failure handling.
+# * [`@task`](https://www.prefect.io/docs/v3/develop/write-tasks#write-and-run-tasks) – wrap dbt commands in retries & observability.
+# * [`log_prints`](https://www.prefect.io/docs/v3/develop/logging#configure-logging) – surface dbt output automatically in Prefect logs.
+# * Automatic [**retries**](https://www.prefect.io/docs/v3/develop/write-tasks#retries) with exponential back-off for flaky network connections.
+# * [**prefect-dbt integration**](https://www.prefect.io/docs/integrations/prefect-dbt) – native dbt execution with enhanced logging and failure handling.
 #
 # ### The Scenario: Reliable Analytics Workflows
 # Your analytics team uses dbt to model data in DuckDB for rapid local development and testing, but deploys to Snowflake in production. You need a workflow that:
@@ -34,9 +34,9 @@
 # - Can be easily scheduled and deployed to production
 #
 # ### Our Solution
-# Write three focused Python functions (download project, run dbt commands, orchestrate workflow), add Prefect decorators, and let Prefect handle [retries](https://docs.prefect.io/v3/develop/write-tasks#retries), [logging](https://docs.prefect.io/v3/develop/logging#prefect-loggers), and [scheduling](https://docs.prefect.io/v3/deploy/index#workflow-scheduling-and-parametrization). The entire example is self-contained – no git client or global dbt configuration required.
+# Write three focused Python functions (download project, run dbt commands, orchestrate workflow), add Prefect decorators, and let Prefect handle [retries](https://www.prefect.io/docs/v3/develop/write-tasks#retries), [logging](https://www.prefect.io/docs/v3/develop/logging#prefect-loggers), and [scheduling](https://www.prefect.io/docs/v3/deploy/index#workflow-scheduling-and-parametrization). The entire example is self-contained – no git client or global dbt configuration required.
 #
-# *For more on integrating Prefect with dbt, see the [`prefect-dbt` guide](https://docs.prefect.io/integrations/prefect-dbt).*
+# *For more on integrating Prefect with dbt, see the [`prefect-dbt` guide](https://www.prefect.io/docs/integrations/prefect-dbt).*
 #
 # ### Running the example locally
 # ```bash
@@ -73,7 +73,7 @@ PROJECT_DIR = Path(__file__).parent / "prefect_dbt_project"
 # ---------------------------------------------------------------------------
 # To keep this example fully self-contained, we download a demo dbt project
 # directly from GitHub as a ZIP file. This means users don't need git installed.
-# [Learn more about tasks in the Prefect documentation](https://docs.prefect.io/v3/develop/write-tasks)
+# [Learn more about tasks in the Prefect documentation](https://www.prefect.io/docs/v3/develop/write-tasks)
 
 
 def _project_cache_key(_context: Any, parameters: dict[str, Any]) -> str:
@@ -183,7 +183,7 @@ def create_dbt_profiles(project_dir: Path) -> None:
 # This task uses the modern PrefectDbtRunner from prefect-dbt integration which
 # provides native dbt execution with enhanced logging, failure handling, and
 # automatic event emission.
-# [Learn more about retries in the Prefect documentation](https://docs.prefect.io/v3/develop/write-tasks#retries)
+# [Learn more about retries in the Prefect documentation](https://www.prefect.io/docs/v3/develop/write-tasks#retries)
 
 
 @task(retries=2, retry_delay_seconds=5, log_prints=True)
@@ -223,7 +223,7 @@ def run_dbt_commands(commands: list[str], project_dir: Path) -> None:
 # Each step is a separate task run in Prefect, providing granular observability
 # and automatic retry handling for any step that fails. Now using the flexible
 # prefect-dbt integration for enhanced dbt execution.
-# [Learn more about flows in the Prefect documentation](https://docs.prefect.io/v3/develop/write-flows)
+# [Learn more about flows in the Prefect documentation](https://www.prefect.io/docs/v3/develop/write-flows)
 
 
 @flow(name="dbt_flow", log_prints=True)
@@ -264,7 +264,7 @@ if __name__ == "__main__":
 # ### What Just Happened?
 #
 # Here's the sequence of events when you run this flow:
-# 1. **Project Download** – Prefect registered a task run to download and extract the dbt project from GitHub. The task uses Prefect's [task cache](https://docs.prefect.io/v3/develop/write-tasks#caching) with a [custom `cache_key_fn`](https://docs.prefect.io/v3/develop/write-tasks#custom-cache-key) that folds the archive URL together with the local directory's existence, so repeat runs inside an hour reuse the prior download but a deleted `prefect_dbt_project/` directory invalidates the cache and forces a fresh fetch.
+# 1. **Project Download** – Prefect registered a task run to download and extract the dbt project from GitHub. The task uses Prefect's [task cache](https://www.prefect.io/docs/v3/develop/write-tasks#caching) with a [custom `cache_key_fn`](https://www.prefect.io/docs/v3/develop/write-tasks#custom-cache-key) that folds the archive URL together with the local directory's existence, so repeat runs inside an hour reuse the prior download but a deleted `prefect_dbt_project/` directory invalidates the cache and forces a fresh fetch.
 # 2. **Profiles Setup** – A second task run wrote a local `profiles.yml` pointing dbt at the on-disk DuckDB file.
 # 3. **dbt Lifecycle** – Four further task runs executed the standard dbt workflow: `deps`, `seed`, `run`, and `test`.
 # 4. **Native dbt Integration** – Each dbt command was executed through `prefect-dbt` for enhanced logging, failure handling, and automatic event emission.
@@ -289,6 +289,6 @@ if __name__ == "__main__":
 # This pattern scales from prototype analytics to production data platforms. Whether you're running dbt against DuckDB for rapid local iteration or Snowflake for enterprise analytics, Prefect ensures your workflows are reliable, observable, and maintainable.
 #
 # To learn more about orchestrating analytics workflows with Prefect, check out:
-# - [prefect-dbt integration guide](https://docs.prefect.io/integrations/prefect-dbt)
-# - [Task configuration and retries](https://docs.prefect.io/v3/develop/write-tasks#retries)
-# - [Workflow scheduling and deployment](https://docs.prefect.io/v3/deploy/index#workflow-scheduling-and-parametrization)
+# - [prefect-dbt integration guide](https://www.prefect.io/docs/integrations/prefect-dbt)
+# - [Task configuration and retries](https://www.prefect.io/docs/v3/develop/write-tasks#retries)
+# - [Workflow scheduling and deployment](https://www.prefect.io/docs/v3/deploy/index#workflow-scheduling-and-parametrization)

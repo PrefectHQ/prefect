@@ -14,7 +14,7 @@ Manage work pools.
 
 ## Functions
 
-### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool.')])
@@ -37,7 +37,7 @@ $ prefect work-pool create "existing-pool" --base-job-template ./base-job-templa
 ```
 
 
-### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L518" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L519" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ls()
@@ -53,7 +53,7 @@ $ prefect work-pool ls
 ```
 
 
-### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L604" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 inspect(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to inspect.')])
@@ -70,7 +70,7 @@ $ prefect work-pool inspect "my-pool" --output json
 ```
 
 
-### `slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L649" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 slots(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool.')])
@@ -80,7 +80,7 @@ slots(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool.')
 Show concurrency slot utilization for a work pool.
 
 
-### `pause` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L757" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pause` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L758" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to pause.')])
@@ -96,7 +96,7 @@ $ prefect work-pool pause "my-pool"
 ```
 
 
-### `resume` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L787" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resume` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L788" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to resume.')])
@@ -112,7 +112,7 @@ $ prefect work-pool resume "my-pool"
 ```
 
 
-### `update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L817" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L818" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to update.')])
@@ -128,7 +128,7 @@ $ prefect work-pool update "my-pool"
 ```
 
 
-### `provision_infrastructure_cmd` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L887" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `provision_infrastructure_cmd` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision_infrastructure_cmd(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to provision infrastructure for.')])
@@ -145,7 +145,7 @@ $ prefect work-pool provision-infra "my-pool"
 ```
 
 
-### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L960" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L961" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to delete.')])
@@ -161,7 +161,7 @@ $ prefect work-pool delete "my-pool"
 ```
 
 
-### `set_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L994" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L995" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_concurrency_limit(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to update.')], concurrency_limit: Annotated[int, cyclopts.Parameter(help='The new concurrency limit for the work pool.')])
@@ -177,7 +177,7 @@ $ prefect work-pool set-concurrency-limit "my-pool" 10
 ```
 
 
-### `clear_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1029" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `clear_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1030" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 clear_concurrency_limit(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to update.')])
@@ -193,7 +193,7 @@ $ prefect work-pool clear-concurrency-limit "my-pool"
 ```
 
 
-### `get_default_base_job_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1059" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_default_base_job_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1060" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_default_base_job_template()
@@ -209,7 +209,7 @@ $ prefect work-pool get-default-base-job-template --type kubernetes
 ```
 
 
-### `preview` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `preview` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 preview(name: Annotated[Optional[str], cyclopts.Parameter(help='The name or ID of the work pool to preview')] = None)
@@ -225,7 +225,7 @@ $ prefect work-pool preview "my-pool" --hours 24
 ```
 
 
-### `storage_inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `storage_inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 storage_inspect(work_pool_name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to display storage configuration for.')])
@@ -242,7 +242,7 @@ $ prefect work-pool storage inspect "my-pool" --output json
 ```
 
 
-### `storage_configure_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1397" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `storage_configure_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1399" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 storage_configure_s3(work_pool_name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to configure storage for.')])
@@ -258,7 +258,7 @@ $ prefect work-pool storage configure s3 "my-pool" --bucket my-bucket --aws-cred
 ```
 
 
-### `storage_configure_gcs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1539" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `storage_configure_gcs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1541" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 storage_configure_gcs(work_pool_name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to configure storage for.')])
@@ -274,7 +274,7 @@ $ prefect work-pool storage configure gcs "my-pool" --bucket my-bucket --gcp-cre
 ```
 
 
-### `storage_configure_azure_blob_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1687" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `storage_configure_azure_blob_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1689" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 storage_configure_azure_blob_storage(work_pool_name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to configure storage for.')])

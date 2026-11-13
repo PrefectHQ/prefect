@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
+import { queryKeyFactory as flowsQueryKeyFactory } from "@/api/flows";
 import { createFakeDeployment } from "@/mocks/create-fake-deployment";
 import type { Deployment } from "./index";
 import {
@@ -253,6 +254,68 @@ describe("deployments api", () => {
 			);
 			expect(newDeployment).toEqual(mockDeployment);
 		});
+
+		it("invalidates the deployments-count-by-flow query", async () => {
+			const mockDeployment = createFakeDeployment();
+			mockCreateDeploymentAPI(mockDeployment);
+			const queryClient = new QueryClient();
+			const countKey = flowsQueryKeyFactory.deploymentsCount(["flow-1"]);
+			queryClient.setQueryData(countKey, { "flow-1": 0 });
+
+			const { result: useCreateDeploymentResult } = renderHook(
+				useCreateDeployment,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useCreateDeploymentResult.current.createDeployment({
+					enforce_parameter_schema: mockDeployment.enforce_parameter_schema,
+					flow_id: mockDeployment.flow_id,
+					name: mockDeployment.name,
+					paused: mockDeployment.paused,
+				}),
+			);
+
+			await waitFor(() =>
+				expect(useCreateDeploymentResult.current.isSuccess).toBe(true),
+			);
+			expect(queryClient.getQueryState(countKey)?.isInvalidated).toBe(true);
+		});
+
+		it("refreshes cached counts so pagination can reach the new deployment", async () => {
+			const mockDeployment = createFakeDeployment();
+			mockCreateDeploymentAPI(mockDeployment);
+			let count = 0;
+			server.use(
+				http.post(buildApiUrl("/deployments/count"), () =>
+					HttpResponse.json(count),
+				),
+			);
+			const queryClient = new QueryClient();
+
+			const { result: countResult } = renderHook(
+				() =>
+					useQuery(buildCountDeploymentsQuery({ offset: 0, sort: "NAME_ASC" })),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+			await waitFor(() => expect(countResult.current.data).toBe(0));
+			count = 1;
+
+			const { result: createResult } = renderHook(useCreateDeployment, {
+				wrapper: createWrapper({ queryClient }),
+			});
+			act(() =>
+				createResult.current.createDeployment({
+					enforce_parameter_schema: mockDeployment.enforce_parameter_schema,
+					flow_id: mockDeployment.flow_id,
+					name: mockDeployment.name,
+					paused: mockDeployment.paused,
+				}),
+			);
+
+			await waitFor(() => expect(createResult.current.isSuccess).toBe(true));
+			await waitFor(() => expect(countResult.current.data).toBe(1));
+		});
 	});
 
 	describe("useUpdateDeployment", () => {
@@ -323,6 +386,27 @@ describe("deployments api", () => {
 				expect(useDeleteDeploymentResult.current.isSuccess).toBe(true),
 			);
 			expect(useListDeploymentsResult.current.data?.results).toHaveLength(0);
+		});
+
+		it("invalidates the deployments-count-by-flow query", async () => {
+			const mockDeployment = createFakeDeployment();
+			const queryClient = new QueryClient();
+			const countKey = flowsQueryKeyFactory.deploymentsCount(["flow-1"]);
+			queryClient.setQueryData(countKey, { "flow-1": 1 });
+
+			const { result: useDeleteDeploymentResult } = renderHook(
+				useDeleteDeployment,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useDeleteDeploymentResult.current.deleteDeployment(mockDeployment.id),
+			);
+
+			await waitFor(() =>
+				expect(useDeleteDeploymentResult.current.isSuccess).toBe(true),
+			);
+			expect(queryClient.getQueryState(countKey)?.isInvalidated).toBe(true);
 		});
 	});
 

@@ -40,9 +40,11 @@ export function SchemaFormInputObject({
 	currentProps.current = { values, onValuesChange };
 
 	useEffect(() => {
-		if (isOpenObject && nested && !values) {
+		if (isOpenObject && nested) {
 			onValuesChange({
 				__prefect_kind: "json",
+				value:
+					values === undefined ? undefined : JSON.stringify(values, null, 2),
 			});
 		}
 	}, [isOpenObject, nested, values, onValuesChange]);

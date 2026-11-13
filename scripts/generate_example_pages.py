@@ -151,6 +151,7 @@ def extract_front_matter(text: str) -> Frontmatter:
 async def generate_index_page(examples: list[Example]) -> str:
     TOP = textwrap.dedent(f"""---
 title: Overview
+description: Browse runnable Prefect examples, from a first flow to ETL pipelines, dbt orchestration, and AI agents, each with its source code.
 icon: bars
 ---
 

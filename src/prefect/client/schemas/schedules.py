@@ -28,7 +28,8 @@ MAX_RRULE_LENGTH = 6500
 
 def _iana_timezone_name(tzinfo: datetime.tzinfo) -> str:
     """Return a valid IANA timezone name for *tzinfo*, or `"UTC"`."""
-    for attr in ("key", "name"):
+    # zoneinfo exposes `key`, pendulum `name`, pytz `zone`
+    for attr in ("key", "name", "zone"):
         value: Optional[str] = getattr(tzinfo, attr, None)
         if value and is_valid_timezone(value):
             return value

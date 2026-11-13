@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import cyclopts
+from rich.markup import escape
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -18,9 +19,11 @@ import prefect
 import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
+    print_verbatim,
     with_cli_exception_handling,
 )
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
+from prefect.exceptions import ScriptError, exception_traceback
 
 deploy_app: cyclopts.App = cyclopts.App(
     name="deploy",
@@ -134,8 +137,9 @@ async def init(
     except ValueError as exc:
         if "Unknown recipe" in str(exc):
             exit_with_error(
-                f"Unknown recipe {recipe!r} provided - run"
-                " [yellow]`prefect init`[/yellow] to see all available recipes."
+                f"Unknown recipe {escape(repr(recipe))} provided - run"
+                " [yellow]`prefect init`[/yellow] to see all available recipes.",
+                markup=True,
             )
         else:
             raise
@@ -486,5 +490,8 @@ async def deploy(
                 console=_cli.console,
                 is_interactive=_cli.is_interactive,
             )
+    except ScriptError as exc:
+        print_verbatim(exception_traceback(exc.user_exc))
+        exit_with_error(str(exc))
     except ValueError as exc:
         exit_with_error(str(exc))

@@ -15,6 +15,7 @@ import {
 	type PrefectSchemaObject,
 	useSchemaForm,
 } from "@/components/schemas";
+import { removePrefectKindValues } from "@/components/schemas/utilities/removePrefectKindValues";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -179,7 +180,7 @@ const BlockDocumentCreateForm = ({
 					block_schema_id: blockSchemaId,
 					block_type_id: blockTypeId,
 					is_anonymous: false,
-					data: values,
+					data: removePrefectKindValues(values),
 					name: zodFormValues.blockName,
 				},
 				{

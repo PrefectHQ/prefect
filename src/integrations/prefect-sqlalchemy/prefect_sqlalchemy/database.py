@@ -3,6 +3,7 @@
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
 from typing import Annotated, Any, Dict, List, Optional, Tuple, Union
 
+import cloudpickle
 from pydantic import AfterValidator, ConfigDict, Field
 from sqlalchemy import __version__ as SQLALCHEMY_VERSION
 from sqlalchemy.engine import Connection, Engine, create_engine
@@ -13,7 +14,7 @@ from sqlalchemy.sql import text
 from typing_extensions import Literal
 
 from prefect.blocks.abstract import CredentialsBlock, DatabaseBlock
-from prefect.utilities.hashing import hash_objects
+from prefect.utilities.hashing import stable_hash
 from prefect_sqlalchemy.credentials import (
     AsyncDriver,
     ConnectionComponents,
@@ -92,8 +93,8 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
     """
 
     _block_type_name = "SQLAlchemy Connector"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/3c7dff04f70aaf4528e184a3b028f9e40b98d68c-250x250.png"  # type: ignore
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-sqlalchemy"  # type: ignore
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/sqlalchemy.png"  # type: ignore
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-sqlalchemy"  # type: ignore
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     connection_info: Union[ConnectionComponents, DBUrl] = Field(
@@ -293,29 +294,34 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         return result_set
 
     def _get_result_set(
-        self, *execute_args: Tuple[Any], **execute_kwargs: Any
+        self, operation: str, *execute_args: Tuple[Any], **execute_kwargs: Any
     ) -> CursorResult:
         """
         Returns a new or existing result set.
 
         Args:
+            operation: The SQL query or other operation to be executed.
             *execute_args: Args to pass to execute.
             **execute_kwargs: Keyword args to pass to execute.
 
         Returns:
             The result set from the operation.
         """
-        input_hash = hash_objects(*execute_args, **execute_kwargs)
-        assert input_hash is not None, (
-            "We were not able to hash your inputs, "
-            "which resulted in an unexpected data return; "
-            "please open an issue with a reproducible example."
+        # SQLAlchemy initializes shared type caches during execution, so hashing
+        # a TextClause can produce different keys for the same query over time.
+        # Keep pickle's parameter type distinctions (e.g. tuple versus list).
+        input_hash = stable_hash(
+            cloudpickle.dumps(((operation, *execute_args), execute_kwargs))
         )
 
         if input_hash not in self._unique_results.keys():
             connection = self._exit_stack.enter_context(self.get_connection())
             result_set = self._execute(
-                connection, *execute_args, execute_commit=False, **execute_kwargs
+                connection,
+                text(operation),
+                *execute_args,
+                execute_commit=False,
+                **execute_kwargs,
             )
             self._unique_results[input_hash] = result_set
         else:
@@ -406,7 +412,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             ```
         """
         result_set = self._get_result_set(
-            text(operation), parameters, execution_options=execution_options
+            operation, parameters, execution_options=execution_options
         )
         self.logger.debug("Preparing to fetch one row.")
         row = result_set.fetchone()
@@ -462,7 +468,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             ```
         """
         result_set = self._get_result_set(
-            text(operation), parameters, execution_options=execution_options
+            operation, parameters, execution_options=execution_options
         )
         size = size or self.fetch_size
         self.logger.debug(f"Preparing to fetch {size} rows.")
@@ -516,7 +522,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             ```
         """
         result_set = self._get_result_set(
-            text(operation), parameters, execution_options=execution_options
+            operation, parameters, execution_options=execution_options
         )
         self.logger.debug("Preparing to fetch all rows.")
         rows = result_set.fetchall()
@@ -726,8 +732,8 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
     """
 
     _block_type_name = "Async SQLAlchemy Connector"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/3c7dff04f70aaf4528e184a3b028f9e40b98d68c-250x250.png"  # type: ignore
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-sqlalchemy"  # type: ignore
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/sqlalchemy.png"  # type: ignore
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-sqlalchemy"  # type: ignore
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     connection_info: Union[ConnectionComponents, DBUrl] = Field(
@@ -930,23 +936,24 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         return result_set
 
     async def _get_result_set(
-        self, *execute_args: Tuple[Any], **execute_kwargs: Any
+        self, operation: str, *execute_args: Tuple[Any], **execute_kwargs: Any
     ) -> CursorResult:
         """
         Returns a new or existing result set.
 
         Args:
+            operation: The SQL query or other operation to be executed.
             *execute_args: Args to pass to execute.
             **execute_kwargs: Keyword args to pass to execute.
 
         Returns:
             The result set from the operation.
         """
-        input_hash = hash_objects(*execute_args, **execute_kwargs)
-        assert input_hash is not None, (
-            "We were not able to hash your inputs, "
-            "which resulted in an unexpected data return; "
-            "please open an issue with a reproducible example."
+        # SQLAlchemy initializes shared type caches during execution, so hashing
+        # a TextClause can produce different keys for the same query over time.
+        # Keep pickle's parameter type distinctions (e.g. tuple versus list).
+        input_hash = stable_hash(
+            cloudpickle.dumps(((operation, *execute_args), execute_kwargs))
         )
 
         if input_hash not in self._unique_results.keys():
@@ -954,7 +961,11 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
                 self.get_connection()
             )
             result_set = await self._execute(
-                connection, *execute_args, execute_commit=False, **execute_kwargs
+                connection,
+                text(operation),
+                *execute_args,
+                execute_commit=False,
+                **execute_kwargs,
             )
             self._unique_results[input_hash] = result_set
         else:
@@ -1053,7 +1064,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             ```
         """
         result_set = await self._get_result_set(
-            text(operation), parameters, execution_options=execution_options
+            operation, parameters, execution_options=execution_options
         )
         self.logger.debug("Preparing to fetch one row.")
         row = result_set.fetchone()
@@ -1113,7 +1124,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             ```
         """
         result_set = await self._get_result_set(
-            text(operation), parameters, execution_options=execution_options
+            operation, parameters, execution_options=execution_options
         )
         size = size or self.fetch_size
         self.logger.debug(f"Preparing to fetch {size} rows.")
@@ -1171,7 +1182,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             ```
         """
         result_set = await self._get_result_set(
-            text(operation), parameters, execution_options=execution_options
+            operation, parameters, execution_options=execution_options
         )
         self.logger.debug("Preparing to fetch all rows.")
         rows = result_set.fetchall()

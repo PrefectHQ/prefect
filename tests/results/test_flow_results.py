@@ -175,6 +175,28 @@ async def test_flow_result_serializer(serializer, prefect_client):
     await assert_uses_result_serializer(api_state, serializer, prefect_client)
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        {"data": [1, 2, 3], "total": 3},
+        {"result": 5, "status": "ok"},
+        {"data": "hello"},
+    ],
+)
+async def test_flow_json_result_with_record_like_keys(value, prefect_client):
+    @flow(result_serializer="json", persist_result=True)
+    def foo():
+        return value
+
+    state = foo(return_state=True)
+    assert await state.result() == value
+
+    api_state = (
+        await prefect_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    assert await api_state.result() == value
+
+
 async def test_flow_result_storage_by_instance(prefect_client):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
     await storage.save(f"test-storage-{uuid.uuid4()}")

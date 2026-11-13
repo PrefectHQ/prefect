@@ -20,3 +20,39 @@ export const mockPointerEvents = () => {
 	window.HTMLElement.prototype.releasePointerCapture = vi.fn();
 	window.HTMLElement.prototype.hasPointerCapture = vi.fn();
 };
+
+/**
+ * The global localStorage mock discards writes. Call this to back it with
+ * memory for a test that reads back what it stored, and call the returned
+ * function afterwards to restore the no-op behavior.
+ */
+export const mockInMemoryLocalStorage = () => {
+	const items = new Map<string, string>();
+	const spies = [
+		vi
+			.spyOn(localStorage, "getItem")
+			.mockImplementation((key) => items.get(key) ?? null),
+		vi.spyOn(localStorage, "setItem").mockImplementation((key, value) => {
+			items.set(key, value);
+		}),
+		vi.spyOn(localStorage, "removeItem").mockImplementation((key) => {
+			items.delete(key);
+		}),
+	];
+	return () => {
+		for (const spy of spies) {
+			spy.mockReset();
+		}
+	};
+};
+
+/**
+ * Stubs the time zone reported by `Intl.DateTimeFormat().resolvedOptions()`.
+ * Call `vi.restoreAllMocks()` afterwards to restore it.
+ */
+export const mockBrowserTimezone = (timeZone: string | undefined) => {
+	const options = new Intl.DateTimeFormat().resolvedOptions();
+	return vi
+		.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+		.mockReturnValue(Object.assign(options, { timeZone }));
+};

@@ -328,6 +328,15 @@
         "DeploymentsSettings": {
             "description": "Settings for configuring deployments defaults",
             "properties": {
+                "clear_schedules_on_empty": {
+                    "default": false,
+                    "description": "Clear existing schedules when an empty schedules list is passed to RunnerDeployment.apply or aapply, including via prefect deploy. This opt-in setting will be removed when clearing becomes the default, after a deprecation period of at least six months or three minor releases, whichever is longer.",
+                    "supported_environment_variables": [
+                        "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY"
+                    ],
+                    "title": "Clear Schedules On Empty",
+                    "type": "boolean"
+                },
                 "default_work_pool_name": {
                     "anyOf": [
                         {
@@ -1519,7 +1528,7 @@
                 },
                 "url": {
                     "default": "memory://",
-                    "description": "The URL of the Redis server to use for Docket.",
+                    "description": "The URL of the Redis server to use for Docket. Supports the memory:// (single-server only), redis://, rediss://, redis+sentinel:// and rediss+sentinel:// schemes; the Sentinel schemes discover the current master through the listed Sentinel daemons and follow failover automatically (requires pydocket>=0.23.1).",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DOCKET_URL"
                     ],

@@ -47,7 +47,7 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         )
 
         self._apprise_client = Apprise(asset=prefect_app_data)
-        self._apprise_client.add(servers=url.get_secret_value())  # pyright: ignore[reportUnknownMemberType]
+        self._apprise_client.add(url.get_secret_value())  # pyright: ignore[reportUnknownMemberType]
 
     def block_initialization(self) -> None:
         self._start_apprise_client(getattr(self, "url"))
@@ -104,7 +104,7 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
     """
 
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
     url: SecretStr = Field(
         default=...,
@@ -170,10 +170,10 @@ class SlackWebhook(AppriseNotificationBlock):
 
     _block_type_name = "Slack Webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/c1965ecbf8704ee1ea20d77786de9a41ce1087d1-500x500.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/slack.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     url: SecretStr = Field(
@@ -267,10 +267,10 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     _block_type_name = "Microsoft Teams Webhook"
     _block_type_slug = "ms-teams-webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/817efe008a57f0a24f3587414714b563e5e23658-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-teams.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     url: SecretStr = Field(
@@ -329,10 +329,10 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     _block_type_name = "Pager Duty Webhook"
     _block_type_slug = "pager-duty-webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/8dbf37d17089c1ce531708eac2e510801f7b3aee-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/pagerduty.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     # PagerDuty requires a valid severity level from its PAGERDUTY_SEVERITY_MAP
@@ -485,10 +485,10 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     _block_type_name = "Twilio SMS"
     _block_type_slug = "twilio-sms"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/8bd8777999f82112c09b9c8d57083ac75a4a0d65-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/twilio.png"
     )  # noqa
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     account_sid: str = Field(
@@ -560,10 +560,10 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     _block_type_name = "Opsgenie Webhook"
     _block_type_slug = "opsgenie-webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/d8b5bc6244ae6cd83b62ec42f10d96e14d6e9113-280x280.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/opsgenie.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     apikey: SecretStr = Field(
@@ -685,10 +685,10 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     _block_type_name = "Mattermost Webhook"
     _block_type_slug = "mattermost-webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/1350a147130bf82cbc799a5f868d2c0116207736-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/mattermost.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     hostname: str = Field(
@@ -751,6 +751,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
             token=self.token.get_secret_value(),
             fullpath=self.path,
             host=self.hostname,
+            user=self.botname,
             targets=self.channels,
             include_image=self.include_image,
             port=self.port,
@@ -786,10 +787,10 @@ class DiscordWebhook(AbstractAppriseNotificationBlock):
     _block_type_name = "Discord Webhook"
     _block_type_slug = "discord-webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/9e94976c80ef925b66d24e5d14f0d47baa6b8f88-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/discord.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     webhook_id: SecretStr = Field(
@@ -891,10 +892,10 @@ class CustomWebhookNotificationBlock(NotificationBlock):
 
     _block_type_name = "Custom Webhook"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/c7247cb359eb6cf276734d4b1fbf00fb8930e89e-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/webhook.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     name: str = Field(title="Name", description="Name of the webhook.")
@@ -1061,10 +1062,10 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     _block_type_name = "Sendgrid Email"
     _block_type_slug = "sendgrid-email"
     _logo_url = HttpUrl(
-        "https://cdn.sanity.io/images/3ugk85nk/production/82bc6ed16ca42a2252a5512c72233a253b8a58eb-250x250.png"
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/email.png"
     )
     _documentation_url = HttpUrl(
-        "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+        "https://www.prefect.io/docs/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
     api_key: SecretStr = Field(
@@ -1114,9 +1115,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
         """Update apprise client with current to_emails before sending."""
         if hasattr(self, "_apprise_client") and self._apprise_client:
             self._apprise_client.clear()
-            self._apprise_client.add(
-                servers=self._build_sendgrid_url().get_secret_value()
-            )
+            self._apprise_client.add(self._build_sendgrid_url().get_secret_value())
 
     async def anotify(
         self,

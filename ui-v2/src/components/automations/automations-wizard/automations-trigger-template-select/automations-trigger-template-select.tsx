@@ -38,7 +38,13 @@ export const AutomationsTriggerTemplateSelect = ({
 			<Label htmlFor="automations-trigger-template-select">
 				Trigger Template
 			</Label>
-			<Select value={value} onValueChange={onValueChange}>
+			<Select
+				value={value}
+				onValueChange={(value) => {
+					if (Object.hasOwn(TEMPLATE_TRIGGERS, value))
+						onValueChange(value as TemplateTriggers);
+				}}
+			>
 				<SelectTrigger
 					id="automations-trigger-template-select"
 					className="w-full"

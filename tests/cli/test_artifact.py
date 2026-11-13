@@ -1,10 +1,15 @@
+import datetime
+import json
 import sys
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
 
+import prefect.types._datetime
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import Artifact
+from prefect.settings import PREFECT_CLI_WRAP_LINES, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
 pytestmark = pytest.mark.clear_db
@@ -30,6 +35,32 @@ def interactive_console(monkeypatch: pytest.MonkeyPatch):
         return sys.stdin.read(1)
 
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
+
+
+@pytest.fixture
+def rendered_updated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[datetime.datetime | None, str]]:
+    """
+    Record each `(timestamp, text)` that `human_friendly_diff` renders.
+
+    `artifact ls` renders `updated` relative to the wall clock at render time, so
+    asserting a fixed string like "now" is flaky when the CLI is slow under load.
+    """
+    rendered: list[tuple[datetime.datetime | None, str]] = []
+    original = prefect.types._datetime.human_friendly_diff
+
+    def recording_human_friendly_diff(
+        dt: datetime.datetime | None, other: datetime.datetime | None = None
+    ) -> str:
+        text = original(dt, other)
+        rendered.append((dt, text))
+        return text
+
+    monkeypatch.setattr(
+        prefect.types._datetime, "human_friendly_diff", recording_human_friendly_diff
+    )
+    return rendered
 
 
 @pytest.fixture
@@ -99,38 +130,42 @@ def test_listing_artifacts_when_none_exist():
 
 def test_listing_artifacts_after_creating_artifacts(
     artifact: models.artifacts.Artifact,
+    rendered_updated: list[tuple[datetime.datetime | None, str]],
 ):
     assert artifact.id is not None, "artifact id should not be None"
     assert artifact.key is not None, "artifact key should not be None"
     assert artifact.updated is not None, "artifact updated should not be None"
 
-    invoke_and_assert(
+    result = invoke_and_assert(
         ["artifact", "ls"],
         expected_output_contains=[
             str(artifact.id),
             str(artifact.key),
             str(artifact.type),
-            "a few seconds ago" if sys.version_info < (3, 13) else "now",
         ],
     )
+    assert [dt for dt, _ in rendered_updated] == [artifact.updated]
+    assert rendered_updated[0][1] in result.stdout
 
 
 def test_listing_artifacts_after_creating_artifacts_with_null_fields(
     artifact_null_field: models.artifacts.Artifact,
+    rendered_updated: list[tuple[datetime.datetime | None, str]],
 ):
     artifact = artifact_null_field
     assert artifact.id is not None, "artifact id should not be None"
     assert artifact.key is not None, "artifact key should not be None"
     assert artifact.updated is not None, "artifact updated should not be None"
 
-    invoke_and_assert(
+    result = invoke_and_assert(
         ["artifact", "ls"],
         expected_output_contains=[
             str(artifact.id),
             str(artifact.key),
-            "a few seconds ago" if sys.version_info < (3, 13) else "now",
         ],
     )
+    assert [dt for dt, _ in rendered_updated] == [artifact.updated]
+    assert rendered_updated[0][1] in result.stdout
 
 
 def test_listing_artifacts_with_limit(
@@ -466,3 +501,59 @@ def test_deleting_artifact_without_key_or_id_raises(
         expected_output_contains="Please provide a key or an artifact_id.",
         expected_code=1,
     )
+
+
+@pytest.fixture
+async def literal_artifact(
+    request: pytest.FixtureRequest, session: "AsyncSession"
+) -> Artifact:
+    artifact = await models.artifacts.create_artifact(
+        session=session,
+        artifact=schemas.core.Artifact(
+            key="literal-artifact",
+            type="markdown",
+            data=request.param[0],
+            description=request.param[1],
+            metadata_=request.param[2],
+        ),
+    )
+    await session.commit()
+    return artifact
+
+
+@pytest.mark.parametrize(
+    "literal_artifact",
+    [
+        ("[red]literal[/red]", "description", {"note": "metadata"}),
+        (":smile:", "description", {"note": "metadata"}),
+        ("literal [/unexpected]", "description", {"note": "metadata"}),
+        (
+            {"nested": ["[bold]value[/bold]", ":warning:"]},
+            "description",
+            {"note": "metadata"},
+        ),
+        ("x" * 600, "description", {"note": "metadata"}),
+        ('café 日本語\n\t"\\', "description", {"note": "metadata"}),
+        (
+            "plain",
+            "[bold]description[/bold] :smile:",
+            {"note": "[red]metadata[/red] :warning:"},
+        ),
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize(
+    "command", [["ls"], ["ls", "--all"], ["inspect", "literal-artifact"]]
+)
+def test_artifact_json_preserves_literal_content(
+    literal_artifact: Artifact, command: list[str]
+):
+    with temporary_settings(updates={PREFECT_CLI_WRAP_LINES: True}):
+        result = invoke_and_assert(
+            ["artifact", *command, "--output", "json"], expected_code=0
+        )
+    output = json.loads(result.stdout)
+    assert len(output) == 1
+    assert output[0]["data"] == literal_artifact.data
+    assert output[0]["description"] == literal_artifact.description
+    assert output[0]["metadata_"] == literal_artifact.metadata_

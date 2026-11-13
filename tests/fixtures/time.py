@@ -10,6 +10,18 @@ import pytest
 import prefect.types._datetime
 
 
+def _in_timezone(
+    dt: datetime.datetime, tz: ZoneInfo | str
+) -> prefect.types._datetime.DateTime | datetime.datetime:
+    # On Python 3.12 and earlier, pendulum drops a plain ZoneInfo tzinfo on
+    # arithmetic, so `now("UTC") - delta` would come back naive.  Converting
+    # through `create_datetime_instance` gives pendulum's own timezone there,
+    # the same kind of object the real `now(tz)` returns.
+    return prefect.types._datetime.create_datetime_instance(
+        dt.astimezone(ZoneInfo(getattr(tz, "name", tz)))
+    )
+
+
 @pytest.fixture
 def frozen_time(
     monkeypatch: pytest.MonkeyPatch,
@@ -20,7 +32,7 @@ def frozen_time(
         if tz is None:
             return frozen
         else:
-            return frozen.astimezone(tz=ZoneInfo(getattr(tz, "name", tz)))
+            return _in_timezone(frozen, tz)
 
     monkeypatch.setattr(prefect.types._datetime, "now", frozen_time)
     return frozen
@@ -45,7 +57,7 @@ def advance_time(
         if tz is None:
             return clock
         else:
-            return clock.astimezone(ZoneInfo(getattr(tz, "name", tz)))
+            return _in_timezone(clock, tz)
 
     monkeypatch.setattr(prefect.types._datetime, "now", nowish)
 

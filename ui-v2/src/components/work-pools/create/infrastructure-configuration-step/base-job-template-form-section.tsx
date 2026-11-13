@@ -4,6 +4,7 @@ import { useSchemaFormValues } from "@/components/schemas/hooks/useSchemaValues"
 import { SchemaForm } from "@/components/schemas/schema-form";
 import type { PrefectSchemaObject } from "@/components/schemas/types/schemas";
 import type { SchemaFormValues } from "@/components/schemas/types/values";
+import { removePrefectKindValues } from "@/components/schemas/utilities/removePrefectKindValues";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import type { JsonInputOnChange } from "@/components/ui/json-input";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
@@ -58,6 +59,8 @@ export function BaseJobTemplateFormSection({
 
 			if (!variablesSchema?.properties) return;
 
+			const defaults = removePrefectKindValues(values);
+
 			// Update the base job template with new default values
 			const newTemplate: WorkerBaseJobTemplate = {
 				...baseJobTemplate,
@@ -69,7 +72,7 @@ export function BaseJobTemplateFormSection({
 								key,
 								{
 									...property,
-									default: values[key],
+									default: defaults[key],
 								},
 							],
 						),

@@ -14,6 +14,7 @@ from . import (
     flow_runs,
     flows,
     logs,
+    observed_states,
     saved_searches,
     storage_defaults,
     task_run_states,

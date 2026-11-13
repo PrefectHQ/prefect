@@ -322,6 +322,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return orm_models.AutomationBucket
 
     @property
+    def AutomationHeldEvent(self) -> type[orm_models.AutomationHeldEvent]:
+        """An `expect` event held for an automation bucket that opens later"""
+        return orm_models.AutomationHeldEvent
+
+    @property
     def AutomationRelatedResource(self) -> type[orm_models.AutomationRelatedResource]:
         """An automation related resource model"""
         return orm_models.AutomationRelatedResource

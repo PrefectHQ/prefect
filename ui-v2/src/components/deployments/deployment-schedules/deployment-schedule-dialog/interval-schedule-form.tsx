@@ -83,7 +83,7 @@ const parseIntervalToTime = (
 	}
 
 	return {
-		interval_value: remainingSeconds,
+		interval_value: intervalSeconds,
 		interval_time: "seconds",
 	} as const;
 };
@@ -306,13 +306,13 @@ export const IntervalScheduleForm = ({
 							control={form.control}
 							name="schedule.interval_time"
 							render={({ field }) => {
-								// nb: There's a select bug with shadcn that resets the value to "". For now, just have the users re-enter time interval
 								return (
 									<FormItem>
 										<FormLabel>Interval</FormLabel>
 										<Select
-											onValueChange={field.onChange}
-											defaultValue={field.value}
+											onValueChange={(value) => {
+												if (value) field.onChange(value);
+											}}
 											value={field.value}
 										>
 											<FormControl>

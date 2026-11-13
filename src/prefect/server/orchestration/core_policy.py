@@ -272,6 +272,7 @@ class MinimalFlowPolicy(FlowRunOrchestrationPolicy):
         ]
     ]:
         return [
+            PreserveDeploymentConcurrencyLeaseId,
             PreventResultDataLoss,
             BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
             InstrumentFlowRunStateTransitions,
@@ -1428,10 +1429,23 @@ class HandlePausingFlows(FlowRunOrchestrationRule):
         updated_policy["pause_keys"].add(self.key)
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
+        # The pause key has not fired on this attempt, so any input stored under
+        # its keyset belongs to an earlier attempt and must not be reused.
+        run_input_keyset = (
+            validated_state.state_details.run_input_keyset
+            if validated_state is not None
+            else None
+        )
+        if run_input_keyset:
+            for key in run_input_keyset.values():
+                await models.flow_run_input.delete_flow_run_input(
+                    session=context.session, flow_run_id=context.run.id, key=key
+                )
+
 
 class HandleResumingPausedFlows(FlowRunOrchestrationRule):
     """
-    Governs runs attempting to leave a Paused state
+    Governs runs attempting to leave a Paused state.
     """
 
     FROM_STATES = {StateType.PAUSED}
@@ -1451,6 +1465,7 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
             and (
                 proposed_state.is_running()
                 or proposed_state.is_scheduled()
+                or proposed_state.is_cancelling()
                 or proposed_state.is_final()
             )
         ):
@@ -1481,6 +1496,12 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
                     ),
                 )
                 return
+
+        if proposed_state.is_cancelling():
+            # A blocking pause keeps the process alive; cancellation must still
+            # reach the worker even after the pause deadline has elapsed.
+            return
+
         pause_timeout = initial_state.state_details.pause_timeout
         if pause_timeout and pause_timeout < now("UTC"):
             pause_timeout_failure = states.Failed(
@@ -1499,7 +1520,32 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         updated_policy = context.run.empirical_policy.model_dump()
-        updated_policy["resuming"] = True
+
+        api_version = context.parameters.get("api-version", None)
+        if (
+            initial_state is not None
+            and not initial_state.state_details.pause_reschedule
+            and validated_state is not None
+            and validated_state.is_scheduled()
+            and (api_version is None or api_version >= Version("0.8.4"))
+        ):
+            # A blocking pause is resumed in-process, so leaving it for a
+            # scheduled state means the run will start a new attempt from the
+            # beginning (e.g. the process was terminated and rescheduled).
+            # Reset pause metadata so that pauses fire again on the new attempt.
+            # Reschedule-style pauses keep their keys so already-fired pauses
+            # are skipped when the run resumes from the top.
+            updated_policy["resuming"] = False
+            updated_policy["pause_keys"] = set()
+            updated_policy["retry_type"] = "reschedule"
+        elif validated_state is not None and validated_state.is_scheduled():
+            # The run resumes from the top in a new process; the flag tells
+            # `IncrementFlowRunCount` that its next `Running` state continues
+            # the current attempt. A blocking pause resumed with `Running` is
+            # handled there directly, and leaving the flag set on any other
+            # state would make the next attempt skip its run count increment.
+            updated_policy["resuming"] = True
+
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
 

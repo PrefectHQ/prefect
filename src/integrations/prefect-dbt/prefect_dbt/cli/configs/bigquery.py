@@ -1,6 +1,6 @@
 """Module containing models for BigQuery configs"""
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 try:
     from typing import Literal
@@ -56,18 +56,18 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
     _block_type_name = "dbt CLI BigQuery Target Configs"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
     _description = "dbt CLI target configs containing credentials and settings, specific to BigQuery."  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-dbt"  # noqa
 
     type: Literal["bigquery"] = Field(
         default="bigquery", description="The type of target."
     )
-    project: Optional[str] = Field(default=None, description="The project to use.")
+    project: str | None = Field(default=None, description="The project to use.")
     credentials: GcpCredentials = Field(
         default_factory=GcpCredentials,
         description="The credentials to use to authenticate.",
     )
 
-    def get_configs(self) -> Dict[str, Any]:
+    def get_configs(self) -> dict[str, Any]:
         """
         Returns the dbt configs specific to BigQuery profile.
 

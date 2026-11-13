@@ -42,6 +42,7 @@ from .actions import (
     PauseAutomation,
     ResumeAutomation,
     DeclareIncident,
+    UnknownAction,
 )
 from .clients import get_events_client, get_events_subscriber
 from .subscribers import FlowRunSubscriber
@@ -90,6 +91,7 @@ __all__ = [
     "PauseAutomation",
     "ResumeAutomation",
     "DeclareIncident",
+    "UnknownAction",
     "emit_event",
     "get_events_client",
     "get_events_subscriber",

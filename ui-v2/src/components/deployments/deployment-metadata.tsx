@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback } from "react";
 import type { Deployment } from "@/api/deployments";
+import { FormattedDate } from "@/components/ui/formatted-date";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { cn } from "@/utils";
@@ -21,6 +22,7 @@ const FieldValue = ({
 	className?: string;
 	children: React.ReactNode;
 }) => <dd className={cn("text-sm", className)}>{children}</dd>;
+
 export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 	const navigate = useNavigate();
 
@@ -47,7 +49,9 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 			field: "Created",
 			ComponentValue: () =>
 				deployment.created ? (
-					<FieldValue className="font-mono">{deployment.created}</FieldValue>
+					<FieldValue>
+						<FormattedDate date={deployment.created} format="absolute" />
+					</FieldValue>
 				) : (
 					<None />
 				),
@@ -56,7 +60,9 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 			field: "Updated",
 			ComponentValue: () =>
 				deployment.updated ? (
-					<FieldValue className="font-mono">{deployment.updated}</FieldValue>
+					<FieldValue>
+						<FormattedDate date={deployment.updated} format="absolute" />
+					</FieldValue>
 				) : (
 					<None />
 				),

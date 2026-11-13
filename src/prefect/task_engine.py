@@ -16,6 +16,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    Awaitable,
     Callable,
     Coroutine,
     Generator,
@@ -227,7 +228,21 @@ def _create_task_run_locally(
 
 
 class TaskRunTimeoutError(TimeoutError):
-    """Raised when a task run exceeds its timeout."""
+    """Raised when a task exceeds its configured timeout."""
+
+
+class _GeneratorFinalizerError(Exception):
+    """Internal: a generator task's finalizer raised while the consumer closed it.
+
+    Wrapping the error lets the transaction contexts unwind with an exception
+    (running rollback instead of committing a staged transaction) while the run
+    contexts skip their retry handling; the wrapped error is unwrapped and
+    raised to the consumer before the generator engine returns.
+    """
+
+    def __init__(self, cause: BaseException) -> None:
+        super().__init__(cause)
+        self.cause = cause
 
 
 @dataclass
@@ -444,8 +459,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State[R]], bool]
         ] = self.task.retry_condition_fn
 
-        failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
-
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
@@ -453,16 +466,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 f"Running `retry_condition_fn` check {retry_condition!r} for task"
                 f" {self.task.name!r}"
             )
-            state = Failed(
-                data=exc_or_state,
-                message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
-            )
-            if inspect.iscoroutinefunction(retry_condition):
-                should_retry = run_coro_as_sync(
-                    retry_condition(self.task, self.task_run, state)
+            state = (
+                exc_or_state
+                if isinstance(exc_or_state, State)
+                else Failed(
+                    data=exc_or_state,
+                    message=f"Task run encountered unexpected exception: {repr(exc_or_state)}",
                 )
-            elif inspect.isfunction(retry_condition):
+            )
+            if callable(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
+                if inspect.isawaitable(should_retry):
+
+                    async def await_retry_condition(result: Awaitable[bool]) -> bool:
+                        return await result
+
+                    should_retry = run_coro_as_sync(await_retry_condition(should_retry))
             else:
                 should_retry = not retry_condition
             return should_retry
@@ -626,6 +645,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # which case we should retry the task if it has retries left.
         if isinstance(result, State) and result.is_failed():
             if self.handle_retry(result):
+                transaction.write_on_commit = False
                 return None
 
         if self.task.cache_expiration is not None:
@@ -640,22 +660,49 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             expiration=expiration,
         )
 
+        if terminal_state.is_failed():
+            if (
+                isinstance(terminal_state.data, ResultRecord)
+                and not terminal_state.data.is_persisted
+            ):
+                # Match raised failures: retain the result without populating the cache key.
+                result_store = get_result_store()
+                failure_record = result_store.create_result_record(
+                    terminal_state.data.result, key=str(uuid4()), expiration=expiration
+                )
+                terminal_state.data = failure_record
+                if transaction.write_on_commit:
+                    try:
+                        result_store.persist_result_record(failure_record)
+                    except Exception as exc:
+                        self.logger.warning(
+                            "Failed to write result: %s Execution will continue, but the result has not been written",
+                            exc,
+                        )
+            transaction.write_on_commit = False
+
         # Avoid logging when running this rollback hook since it is not user-defined
         handle_rollback = partial(self.handle_rollback)
         handle_rollback.log_on_run = False
 
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
+            on_rollback_hooks=([] if terminal_state.is_failed() else [handle_rollback])
+            + self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
-        if transaction.is_committed():
+        if terminal_state.is_failed():
+            transaction.rollback()
+        elif transaction.is_committed():
             terminal_state.name = "Cached"
 
         self.set_state(terminal_state)
         self._return_value = result
 
-        self._telemetry.end_span_on_success()
+        if terminal_state.is_failed():
+            self._telemetry.end_span_on_failure(terminal_state.message)
+        else:
+            self._telemetry.end_span_on_success()
 
     def handle_retry(self, exc_or_state: Exception | State[R]) -> bool:
         """Handle any task run retries.
@@ -674,6 +721,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     if isinstance(self.task.retry_delay_seconds, Sequence)
                     else self.task.retry_delay_seconds
                 )
+                if self.task.retry_jitter_factor and delay > 0:
+                    delay = clamped_poisson_interval(
+                        delay, clamping_factor=self.task.retry_jitter_factor
+                    )
                 new_state = AwaitingRetry(
                     scheduled_time=prefect.types._datetime.now("UTC")
                     + timedelta(seconds=delay)
@@ -721,7 +772,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exc,
                 message="Task run encountered an exception",
                 result_store=get_result_store(),
-                write_result=True,
+                write_result=should_persist_result(),
             )
             self.set_state(state)
             self._raised = exc
@@ -1004,7 +1055,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         "requests, or file I/O. The timeout will only take effect after "
                         "the blocking operation completes. Consider using an async task "
                         "with `await` statements for reliable timeout behavior. "
-                        "See https://docs.prefect.io/v3/how-to-guides/workflows/"
+                        "See https://www.prefect.io/docs/v3/how-to-guides/workflows/"
                         "write-and-run#task-timeout-behavior for more information.",
                         self.task.timeout_seconds,
                     )
@@ -1021,6 +1072,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     yield self
             except TimeoutError as exc:
                 self.handle_timeout(exc)
+            except _GeneratorFinalizerError:
+                # A generator task's finalizer failed while the consumer closed
+                # it; not a retryable task failure, so re-raise unchanged.
+                raise
             except Exception as exc:
                 self.handle_exception(exc)
 
@@ -1056,8 +1111,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State[R]], bool]
         ] = self.task.retry_condition_fn
 
-        failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
-
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
@@ -1065,14 +1118,18 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 f"Running `retry_condition_fn` check {retry_condition!r} for task"
                 f" {self.task.name!r}"
             )
-            state = Failed(
-                data=exc_or_state,
-                message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
+            state = (
+                exc_or_state
+                if isinstance(exc_or_state, State)
+                else Failed(
+                    data=exc_or_state,
+                    message=f"Task run encountered unexpected exception: {repr(exc_or_state)}",
+                )
             )
-            if inspect.iscoroutinefunction(retry_condition):
-                should_retry = await retry_condition(self.task, self.task_run, state)
-            elif inspect.isfunction(retry_condition):
+            if callable(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
+                if inspect.isawaitable(should_retry):
+                    should_retry = await should_retry
             else:
                 should_retry = not retry_condition
             return should_retry
@@ -1251,6 +1308,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     ) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]:
         if isinstance(result, State) and result.is_failed():
             if await self.handle_retry(result):
+                transaction.write_on_commit = False
                 return None
 
         if self.task.cache_expiration is not None:
@@ -1265,21 +1323,48 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             expiration=expiration,
         )
 
+        if terminal_state.is_failed():
+            if (
+                isinstance(terminal_state.data, ResultRecord)
+                and not terminal_state.data.is_persisted
+            ):
+                # Match raised failures: retain the result without populating the cache key.
+                result_store = get_result_store()
+                failure_record = result_store.create_result_record(
+                    terminal_state.data.result, key=str(uuid4()), expiration=expiration
+                )
+                terminal_state.data = failure_record
+                if transaction.write_on_commit:
+                    try:
+                        await result_store.apersist_result_record(failure_record)
+                    except Exception as exc:
+                        self.logger.warning(
+                            "Failed to write result: %s Execution will continue, but the result has not been written",
+                            exc,
+                        )
+            transaction.write_on_commit = False
+
         # Avoid logging when running this rollback hook since it is not user-defined
         handle_rollback = partial(self.handle_rollback)
         handle_rollback.log_on_run = False
 
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
+            on_rollback_hooks=([] if terminal_state.is_failed() else [handle_rollback])
+            + self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
-        if transaction.is_committed():
+        if terminal_state.is_failed():
+            await transaction.rollback()
+        elif transaction.is_committed():
             terminal_state.name = "Cached"
 
         await self.set_state(terminal_state)
         self._return_value = result
-        self._telemetry.end_span_on_success()
+        if terminal_state.is_failed():
+            self._telemetry.end_span_on_failure(terminal_state.message)
+        else:
+            self._telemetry.end_span_on_success()
 
         return result
 
@@ -1301,6 +1386,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     if isinstance(self.task.retry_delay_seconds, Sequence)
                     else self.task.retry_delay_seconds
                 )
+                if self.task.retry_jitter_factor and delay > 0:
+                    delay = clamped_poisson_interval(
+                        delay, clamping_factor=self.task.retry_jitter_factor
+                    )
                 new_state = AwaitingRetry(
                     scheduled_time=prefect.types._datetime.now("UTC")
                     + timedelta(seconds=delay)
@@ -1348,6 +1437,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exc,
                 message="Task run encountered an exception",
                 result_store=get_result_store(),
+                write_result=should_persist_result(),
             )
             await self.set_state(state)
             self._raised = exc
@@ -1635,6 +1725,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     yield self
             except TimeoutError as exc:
                 await self.handle_timeout(exc)
+            except _GeneratorFinalizerError:
+                # A generator task's finalizer failed while the consumer closed
+                # it; not a retryable task failure, so re-raise unchanged.
+                raise
             except Exception as exc:
                 await self.handle_exception(exc)
 
@@ -1739,43 +1833,60 @@ def run_generator_task_sync(
         context=context,
     )
 
-    with engine.start(task_run_id=task_run_id, dependencies=dependencies):
-        while engine.is_running():
-            engine.wait_until_ready()
-            with (
-                engine.asset_context(),
-                engine.run_context(),
-                engine.transaction_context() as txn,
-            ):
-                # TODO: generators should default to commit_mode=OFF
-                # because they are dynamic by definition
-                # for now we just prevent this branch explicitly
-                if False and txn.is_committed():
-                    txn.read()
-                else:
-                    call_args, call_kwargs = parameters_to_args_kwargs(
-                        task.fn, engine.parameters or {}
-                    )
-                    gen = task.fn(*call_args, **call_kwargs)
-                    try:
-                        while True:
-                            gen_result = next(gen)
-                            # link the current state to the result for dependency tracking
-                            #
-                            # TODO: this could grow the task_run_result
-                            # dictionary in an unbounded way, so finding a
-                            # way to periodically clean it up (using
-                            # weakrefs or similar) would be good
-                            link_state_to_task_run_result(engine.state, gen_result)
-                            raise_if_flow_run_suspension_requested()
-                            yield gen_result
-                    except StopIteration as exc:
-                        engine.handle_success(exc.value, transaction=txn)
-                    except GeneratorExit as exc:
-                        engine.handle_success(None, transaction=txn)
-                        gen.throw(exc)
-            raise_if_flow_run_suspension_requested()
+    try:
+        with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+            while engine.is_running():
+                engine.wait_until_ready()
+                with (
+                    engine.asset_context(),
+                    engine.run_context(),
+                    engine.transaction_context() as txn,
+                ):
+                    # TODO: generators should default to commit_mode=OFF
+                    # because they are dynamic by definition
+                    # for now we just prevent this branch explicitly
+                    if False and txn.is_committed():
+                        txn.read()
+                    else:
+                        call_args, call_kwargs = parameters_to_args_kwargs(
+                            task.fn, engine.parameters or {}
+                        )
+                        gen = task.fn(*call_args, **call_kwargs)
+                        try:
+                            while True:
+                                gen_result = next(gen)
+                                # link the current state to the result for dependency tracking
+                                #
+                                # TODO: this could grow the task_run_result
+                                # dictionary in an unbounded way, so finding a
+                                # way to periodically clean it up (using
+                                # weakrefs or similar) would be good
+                                link_state_to_task_run_result(engine.state, gen_result)
+                                raise_if_flow_run_suspension_requested()
+                                yield gen_result
+                        except StopIteration as exc:
+                            engine.handle_success(exc.value, transaction=txn)
+                        except GeneratorExit as exc:
+                            engine.handle_success(None, transaction=txn)
+                            try:
+                                gen.throw(exc)
+                            except StopIteration:
+                                # the generator suppressed GeneratorExit and
+                                # returned; treat that as a successful close
+                                pass
+                            except Exception as close_exc:
+                                raise _GeneratorFinalizerError(close_exc) from close_exc
+                            else:
+                                # the generator yielded while handling
+                                # GeneratorExit; a plain generator's close
+                                # rejects that
+                                raise _GeneratorFinalizerError(
+                                    RuntimeError("generator ignored GeneratorExit")
+                                )
+                raise_if_flow_run_suspension_requested()
 
+    except _GeneratorFinalizerError as wrapper:
+        raise wrapper.cause
     return engine.result()
 
 
@@ -1799,43 +1910,70 @@ async def run_generator_task_async(
         context=context,
     )
 
-    async with engine.start(task_run_id=task_run_id, dependencies=dependencies):
-        while engine.is_running():
-            await engine.wait_until_ready()
-            async with (
-                engine.asset_context(),
-                engine.run_context(),
-                engine.transaction_context() as txn,
-            ):
-                # TODO: generators should default to commit_mode=OFF
-                # because they are dynamic by definition
-                # for now we just prevent this branch explicitly
-                if False and txn.is_committed():
-                    txn.read()
-                else:
-                    call_args, call_kwargs = parameters_to_args_kwargs(
-                        task.fn, engine.parameters or {}
-                    )
-                    gen = task.fn(*call_args, **call_kwargs)
-                    try:
-                        while True:
-                            # can't use anext in Python < 3.10
-                            gen_result = await gen.__anext__()
-                            # link the current state to the result for dependency tracking
-                            #
-                            # TODO: this could grow the task_run_result
-                            # dictionary in an unbounded way, so finding a
-                            # way to periodically clean it up (using
-                            # weakrefs or similar) would be good
-                            link_state_to_task_run_result(engine.state, gen_result)
-                            raise_if_flow_run_suspension_requested()
-                            yield gen_result
-                    except (StopAsyncIteration, GeneratorExit) as exc:
-                        await engine.handle_success(None, transaction=txn)
-                        if isinstance(exc, GeneratorExit):
-                            gen.throw(exc)
-            raise_if_flow_run_suspension_requested()
+    try:
+        async with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+            while engine.is_running():
+                await engine.wait_until_ready()
+                async with (
+                    engine.asset_context(),
+                    engine.run_context(),
+                    engine.transaction_context() as txn,
+                ):
+                    # TODO: generators should default to commit_mode=OFF
+                    # because they are dynamic by definition
+                    # for now we just prevent this branch explicitly
+                    if False and txn.is_committed():
+                        txn.read()
+                    else:
+                        call_args, call_kwargs = parameters_to_args_kwargs(
+                            task.fn, engine.parameters or {}
+                        )
+                        gen = task.fn(*call_args, **call_kwargs)
+                        try:
+                            while True:
+                                # can't use anext in Python < 3.10
+                                gen_result = await gen.__anext__()
+                                # link the current state to the result for dependency tracking
+                                #
+                                # TODO: this could grow the task_run_result
+                                # dictionary in an unbounded way, so finding a
+                                # way to periodically clean it up (using
+                                # weakrefs or similar) would be good
+                                link_state_to_task_run_result(engine.state, gen_result)
+                                raise_if_flow_run_suspension_requested()
+                                yield gen_result
+                        except (StopAsyncIteration, GeneratorExit) as exc:
+                            await engine.handle_success(None, transaction=txn)
+                            if isinstance(exc, GeneratorExit):
+                                try:
+                                    await gen.athrow(exc)
+                                except StopAsyncIteration:
+                                    # the generator suppressed GeneratorExit and
+                                    # returned; treat that as a successful close
+                                    pass
+                                except Exception as close_exc:
+                                    # The consumer is closing the generator and
+                                    # its finalizer raised. Wrap the error so
+                                    # the transaction rolls back and the run
+                                    # contexts do not schedule a retry; the
+                                    # consumer sees the original error from
+                                    # aclose(), like a plain async generator.
+                                    raise _GeneratorFinalizerError(close_exc) from (
+                                        close_exc
+                                    )
+                                else:
+                                    # the generator yielded while handling
+                                    # GeneratorExit; a plain async generator's
+                                    # aclose rejects that
+                                    raise _GeneratorFinalizerError(
+                                        RuntimeError(
+                                            "async generator ignored GeneratorExit"
+                                        )
+                                    )
+                raise_if_flow_run_suspension_requested()
 
+    except _GeneratorFinalizerError as wrapper:
+        raise wrapper.cause
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():
         await engine.result()

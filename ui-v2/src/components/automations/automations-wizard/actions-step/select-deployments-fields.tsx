@@ -96,7 +96,7 @@ export const SelectDeploymentsFields = ({
 									<ComboboxCommandInput
 										value={search}
 										onValueChange={setSearch}
-										placeholder="Search for an deployment..."
+										placeholder="Search for a deployment..."
 									/>
 									<ComboboxCommandEmtpy>
 										No deployment found

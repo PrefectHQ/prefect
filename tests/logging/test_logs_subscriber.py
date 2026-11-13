@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from typing import Optional, Type
@@ -6,7 +7,9 @@ from uuid import uuid4
 
 import orjson
 import pytest
+from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosedError
+from websockets.protocol import State as WebsocketState
 
 from prefect.client.schemas.filters import LogFilter, LogFilterLevel
 from prefect.client.schemas.objects import Log
@@ -764,3 +767,32 @@ async def test_subscriber_auth_with_falsy_tokens():
             auth_message = orjson.loads(auth_call[0][0])
             assert auth_message["type"] == "auth"
             assert auth_message["token"] == falsy_token
+
+
+async def test_subscriber_closes_socket_when_setup_is_cancelled(
+    Subscriber: Type[PrefectLogsSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    log_recorder: LogRecorder,
+    log_puppeteer: LogPuppeteer,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A setup abandoned mid-handshake must not leak its open socket, since a
+    context that fails to enter is never exited by its caller."""
+    log_puppeteer.token = token
+
+    async def never_respond(self: ClientConnection, *args: object, **kwargs: object):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(ClientConnection, "recv", never_respond)
+
+    subscriber = Subscriber(
+        filter=LogFilter(level=LogFilterLevel(ge_=logging.INFO)),
+        reconnection_attempts=0,
+    )
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.5):
+            await subscriber.__aenter__()
+
+    assert log_recorder.connections == 1
+    assert subscriber._connect.connection.state is WebsocketState.CLOSED

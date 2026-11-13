@@ -8,7 +8,10 @@ import {
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { mockPointerEvents } from "@tests/utils/browser";
+import {
+	mockInMemoryLocalStorage,
+	mockPointerEvents,
+} from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DeploymentWithFlow } from "@/api/deployments";
@@ -146,6 +149,41 @@ describe("DeploymentsDataTable", () => {
 
 		expect(screen.getByText("tag1")).toBeInTheDocument();
 		expect(screen.getByText("tag2")).toBeInTheDocument();
+	});
+
+	it("limits activity runs to the charted window so future scheduled runs don't crowd out recent runs", async () => {
+		const activityRequests: {
+			flow_runs?: {
+				start_time?: { after_?: string; before_?: string };
+			};
+		}[] = [];
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
+				const body = (await request.json()) as {
+					deployments?: { id?: { any_?: string[] } };
+				};
+				if (body.deployments?.id?.any_?.includes(mockDeployment.id)) {
+					activityRequests.push(body as (typeof activityRequests)[number]);
+				}
+				return HttpResponse.json([]);
+			}),
+		);
+
+		const before = Date.now();
+		render(<DeploymentsDataTableRouter {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
+
+		await waitFor(() => expect(activityRequests.length).toBeGreaterThan(0));
+
+		const window = activityRequests[0].flow_runs?.start_time;
+		expect(window?.after_).toBeDefined();
+		expect(window?.before_).toBeDefined();
+		const after = new Date(window?.after_ ?? "").getTime();
+		const beforeTime = new Date(window?.before_ ?? "").getTime();
+		expect(beforeTime).toBeGreaterThanOrEqual(before - 1000);
+		expect(beforeTime).toBeLessThanOrEqual(Date.now());
+		expect(beforeTime - after).toBe(7 * 24 * 60 * 60 * 1000);
 	});
 
 	it("renders with empty deployments array", async () => {
@@ -335,7 +373,7 @@ describe("DeploymentsDataTable", () => {
 		});
 		await userEvent.click(confirmDeleteButton);
 
-		expect(screen.getByText("Deployment deleted")).toBeInTheDocument();
+		expect(await screen.findByText("Deployment deleted")).toBeInTheDocument();
 	});
 
 	it("has an action menu item that links to duplicate deployment", async () => {
@@ -626,5 +664,31 @@ describe("DeploymentsDataTable", () => {
 		expect(onColumnFiltersChange).toHaveBeenCalledWith([
 			{ id: "tags", value: ["tag3", "tag4"] },
 		]);
+	});
+
+	describe("pinned deployments", () => {
+		let restoreLocalStorage: () => void;
+
+		beforeEach(() => {
+			restoreLocalStorage = mockInMemoryLocalStorage();
+		});
+
+		afterEach(() => {
+			restoreLocalStorage();
+		});
+
+		it("pins a deployment from its row without navigating to it", async () => {
+			const user = userEvent.setup();
+			const [, router] = renderDeploymentsDataTableRouter(defaultProps);
+
+			await user.click(
+				await screen.findByRole("button", { name: "Pin deployment" }),
+			);
+
+			expect(
+				screen.getByRole("button", { name: "Unpin deployment" }),
+			).toHaveAttribute("aria-pressed", "true");
+			expect(router.state.location.pathname).toBe("/deployments");
+		});
 	});
 });

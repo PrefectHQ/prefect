@@ -13,6 +13,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -69,7 +70,7 @@ async def list_variables(
     if output and output.lower() == "json":
         variables_json = [variable.model_dump(mode="json") for variable in variables]
         json_output = orjson.dumps(variables_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Variables",
@@ -128,7 +129,7 @@ async def inspect(
             json_output = orjson.dumps(
                 variable_json, option=orjson.OPT_INDENT_2
             ).decode()
-            _cli.console.print(json_output, soft_wrap=True)
+            print_verbatim(json_output)
         else:
             _cli.console.print(Pretty(variable))
 
@@ -142,7 +143,7 @@ async def get(name: str):
     async with get_client() as client:
         variable = await client.read_variable_by_name(name=name)
         if variable:
-            _cli.console.print(json.dumps(variable.value))
+            print_verbatim(json.dumps(variable.value))
         else:
             exit_with_error(f"Variable {name!r} not found.")
 

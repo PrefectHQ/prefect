@@ -251,8 +251,11 @@ def process_properties(
         _fix_tuple_items(schema)
 
         if "properties" in schema:
-            required_fields = schema.get("required", [])
-            process_properties(schema["properties"], required_fields)
+            process_properties(
+                schema["properties"],
+                schema.get("required", []),
+                allow_none_with_default,
+            )
 
 
 def preprocess_schema(

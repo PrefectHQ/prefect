@@ -57,6 +57,7 @@ from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 pytest.register_assert_rewrite("prefect.testing.utilities")
 
 import prefect
+from prefect._internal.server_maintenance import reset_maintenance_backoff
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
@@ -535,6 +536,17 @@ def reset_registered_blocks():
 
     registry.clear()
     registry.update(before)
+
+
+@pytest.fixture(autouse=True)
+def reset_maintenance_backoffs():
+    """
+    Ensures a maintenance back-off recorded by one test does not extend health
+    check windows in another; the record is process-wide.
+    """
+    reset_maintenance_backoff()
+    yield
+    reset_maintenance_backoff()
 
 
 @pytest.fixture

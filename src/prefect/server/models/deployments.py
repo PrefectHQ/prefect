@@ -36,13 +36,16 @@ from prefect.server.models.events import (
     deployment_updated_event,
 )
 from prefect.server.schemas.statuses import DeploymentStatus
+from prefect.server.utilities.database import get_max_query_parameters
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import DateTime, now
+from prefect.utilities.collections import batched_iterable
 
 T = TypeVar("T", bound=tuple[Any, ...])
 
@@ -164,7 +167,7 @@ async def create_deployment(
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
     job_variables = insert_values.pop("job_variables", None)
-    if job_variables:
+    if job_variables is not None:
         insert_values["infra_overrides"] = job_variables
 
     conflict_update_fields = deployment.model_dump_for_orm(
@@ -179,7 +182,7 @@ async def create_deployment(
             "version_info",
         },
     )
-    if job_variables:
+    if job_variables is not None:
         conflict_update_fields["infra_overrides"] = job_variables
 
     insert_stmt = (
@@ -326,7 +329,7 @@ async def update_deployment(
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
     job_variables = update_data.pop("job_variables", None)
-    if job_variables:
+    if job_variables is not None:
         update_data["infra_overrides"] = job_variables
 
     should_update_schedules = update_data.pop("schedules", None) is not None
@@ -1005,12 +1008,14 @@ async def _insert_scheduled_flow_runs(
 
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
-    # because it uses a single bind parameter
+    # because it uses a single bind parameter. The `state` is a hybrid
+    # property backed by a separate table, so it is inserted below rather
+    # than as part of the flow run rows.
     await session.execute(
         db.queries.insert(db.FlowRun).on_conflict_do_nothing(
             index_elements=db.orm.flow_run_unique_upsert_columns
         ),
-        runs,
+        [{k: v for k, v in run.items() if k != "state"} for run in runs],
     )
 
     # query for the rows that were newly inserted (by checking for any flow runs with
@@ -1199,6 +1204,10 @@ async def update_deployment_schedule(
     """
     # Exclude 'replaces' as it's a deploy-time directive, not a persisted field
     update_values = schedule.model_dump(exclude_none=True, exclude={"replaces"})
+    # `parameters` defaults to `{}`, so only write it when the caller sent it;
+    # otherwise a partial update like `{"active": false}` clears the overrides
+    if "parameters" not in schedule.model_fields_set:
+        update_values.pop("parameters", None)
     if deployment_schedule_id:
         result = await session.execute(
             sa.update(db.DeploymentSchedule)
@@ -1286,23 +1295,34 @@ async def mark_deployments_ready(
     db: PrefectDBInterface = Depends(provide_database_interface),
     deployment_ids: Optional[Iterable[UUID]] = None,
     work_queue_ids: Optional[Iterable[UUID]] = None,
+    skip_recently_polled: bool = False,
     retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
-    deployment_ids = deployment_ids or []
+    """Mark deployments ready.
+
+    `skip_recently_polled` requires queue heartbeats committed by the polling
+    request. Explicit deployment IDs always refresh.
+    """
+    deployment_ids = set(deployment_ids or ())
     work_queue_ids = work_queue_ids or []
 
     if not deployment_ids and not work_queue_ids:
         return
 
+    # `with_for_update=True` makes SQLite start with `BEGIN IMMEDIATE` so the
+    # write lock is held before the read below; a deferred transaction that
+    # reads first cannot be upgraded to a write if another connection commits
+    # in between and fails immediately with "database is locked".
     async with db.session_context(
         begin_transaction=True,
+        with_for_update=True,
     ) as session:
         # ORDER BY id locks rows in deterministic order so concurrent
         # calls cannot deadlock. SKIP LOCKED is intentionally avoided —
         # a fresh poll must wait for a concurrent stale transition,
         # not no-op and let the stale transition overwrite it.
         locked = (
-            select(db.Deployment.id, db.Deployment.status)
+            select(db.Deployment.id, db.Deployment.status, db.Deployment.last_polled)
             .where(
                 sa.or_(
                     db.Deployment.id.in_(deployment_ids),
@@ -1311,10 +1331,9 @@ async def mark_deployments_ready(
             )
             .order_by(db.Deployment.id)
             .with_for_update()
-            .cte("locked")
         )
 
-        result = await session.execute(select(locked.c.id, locked.c.status))
+        result = await session.execute(locked)
         rows = result.all()
 
         if not rows:
@@ -1326,16 +1345,36 @@ async def mark_deployments_ready(
 
         last_polled = now("UTC")
 
-        # keeps `updated` untouched to not trigger recent schedules calculation
-        await session.execute(
-            sa.update(db.Deployment)
-            .where(db.Deployment.id.in_(select(locked.c.id)))
-            .values(
-                status=DeploymentStatus.READY,
-                last_polled=last_polled,
-                updated=db.Deployment.updated,
-            )
+        # Queue API polls commit their heartbeat before enabling write coalescing.
+        # Other callers, including old queued tasks, retain unconditional refreshes.
+        foreman = get_current_settings().server.services.foreman
+        cutoff = last_polled - datetime.timedelta(
+            seconds=foreman.deployment_last_polled_timeout_seconds / 2
         )
+        needs_write = [
+            row.id
+            for row in rows
+            if not skip_recently_polled
+            or row.id in deployment_ids
+            or row.status != DeploymentStatus.READY
+            or row.last_polled is None
+            or row.last_polled < cutoff
+        ]
+
+        for id_batch in batched_iterable(
+            needs_write,
+            get_max_query_parameters() - 2,  # `status` and `last_polled` bind too
+        ):
+            # keeps `updated` untouched to not trigger recent schedules calculation
+            await session.execute(
+                sa.update(db.Deployment)
+                .where(db.Deployment.id.in_(id_batch))
+                .values(
+                    status=DeploymentStatus.READY,
+                    last_polled=last_polled,
+                    updated=db.Deployment.updated,
+                )
+            )
 
         if not unready_deployments:
             return
@@ -1353,6 +1392,37 @@ async def mark_deployments_ready(
 
 
 @db_injector
+async def has_not_ready_deployments(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_ids: Optional[Iterable[UUID]] = None,
+    work_queue_ids: Optional[Iterable[UUID]] = None,
+) -> bool:
+    """
+    Whether any of the given deployments, or any deployment in the given work
+    queues, is NOT_READY.
+    """
+    deployment_ids = list(deployment_ids or [])
+    work_queue_ids = list(work_queue_ids or [])
+
+    if not deployment_ids and not work_queue_ids:
+        return False
+
+    not_ready_deployment_id = await session.scalar(
+        select(db.Deployment.id)
+        .where(
+            or_(
+                db.Deployment.id.in_(deployment_ids),
+                db.Deployment.work_queue_id.in_(work_queue_ids),
+            ),
+            db.Deployment.status == DeploymentStatus.NOT_READY,
+        )
+        .limit(1)
+    )
+    return not_ready_deployment_id is not None
+
+
+@db_injector
 async def mark_deployments_not_ready(
     db: PrefectDBInterface,
     deployment_ids: Optional[Iterable[UUID]] = None,
@@ -1367,8 +1437,9 @@ async def mark_deployments_not_ready(
 
         async with db.session_context(
             begin_transaction=True,
+            with_for_update=True,
         ) as session:
-            # See comment in mark_deployments_ready.
+            # See comments in mark_deployments_ready.
             locked = (
                 select(db.Deployment.id, db.Deployment.status)
                 .where(

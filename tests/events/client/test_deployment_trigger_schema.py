@@ -153,6 +153,38 @@ def test_deployment_trigger_proactive_trigger_disallows_short_withins():
         )
 
 
+@pytest.mark.parametrize(
+    "within, expected",
+    [
+        ("PT0S", datetime.timedelta(seconds=10)),
+        ("PT30S", datetime.timedelta(seconds=30)),
+        ("00:00:30", datetime.timedelta(seconds=30)),
+    ],
+)
+def test_proactive_within_accepts_duration_strings(
+    within: str, expected: datetime.timedelta
+):
+    trigger = EventTrigger.model_validate(
+        {"posture": Posture.Proactive, "threshold": 1, "within": within}
+    )
+    assert trigger.within == expected
+
+
+@pytest.mark.parametrize(
+    "within, message",
+    [
+        ("PT5S", "greater than or equal to 10 seconds"),
+        ("30", "should be a valid timedelta"),
+        ("not a duration", "should be a valid timedelta"),
+    ],
+)
+def test_proactive_within_rejects_invalid_strings(within: str, message: str):
+    with pytest.raises(ValidationError, match=message):
+        EventTrigger.model_validate(
+            {"posture": Posture.Proactive, "threshold": 1, "within": within}
+        )
+
+
 def test_deployment_trigger_metric_trigger():
     trigger = deployment_trigger_adapter.validate_python(
         {

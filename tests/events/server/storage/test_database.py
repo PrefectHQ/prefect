@@ -23,6 +23,7 @@ from prefect.server.events.storage.database import (
     _write_postgres_events,
     get_number_of_event_fields,
     get_number_of_resource_fields,
+    query_events,
     read_events,
     write_events,
 )
@@ -207,6 +208,93 @@ class TestWriteEvents:
                     )
                 )
                 assert len(list(results)) == len(event.related) + 1
+
+
+class TestWriteEventsWithNullBytes:
+    async def test_write_events_replaces_null_bytes(
+        self, session: AsyncSession, db: PrefectDBInterface
+    ):
+        """PostgreSQL rejects null bytes (0x00) in `text` and `jsonb` columns, so
+        they are replaced with U+FFFD before the event is written."""
+        event = ReceivedEvent(
+            occurred=now("UTC"),
+            event="hello\x00",
+            resource={"prefect.resource.id": "my.id\x00", "label\x00": "value\x00"},
+            related=[
+                {
+                    "prefect.resource.id": "related-1",
+                    "prefect.resource.role": "role\x00",
+                }
+            ],
+            payload={"stdout": "binary\x00output", "nested\x00": [{"key": "a\x00b"}]},
+            id=uuid4(),
+        )
+
+        async with session as session:
+            await write_events(session=session, events=[event])
+            await session.commit()
+
+        async with session as session:
+            stored = await session.get(db.Event, event.id)
+            assert stored
+            assert stored.event == "hello\ufffd"
+            assert stored.resource == {
+                "prefect.resource.id": "my.id\ufffd",
+                "label\ufffd": "value\ufffd",
+            }
+            assert stored.related == [
+                {
+                    "prefect.resource.id": "related-1",
+                    "prefect.resource.role": "role\ufffd",
+                }
+            ]
+            assert stored.payload == {
+                "stdout": "binary\ufffdoutput",
+                "nested\ufffd": [{"key": "a\ufffdb"}],
+            }
+
+            rows = await session.scalars(
+                sa.select(db.EventResource)
+                .where(db.EventResource.event_id == event.id)
+                .order_by(db.EventResource.resource_role)
+            )
+            assert [(r.resource_id, r.resource_role, r.resource) for r in rows] == [
+                ("my.id\ufffd", "", {"label\ufffd": "value\ufffd"}),
+                ("related-1", "role\ufffd", {}),
+            ]
+
+    async def test_write_events_keeps_null_byte_only_labels_valid(
+        self, session: AsyncSession
+    ):
+        """Removing the null bytes, as is done for logs, would leave these labels
+        empty, which resource validation rejects."""
+        event = ReceivedEvent(
+            occurred=now("UTC"),
+            event="hello",
+            resource={"prefect.resource.id": "\x00"},
+            related=[
+                {"prefect.resource.id": "related-1", "prefect.resource.role": "\x00"}
+            ],
+            id=uuid4(),
+        )
+
+        async with session as session:
+            await write_events(session=session, events=[event])
+            await session.commit()
+
+        async with session as session:
+            events, _, _ = await query_events(
+                session=session,
+                filter=EventFilter(
+                    id=EventIDFilter(id=[event.id]),
+                    occurred=EventOccurredFilter(
+                        since=now("UTC") - datetime.timedelta(days=1)
+                    ),
+                ),
+            )
+            assert len(events) == 1
+            assert events[0].resource.id == "\ufffd"
+            assert events[0].related[0].role == "\ufffd"
 
 
 class TestReadEvents:

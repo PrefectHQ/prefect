@@ -1,9 +1,16 @@
 import abc
 from datetime import timedelta
-from typing import Any, Dict, Optional, Union
+from typing import Annotated, Any, ClassVar, Dict, Optional, Union, get_args
 from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import (
+    ConfigDict,
+    Discriminator,
+    Field,
+    Tag,
+    field_validator,
+    model_validator,
+)
 from typing_extensions import Literal, Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -314,3 +321,56 @@ ActionTypes: TypeAlias = Union[
     # Prefect Cloud only
     DeclareIncident,
 ]
+
+_KNOWN_ACTION_TYPES: frozenset[str] = frozenset(
+    action.model_fields["type"].default for action in get_args(ActionTypes)
+)
+
+
+class UnknownAction(Action):
+    """An action whose type this version of Prefect does not recognize.
+
+    Prefect Cloud can add action types before a client release knows about
+    them. Reading an automation that uses one of these types returns this
+    model instead of failing. The model keeps every field of the action, so
+    updating the automation sends the action back unchanged.
+    """
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+
+    type: str = Field(
+        json_schema_extra={"not": {"enum": sorted(_KNOWN_ACTION_TYPES)}},
+    )
+
+    @field_validator("type")
+    @classmethod
+    def _type_is_not_known(cls, value: str) -> str:
+        if value in _KNOWN_ACTION_TYPES:
+            raise ValueError(
+                f"{value!r} is a known action type and cannot be an UnknownAction"
+            )
+        return value
+
+
+def _action_discriminator(value: Any) -> str:
+    """Sends an action with an unrecognized `type` to `UnknownAction` and every
+    other action, including one with no `type`, to `ActionTypes`."""
+    if isinstance(value, UnknownAction):
+        return "unknown"
+    action_type = (
+        value.get("type") if isinstance(value, dict) else getattr(value, "type", None)
+    )
+    if isinstance(action_type, str) and action_type not in _KNOWN_ACTION_TYPES:
+        return "unknown"
+    return "known"
+
+
+ActionTypesOrUnknown: TypeAlias = Annotated[
+    Union[
+        Annotated[ActionTypes, Tag("known")],
+        Annotated[UnknownAction, Tag("unknown")],
+    ],
+    Discriminator(_action_discriminator),
+]
+"""The action types an automation read from the API may contain: any of
+`ActionTypes`, or an `UnknownAction` for a type this version does not know"""

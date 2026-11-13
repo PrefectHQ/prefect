@@ -5,9 +5,13 @@ import { categorizeError } from "@/api/error-utils";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { WorkPoolCreateWizard } from "@/components/work-pools/create";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export const Route = createFileRoute("/work-pools/create")({
-	component: WorkPoolCreateWizard,
+	component: function RouteComponent() {
+		usePageTitle("Create Work Pool");
+		return <WorkPoolCreateWizard />;
+	},
 	loader: ({ context: { queryClient } }) => {
 		// Prefetch worker types for infrastructure selection
 		void queryClient.prefetchQuery(buildListWorkPoolTypesQuery());

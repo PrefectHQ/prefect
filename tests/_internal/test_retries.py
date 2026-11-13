@@ -97,6 +97,25 @@ class TestRetryAsyncFn:
         assert 1.4 <= delays[1] <= 2.6  # 2 * 1.3
         assert 2.8 <= delays[2] <= 5.2  # 4 * 1.3
 
+    @pytest.mark.parametrize(
+        "base_delay, max_delay", [(0, 10), (1, 0), (0, 0)], ids=["base", "max", "both"]
+    )
+    async def test_zero_delay_retries_immediately(
+        self, mock_sleep: AsyncMock, base_delay: float, max_delay: float
+    ):
+        mock_func = AsyncMock(side_effect=ValueError("Test error"))
+
+        @retry_async_fn(max_attempts=3, base_delay=base_delay, max_delay=max_delay)
+        async def fail_func():
+            await mock_func()
+
+        with pytest.raises(ValueError, match="Test error"):
+            await fail_func()
+
+        assert mock_func.call_count == 3
+        assert mock_sleep.call_count == 2
+        assert all(call.args[0] == 0.0 for call in mock_sleep.call_args_list)
+
     async def test_retry_successful_after_failures(self, mock_sleep):
         mock_func = AsyncMock(
             side_effect=[ValueError("Error 1"), ValueError("Error 2"), "Success"]

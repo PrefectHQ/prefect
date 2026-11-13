@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 class DirectSubprocessStarter:
     """Runs a flow object directly in a subprocess via `run_flow_in_subprocess`.
 
-    Source: runner.py lines 874-889.
     Uses module-level `run_flow_in_subprocess` reference -- patch the module
     to override.
     """

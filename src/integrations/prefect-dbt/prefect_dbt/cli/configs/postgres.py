@@ -1,6 +1,6 @@
 """Module containing models for Postgres configs"""
 
-from typing import Any, Dict
+from typing import Any
 
 from pydantic import Field
 from typing_extensions import Literal
@@ -30,7 +30,7 @@ class PostgresTargetConfigs(BaseTargetConfigs):
     _block_type_name = "dbt CLI Postgres Target Configs"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
     _description = "dbt CLI target configs containing credentials and settings specific to Postgres."  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-dbt"  # noqa
 
     type: Literal["postgres"] = Field(
         default="postgres", description="The type of the target."
@@ -44,7 +44,7 @@ class PostgresTargetConfigs(BaseTargetConfigs):
         ),
     )  # noqa
 
-    def get_configs(self) -> Dict[str, Any]:
+    def get_configs(self) -> dict[str, Any]:
         """
         Returns the dbt configs specific to Postgres profile.
 

@@ -8,6 +8,7 @@ import { categorizeError } from "@/api/error-utils";
 import { BlocksCatalogPage } from "@/components/blocks/blocks-catalog-page/blocks-catalog-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 const searchParams = z.object({
 	blockName: z.string().optional(),
@@ -16,6 +17,7 @@ const searchParams = z.object({
 export const Route = createFileRoute("/blocks/catalog")({
 	validateSearch: searchParams,
 	component: function RouteComponent() {
+		usePageTitle("Blocks Catalog");
 		const [search, onSearch] = useSearch();
 		const { data: blockTypes } = useSuspenseQuery(
 			buildListFilterBlockTypesQuery({

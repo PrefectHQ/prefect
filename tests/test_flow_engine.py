@@ -7,6 +7,7 @@ import time
 import uuid
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from contextlib import asynccontextmanager, contextmanager, nullcontext
+from dataclasses import dataclass, field
 from textwrap import dedent
 from types import SimpleNamespace
 from typing import Any, Literal, Optional
@@ -29,7 +30,7 @@ from prefect._internal.attempt_control import EngineOutcomeReceipt
 from prefect.cache_policies import INPUTS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import FlowRun, State, StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
@@ -40,6 +41,8 @@ from prefect.context import (
     get_run_context,
 )
 from prefect.engine import _drive_run_flow_result, handle_engine_signals
+from prefect.events.schemas.events import Event
+from prefect.events.worker import EventsWorker
 from prefect.exceptions import (
     Abort,
     CrashedRun,
@@ -51,6 +54,7 @@ from prefect.exceptions import (
 from prefect.flow_engine import (
     MINIMUM_HEARTBEAT_INTERVAL,
     AsyncFlowRunEngine,
+    BaseFlowRunEngine,
     FlowRunEngine,
     NotSet,
     _load_flow_from_runtime_entrypoint,
@@ -69,7 +73,7 @@ from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
-from prefect.results import get_result_store
+from prefect.results import ResultStore, get_result_store
 from prefect.runtime import flow_run as runtime_flow_run
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
@@ -979,6 +983,128 @@ class TestEngineOutcomeReceipts:
         )
 
 
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+@pytest.mark.parametrize("flow_raises", [False, True], ids=["state-save", "flow-error"])
+async def test_completion_save_failure_does_not_trigger_failure_hook(
+    async_flow: bool,
+    flow_raises: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    hook_states: list[states.State[Any]] = []
+    completion_attempts: list[states.State[Any]] = []
+
+    def on_failure(
+        flow: Flow[Any, Any], flow_run: Any, state: states.State[Any]
+    ) -> None:
+        hook_states.append(state)
+
+    def body() -> None:
+        if flow_raises:
+            raise ValueError("flow failed")
+
+    async def async_body() -> None:
+        body()
+
+    test_flow = flow(async_body if async_flow else body, on_failure=[on_failure])
+    flow_run = await prefect_client.create_flow_run(test_flow)
+    original_propose = (
+        flow_engine_module.propose_state
+        if async_flow
+        else flow_engine_module.propose_state_sync
+    )
+
+    def reject_completed(state: states.State[Any]) -> None:
+        if state.is_completed():
+            completion_attempts.append(state)
+            raise ConnectionError("completion save failed")
+
+    if async_flow:
+
+        async def propose_async(
+            client: Any, state: states.State[Any], **kwargs: Any
+        ) -> states.State[Any]:
+            reject_completed(state)
+            return await original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr(flow_engine_module, "propose_state", propose_async)
+    else:
+
+        def propose_sync(
+            client: Any, state: states.State[Any], **kwargs: Any
+        ) -> states.State[Any]:
+            reject_completed(state)
+            return original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr(flow_engine_module, "propose_state_sync", propose_sync)
+
+    error = ValueError if flow_raises else ConnectionError
+    message = "flow failed" if flow_raises else "completion save failed"
+    with pytest.raises(error, match=message):
+        if async_flow:
+            await run_flow_async(test_flow, flow_run=flow_run)
+        else:
+            run_flow_sync(test_flow, flow_run=flow_run)
+
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    if flow_raises:
+        assert saved_run.state.is_failed()
+        assert len(hook_states) == 1
+        assert hook_states[0].id == saved_run.state.id
+        assert not completion_attempts
+    else:
+        # The Completed proposal failed, so the server still has Running.
+        assert saved_run.state.is_running()
+        assert len(completion_attempts) == 1
+        assert not hook_states
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+async def test_result_storage_failure_does_not_trigger_failure_hook(
+    async_flow: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    hook_states: list[states.State[Any]] = []
+
+    def on_failure(
+        flow: Flow[Any, Any], flow_run: Any, state: states.State[Any]
+    ) -> None:
+        hook_states.append(state)
+
+    def body() -> int:
+        return 42
+
+    async def async_body() -> int:
+        return body()
+
+    test_flow = flow(
+        async_body if async_flow else body,
+        persist_result=True,
+        on_failure=[on_failure],
+    )
+    flow_run = await prefect_client.create_flow_run(test_flow)
+    persist_result = AsyncMock(side_effect=OSError("result storage unavailable"))
+    monkeypatch.setattr(ResultStore, "apersist_result_record", persist_result)
+
+    if async_flow:
+        result = await run_flow_async(test_flow, flow_run=flow_run)
+    else:
+        result = run_flow_sync(test_flow, flow_run=flow_run)
+
+    assert result == 42
+    persist_result.assert_awaited_once()
+    assert persist_result.call_args.args[0].result == 42
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    assert saved_run.state.is_completed()
+    assert not hook_states
+    assert "Encountered an error while persisting result" in caplog.text
+    assert "result storage unavailable" in caplog.text
+
+
 class TestFlowRunsAsync:
     async def test_basic(self):
         @flow
@@ -1610,6 +1736,114 @@ class TestFlowRetries:
         assert flow_run_count == 2
         assert child_run_count == 1, "Child flow should not run again"
 
+    @pytest.mark.parametrize(
+        "persist_result, child_failures", [(False, 1), (False, 2), (True, 1)]
+    )
+    async def test_sync_completed_subflow_gets_fresh_retries_on_parent_retry(
+        self,
+        prefect_client: PrefectClient,
+        persist_result: bool,
+        child_failures: int,
+    ):
+        parent_attempts = 0
+        child_attempts: list[tuple[UUID, int]] = []
+
+        @flow(retries=1, persist_result=persist_result)
+        def child() -> str:
+            child_run = get_run_context().flow_run
+            child_attempts.append((child_run.id, child_run.run_count))
+            if 2 <= len(child_attempts) <= child_failures + 1:
+                raise ValueError("Child failed on parent retry")
+            return "hello"
+
+        @flow(retries=1, persist_result=False)
+        def parent() -> str:
+            nonlocal parent_attempts
+            parent_attempts += 1
+            result = child()
+            if parent_attempts == 1:
+                raise ValueError("Parent failed after child completed")
+            return result
+
+        parent_state = parent(return_state=True)
+        assert parent_attempts == 2
+        if persist_result or child_failures == 1:
+            assert parent_state.is_completed()
+            assert await parent_state.result() == "hello"
+        else:
+            assert parent_state.is_failed()
+
+        original_id = child_attempts[0][0]
+        original_run = await prefect_client.read_flow_run(original_id)
+        assert original_run.state.is_completed()
+        assert original_run.run_count == 1
+
+        if persist_result:
+            assert child_attempts == [(original_id, 1)]
+        else:
+            assert len(child_attempts) == 3
+            new_id = child_attempts[1][0]
+            assert new_id != original_id
+            assert child_attempts == [(original_id, 1), (new_id, 1), (new_id, 2)]
+            new_run = await prefect_client.read_flow_run(new_id)
+            assert new_run.parent_task_run_id == original_run.parent_task_run_id
+            assert new_run.state.is_completed() == (child_failures == 1)
+            assert new_run.state.is_failed() == (child_failures == 2)
+
+    @pytest.mark.parametrize(
+        "persist_result, child_failures", [(False, 1), (False, 2), (True, 1)]
+    )
+    async def test_async_completed_subflow_gets_fresh_retries_on_parent_retry(
+        self,
+        prefect_client: PrefectClient,
+        persist_result: bool,
+        child_failures: int,
+    ):
+        parent_attempts = 0
+        child_attempts: list[tuple[UUID, int]] = []
+
+        @flow(retries=1, persist_result=persist_result)
+        async def child() -> str:
+            child_run = get_run_context().flow_run
+            child_attempts.append((child_run.id, child_run.run_count))
+            if 2 <= len(child_attempts) <= child_failures + 1:
+                raise ValueError("Child failed on parent retry")
+            return "hello"
+
+        @flow(retries=1, persist_result=False)
+        async def parent() -> str:
+            nonlocal parent_attempts
+            parent_attempts += 1
+            result = await child()
+            if parent_attempts == 1:
+                raise ValueError("Parent failed after child completed")
+            return result
+
+        parent_state = await parent(return_state=True)
+        assert parent_attempts == 2
+        if persist_result or child_failures == 1:
+            assert parent_state.is_completed()
+            assert await parent_state.result() == "hello"
+        else:
+            assert parent_state.is_failed()
+
+        original_id = child_attempts[0][0]
+        original_run = await prefect_client.read_flow_run(original_id)
+        assert original_run.state.is_completed()
+        assert original_run.run_count == 1
+
+        if persist_result:
+            assert child_attempts == [(original_id, 1)]
+        else:
+            assert len(child_attempts) == 3
+            new_id = child_attempts[1][0]
+            assert new_id != original_id
+            assert child_attempts == [(original_id, 1), (new_id, 1), (new_id, 2)]
+            new_run = await prefect_client.read_flow_run(new_id)
+            assert new_run.parent_task_run_id == original_run.parent_task_run_id
+            assert new_run.state.is_completed() == (child_failures == 1)
+            assert new_run.state.is_failed() == (child_failures == 2)
+
     async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
         self, sync_prefect_client: SyncPrefectClient
     ):
@@ -2225,8 +2459,9 @@ class TestSubflowDynamicKeyRace:
             f"Expected stable key '0', got: {task_run.dynamic_key}"
         )
 
+    @pytest.mark.parametrize("persist_result", [False, True])
     async def test_nested_direct_subflow_from_task_keeps_stable_key(
-        self, sync_prefect_client: SyncPrefectClient
+        self, sync_prefect_client: SyncPrefectClient, persist_result: bool
     ):
         """A direct nested subflow should keep stable tracking identity even
         when its parent flow was called from a task context."""
@@ -2247,7 +2482,7 @@ class TestSubflowDynamicKeyRace:
                 raise ValueError("child fails after grandchild")
             return result
 
-        @task
+        @task(persist_result=persist_result)
         def run_child() -> str:
             return child()
 
@@ -2258,10 +2493,19 @@ class TestSubflowDynamicKeyRace:
         assert parent() == "hello"
 
         assert child_attempt == 2
-        assert len(set(grandchild_flow_run_ids)) == 1
-        grandchild_run = sync_prefect_client.read_flow_run(grandchild_flow_run_ids[0])
-        assert grandchild_run.parent_task_run_id is not None
-        task_run = sync_prefect_client.read_task_run(grandchild_run.parent_task_run_id)
+        # The enclosing task context controls actual result persistence here.
+        # A fresh child run must still attach to the same tracking task.
+        assert len(grandchild_flow_run_ids) == (1 if persist_result else 2)
+        assert len(set(grandchild_flow_run_ids)) == (1 if persist_result else 2)
+        grandchild_runs = [
+            sync_prefect_client.read_flow_run(run_id)
+            for run_id in grandchild_flow_run_ids
+        ]
+        tracking_ids = {run.parent_task_run_id for run in grandchild_runs}
+        assert len(tracking_ids) == 1
+        tracking_id = tracking_ids.pop()
+        assert tracking_id is not None
+        task_run = sync_prefect_client.read_task_run(tracking_id)
         assert task_run.dynamic_key == "0", (
             f"Expected stable key '0', got: {task_run.dynamic_key}"
         )
@@ -3612,6 +3856,55 @@ class TestPauseFlowRun:
             key="paused-1-schema", flow_run_id=flow_run_id
         )
         assert schema is not None
+
+    async def test_repeated_pause_with_same_key_returns_input(
+        self, prefect_client: PrefectClient
+    ):
+        flow_run_id = None
+
+        class FlowInput(RunInput):
+            x: int
+
+        @flow(persist_result=False)
+        async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+
+            first = await pause_flow_run(
+                timeout=10, poll_interval=2, wait_for_input=FlowInput, key="approval"
+            )
+            second = await pause_flow_run(
+                timeout=10, poll_interval=2, wait_for_input=FlowInput, key="approval"
+            )
+            return first, second
+
+        async def flow_resumer():
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
+
+            await resume_flow_run(flow_run_id, run_input={"x": 42})
+
+        flow_run_state, _ = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        first, second = await flow_run_state.result()
+        assert isinstance(first, FlowInput)
+        assert first.x == 42
+        assert isinstance(second, FlowInput)
+        assert second.x == 42
 
     async def test_paused_flows_can_receive_automatic_input(
         self, prefect_client: PrefectClient
@@ -5698,7 +5991,7 @@ class TestLeaseRenewal:
         run_flow(foo, flow_run)
 
         mock_maintain_concurrency_lease.assert_called_once_with(
-            ANY, 300, raise_on_lease_renewal_failure=True
+            ANY, 300, raise_on_lease_renewal_failure=True, flow_run_id=flow_run.id
         )
 
     async def test_lease_renewal_async(
@@ -5733,8 +6026,107 @@ class TestLeaseRenewal:
         await run_flow(foo, flow_run)
 
         mock_maintain_concurrency_lease.assert_called_once_with(
-            ANY, 300, raise_on_lease_renewal_failure=True
+            ANY, 300, raise_on_lease_renewal_failure=True, flow_run_id=flow_run.id
         )
+
+    @staticmethod
+    def _renewal_thread(lease_id: UUID) -> threading.Thread:
+        return next(
+            thread
+            for thread in threading.enumerate()
+            if thread.name == f"concurrency-lease-renewal-{lease_id}"
+        )
+
+    @pytest.fixture
+    def fast_lease_renewal(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Renew every 30ms and retry without backoff so a renewal reaches the
+        # server after the terminal transition has released the lease
+        monkeypatch.setattr("prefect.concurrency._leases._RENEWAL_FRACTION", 0.0001)
+        monkeypatch.setattr(
+            "prefect.concurrency._leases.exponential_backoff_with_jitter",
+            lambda *args: 0.0,
+        )
+
+    async def _create_concurrency_limited_flow_run(
+        self, prefect_client: PrefectClient, flow_obj: Flow[Any, Any]
+    ) -> tuple[FlowRun, UUID]:
+        flow_id = await prefect_client.create_flow(flow_obj)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test_lease_renewal_{uuid.uuid4()}",
+            concurrency_limit=1,
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+        state = await propose_state(prefect_client, states.Pending(), flow_run.id)
+        lease_id = state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        return flow_run, lease_id
+
+    @pytest.mark.usefixtures("fast_lease_renewal")
+    async def test_lease_released_by_terminal_state_does_not_crash_sync(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        @flow
+        def foo():
+            return 42
+
+        flow_run, lease_id = await self._create_concurrency_limited_flow_run(
+            prefect_client, foo
+        )
+
+        def propose_state_then_wait_for_renewal_failure(*args: Any, **kwargs: Any):
+            # The server applies the terminal state and releases the lease, but the
+            # engine does not process the response until renewal has given up
+            state = propose_state_sync(*args, **kwargs)
+            if state.is_final():
+                self._renewal_thread(lease_id).join(timeout=10)
+            return state
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.propose_state_sync",
+            propose_state_then_wait_for_renewal_failure,
+        )
+
+        assert run_flow(foo, flow_run) == 42
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
+    @pytest.mark.usefixtures("fast_lease_renewal")
+    async def test_lease_released_by_terminal_state_does_not_crash_async(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        @flow
+        async def foo():
+            return 42
+
+        flow_run, lease_id = await self._create_concurrency_limited_flow_run(
+            prefect_client, foo
+        )
+
+        async def propose_state_then_wait_for_renewal_failure(
+            *args: Any, **kwargs: Any
+        ):
+            # The server applies the terminal state and releases the lease, but the
+            # engine does not process the response until renewal has given up
+            state = await propose_state(*args, **kwargs)
+            if state.is_final():
+                await asyncio.to_thread(self._renewal_thread(lease_id).join, 10)
+                # Give a cancellation requested by the renewal thread a chance to
+                # be delivered before the engine records the terminal state
+                await asyncio.sleep(0.1)
+            return state
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.propose_state",
+            propose_state_then_wait_for_renewal_failure,
+        )
+
+        assert await run_flow(foo, flow_run) == 42
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
 
 
 class TestFlowRunEngineHeartbeat:
@@ -6269,3 +6661,101 @@ class TestFlowRunEngineHeartbeat:
                 time.sleep(3)
 
         assert heartbeat_count >= 1
+
+
+@dataclass
+class _HeartbeatSpy:
+    events: list[Event] = field(default_factory=list)
+    emitted: threading.Event = field(default_factory=threading.Event)
+
+
+class TestHeartbeatsAroundTerminalState:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/21932
+
+    The server timestamps a terminal state when it accepts it, and the engine
+    records that state only when the response arrives.  A heartbeat emitted
+    in between occurs after the terminal state, and a proactive trigger with
+    `after: prefect.flow-run.heartbeat` then opens a window that no later
+    event closes, so it fires on a run that completed normally.
+    """
+
+    @pytest.fixture
+    def heartbeats(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        asserting_events_worker: EventsWorker,
+    ) -> _HeartbeatSpy:
+        """Emit a heartbeat every 50 milliseconds and record each one."""
+        monkeypatch.setattr(flow_engine_module, "MINIMUM_HEARTBEAT_INTERVAL", 0.05)
+        monkeypatch.setattr(BaseFlowRunEngine, "heartbeat_seconds", 0.05)
+
+        spy = _HeartbeatSpy()
+        real_emit_event = flow_engine_module.emit_event
+
+        def recording_emit_event(**kwargs: Any) -> Event | None:
+            event = real_emit_event(**kwargs)
+            if event is not None and event.event == "prefect.flow-run.heartbeat":
+                spy.events.append(event)
+                spy.emitted.set()
+            return event
+
+        monkeypatch.setattr(flow_engine_module, "emit_event", recording_emit_event)
+        return spy
+
+    @pytest.fixture
+    def slow_terminal_state_responses(
+        self, monkeypatch: pytest.MonkeyPatch, heartbeats: _HeartbeatSpy
+    ) -> None:
+        """After the server accepts a terminal state, hold its response until the
+        heartbeat thread emits, or for five heartbeat intervals if it doesn't."""
+
+        def propose_with_slow_response(*args: Any, **kwargs: Any) -> State:
+            state = propose_state_sync(*args, **kwargs)
+            if state.is_final():
+                heartbeats.emitted.clear()
+                heartbeats.emitted.wait(timeout=0.25)
+            return state
+
+        async def apropose_with_slow_response(*args: Any, **kwargs: Any) -> State:
+            state = await propose_state(*args, **kwargs)
+            if state.is_final():
+                heartbeats.emitted.clear()
+                await asyncio.to_thread(heartbeats.emitted.wait, 0.25)
+            return state
+
+        monkeypatch.setattr(
+            flow_engine_module, "propose_state_sync", propose_with_slow_response
+        )
+        monkeypatch.setattr(
+            flow_engine_module, "propose_state", apropose_with_slow_response
+        )
+
+    def test_no_heartbeat_occurs_after_terminal_state_sync(
+        self, heartbeats: _HeartbeatSpy, slow_terminal_state_responses: None
+    ):
+        @flow
+        def my_flow() -> int:
+            heartbeats.emitted.wait(timeout=5)
+            return 42
+
+        state = my_flow(return_state=True)
+
+        assert state.is_completed()
+        occurred = [heartbeat.occurred for heartbeat in heartbeats.events]
+        assert occurred
+        assert max(occurred) < state.timestamp
+
+    async def test_no_heartbeat_occurs_after_terminal_state_async(
+        self, heartbeats: _HeartbeatSpy, slow_terminal_state_responses: None
+    ):
+        @flow
+        async def my_flow() -> int:
+            await asyncio.to_thread(heartbeats.emitted.wait, 5)
+            return 42
+
+        state = await my_flow(return_state=True)
+
+        assert state.is_completed()
+        occurred = [heartbeat.occurred for heartbeat in heartbeats.events]
+        assert occurred
+        assert max(occurred) < state.timestamp

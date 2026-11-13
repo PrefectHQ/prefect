@@ -37,7 +37,7 @@ accumulating if a cycle overlaps with in-progress work.
 
 ## Functions
 
-### `schedule_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `schedule_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 schedule_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.loop_seconds))) -> None
@@ -54,7 +54,7 @@ Disabled by default because it permanently deletes flow runs. Enable
 via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.
 
 
-### `schedule_event_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `schedule_event_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 schedule_event_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.loop_seconds))) -> None
@@ -70,7 +70,7 @@ operators who opted out of event processing are not surprised by
 trimming on upgrade.
 
 
-### `schedule_orphan_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `schedule_orphan_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 schedule_orphan_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.orphan_cleanup_loop_seconds))) -> None
@@ -83,7 +83,7 @@ Each pass can scan the full log and artifact tables, so this service runs
 less often than the normal flow run and event vacuum loops.
 
 
-### `vacuum_orphaned_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_orphaned_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_orphaned_logs() -> None
@@ -93,7 +93,7 @@ vacuum_orphaned_logs() -> None
 Delete logs whose flow_run_id references a non-existent flow run.
 
 
-### `vacuum_orphaned_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_orphaned_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_orphaned_artifacts() -> None
@@ -103,7 +103,7 @@ vacuum_orphaned_artifacts() -> None
 Delete artifacts whose flow_run_id references a non-existent flow run.
 
 
-### `vacuum_stale_artifact_collections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_stale_artifact_collections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_stale_artifact_collections() -> None
@@ -116,7 +116,7 @@ Re-points to the next latest version if one exists, otherwise deletes
 the collection row.
 
 
-### `vacuum_old_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L280" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_old_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_old_flow_runs() -> None
@@ -137,7 +137,7 @@ preserving a run after some of its children were permanently deleted. If
 child cleanup is interrupted, orphan reconciliation recovers it.
 
 
-### `vacuum_events_with_retention_overrides` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L347" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_events_with_retention_overrides` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_events_with_retention_overrides() -> None
@@ -151,7 +151,7 @@ events (and their resources) that are older than the configured retention
 for that type, capped by the global events retention period.
 
 
-### `vacuum_old_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L401" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_old_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_old_events() -> None
