@@ -476,6 +476,9 @@ async def test_flow_run_vacuum_schedules_only_expected_cleanup_tasks():
     scheduled: list[tuple[object, str | None]] = []
 
     class FakeDocket:
+        async def get_execution(self, key):
+            return None
+
         def add(self, function, key=None):
             scheduled.append((function, key))
 
@@ -495,6 +498,9 @@ async def test_orphan_reconciliation_schedules_cleanup_tasks():
     scheduled: list[tuple[object, str | None]] = []
 
     class FakeDocket:
+        async def get_execution(self, key):
+            return None
+
         def add(self, function, key=None):
             scheduled.append((function, key))
 
@@ -510,6 +516,55 @@ async def test_orphan_reconciliation_schedules_cleanup_tasks():
         (vacuum_orphaned_artifacts, "db-vacuum:orphaned-artifacts"),
         (vacuum_stale_artifact_collections, "db-vacuum:stale-collections"),
     ]
+
+
+@pytest.mark.parametrize(
+    "running_key, expected",
+    [
+        ("db-vacuum:old-flow-runs", []),
+        (
+            None,
+            [
+                (
+                    vacuum_events_with_retention_overrides,
+                    "db-vacuum:retention-overrides",
+                ),
+                (vacuum_old_events, "db-vacuum:old-events"),
+            ],
+        ),
+    ],
+    ids=["another-vacuum-task-running", "no-vacuum-task-running"],
+)
+async def test_event_vacuum_enqueues_waiting_tasks_again_only_when_none_runs(
+    running_key: str | None, expected: list[tuple[object, str]]
+):
+    """A task that waits for the slot runs when the running vacuum task
+    finishes, so another copy would only queue behind it. With no vacuum task
+    running, nothing will start the waiting task, so it is enqueued again."""
+    scheduled: list[tuple[object, str | None]] = []
+    states = {
+        "db-vacuum:retention-overrides": ExecutionState.SCHEDULED,
+        "db-vacuum:old-events": ExecutionState.SCHEDULED,
+    }
+    if running_key:
+        states[running_key] = ExecutionState.RUNNING
+
+    class FakeDocket:
+        async def get_execution(self, key):
+            state = states.get(key)
+            return None if state is None else SimpleNamespace(state=state)
+
+        def add(self, function, key=None):
+            scheduled.append((function, key))
+
+            async def enqueue():
+                return None
+
+            return enqueue
+
+    await schedule_event_vacuum_tasks(docket=FakeDocket())
+
+    assert scheduled == expected
 
 
 VACUUM_TASKS = [
@@ -607,8 +662,9 @@ async def test_vacuum_tasks_run_one_at_a_time_on_the_maintenance_pool(
 async def test_vacuum_tasks_all_run_once_after_a_hold_across_scheduler_cycles(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A scheduler cycle that fires while one vacuum task holds the slot must
-    not stop a waiting task from running, run it twice, or let two run at once."""
+    """The schedulers run on different loops, so one can fire again while a
+    vacuum task holds the slot. Once the holder finishes, every waiting task
+    must run without another scheduler cycle, each once, one at a time."""
     holder: list[str] = []
     release_holder = asyncio.Event()
     executions: dict[str, set[int]] = {}
@@ -630,11 +686,6 @@ async def test_vacuum_tasks_all_run_once_after_a_hold_across_scheduler_cycles(
 
     _stub_maintenance_helpers(monkeypatch, hold_maintenance_connection)
 
-    async def run_schedulers(docket: Docket) -> None:
-        await schedule_vacuum_tasks(docket=docket)
-        await schedule_event_vacuum_tasks(docket=docket)
-        await schedule_orphan_vacuum_tasks(docket=docket)
-
     async def wait_until_parked(docket: Docket, keys: set[str]) -> None:
         async for attempt in retry_asserts(max_attempts=100, delay=0.05):
             with attempt:
@@ -650,15 +701,17 @@ async def test_vacuum_tasks_all_run_once_after_a_hold_across_scheduler_cycles(
         async with Worker(docket, concurrency=len(VACUUM_TASKS)) as worker:
             worker_loop = asyncio.create_task(worker.run_forever())
             try:
-                await run_schedulers(docket)
+                await schedule_vacuum_tasks(docket=docket)
                 async for attempt in retry_asserts(max_attempts=100, delay=0.05):
                     with attempt:
-                        assert holder
-                waiting_keys = set(VACUUM_TASK_KEYS) - set(holder)
-                await wait_until_parked(docket, waiting_keys)
+                        assert holder == ["db-vacuum:old-flow-runs"]
 
-                await run_schedulers(docket)
-                await wait_until_parked(docket, waiting_keys)
+                event_keys = {"db-vacuum:retention-overrides", "db-vacuum:old-events"}
+                await schedule_event_vacuum_tasks(docket=docket)
+                await wait_until_parked(docket, event_keys)
+                await schedule_event_vacuum_tasks(docket=docket)
+                await schedule_orphan_vacuum_tasks(docket=docket)
+                await wait_until_parked(docket, set(VACUUM_TASK_KEYS) - set(holder))
                 release_holder.set()
 
                 async for attempt in retry_asserts(max_attempts=200, delay=0.05):
