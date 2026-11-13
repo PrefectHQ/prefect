@@ -3108,6 +3108,28 @@ class TestPrefectClientDeploymentSchedules:
         )
         assert result[0].active is True
 
+    async def test_create_deployment_keeps_paused_schedule_paused(
+        self, prefect_client: PrefectClient, deployment: DeploymentResponse
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        await prefect_client.update_deployment_schedule(
+            deployment.id, deployment.schedules[0].id, active=False
+        )
+
+        # upsert the same schedule without setting `active` or `anchor_date`
+        await prefect_client.create_deployment(
+            flow_id=deployment.flow_id,
+            name=deployment.name,
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=IntervalSchedule(interval=timedelta(days=1))
+                )
+            ],
+        )
+
+        (schedule,) = await prefect_client.read_deployment_schedules(deployment.id)
+        assert schedule.active is False
+
     async def test_update_deployment_schedule_only_active(
         self, deployment, prefect_client
     ):
@@ -3519,6 +3541,35 @@ class TestSyncClient:
         assert state.is_completed()
         assert state.message == "Test!"
         assert state.state_details.flow_run_id == flow_run_id
+
+    def test_create_deployment_keeps_paused_schedule_paused(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        flow_id = sync_prefect_client.create_flow(flow(lambda: None, name="foo"))
+
+        def upsert() -> UUID:
+            # leave out `active` and `anchor_date`
+            return sync_prefect_client.create_deployment(
+                flow_id=flow_id,
+                name="test-deployment",
+                schedules=[
+                    DeploymentScheduleCreate(
+                        schedule=IntervalSchedule(interval=timedelta(days=1))
+                    )
+                ],
+            )
+
+        deployment_id = upsert()
+        (schedule,) = sync_prefect_client.read_deployment(deployment_id).schedules
+        sync_prefect_client.update_deployment_schedule(
+            deployment_id, schedule.id, active=False
+        )
+
+        upsert()
+
+        (schedule,) = sync_prefect_client.read_deployment(deployment_id).schedules
+        assert schedule.active is False
 
     def test_read_server_default_result_storage(self, sync_prefect_client):
         configuration = sync_prefect_client.read_server_default_result_storage()
