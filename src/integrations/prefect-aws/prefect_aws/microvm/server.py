@@ -40,6 +40,7 @@ class LifecycleHookServer(ThreadingHTTPServer):
     once `name_lookup_warm_up` has finished, or after
     `NAME_LOOKUP_WARM_UP_WAIT_SECONDS`. A valid `/run` request is answered with
     200 once `allow_run_reply` is called, or after `RUN_REPLY_WAIT_SECONDS`.
+    `wait_for_run_reply` reports whether that 200 was sent.
     """
 
     daemon_threads = True
@@ -52,6 +53,8 @@ class LifecycleHookServer(ThreadingHTTPServer):
         super().__init__(server_address, LifecycleHookHandler)
         self._name_lookup_warm_up = name_lookup_warm_up
         self._run_reply_allowed = threading.Event()
+        self._run_reply_finished = threading.Event()
+        self._run_reply_sent = False
         self._run_requests: queue.Queue[RunHookRequest | InvalidRunHookPayload] = (
             queue.Queue()
         )
@@ -175,10 +178,33 @@ class LifecycleHookServer(ThreadingHTTPServer):
         """Wait up to `RUN_REPLY_WAIT_SECONDS` for `allow_run_reply`."""
         if not self._run_reply_allowed.wait(RUN_REPLY_WAIT_SECONDS):
             logger.warning(
-                "Answering the `/run` request after %s seconds before SIGTERM "
-                "was blocked.",
+                "Answering the `/run` request after %s seconds without waiting "
+                "for SIGTERM to be blocked.",
                 RUN_REPLY_WAIT_SECONDS,
             )
+
+    def record_run_reply(self, sent: bool) -> None:
+        """Record whether the 200 reply to a valid `/run` request was sent."""
+        self._run_reply_sent = sent
+        self._run_reply_finished.set()
+
+    def wait_for_run_reply(self) -> bool | None:
+        """
+        Wait up to `RUN_REPLY_WAIT_SECONDS` for the 200 reply to a valid `/run`
+        request to be sent or to fail.
+
+        Returns:
+            True if the reply was sent, False if sending it failed, or None if
+            neither happened in time.
+        """
+        if not self._run_reply_finished.wait(RUN_REPLY_WAIT_SECONDS):
+            logger.warning(
+                "The 200 reply to the `/run` request has not finished after %s "
+                "seconds; starting the flow run without waiting for it.",
+                RUN_REPLY_WAIT_SECONDS,
+            )
+            return None
+        return self._run_reply_sent
 
     def wait_for_name_lookup_warm_up(self) -> None:
         """
@@ -190,8 +216,8 @@ class LifecycleHookServer(ThreadingHTTPServer):
         self._name_lookup_warm_up.join(NAME_LOOKUP_WARM_UP_WAIT_SECONDS)
         if self._name_lookup_warm_up.is_alive():
             logger.warning(
-                "Name lookups before `/ready` took longer than %s seconds; each "
-                "run will wait for them before it starts.",
+                "Name lookups have not finished after %s seconds; a run that "
+                "starts before they finish waits for them.",
                 NAME_LOOKUP_WARM_UP_WAIT_SECONDS,
             )
 
@@ -256,10 +282,19 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
             # `main` blocks SIGTERM before it allows the reply, so a SIGTERM
             # sent after the 200 is held for the flow run's process.
             self.server.wait_until_run_reply_allowed()
-            # A failed 200 still runs the flow run: the runtime's handling of a
-            # failed `/run` reply is not documented, and the flow run's state
-            # rules refuse a duplicate start of the same run.
-            self._reply_if_unanswered(200)
+            self._reply_to_run()
+
+    def _reply_to_run(self) -> None:
+        # The runtime's response to a failed `/run` reply is not documented, so
+        # `main` does not start a run whose acknowledgement failed.
+        reply_sent = False
+        try:
+            self._reply(200)
+            reply_sent = True
+        except OSError:
+            logger.warning("Could not reply 200 to the `/run` request.")
+        finally:
+            self.server.record_run_reply(reply_sent)
 
     def _start_run(self) -> RunHookRequest:
         run_request = parse_run_hook_request(self._read_body())

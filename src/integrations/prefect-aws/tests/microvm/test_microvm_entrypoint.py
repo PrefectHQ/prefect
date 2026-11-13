@@ -1,4 +1,5 @@
 import http.client
+import json
 import logging.config
 import os
 import signal
@@ -9,7 +10,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 from unittest.mock import call, create_autospec
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from prefect_aws.microvm import entrypoint, supervisor
@@ -171,21 +172,28 @@ def test_main_starts_the_name_lookup_warm_up_and_hands_it_to_the_hook_server(
     assert warm_ups_given_to_the_server == [warm_up]
 
 
+class WarmUpReleasedByJoin(threading.Thread):
+    """A warm-up that runs until something joins it."""
+
+    def __init__(self) -> None:
+        super().__init__(daemon=True)
+        self.release = threading.Event()
+
+    def run(self) -> None:
+        self.release.wait()
+
+    def join(self, timeout: float | None = None) -> None:
+        self.release.set()
+        super().join(timeout)
+
+
 def test_main_warns_and_forks_only_after_a_slow_name_lookup_warm_up_has_finished(
     monkeypatch: pytest.MonkeyPatch,
     post_run_hook: PostRunHook,
     hook_port: int,
     caplog: pytest.LogCaptureFixture,
 ):
-    release_warm_up = threading.Event()
-
-    def finish_warm_up_after_release() -> None:
-        release_warm_up.wait()
-        # Keeps the warm-up running past the point where `main` would fork
-        # without waiting for it.
-        time.sleep(0.3)
-
-    slow_warm_up = threading.Thread(target=finish_warm_up_after_release, daemon=True)
+    slow_warm_up = WarmUpReleasedByJoin()
 
     def start_slow_warm_up() -> threading.Thread:
         slow_warm_up.start()
@@ -198,13 +206,6 @@ def test_main_warns_and_forks_only_after_a_slow_name_lookup_warm_up_has_finished
             entrypoint.start_name_lookup_warm_up, side_effect=start_slow_warm_up
         ),
     )
-    original_stop_hook_server = entrypoint._stop_hook_server
-
-    def stop_then_release_warm_up(server: LifecycleHookServer) -> None:
-        original_stop_hook_server(server)
-        release_warm_up.set()
-
-    monkeypatch.setattr(entrypoint, "_stop_hook_server", stop_then_release_warm_up)
     warm_up_alive_at_supervise: list[bool] = []
 
     def run_flow(payload: RunHookPayload) -> int:
@@ -216,13 +217,13 @@ def test_main_warns_and_forks_only_after_a_slow_name_lookup_warm_up_has_finished
     try:
         exit_code = run_main(post_run_hook, hook_port, flow_run_id, {})
     finally:
-        release_warm_up.set()
+        slow_warm_up.release.set()
 
     assert exit_code == 0
     assert warm_up_alive_at_supervise == [False]
     assert (
-        "The name lookup started before the image snapshot has not finished. "
-        f"Flow run {flow_run_id} will wait for it before it starts."
+        "The name lookup warm-up from before the snapshot is still running; "
+        f"flow run {flow_run_id} waits for it before it starts."
     ) in caplog.messages
 
 
@@ -784,6 +785,110 @@ def test_main_blocks_sigterm_before_the_run_request_is_answered(
     assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
 
     assert events == ["reply allowed with SIGTERM blocked: True", "replied 200"]
+
+
+def fail_to_send_200(monkeypatch: pytest.MonkeyPatch) -> None:
+    original_send_response = LifecycleHookHandler.send_response
+
+    def send_response(
+        handler: LifecycleHookHandler, code: int, message: str | None = None
+    ) -> None:
+        if code == 200:
+            raise BrokenPipeError("the runtime closed the connection")
+        original_send_response(handler, code, message)
+
+    monkeypatch.setattr(LifecycleHookHandler, "send_response", send_response)
+
+
+def post_run_once_listening(port: int, flow_run_id: UUID) -> threading.Thread:
+    """
+    Post one `/run` request once the hook server on `port` is listening, and
+    ignore a failed reply. `post_run_hook` would post again after a failed reply.
+    """
+
+    def post() -> None:
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            try:
+                probe = socket.create_connection(("127.0.0.1", port), timeout=1)
+            except OSError:
+                time.sleep(0.05)
+                continue
+            probe.close()
+            break
+        connection = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+        run_hook_payload = {"v": 1, "flow_run_id": str(flow_run_id), "env": {}}
+        body = json.dumps(
+            {"microvmId": "microvm-abc", "runHookPayload": json.dumps(run_hook_payload)}
+        ).encode()
+        try:
+            connection.request("POST", "/run", body=body)
+            connection.getresponse().read()
+        except OSError:
+            pass
+        finally:
+            connection.close()
+
+    poster = threading.Thread(target=post, daemon=True)
+    poster.start()
+    return poster
+
+
+def test_main_exits_1_without_forking_when_the_run_reply_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    hook_port: int,
+    caplog: pytest.LogCaptureFixture,
+):
+    fail_to_send_200(monkeypatch)
+    supervise = patch_supervise(monkeypatch, lambda payload: 0)
+    signal_mask_before_main = blocked_signals()
+    flow_run_id = uuid4()
+    poster = post_run_once_listening(hook_port, flow_run_id)
+
+    exit_code = entrypoint.main(port=hook_port)
+    poster.join(timeout=10)
+
+    assert exit_code == 1
+    supervise.assert_not_called()
+    assert blocked_signals() == signal_mask_before_main
+    assert (
+        f"Flow run {flow_run_id} is not started because the reply to "
+        "its `/run` request could not be sent."
+    ) in caplog.messages
+
+
+def test_main_forks_after_the_run_reply_is_sent(
+    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+):
+    run_reply_results: list[bool | None] = []
+    original_wait_for_run_reply = LifecycleHookServer.wait_for_run_reply
+
+    def record_run_reply(server: LifecycleHookServer) -> bool | None:
+        run_reply_results.append(original_wait_for_run_reply(server))
+        return run_reply_results[-1]
+
+    monkeypatch.setattr(LifecycleHookServer, "wait_for_run_reply", record_run_reply)
+    supervise = patch_supervise(monkeypatch, lambda payload: 0)
+
+    assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
+
+    assert run_reply_results == [True]
+    supervise.assert_called_once()
+
+
+def test_main_forks_when_the_run_reply_has_not_finished_in_time(
+    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+):
+    monkeypatch.setattr(
+        LifecycleHookServer,
+        "wait_for_run_reply",
+        create_autospec(LifecycleHookServer.wait_for_run_reply, return_value=None),
+    )
+    supervise = patch_supervise(monkeypatch, lambda payload: 0)
+
+    assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
+
+    supervise.assert_called_once()
 
 
 def test_threads_started_by_main_block_sigterm(

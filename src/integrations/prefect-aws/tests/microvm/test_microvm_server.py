@@ -147,7 +147,10 @@ def test_ready_is_answered_after_the_wait_limit_when_the_warm_up_stalls(
     assert response.status == 200
     assert warm_up_alive_at_answer
     assert 0.3 <= waited < 5
-    assert any("took longer than 0.3 seconds" in message for message in caplog.messages)
+    assert (
+        "Name lookups have not finished after 0.3 seconds; a run that starts "
+        "before they finish waits for them."
+    ) in caplog.messages
 
 
 def test_run_is_answered_only_after_allow_run_reply(
@@ -196,9 +199,9 @@ def test_run_is_answered_after_the_wait_limit_without_allow_run_reply(
     assert 0.3 <= waited < 5
     assert isinstance(server.wait_for_run_request(), RunHookRequest)
     assert (
-        "Answering the `/run` request after 0.3 seconds before SIGTERM was blocked."
-        in caplog.messages
-    )
+        "Answering the `/run` request after 0.3 seconds without waiting for "
+        "SIGTERM to be blocked."
+    ) in caplog.messages
 
 
 @pytest.mark.parametrize("path", ["/run", "/aws/lambda-microvms/runtime/v1/run"])
@@ -213,9 +216,10 @@ def test_run_applies_env_returns_200_and_hands_off_the_request(
     assert isinstance(run_request, RunHookRequest)
     assert run_request.microvm_id == "microvm-abc"
     assert run_request.payload.flow_run_id == FLOW_RUN_ID
+    assert server.wait_for_run_reply() is True
 
 
-def test_a_failed_200_reply_to_run_still_hands_off_the_request(
+def test_a_failed_200_reply_to_run_hands_off_the_request_and_records_the_failure(
     server: LifecycleHookServer,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -238,6 +242,26 @@ def test_a_failed_200_reply_to_run_still_hands_off_the_request(
     assert isinstance(run_request, RunHookRequest)
     assert run_request.payload.flow_run_id == FLOW_RUN_ID
     assert "Could not reply 200 to the `/run` request." in caplog.messages
+    assert server.wait_for_run_reply() is False
+
+
+def test_wait_for_run_reply_returns_none_after_the_wait_limit_without_a_reply(
+    server: LifecycleHookServer,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    monkeypatch.setattr(server_module, "RUN_REPLY_WAIT_SECONDS", 0.3)
+
+    started = time.monotonic()
+    run_reply_sent = server.wait_for_run_reply()
+    waited = time.monotonic() - started
+
+    assert run_reply_sent is None
+    assert 0.3 <= waited < 5
+    assert (
+        "The 200 reply to the `/run` request has not finished after 0.3 seconds; "
+        "starting the flow run without waiting for it."
+    ) in caplog.messages
 
 
 def test_second_run_is_refused(server: LifecycleHookServer):

@@ -78,8 +78,8 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
 
     Returns:
         0 if the flow run's process exited 0. 1 if the `/run` request was
-        rejected, the run's settings could not be loaded, or the flow run's
-        process failed.
+        rejected, the 200 reply to it could not be sent, the run's settings
+        could not be loaded, or the flow run's process failed.
     """
     # As PID 1, a thread that takes a SIGTERM with no handler drops it. The
     # warm-up and server threads start with SIGTERM blocked, so a SIGTERM after
@@ -157,13 +157,20 @@ def _run(
     # forks. The resolver's own timeout and attempts bound this wait.
     if name_lookup_warm_up.is_alive():
         logger.warning(
-            "The name lookup started before the image snapshot has not finished. "
-            "Flow run %s will wait for it before it starts.",
+            "The name lookup warm-up from before the snapshot is still running; "
+            "flow run %s waits for it before it starts.",
             flow_run_id,
         )
     name_lookup_warm_up.join()
     if api_host_lookup is not None:
         api_host_lookup.join()
+    if server.wait_for_run_reply() is False:
+        logger.error(
+            "Flow run %s is not started because the reply to its `/run` "
+            "request could not be sent.",
+            flow_run_id,
+        )
+        return 1
 
     # The flow run is forked from this thread, so it runs on the child's main
     # thread, where the engine can install its signal handlers.
