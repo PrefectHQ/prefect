@@ -133,7 +133,9 @@ describe("generateNiceTimeTicks", () => {
 
 		expect(ticks.length).toBeGreaterThan(0);
 		ticks.forEach((tick) => {
-			expect(tick % (60 * 60 * 1000)).toBe(0);
+			const date = new Date(tick);
+			expect(date.getMinutes()).toBe(0);
+			expect(date.getSeconds()).toBe(0);
 		});
 	});
 
@@ -144,8 +146,73 @@ describe("generateNiceTimeTicks", () => {
 
 		expect(ticks.length).toBeGreaterThan(0);
 		ticks.forEach((tick) => {
-			expect(tick % (24 * 60 * 60 * 1000)).toBe(0);
+			const date = new Date(tick);
+			expect(date.getHours()).toBe(0);
+			expect(date.getMinutes()).toBe(0);
 		});
+	});
+
+	// These hold in any timezone. CI runs them in UTC, where local and UTC
+	// boundaries coincide; run with TZ=Asia/Kolkata or TZ=America/Santiago
+	// (DST starts at midnight on 2026-09-06) to exercise the difference.
+	it("puts day ticks on local midnight so they are labelled with a date", () => {
+		const start = new Date("2026-09-02T14:23:00.000Z").getTime();
+		const end = new Date("2026-10-02T14:23:00.000Z").getTime();
+		const ticks = generateNiceTimeTicks(start, end, 10);
+		const formatter = createXAxisTickFormatter();
+
+		expect(ticks.length).toBeGreaterThanOrEqual(8);
+		ticks.forEach((tick) => {
+			expect(new Date(tick).getMinutes()).toBe(0);
+			expect(formatter(tick)).not.toMatch(/AM|PM/);
+		});
+	});
+
+	it("puts multi-hour ticks on local hours divisible by the step", () => {
+		const start = new Date("2026-10-01T14:23:00.000Z").getTime();
+		const end = new Date("2026-10-02T14:23:00.000Z").getTime();
+		const ticks = generateNiceTimeTicks(start, end, 10);
+
+		expect(ticks.length).toBeGreaterThanOrEqual(8);
+		ticks.forEach((tick) => {
+			const date = new Date(tick);
+			expect(date.getMinutes()).toBe(0);
+			expect(date.getHours() % 3).toBe(0);
+		});
+	});
+
+	// Like the tests above, these hold in any timezone and CI runs them in
+	// UTC. Run with TZ=Australia/Lord_Howe, where 02:00 became 02:30 on
+	// 2026-10-04, to exercise the half-hour DST change: before the fix only
+	// the midnight tick was left.
+	it("keeps hour ticks after a half-hour DST change", () => {
+		// Lord Howe local midnight to noon on 2026-10-04
+		const start = new Date("2026-10-03T13:30:00.000Z").getTime();
+		const end = new Date("2026-10-04T01:00:00.000Z").getTime();
+
+		const threeHourTicks = generateNiceTimeTicks(start, end, 10);
+		expect(threeHourTicks.length).toBeGreaterThanOrEqual(4);
+		for (const tick of threeHourTicks) {
+			expect(new Date(tick).getHours() % 3).toBe(0);
+		}
+
+		const hourTicks = generateNiceTimeTicks(start, end, 20);
+		expect(hourTicks.length).toBeGreaterThanOrEqual(11);
+		for (const tick of [...threeHourTicks, ...hourTicks]) {
+			expect(new Date(tick).getMinutes()).toBe(0);
+			expect(tick).toBeGreaterThanOrEqual(start);
+			expect(tick).toBeLessThanOrEqual(end);
+		}
+	});
+
+	it("returns about the target number of ticks for a 30-day range", () => {
+		const start = new Date("2026-09-02T14:23:00.000Z").getTime();
+		const end = new Date("2026-10-02T14:23:00.000Z").getTime();
+		const ticks = generateNiceTimeTicks(start, end, 10);
+
+		// 3-day steps, not weekly ones, which left only 4 or 5 ticks
+		expect(ticks.length).toBeGreaterThanOrEqual(9);
+		expect(ticks.length).toBeLessThanOrEqual(11);
 	});
 
 	it("returns at least one tick even for very small ranges", () => {
