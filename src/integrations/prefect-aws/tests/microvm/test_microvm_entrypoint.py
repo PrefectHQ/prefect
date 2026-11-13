@@ -7,7 +7,6 @@ import sys
 import threading
 import time
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 from unittest.mock import call, create_autospec
 from uuid import uuid4
@@ -33,7 +32,7 @@ pytestmark = [
     pytest.mark.filterwarnings(
         "ignore:This process .* is multi-threaded:DeprecationWarning"
     ),
-    pytest.mark.usefixtures("api_from_environment"),
+    pytest.mark.usefixtures("api_from_environment", "restore_signal_mask"),
 ]
 
 PostRunHook = Callable[..., threading.Thread]
@@ -92,125 +91,122 @@ def slow_to_close_hook_server(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(entrypoint, "LifecycleHookServer", SlowToCloseHookServer)
 
 
-LOCALHOST_HOSTS_FILE = "127.0.0.1\tlocalhost\n::1\tlocalhost ip6-localhost\n"
-FILES_FIRST_NSSWITCH_CONF = "passwd: files\nhosts: files dns\n"
 NUMERIC_LOOKUP = call("127.0.0.1", None, type=socket.SOCK_STREAM)
 LOCALHOST_LOOKUP = call("localhost", None, type=socket.SOCK_STREAM)
 
 
-def use_name_service_files(
+def test_name_lookup_warm_up_looks_up_127_0_0_1_then_localhost_on_a_daemon_thread(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    hosts_file: str | bytes | None,
-    nsswitch_conf: str | bytes | None,
-) -> None:
-    for attribute, name, content in [
-        ("HOSTS_FILE_PATH", "hosts", hosts_file),
-        ("NSSWITCH_CONF_PATH", "nsswitch.conf", nsswitch_conf),
-    ]:
-        path = tmp_path / name
-        if isinstance(content, str):
-            path.write_text(content)
-        elif isinstance(content, bytes):
-            path.write_bytes(content)
-        monkeypatch.setattr(entrypoint, attribute, path)
-
-
-def test_warm_name_lookup_looks_up_localhost_when_the_hosts_file_answers_it(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
-    use_name_service_files(
-        monkeypatch, tmp_path, LOCALHOST_HOSTS_FILE, FILES_FIRST_NSSWITCH_CONF
-    )
     getaddrinfo = patch_getaddrinfo(monkeypatch, return_value=[])
 
-    entrypoint.warm_name_lookup()
+    warm_up = entrypoint.start_name_lookup_warm_up()
 
+    warm_up.join(timeout=5)
+    assert not warm_up.is_alive()
+    assert warm_up.daemon
     assert getaddrinfo.call_args_list == [NUMERIC_LOOKUP, LOCALHOST_LOOKUP]
 
 
 @pytest.mark.parametrize(
-    "hosts_file, nsswitch_conf",
-    [
-        ("127.0.0.1\tmicrovm\n", FILES_FIRST_NSSWITCH_CONF),
-        ("# 127.0.0.1 localhost\n", FILES_FIRST_NSSWITCH_CONF),
-        ("localhost\n", FILES_FIRST_NSSWITCH_CONF),
-        (LOCALHOST_HOSTS_FILE, "hosts: dns files\n"),
-        (LOCALHOST_HOSTS_FILE, "hosts: resolve [!UNAVAIL=return] files\n"),
-        (LOCALHOST_HOSTS_FILE, "hosts:\n"),
-        (LOCALHOST_HOSTS_FILE, "passwd: files\n"),
-        (LOCALHOST_HOSTS_FILE, "# hosts: files dns\n"),
-        (None, FILES_FIRST_NSSWITCH_CONF),
-        (LOCALHOST_HOSTS_FILE, None),
-        (LOCALHOST_HOSTS_FILE, b"hosts: files \xff\n"),
-    ],
-    ids=[
-        "no-localhost-entry",
-        "localhost-only-in-a-comment",
-        "localhost-as-the-address",
-        "dns-first",
-        "resolve-first",
-        "no-hosts-sources",
-        "no-hosts-line",
-        "hosts-line-commented-out",
-        "no-hosts-file",
-        "no-nsswitch-conf",
-        "nsswitch-conf-not-utf-8",
-    ],
+    "lookup_error",
+    [socket.gaierror("no resolver"), UnicodeError("label too long")],
+    ids=["gaierror", "unicode-error"],
 )
-def test_warm_name_lookup_skips_localhost_unless_the_hosts_file_answers_it(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    hosts_file: str | None,
-    nsswitch_conf: str | bytes | None,
+def test_name_lookup_warm_up_errors_stay_in_the_warm_up_thread(
+    monkeypatch: pytest.MonkeyPatch, lookup_error: Exception
 ):
-    use_name_service_files(monkeypatch, tmp_path, hosts_file, nsswitch_conf)
-    getaddrinfo = patch_getaddrinfo(monkeypatch, return_value=[])
+    getaddrinfo = patch_getaddrinfo(monkeypatch, side_effect=lookup_error)
+    uncaught_thread_errors: list[threading.ExceptHookArgs] = []
+    monkeypatch.setattr(threading, "excepthook", uncaught_thread_errors.append)
 
-    entrypoint.warm_name_lookup()
+    warm_up = entrypoint.start_name_lookup_warm_up()
 
-    assert getaddrinfo.call_args_list == [NUMERIC_LOOKUP]
-
-
-def test_warm_name_lookup_ignores_lookup_errors(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    use_name_service_files(
-        monkeypatch, tmp_path, LOCALHOST_HOSTS_FILE, FILES_FIRST_NSSWITCH_CONF
-    )
-    getaddrinfo = patch_getaddrinfo(
-        monkeypatch, side_effect=socket.gaierror("no resolver")
-    )
-
-    entrypoint.warm_name_lookup()
-
+    warm_up.join(timeout=5)
     assert getaddrinfo.call_args_list == [NUMERIC_LOOKUP, LOCALHOST_LOOKUP]
+    assert uncaught_thread_errors == []
 
 
-def test_main_warms_name_lookup_before_creating_the_hook_server(
+def finished_thread() -> threading.Thread:
+    thread = threading.Thread(target=lambda: None, daemon=True)
+    thread.start()
+    thread.join()
+    return thread
+
+
+def test_main_starts_the_name_lookup_warm_up_and_hands_it_to_the_hook_server(
     monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
 ):
     events: list[str] = []
+    warm_up = finished_thread()
+    warm_ups_given_to_the_server: list[threading.Thread | None] = []
 
     class RecordingHookServer(LifecycleHookServer):
-        def __init__(self, server_address: tuple[str, int]) -> None:
+        def __init__(
+            self,
+            server_address: tuple[str, int],
+            name_lookup_warm_up: threading.Thread | None = None,
+        ) -> None:
             events.append("hook server created")
-            super().__init__(server_address)
+            warm_ups_given_to_the_server.append(name_lookup_warm_up)
+            super().__init__(server_address, name_lookup_warm_up)
+
+    def start_warm_up() -> threading.Thread:
+        events.append("name lookup warm-up started")
+        return warm_up
 
     monkeypatch.setattr(entrypoint, "LifecycleHookServer", RecordingHookServer)
     monkeypatch.setattr(
         entrypoint,
-        "warm_name_lookup",
+        "start_name_lookup_warm_up",
         create_autospec(
-            entrypoint.warm_name_lookup,
-            side_effect=lambda: events.append("name lookup warmed"),
+            entrypoint.start_name_lookup_warm_up, side_effect=start_warm_up
         ),
     )
     patch_supervise(monkeypatch, lambda payload: 0)
 
     assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
 
-    assert events == ["name lookup warmed", "hook server created"]
+    assert events == ["name lookup warm-up started", "hook server created"]
+    assert warm_ups_given_to_the_server == [warm_up]
+
+
+def test_main_forks_only_after_a_slow_name_lookup_warm_up_has_finished(
+    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+):
+    release_warm_up = threading.Event()
+    slow_warm_up = threading.Thread(target=release_warm_up.wait, daemon=True)
+
+    def start_slow_warm_up() -> threading.Thread:
+        slow_warm_up.start()
+        return slow_warm_up
+
+    monkeypatch.setattr(
+        entrypoint,
+        "start_name_lookup_warm_up",
+        create_autospec(
+            entrypoint.start_name_lookup_warm_up, side_effect=start_slow_warm_up
+        ),
+    )
+    warm_up_alive_at_supervise: list[bool] = []
+
+    def run_flow(payload: RunHookPayload) -> int:
+        warm_up_alive_at_supervise.append(slow_warm_up.is_alive())
+        return 0
+
+    patch_supervise(monkeypatch, run_flow)
+    # Released only after `/run` is posted, so the warm-up is still running
+    # when `main` reaches the fork.
+    release_timer = threading.Timer(0.5, release_warm_up.set)
+    release_timer.daemon = True
+    release_timer.start()
+    try:
+        exit_code = run_main(post_run_hook, hook_port, uuid4(), {})
+    finally:
+        release_warm_up.set()
+
+    assert exit_code == 0
+    assert warm_up_alive_at_supervise == [False]
 
 
 @pytest.mark.parametrize(
@@ -722,3 +718,64 @@ def test_hook_threads_block_sigterm_and_the_main_thread_does_not_before_run(
     assert signal.SIGTERM in signals_blocked_in_ready_handler[0]
     assert len(signals_blocked_in_main_waiting_for_run) == 1
     assert signal.SIGTERM not in signals_blocked_in_main_waiting_for_run[0]
+
+
+def test_main_blocks_sigterm_before_the_run_request_is_answered(
+    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+):
+    events: list[str] = []
+    original_allow_run_reply = LifecycleHookServer.allow_run_reply
+
+    def record_mask_then_allow(server: LifecycleHookServer) -> None:
+        # Gives a handler that does not wait for this call time to answer first.
+        time.sleep(0.2)
+        events.append(
+            f"reply allowed with SIGTERM blocked: {signal.SIGTERM in blocked_signals()}"
+        )
+        original_allow_run_reply(server)
+
+    monkeypatch.setattr(LifecycleHookServer, "allow_run_reply", record_mask_then_allow)
+    original_reply = LifecycleHookHandler._reply
+
+    def record_reply(handler: LifecycleHookHandler, status: int) -> None:
+        events.append(f"replied {status}")
+        original_reply(handler, status)
+
+    monkeypatch.setattr(LifecycleHookHandler, "_reply", record_reply)
+    patch_supervise(monkeypatch, lambda payload: 0)
+
+    assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
+
+    assert events == ["reply allowed with SIGTERM blocked: True", "replied 200"]
+
+
+def test_threads_started_by_main_block_sigterm(
+    monkeypatch: pytest.MonkeyPatch, post_run_hook: PostRunHook, hook_port: int
+):
+    lookups: list[tuple[str, bool]] = []
+
+    def record_mask_then_look_up(*args: Any, **kwargs: Any) -> Any:
+        lookups.append(
+            (threading.current_thread().name, signal.SIGTERM in blocked_signals())
+        )
+        return real_getaddrinfo(*args, **kwargs)
+
+    patch_getaddrinfo(monkeypatch, side_effect=record_mask_then_look_up)
+    sigterm_blocked_in_stopper: list[bool] = []
+    original_stop_hook_server = entrypoint._stop_hook_server
+
+    def record_mask_then_stop(server: LifecycleHookServer) -> None:
+        sigterm_blocked_in_stopper.append(signal.SIGTERM in blocked_signals())
+        original_stop_hook_server(server)
+
+    monkeypatch.setattr(entrypoint, "_stop_hook_server", record_mask_then_stop)
+    patch_supervise(monkeypatch, lambda payload: 0)
+
+    assert run_main(post_run_hook, hook_port, uuid4(), {}) == 0
+
+    microvm_lookups = [lookup for lookup in lookups if lookup[0].startswith("microvm-")]
+    assert {"microvm-name-lookup-warm-up", "microvm-api-host-lookup"} <= {
+        thread_name for thread_name, _ in microvm_lookups
+    }
+    assert all(sigterm_blocked for _, sigterm_blocked in microvm_lookups)
+    assert sigterm_blocked_in_stopper == [True]

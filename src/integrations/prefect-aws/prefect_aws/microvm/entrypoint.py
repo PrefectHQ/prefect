@@ -6,7 +6,6 @@ import os
 import signal
 import socket
 import threading
-from pathlib import Path
 from urllib.parse import urlsplit
 
 from prefect.context import refresh_global_settings_context
@@ -18,43 +17,21 @@ from prefect_aws.microvm.supervisor import report_crash, supervise_flow_run
 logger = get_logger("prefect_aws.microvm")
 
 DEFAULT_PORTS = {"http": 80, "https": 443}
-HOSTS_FILE_PATH = Path("/etc/hosts")
-NSSWITCH_CONF_PATH = Path("/etc/nsswitch.conf")
 
 
-def warm_name_lookup() -> None:
+def start_name_lookup_warm_up() -> threading.Thread:
     """
-    Look up `127.0.0.1`, and `localhost` when `/etc/hosts` answers it. A lookup
-    error is logged and ignored.
-    """
-    # In a restored MicroVM, the first API host lookup took 0.485 s with no
-    # lookup before the snapshot, 0.318 s after a `127.0.0.1` lookup, and
-    # 0.174 s after a `127.0.0.1` and a `localhost` lookup. `localhost` is looked
-    # up only when the hosts file answers it, because a lookup that waits on DNS
-    # would delay the answer to `/ready`.
-    _look_up_and_ignore_errors("127.0.0.1")
-    if localhost_is_answered_from_hosts_file():
-        _look_up_and_ignore_errors("localhost")
-
-
-def localhost_is_answered_from_hosts_file() -> bool:
-    """
-    Return whether a `localhost` lookup is answered from `/etc/hosts` before any
-    other name service is asked.
+    Start looking up `127.0.0.1` and then `localhost` on a daemon thread. A
+    lookup error is logged and ignored.
 
     Returns:
-        True if `/etc/hosts` has a `localhost` entry and `files` is the first
-        source on the `hosts:` line of `/etc/nsswitch.conf`. False otherwise,
-        including when either file cannot be read.
+        The thread doing the lookups.
     """
-    try:
-        hosts_file = HOSTS_FILE_PATH.read_text(encoding="utf-8")
-        nsswitch_conf = NSSWITCH_CONF_PATH.read_text(encoding="utf-8")
-    except (OSError, ValueError):
-        return False
-    return _hosts_file_has_localhost(hosts_file) and _hosts_sources_start_with_files(
-        nsswitch_conf
+    warm_up = threading.Thread(
+        target=_warm_name_lookup, name="microvm-name-lookup-warm-up", daemon=True
     )
+    warm_up.start()
+    return warm_up
 
 
 def start_api_host_lookup(api_url: str | None) -> threading.Thread | None:
@@ -93,8 +70,8 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
     Serve the lifecycle hooks, run the flow run from the first `/run` request,
     and return the process exit code.
 
-    SIGTERM is blocked from the `/run` request until the flow run's process
-    exists, then forwarded to it.
+    SIGTERM is blocked before a valid `/run` request is answered, stays blocked
+    until the flow run's process exists, and is then forwarded to it.
 
     Args:
         port: The port to serve the lifecycle hooks on.
@@ -104,27 +81,36 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
         rejected, the run's settings could not be loaded, or the flow run's
         process failed.
     """
-    warm_name_lookup()
-    server = LifecycleHookServer(("0.0.0.0", port))
-    # As PID 1, a server or handler thread that takes a SIGTERM drops it. The
-    # threads inherit this block, so a SIGTERM after `/run` waits for the
-    # forwarding handler. The main thread still takes a SIGTERM before `/run`.
-    signal_mask_before_server = signal.pthread_sigmask(
+    # As PID 1, a thread that takes a SIGTERM with no handler drops it. The
+    # warm-up and server threads start with SIGTERM blocked, so a SIGTERM after
+    # `/run` waits for the forwarding handler. The main thread unblocks it again
+    # until `/run`, because a SIGTERM pending in the snapshot, taken after
+    # `/ready`, would be pending in every restore.
+    signal_mask_before_threads = signal.pthread_sigmask(
         signal.SIG_BLOCK, {signal.SIGTERM}
     )
     try:
+        # A lookup before the snapshot shortens a restored MicroVM's first API
+        # host lookup. `/ready` waits for it at most
+        # `NAME_LOOKUP_WARM_UP_WAIT_SECONDS`, so a stalled resolver cannot hold
+        # up the image build.
+        name_lookup_warm_up = start_name_lookup_warm_up()
+        server = LifecycleHookServer(
+            ("0.0.0.0", port), name_lookup_warm_up=name_lookup_warm_up
+        )
         threading.Thread(
             target=server.serve_forever, name="microvm-lifecycle-hooks", daemon=True
         ).start()
     finally:
-        signal.pthread_sigmask(signal.SIG_SETMASK, signal_mask_before_server)
+        signal.pthread_sigmask(signal.SIG_SETMASK, signal_mask_before_threads)
 
     run_request = server.wait_for_run_request()
-    # As PID 1 this process drops a SIGTERM it has no handler for. Blocked, the
-    # SIGTERM stays pending until `supervise_flow_run` can forward it.
+    # Blocked, a SIGTERM stays pending until `supervise_flow_run` can forward
+    # it. The `/run` handler waits for `allow_run_reply` before it sends its 200.
     signal_mask_before_run = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
     try:
-        return _run(server, run_request, signal_mask_before_run)
+        server.allow_run_reply()
+        return _run(server, run_request, name_lookup_warm_up, signal_mask_before_run)
     finally:
         signal.pthread_sigmask(signal.SIG_SETMASK, signal_mask_before_run)
 
@@ -132,6 +118,7 @@ def main(port: int = HOOK_SERVER_PORT) -> int:
 def _run(
     server: LifecycleHookServer,
     run_request: RunHookRequest | InvalidRunHookPayload,
+    name_lookup_warm_up: threading.Thread,
     signal_mask_before_run: set[signal.Signals],
 ) -> int:
     if isinstance(run_request, InvalidRunHookPayload):
@@ -168,6 +155,7 @@ def _run(
     hook_server_stopper.join()
     # No thread may be inside the C library's name lookup when the process
     # forks. The resolver's own timeout and attempts bound this wait.
+    name_lookup_warm_up.join()
     if api_host_lookup is not None:
         api_host_lookup.join()
 
@@ -185,27 +173,16 @@ def _stop_hook_server(server: LifecycleHookServer) -> None:
     server.server_close()
 
 
+def _warm_name_lookup() -> None:
+    _look_up_and_ignore_errors("127.0.0.1")
+    _look_up_and_ignore_errors("localhost")
+
+
 def _look_up_and_ignore_errors(host: str) -> None:
     try:
         socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
-    except OSError:
+    except (OSError, UnicodeError):
         logger.debug("Could not resolve %s.", host, exc_info=True)
-
-
-def _hosts_file_has_localhost(hosts_file: str) -> bool:
-    for line in hosts_file.splitlines():
-        fields = line.partition("#")[0].split()
-        if "localhost" in fields[1:]:
-            return True
-    return False
-
-
-def _hosts_sources_start_with_files(nsswitch_conf: str) -> bool:
-    for line in nsswitch_conf.splitlines():
-        database, separator, sources = line.partition("#")[0].partition(":")
-        if separator and database.strip() == "hosts":
-            return sources.split()[:1] == ["files"]
-    return False
 
 
 def _resolve_api_host(hostname: str, port: int) -> None:

@@ -72,6 +72,122 @@ def test_ready_returns_200(server: LifecycleHookServer, method: str, path: str):
     assert request(port_of(server), method, path).status == 200
 
 
+@pytest.fixture
+def serve_hook_server() -> Iterator[Callable[[LifecycleHookServer], int]]:
+    """Return a function that serves a hook server and returns its port."""
+    hook_servers: list[LifecycleHookServer] = []
+
+    def serve(hook_server: LifecycleHookServer) -> int:
+        hook_servers.append(hook_server)
+        threading.Thread(target=hook_server.serve_forever, daemon=True).start()
+        return port_of(hook_server)
+
+    yield serve
+    for hook_server in hook_servers:
+        hook_server.shutdown()
+        hook_server.server_close()
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+def test_ready_is_answered_after_the_name_lookup_warm_up_finishes(
+    serve_hook_server: Callable[[LifecycleHookServer], int], method: str
+):
+    release_warm_up = threading.Event()
+    warm_up = threading.Thread(target=release_warm_up.wait, daemon=True)
+    warm_up.start()
+    release_timer = threading.Timer(0.3, release_warm_up.set)
+    release_timer.daemon = True
+    port = serve_hook_server(
+        LifecycleHookServer(("127.0.0.1", 0), name_lookup_warm_up=warm_up)
+    )
+    release_timer.start()
+    try:
+        response = request(port, method, "/ready")
+        warm_up_alive_at_answer = warm_up.is_alive()
+    finally:
+        release_warm_up.set()
+
+    assert response.status == 200
+    assert not warm_up_alive_at_answer
+
+
+def test_ready_is_answered_after_the_wait_limit_when_the_warm_up_stalls(
+    serve_hook_server: Callable[[LifecycleHookServer], int],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    monkeypatch.setattr(server_module, "NAME_LOOKUP_WARM_UP_WAIT_SECONDS", 0.3)
+    release_warm_up = threading.Event()
+    warm_up = threading.Thread(target=release_warm_up.wait, daemon=True)
+    warm_up.start()
+    port = serve_hook_server(
+        LifecycleHookServer(("127.0.0.1", 0), name_lookup_warm_up=warm_up)
+    )
+    try:
+        started = time.monotonic()
+        response = request(port, "POST", "/ready")
+        waited = time.monotonic() - started
+        warm_up_alive_at_answer = warm_up.is_alive()
+    finally:
+        release_warm_up.set()
+
+    assert response.status == 200
+    assert warm_up_alive_at_answer
+    assert 0.3 <= waited < 5
+    assert any(
+        "did not finish within 0.3 seconds" in message for message in caplog.messages
+    )
+
+
+def test_run_is_answered_only_after_allow_run_reply(
+    server: LifecycleHookServer, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(server_module, "RUN_REPLY_WAIT_SECONDS", 30)
+    replies: list[tuple[int, float]] = []
+    poster = threading.Thread(
+        target=lambda: replies.append(
+            (
+                request(port_of(server), "POST", "/run", run_body()).status,
+                time.monotonic(),
+            )
+        ),
+        daemon=True,
+    )
+    poster.start()
+
+    assert isinstance(wait_for_outcome(server), RunHookRequest)
+    poster.join(timeout=0.3)
+    assert replies == []
+    allowed_at = time.monotonic()
+    server.allow_run_reply()
+    poster.join(timeout=10)
+
+    assert len(replies) == 1
+    status, replied_at = replies[0]
+    assert status == 200
+    assert replied_at >= allowed_at
+
+
+def test_run_is_answered_after_the_wait_limit_without_allow_run_reply(
+    server: LifecycleHookServer,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    monkeypatch.setattr(server_module, "RUN_REPLY_WAIT_SECONDS", 0.3)
+
+    started = time.monotonic()
+    response = request(port_of(server), "POST", "/run", run_body())
+    waited = time.monotonic() - started
+
+    assert response.status == 200
+    assert 0.3 <= waited < 5
+    assert isinstance(server.wait_for_run_request(), RunHookRequest)
+    assert any(
+        "Answering the `/run` request after 0.3 seconds" in message
+        for message in caplog.messages
+    )
+
+
 @pytest.mark.parametrize("path", ["/run", "/aws/lambda-microvms/runtime/v1/run"])
 def test_run_applies_env_returns_200_and_hands_off_the_request(
     server: LifecycleHookServer, path: str
@@ -295,7 +411,7 @@ requires_posix_signals = pytest.mark.skipif(
 
 
 @requires_posix_signals
-@pytest.mark.usefixtures("api_from_environment")
+@pytest.mark.usefixtures("api_from_environment", "restore_signal_mask")
 def test_main_supervises_the_flow_run_from_the_run_request(
     monkeypatch: pytest.MonkeyPatch,
     post_run_hook: Callable[..., threading.Thread],
@@ -335,7 +451,7 @@ def test_main_supervises_the_flow_run_from_the_run_request(
 
 
 @requires_posix_signals
-@pytest.mark.usefixtures("api_from_environment")
+@pytest.mark.usefixtures("api_from_environment", "restore_signal_mask")
 def test_flow_code_can_bind_the_hook_port(
     monkeypatch: pytest.MonkeyPatch,
     post_run_hook: Callable[..., threading.Thread],
@@ -365,7 +481,7 @@ def test_flow_code_can_bind_the_hook_port(
 
 
 @requires_posix_signals
-@pytest.mark.usefixtures("api_from_environment")
+@pytest.mark.usefixtures("api_from_environment", "restore_signal_mask")
 def test_main_exits_1_without_running_anything_on_an_invalid_payload(
     monkeypatch: pytest.MonkeyPatch,
     post_run_hook: Callable[..., threading.Thread],

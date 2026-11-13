@@ -26,6 +26,8 @@ HANDLER_FINISH_TIMEOUT_SECONDS = 10
 WAKE_INTERVAL_SECONDS = 0.01
 WAKE_CONNECT_TIMEOUT_SECONDS = 1
 HOOK_REQUEST_TIMEOUT_SECONDS = 5
+NAME_LOOKUP_WARM_UP_WAIT_SECONDS = 2
+RUN_REPLY_WAIT_SECONDS = 1
 
 
 class LifecycleHookServer(ThreadingHTTPServer):
@@ -34,13 +36,22 @@ class LifecycleHookServer(ThreadingHTTPServer):
     to the thread that calls `wait_for_run_request`.
 
     Hooks are accepted both at `/<hook>` and at
-    `/aws/lambda-microvms/runtime/v1/<hook>`.
+    `/aws/lambda-microvms/runtime/v1/<hook>`. A `/ready` request is answered
+    once `name_lookup_warm_up` has finished, or after
+    `NAME_LOOKUP_WARM_UP_WAIT_SECONDS`. A valid `/run` request is answered with
+    200 once `allow_run_reply` is called, or after `RUN_REPLY_WAIT_SECONDS`.
     """
 
     daemon_threads = True
 
-    def __init__(self, server_address: tuple[str, int]) -> None:
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        name_lookup_warm_up: threading.Thread | None = None,
+    ) -> None:
         super().__init__(server_address, LifecycleHookHandler)
+        self._name_lookup_warm_up = name_lookup_warm_up
+        self._run_reply_allowed = threading.Event()
         self._run_requests: queue.Queue[RunHookRequest | InvalidRunHookPayload] = (
             queue.Queue()
         )
@@ -149,8 +160,41 @@ class LifecycleHookServer(ThreadingHTTPServer):
         self._run_requests.put(request)
 
     def wait_for_run_request(self) -> RunHookRequest | InvalidRunHookPayload:
-        """Block until the first `/run` request has been answered, then return it."""
+        """
+        Block until the first `/run` request has been parsed or rejected, then
+        return it. A rejected request has been answered; a valid one is answered
+        after `allow_run_reply`.
+        """
         return self._run_requests.get()
+
+    def allow_run_reply(self) -> None:
+        """Let the handler of a valid `/run` request answer it with 200."""
+        self._run_reply_allowed.set()
+
+    def wait_until_run_reply_allowed(self) -> None:
+        """Wait up to `RUN_REPLY_WAIT_SECONDS` for `allow_run_reply`."""
+        if not self._run_reply_allowed.wait(RUN_REPLY_WAIT_SECONDS):
+            logger.warning(
+                "Answering the `/run` request after %s seconds without the "
+                "flow run's process blocking SIGTERM first.",
+                RUN_REPLY_WAIT_SECONDS,
+            )
+
+    def wait_for_name_lookup_warm_up(self) -> None:
+        """
+        Wait up to `NAME_LOOKUP_WARM_UP_WAIT_SECONDS` for the
+        `name_lookup_warm_up` thread to finish.
+        """
+        if self._name_lookup_warm_up is None:
+            return
+        self._name_lookup_warm_up.join(NAME_LOOKUP_WARM_UP_WAIT_SECONDS)
+        if self._name_lookup_warm_up.is_alive():
+            logger.warning(
+                "The name lookups before `/ready` did not finish within %s "
+                "seconds, so this image's name lookup is slow. The first Prefect "
+                "API lookup after a restore will not be warm.",
+                NAME_LOOKUP_WARM_UP_WAIT_SECONDS,
+            )
 
 
 class LifecycleHookHandler(BaseHTTPRequestHandler):
@@ -166,6 +210,8 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
         logger.debug(format, *args)
 
     def do_GET(self) -> None:
+        if self._hook_name() == "ready":
+            self.server.wait_for_name_lookup_warm_up()
         self._reply(200)
 
     def do_POST(self) -> None:
@@ -173,7 +219,9 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
         if hook_name == "run":
             self._run()
             return
-        if hook_name != "ready":
+        if hook_name == "ready":
+            self.server.wait_for_name_lookup_warm_up()
+        else:
             logger.debug("Ignoring lifecycle hook %r.", hook_name)
         self._reply(200)
 
@@ -205,6 +253,11 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
             self._reply_if_unanswered(500)
         finally:
             self.server.submit_run(outcome)
+        if isinstance(outcome, RunHookRequest):
+            # `main` blocks SIGTERM before it allows the reply, so a SIGTERM
+            # sent after the 200 is held for the flow run's process.
+            self.server.wait_until_run_reply_allowed()
+            self._reply_if_unanswered(200)
 
     def _start_run(self) -> RunHookRequest:
         run_request = parse_run_hook_request(self._read_body())
@@ -214,7 +267,6 @@ class LifecycleHookHandler(BaseHTTPRequestHandler):
             run_request.microvm_id,
         )
         os.environ.update(run_request.payload.env)
-        self._reply(200)
         return run_request
 
     def _read_body(self) -> bytes:

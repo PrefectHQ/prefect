@@ -207,7 +207,7 @@ def report_crash(flow_run_id: UUID, crash_reason: str) -> None:
     # environment and the import-time settings for everything else.
     try:
         refresh_global_settings_context()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.warning(
             "Could not load the settings to report flow run %s as crashed. Using "
             "PREFECT_API_URL, PREFECT_API_KEY, and PREFECT_API_AUTH_STRING from "

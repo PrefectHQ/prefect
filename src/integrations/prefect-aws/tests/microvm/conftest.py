@@ -63,6 +63,21 @@ def flow_run_in() -> Callable[[State], FlowRun]:
 
 
 @pytest.fixture
+def restore_signal_mask() -> Iterator[None]:
+    """
+    Fail a test that starts with SIGTERM blocked or changes this thread's signal
+    mask, and restore the mask after it.
+    """
+    mask_before_test = signal.pthread_sigmask(signal.SIG_BLOCK, set())
+    assert signal.SIGTERM not in mask_before_test
+    try:
+        yield
+    finally:
+        mask_after_test = signal.pthread_sigmask(signal.SIG_SETMASK, mask_before_test)
+    assert mask_after_test == mask_before_test
+
+
+@pytest.fixture
 def hook_port() -> int:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
