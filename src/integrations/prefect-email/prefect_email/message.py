@@ -113,10 +113,9 @@ async def email_send_message(
 
         encoders.encode_base64(part)
         filename = os.path.basename(filepath)
-        part.add_header(
-            "Content-Disposition",
-            f"attachment; filename= {filename}",
-        )
+        # pass filename as a parameter so it is quoted, and RFC 2231 encoded
+        # when it is not ASCII
+        part.add_header("Content-Disposition", "attachment", filename=filename)
         message.attach(part)
 
     for cid, filepath in (inline_images or {}).items():
