@@ -217,9 +217,7 @@ class Flow(Generic[P, R]):
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        task_runner: Union[
-            Type[TaskRunner[PrefectFuture[Any]]], TaskRunner[PrefectFuture[Any]], None
-        ] = None,
+        task_runner: Union[Type[TaskRunner[Any]], TaskRunner[Any], None] = None,
         description: Optional[str] = None,
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: bool = True,
@@ -466,9 +464,7 @@ class Flow(Generic[P, R]):
         retry_delay_seconds: Optional[Union[int, float]] = None,
         description: Optional[str] = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-        task_runner: Union[
-            Type[TaskRunner[PrefectFuture[Any]]], TaskRunner[PrefectFuture[Any]], None
-        ] = None,
+        task_runner: Union[Type[TaskRunner[Any]], TaskRunner[Any], None] = None,
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: Optional[bool] = None,
         persist_result: Optional[bool] = NotSet,  # type: ignore
@@ -2187,7 +2183,7 @@ class FlowDecorator:
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        task_runner: Optional[TaskRunner[PrefectFuture[Any]]] = None,
+        task_runner: Union[Type[TaskRunner[Any]], TaskRunner[Any], None] = None,
         description: Optional[str] = None,
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: bool = True,
@@ -2212,7 +2208,7 @@ class FlowDecorator:
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Union[int, float, None] = None,
-        task_runner: Optional[TaskRunner[PrefectFuture[Any]]] = None,
+        task_runner: Union[Type[TaskRunner[Any]], TaskRunner[Any], None] = None,
         description: Optional[str] = None,
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: bool = True,
@@ -2824,9 +2820,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         retry_delay_seconds: Optional[Union[int, float]] = None,
         description: Optional[str] = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-        task_runner: Union[
-            Type[TaskRunner[PrefectFuture[Any]]], TaskRunner[PrefectFuture[Any]], None
-        ] = None,
+        task_runner: Union[Type[TaskRunner[Any]], TaskRunner[Any], None] = None,
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: Optional[bool] = None,
         persist_result: Optional[bool] = NotSet,  # type: ignore
