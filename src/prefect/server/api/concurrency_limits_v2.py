@@ -367,6 +367,9 @@ async def bulk_increment_active_slots_with_lease(
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=slots,
                 holder=holder,
+                incremented_limit_ids=[
+                    limit.id for limit in acquired_limits if bool(limit.active)
+                ],
             ),
         )
         return ConcurrencyLimitWithLeaseResponse(
@@ -439,9 +442,9 @@ async def bulk_decrement_active_slots_with_lease(
     occupancy_seconds = (datetime.now(timezone.utc) - lease.created_at).total_seconds()
 
     async with db.session_context(begin_transaction=True) as session:
-        await models.concurrency_limits_v2.bulk_decrement_active_slots(
+        await models.concurrency_limits_v2.bulk_decrement_active_slots_for_lease(
             session=session,
-            concurrency_limit_ids=lease.resource_ids,
+            lease=lease,
             slots=lease.metadata.slots if lease.metadata else 0,
             occupancy_seconds=occupancy_seconds,
         )

@@ -564,3 +564,100 @@ class TestV1ToV2Adapter:
         # Verify it's gone
         read_response = await client.get("/concurrency_limits/tag/pagination-test")
         assert read_response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_decrement_while_inactive_returns_slot(self, client: AsyncClient):
+        response = await client.post(
+            "/concurrency_limits/",
+            json=ConcurrencyLimitCreate(tag="toggled", concurrency_limit=1).model_dump(
+                mode="json"
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        limit_id = response.json()["id"]
+
+        task_run_id = str(uuid4())
+        response = await client.post(
+            "/concurrency_limits/increment",
+            json={"names": ["toggled"], "task_run_id": task_run_id},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        response = await client.patch(
+            f"/v2/concurrency_limits/{limit_id}", json={"active": False}
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        response = await client.post(
+            "/concurrency_limits/decrement",
+            json={"names": ["toggled"], "task_run_id": task_run_id},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        response = await client.patch(
+            f"/v2/concurrency_limits/{limit_id}", json={"active": True}
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
+        assert limit.json()["active_slots"] == 0
+
+        response = await client.post(
+            "/concurrency_limits/increment",
+            json={"names": ["toggled"], "task_run_id": str(uuid4())},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    async def test_decrement_of_lease_taken_while_inactive_keeps_other_holders_slot(
+        self, client: AsyncClient
+    ):
+        response = await client.post(
+            "/concurrency_limits/",
+            json=ConcurrencyLimitCreate(tag="toggled", concurrency_limit=1).model_dump(
+                mode="json"
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        limit_id = response.json()["id"]
+
+        response = await client.patch(
+            f"/v2/concurrency_limits/{limit_id}", json={"active": False}
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        task_run_id = str(uuid4())
+        response = await client.post(
+            "/v2/concurrency_limits/increment-with-lease",
+            json={
+                "names": ["tag:toggled"],
+                "slots": 1,
+                "mode": "concurrency",
+                "holder": {"type": "task_run", "id": task_run_id},
+            },
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        response = await client.patch(
+            f"/v2/concurrency_limits/{limit_id}", json={"active": True}
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        response = await client.post(
+            "/concurrency_limits/increment",
+            json={"names": ["toggled"], "task_run_id": str(uuid4())},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        response = await client.post(
+            "/concurrency_limits/decrement",
+            json={"names": ["toggled"], "task_run_id": task_run_id},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        limit = await client.get(f"/v2/concurrency_limits/{limit_id}")
+        assert limit.json()["active_slots"] == 1
+
+        response = await client.post(
+            "/concurrency_limits/increment",
+            json={"names": ["toggled"], "task_run_id": str(uuid4())},
+        )
+        assert response.status_code == status.HTTP_423_LOCKED

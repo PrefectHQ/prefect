@@ -16,7 +16,9 @@ from prefect.server.models.concurrency_limits_v2 import (
     bulk_increment_active_slots,
     bulk_read_concurrency_limits,
     create_concurrency_limit,
+    update_concurrency_limit,
 )
+from prefect.server.schemas.actions import ConcurrencyLimitV2Update
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.services.repossessor import (
     monitor_expired_leases,
@@ -296,6 +298,88 @@ class TestRevokeExpiredLease:
 
         # Verify lease was not processed due to missing metadata
         assert len(lease_storage.leases) == 1  # Lease should still exist
+
+    async def test_revoke_expired_lease_taken_while_inactive_keeps_other_holders_slot(
+        self,
+        lease_storage: ConcurrencyLeaseStorage,
+        session: AsyncSession,
+    ):
+        limit = await create_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2(
+                name="toggled_limit", limit=1, active=False
+            ),
+        )
+        await session.commit()
+
+        # Acquired while the limit was inactive, so the acquire incremented nothing
+        lease = await lease_storage.create_lease(
+            resource_ids=[limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1, incremented_limit_ids=[]),
+        )
+
+        assert await update_concurrency_limit(
+            session=session,
+            concurrency_limit_id=limit.id,
+            concurrency_limit=ConcurrencyLimitV2Update(active=True),
+        )
+        assert await bulk_increment_active_slots(session, [limit.id], 1)
+        await session.commit()
+
+        await revoke_expired_lease(
+            lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+        assert await lease_storage.read_lease(lease.id) is None
+
+        await session.refresh(limit)
+        assert limit.active_slots == 1
+
+    async def test_revoke_expired_lease_while_inactive_returns_slot(
+        self,
+        lease_storage: ConcurrencyLeaseStorage,
+        session: AsyncSession,
+    ):
+        limit = await create_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2(name="toggled_limit", limit=1),
+        )
+        assert await bulk_increment_active_slots(session, [limit.id], 1)
+        await session.commit()
+
+        lease = await lease_storage.create_lease(
+            resource_ids=[limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(
+                slots=1, incremented_limit_ids=[limit.id]
+            ),
+        )
+
+        assert await update_concurrency_limit(
+            session=session,
+            concurrency_limit_id=limit.id,
+            concurrency_limit=ConcurrencyLimitV2Update(active=False),
+        )
+        await session.commit()
+
+        await revoke_expired_lease(
+            lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+        assert await lease_storage.read_lease(lease.id) is None
+
+        assert await update_concurrency_limit(
+            session=session,
+            concurrency_limit_id=limit.id,
+            concurrency_limit=ConcurrencyLimitV2Update(active=True),
+        )
+        await session.commit()
+
+        await session.refresh(limit)
+        assert limit.active_slots == 0
 
 
 class TestMonitorExpiredLeases:

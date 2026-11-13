@@ -6,10 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 import prefect.server.schemas as schemas
+from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.events import clients
 from prefect.server.events.schemas import lifecycle
 from prefect.server.utilities.database import greatest, least
+from prefect.server.utilities.leasing import ResourceLease
 from prefect.settings import get_current_settings
 from prefect.types._datetime import now
 
@@ -286,15 +288,15 @@ async def bulk_decrement_active_slots(
     concurrency_limit_ids: List[UUID],
     slots: int,
     occupancy_seconds: Optional[float] = None,
+    include_inactive: bool = False,
 ) -> bool:
+    where: ColumnElement[bool] = db.ConcurrencyLimitV2.id.in_(concurrency_limit_ids)
+    if not include_inactive:
+        where = sa.and_(where, db.ConcurrencyLimitV2.active == True)  # noqa
+
     query = (
         sa.update(db.ConcurrencyLimitV2)
-        .where(
-            sa.and_(
-                db.ConcurrencyLimitV2.id.in_(concurrency_limit_ids),
-                db.ConcurrencyLimitV2.active == True,  # noqa
-            )
-        )
+        .where(where)
         .values(
             active_slots=sa.case(
                 (active_slots_after_decay(db) - slots < 0, 0),
@@ -312,19 +314,57 @@ async def bulk_decrement_active_slots(
         query = query.values(
             # Update the average occupancy seconds per slot as a weighted
             # average over the last `limit * OCCUPANCY_SAMPLE_MULTIPLIER` samples.
-            avg_slot_occupancy_seconds=db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
-            + (
-                occupancy_seconds_per_slot
-                / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
-            )
-            - (
-                db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
-                / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+            # A limit patched to 0 while a slot was held has no samples to average.
+            avg_slot_occupancy_seconds=sa.case(
+                (
+                    db.ConcurrencyLimitV2.limit > 0,
+                    db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
+                    + (
+                        occupancy_seconds_per_slot
+                        / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+                    )
+                    - (
+                        db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
+                        / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+                    ),
+                ),
+                else_=db.ConcurrencyLimitV2.avg_slot_occupancy_seconds,
             ),
         )
 
     result = await session.execute(query)
     return result.rowcount == len(concurrency_limit_ids)
+
+
+async def bulk_decrement_active_slots_for_lease(
+    session: AsyncSession,
+    lease: ResourceLease[ConcurrencyLimitLeaseMetadata],
+    slots: int,
+    occupancy_seconds: Optional[float] = None,
+) -> bool:
+    """
+    Release `slots` for a lease from the limits its acquire counted them on.
+
+    A lease that records `incremented_limit_ids` decrements exactly those limits,
+    whether or not they are active now, so toggling a limit's `active` flag while
+    the lease is held neither releases another holder's slot nor strands this one.
+    A lease without that record decrements the active limits in `resource_ids`.
+    """
+    if lease.metadata and lease.metadata.incremented_limit_ids is not None:
+        return await bulk_decrement_active_slots(
+            session=session,
+            concurrency_limit_ids=lease.metadata.incremented_limit_ids,
+            slots=slots,
+            occupancy_seconds=occupancy_seconds,
+            include_inactive=True,
+        )
+
+    return await bulk_decrement_active_slots(
+        session=session,
+        concurrency_limit_ids=lease.resource_ids,
+        slots=slots,
+        occupancy_seconds=occupancy_seconds,
+    )
 
 
 @db_injector
