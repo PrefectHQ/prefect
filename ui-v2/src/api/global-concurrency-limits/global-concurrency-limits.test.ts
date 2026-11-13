@@ -64,10 +64,16 @@ describe("global concurrency limits hooks", () => {
 			http.post(
 				buildApiUrl("/v2/concurrency_limits/filter"),
 				async ({ request }) => {
-					const { offset = 0, limit = 200 } = (await request.json()) as {
-						offset?: number;
-						limit?: number;
-					};
+					// Behaves like a server with PREFECT_SERVER_API_DEFAULT_LIMIT=50
+					const SERVER_LIMIT = 50;
+					const { offset = 0, limit = SERVER_LIMIT } =
+						(await request.json()) as {
+							offset?: number;
+							limit?: number;
+						};
+					if (limit > SERVER_LIMIT) {
+						return HttpResponse.json(null, { status: 422 });
+					}
 					return HttpResponse.json(allLimits.slice(offset, offset + limit));
 				},
 			),

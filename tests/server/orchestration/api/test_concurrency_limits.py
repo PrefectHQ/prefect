@@ -458,9 +458,10 @@ class TestV1ToV2Adapter:
 
     async def test_filter_ignores_global_limits_when_paginating(self, client):
         """Global limits sorting before `tag:` must not use up the page."""
-        for i in range(3):
+        # "TAG:upper" also checks the prefix match is case-sensitive on SQLite
+        for name in ("global-0", "global-1", "TAG:upper"):
             response = await client.post(
-                "/v2/concurrency_limits/", json={"name": f"global-{i}", "limit": 1}
+                "/v2/concurrency_limits/", json={"name": name, "limit": 1}
             )
             assert response.status_code == status.HTTP_201_CREATED
 
@@ -481,6 +482,40 @@ class TestV1ToV2Adapter:
         )
         assert [limit["tag"] for limit in first.json()] == ["tag-a"]
         assert [limit["tag"] for limit in second.json()] == ["tag-b"]
+
+    async def test_filter_only_looks_up_holders_for_returned_page(
+        self, client, monkeypatch
+    ):
+        import prefect.server.api.concurrency_limits as api_module
+
+        for tag in ("tag-a", "tag-b", "tag-c"):
+            response = await client.post(
+                "/concurrency_limits/",
+                json=ConcurrencyLimitCreate(tag=tag, concurrency_limit=1).model_dump(
+                    mode="json"
+                ),
+            )
+            assert response.status_code == status.HTTP_201_CREATED
+
+        storage = api_module.get_concurrency_lease_storage()
+        looked_up = []
+        original = storage.list_holders_for_limit
+
+        async def spy(limit_id):
+            looked_up.append(limit_id)
+            return await original(limit_id)
+
+        monkeypatch.setattr(storage, "list_holders_for_limit", spy)
+        monkeypatch.setattr(
+            api_module, "get_concurrency_lease_storage", lambda: storage
+        )
+
+        response = await client.post(
+            "/concurrency_limits/filter", json={"limit": 1, "offset": 2}
+        )
+        page = response.json()
+        assert [limit["tag"] for limit in page] == ["tag-c"]
+        assert [str(i) for i in looked_up] == [page[0]["id"]]
 
     async def test_reset_handles_v2_limits(self, session, client):
         """Test that reset properly handles V2 limits with leases."""

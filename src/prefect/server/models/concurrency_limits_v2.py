@@ -167,8 +167,10 @@ async def read_all_concurrency_limits(
     query = sa.select(db.ConcurrencyLimitV2).order_by(db.ConcurrencyLimitV2.name)
 
     if name_prefix is not None:
+        # substr instead of LIKE: SQLite's LIKE is case-insensitive
         query = query.where(
-            db.ConcurrencyLimitV2.name.startswith(name_prefix, autoescape=True)
+            sa.func.substr(db.ConcurrencyLimitV2.name, 1, len(name_prefix))
+            == name_prefix
         )
     if offset is not None:
         query = query.offset(offset)

@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
+import { fetchAllPages } from "@/api/fetch-all-pages";
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
@@ -41,8 +42,6 @@ export const queryKeyFactory = {
 
 // ----- 🔑 Queries 🗄️
 // ----------------------------
-const PAGE_SIZE = 100;
-
 export const buildListTaskRunConcurrencyLimitsQuery = (
 	filter: TaskRunConcurrencyLimitsFilter = { offset: 0 },
 ) =>
@@ -56,21 +55,12 @@ export const buildListTaskRunConcurrencyLimitsQuery = (
 				});
 				return res.data ?? [];
 			}
-			// The server caps each response at PREFECT_SERVER_API_DEFAULT_LIMIT,
-			// so page through until we get a short page.
-			const limits: Array<TaskRunConcurrencyLimit> = [];
-			let offset = filter.offset;
-			for (;;) {
+			return fetchAllPages(async (offset) => {
 				const res = await service.POST("/concurrency_limits/filter", {
-					body: { ...filter, offset, limit: PAGE_SIZE },
+					body: { ...filter, offset },
 				});
-				const page = res.data ?? [];
-				limits.push(...page);
-				if (page.length < PAGE_SIZE) {
-					return limits;
-				}
-				offset += page.length;
-			}
+				return res.data;
+			}, filter.offset);
 		},
 		refetchInterval: 30_000,
 	});
