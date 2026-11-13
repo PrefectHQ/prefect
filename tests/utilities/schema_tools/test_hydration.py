@@ -5,6 +5,7 @@ from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     InvalidJinja,
     InvalidJSON,
+    InvalidPrefectKind,
     TemplateNotFound,
     ValidJinja,
     ValueNotFound,
@@ -75,6 +76,38 @@ class TestHydrateRaiseOnError:
         values = {"param": {"__prefect_kind": "none", "value": "5"}}
 
         hydrate(values, ctx=HydrationContext(raise_on_error=False))
+
+
+class TestHydrateWithNonStringPrefectKind:
+    @pytest.mark.parametrize(
+        "kind, detail",
+        [([], "expected a string, got list"), ({}, "expected a string, got dict")],
+        ids=["list", "dict"],
+    )
+    def test_hydrate_returns_error(self, kind: object, detail: str):
+        assert hydrate({"param": {"__prefect_kind": kind, "value": "hello"}}) == {
+            "param": InvalidPrefectKind(detail=detail)
+        }
+
+    @pytest.mark.parametrize(
+        "kind, detail",
+        [([], "expected a string, got list"), ({}, "expected a string, got dict")],
+        ids=["list", "dict"],
+    )
+    def test_hydrate_raises_error(self, kind: object, detail: str):
+        with pytest.raises(InvalidPrefectKind) as exc:
+            hydrate(
+                {"param": {"__prefect_kind": kind, "value": "hello"}},
+                ctx=HydrationContext(raise_on_error=True),
+            )
+        assert str(exc.value) == f"Invalid __prefect_kind: {detail}"
+
+    @pytest.mark.parametrize("kind", [1, None], ids=["int", "none"])
+    def test_hydrate_passes_value_through(self, kind: object):
+        """Like unrecognized string kinds, these pass `value` through."""
+        assert hydrate({"param": {"__prefect_kind": kind, "value": "hello"}}) == {
+            "param": "hello"
+        }
 
 
 class TestHydrateWithNonePrefectKind:
