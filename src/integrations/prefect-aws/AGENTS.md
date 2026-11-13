@@ -20,6 +20,10 @@ The CDK package version in `infra/package.json` is pinned to an **exact version*
 
 `npx --no-install` in the justfile enforces that the locally-installed pinned CDK is used; the command will fail if `npm install` has not been run first.
 
+## Lambda MicroVM Entrypoint
+
+`prefect_aws.microvm` (the command of `Dockerfile.microvm`) calls private `prefect` engine functions. When it starts importing from another core module, add that file to `CORE_FILES_USED_BY_INTEGRATIONS["prefect-aws"]` in `scripts/generate_integration_package_tests_matrix.py` so core changes to it run prefect-aws tests, and pin the private signature in `tests/microvm/test_microvm_engine_contract.py`.
+
 ## Related
 
 - `src/integrations/AGENTS.md` → General integration conventions and release process
