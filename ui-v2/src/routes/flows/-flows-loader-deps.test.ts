@@ -24,9 +24,7 @@ describe("flows loader deps", () => {
 		expect(buildFlowsLoaderDeps(searchParams.parse({ name: "a" }))).toEqual(
 			buildFlowsLoaderDeps(searchParams.parse({ name: "ab" })),
 		);
-		expect(
-			buildFlowsLoaderDeps(searchParams.parse({ tags: ["a"] })),
-		).toEqual(
+		expect(buildFlowsLoaderDeps(searchParams.parse({ tags: ["a"] }))).toEqual(
 			buildFlowsLoaderDeps(searchParams.parse({ tags: ["a", "b"] })),
 		);
 	});
