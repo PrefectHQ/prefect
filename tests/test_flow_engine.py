@@ -5072,6 +5072,43 @@ class TestGenerators:
 
 
 class TestAsyncGenerators:
+    @pytest.mark.parametrize("retries", [0, 1])
+    async def test_generator_flow_closed_early_is_completed(
+        self, prefect_client: PrefectClient, retries: int
+    ):
+        starts: list[str] = []
+        hooks: list[str] = []
+        finally_ran_in_context: list[bool] = []
+
+        @flow(
+            retries=retries,
+            on_completion=[lambda *args: hooks.append("completion")],
+            on_failure=[lambda *args: hooks.append("failure")],
+        )
+        async def g() -> AsyncGenerator[UUID, None]:
+            starts.append("start")
+            try:
+                yield get_run_context().flow_run.id
+            finally:
+                finally_ran_in_context.append(FlowRunContext.get() is not None)
+
+        gen = g()
+        async for fr_id in gen:
+            break
+        await gen.aclose()
+
+        run = await prefect_client.read_flow_run(fr_id)
+        assert run.state.is_completed()
+        history = await prefect_client.read_flow_run_states(fr_id)
+        assert [state.type for state in history] == [
+            StateType.PENDING,
+            StateType.RUNNING,
+            StateType.COMPLETED,
+        ]
+        assert starts == ["start"]
+        assert hooks == ["completion"]
+        assert finally_ran_in_context == [True]
+
     async def test_generator_flow(self):
         """
         Test for generator behavior including StopIteration
