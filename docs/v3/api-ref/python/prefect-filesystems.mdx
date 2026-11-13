@@ -2075,7 +2075,7 @@ Store data as a file on a local file system.
 
 **Methods:**
 
-#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -2086,7 +2086,7 @@ Copies a directory from one place to another on the local filesystem.
 Defaults to copying the entire contents of the block's basepath to the current working directory.
 
 
-#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L229" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aput_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
@@ -2098,25 +2098,25 @@ Defaults to copying the entire contents of the current working directory to the 
 An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
 
 
-#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L309" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aread_path(self, path: str) -> bytes
 ```
 
-#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L340" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_path(self, path: str, content: bytes) -> str
 ```
 
-#### `cast_pathlib` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `cast_pathlib` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cast_pathlib(cls, value: str | Path | None) -> str | None
 ```
 
-#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -2133,7 +2133,7 @@ Defaults to copying the entire contents of the block's basepath to the current w
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
@@ -2151,7 +2151,7 @@ An `ignore_file` path may be provided that can include gitignore style expressio
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
 ```
 
-#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L326" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L324" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
@@ -2163,7 +2163,7 @@ read_path(self, path: str) -> bytes
 read_path(self, path: str) -> bytes
 ```
 
-#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> str
@@ -2175,7 +2175,7 @@ write_path(self, path: str, content: bytes) -> str
 write_path(self, path: str, content: bytes) -> None
 ```
 
-### `RemoteFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RemoteFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Store data as a file on a remote file system.
@@ -2186,7 +2186,7 @@ using a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
 
 **Methods:**
 
-#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L475" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L471" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -2197,7 +2197,7 @@ Downloads a directory from a given remote path to a local directory.
 Defaults to downloading the entire contents of the block's basepath to the current working directory.
 
 
-#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L518" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aput_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None, overwrite: bool = True) -> int
@@ -2208,31 +2208,31 @@ Uploads a directory from a given local path to a remote directory.
 Defaults to uploading the entire contents of the current working directory to the block's basepath.
 
 
-#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L631" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L633" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aread_path(self, path: str) -> bytes
 ```
 
-#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L650" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_path(self, path: str, content: bytes) -> str
 ```
 
-#### `check_basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `check_basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 check_basepath(cls, value: str) -> str
 ```
 
-#### `filesystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L678" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filesystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L680" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filesystem(self) -> fsspec.AbstractFileSystem
 ```
 
-#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L500" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L496" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -2249,7 +2249,7 @@ Defaults to downloading the entire contents of the block's basepath to the curre
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L578" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L577" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None, overwrite: bool = True) -> int
@@ -2266,7 +2266,7 @@ Defaults to uploading the entire contents of the current working directory to th
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
 ```
 
-#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L640" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L642" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
@@ -2278,7 +2278,7 @@ read_path(self, path: str) -> bytes
 read_path(self, path: str) -> bytes
 ```
 
-#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L663" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L665" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> str
@@ -2290,7 +2290,7 @@ write_path(self, path: str, content: bytes) -> str
 write_path(self, path: str, content: bytes) -> None
 ```
 
-### `SMB` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L696" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SMB` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L698" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Store data as a file on a SMB share.

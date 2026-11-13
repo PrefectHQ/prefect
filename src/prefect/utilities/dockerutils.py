@@ -661,8 +661,7 @@ def generate_default_dockerfile(context: Optional[Path] = None):
         - context: The context to use for the Dockerfile. Defaults to
             the current working directory.
     """
-    if not context:
-        context = Path.cwd()
+    context = context.resolve() if context else Path.cwd()
     lines: list[str] = []
     base_image = get_prefect_image_name()
     lines.append(f"FROM {base_image}")
@@ -678,8 +677,7 @@ def generate_default_dockerfile(context: Optional[Path] = None):
     temp_dockerfile = context / "Dockerfile"
     if Path(temp_dockerfile).exists():
         raise RuntimeError(
-            "Failed to generate Dockerfile. Dockerfile already exists in the"
-            " current directory."
+            f"Failed to generate Dockerfile. Dockerfile already exists in {context}."
         )
 
     with Path(temp_dockerfile).open("w") as f:

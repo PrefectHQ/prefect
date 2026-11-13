@@ -459,11 +459,26 @@ class GitRepository:
             # read-only attribute first to avoid `[WinError 5] Access is denied`.
             _clear_read_only_attributes(git_dir)
 
-            # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
-            if self._directories and not await self.is_sparsely_checked_out():
+            # Make the checkout match the configured directories. The destination
+            # can be reused by runs whose `directories` differ (a redeploy that
+            # changed the list, or deployments sharing a working directory), so
+            # an existing sparse checkout only grows: narrowing it would remove
+            # files that another run may still be using.
+            is_sparse = await self.is_sparsely_checked_out()
+            if self._directories:
                 await run_process(
-                    ["git", "sparse-checkout", "set", "--", *self._directories],
+                    [
+                        "git",
+                        "sparse-checkout",
+                        "add" if is_sparse else "set",
+                        "--",
+                        *self._directories,
+                    ],
                     cwd=self.destination,
+                )
+            elif is_sparse:
+                await run_process(
+                    ["git", "sparse-checkout", "disable"], cwd=self.destination
                 )
 
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)
@@ -497,16 +512,27 @@ class GitRepository:
 
                 await self._checkout_commit(self._commit_sha)
 
-            # Otherwise, pull the latest changes from the branch
+            # Otherwise, move the branch to the remote tip. `git pull` can't do
+            # this on a shallow clone: a new remote commit shares no history with
+            # the local one, so the merge fails on every update. Like `git pull`,
+            # `reset --keep` leaves local changes alone when nothing changed
+            # upstream and refuses when they would be overwritten.
             else:
-                cmd += ["pull", "origin"]
+                fetch_cmd = cmd + ["fetch", "origin"]
                 if self._branch:
-                    cmd += [self._branch]
-                if self._include_submodules:
-                    cmd += ["--recurse-submodules"]
-                cmd += ["--depth", "1"]
+                    fetch_cmd += [self._branch]
+                fetch_cmd += ["--depth", "1"]
                 try:
-                    await run_process(cmd, cwd=self.destination)
+                    await run_process(fetch_cmd, cwd=self.destination)
+                    await run_process(
+                        ["git", "reset", "--keep", "FETCH_HEAD"],
+                        cwd=self.destination,
+                    )
+                    if self._include_submodules:
+                        await run_process(
+                            cmd + ["submodule", "update", "--init", "--recursive"],
+                            cwd=self.destination,
+                        )
                     self._logger.debug("Successfully pulled latest changes")
                 except subprocess.CalledProcessError as exc:
                     self._logger.error(
@@ -646,11 +672,13 @@ class GitRepository:
             raise RuntimeError(error_message) from exc_chain
 
         if self._commit_sha:
-            # Fetch the commit
-            await run_process(
-                ["git", "fetch", "origin", self._commit_sha],
-                cwd=self.destination,
-            )
+            # The clone usually already contains the commit. Only fetch it when
+            # missing, since git can't fetch a short SHA from a remote.
+            if not await self._has_commit():
+                await run_process(
+                    ["git", "fetch", "origin", self._commit_sha],
+                    cwd=self.destination,
+                )
             await self._checkout_commit(self._commit_sha)
 
         # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory

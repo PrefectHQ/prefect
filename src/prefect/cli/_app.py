@@ -16,6 +16,9 @@ _app = cyclopts.App(
     help="Prefect CLI for workflow orchestration.",
     help_flags=["--help"],
     version_flags=[],
+    # cyclopts exits with code 2 on usage errors. Raise them to `_run_cli`
+    # instead, which keeps the CLI's exit code for usage errors at 1.
+    exit_on_error=False,
 )
 
 _app.meta.group_parameters = cyclopts.Group("Session Parameters", sort_key=0)
@@ -92,7 +95,7 @@ def _setup_and_run(
             _app(())
             return
 
-        _app(tokens)
+        _app(_normalize_command_names(tokens))
 
     if profile and prefect.context.get_settings_context().profile.name != profile:
         try:
@@ -145,6 +148,46 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
     return result
 
 
+def _command_name_key(name: str) -> str:
+    return name.replace("-", "").replace("_", "").lower()
+
+
+def _normalize_command_names(tokens: tuple[str, ...]) -> tuple[str, ...]:
+    """Rewrite each command name to the registered name it matches.
+
+    cyclopts 4 matched command names with `-` and `_` removed and case
+    ignored, so `prefect work_pool ls` ran `prefect work-pool ls`. cyclopts 5
+    requires exact names, so the CLI does this matching itself. Matching stops
+    at the first token that is an option or does not match a command.
+    """
+    result = list(tokens)
+    app = _app
+    for i, token in enumerate(result):
+        if token.startswith("-"):
+            break
+        names = [name for name in app if not name.startswith("-")]
+        if token not in names:
+            matches = [
+                name
+                for name in names
+                if _command_name_key(name) == _command_name_key(token)
+            ]
+            if len(matches) != 1:
+                break
+            result[i] = token = matches[0]
+        app = app[token]
+    return tuple(result)
+
+
+def _run_cli(args: list[str]) -> None:
+    """Run the CLI with `args`, exiting with code 1 on usage errors."""
+    try:
+        _app.meta(_normalize_top_level_flags(args))
+    except cyclopts.CycloptsError:
+        # cyclopts prints the error before raising it
+        raise SystemExit(1)
+
+
 def app() -> None:
     """Entry point that invokes the meta app for global option handling."""
     args = sys.argv[1:]
@@ -164,7 +207,7 @@ def app() -> None:
     from pydantic_settings.exceptions import SettingsError
 
     try:
-        _app.meta(_normalize_top_level_flags(args))
+        _run_cli(args)
     except SettingsError as exc:
         console.print(f"[red]{exc}[/red]")
         raise SystemExit(1)

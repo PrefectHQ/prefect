@@ -52,6 +52,7 @@ export const queryKeyFactory = {
   - Create: invalidate `lists()` + `counts()`
   - Delete: invalidate `lists()` + `counts()`
   - Update: invalidate `lists()` + `detail(id)`
+- Queries that aggregate another resource's data live in the owning resource's factory (e.g. flows' `deploymentsCounts()`), so the other resource's mutations must invalidate them explicitly — e.g. deployment create/delete also invalidate `flowsQueryKeyFactory.deploymentsCounts()`. Give such queries an ID-less prefix key so they can be invalidated without knowing the arguments.
 
 ## Query Key Factory Scope
 

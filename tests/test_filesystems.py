@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Tuple
@@ -88,6 +89,32 @@ async def test_nested_ignored_files(tmp_path: Path, storage: str, sync: bool):
             await fs.aget_directory(local_path=str(downloaded))
         assert (downloaded / "a" / "b" / "keep.py").read_text() == "pass"
         assert not (downloaded / "a" / "b" / "ignored.txt").exists()
+
+
+@pytest.mark.parametrize("sync", [False, True])
+async def test_remote_put_directory_uploads_nothing_when_ignore_file_excludes_everything(
+    tmp_path: Path, sync: bool
+):
+    source = tmp_path / "source"
+    (source / "nested").mkdir(parents=True)
+    (source / "demo.txt").write_text("demo")
+    (source / "nested" / "config.txt").write_text("config")
+    ignore_file = tmp_path / ".prefectignore"
+    ignore_file.write_text("*\n")
+
+    fs = RemoteFileSystem(basepath=f"memory://{tmp_path.name}/ignore-all-{sync}")
+
+    if sync:
+        count = fs.put_directory(
+            local_path=str(source), ignore_file=str(ignore_file), _sync=True
+        )
+    else:
+        count = await fs.aput_directory(
+            local_path=str(source), ignore_file=str(ignore_file)
+        )
+
+    assert count == 0
+    assert fs.filesystem.find(f"/{tmp_path.name}/ignore-all-{sync}") == []
 
 
 class TestLocalFileSystem:
@@ -600,13 +627,24 @@ class TestRemoteFileSystem:
             "/flat/shared_libs.py",
         }
 
-    async def test_put_directory_tree(self):
+    @pytest.fixture
+    def tree_project(self, tmp_path: Path) -> Path:
+        # Other tests import modules from tree-project, which concurrently writes
+        # `__pycache__` entries into the shared directory under xdist; use a
+        # private copy so the directory contents can't change mid-test.
+        return Path(
+            shutil.copytree(
+                TEST_PROJECTS_DIR / "tree-project",
+                tmp_path / "tree-project",
+                ignore=shutil.ignore_patterns("__pycache__"),
+            )
+        )
+
+    async def test_put_directory_tree(self, tree_project: Path):
         fs = RemoteFileSystem(basepath="memory://tree")
         await fs.put_directory(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
-            ignore_file=os.path.join(
-                TEST_PROJECTS_DIR, "tree-project", ".prefectignore"
-            ),
+            str(tree_project),
+            ignore_file=str(tree_project / ".prefectignore"),
         )
         copied_files = set(fs.filesystem.glob("/tree/**"))
 
@@ -624,20 +662,20 @@ class TestRemoteFileSystem:
             "/tree/.hidden",
         }
 
-    async def test_put_directory_put_file_count(self):
-        ignore_file = os.path.join(TEST_PROJECTS_DIR, "tree-project", ".prefectignore")
+    async def test_put_directory_put_file_count(self, tree_project: Path):
+        ignore_file = str(tree_project / ".prefectignore")
 
         # Put files
         fs = RemoteFileSystem(basepath="memory://tree")
         num_files_put = await fs.put_directory(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            str(tree_project),
             ignore_file=ignore_file,
         )
 
         # Expected files
         ignore_patterns = Path(ignore_file).read_text().splitlines(keepends=False)
         included_files = prefect.utilities.filesystem.filter_files(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            str(tree_project),
             ignore_patterns,
             include_dirs=False,
         )
@@ -847,6 +885,76 @@ class TestRemoteFileSystemAsyncDispatch:
         content = await fs.read_path("uploaded/test.txt")
         assert content == b"hello aput"
 
+    def test_sync_put_directory_without_overwrite_raises_for_existing_file(
+        self, tmp_path: Path
+    ):
+        fs = RemoteFileSystem(basepath="memory://test-put-dir-no-overwrite/")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        local_file = local_dir / "test.txt"
+        local_file.write_bytes(b"original")
+        fs.put_directory(local_path=str(local_dir), to_path="uploaded/")
+
+        local_file.write_bytes(b"replacement")
+        with pytest.raises(FileExistsError, match="test.txt"):
+            fs.put_directory(
+                local_path=str(local_dir), to_path="uploaded/", overwrite=False
+            )
+
+        assert fs.read_path("uploaded/test.txt") == b"original"
+
+    def test_sync_put_directory_without_overwrite_uploads_new_files(
+        self, tmp_path: Path
+    ):
+        fs = RemoteFileSystem(basepath="memory://test-put-dir-no-overwrite-new/")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        (local_dir / "test.txt").write_bytes(b"hello")
+
+        count = fs.put_directory(
+            local_path=str(local_dir), to_path="uploaded/", overwrite=False
+        )
+
+        assert count == 1
+        assert fs.read_path("uploaded/test.txt") == b"hello"
+
+    def test_sync_put_directory_overwrites_existing_file_by_default(
+        self, tmp_path: Path
+    ):
+        fs = RemoteFileSystem(basepath="memory://test-put-dir-overwrite/")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        local_file = local_dir / "test.txt"
+        local_file.write_bytes(b"original")
+        fs.put_directory(local_path=str(local_dir), to_path="uploaded/")
+
+        local_file.write_bytes(b"replacement")
+        fs.put_directory(local_path=str(local_dir), to_path="uploaded/")
+
+        assert fs.read_path("uploaded/test.txt") == b"replacement"
+
+    async def test_async_put_directory_without_overwrite_raises_for_existing_file(
+        self, tmp_path: Path
+    ):
+        fs = RemoteFileSystem(basepath="memory://test-aput-dir-no-overwrite/")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        local_file = local_dir / "test.txt"
+        local_file.write_bytes(b"original")
+        await fs.aput_directory(local_path=str(local_dir), to_path="uploaded/")
+
+        local_file.write_bytes(b"replacement")
+        with pytest.raises(FileExistsError, match="test.txt"):
+            await fs.aput_directory(
+                local_path=str(local_dir), to_path="uploaded/", overwrite=False
+            )
+
+        assert await fs.aread_path("uploaded/test.txt") == b"original"
+
 
 try:
     import fsspec.implementations.smb  # noqa: F401
@@ -903,3 +1011,19 @@ class TestSMB:
             "The host name should not be duplicated"
         )
         assert unc_path == r"\\my.smb.server.edu\prefect\storage\test-dir"
+
+    @patch("fsspec.implementations.smb.smbclient")
+    async def test_put_directory_overwrites_existing_files(
+        self, mock_smbclient: MagicMock, smb_block: SMB, tmp_path: Path
+    ):
+        mock_smbclient.register_session.return_value = None
+        mock_smbclient.open_file.return_value = MagicMock()
+        (tmp_path / "flow.py").write_text("print('hello')")
+
+        count = await smb_block.aput_directory(local_path=str(tmp_path))
+
+        assert count == 1
+        mock_smbclient.open_file.assert_called_once()
+        call_args, call_kwargs = mock_smbclient.open_file.call_args
+        assert call_args[0] == r"\\my.smb.server.edu\prefect\storage\flow.py"
+        assert "overwrite" not in call_kwargs

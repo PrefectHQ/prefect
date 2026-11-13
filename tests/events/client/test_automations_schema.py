@@ -1,5 +1,6 @@
 """Tests for client-side automation schema validation and deserialization."""
 
+import json
 import uuid
 from datetime import timedelta
 from typing import Any
@@ -17,6 +18,8 @@ from prefect.events.schemas.automations import (
     MetricTrigger,
     MetricTriggerQuery,
     Posture,
+    PrefectMetric,
+    SequenceTrigger,
 )
 
 
@@ -198,6 +201,99 @@ class TestUnknownActions:
 
 
 ACTION_LISTS = ("actions", "actions_on_trigger", "actions_on_resolve")
+
+
+class TestUnknownMetricNames:
+    """Prefect Cloud can return metric triggers on metrics that this version does
+    not know about, such as `volume` and the SLA metrics"""
+
+    @staticmethod
+    def metric_trigger(name: str) -> dict[str, Any]:
+        return {
+            "type": "metric",
+            "posture": "Metric",
+            "match": {},
+            "match_related": {},
+            "metric": {
+                "name": name,
+                "threshold": 1.0,
+                "operator": "<",
+                "range": 86400.0,
+                "firing_for": 3600.0,
+            },
+        }
+
+    @staticmethod
+    def automation_data(trigger: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": str(uuid.uuid4()),
+            "name": "Automation with an unknown metric",
+            "trigger": trigger,
+            "actions": [{"type": "do-nothing"}],
+        }
+
+    @pytest.mark.parametrize(
+        "name", ["volume", "sla_violations", "sla_violations_by_severity"]
+    )
+    def test_unknown_metric_name_is_read_as_a_string(self, name: str):
+        automation = Automation.model_validate(
+            self.automation_data(self.metric_trigger(name))
+        )
+
+        assert isinstance(automation.trigger, MetricTrigger)
+        assert automation.trigger.metric.name == name
+        assert not isinstance(automation.trigger.metric.name, PrefectMetric)
+
+    def test_known_metric_name_is_still_a_prefect_metric(self):
+        automation = Automation.model_validate_json(
+            json.dumps(self.automation_data(self.metric_trigger("lateness")))
+        )
+
+        assert isinstance(automation.trigger, MetricTrigger)
+        assert automation.trigger.metric.name is PrefectMetric.lateness
+
+    def test_unknown_metric_name_in_a_nested_trigger(self):
+        trigger = {
+            "type": "compound",
+            "require": "any",
+            "within": 300,
+            "triggers": [
+                {
+                    "type": "sequence",
+                    "within": 300,
+                    "triggers": [
+                        {"type": "event", "posture": "Reactive", "expect": ["x"]},
+                        self.metric_trigger("volume"),
+                    ],
+                }
+            ],
+        }
+
+        automation = Automation.model_validate(self.automation_data(trigger))
+
+        assert isinstance(automation.trigger, CompoundTrigger)
+        sequence = automation.trigger.triggers[0]
+        assert isinstance(sequence, SequenceTrigger)
+        metric = sequence.triggers[1]
+        assert isinstance(metric, MetricTrigger)
+        assert metric.metric.name == "volume"
+
+    def test_unknown_metric_name_round_trips_unchanged(self):
+        """`Automation.update` sends the automation back as an `AutomationCore`
+        built from `model_dump`, so an unknown metric name must survive that"""
+        sent = self.metric_trigger("sla_violations_by_severity")
+        automation = Automation.model_validate(self.automation_data(sent))
+
+        core = AutomationCore(**automation.model_dump(exclude={"id", "owner_resource"}))
+
+        assert core.model_dump(mode="json")["trigger"]["metric"] == sent["metric"]
+
+    def test_unknown_metric_name_describes_for_cli(self):
+        automation = Automation.model_validate(
+            self.automation_data(self.metric_trigger("volume"))
+        )
+
+        assert "Metric: volume < 1.0" in automation.trigger.describe_for_cli()
 
 
 class TestActionJSONSchema:

@@ -51,7 +51,9 @@ export const ActionTypeSelect = ({ index }: { index: number }) => {
 					<FormControl>
 						<Select
 							{...field}
-							onValueChange={(type: ActionType) => {
+							onValueChange={(value) => {
+								if (!Object.hasOwn(AUTOMATION_ACTION_TYPES, value)) return;
+								const type = value as ActionType;
 								field.onChange(type);
 								const defaultActionField = getDefaultActionField({
 									index,

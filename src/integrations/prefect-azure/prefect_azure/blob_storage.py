@@ -208,7 +208,7 @@ class AzureBlobStorageContainer(
 
     _block_type_name = "Azure Blob Storage Container"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/microsoft-azure.png"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-azure"  # noqa
 
     container_name: str = Field(
         default=..., description="The name of a Azure Blob Storage container."

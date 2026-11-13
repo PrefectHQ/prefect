@@ -1,6 +1,6 @@
 import asyncio
 import warnings
-from typing import Type
+from typing import Any, Type
 from uuid import UUID, uuid4
 
 import pydantic
@@ -121,25 +121,55 @@ class TestFlowWithBlockParam:
 
         return OtherParamBlock
 
-    def test_flow_with_block_params(self, ParamBlock):
+    @pytest.mark.parametrize(
+        "reference_type",
+        [
+            "uuid",
+            "uuid_string",
+            "uuid_urn",
+            "uuid_uri",
+            "id",
+            "id_string",
+            "id_urn",
+            "slug",
+        ],
+    )
+    def test_flow_with_block_params(self, ParamBlock: type[Block], reference_type: str):
         ref_block = ParamBlock(a=10, b="foo")
         block_name = f"param-block-{uuid4()}"
         ref_block.save(block_name)
+        references = {
+            "uuid": ref_block._block_document_id,
+            "uuid_string": str(ref_block._block_document_id),
+            "uuid_urn": ref_block._block_document_id.urn,
+            "uuid_uri": f"uuid:{ref_block._block_document_id}",
+            "id": {"block_document_id": ref_block._block_document_id},
+            "id_string": {"block_document_id": str(ref_block._block_document_id)},
+            "id_urn": {"block_document_id": ref_block._block_document_id.urn},
+            "slug": {
+                "block_document_slug": f"{ParamBlock.get_block_type_slug()}/{block_name}"
+            },
+        }
 
         @flow
         def flow_with_block_param(block: ParamBlock) -> int:
             return block.a
 
         assert (
-            flow_with_block_param({"$ref": str(ref_block._block_document_id)})
-            == ref_block.a
+            flow_with_block_param({"$ref": references[reference_type]}) == ref_block.a
         )
-        assert (
-            flow_with_block_param(
-                {"$ref": {"block_document_id": str(ref_block._block_document_id)}}
+
+    def test_flow_with_invalid_block_reference(self, ParamBlock: type[Block]):
+        @flow
+        def flow_with_block_param(block: ParamBlock) -> int:
+            return block.a
+
+        with pytest.raises(
+            ParameterTypeError, match="Failed to resolve block references in parameters"
+        ):
+            flow_with_block_param.validate_parameters(
+                {"block": {"$ref": {"block_document_id": "not-a-uuid"}}}
             )
-            == ref_block.a
-        )
 
     def test_flow_with_invalid_block_param_type(self, ParamBlock, OtherParamBlock):
         ref_block = OtherParamBlock(a=10, b="foo")
@@ -222,3 +252,50 @@ class TestFlowWithBlockParam:
             )
             == ref_block.a
         )
+
+
+class TestFlowWithSchemaParam:
+    @pytest.mark.parametrize(
+        "reference",
+        [
+            "#/$defs/Item",
+            "https://example.com/schema.json",
+            "schema.json#/$defs/Item",
+            "urn:example:schema:Item",
+        ],
+    )
+    def test_flow_preserves_schema_references(self, reference: str):
+        @flow
+        def schema_flow(schema_data: dict[str, Any]) -> dict[str, Any]:
+            return schema_data
+
+        schema = {"properties": {"item": {"$ref": reference, "title": "Item"}}}
+        assert schema_flow(schema) == schema
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    def test_flow_preserves_schema_in_model_parameter(self, is_async: bool):
+        class Item(pydantic.BaseModel):
+            value: int
+
+        class Payload(pydantic.BaseModel):
+            item: Item
+
+        class SchemaParameter(pydantic.BaseModel):
+            schema_data: dict[str, Any]
+
+        @flow
+        def schema_flow(parameter: SchemaParameter) -> SchemaParameter:
+            return parameter
+
+        @flow
+        async def async_schema_flow(parameter: SchemaParameter) -> SchemaParameter:
+            return parameter
+
+        parameter = SchemaParameter(schema_data=Payload.model_json_schema())
+        if is_async:
+            result = asyncio.run(async_schema_flow(parameter))
+        else:
+            result = schema_flow(parameter)
+
+        assert isinstance(result, SchemaParameter)
+        assert result == parameter

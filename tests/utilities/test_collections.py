@@ -1,6 +1,8 @@
+import dataclasses
 import io
 import json
 import uuid
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from typing import Any, NamedTuple
 
@@ -8,7 +10,14 @@ import numpy as np
 import pydantic
 import pytest
 
-from prefect.utilities.annotations import BaseAnnotation, opaque, quote
+from prefect.exceptions import UpstreamTaskError
+from prefect.states import Failed
+from prefect.utilities.annotations import (
+    BaseAnnotation,
+    allow_failure,
+    opaque,
+    quote,
+)
 from prefect.utilities.collections import (
     AutoEnum,
     StopVisiting,
@@ -23,6 +32,7 @@ from prefect.utilities.collections import (
     set_in_dict,
     visit_collection,
 )
+from prefect.utilities.engine import resolve_inputs, resolve_inputs_sync
 
 
 class ExampleAnnotation(BaseAnnotation):
@@ -116,6 +126,27 @@ def clear_sets():
 class SimpleDataclass:
     x: int
     y: int
+
+
+@dataclass
+class DataclassWithNonInitField:
+    x: int
+    y: int = dataclasses.field(init=False, default=0)
+
+
+@dataclass(frozen=True)
+class FrozenDataclassWithNonInitField:
+    x: int
+    y: int = dataclasses.field(init=False, default=0)
+
+
+@dataclass
+class DataclassWithPostInitField:
+    x: int
+    doubled: int = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.doubled = self.x * 2
 
 
 class SimplePydantic(pydantic.BaseModel):
@@ -221,6 +252,10 @@ class TestVisitCollection:
             ({3: 4, 6: 7}, {3: -4, -6: 7}),
             ({3: [4, {6: 7}]}, {3: [-4, {-6: 7}]}),
             ({3, 4, 5}, {3, -4, 5}),
+            (frozenset([3, 4, 5]), frozenset([3, -4, 5])),
+            (deque([3, 4]), deque([3, -4])),
+            (defaultdict(list, {3: [4]}), defaultdict(list, {3: [-4]})),
+            (Counter({"a": 2, "b": 3}), Counter({"a": -2, "b": 3})),
             (SimpleDataclass(x=1, y=2), SimpleDataclass(x=1, y=-2)),
             (SimplePydantic(x=1, y=2), SimplePydantic(x=1, y=-2)),
             (ExtraPydantic(x=1, y=2, z=3), ExtraPydantic(x=1, y=-2, z=3)),
@@ -242,6 +277,10 @@ class TestVisitCollection:
             ({3: 4, 6: 7}, {4, 6}),
             ({3: [4, {6: 7}]}, {4, 6}),
             ({3, 4, 5}, {4}),
+            (frozenset([3, 4, 6]), {4, 6}),
+            (deque([3, 4]), {4}),
+            (defaultdict(list, {3: [4]}), {4}),
+            (Counter({"a": 2, "b": 3}), {2}),
             (SimpleDataclass(x=1, y=2), {2}),
             (SimplePydantic(x=1, y=2), {2}),
             (ExtraPydantic(x=1, y=2, z=4), {2, 4}),
@@ -253,6 +292,38 @@ class TestVisitCollection:
         result = visit_collection(inp, visit_fn=visit_even_numbers, return_data=False)
         assert result is None
         assert EVEN == expected
+
+    @pytest.mark.parametrize(
+        "cls", [DataclassWithNonInitField, FrozenDataclassWithNonInitField]
+    )
+    def test_visit_collection_transforms_dataclass_with_non_init_field(self, cls):
+        inp = cls(x=2)
+        object.__setattr__(inp, "y", 3)
+
+        result = visit_collection(inp, visit_fn=negative_even_numbers, return_data=True)
+
+        assert isinstance(result, cls)
+        assert result.x == -2
+        assert result.y == 3
+
+        object.__setattr__(inp, "y", 4)
+
+        result = visit_collection(inp, visit_fn=negative_even_numbers, return_data=True)
+
+        assert result.y == -4
+
+    def test_visit_collection_keeps_visited_non_init_field_over_post_init(self):
+        inp = DataclassWithPostInitField(x=2)
+        assert inp.doubled == 4
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: -2 if v == 2 else v, return_data=True
+        )
+
+        # rebuilding with x=-2 runs __post_init__ (doubled=-4), but the stored
+        # value is kept
+        assert result.x == -2
+        assert result.doubled == 4
 
     def test_visit_collection_does_not_consume_generators(self):
         def f():
@@ -766,6 +837,45 @@ class TestVisitCollection:
         assert result.done == {2, 4}
         assert result.not_done == {6, 8}
 
+    def test_visit_collection_defaultdict_preserves_default_factory(self):
+        result = visit_collection(
+            defaultdict(list, {"a": [2]}), negative_even_numbers, return_data=True
+        )
+
+        assert type(result) is defaultdict
+        assert result.default_factory is list
+        assert result == {"a": [-2]}
+
+    def test_visit_collection_counter_preserves_counts(self):
+        result = visit_collection(
+            Counter({"a": 2, "b": 3}), negative_even_numbers, return_data=True
+        )
+
+        assert type(result) is Counter
+        assert dict(result) == {"a": -2, "b": 3}
+
+    def test_visit_collection_deque_preserves_maxlen(self):
+        result = visit_collection(
+            deque([3, 4], maxlen=5), negative_even_numbers, return_data=True
+        )
+
+        assert type(result) is deque
+        assert result.maxlen == 5
+        assert list(result) == [3, -4]
+
+    @pytest.mark.parametrize(
+        "val",
+        [
+            frozenset([1, 3]),
+            deque([1, 3]),
+            defaultdict(list, {1: [3]}),
+            Counter({"a": 1}),
+        ],
+    )
+    def test_visit_collection_stdlib_containers_identity_when_unchanged(self, val):
+        result = visit_collection(val, negative_even_numbers, return_data=True)
+        assert result is val
+
 
 class TestRemoveKeys:
     def test_remove_single_key(self):
@@ -849,6 +959,16 @@ class TestGetFromDict:
                 "default_value",
                 "default_value",
             ),
+            ({"years": {"2026": 42}}, "years.2026", 42, None),
+            ({"items": {"01": "first"}}, "items.01", "first", None),
+            ({"a": {1: "int", "1": "str"}}, "a.1", "str", None),
+            ({"a": {1: "int", "1": "str"}}, ["a", 1], "int", None),
+            ({"a": {1: "int"}}, "a.1", "int", None),
+            ({"a": {-1: "neg"}}, "a.-1", "neg", None),
+            ({"a": {1: "int"}}, "a.01", "default_value", "default_value"),
+            ({"a": [1, 2, 3]}, "a[-1]", 3, None),
+            ({"a": [1, 2, 3]}, "a.-1", 3, None),
+            ({"a": [{"b": 1}]}, "a[0].b", 1, None),
         ],
     )
     def test_get_from_dict(self, dct, keys, expected, default):
@@ -924,3 +1044,29 @@ class TestDeepMergeDicts:
     )
     def test_deep_merge_dicts(self, dicts, expected):
         assert deep_merge_dicts(*dicts) == expected
+
+
+class TestVisitCollectionAnnotationCache:
+    def test_aliased_nested_input_does_not_reuse_allow_failure_resolution_sync(self):
+        failed = Failed(data=ValueError("upstream failed"))
+        shared = [failed]
+        with pytest.raises(UpstreamTaskError):
+            resolve_inputs_sync({"items": [allow_failure(shared), shared]})
+
+    async def test_aliased_nested_input_does_not_reuse_allow_failure_resolution_async(
+        self,
+    ):
+        failed = Failed(data=ValueError("upstream failed"))
+        shared = [failed]
+        with pytest.raises(UpstreamTaskError):
+            await resolve_inputs({"items": [allow_failure(shared), shared]})
+
+    def test_aliased_nested_input_same_annotation_context_reuses_result(self):
+        err = ValueError("upstream failed")
+        failed = Failed(data=err)
+        shared = [failed]
+        resolved = resolve_inputs_sync(
+            {"items": [allow_failure(shared), allow_failure(shared)]}
+        )
+        assert resolved["items"][0] == [err]
+        assert resolved["items"][1] is resolved["items"][0]

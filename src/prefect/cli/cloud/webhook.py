@@ -15,6 +15,7 @@ from prefect.cli._cloud_utils import (
 )
 from prefect.cli._utilities import (
     exit_with_error,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -55,7 +56,7 @@ async def webhook_ls(
             json_output = orjson.dumps(
                 retrieved_webhooks, option=orjson.OPT_INDENT_2
             ).decode()
-            _cli.console.print(json_output, soft_wrap=True)
+            print_verbatim(json_output)
             return
         display_table = render_webhooks_into_table(retrieved_webhooks)
         _cli.console.print(display_table)
@@ -88,7 +89,7 @@ async def webhook_get(
         webhook = await client.request("GET", f"/webhooks/{webhook_id}")
         if output and output.lower() == "json":
             json_output = orjson.dumps(webhook, option=orjson.OPT_INDENT_2).decode()
-            _cli.console.print(json_output, soft_wrap=True)
+            print_verbatim(json_output)
             return
         display_table = render_webhooks_into_table([webhook])
         _cli.console.print(display_table)
@@ -120,7 +121,7 @@ async def webhook_create(
             ' should define (at minimum) the following attributes: \n{ "event":'
             ' "your.event.name", "resource": { "prefect.resource.id":'
             ' "your.resource.id" } }'
-            " \nhttps://docs.prefect.io/latest/automate/events/webhook-triggers#webhook-templates"
+            " \nhttps://www.prefect.io/docs/latest/automate/events/webhook-triggers#webhook-templates"
         )
 
     confirm_logged_in(console=_cli.console)

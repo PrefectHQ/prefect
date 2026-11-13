@@ -1,0 +1,21 @@
+---
+title: observed_states
+sidebarTitle: observed_states
+---
+
+# `prefect.server.models.observed_states`
+
+
+Discover states from retained flow and task run transitions.
+
+## Functions
+
+### `read_observed_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/observed_states.py#L11" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_observed_states(db: PrefectDBInterface, session: AsyncSession, query: str | None = None, order_by: ObservedStateSort = ObservedStateSort.LAST_SEEN_DESC, limit: int = 200) -> list[ObservedState]
+```
+
+
+Combine exact state pairs and timestamp bounds from retained run histories.
+

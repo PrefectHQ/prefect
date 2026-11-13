@@ -428,11 +428,11 @@ class FlowRunFilterState(PrefectOperatorFilterBaseModel):
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.type is not None:
             filter = self.type.as_sql_filter()
-            if isinstance(filter, sa.BinaryExpression):
+            if not isinstance(filter, sa.True_):
                 filters.append(filter)
         if self.name is not None:
             filter = self.name.as_sql_filter()
-            if isinstance(filter, sa.BinaryExpression):
+            if not isinstance(filter, sa.True_):
                 filters.append(filter)
         return filters
 
@@ -1551,7 +1551,7 @@ class LogFilterTextSearch(PrefectFilterBaseModel):
         parsed = parse_text_search_query(self.query)
 
         # Build combined searchable text field (message + name)
-        searchable_field = sa.func.concat(db.Log.message, " ", db.Log.name)
+        searchable_field = db.Log.message + " " + db.Log.name
 
         # Handle include terms (OR logic)
         if parsed.include:

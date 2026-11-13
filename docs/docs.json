@@ -22,7 +22,7 @@
   },
   "errors": {
     "404": {
-      "redirect": true
+      "redirect": false
     }
   },
   "favicon": "/logos/favicon.svg",
@@ -46,7 +46,7 @@
   },
   "logo": {
     "dark": "/logos/logo-wordmark-light.svg",
-    "href": "https://docs.prefect.io",
+    "href": "https://www.prefect.io/docs",
     "light": "/logos/logo-wordmark-dark.svg"
   },
   "name": "Prefect",
@@ -225,6 +225,7 @@
                 ]
               },
               "v3/how-to-guides/cloud/workspaces",
+              "v3/how-to-guides/cloud/archive-flows",
               "v3/how-to-guides/cloud/create-a-webhook",
               "v3/how-to-guides/cloud/troubleshoot-cloud",
               "v3/how-to-guides/cloud/scope-of-support"
@@ -896,6 +897,12 @@
                         ]
                       },
                       {
+                        "group": "Observed States",
+                        "pages": [
+                          "v3/api-ref/rest-api/server/observed-states/read-observed-states"
+                        ]
+                      },
+                      {
                         "group": "Deployments",
                         "pages": [
                           "v3/api-ref/rest-api/server/deployments/create-deployment",
@@ -1125,6 +1132,7 @@
                 "group": "Events",
                 "pages": [
                   "v3/api-ref/events/index",
+                  "v3/api-ref/events/flow-events",
                   "v3/api-ref/events/flow-run-events",
                   "v3/api-ref/events/task-run-events",
                   "v3/api-ref/events/deployment-events",
@@ -1446,6 +1454,7 @@
                           "v3/api-ref/python/prefect-server-api-flows",
                           "v3/api-ref/python/prefect-server-api-logs",
                           "v3/api-ref/python/prefect-server-api-middleware",
+                          "v3/api-ref/python/prefect-server-api-observed_states",
                           "v3/api-ref/python/prefect-server-api-root",
                           "v3/api-ref/python/prefect-server-api-run_history",
                           "v3/api-ref/python/prefect-server-api-saved_searches",
@@ -1563,6 +1572,7 @@
                           "v3/api-ref/python/prefect-server-models-flow_runs",
                           "v3/api-ref/python/prefect-server-models-flows",
                           "v3/api-ref/python/prefect-server-models-logs",
+                          "v3/api-ref/python/prefect-server-models-observed_states",
                           "v3/api-ref/python/prefect-server-models-saved_searches",
                           "v3/api-ref/python/prefect-server-models-storage_defaults",
                           "v3/api-ref/python/prefect-server-models-task_run_states",
@@ -1592,6 +1602,7 @@
                           "v3/api-ref/python/prefect-server-schemas-filters",
                           "v3/api-ref/python/prefect-server-schemas-graph",
                           "v3/api-ref/python/prefect-server-schemas-internal",
+                          "v3/api-ref/python/prefect-server-schemas-observed_states",
                           "v3/api-ref/python/prefect-server-schemas-responses",
                           "v3/api-ref/python/prefect-server-schemas-schedules",
                           "v3/api-ref/python/prefect-server-schemas-sorting",
@@ -2224,6 +2235,10 @@
     {
       "destination": "/v3/cloud/:slug*",
       "source": "/cloud/:slug*"
+    },
+    {
+      "destination": "/v3/api-ref/python",
+      "source": "/api-ref/prefect/:slug*"
     },
     {
       "destination": "/v3/api-ref/:slug*",
@@ -2866,10 +2881,6 @@
       "source": "/latest/api-ref/prefect/:slug*"
     },
     {
-      "destination": "/v3/api-ref/python",
-      "source": "/api-ref/prefect/:slug*"
-    },
-    {
       "destination": "/v3/:slug*",
       "source": "/3rc/:slug*"
     },
@@ -3134,5 +3145,10 @@
       "source": "/v3/manage/server/examples/helm"
     }
   ],
+  "seo": {
+    "metatags": {
+      "canonical": "https://www.prefect.io/docs"
+    }
+  },
   "theme": "mint"
 }

@@ -16,7 +16,7 @@ prefect worker start --pool 'my-vertex-pool'
 
 ## Configuration
 Read more about configuring work pools
-[here](https://docs.prefect.io/3.0/deploy/infrastructure-concepts/work-pools).
+[here](https://www.prefect.io/docs/3.0/deploy/infrastructure-concepts/work-pools).
 """
 
 import asyncio
@@ -419,7 +419,7 @@ class VertexAIWorker(
         "a Google Cloud Platform account."
     )
     _display_name = "Google Vertex AI"
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-gcp"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-gcp"  # noqa
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/googlecloud.png"  # noqa
 
     async def _initiate_run(

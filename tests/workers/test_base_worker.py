@@ -797,6 +797,157 @@ async def test_worker_handles_double_release_gracefully(
     assert updated_flow_run.state.is_crashed()
 
 
+def _http_status_error(status_code: int) -> httpx.HTTPStatusError:
+    request = httpx.Request("GET", "http://test/api/deployments/123")
+    response = httpx.Response(status_code, request=request)
+    return httpx.HTTPStatusError(
+        f"HTTP {status_code}", request=request, response=response
+    )
+
+
+def _bad_gateway_error() -> httpx.HTTPStatusError:
+    return _http_status_error(status.HTTP_502_BAD_GATEWAY)
+
+
+async def test_worker_survives_error_reading_deployment_before_submission(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    run_mock = AsyncMock()
+
+    # A non-404 error must not escape `_submit_run` and tear down the worker's
+    # task group; exiting the context re-raises anything that escaped.
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker.run = run_mock
+        worker.client.read_deployment = AsyncMock(side_effect=_bad_gateway_error())
+
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+        assert [run.id for run in submitted_flow_runs] == [flow_run.id]
+
+    run_mock.assert_not_called()
+    assert worker.limiter.borrowed_tokens == 0
+    assert flow_run.id not in worker._submitting_flow_run_ids
+
+    # The run is left scheduled so a later poll can pick it up again
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_scheduled()
+
+
+async def test_worker_resubmits_run_after_error_reading_deployment(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker._propose_pending_state = AsyncMock(return_value=False)
+        read_deployment = worker.client.read_deployment
+        worker.client.read_deployment = AsyncMock(side_effect=_bad_gateway_error())
+
+        await worker.get_and_submit_flow_runs()
+        async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+            with attempt:
+                assert flow_run.id not in worker._submitting_flow_run_ids
+
+        worker.client.read_deployment = read_deployment
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+        assert [run.id for run in submitted_flow_runs] == [flow_run.id]
+
+    worker._propose_pending_state.assert_awaited_once()
+
+
+async def test_worker_releases_limit_slot_when_deployment_was_deleted(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    orphaned_flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=2)),
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker._propose_pending_state = AsyncMock(return_value=False)
+        read_deployment = worker.client.read_deployment
+        worker.client.read_deployment = AsyncMock(
+            side_effect=ObjectNotFound(
+                http_exc=_http_status_error(status.HTTP_404_NOT_FOUND)
+            )
+        )
+
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+        assert [run.id for run in submitted_flow_runs] == [orphaned_flow_run.id]
+        async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+            with attempt:
+                assert orphaned_flow_run.id not in worker._submitting_flow_run_ids
+
+        assert worker.limiter.borrowed_tokens == 0
+
+        # With `limit=1`, a leaked slot would block every later run
+        worker.client.read_deployment = read_deployment
+        next_flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+        )
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+        assert [run.id for run in submitted_flow_runs] == [next_flow_run.id]
+
+    updated_flow_run = await prefect_client.read_flow_run(orphaned_flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_cancelled()
+
+
+async def test_worker_survives_error_cancelling_run_of_deleted_deployment(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker.client.read_deployment = AsyncMock(
+            side_effect=ObjectNotFound(
+                http_exc=_http_status_error(status.HTTP_404_NOT_FOUND)
+            )
+        )
+        set_flow_run_state = worker.client.set_flow_run_state
+        worker.client.set_flow_run_state = AsyncMock(side_effect=_bad_gateway_error())
+
+        await worker.get_and_submit_flow_runs()
+        async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+            with attempt:
+                assert flow_run.id not in worker._submitting_flow_run_ids
+
+        assert worker.limiter.borrowed_tokens == 0
+
+        # Cancelling failed, so the run stays scheduled for the next poll
+        updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert updated_flow_run.state is not None
+        assert updated_flow_run.state.is_scheduled()
+
+        # The next poll cancels it once the API recovers
+        worker.client.set_flow_run_state = set_flow_run_state
+        await worker.get_and_submit_flow_runs()
+
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_cancelled()
+
+
 async def test_worker_skips_duplicate_submission_of_run_holding_limit_slot(
     prefect_client: PrefectClient,
     worker_deployment_wq1: WorkQueue,
@@ -3494,14 +3645,11 @@ class TestWorkerChannelClient:
 
         async with anyio.create_task_group() as task_group:
             await channel.sync(task_group)
+            # `stop()` cancels the channel's run loop, so the task group exits
+            # once the session is closed; no wall-clock deadline is needed.
             channel.stop()
 
-            with anyio.fail_after(1):
-                while not connect_context_by_ref["connect_context"].exited:
-                    await anyio.sleep(0)
-
-            task_group.cancel_scope.cancel()
-
+        assert connect_context_by_ref["connect_context"].exited
         client.read_work_pool.assert_not_awaited()
         client.send_worker_heartbeat.assert_not_awaited()
 
@@ -3882,11 +4030,10 @@ class TestWorkerChannelClient:
         channel_by_ref["channel"] = channel
 
         async with anyio.create_task_group() as task_group:
+            # The channel's run loop exits on its own once the reconnect attempt
+            # is terminal, so let the task group wait for it instead of racing
+            # a wall-clock deadline that a loaded CI runner can exceed.
             await channel.sync(task_group)
-            with anyio.fail_after(1):
-                while not channel.state.terminal:
-                    await anyio.sleep(0)
-            task_group.cancel_scope.cancel()
 
         assert attempts == 2
         assert first_connect is not None

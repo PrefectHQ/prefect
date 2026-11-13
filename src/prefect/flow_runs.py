@@ -133,6 +133,7 @@ async def wait_for_flow_run(
     )
 
     with anyio.move_on_after(timeout):
+        received_final_event = False
         async with get_events_subscriber(filter=event_filter) as subscriber:
             flow_run = await client.read_flow_run(flow_run_id)
             if flow_run.state and flow_run.state.is_final():
@@ -151,7 +152,19 @@ async def wait_for_flow_run(
                     logger.info(f"Flow run is in state {state.name!r}")
 
                 if state.is_final():
-                    return await client.read_flow_run(flow_run_id)
+                    received_final_event = True
+                    break
+
+        if received_final_event:
+            # A final state event can be delivered before the state change is
+            # visible to API reads, so read until the run reports a final state
+            poll_delay = 0.1
+            while True:
+                flow_run = await client.read_flow_run(flow_run_id)
+                if flow_run.state and flow_run.state.is_final():
+                    return flow_run
+                await anyio.sleep(poll_delay)
+                poll_delay = min(poll_delay * 2, 5)
 
     raise FlowRunWaitTimeout(
         f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"

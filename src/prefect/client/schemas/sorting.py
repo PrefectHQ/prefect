@@ -25,6 +25,8 @@ class TaskRunSort(AutoEnum):
     NAME_DESC = AutoEnum.auto()
     NEXT_SCHEDULED_START_TIME_ASC = AutoEnum.auto()
     END_TIME_DESC = AutoEnum.auto()
+    DURATION_DESC = AutoEnum.auto()
+    DURATION_ASC = AutoEnum.auto()
 
 
 class AutomationSort(AutoEnum):

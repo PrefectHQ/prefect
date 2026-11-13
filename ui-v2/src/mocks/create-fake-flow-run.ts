@@ -23,7 +23,8 @@ export const createFakeFlowRun = (overrides?: Partial<FlowRun>): FlowRun => {
 		id: randUuid(),
 		created: randPastDate().toISOString(),
 		updated: randPastDate().toISOString(),
-		name: `${randProductAdjective()}-${randAnimal()}`,
+		// Some falso animal names include trailing whitespace, which breaks text matchers
+		name: `${randProductAdjective()}-${randAnimal()}`.trim(),
 		flow_id: randUuid(),
 		state_id: randUuid(),
 		deployment_id: null,

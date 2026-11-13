@@ -732,7 +732,7 @@ async def test_worker_does_not_run_with_push_pool(push_work_pool):
             ),
             (
                 "Workers are not required for push work pools. "
-                "See https://docs.prefect.io/latest/deploy/infrastructure-examples/serverless "
+                "See https://www.prefect.io/docs/latest/deploy/infrastructure-examples/serverless "
                 "for more details."
             ),
         ],

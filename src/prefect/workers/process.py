@@ -11,7 +11,7 @@ Replace `my-work-pool` with the name of the work pool you want the worker
 to poll for flow runs.
 
 For more information about work pools and workers,
-checkout out the [Prefect docs](https://docs.prefect.io/v3/concepts/work-pools/).
+checkout out the [Prefect docs](https://www.prefect.io/docs/v3/concepts/work-pools/).
 """
 
 from __future__ import annotations
@@ -143,7 +143,7 @@ class ProcessWorker(
         " when first getting started."
     )
     _display_name = "Process"
-    _documentation_url = "https://docs.prefect.io/latest/get-started/quickstart"
+    _documentation_url = "https://www.prefect.io/docs/latest/get-started/quickstart"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/process.png"
 
     async def run(

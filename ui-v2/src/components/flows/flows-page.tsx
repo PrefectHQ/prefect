@@ -2,15 +2,8 @@ import type {
 	ColumnFiltersState,
 	PaginationState,
 } from "@tanstack/react-table";
+import type { ServerError } from "@/api/error-utils";
 import type { Flow } from "@/api/flows";
-import { Button } from "@/components/ui/button";
-import {
-	EmptyState,
-	EmptyStateActions,
-	EmptyStateDescription,
-	EmptyStateIcon,
-	EmptyStateTitle,
-} from "@/components/ui/empty-state";
 import FlowsTable from "./data-table";
 import { FlowsEmptyState } from "./empty-state";
 import { FlowsHeader } from "./flows-page-header";
@@ -30,6 +23,10 @@ type FlowsPageProps = {
 	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
 	onPrefetchPage?: (page: number) => void;
 	onClearFilters: () => void;
+	isPending?: boolean;
+	isPlaceholderData?: boolean;
+	error?: ServerError;
+	onRetry?: () => void;
 };
 
 export default function FlowsPage({
@@ -45,14 +42,16 @@ export default function FlowsPage({
 	onColumnFiltersChange,
 	onPrefetchPage,
 	onClearFilters,
+	isPending = false,
+	isPlaceholderData = false,
+	error,
+	onRetry,
 }: FlowsPageProps) {
 	return (
 		<div className="flex flex-col gap-4">
 			<FlowsHeader />
-			{totalCount === 0 ? (
+			{totalCount === 0 && !error ? (
 				<FlowsEmptyState />
-			) : count === 0 ? (
-				<FlowsFilteredEmptyState onClearFilters={onClearFilters} />
 			) : (
 				<FlowsTable
 					flows={flows}
@@ -65,27 +64,13 @@ export default function FlowsPage({
 					columnFilters={columnFilters}
 					onColumnFiltersChange={onColumnFiltersChange}
 					onPrefetchPage={onPrefetchPage}
+					onClearFilters={onClearFilters}
+					isPending={isPending}
+					isPlaceholderData={isPlaceholderData}
+					error={error}
+					onRetry={onRetry}
 				/>
 			)}
 		</div>
 	);
 }
-
-const FlowsFilteredEmptyState = ({
-	onClearFilters,
-}: {
-	onClearFilters: () => void;
-}) => (
-	<EmptyState>
-		<EmptyStateIcon id="Search" />
-		<EmptyStateTitle>No flows match your filters</EmptyStateTitle>
-		<EmptyStateDescription>
-			Try adjusting your search or tag filters.
-		</EmptyStateDescription>
-		<EmptyStateActions>
-			<Button variant="outline" onClick={onClearFilters}>
-				Clear filters
-			</Button>
-		</EmptyStateActions>
-	</EmptyState>
-);

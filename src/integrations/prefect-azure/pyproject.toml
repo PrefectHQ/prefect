@@ -29,15 +29,16 @@ dependencies = [
   "azure-mgmt-resource>=21.2,<25",
   "prefect>=3.8.4",
   "prefect-docker>=0.6.2",
-  "setuptools<82",                      #required in 3.12 to get pkg_resources (used by azureml.core)
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 blob_storage = ["azure-storage-blob"]
 cosmos_db = ["azure-cosmos"]
-ml_datastore = ["azureml-core"]
-all_extras = ["azure-cosmos", "azure-storage-blob", "azureml-core"]
+# setuptools<81 ships pkg_resources, which older supported azureml-core versions
+# import at runtime. Only the ML datastore extra needs it.
+ml_datastore = ["azureml-core", "setuptools<81"]
+all_extras = ["azure-cosmos", "azure-storage-blob", "azureml-core", "setuptools<81"]
 
 [dependency-groups]
 dev = [
@@ -45,6 +46,7 @@ dev = [
   "azure-cosmos",
   "azure-storage-blob",
   "azureml-core",
+  "setuptools<81",  # pkg_resources, required by older azureml-core versions
   "coverage",
   "interrogate",
   "mkdocs-gen-files",

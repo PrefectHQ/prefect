@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 import * as matchers from "@testing-library/jest-dom/matchers";
+import { HttpNetworkFrame } from "msw/experimental";
 import { toast } from "sonner";
 import { afterAll, afterEach, beforeAll, expect, vi } from "vitest";
 import "@testing-library/jest-dom";
@@ -8,10 +9,13 @@ import { server } from "./utils";
 
 beforeAll(() => {
 	server.listen({
-		onUnhandledRequest: (request) => {
-			throw new Error(
-				`No request handler found for ${request.method} ${request.url}`,
-			);
+		onUnhandledFrame: ({ frame }) => {
+			if (frame instanceof HttpNetworkFrame) {
+				const { request } = frame.data;
+				throw new Error(
+					`No request handler found for ${request.method} ${request.url}`,
+				);
+			}
 		},
 	});
 });
@@ -99,9 +103,11 @@ Element.prototype.getBoundingClientRect = vi.fn(() => ({
 	toJSON: () => {},
 }));
 
-// jsdom reports 0 for offset dimensions, which makes virtualized lists measure
+// jsdom reports 0 for layout dimensions, which makes virtualized lists measure
 // their scroll element as empty and render no items
 Object.defineProperties(HTMLElement.prototype, {
 	offsetWidth: { configurable: true, value: 500 },
 	offsetHeight: { configurable: true, value: 300 },
+	// Vertical virtualizers read clientHeight; leave clientWidth to layout mocks.
+	clientHeight: { configurable: true, value: 300 },
 });

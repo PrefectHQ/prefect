@@ -232,6 +232,48 @@ def _segment_task_runs_for_upsert(
 
 
 @db_injector
+async def _drop_task_runs_of_missing_flow_runs(
+    db: PrefectDBInterface, task_runs: list[_TaskRunRecord]
+) -> list[_TaskRunRecord]:
+    """Drop the task runs whose flow run does not exist, such as a deleted one.
+
+    Inserting one would violate the `task_run.flow_run_id` foreign key and fail
+    the whole batch, so every other event in it would fail along with it.
+    """
+    flow_run_ids = {
+        tr.task_run.flow_run_id
+        for tr in task_runs
+        if tr.task_run.flow_run_id is not None
+    }
+    if not flow_run_ids:
+        return task_runs
+
+    async with db.session_context() as session:
+        result = await session.execute(
+            sa.select(db.FlowRun.id).where(db.FlowRun.id.in_(flow_run_ids))
+        )
+        existing_flow_run_ids = set(result.scalars().all())
+
+    kept: list[_TaskRunRecord] = []
+    for tr in task_runs:
+        task_run = tr.task_run
+        if (
+            task_run.flow_run_id is None
+            or task_run.flow_run_id in existing_flow_run_ids
+        ):
+            kept.append(tr)
+            continue
+        assert task_run.state is not None
+        logger.warning(
+            "Dropping event %s for task run %s: flow run %s does not exist",
+            task_run.state.id,
+            task_run.id,
+            task_run.flow_run_id,
+        )
+    return kept
+
+
+@db_injector
 async def _insert_task_run_states(
     db: PrefectDBInterface, session: AsyncSession, task_runs: list[TaskRun]
 ):
@@ -343,11 +385,15 @@ async def record_task_run_event(event: ReceivedEvent, depth: int = 0) -> None:
 async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
     """Record multiple task run events in the database, taking advantage of bulk inserts.
 
+    Events whose flow run does not exist are dropped with a warning, so they
+    cannot fail the rest of the batch on the `flow_run_id` foreign key.
+
     Retries once on `IntegrityError` to handle TOCTOU races between concurrent
     recorder instances: when two batches reference the same `task_run.id` with
     different natural keys, one batch's existence-check SELECT may run before
     the other batch's INSERT commits. The retry re-runs the SELECT in a fresh
-    session so the conflict target is chosen against the now-visible row.
+    session so the conflict target is chosen against the now-visible row. It
+    also covers a flow run deleted between its existence check and the insert.
     """
 
     max_attempts = 2
@@ -373,11 +419,15 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
 
     now = prefect.types._datetime.now("UTC")
 
-    all_task_runs = [
-        _TaskRunRecord(task_run=task_run, task_run_dict=task_run_dict)
-        for event in events
-        for task_run, task_run_dict in [db_recordable_task_run_from_event(event)]
-    ]
+    all_task_runs = await _drop_task_runs_of_missing_flow_runs(
+        [
+            _TaskRunRecord(task_run=task_run, task_run_dict=task_run_dict)
+            for event in events
+            for task_run, task_run_dict in [db_recordable_task_run_from_event(event)]
+        ]
+    )
+    if not all_task_runs:
+        return
 
     # Drop duplicate task run rows, keep the one with the latest state_timestamp.
     # A single bulk flush can contain events that collide on either id or natural

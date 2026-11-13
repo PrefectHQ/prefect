@@ -218,6 +218,12 @@ class FlowRunState(Base):
                 cls.timestamp.desc(),
                 unique=True,
             ),
+            sa.Index(
+                "ix_flow_run_state__type_name_timestamp",
+                cls.type,
+                cls.name,
+                cls.timestamp,
+            ).ddl_if(dialect="sqlite"),
         )
 
 
@@ -282,6 +288,12 @@ class TaskRunState(Base):
                 cls.timestamp.desc(),
                 unique=True,
             ),
+            sa.Index(
+                "ix_task_run_state__type_name_timestamp",
+                cls.type,
+                cls.name,
+                cls.timestamp,
+            ).ddl_if(dialect="sqlite"),
         )
 
 

@@ -23,6 +23,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -321,7 +322,7 @@ async def status(
                     "error": str(healthcheck_exc),
                 }
                 if is_json:
-                    _cli.console.print(json_mod.dumps(result, indent=2))
+                    print_verbatim(json_mod.dumps(result, indent=2))
                     raise SystemExit(1)
                 exit_with_error(
                     f"Timed out after {timeout} seconds waiting for server "
@@ -342,7 +343,7 @@ async def status(
                     result["server_version"] = server_version
 
                 if is_json:
-                    _cli.console.print(json_mod.dumps(result, indent=2))
+                    print_verbatim(json_mod.dumps(result, indent=2))
                 else:
                     _cli.console.print("Server is available.")
                     _cli.console.print(f"  API URL: {api_url}")
@@ -357,7 +358,7 @@ async def status(
                     "error": str(healthcheck_exc),
                 }
                 if is_json:
-                    _cli.console.print(json_mod.dumps(result, indent=2))
+                    print_verbatim(json_mod.dumps(result, indent=2))
                     raise SystemExit(1)
                 exit_with_error(
                     f"Server is not available at {api_url}. Error: {healthcheck_exc}"
@@ -582,10 +583,7 @@ def list_services(
                     "description": description,
                 }
             )
-        _cli.console.print(
-            orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode(),
-            soft_wrap=True,
-        )
+        print_verbatim(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode())
         return
 
     table = Table(title="Available Services", expand=True)

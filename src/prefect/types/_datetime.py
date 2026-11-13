@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import sys
 from contextlib import contextmanager
+from functools import cache
 from typing import Annotated, Any, Union, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
@@ -14,13 +15,16 @@ from pydantic_core import core_schema as _core_schema
 from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
-    from whenever import DateTimeDelta
+    import whenever as _whenever
     from whenever import ZonedDateTime as _ZDTProbe
 
     # True on whenever >= 0.10.0, which introduced ZonedDateTime(stdlib_dt),
     # start_of("day"), and to_stdlib(). False on 0.7.x–0.9.x.
     _WHENEVER_NEW_API: bool = hasattr(_ZDTProbe, "to_stdlib")
     del _ZDTProbe
+
+    # SYSTEM_TZ replaces the system-timezone methods in whenever 0.11.
+    _SYSTEM_TZ = getattr(_whenever, "SYSTEM_TZ", None)
 
     class _DateTime(datetime.datetime):
         """`datetime.datetime` with a Pydantic schema that coerces naive to UTC.
@@ -57,6 +61,8 @@ if sys.version_info >= (3, 13):
 
         Interval: TypeAlias = Union[datetime.timedelta, ItemizedDelta]
     else:
+        from whenever import DateTimeDelta
+
         Interval: TypeAlias = Union[datetime.timedelta, DateTimeDelta]
 else:
     _WHENEVER_NEW_API = False
@@ -122,6 +128,7 @@ def parse_datetime(dt: str) -> datetime.datetime:
         return cast(datetime.datetime, _wrap_pendulum_value(pendulum.parse(dt)))
 
 
+@cache
 def get_timezones() -> tuple[str, ...]:
     return tuple(available_timezones())
 
@@ -206,10 +213,13 @@ def _whenever_zdt_from_py(dt: datetime.datetime) -> Any:
 
     whenever >= 0.10.0 accepts a stdlib datetime directly in the constructor.
     Older versions require the `from_py_datetime()` classmethod.
+
+    Server cron schedules call this on Python 3.11 and 3.12 as well, where
+    `_WHENEVER_NEW_API` is never probed, so detect the API on the class.
     """
     from whenever import ZonedDateTime
 
-    if _WHENEVER_NEW_API:
+    if hasattr(ZonedDateTime, "to_stdlib"):
         return ZonedDateTime(dt)  # type: ignore[arg-type]
     return ZonedDateTime.from_py_datetime(dt)
 
@@ -345,7 +355,12 @@ def travel_to(dt: Any):
 def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
     if sys.version_info >= (3, 13):
         if dt.tzinfo is None:
-            wdt = _whenever_pdt_from_py(dt).assume_system_tz()
+            pdt = _whenever_pdt_from_py(dt)
+            wdt = (
+                pdt.assume_tz(_SYSTEM_TZ)
+                if _SYSTEM_TZ is not None
+                else pdt.assume_system_tz()
+            )
         else:
             if not isinstance(dt.tzinfo, ZoneInfo):
                 if key := getattr(dt.tzinfo, "key", None):
@@ -354,7 +369,10 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
                     utc_dt = dt.astimezone(datetime.timezone.utc)
                     dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
 
-            wdt = _whenever_zdt_from_py(dt).to_system_tz()
+            zdt = _whenever_zdt_from_py(dt)
+            wdt = (
+                zdt.to_tz(_SYSTEM_TZ) if _SYSTEM_TZ is not None else zdt.to_system_tz()
+            )
 
         return _whenever_to_stdlib(wdt)
     else:

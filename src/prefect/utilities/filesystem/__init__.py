@@ -34,6 +34,30 @@ def create_default_ignore_file(path: str) -> bool:
     return True
 
 
+def _walk_tree(
+    root: str,
+    spec: pathspec.GitIgnoreSpec,
+    include_dirs: bool,
+    follow_links: Optional[bool] = None,
+) -> tuple[set[str], set[str]]:
+    """Return `(all_files, ignored_files)` for `root` under a single traversal mode.
+
+    Both sets must come from the same mode, or subtracting one from the other
+    compares two different views of the tree.
+    """
+    ignored_files = {
+        p.path for p in spec.match_tree_entries(root, follow_links=follow_links)
+    }
+    if include_dirs:
+        all_files = {
+            p.path
+            for p in pathspec.util.iter_tree_entries(root, follow_links=follow_links)
+        }
+    else:
+        all_files = set(pathspec.util.iter_tree_files(root, follow_links=follow_links))
+    return all_files, ignored_files
+
+
 def filter_files(
     root: str = ".",
     ignore_patterns: Optional[Iterable[AnyStr]] = None,
@@ -53,11 +77,32 @@ def filter_files(
     included so directory traversal can reach those files.
     """
     spec = pathspec.GitIgnoreSpec.from_lines(ignore_patterns or [])
-    ignored_files = {p.path for p in spec.match_tree_entries(root)}
-    if include_dirs:
-        all_files = {p.path for p in pathspec.util.iter_tree_entries(root)}
-    else:
-        all_files = set(pathspec.util.iter_tree_files(root))
+    try:
+        all_files, ignored_files = _walk_tree(root, spec, include_dirs)
+    except pathspec.util.RecursionError as exc:
+        # A directory symlink pointing at one of its own ancestors makes the
+        # default link-following walk revisit the same real directory, and
+        # pathspec raises rather than returning the tree. Retry once without
+        # following links: symlinks are then listed as entries but not
+        # descended into, which is what `git` itself does with the .gitignore
+        # specification this function implements. Only this walk changes --
+        # a tree with no cycle still follows links as before.
+        # Imported here rather than at module scope: this is a cold path, and
+        # prefect.logging imports back into prefect.utilities. get_logger
+        # rather than logging.getLogger because it installs
+        # ObfuscateApiKeyFilter, and these paths come from the user's tree.
+        from prefect.logging.loggers import get_logger
+
+        get_logger("utilities.filesystem").warning(
+            "Not following symlinks while walking %r: %r and %r both resolve to %r.",
+            root,
+            exc.first_path or ".",
+            exc.second_path,
+            exc.real_path,
+        )
+        all_files, ignored_files = _walk_tree(
+            root, spec, include_dirs, follow_links=False
+        )
     included_files = all_files - ignored_files
 
     # Ensure parent directories of included files are also included,

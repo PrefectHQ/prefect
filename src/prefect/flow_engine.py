@@ -11,7 +11,7 @@ import signal
 import sys
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import (
     AsyncExitStack,
     ExitStack,
@@ -59,7 +59,11 @@ from prefect._internal.control_listener import (
     get_intent,
     report_engine_outcome,
 )
-from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
+from prefect._internal.engine import (
+    get_hook_name,
+    resolve_custom_flow_run_name,
+    resolve_flow_hook_arguments,
+)
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -330,28 +334,40 @@ def _send_heartbeats(
     resource, related = engine._build_heartbeat_event_template()
 
     stop_event = threading.Event()
+    # The heartbeat thread checks for a stop and emits while holding this lock,
+    # so once `stop_heartbeats` returns, no heartbeat is mid-emit and none will
+    # be emitted.
+    emit_lock = threading.Lock()
+
+    def stop_heartbeats() -> None:
+        with emit_lock:
+            stop_event.set()
 
     def heartbeat_loop() -> None:
-        while not stop_event.is_set():
-            # Check state before emitting - don't emit if final
-            if (
-                engine.flow_run
-                and engine.flow_run.state
-                and engine.flow_run.state.is_final()
-            ):
-                engine.logger.debug("Flow run in terminal state, stopping heartbeat")
-                return
-
-            try:
-                engine._emit_flow_run_heartbeat(resource, related)
-            except Exception:
-                engine.logger.debug("Failed to emit heartbeat", exc_info=True)
-
-            # Sleep in increments to allow quick shutdown
-            for _ in range(heartbeat_seconds):
+        while True:
+            with emit_lock:
                 if stop_event.is_set():
                     return
-                time.sleep(1)
+
+                # Check state before emitting - don't emit if final
+                if (
+                    engine.flow_run
+                    and engine.flow_run.state
+                    and engine.flow_run.state.is_final()
+                ):
+                    engine.logger.debug(
+                        "Flow run in terminal state, stopping heartbeat"
+                    )
+                    return
+
+                try:
+                    engine._emit_flow_run_heartbeat(resource, related)
+                except Exception:
+                    engine.logger.debug("Failed to emit heartbeat", exc_info=True)
+
+            # Waiting on the event wakes the thread as soon as heartbeats stop
+            if stop_event.wait(heartbeat_seconds):
+                return
 
     # Copy the current context so the heartbeat thread sees the same
     # `SettingsContext` (and therefore the same `PREFECT_API_URL`) as the
@@ -366,13 +382,14 @@ def _send_heartbeats(
     thread = threading.Thread(
         target=heartbeat_ctx.run, args=(heartbeat_loop,), daemon=True
     )
+    engine._stop_heartbeats = stop_heartbeats
     thread.start()
     engine.logger.debug("Started flow run heartbeat context")
 
     try:
         yield
     finally:
-        stop_event.set()
+        stop_heartbeats()
         if join_on_exit:
             thread.join(timeout=2)
         engine.logger.debug("Stopped flow run heartbeat context")
@@ -424,6 +441,15 @@ class BaseFlowRunEngine(Generic[P, R]):
         default_factory=FlowRunSuspensionRequest
     )
     _attempt_conclusion: EngineOutcomeReceipt | None = field(default=None, init=False)
+    # Stops the heartbeat thread started by the most recent `_send_heartbeats`.
+    # `set_state` calls it before proposing a terminal state: the server
+    # timestamps that state when it accepts it, but the heartbeat thread sees
+    # it only after the response arrives.  A heartbeat sent in that gap occurs
+    # after the terminal state, and an automation that expects every heartbeat
+    # to be followed by another event then fires on the finished run.
+    _stop_heartbeats: Callable[[], None] | None = field(
+        default=None, init=False, repr=False
+    )
 
     def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
@@ -757,6 +783,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        if state.is_final() and self._stop_heartbeats is not None:
+            self._stop_heartbeats()
+
         state = propose_state_sync(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
@@ -811,7 +840,16 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         )
         raise_if_flow_run_suspension_requested()
         self._return_value = resolved_result
-        self.set_state(terminal_state)
+        state = self.set_state(terminal_state)
+        if terminal_state.is_failed() and state.is_scheduled():
+            self.logger.info(
+                f"Received non-final state {state.name!r} when proposing final"
+                f" state {terminal_state.name!r} and will attempt to run again..."
+            )
+            raise_if_flow_run_suspension_requested()
+            self._return_value = NotSet
+            self.set_state(Running())
+            return result
 
         link_state_to_flow_run_result(terminal_state, resolved_result)
         self._telemetry.end_span_on_success()
@@ -1063,7 +1101,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
-                result = hook(flow, flow_run, state)
+                args, kwargs = resolve_flow_hook_arguments(hook, flow, flow_run, state)
+                result = hook(*args, **kwargs)
                 if asyncio.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
@@ -1128,7 +1167,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
                 stack.enter_context(
                     maintain_concurrency_lease(
-                        lease_id, 300, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        300,
+                        raise_on_lease_renewal_failure=True,
+                        flow_run_id=self.flow_run.id,
                     )
                 )
 
@@ -1483,6 +1525,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        if state.is_final() and self._stop_heartbeats is not None:
+            self._stop_heartbeats()
+
         state = await propose_state(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
@@ -1534,7 +1579,16 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         )
         raise_if_flow_run_suspension_requested()
         self._return_value = resolved_result
-        await self.set_state(terminal_state)
+        state = await self.set_state(terminal_state)
+        if terminal_state.is_failed() and state.is_scheduled():
+            self.logger.info(
+                f"Received non-final state {state.name!r} when proposing final"
+                f" state {terminal_state.name!r} and will attempt to run again..."
+            )
+            raise_if_flow_run_suspension_requested()
+            self._return_value = NotSet
+            await self.set_state(Running())
+            return result
 
         self._telemetry.end_span_on_success()
 
@@ -1782,7 +1836,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
-                result = hook(flow, flow_run, state)
+                args, kwargs = resolve_flow_hook_arguments(hook, flow, flow_run, state)
+                result = hook(*args, **kwargs)
                 if asyncio.iscoroutine(result):
                     await result
             except Exception:
@@ -1847,7 +1902,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
                 await stack.enter_async_context(
                     amaintain_concurrency_lease(
-                        lease_id, 300, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        300,
+                        raise_on_lease_renewal_failure=True,
+                        flow_run_id=self.flow_run.id,
                     )
                 )
 

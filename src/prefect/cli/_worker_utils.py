@@ -92,7 +92,7 @@ async def _retrieve_worker_type_from_pool(
         if work_pool.is_push_pool or work_pool.is_managed_pool:
             exit_fn(
                 "Workers are not required for push work pools. "
-                "See https://docs.prefect.io/latest/deploy/infrastructure-examples/serverless "
+                "See https://www.prefect.io/docs/latest/deploy/infrastructure-examples/serverless "
                 "for more details."
             )
 

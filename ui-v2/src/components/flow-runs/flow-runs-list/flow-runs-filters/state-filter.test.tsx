@@ -1,16 +1,80 @@
-import { render, screen } from "@testing-library/react";
+import { act, render as renderComponent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
+import { HttpResponse, http } from "msw";
+import type { ReactElement } from "react";
 import { useState } from "react";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { StateFilter } from "./state-filter";
-import type { FlowRunState } from "./state-filters.constants";
+
+const render = (ui: ReactElement) =>
+	renderComponent(ui, { wrapper: createWrapper() });
 
 describe("FlowRunsDataTable -- StateFilter", () => {
 	beforeAll(mockPointerEvents);
 
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it("searches beyond the discovery cap and keeps deleted selected names", async () => {
+		const requests: string[] = [];
+		server.use(
+			http.get(buildApiUrl("/observed-states"), ({ request }) => {
+				const query = new URL(request.url).searchParams.get("query") ?? "";
+				requests.push(query);
+				return HttpResponse.json(
+					query === "Base"
+						? [
+								{
+									state_type: "FAILED",
+									state_name: "Baseline, NOT Met",
+									first_seen: "2026-01-01T00:00:00Z",
+									last_seen: "2026-01-01T00:00:00Z",
+								},
+							]
+						: Array.from({ length: 200 }, (_, index) => ({
+								state_type: "FAILED",
+								state_name: `Custom ${index}`,
+								first_seen: "2026-01-01T00:00:00Z",
+								last_seen: "2026-01-01T00:00:00Z",
+							})),
+				);
+			}),
+		);
+		// Fake the clock so the 300ms search debounce in `useStateOptions` is
+		// advanced explicitly instead of consuming `findByRole`'s 1s wait budget,
+		// which caused timeouts on loaded CI runners.
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		const onSelect = vi.fn();
+		const user = userEvent.setup({
+			advanceTimers: vi.advanceTimersByTimeAsync.bind(vi),
+		});
+		render(
+			<StateFilter
+				selectedFilters={new Set(["Deleted state"])}
+				onSelectFilter={onSelect}
+			/>,
+		);
+		expect(screen.getByRole("button", { name: /Deleted state/ })).toBeVisible();
+		await user.click(screen.getByRole("button", { name: /Deleted state/ }));
+		expect(
+			screen.getByRole("menuitem", { name: "Deleted state" }),
+		).toBeVisible();
+		await user.type(screen.getByLabelText("Search state names"), "Base");
+		await act(() => vi.advanceTimersByTimeAsync(300));
+		await user.click(
+			await screen.findByRole("menuitem", { name: "Baseline, NOT Met" }),
+		);
+		expect(requests).toContain("Base");
+		expect(onSelect).toHaveBeenCalledWith(
+			new Set(["Deleted state", "Baseline, NOT Met"]),
+		);
+	});
+
 	const TestStateFilter = () => {
-		const [filters, setFilters] = useState<Set<FlowRunState>>();
+		const [filters, setFilters] = useState<Set<string>>();
 		return (
 			<StateFilter selectedFilters={filters} onSelectFilter={setFilters} />
 		);
