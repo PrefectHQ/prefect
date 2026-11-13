@@ -70,6 +70,14 @@ async def revoke_expired_lease(
             occupancy_seconds=occupancy_seconds,
         )
         await lease_storage.revoke_lease(lease_id)
+        from prefect.server.orchestration.core_policy import (
+            _promote_awaiting_concurrency_slot_runs,
+        )
+
+        await _promote_awaiting_concurrency_slot_runs(
+            session=session,
+            concurrency_limit_ids=list(expired_lease.resource_ids),
+        )
 
 
 @perpetual_service(

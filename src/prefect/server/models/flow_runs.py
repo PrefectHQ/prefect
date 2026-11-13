@@ -369,6 +369,15 @@ async def cleanup_flow_run_concurrency_slots(
             await models.concurrency_limits_v2.bulk_decrement_active_slots(
                 session, [deployment.concurrency_limit_id], 1
             )
+            from prefect.server.orchestration.core_policy import (
+                _promote_awaiting_concurrency_slot_runs,
+            )
+
+            await _promote_awaiting_concurrency_slot_runs(
+                session=session,
+                deployment_id=flow_run.deployment_id,
+                exclude_flow_run_id=flow_run.id,
+            )
 
 
 class DependencyResult(PrefectBaseModel):
