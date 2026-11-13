@@ -5,11 +5,13 @@ import pathlib
 import socket
 import sqlite3
 import sys
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import asyncpg
 import httpx
+import jsonschema
 import pytest
 import sqlalchemy as sa
 import toml
@@ -69,6 +71,76 @@ async def test_validation_error_handler_422(client):
         }
     ]
     assert response.json()["request_body"] == bad_flow_data
+
+
+@pytest.fixture
+async def openapi_schema(client: AsyncClient) -> dict[str, Any]:
+    response = await client.get("/openapi.json")
+    assert response.status_code == status.HTTP_200_OK
+    return response.json()
+
+
+def _documented_422_schema(
+    openapi_schema: dict[str, Any], path: str, method: str
+) -> dict[str, Any]:
+    response = openapi_schema["paths"][path][method]["responses"]["422"]
+    return {
+        **response["content"]["application/json"]["schema"],
+        "components": openapi_schema["components"],
+    }
+
+
+@pytest.mark.parametrize(
+    "path, body",
+    [
+        ("/flows/", {}),
+        ("/flow_runs/filter", {"limit": "ten"}),
+        ("/flow_runs/filter", {"limit": 500}),
+    ],
+)
+async def test_422_responses_match_openapi_schema(
+    client: AsyncClient,
+    openapi_schema: dict[str, Any],
+    path: str,
+    body: dict[str, Any],
+):
+    response = await client.post(path, json=body)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    jsonschema.validate(
+        response.json(), _documented_422_schema(openapi_schema, path, "post")
+    )
+
+
+def test_openapi_schema_does_not_document_fastapi_validation_error_body(
+    openapi_schema: dict[str, Any],
+):
+    assert "HTTPValidationError" not in openapi_schema["components"]["schemas"]
+
+    fastapi_default_body = {
+        "detail": [
+            {"loc": ["body", "name"], "msg": "Field required", "type": "missing"}
+        ]
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(
+            fastapi_default_body,
+            _documented_422_schema(openapi_schema, "/flows/", "post"),
+        )
+
+
+def test_create_app_openapi_documents_prefect_422_responses():
+    schema = create_app(ephemeral=True).openapi()
+
+    assert "HTTPValidationError" not in schema["components"]["schemas"]
+    assert schema["paths"]["/flows/"]["post"]["responses"]["422"]["content"][
+        "application/json"
+    ]["schema"] == {
+        "anyOf": [
+            {"$ref": "#/components/schemas/InvalidRequestResponse"},
+            {"$ref": "#/components/schemas/HTTPErrorResponse"},
+        ]
+    }
 
 
 async def test_validation_error_handler_renders_non_finite_floats(client: AsyncClient):

@@ -41,6 +41,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.openapi.constants import REF_PREFIX
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -320,6 +321,60 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, list):
         return [_json_safe(v) for v in value]
     return value
+
+
+_INVALID_REQUEST_RESPONSE_SCHEMA: dict[str, Any] = {
+    "title": "InvalidRequestResponse",
+    "type": "object",
+    "properties": {
+        "exception_message": {"title": "Exception Message", "type": "string"},
+        "exception_detail": {
+            "title": "Exception Detail",
+            "type": "array",
+            "items": {"$ref": f"{REF_PREFIX}ValidationError"},
+        },
+        "request_body": {"title": "Request Body"},
+    },
+    "required": ["exception_message", "exception_detail"],
+}
+
+_HTTP_ERROR_RESPONSE_SCHEMA: dict[str, Any] = {
+    "title": "HTTPErrorResponse",
+    "type": "object",
+    "properties": {"detail": {"title": "Detail", "type": "string"}},
+    "required": ["detail"],
+}
+
+
+def _document_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
+    """
+    Replace FastAPI's default `HTTPValidationError` 422 response schema with the
+    bodies the Prefect API sends: `InvalidRequestResponse` from the request
+    validation handler, or `HTTPErrorResponse` from an `HTTPException`.
+    """
+    schemas = schema.get("components", {}).get("schemas", {})
+    if schemas.pop("HTTPValidationError", None) is None:
+        return schema
+
+    schemas["InvalidRequestResponse"] = _INVALID_REQUEST_RESPONSE_SCHEMA
+    schemas["HTTPErrorResponse"] = _HTTP_ERROR_RESPONSE_SCHEMA
+    default_ref = f"{REF_PREFIX}HTTPValidationError"
+    for path_item in schema.get("paths", {}).values():
+        for operation in path_item.values():
+            content = (
+                operation.get("responses", {})
+                .get("422", {})
+                .get("content", {})
+                .get("application/json", {})
+            )
+            if content.get("schema", {}).get("$ref") == default_ref:
+                content["schema"] = {
+                    "anyOf": [
+                        {"$ref": f"{REF_PREFIX}InvalidRequestResponse"},
+                        {"$ref": f"{REF_PREFIX}HTTPErrorResponse"},
+                    ]
+                }
+    return schema
 
 
 async def integrity_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -612,6 +667,13 @@ def create_api_app(
                     content={"exception_message": "Unauthorized"},
                 )
             return await call_next(request)
+
+    def openapi() -> dict[str, Any]:
+        if api_app.openapi_schema is None:
+            api_app.openapi_schema = _document_error_responses(FastAPI.openapi(api_app))
+        return api_app.openapi_schema
+
+    api_app.openapi = openapi
 
     API_APP_CACHE[cache_key] = api_app
 
@@ -1101,10 +1163,12 @@ def create_app(
 
         This method is attached to the global public app for easy access.
         """
-        partial_schema = get_openapi(
-            title=API_TITLE,
-            version=API_VERSION,
-            routes=api_app.routes,
+        partial_schema = _document_error_responses(
+            get_openapi(
+                title=API_TITLE,
+                version=API_VERSION,
+                routes=api_app.routes,
+            )
         )
         new_schema = partial_schema.copy()
 
