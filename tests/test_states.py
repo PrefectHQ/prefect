@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from prefect import flow
+from prefect import flow, task
 from prefect._internal.states import (
     exception_to_crashed_state_sync,
     exception_to_failed_state_sync,
@@ -17,6 +17,7 @@ from prefect.results import (
     ResultStore,
 )
 from prefect.serializers import JSONSerializer
+from prefect.settings import temporary_settings
 from prefect.states import (
     Cancelled,
     Completed,
@@ -97,6 +98,29 @@ class TestRaiseStateException:
             Completed(),
             Completed(),
             Completed(data=ValueError("Should not be raised")),
+        ]
+        with pytest.raises(
+            ValueError,
+            match="Failed state result was an iterable of states but none were failed",
+        ):
+            await raise_state_exception(state_cls(data=inner_states))
+
+    async def test_raises_first_doubly_nested_multistate_exception(
+        self, state_cls: type[State]
+    ):
+        inner_states = [
+            [Completed(data="test"), Failed(data=ValueError("Test"))],
+            [Failed(data=ValueError("Should not be raised"))],
+        ]
+        with pytest.raises(ValueError, match="Test"):
+            await raise_state_exception(state_cls(data=inner_states))
+
+    async def test_value_error_if_all_doubly_nested_multistates_are_not_failed(
+        self, state_cls: type[State]
+    ):
+        inner_states = [
+            [Completed(), Completed()],
+            [Completed(data=ValueError("Should not be raised"))],
         ]
         with pytest.raises(
             ValueError,
@@ -271,6 +295,140 @@ class TestReturnValueToState:
         assert result_state.message == "2/3 states are not final."
         # Aggregate type is failed
         assert result_state.is_failed()
+
+    async def test_nested_states_with_failure(self, store: ResultStore):
+        states = [
+            [Completed(message="hi"), Failed(message="err")],
+            [Completed(message="bye")],
+        ]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = await return_value_to_state(states, store)
+        # The nested structure is kept as the result data
+        assert await result_state.result(raise_on_failure=False) == states
+        # Message explains aggregate across the nested states
+        assert result_state.message == "1/3 states failed."
+        # Aggregate type is failed
+        assert result_state.is_failed()
+
+    async def test_nested_states_all_completed(self, store: ResultStore):
+        states = [[Completed(message="hi")], [Completed(message="bye")]]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = await return_value_to_state(states, store)
+        assert await result_state.result() == states
+        assert result_state.message == "All states completed."
+        assert result_state.is_completed()
+
+    async def test_nested_states_with_empty_collections(self, store: ResultStore):
+        states = [[Failed(message="err")], []]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = await return_value_to_state(states, store)
+        assert await result_state.result(raise_on_failure=False) == states
+        # Empty collections contribute no states to the aggregate
+        assert result_state.message == "1/1 states failed."
+        assert result_state.is_failed()
+
+    async def test_nested_tuple_and_set_states(self, store: ResultStore):
+        states = ([Completed(message="hi")], {Failed(message="err")})
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = await return_value_to_state(states, store)
+        assert result_state.message == "1/2 states failed."
+        assert result_state.is_failed()
+
+    async def test_mixed_nested_content_is_data(self, store: ResultStore):
+        value = [[Completed(message="hi")], [1, 2, 3]]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = await return_value_to_state(value, store)
+        # Not exclusively states, so the value is treated as plain data
+        assert result_state.is_completed()
+        assert await result_state.result() == value
+
+    async def test_self_referencing_collection_is_data(self, store: ResultStore):
+        value = []
+        value.append(value)
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = await return_value_to_state(value, store)
+        assert result_state.is_completed()
+        result = await result_state.result()
+        assert result[0] is result
+
+    async def test_nested_states_are_data_when_setting_disabled(
+        self, store: ResultStore
+    ):
+        states = [
+            [Completed(message="hi"), Failed(message="err")],
+            [Completed(message="bye")],
+        ]
+        # The setting defaults to disabled, so nested states are plain data
+        # and the historical behavior is preserved.
+        result_state = await return_value_to_state(states, store)
+        assert result_state.is_completed()
+        assert await result_state.result() == states
+
+    async def test_nested_cancelled_states_aggregate_when_setting_enabled(
+        self, store: ResultStore
+    ):
+        states = [[Completed(message="hi")], [Cancelled(message="nope")]]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = await return_value_to_state(states, store)
+        assert result_state.message == "1/2 states cancelled."
+        assert result_state.is_cancelled()
+
+    async def test_nested_cancelled_states_are_data_when_setting_disabled(
+        self, store: ResultStore
+    ):
+        states = [[Completed(message="hi")], [Cancelled(message="nope")]]
+        result_state = await return_value_to_state(states, store)
+        assert result_state.is_completed()
+        assert await result_state.result() == states
+
+    async def test_quoted_nested_states_are_data_when_setting_enabled(
+        self, store: ResultStore
+    ):
+        value = quote([[Completed(message="hi"), Failed(message="err")]])
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = await return_value_to_state(value, store)
+        # Quoted values are data, never aggregated
+        assert result_state.is_completed()
+        assert await result_state.result() == value
+
+    async def test_nested_aggregate_exception_readable_when_setting_disabled(
+        self, store: ResultStore
+    ):
+        states = [
+            [Completed(message="hi"), Failed(data=ValueError("boom"))],
+            [Completed(message="bye")],
+        ]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = await return_value_to_state(states, store)
+        assert result_state.is_failed()
+
+        # The setting is now disabled, but the already-aggregated state
+        # must still report its failure: the nested states are part of the
+        # persisted result, not a fresh aggregation decision.
+        exception = await aget_state_exception(result_state)
+        assert isinstance(exception, ValueError)
+        assert str(exception) == "boom"
+        assert await result_state.result(raise_on_failure=False) == states
+        with pytest.raises(ValueError, match="boom"):
+            await result_state.result()
+
+    async def test_nested_aggregate_exception_readable_from_persisted_metadata_when_setting_disabled(
+        self, store: ResultStore
+    ):
+        states = [
+            [Completed(message="hi"), Failed(data=ValueError("boom"))],
+            [Completed(message="bye")],
+        ]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = await return_value_to_state(states, store, write_result=True)
+        assert result_state.is_failed()
+
+        # Simulate reading the persisted state back later, after the
+        # setting has been disabled.
+        persisted_state = Failed(data=result_state.data.metadata)
+        exception = await aget_state_exception(persisted_state)
+        assert isinstance(exception, ValueError)
+        assert str(exception) == "boom"
 
     @pytest.mark.parametrize("run_identifier", ["task_run_id", "flow_run_id"])
     async def test_single_state_in_future_is_processed(self, run_identifier, store):
@@ -677,6 +835,110 @@ class TestReturnValueToStateSync:
         assert result_state.message == "2/3 states are not final."
         assert result_state.is_failed()
 
+    def test_nested_states_with_failure(self, store: ResultStore):
+        states = [
+            [Completed(message="hi"), Failed(message="err")],
+            [Completed(message="bye")],
+        ]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = return_value_to_state_sync(states, store)
+        assert result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "1/3 states failed."
+        assert result_state.is_failed()
+
+    def test_nested_states_all_completed(self, store: ResultStore):
+        states = [[Completed(message="hi")], [Completed(message="bye")]]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = return_value_to_state_sync(states, store)
+        assert result_state.result() == states
+        assert result_state.message == "All states completed."
+        assert result_state.is_completed()
+
+    def test_mixed_nested_content_is_data(self, store: ResultStore):
+        value = [[Completed(message="hi")], [1, 2, 3]]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = return_value_to_state_sync(value, store)
+        # Not exclusively states, so the value is treated as plain data
+        assert result_state.is_completed()
+        assert result_state.result() == value
+
+    def test_nested_states_are_data_when_setting_disabled(self, store: ResultStore):
+        states = [
+            [Completed(message="hi"), Failed(message="err")],
+            [Completed(message="bye")],
+        ]
+        # The setting defaults to disabled, so nested states are plain data
+        # and the historical behavior is preserved.
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.is_completed()
+        assert result_state.result() == states
+
+    def test_nested_cancelled_states_aggregate_when_setting_enabled(
+        self, store: ResultStore
+    ):
+        states = [[Completed(message="hi")], [Cancelled(message="nope")]]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = return_value_to_state_sync(states, store)
+        assert result_state.message == "1/2 states cancelled."
+        assert result_state.is_cancelled()
+
+    def test_nested_cancelled_states_are_data_when_setting_disabled(
+        self, store: ResultStore
+    ):
+        states = [[Completed(message="hi")], [Cancelled(message="nope")]]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.is_completed()
+        assert result_state.result() == states
+
+    def test_quoted_nested_states_are_data_when_setting_enabled(
+        self, store: ResultStore
+    ):
+        value = quote([[Completed(message="hi"), Failed(message="err")]])
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = return_value_to_state_sync(value, store)
+        # Quoted values are data, never aggregated
+        assert result_state.is_completed()
+        assert result_state.result() == value
+
+    def test_nested_aggregate_exception_readable_when_setting_disabled(
+        self, store: ResultStore
+    ):
+        states = [
+            [Completed(message="hi"), Failed(data=ValueError("boom"))],
+            [Completed(message="bye")],
+        ]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = return_value_to_state_sync(states, store)
+        assert result_state.is_failed()
+
+        # The setting is now disabled, but the already-aggregated state
+        # must still report its failure: the nested states are part of the
+        # persisted result, not a fresh aggregation decision.
+        exception = get_state_exception(result_state)
+        assert isinstance(exception, ValueError)
+        assert str(exception) == "boom"
+        assert result_state.result(raise_on_failure=False) == states
+        with pytest.raises(ValueError, match="boom"):
+            result_state.result()
+
+    def test_nested_aggregate_exception_readable_from_persisted_metadata_when_setting_disabled(
+        self, store: ResultStore
+    ):
+        states = [
+            [Completed(message="hi"), Failed(data=ValueError("boom"))],
+            [Completed(message="bye")],
+        ]
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            result_state = return_value_to_state_sync(states, store, write_result=True)
+        assert result_state.is_failed()
+
+        # Simulate reading the persisted state back later, after the
+        # setting has been disabled.
+        persisted_state = Failed(data=result_state.data.metadata)
+        exception = get_state_exception(persisted_state)
+        assert isinstance(exception, ValueError)
+        assert str(exception) == "boom"
+
     @pytest.mark.parametrize("run_identifier", ["task_run_id", "flow_run_id"])
     def test_single_state_in_future_is_processed(self, run_identifier, store):
         state = Completed(data="test", state_details={run_identifier: uuid.uuid4()})
@@ -714,6 +976,191 @@ class TestReturnValueToStateSync:
         result_state = return_value_to_state_sync(gen(), store)
         assert result_state.is_completed()
         assert result_state.result() == [1, 2, 3]
+
+
+class TestNestedStateAggregationFlowsAndTasks:
+    """
+    End-to-end regressions for nested state aggregation in flows and tasks,
+    behind the `experiments.aggregate_nested_states` setting.
+    """
+
+    def test_sync_flow_nested_failure_aggregates_when_setting_enabled(self):
+        @task
+        def flaky_task(x: int):
+            if x == 2:
+                raise ValueError("boom")
+            return x
+
+        @flow
+        def nested_flow():
+            return [flaky_task.map([1, 2]), flaky_task.map([3, 4])]
+
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            state = nested_flow(return_state=True)
+
+        assert state.is_failed()
+        assert state.message == "1/4 states failed."
+        result = state.result(raise_on_failure=False)
+        assert len(result) == 2
+        assert sum(1 for group in result for s in group if s.is_failed()) == 1
+        with pytest.raises(ValueError, match="boom"):
+            state.result()
+
+    def test_sync_flow_nested_failure_is_data_when_setting_disabled(self):
+        @task
+        def flaky_task(x: int):
+            if x == 2:
+                raise ValueError("boom")
+            return x
+
+        @flow
+        def nested_flow():
+            return [flaky_task.map([1, 2]), flaky_task.map([3, 4])]
+
+        state = nested_flow(return_state=True)
+
+        # The setting defaults to disabled, so the nested states are plain
+        # data and the flow completes, preserving the historical behavior.
+        assert state.is_completed()
+        result = state.result()
+        assert len(result) == 2
+        assert sum(1 for group in result for s in group if s.is_failed()) == 1
+
+    async def test_async_flow_nested_failure_aggregates_when_setting_enabled(self):
+        @task
+        async def flaky_task(x: int):
+            if x == 2:
+                raise ValueError("boom")
+            return x
+
+        @flow
+        async def nested_flow():
+            return [flaky_task.map([1, 2]), flaky_task.map([3, 4])]
+
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            state = await nested_flow(return_state=True)
+
+        assert state.is_failed()
+        assert state.message == "1/4 states failed."
+        result = await state.result(raise_on_failure=False)
+        assert len(result) == 2
+        assert sum(1 for group in result for s in group if s.is_failed()) == 1
+        with pytest.raises(ValueError, match="boom"):
+            await state.result()
+
+    async def test_async_flow_nested_failure_is_data_when_setting_disabled(self):
+        @task
+        async def flaky_task(x: int):
+            if x == 2:
+                raise ValueError("boom")
+            return x
+
+        @flow
+        async def nested_flow():
+            return [flaky_task.map([1, 2]), flaky_task.map([3, 4])]
+
+        state = await nested_flow(return_state=True)
+
+        assert state.is_completed()
+        result = await state.result()
+        assert len(result) == 2
+        assert sum(1 for group in result for s in group if s.is_failed()) == 1
+
+    def test_sync_task_nested_failure_aggregates_when_setting_enabled(self):
+        @task
+        def returns_nested_states():
+            return [[Completed(), Failed(data=ValueError("boom"))]]
+
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            state = returns_nested_states(return_state=True)
+
+        assert state.is_failed()
+        assert state.message == "1/2 states failed."
+
+    def test_sync_task_nested_failure_is_data_when_setting_disabled(self):
+        @task
+        def returns_nested_states():
+            return [[Completed(), Failed(data=ValueError("boom"))]]
+
+        state = returns_nested_states(return_state=True)
+
+        assert state.is_completed()
+        result = state.result()
+        assert len(result) == 1
+        assert len(result[0]) == 2
+        assert result[0][0].is_completed()
+        assert result[0][1].is_failed()
+
+    async def test_async_task_nested_failure_aggregates_when_setting_enabled(self):
+        @task
+        async def returns_nested_states():
+            return [[Completed(), Failed(data=ValueError("boom"))]]
+
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            state = await returns_nested_states(return_state=True)
+
+        assert state.is_failed()
+        assert state.message == "1/2 states failed."
+
+    async def test_async_task_nested_failure_is_data_when_setting_disabled(self):
+        @task
+        async def returns_nested_states():
+            return [[Completed(), Failed(data=ValueError("boom"))]]
+
+        state = await returns_nested_states(return_state=True)
+
+        assert state.is_completed()
+
+    def test_manual_state_override_unaffected_by_setting(self):
+        @flow
+        def manual_flow():
+            return Failed(message="manual failure")
+
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            assert manual_flow(return_state=True).is_failed()
+        with temporary_settings(updates={"experiments.aggregate_nested_states": False}):
+            assert manual_flow(return_state=True).is_failed()
+
+    def test_task_manual_state_override_unaffected_by_setting(self):
+        @task
+        def manual_task():
+            return Failed(message="manual failure")
+
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            assert manual_task(return_state=True).is_failed()
+        with temporary_settings(updates={"experiments.aggregate_nested_states": False}):
+            assert manual_task(return_state=True).is_failed()
+
+    def test_quoted_nested_states_are_data_in_flow_when_setting_enabled(self):
+        @flow
+        def quoted_flow():
+            return quote([[Completed(), Failed(data=ValueError("boom"))]])
+
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            state = quoted_flow(return_state=True)
+
+        assert state.is_completed()
+        assert isinstance(state.result(), quote)
+
+    def test_nested_cancelled_states_cancel_flow_when_setting_enabled(self):
+        @flow
+        def cancelled_flow():
+            return [[Completed(), Cancelled(message="nope")]]
+
+        with temporary_settings(updates={"experiments.aggregate_nested_states": True}):
+            state = cancelled_flow(return_state=True)
+
+        assert state.is_cancelled()
+        assert state.message == "1/2 states cancelled."
+
+    def test_nested_cancelled_states_are_data_in_flow_when_setting_disabled(self):
+        @flow
+        def cancelled_flow():
+            return [[Completed(), Cancelled(message="nope")]]
+
+        state = cancelled_flow(return_state=True)
+
+        assert state.is_completed()
 
 
 class TestSubmittingState:
