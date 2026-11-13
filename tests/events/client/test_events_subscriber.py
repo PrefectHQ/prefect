@@ -659,7 +659,10 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
     context that fails to enter is never exited by its caller."""
     puppeteer.token = token
 
+    awaiting_auth_response = asyncio.Event()
+
     async def never_respond(self: ClientConnection, *args: object, **kwargs: object):
+        awaiting_auth_response.set()
         await asyncio.Event().wait()
 
     monkeypatch.setattr(ClientConnection, "recv", never_respond)
@@ -668,9 +671,13 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
         filter=EventFilter(event=EventNameFilter(name=["example.event"])),
         reconnection_attempts=0,
     )
-    with pytest.raises(TimeoutError):
-        async with asyncio.timeout(0.5):
-            await subscriber.__aenter__()
+    # Cancel only once the handshake is actually in flight, rather than after a
+    # fixed timeout that can elapse before the socket is even opened under load
+    setup = asyncio.create_task(subscriber.__aenter__())
+    await awaiting_auth_response.wait()
+    setup.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await setup
 
     assert recorder.connections == 1
     assert subscriber._connect.connection.state is WebsocketState.CLOSED
