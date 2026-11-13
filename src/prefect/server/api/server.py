@@ -678,7 +678,13 @@ def create_api_app(
 
     def openapi() -> dict[str, Any]:
         if api_app.openapi_schema is None:
-            api_app.openapi_schema = _document_error_responses(FastAPI.openapi(api_app))
+            schema = FastAPI.openapi(api_app)
+            if (
+                api_app.exception_handlers.get(RequestValidationError)
+                is validation_exception_handler
+            ):
+                schema = _document_error_responses(schema)
+            api_app.openapi_schema = schema
         return api_app.openapi_schema
 
     api_app.openapi = openapi

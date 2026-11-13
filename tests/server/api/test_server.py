@@ -131,6 +131,13 @@ def test_openapi_schema_does_not_document_fastapi_validation_error_body(
         )
 
 
+def test_api_app_without_validation_handler_keeps_fastapi_422_schema():
+    schema = create_api_app(ignore_cache=True).openapi()
+
+    assert "HTTPValidationError" in schema["components"]["schemas"]
+    assert "InvalidRequestResponse" not in schema["components"]["schemas"]
+
+
 def test_create_app_openapi_documents_prefect_422_responses():
     schema = create_app(ephemeral=True).openapi()
 
