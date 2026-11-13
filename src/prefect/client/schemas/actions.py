@@ -160,7 +160,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
     def from_schedule(cls, schedule: Schedule) -> "DeploymentScheduleCreate":
         # Leave out what the caller didn't set, so that updating a deployment doesn't
         # override it on the server, e.g. re-activate a schedule that was paused
-        omitted = schedule._omitted  # pyright: ignore[reportPrivateUsage]
+        omitted: frozenset[str] = getattr(schedule, "_omitted", frozenset())
         active: dict[str, Any] = (
             {} if "active" in omitted else {"active": schedule.active}
         )

@@ -13,8 +13,15 @@ from prefect._internal.schemas.validators import (
     validate_rrule_string,
 )
 
-# Default for `active` and `anchor_date` arguments that aren't provided
-_UNSET: Any = object()
+
+class _Unset:
+    """Default for `active` and `anchor_date` arguments that aren't provided."""
+
+    def __repr__(self) -> str:
+        return "<unset>"
+
+
+_UNSET: Any = _Unset()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -52,11 +59,6 @@ class Schedule:
     active: bool = _UNSET
     parameters: dict[str, Any] = dataclasses.field(default_factory=dict)
     slug: str | None = None
-    # Which of `active` and `anchor_date` weren't provided. Updating a deployment
-    # leaves them out, so redeploying keeps the schedule's state on the server.
-    _omitted: frozenset[str] = dataclasses.field(
-        default=frozenset(), init=False, repr=False, compare=False
-    )
 
     def __post_init__(self) -> None:
         omitted = frozenset(
@@ -68,6 +70,8 @@ class Schedule:
             object.__setattr__(
                 self, "anchor_date", datetime.datetime.now(tz=datetime.timezone.utc)
             )
+        # Updating a deployment leaves out what wasn't provided, so redeploying keeps
+        # the schedule's state on the server. Not a field, so `asdict()` round-trips.
         object.__setattr__(self, "_omitted", omitted)
 
         defined_fields = [

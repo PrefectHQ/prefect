@@ -10,6 +10,7 @@ import logging
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
 from docket import Depends, Retry
@@ -110,12 +111,19 @@ async def _delete_scheduled_runs(
     await session.execute(delete_query)
 
 
-def _without_generated_dtstart(rrule: str) -> str:
-    """Strip a `DTSTART` that `normalize_rrule_string` could have added to `rrule`."""
+def _without_generated_dtstart(rrule: str, timezone: str | None) -> str:
+    """Strip a `DTSTART` that `normalize_rrule_string` could have added to `rrule`.
+
+    It adds the latest anchor on its grid that isn't in the future, so a `DTSTART`
+    in the future was set by the user.
+    """
     dtstart, _, rule = rrule.partition("\n")
     try:
         anchor = datetime.datetime.strptime(dtstart, "DTSTART:%Y%m%dT%H%M%S")
     except ValueError:
+        return rrule
+    tz = ZoneInfo(timezone) if timezone else datetime.timezone.utc
+    if anchor > datetime.datetime.now(tz).replace(tzinfo=None):
         return rrule
     return rule if normalize_rrule_string(rule, now=anchor) == rrule else rrule
 
@@ -125,46 +133,63 @@ def _is_same_schedule(
     schedule: schemas.core.DeploymentSchedule
     | schemas.actions.DeploymentScheduleCreate
     | schemas.actions.DeploymentScheduleUpdate,
+    exact: bool,
 ) -> bool:
     """Whether `schedule` is `existing` sent again: with the same slug or, without
-    slugs, with the same parameters and definition apart from generated values."""
+    slugs, with the same parameters and definition, unless `exact` apart from
+    generated values."""
     if existing.slug != schedule.slug:
         return False
     if schedule.slug is not None:
         return True
     if schedule.schedule is None or existing.parameters != schedule.parameters:
         return False
-    # An interval that's sent without an `anchor_date` is anchored when it's saved
-    exclude = {"anchor_date"} - schedule.schedule.model_fields_set
-    definitions = [
-        s.model_dump(exclude=exclude) for s in (existing.schedule, schedule.schedule)
-    ]
-    for definition in definitions:
-        if "rrule" in definition:
-            definition["rrule"] = _without_generated_dtstart(definition["rrule"])
+    definitions = [s.model_dump() for s in (existing.schedule, schedule.schedule)]
+    if not exact:
+        for definition in definitions:
+            # An interval sent without an `anchor_date` is anchored when it's saved
+            if "anchor_date" not in schedule.schedule.model_fields_set:
+                definition.pop("anchor_date", None)
+            if "rrule" in definition:
+                definition["rrule"] = _without_generated_dtstart(
+                    definition["rrule"], definition["timezone"]
+                )
     return definitions[0] == definitions[1]
 
 
-def _active_for_replacement(
-    schedule: schemas.core.DeploymentSchedule
-    | schemas.actions.DeploymentScheduleCreate
-    | schemas.actions.DeploymentScheduleUpdate,
+def _active_states(
+    schedules: Sequence[
+        schemas.core.DeploymentSchedule
+        | schemas.actions.DeploymentScheduleCreate
+        | schemas.actions.DeploymentScheduleUpdate
+    ],
     existing_schedules: list[schemas.core.DeploymentSchedule],
-) -> bool:
-    """The `active` state of a schedule that replaces a deployment's schedules.
+) -> list[bool]:
+    """The `active` states of schedules that replace a deployment's schedules.
 
     A schedule sent without `active` keeps the state of the existing schedule it
-    matches, and each existing schedule is matched at most once. Schedules that
-    don't match one are active.
+    matches. Each existing schedule matches at most one, unchanged schedules first
+    and then ones that differ only in generated values. Schedules that don't match
+    one are active.
     """
-    match = next(
-        (e for e in existing_schedules if _is_same_schedule(e, schedule)), None
-    )
-    if match is not None:
-        existing_schedules.remove(match)
-    if schedule.active is not None and "active" in schedule.model_fields_set:
-        return schedule.active
-    return match.active if match is not None else True
+    unmatched = list(existing_schedules)
+    matches: list[schemas.core.DeploymentSchedule | None] = [None] * len(schedules)
+    for exact in (True, False):
+        for i, schedule in enumerate(schedules):
+            if matches[i] is None:
+                match = next(
+                    (e for e in unmatched if _is_same_schedule(e, schedule, exact)),
+                    None,
+                )
+                if match is not None:
+                    unmatched.remove(match)
+                    matches[i] = match
+    return [
+        schedule.active
+        if schedule.active is not None and "active" in schedule.model_fields_set
+        else (match.active if match is not None else True)
+        for schedule, match in zip(schedules, matches)
+    ]
 
 
 @db_injector
@@ -292,11 +317,13 @@ async def create_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=_active_for_replacement(schedule, existing_schedules),
+                    active=active,
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )
-                for schedule in schedules
+                for schedule, active in zip(
+                    schedules, _active_states(schedules, existing_schedules)
+                )
             ],
         )
 
@@ -462,11 +489,13 @@ async def update_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=_active_for_replacement(schedule, existing_schedules),
+                    active=active,
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )
-                for schedule in schedules
+                for schedule, active in zip(
+                    schedules, _active_states(schedules, existing_schedules)
+                )
                 if schedule.schedule is not None
             ],
         )
