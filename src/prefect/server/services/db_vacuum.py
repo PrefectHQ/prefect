@@ -25,7 +25,8 @@ not listed fall back to `server.events.retention_period`.
 Each task runs with its own error isolation. All cleanup tasks share one
 docket concurrency slot, so they run one at a time on the maintenance
 connection. Deterministic keys prevent duplicate tasks from accumulating while
-a task is queued, running, or waiting for the slot behind a running task.
+a task is queued or running, and the schedulers skip a task that waits for the
+slot behind a running vacuum task.
 """
 
 from __future__ import annotations
@@ -157,21 +158,23 @@ async def _maintenance_session(
 async def _add_vacuum_task(
     docket: Docket, task: Callable[..., Awaitable[None]], key: str
 ) -> None:
-    """Enqueue `task` under `key`, unless it already waits behind a running
-    vacuum task.
+    """Enqueue `task` under `key`, unless it already waits for the slot behind
+    a running vacuum task.
 
     Docket does not deduplicate the key of a task that waits for the slot, and
     when the slot frees it wakes only the oldest waiting copy. If that copy's
-    task already ran, Docket drops it and wakes nothing, so tasks queued behind
-    it wait for a later cycle. The running task wakes the waiting copy when it
-    finishes, so another copy is never needed. When no vacuum task is running,
-    nothing will wake the waiting copy, so the task is enqueued again.
+    task already ran, Docket drops it and wakes nothing, so the tasks waiting
+    behind it stay parked until a later cycle. While a vacuum task runs, the
+    waiting copy will be woken when the tasks ahead of it finish, so this skips
+    the add. When no vacuum task is running, nothing may wake the waiting copy,
+    so the task is enqueued again. A cycle that runs while the slot passes from
+    one task to the next can still add a copy.
     """
     execution = await docket.get_execution(key)
     if execution is not None and execution.state is ExecutionState.SCHEDULED:
-        for vacuum_key in _VACUUM_TASK_KEYS:
-            vacuum = await docket.get_execution(vacuum_key)
-            if vacuum is not None and vacuum.state is ExecutionState.RUNNING:
+        for other_key in _VACUUM_TASK_KEYS:
+            other = await docket.get_execution(other_key)
+            if other is not None and other.state is ExecutionState.RUNNING:
                 return
     await docket.add(task, key=key)()
 
@@ -193,9 +196,9 @@ async def schedule_vacuum_tasks(
 ) -> None:
     """Schedule cleanup tasks for old flow runs.
 
-    Each task is enqueued with a deterministic key, so a cycle that overlaps
-    a queued or running copy of it, or a copy that waits behind a running
-    vacuum task, enqueues nothing.
+    Each task is enqueued with a deterministic key, and a cycle skips a task
+    that waits for the shared slot behind a running vacuum task (see
+    `_add_vacuum_task`).
 
     Disabled by default because it permanently deletes flow runs. Enable
     via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.

@@ -567,6 +567,31 @@ async def test_event_vacuum_enqueues_waiting_tasks_again_only_when_none_runs(
     assert scheduled == expected
 
 
+async def test_vacuum_schedulers_enqueue_every_key_the_parked_guard_checks():
+    """`_add_vacuum_task` looks for a running vacuum task under these keys, so
+    a key a scheduler enqueues but the guard doesn't check would let a cycle
+    add copies of waiting tasks while that task holds the slot."""
+    keys: list[str | None] = []
+
+    class FakeDocket:
+        async def get_execution(self, key):
+            return None
+
+        def add(self, function, key=None):
+            keys.append(key)
+
+            async def enqueue():
+                return None
+
+            return enqueue
+
+    await schedule_vacuum_tasks(docket=FakeDocket())
+    await schedule_event_vacuum_tasks(docket=FakeDocket())
+    await schedule_orphan_vacuum_tasks(docket=FakeDocket())
+
+    assert sorted(keys) == sorted(db_vacuum._VACUUM_TASK_KEYS)
+
+
 VACUUM_TASKS = [
     vacuum_orphaned_logs,
     vacuum_orphaned_artifacts,
