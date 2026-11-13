@@ -21,7 +21,7 @@ import prefect.server.schemas as schemas
 from prefect.server.api.workers import schedule_readiness_update
 from prefect.server.database import (
     PrefectDBInterface,
-    provide_database_interface,
+    aprovide_database_interface,
 )
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.work_queues import (
@@ -38,7 +38,7 @@ router: PrefectRouter = PrefectRouter(prefix="/work_queues", tags=["Work Queues"
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueResponse:
     """
     Creates a new work queue.
@@ -73,7 +73,7 @@ async def create_work_queue(
 async def update_work_queue(
     work_queue: schemas.actions.WorkQueueUpdate,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Updates an existing work queue.
@@ -104,7 +104,7 @@ async def update_work_queue(
 @router.get("/name/{name}")
 async def read_work_queue_by_name(
     name: str = Path(..., description="The work queue name"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueResponse:
     """
     Get a work queue by id.
@@ -132,7 +132,7 @@ async def read_work_queue_by_name(
 @router.get("/{id:uuid}")
 async def read_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueResponse:
     """
     Get a work queue by id.
@@ -172,7 +172,7 @@ async def read_work_queue_runs(
         default=False,
         description="A header to indicate this request came from the Prefect UI.",
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.FlowRunResponse]:
     """
     Get flow runs from the work queue.
@@ -235,7 +235,7 @@ async def read_work_queues(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkQueueResponse]:
     """
     Query for work queues.
@@ -264,7 +264,7 @@ async def read_work_queues(
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a work queue by id.
@@ -291,7 +291,7 @@ async def read_work_queue_concurrency_status(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     page: int = Body(1, ge=1),
     limit: int = dependencies.LimitBody(),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueConcurrencyStatus:
     """
     Read concurrency status for a work queue, including paginated flow run
@@ -357,7 +357,7 @@ async def read_work_queue_concurrency_status(
 @router.get("/{id:uuid}/status")
 async def read_work_queue_status(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.WorkQueueStatusDetail:
     """
     Get the status of a work queue.
