@@ -114,8 +114,8 @@ async def _delete_scheduled_runs(
 def _without_generated_dtstart(rrule: str, timezone: str | None) -> str:
     """Strip a `DTSTART` that `normalize_rrule_string` could have added to `rrule`.
 
-    It adds the latest anchor on its grid that isn't in the future, so a `DTSTART`
-    in the future was set by the user.
+    It adds the latest anchor on its grid that isn't in the future, on the client or
+    the server, so a `DTSTART` more than a few minutes ahead was set by the user.
     """
     dtstart, _, rule = rrule.partition("\n")
     try:
@@ -123,7 +123,8 @@ def _without_generated_dtstart(rrule: str, timezone: str | None) -> str:
     except ValueError:
         return rrule
     tz = ZoneInfo(timezone) if timezone else datetime.timezone.utc
-    if anchor > datetime.datetime.now(tz).replace(tzinfo=None):
+    now = datetime.datetime.now(tz).replace(tzinfo=None)
+    if anchor > now + datetime.timedelta(minutes=5):
         return rrule
     return rule if normalize_rrule_string(rule, now=anchor) == rrule else rrule
 
