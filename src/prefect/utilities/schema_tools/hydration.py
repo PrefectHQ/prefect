@@ -140,6 +140,15 @@ class InvalidJinja(HydrationError):
         return message
 
 
+class InvalidPrefectKind(HydrationError):
+    @property
+    def message(self) -> str:
+        message = "Invalid __prefect_kind"
+        if self.detail:
+            message += f": {self.detail}"
+        return message
+
+
 class WorkspaceVariableNotFound(HydrationError):
     @property
     def variable_name(self) -> str:
@@ -178,10 +187,15 @@ def handler(kind: PrefectKind) -> Callable[[Handler], Handler]:
 
 
 def call_handler(kind: PrefectKind, obj: dict[str, Any], ctx: HydrationContext) -> Any:
-    if kind not in _handlers:
+    # Unhashable kinds can't be looked up in `_handlers`; other unrecognized
+    # kinds pass `value` through below
+    if isinstance(kind, (dict, list)):
+        res = InvalidPrefectKind(detail=f"expected a string, got {type(kind).__name__}")
+    elif kind not in _handlers:
         return obj.get("value", None)
+    else:
+        res = _handlers[kind](obj, ctx)
 
-    res = _handlers[kind](obj, ctx)
     if ctx.raise_on_error and isinstance(res, HydrationError):
         raise res
     return res
