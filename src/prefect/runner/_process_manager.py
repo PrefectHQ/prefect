@@ -157,6 +157,39 @@ class _SingleProcessTerminationScope:
         pass
 
 
+class _WindowsSpawnProcessTerminationScope:
+    """Stops a `multiprocessing` spawn child on Windows.
+
+    The child shares the runner's console process group, and console control
+    events can only target a process group: a `CTRL_BREAK_EVENT` sent to its pid
+    does not stop it and reaches every process on the console instead. Graceful
+    cancellation for these children goes through the control channel, so the
+    external kill terminates the process directly.
+    """
+
+    wait_after_graceful_kill = False
+
+    def is_alive(self, pid: int) -> bool:
+        return _pid_is_alive(pid)
+
+    def graceful_kill(self, pid: int) -> None:
+        self.hard_kill(pid)
+
+    def hard_kill(self, pid: int) -> None:
+        # Any signal other than the CTRL_* events is a TerminateProcess here.
+        os.kill(pid, signal.SIGTERM)
+
+    def close(self) -> None:
+        pass
+
+
+def create_spawn_process_termination_scope() -> ProcessTerminationScope:
+    """Return the termination scope for a child started with `multiprocessing`."""
+    if sys.platform == "win32":
+        return _WindowsSpawnProcessTerminationScope()
+    return _SingleProcessTerminationScope()
+
+
 class _PosixProcessGroupTerminationScope:
     wait_after_graceful_kill = True
 

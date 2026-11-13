@@ -6,7 +6,10 @@ import anyio
 import anyio.abc
 
 from prefect.flow_engine import run_flow_in_subprocess
-from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._process_manager import (
+    ProcessHandle,
+    create_spawn_process_termination_scope,
+)
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -65,7 +68,9 @@ class DirectSubprocessStarter:
                 flow_run=flow_run,
                 env=subprocess_env or None,
             )
-            handle = ProcessHandle(process)
+            handle = ProcessHandle(
+                process, termination_scope=create_spawn_process_termination_scope()
+            )
             task_status.started(handle)  # signal BEFORE blocking join
             handed_off = True
             await anyio.to_thread.run_sync(process.join)  # SpawnProcess.join is sync
