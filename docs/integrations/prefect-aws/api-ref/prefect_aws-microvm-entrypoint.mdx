@@ -1,0 +1,29 @@
+---
+title: entrypoint
+sidebarTitle: entrypoint
+---
+
+# `prefect_aws.microvm.entrypoint`
+
+
+Process entrypoint for a Prefect flow run in an AWS Lambda MicroVM.
+
+## Functions
+
+### `main` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/entrypoint.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+main(port: int = HOOK_SERVER_PORT) -> int
+```
+
+
+Serve the lifecycle hooks, run the flow run from the first `/run` request,
+and return the process exit code.
+
+**Args:**
+- `port`: The port to serve the lifecycle hooks on.
+
+**Returns:**
+- 0 if the flow run's process exited 0. 1 if the `/run` request was
+- rejected or the flow run's process failed.
+

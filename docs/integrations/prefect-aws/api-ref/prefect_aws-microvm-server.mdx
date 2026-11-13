@@ -1,0 +1,109 @@
+---
+title: server
+sidebarTitle: server
+---
+
+# `prefect_aws.microvm.server`
+
+
+HTTP server for the AWS Lambda MicroVM lifecycle hooks.
+
+## Classes
+
+### `LifecycleHookServer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Serves the MicroVM lifecycle hooks and hands the first valid `/run` request
+to the thread that calls `wait_for_run_request`.
+
+Hooks are accepted both at `/<hook>` and at
+`/aws/lambda-microvms/runtime/v1/<hook>`.
+
+
+**Methods:**
+
+#### `claim_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+claim_run(self) -> bool
+```
+
+Return True for the first `/run` request and False for every later one.
+
+
+#### `process_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+process_request(self, request: Any, client_address: Any) -> None
+```
+
+#### `process_request_thread` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+process_request_thread(self, request: Any, client_address: Any) -> None
+```
+
+#### `server_bind` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+server_bind(self) -> None
+```
+
+#### `stop_serving` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop_serving(self, timeout: float = HANDLER_FINISH_TIMEOUT_SECONDS) -> None
+```
+
+Stop accepting hook requests and wait up to `timeout` seconds for the
+requests in progress to finish, so that no handler thread holds a lock
+when the process forks. Requests still in progress after `timeout` are
+logged and left running.
+
+**Args:**
+- `timeout`: The longest time to wait for requests in progress, in seconds.
+
+
+#### `submit_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+submit_run(self, request: RunHookRequest | InvalidRunHookPayload) -> None
+```
+
+Pass a parsed `/run` request, or the reason it was rejected, to `wait_for_run_request`.
+
+
+#### `wait_for_run_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wait_for_run_request(self) -> RunHookRequest | InvalidRunHookPayload
+```
+
+Block until the first `/run` request has been answered, then return it.
+
+
+### `LifecycleHookHandler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Request handler for `LifecycleHookServer`.
+
+
+**Methods:**
+
+#### `do_GET` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+do_GET(self) -> None
+```
+
+#### `do_POST` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+do_POST(self) -> None
+```
+
+#### `log_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/server.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+log_message(self, format: str, *args: Any) -> None
+```

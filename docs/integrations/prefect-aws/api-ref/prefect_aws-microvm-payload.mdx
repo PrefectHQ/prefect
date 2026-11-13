@@ -1,0 +1,64 @@
+---
+title: payload
+sidebarTitle: payload
+---
+
+# `prefect_aws.microvm.payload`
+
+
+Parsing and validation of the `/run` lifecycle hook request.
+
+## Functions
+
+### `parse_run_hook_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/payload.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+parse_run_hook_request(body: bytes) -> RunHookRequest
+```
+
+
+Parse the body of a `/run` lifecycle hook request.
+
+**Args:**
+- `body`: The raw request body, a JSON object with `microvmId` and
+`runHookPayload`, where `runHookPayload` is a JSON-encoded string.
+
+**Returns:**
+- The MicroVM ID and the validated payload.
+
+**Raises:**
+- `InvalidRunHookPayload`: If the body or payload is malformed, larger than
+`MAX_RUN_HOOK_PAYLOAD_BYTES`, or has an unsupported major version.
+
+
+## Classes
+
+### `InvalidRunHookPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/payload.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Raised when a `/run` request cannot start a flow run.
+
+
+### `RunHookPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/payload.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The flow run to execute, as sent in the `runHookPayload` of a `/run` hook.
+
+**Attributes:**
+- `v`: The major version of the payload format.
+- `flow_run_id`: The ID of the flow run to execute.
+- `env`: Environment variables to set before the flow run starts.
+- `entrypoint`: A flow entrypoint such as `flows/etl.py\:etl`. When set, the
+flow is loaded from this entrypoint instead of from the deployment.
+- `working_dir`: The directory to run the flow from when `entrypoint` is set.
+
+
+### `RunHookRequest` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/payload.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The body of a `/run` lifecycle hook request.
+
+**Attributes:**
+- `microvm_id`: The ID of the MicroVM that received the request.
+- `payload`: The parsed `runHookPayload`.
+
