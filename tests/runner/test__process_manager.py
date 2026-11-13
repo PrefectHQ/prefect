@@ -446,7 +446,7 @@ class TestPidIsAlive:
 
 async def test_windows_spawn_process_kill_terminates_without_console_event(
     monkeypatch: pytest.MonkeyPatch,
-) -> None:
+):
     # A spawn child is not a process group leader, so a CTRL_BREAK_EVENT sent to
     # its pid would reach every process on the runner's console instead.
     monkeypatch.setattr("prefect.runner._process_manager.sys.platform", "win32")
