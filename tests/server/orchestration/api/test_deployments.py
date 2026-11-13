@@ -2599,6 +2599,43 @@ class TestUpdateDeployment:
             for s in response.json()["schedules"]
         ) == [(False, True), (True, False)]
 
+    async def test_update_deployment_allows_for_clients_generating_dtstart_early(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        rrule = "RRULE:FREQ=MINUTELY"
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "schedules": [
+                    {
+                        "schedule": {"rrule": f"DTSTART:20261110T080000\n{rrule}"},
+                        "active": False,
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        # a client whose clock is ahead adds a `DTSTART` that's in the server's future
+        ahead = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+            minutes=2
+        )
+        dtstart = ahead.strftime("DTSTART:%Y%m%dT%H%M00")
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"schedules": [{"schedule": {"rrule": f"{dtstart}\n{rrule}"}}]},
+        )
+        assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert [s["active"] for s in response.json()["schedules"]] == [False]
+
     async def test_update_deployment_with_multiple_schedules_and_existing_slugs_422(
         self,
         client,
