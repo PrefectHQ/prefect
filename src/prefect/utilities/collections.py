@@ -2,6 +2,7 @@
 Utilities for extensions of and operations on Python collections.
 """
 
+import copy
 import io
 import itertools
 import types
@@ -17,7 +18,7 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from dataclasses import fields, is_dataclass, replace
+from dataclasses import _FIELD_INITVAR, MISSING, InitVar, fields, is_dataclass, replace
 from enum import Enum, auto
 from typing import (
     TYPE_CHECKING,
@@ -244,6 +245,56 @@ class StopVisiting(BaseException):
     """
 
 
+def _is_required_init_var(field: Any) -> bool:
+    """True for InitVar fields that `replace()` would require as kwargs.
+
+    `dataclasses.fields()` omits both InitVar and ClassVar. ClassVar internal
+    fields also have `init=True` with missing defaults, so absence from
+    `fields()` alone is not enough — check the InitVar marker (or type).
+    InitVars declared with `init=False` are skipped by `replace()`, so they
+    must not trigger the copy fallback.
+    """
+    if not field.init:
+        return False
+    if field.default is not MISSING or field.default_factory is not MISSING:
+        return False
+    # `_field_type` survives postponed annotations; isinstance covers evaluated types.
+    return field._field_type is _FIELD_INITVAR or isinstance(field.type, InitVar)
+
+
+def _copy_dataclass_instance(obj: Any) -> Any:
+    """Return a distinct shallow copy of a dataclass instance.
+
+    `copy.copy` is preferred so `__dict__` / slots / `__copy__` are honored.
+    If `__copy__` returns `self` (valid for some frozen value objects), build a
+    new instance via `__new__` and copy stored state so callers never mutate
+    the original through `object.__setattr__`.
+    """
+    result = copy.copy(obj)
+    if result is not obj:
+        return result
+
+    cls = type(obj)
+    result = object.__new__(cls)
+    obj_dict = getattr(obj, "__dict__", None)
+    if obj_dict is not None:
+        object.__setattr__(result, "__dict__", {**obj_dict})
+
+    # Copy slot values through each class's member descriptors so private
+    # (name-mangled) slots such as `__cache` -> `_Base__cache` are preserved.
+    for base in cls.__mro__:
+        for descriptor in vars(base).values():
+            if not isinstance(descriptor, types.MemberDescriptorType):
+                continue
+            try:
+                value = descriptor.__get__(obj, cls)
+            except AttributeError:
+                continue
+            descriptor.__set__(result, value)
+
+    return result
+
+
 @overload
 def visit_collection(
     expr: Any,
@@ -336,6 +387,9 @@ def visit_collection(
     - When a dataclass is copied, fields declared with `init=False` keep their
       visited values. They are not recomputed by `__init__` or `__post_init__`
       from the new field values; this is intentional.
+    - Dataclasses with a required `InitVar` are copied without
+      `dataclasses.replace()`, which would demand the InitVar. Stored fields
+      keep their visited values; `__post_init__` is not re-run.
 
     Supported types:
     - List (including iterators)
@@ -538,15 +592,32 @@ def visit_collection(
                 getattr(expr, f.name) is not v for f, v in zip(expr_fields, values)
             )
             if modified:
-                result = replace(
-                    expr,
-                    **{f.name: v for f, v in zip(expr_fields, values) if f.init},
+                # Required InitVars are excluded from fields() and are not stored
+                # on the instance, so replace() cannot rebuild the object. Copy
+                # without re-init and set visited stored fields directly.
+                # ClassVars are also excluded from fields() and have init=True
+                # with missing defaults, so detect true InitVars only.
+                requires_init_var = any(
+                    _is_required_init_var(f) for f in expr.__dataclass_fields__.values()
                 )
-                # `replace` rejects `init=False` fields and resets them, so set
-                # their visited values directly; this also works on frozen dataclasses
-                for f, v in zip(expr_fields, values):
-                    if not f.init:
-                        object.__setattr__(result, f.name, v)
+                if requires_init_var:
+                    result = _copy_dataclass_instance(expr)
+                    # The copy already holds unchanged values; only write the
+                    # fields the visitor changed so descriptor setters on
+                    # untouched fields are not invoked.
+                    for f, v in zip(expr_fields, values):
+                        if getattr(expr, f.name) is not v:
+                            object.__setattr__(result, f.name, v)
+                else:
+                    result = replace(
+                        expr,
+                        **{f.name: v for f, v in zip(expr_fields, values) if f.init},
+                    )
+                    # `replace` rejects `init=False` fields and resets them, so set
+                    # their visited values directly; this also works on frozen dataclasses
+                    for f, v in zip(expr_fields, values):
+                        if not f.init:
+                            object.__setattr__(result, f.name, v)
 
     # --- Pydantic models
 

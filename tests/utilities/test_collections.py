@@ -1,9 +1,10 @@
 import dataclasses
 import io
 import json
+import typing
 import uuid
 from collections import Counter, defaultdict, deque
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from typing import Any, NamedTuple
 
 import numpy as np
@@ -147,6 +148,134 @@ class DataclassWithPostInitField:
 
     def __post_init__(self):
         self.doubled = self.x * 2
+
+
+@dataclass
+class DataclassWithInitVar:
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        self._seed = seed
+
+
+@dataclass(frozen=True)
+class FrozenDataclassWithInitVar:
+    x: int
+    seed: InitVar[int]
+
+
+@dataclass(slots=True)
+class SlotsDataclassWithInitVar:
+    x: int
+    seed: InitVar[int]
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsDataclassWithInitVar:
+    x: int
+    seed: InitVar[int]
+
+
+@dataclass
+class DataclassWithInitVarAndNonInitField:
+    x: int
+    seed: InitVar[int]
+    y: int = dataclasses.field(init=False, default=0)
+
+    def __post_init__(self, seed: int):
+        self.y = seed
+
+
+@dataclass
+class DataclassWithClassVarNoDefault:
+    """ClassVar without default must not trigger the InitVar copy path."""
+
+    x: int
+    flag: typing.ClassVar[str]
+
+    def __post_init__(self):
+        self.derived = self.x * 2
+
+
+@dataclass(init=False)
+class DataclassWithNonInitInitVar:
+    """InitVar with init=False must still use replace() so __init__ refreshes state."""
+
+    x: int
+    seed: InitVar[int] = dataclasses.field(init=False)
+
+    def __init__(self, x: int):
+        self.x = x
+        self.derived = x * 2
+
+
+@dataclass(frozen=True)
+class FrozenInitVarCopyReturnsSelf:
+    """Frozen InitVar dataclass whose __copy__ returns self."""
+
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        object.__setattr__(self, "_seed", seed)
+
+    def __copy__(self):
+        return self
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarCopyReturnsSelf:
+    x: int
+    seed: InitVar[int]
+
+    def __copy__(self):
+        return self
+
+
+class PrivateSlotBase:
+    __slots__ = ("__cache",)
+
+    def cached(self):
+        return self.__cache
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarPrivateSlotCopyReturnsSelf(PrivateSlotBase):
+    """Inherits a name-mangled slot (`_PrivateSlotBase__cache`)."""
+
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        object.__setattr__(self, "_PrivateSlotBase__cache", seed)
+
+    def __copy__(self):
+        return self
+
+
+class WriteOnceDescriptor:
+    """Descriptor whose setter rejects reassignment once a value is stored."""
+
+    def __set_name__(self, owner, name):
+        self._attr = f"_{name}"
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return 0
+        return obj.__dict__[self._attr]
+
+    def __set__(self, obj, value):
+        if self._attr in obj.__dict__:
+            raise AttributeError("write-once field")
+        obj.__dict__[self._attr] = value
+
+
+@dataclass
+class DataclassWithInitVarAndWriteOnceField:
+    x: int
+    seed: InitVar[int]
+    y: int = WriteOnceDescriptor()
 
 
 class SimplePydantic(pydantic.BaseModel):
@@ -324,6 +453,136 @@ class TestVisitCollection:
         # value is kept
         assert result.x == -2
         assert result.doubled == 4
+
+    @pytest.mark.parametrize(
+        "cls",
+        [
+            DataclassWithInitVar,
+            FrozenDataclassWithInitVar,
+            SlotsDataclassWithInitVar,
+            FrozenSlotsDataclassWithInitVar,
+        ],
+    )
+    def test_visit_collection_transforms_dataclass_with_required_init_var(
+        self, cls: type
+    ):
+        token = object()
+        inp = cls(x=token, seed=3)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, cls)
+        assert result is not inp
+        assert result.x == 42
+        assert inp.x is token
+
+    def test_visit_collection_transforms_dataclass_with_init_var_and_non_init_field(
+        self,
+    ):
+        token = object()
+        inp = DataclassWithInitVarAndNonInitField(x=token, seed=3)
+        assert inp.y == 3
+        object.__setattr__(inp, "y", 9)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, DataclassWithInitVarAndNonInitField)
+        assert result.x == 42
+        assert result.y == 9
+        assert inp.x is token
+        assert inp.y == 9
+
+    def test_visit_collection_identity_visitor_keeps_init_var_dataclass(self):
+        inp = DataclassWithInitVar(x=2, seed=3)
+
+        result = visit_collection(inp, visit_fn=lambda v: v, return_data=True)
+
+        assert result is inp
+
+    def test_visit_collection_classvar_without_default_still_runs_post_init(self):
+        # ClassVar is omitted from fields() like InitVar, but replace() must still
+        # rebuild so __post_init__ refreshes derived attributes.
+        inp = DataclassWithClassVarNoDefault(x=3)
+        assert inp.derived == 6
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: -v if isinstance(v, int) else v, return_data=True
+        )
+
+        assert isinstance(result, DataclassWithClassVarNoDefault)
+        assert result is not inp
+        assert result.x == -3
+        # replace() re-ran __post_init__; shallow-copy path would leave derived=6
+        assert result.derived == -6
+
+    def test_visit_collection_non_init_init_var_still_runs_init(self):
+        # InitVar(init=False) is not required by replace(); taking the shallow-copy
+        # fallback would skip the custom __init__ and leave derived stale.
+        inp = DataclassWithNonInitInitVar(x=3)
+        assert inp.derived == 6
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: -v if isinstance(v, int) else v, return_data=True
+        )
+
+        assert isinstance(result, DataclassWithNonInitInitVar)
+        assert result is not inp
+        assert result.x == -3
+        assert result.derived == -6
+
+    @pytest.mark.parametrize(
+        "cls",
+        [FrozenInitVarCopyReturnsSelf, FrozenSlotsInitVarCopyReturnsSelf],
+    )
+    def test_visit_collection_init_var_copy_returns_self_does_not_mutate_original(
+        self, cls: type
+    ):
+        token = object()
+        inp = cls(x=token, seed=3)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, cls)
+        assert result is not inp
+        assert result.x == 42
+        assert inp.x is token
+
+    def test_visit_collection_init_var_copy_preserves_private_slots(self):
+        token = object()
+        inp = FrozenSlotsInitVarPrivateSlotCopyReturnsSelf(x=token, seed=3)
+        assert inp.cached() == 3
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, FrozenSlotsInitVarPrivateSlotCopyReturnsSelf)
+        assert result is not inp
+        assert result.x == 42
+        assert result.cached() == 3
+        assert inp.x is token
+
+    def test_visit_collection_init_var_copy_skips_setters_for_unchanged_fields(
+        self,
+    ):
+        token = object()
+        inp = DataclassWithInitVarAndWriteOnceField(x=token, seed=3, y=7)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, DataclassWithInitVarAndWriteOnceField)
+        assert result is not inp
+        assert result.x == 42
+        assert result.y == 7
+        assert inp.x is token
 
     def test_visit_collection_does_not_consume_generators(self):
         def f():

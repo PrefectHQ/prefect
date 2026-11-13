@@ -5,7 +5,7 @@ import time
 import uuid
 from collections import OrderedDict
 from concurrent.futures import Future
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from typing import Any, List, Optional
 
 import pytest
@@ -518,6 +518,28 @@ class TestResolveFuturesToResults:
 
         assert result.foo == "bar"
         assert result.attempts == 3
+
+    def test_resolve_futures_transforms_future_in_dataclass_with_required_init_var(
+        self,
+    ):
+        @dataclass
+        class Foo:
+            foo: str
+            seed: InitVar[int]
+            attempts: int = field(init=False, default=0)
+
+            def __post_init__(self, seed: int):
+                self.attempts = seed
+
+        future = MockFuture(data="bar")
+        value = Foo(foo=future, seed=3)
+        assert value.attempts == 3
+        value.attempts = 9
+
+        result = resolve_futures_to_results(value)
+
+        assert result.foo == "bar"
+        assert result.attempts == 9
 
     def test_resolves_futures_in_nested_collections(self):
         @dataclass
