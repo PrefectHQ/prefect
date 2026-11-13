@@ -22,22 +22,32 @@ Per-event-type retention can be customised via
 `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`. Event types
 not listed fall back to `server.events.retention_period`.
 
-Each task runs independently with its own error isolation and
-docket-managed retries. Deterministic keys prevent duplicate tasks from
-accumulating if a cycle overlaps with in-progress work.
+Each task runs with its own error isolation. All cleanup tasks share one
+docket concurrency slot, so they run one at a time on the maintenance
+connection. Deterministic keys prevent duplicate tasks from accumulating while
+a task is queued or running, and the schedulers skip a task that waits for the
+slot behind a running vacuum task.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 from datetime import timedelta
+from typing import Annotated
 from uuid import UUID
 
 import sqlalchemy as sa
-from docket import CurrentDocket, Depends, Docket, Perpetual
+from docket import (
+    ConcurrencyLimit,
+    CurrentDocket,
+    Depends,
+    Docket,
+    ExecutionState,
+    Perpetual,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
@@ -67,6 +77,23 @@ logger: logging.Logger = get_logger(__name__)
 # is left as-is.
 _MAINTENANCE_CONFIGS: dict[str, AsyncPostgresConfiguration] = {}
 
+# Docket keys an argument-based concurrency limit by argument name and value, not
+# by task function, so every vacuum task with this default shares one slot. The
+# schedulers pass no arguments, so queued calls have the same shape across Prefect
+# versions: a released worker accepts them, and an upgraded worker reads the slot
+# from this default, because Docket applies parameter defaults to the argument.
+_MAINTENANCE_POOL = "db-vacuum"
+_MaintenancePoolSlot = Annotated[str, ConcurrencyLimit(1)]
+
+_VACUUM_TASK_KEYS = (
+    "db-vacuum:old-flow-runs",
+    "db-vacuum:retention-overrides",
+    "db-vacuum:old-events",
+    "db-vacuum:orphaned-logs",
+    "db-vacuum:orphaned-artifacts",
+    "db-vacuum:stale-collections",
+)
+
 # Binds a batched delete spends on top of its id list (the `LIMIT`/`OFFSET` of
 # the subquery that bounds how many rows one statement removes).
 _DELETE_BIND_OVERHEAD = 2
@@ -86,8 +113,8 @@ def _maintenance_database_config(
     cached = _MAINTENANCE_CONFIGS.get(config.connection_url)
     if cached is None:
         cached = AsyncPostgresConfiguration(connection_url=config.connection_url)
-        # Opt out of the API statement timeout and keep a minimal pool, since
-        # vacuum tasks run sequentially on maintenance loops.
+        # Opt out of the API statement timeout. Vacuum tasks share one Docket
+        # concurrency slot, so one connection is enough.
         cached.timeout = None
         cached.sqlalchemy_pool_size = 1
         cached.sqlalchemy_max_overflow = 0
@@ -128,6 +155,30 @@ async def _maintenance_session(
 # ---------------------------------------------------------------------------
 
 
+async def _add_vacuum_task(
+    docket: Docket, task: Callable[..., Awaitable[None]], key: str
+) -> None:
+    """Enqueue `task` under `key`, unless it already waits for the slot behind
+    a running vacuum task.
+
+    Docket does not deduplicate the key of a task that waits for the slot, and
+    when the slot frees it wakes only the oldest waiting copy. If that copy's
+    task already ran, Docket drops it and wakes nothing, so the tasks waiting
+    behind it stay parked until a later cycle. While a vacuum task runs, the
+    waiting copy will be woken when the tasks ahead of it finish, so this skips
+    the add. When no vacuum task is running, nothing may wake the waiting copy,
+    so the task is enqueued again. A cycle that runs while the slot passes from
+    one task to the next can still add a copy.
+    """
+    execution = await docket.get_execution(key)
+    if execution is not None and execution.state is ExecutionState.SCHEDULED:
+        for other_key in _VACUUM_TASK_KEYS:
+            other = await docket.get_execution(other_key)
+            if other is not None and other.state is ExecutionState.RUNNING:
+                return
+    await docket.add(task, key=key)()
+
+
 @perpetual_service(
     enabled_getter=lambda: (
         "flow_runs"
@@ -145,14 +196,14 @@ async def schedule_vacuum_tasks(
 ) -> None:
     """Schedule cleanup tasks for old flow runs.
 
-    Each task is enqueued with a deterministic key so that overlapping
-    cycles (e.g. when cleanup takes longer than loop_seconds) naturally
-    deduplicate instead of piling up redundant work.
+    Each task is enqueued with a deterministic key, and a cycle skips a task
+    that waits for the shared slot behind a running vacuum task (see
+    `_add_vacuum_task`).
 
     Disabled by default because it permanently deletes flow runs. Enable
     via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.
     """
-    await docket.add(vacuum_old_flow_runs, key="db-vacuum:old-flow-runs")()
+    await _add_vacuum_task(docket, vacuum_old_flow_runs, "db-vacuum:old-flow-runs")
 
 
 @perpetual_service(
@@ -180,10 +231,10 @@ async def schedule_event_vacuum_tasks(
     operators who opted out of event processing are not surprised by
     trimming on upgrade.
     """
-    await docket.add(
-        vacuum_events_with_retention_overrides, key="db-vacuum:retention-overrides"
-    )()
-    await docket.add(vacuum_old_events, key="db-vacuum:old-events")()
+    await _add_vacuum_task(
+        docket, vacuum_events_with_retention_overrides, "db-vacuum:retention-overrides"
+    )
+    await _add_vacuum_task(docket, vacuum_old_events, "db-vacuum:old-events")
 
 
 @perpetual_service(
@@ -206,11 +257,13 @@ async def schedule_orphan_vacuum_tasks(
     Each pass can scan the full log and artifact tables, so this service runs
     less often than the normal flow run and event vacuum loops.
     """
-    await docket.add(vacuum_orphaned_logs, key="db-vacuum:orphaned-logs")()
-    await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")()
-    await docket.add(
-        vacuum_stale_artifact_collections, key="db-vacuum:stale-collections"
-    )()
+    await _add_vacuum_task(docket, vacuum_orphaned_logs, "db-vacuum:orphaned-logs")
+    await _add_vacuum_task(
+        docket, vacuum_orphaned_artifacts, "db-vacuum:orphaned-artifacts"
+    )
+    await _add_vacuum_task(
+        docket, vacuum_stale_artifact_collections, "db-vacuum:stale-collections"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -221,6 +274,7 @@ async def schedule_orphan_vacuum_tasks(
 async def vacuum_orphaned_logs(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Delete logs whose flow_run_id references a non-existent flow run."""
     settings = get_current_settings().server.services.db_vacuum
@@ -232,6 +286,7 @@ async def vacuum_orphaned_logs(
 async def vacuum_orphaned_artifacts(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Delete artifacts whose flow_run_id references a non-existent flow run."""
     settings = get_current_settings().server.services.db_vacuum
@@ -243,6 +298,7 @@ async def vacuum_orphaned_artifacts(
 async def vacuum_stale_artifact_collections(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Reconcile artifact collections whose latest_id points to a deleted artifact.
 
@@ -264,6 +320,7 @@ async def vacuum_stale_artifact_collections(
 async def vacuum_old_flow_runs(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Delete old top-level terminal flow runs past the retention period.
 
@@ -331,6 +388,7 @@ async def vacuum_old_flow_runs(
 async def vacuum_events_with_retention_overrides(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Delete events whose types have per-type retention overrides.
 
@@ -385,6 +443,7 @@ async def vacuum_events_with_retention_overrides(
 async def vacuum_old_events(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
+    maintenance_pool: _MaintenancePoolSlot = _MAINTENANCE_POOL,
 ) -> None:
     """Delete all events and event resources past the general events retention period."""
     settings = get_current_settings()
