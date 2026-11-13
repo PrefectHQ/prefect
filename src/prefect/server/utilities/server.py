@@ -96,6 +96,46 @@ async def _reject_unpaired_surrogates(request: Request) -> None:
         )
 
 
+async def _reject_extra_embedded_body_keys(
+    request: Request, body_params: Sequence[Any]
+) -> None:
+    """
+    Reject JSON bodies with unknown top-level keys on endpoints whose request body
+    embeds more than one parameter (for example the `/filter` and `/count`
+    endpoints, which embed several optional filter objects).
+
+    FastAPI wraps multiple body parameters in a generated model that allows extra
+    keys, so a misspelled top-level key such as `flow_run` for `flow_runs` is
+    silently dropped and the filter it was meant to carry is ignored, which makes
+    the endpoint return every row. Unknown keys one level down are already rejected
+    by the individual filter models; this makes the top level behave the same way.
+    """
+    if len(body_params) <= 1:
+        return
+    if "json" not in request.headers.get("content-type", "application/json"):
+        return
+    try:
+        body = await request.json()
+    except ValueError:
+        # Leave reporting malformed JSON to FastAPI
+        return
+    if not isinstance(body, dict):
+        return
+    allowed = {field.alias for field in body_params}
+    errors = [
+        {
+            "type": "extra_forbidden",
+            "loc": ("body", key),
+            "msg": "Extra inputs are not permitted",
+            "input": value,
+        }
+        for key, value in body.items()
+        if key not in allowed
+    ]
+    if errors:
+        raise RequestValidationError(errors, body=body)
+
+
 class PrefectAPIRoute(APIRoute):
     """
     A FastAPIRoute class which attaches an async stack to requests that exits before
@@ -115,6 +155,9 @@ class PrefectAPIRoute(APIRoute):
             # Create a new stack scoped to exit before the response is returned
             if self.body_field is not None:
                 await _reject_unpaired_surrogates(request)
+                await _reject_extra_embedded_body_keys(
+                    request, self.dependant.body_params
+                )
 
             response = None
             async with AsyncExitStack() as stack:

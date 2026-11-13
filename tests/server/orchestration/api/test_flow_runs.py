@@ -787,6 +787,37 @@ class TestReadFlowRuns:
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[0].id)
 
+    async def test_read_flow_runs_rejects_unknown_top_level_body_key(
+        self, flow, flow_runs, client
+    ):
+        # A misspelled top-level key (`flow_run` for `flow_runs`) must be rejected
+        # rather than silently dropped, which would otherwise return every row.
+        # Unknown keys one level down already return 422; the top level now matches.
+        misspelled = dict(
+            flow_run=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[flow_runs[0].id])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/flow_runs/filter", json=misspelled)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
+        detail = response.json()["exception_detail"]
+        assert any(
+            error["type"] == "extra_forbidden" and error["loc"][-1] == "flow_run"
+            for error in detail
+        ), detail
+
+    async def test_count_flow_runs_rejects_unknown_top_level_body_key(
+        self, flow, flow_runs, client
+    ):
+        response = await client.post(
+            "/flow_runs/count", json={"flow_run": {"name": {"any_": ["nope"]}}}
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
+
     async def test_read_flow_runs_applies_flow_run_idempotency_key_filter(
         self, flow_runs_with_idempotency_key, client
     ):
