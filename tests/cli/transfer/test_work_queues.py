@@ -396,5 +396,7 @@ class TestMigratableWorkQueue:
         ):
             await migratable.migrate()
 
-        # Verify no client calls were made since it's skipped early
-        assert migratable.destination_work_queue is None
+        # The resolved default queue can satisfy dependencies of later resources.
+        assert migratable.destination_work_queue == default_work_queue
+        assert migratable.destination_id == default_work_queue.id
+        mock_client.create_work_queue.assert_not_called()
