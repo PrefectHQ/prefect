@@ -28,7 +28,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 
 // Route for /flows/
 
-const searchParams = z
+export const searchParams = z
 	.object({
 		name: z.string().optional(),
 		page: z.number().int().positive().optional().default(1).catch(1),
@@ -43,7 +43,9 @@ const searchParams = z
 
 type SearchParams = z.infer<typeof searchParams>;
 
-const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
+const buildPaginationBody = (
+	search?: Partial<SearchParams>,
+): FlowsPaginateFilter => {
 	const hasNameFilter = Boolean(search?.name);
 	const hasTagsFilter = Boolean(search?.tags?.length);
 
@@ -70,6 +72,24 @@ const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
 };
 
 const NUMBER_OF_ACTIVITY_BARS = 16;
+
+export const buildFlowsLoaderDeps = (
+	search: SearchParams,
+): FlowsPaginateFilter => {
+	// Exclude the `name` and `tags` filters: they change on every keystroke
+	// in the search inputs, and re-running the loader re-suspends the route
+	// (wrapInSuspense), unmounting the search input and dropping focus.
+	// Also exclude `page`: editing a filter resets the page to 1, and that
+	// reset must not re-run the loader either, or the first edit from
+	// page 2+ still drops focus. The paginated query in the component
+	// refetches on filter and page changes via its own query key with
+	// keepPreviousData, so the loader prefetch is not needed for these.
+	const { name, tags, page, ...rest } = search;
+	void name;
+	void tags;
+	void page;
+	return buildPaginationBody(rest);
+};
 
 export const Route = createFileRoute("/flows/")({
 	validateSearch: searchParams,
@@ -232,7 +252,7 @@ export const Route = createFileRoute("/flows/")({
 			</div>
 		);
 	},
-	loaderDeps: ({ search }) => buildPaginationBody(search),
+	loaderDeps: ({ search }) => buildFlowsLoaderDeps(search),
 	loader: ({ deps, context }) => {
 		// Prefetch current page queries without blocking the loader
 		void context.queryClient.prefetchQuery(
