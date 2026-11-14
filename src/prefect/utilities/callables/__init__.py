@@ -90,10 +90,32 @@ def get_call_parameters(
 
 def _resolve_field_info_default(value: Any) -> Any:
     """
-    Resolve a `pydantic.Field(...)` used as a signature default to its actual
+    Resolve a ``pydantic.Field(...)`` used as a signature default to its actual
     default value. Other values are returned unchanged.
     """
     if isinstance(value, pydantic.fields.FieldInfo):
+        if value.default_factory is not None:
+            try:
+                sig = inspect.signature(value.default_factory)
+            except (ValueError, TypeError):
+                # Builtin types (list, dict, set, …) have no inspectable
+                # signature; they are always zero-argument constructors.
+                return value.default_factory()
+            required_params = [
+                p
+                for p in sig.parameters.values()
+                if p.default is inspect.Parameter.empty
+                and p.kind
+                not in (
+                    inspect.Parameter.VAR_POSITIONAL,
+                    inspect.Parameter.VAR_KEYWORD,
+                )
+            ]
+            if required_params:
+                # Factory requires arguments we cannot supply here; return
+                # the callable so the caller can invoke it with the right data.
+                return value.default_factory
+            return value.default_factory()
         return value.default
     return value
 
