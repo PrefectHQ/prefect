@@ -39,6 +39,8 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 
 	const debouncedSearch = useDebounce(search, 300);
 
+	// Unfiltered count, used to tell "no subflows at all" apart from
+	// "no subflows match the current filters".
 	const countFilter: FlowRunsCountFilter = useMemo(() => {
 		return {
 			flow_runs: {
@@ -156,6 +158,11 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 
 	const hasFilters = search || stateFilter.size > 0;
 
+	// The heading must reflect the active state and name filters, so derive it
+	// from the paginated response (same filter as the list) instead of the
+	// unfiltered total. Falls back to the total until the first page resolves.
+	const filteredCount = paginatedData?.count ?? countData;
+
 	if (countData === 0) {
 		return (
 			<div className="flex items-center justify-center h-48 border rounded-lg bg-muted/50">
@@ -171,7 +178,7 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 			<div className="grid grid-cols-12 items-center gap-2">
 				<div className="flex flex-col gap-1 xl:col-span-3 md:col-span-12 col-span-6 md:order-0 order-2">
 					<p className="text-sm text-muted-foreground">
-						{countData} Subflow run{countData !== 1 ? "s" : ""}
+						{filteredCount} Subflow run{filteredCount !== 1 ? "s" : ""}
 					</p>
 				</div>
 

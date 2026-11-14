@@ -7,6 +7,7 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { buildApiUrl, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { createContext, type ReactNode, Suspense, useContext } from "react";
@@ -263,6 +264,68 @@ describe("FlowRunSubflows", () => {
 			sort: "START_TIME_DESC",
 			page: 1,
 			limit: 10,
+		});
+	});
+
+	it("updates the displayed count when a state filter narrows the list", async () => {
+		const hasRunningStateFilter = (body: unknown): boolean => {
+			const state = (
+				body as { flow_runs?: { state?: { name?: { any_?: string[] } } } }
+			)?.flow_runs?.state;
+			return state?.name?.any_?.includes("Running") ?? false;
+		};
+
+		server.use(
+			http.post(buildApiUrl("/flow_runs/count"), async ({ request }) => {
+				const body = await request.json();
+				return HttpResponse.json(hasRunningStateFilter(body) ? 1 : 3);
+			}),
+			http.post(buildApiUrl("/flow_runs/paginate"), async ({ request }) => {
+				const body = await request.json();
+				if (!hasRunningStateFilter(body)) {
+					return HttpResponse.json({
+						results: mockSubflowRuns,
+						count: 3,
+						pages: 1,
+						page: 1,
+						limit: 10,
+					});
+				}
+				return HttpResponse.json({
+					results: [mockSubflowRuns[1]],
+					count: 1,
+					pages: 1,
+					page: 1,
+					limit: 10,
+				});
+			}),
+			http.post(buildApiUrl("/flows/filter"), () =>
+				HttpResponse.json(mockFlows),
+			),
+			http.get(buildApiUrl("/observed-states"), () => HttpResponse.json([])),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () =>
+				HttpResponse.json({}),
+			),
+		);
+
+		const user = userEvent.setup();
+
+		await renderWithProviders(
+			<Suspense fallback={<div>Loading...</div>}>
+				<FlowRunSubflows parentFlowRunId="test-parent-flow-run-id" />
+			</Suspense>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("3 Subflow runs")).toBeInTheDocument();
+		});
+
+		await user.click(screen.getByRole("button", { name: /All run states/ }));
+		const runningOption = await screen.findAllByLabelText("Running");
+		await user.click(runningOption[0]);
+
+		await waitFor(() => {
+			expect(screen.getByText("1 Subflow run")).toBeInTheDocument();
 		});
 	});
 });
