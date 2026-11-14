@@ -32,7 +32,11 @@ import prefect.server.schemas as schemas
 from prefect.logging.loggers import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.orchestration.core_policy import MinimalFlowPolicy
+from prefect.server.orchestration.core_policy import (
+    MinimalFlowPolicy,
+    _is_leased_blocking_pause,
+    _release_concurrency_lease,
+)
 from prefect.server.orchestration.global_policy import GlobalFlowPolicy
 from prefect.server.orchestration.policies import (
     FlowRunOrchestrationPolicy,
@@ -351,6 +355,15 @@ async def cleanup_flow_run_concurrency_slots(
     All operations should be idempotent and safe to call multiple times.
     IMPORTANT: This run may no longer exist in the database when this operation occurs.
     """
+
+    # A blocking pause holds its slot only through a live lease. A missing
+    # lease was released when the run paused or when the lease expired.
+    state = flow_run.state.as_state() if flow_run.state else None
+    if flow_run.deployment_id and state and _is_leased_blocking_pause(state):
+        lease_id = state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+        await _release_concurrency_lease(session=session, lease_id=lease_id)
+        return
 
     if (
         flow_run.deployment_id

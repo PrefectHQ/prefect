@@ -76,6 +76,23 @@ def _has_persisted_result(data: Any) -> bool:
     return isinstance(data, dict) and data.get("type") != "unpersisted"
 
 
+def _is_leased_blocking_pause(state: states.State[Any] | None) -> bool:
+    """
+    Whether `state` is a blocking pause of a run that holds a deployment
+    concurrency lease.
+
+    A blocking pause keeps the flow run process alive, and the engine keeps
+    renewing its lease while it waits, so the run keeps its slot until it
+    leaves the pause.
+    """
+    return (
+        state is not None
+        and state.type == states.StateType.PAUSED
+        and not state.state_details.pause_reschedule
+        and state.state_details.deployment_concurrency_lease_id is not None
+    )
+
+
 async def _release_concurrency_lease(
     session: AsyncSession,
     lease_id: UUID,
@@ -594,6 +611,9 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
             or not proposed_state
             or context.client_version
             in WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY
+            # The run already holds a slot; `HandleResumingPausedFlows`
+            # governs whether it can leave the pause.
+            or _is_leased_blocking_pause(initial_state)
         ):
             return
 
@@ -878,7 +898,8 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
     Releases deployment concurrency slots held by a flow run.
 
     This rule releases a concurrency slot for a deployment when a flow run
-    transitions out of the Running or Cancelling state.
+    transitions out of the Pending, Running or Cancelling state, or out of a
+    blocking pause that holds a deployment concurrency lease.
     """
 
     async def after_transition(
@@ -900,12 +921,15 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         # don't know how to "fizzle" themselves if they encounter a transition that
         # shouldn't apply to them, even if they use FROM_STATES and TO_STATES.
         if not (
-            initial_state_type
-            in {
-                states.StateType.RUNNING,
-                states.StateType.CANCELLING,
-                states.StateType.PENDING,
-            }
+            (
+                initial_state_type
+                in {
+                    states.StateType.RUNNING,
+                    states.StateType.CANCELLING,
+                    states.StateType.PENDING,
+                }
+                or _is_leased_blocking_pause(context.initial_state)
+            )
             and proposed_state_type
             not in {
                 states.StateType.PENDING,
@@ -930,6 +954,27 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         ):
             return
 
+        # A blocking pause keeps the process alive and the engine keeps
+        # renewing its lease while it waits for the run to resume, so the run
+        # keeps its slot. Revoking the lease here would fail the engine's next
+        # renewal and cancel the paused run. A reschedule-style pause
+        # (`suspend_flow_run`) exits the process, so its slot is released. So
+        # is the slot of a run whose lease is already gone (for example, one
+        # revoked for an old client), so that a paused run holds its slot only
+        # through a live lease.
+        if (
+            proposed_state_type == states.StateType.PAUSED
+            and context.proposed_state
+            and not context.proposed_state.state_details.pause_reschedule
+            and context.initial_state
+            and (
+                lease_id
+                := context.initial_state.state_details.deployment_concurrency_lease_id
+            )
+            and await get_concurrency_lease_storage().read_lease(lease_id=lease_id)
+        ):
+            return
+
         if not context.session or not context.run.deployment_id:
             return
 
@@ -942,7 +987,13 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
                 session=context.session,
                 deployment_id=context.run.deployment_id,
             )
-            if deployment and deployment.concurrency_limit_id:
+            # A paused run holds its slot only through a live lease. A missing
+            # lease was released when the run paused or when the lease expired.
+            if (
+                deployment
+                and deployment.concurrency_limit_id
+                and not _is_leased_blocking_pause(context.initial_state)
+            ):
                 fallback_concurrency_limit_ids = [deployment.concurrency_limit_id]
 
             await _release_concurrency_lease(

@@ -126,6 +126,22 @@ their guards and can interleave with that wait. The lease-preservation mapping
 is covered by
 `tests/server/orchestration/test_core_policy.py::TestFlowConcurrencyLimits::test_in_process_retry_transition_does_not_release_concurrency_slots`.
 
+A leased blocking pause (`pause_flow_run` with `pause_reschedule=False`) also
+refines to stuttering: concrete `Paused` with a `deployment_concurrency_lease_id`
+maps to abstract `Running` while its lease is live. `ReleaseFlowConcurrencySlots`
+skips the entry into that pause when the lease exists and otherwise releases as
+before. It releases on the pause's non-`Running` exits only through a live
+lease, without the deployment-limit fallback, because a missing lease was
+released on entry or by the repossessor's `revoke_expired_lease`. `SecureFlowConcurrencySlots`
+ignores transitions out of it, so the lease
+identity and occupied slot stay unchanged while the flow engine keeps lease
+renewal active. `cleanup_flow_run_concurrency_slots` releases that lease on
+`DeleteFlowRun`. A reschedule-style pause (`suspend_flow_run`) exits the process
+and keeps its existing release mapping. The mapping is covered by
+`tests/server/orchestration/test_core_policy.py::TestFlowConcurrencyLimits::test_blocking_pause_keeps_concurrency_slot_until_run_finishes`,
+`test_blocking_pause_without_live_lease_releases_slot_once`, and
+`test_leaving_blocking_pause_after_lease_expiry_keeps_other_slots`.
+
 `runState` is the concurrency-relevant phase rather than a one-to-one flow-run
 state projection; `stateLease` and `dbSlots` correspond to
 `deployment_concurrency_lease_id` and `ConcurrencyLimitV2.active_slots`. The
