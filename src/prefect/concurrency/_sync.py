@@ -21,6 +21,7 @@ from prefect.concurrency._events import (
     emit_concurrency_release_events,
 )
 from prefect.concurrency._leases import maintain_concurrency_lease
+from prefect.concurrency.services import ConcurrencySlotAcquisitionWithLeaseService
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 
@@ -165,6 +166,7 @@ def concurrency(
             pass
         else:
             _discard_cleanup_lease(acquisition_response.lease_id)
+            ConcurrencySlotAcquisitionWithLeaseService._wake_waiters(names)
 
         emit_concurrency_release_events(
             acquisition_response.limits, occupy, emitted_events

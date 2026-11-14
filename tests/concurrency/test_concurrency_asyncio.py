@@ -1,12 +1,16 @@
+import asyncio
+import threading
 from typing import Any
 from unittest import mock
 from uuid import UUID
 
+import anyio
 import pytest
 from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
+from prefect.client.orchestration import PrefectClient
 from prefect.concurrency._asyncio import (
     aacquire_concurrency_slots,
     aacquire_concurrency_slots_with_lease,
@@ -214,6 +218,52 @@ async def test_concurrency_respects_max_retries():
     with pytest.raises(ConcurrencySlotAcquisitionError):
         async with concurrency("test", occupy=1, max_retries=0, timeout_seconds=5):
             print("should not be executed")
+
+
+@pytest.mark.usefixtures("slow_concurrency_limit")
+async def test_release_wakes_a_waiter_sleeping_on_retry_after(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23183"""
+    retry_afters: list[float] = []
+    waiter_refused = threading.Event()
+    increment = PrefectClient.increment_concurrency_slots_with_lease
+
+    async def increment_noting_refusals(
+        self: PrefectClient, *args: Any, **kwargs: Any
+    ) -> Response:
+        try:
+            return await increment(self, *args, **kwargs)
+        except HTTPStatusError as exc:
+            if exc.response.status_code == status.HTTP_423_LOCKED:
+                retry_afters.append(float(exc.response.headers["Retry-After"]))
+                waiter_refused.set()
+            raise
+
+    monkeypatch.setattr(
+        PrefectClient,
+        "increment_concurrency_slots_with_lease",
+        increment_noting_refusals,
+    )
+
+    waiter_timeout = 10
+    waiter_entered = False
+
+    async def waiter() -> None:
+        nonlocal waiter_entered
+        async with concurrency(
+            "test", occupy=1, timeout_seconds=waiter_timeout, strict=True
+        ):
+            waiter_entered = True
+
+    async with concurrency("test", occupy=1, strict=True):
+        waiter_task = asyncio.create_task(waiter())
+        waiter_was_refused = await anyio.to_thread.run_sync(waiter_refused.wait, 10)
+
+    assert waiter_was_refused, "the server never refused the waiter"
+    assert retry_afters[0] > waiter_timeout
+    await waiter_task
+    assert waiter_entered
 
 
 async def test_rate_limit_orchestrates_api(
