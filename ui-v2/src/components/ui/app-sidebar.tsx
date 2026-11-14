@@ -17,6 +17,7 @@ import {
 	SidebarMenuAction,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	useSidebar,
 } from "@/components/ui/sidebar";
 import {
 	switchToV1Ui,
@@ -29,6 +30,8 @@ import { isUiAvailable } from "@/utils/ui-version";
 export function AppSidebar() {
 	const auth = useAuthSafe();
 	const navigate = useNavigate();
+	const { setOpenMobile } = useSidebar();
+	const closeMobileNav = () => setOpenMobile(false);
 	const [isSwitchDialogOpen, setIsSwitchDialogOpen] = useState(false);
 	const [isV1ShortcutHidden, setIsV1ShortcutHidden] = useLocalStorage(
 		"prefect-v1-ui-shortcut-hidden",
@@ -82,7 +85,7 @@ export function AppSidebar() {
 				<SidebarGroup>
 					<SidebarMenu>
 						<SidebarMenuItem>
-							<Link to="/dashboard">
+							<Link to="/dashboard" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Dashboard</span>
@@ -91,7 +94,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/runs">
+							<Link to="/runs" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Runs</span>
@@ -100,7 +103,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/flows">
+							<Link to="/flows" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Flows</span>
@@ -109,7 +112,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/deployments">
+							<Link to="/deployments" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Deployments</span>
@@ -118,7 +121,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/work-pools">
+							<Link to="/work-pools" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Work Pools</span>
@@ -127,7 +130,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/blocks">
+							<Link to="/blocks" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Blocks</span>
@@ -136,7 +139,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/variables">
+							<Link to="/variables" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Variables</span>
@@ -145,7 +148,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/automations">
+							<Link to="/automations" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Automations</span>
@@ -154,7 +157,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/events">
+							<Link to="/events" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Event Feed</span>
@@ -163,7 +166,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/concurrency-limits">
+							<Link to="/concurrency-limits" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Concurrency</span>
@@ -200,7 +203,7 @@ export function AppSidebar() {
 						</>
 					)}
 					<SidebarMenuItem>
-						<Link to="/settings">
+						<Link to="/settings" onClick={closeMobileNav}>
 							{({ isActive }) => (
 								<SidebarMenuButton asChild isActive={isActive}>
 									<span>Settings</span>
