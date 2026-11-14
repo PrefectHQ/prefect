@@ -1,6 +1,25 @@
 ---
 title: prefect-redis
-description: Release notes for prefect-redis 0.2.4 through 0.3.0, including Redis Sentinel support and the end of Python 3.10 support.
+description: Release notes for prefect-redis 0.2.4 through 0.3.1, including Redis Sentinel support, the end of Python 3.10 support, and Redis messaging and locking fixes.
+---
+
+## 0.3.1
+
+_Released on November 14, 2026_
+
+**Bug Fixes**
+
+- Keep messages published while a publisher flush is in flight [#23792](https://github.com/PrefectHQ/prefect/pull/23792) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Release async-acquired locks in `RedisLockManager.release_lock` [#23654](https://github.com/PrefectHQ/prefect/pull/23654) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Documentation**
+
+- Link to the docs at www.prefect.io/docs [#23642](https://github.com/PrefectHQ/prefect/pull/23642) by [@maximearmstrong](https://github.com/maximearmstrong)
+
+**Maintenance**
+
+- Update classifiers and add Python 3.14 to integration tests [#23273](https://github.com/PrefectHQ/prefect/pull/23273) by [@vyagubov](https://github.com/vyagubov)
+
 ---
 
 ## 0.3.0
