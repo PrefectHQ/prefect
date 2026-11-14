@@ -43,7 +43,9 @@ export const searchParams = z
 
 type SearchParams = z.infer<typeof searchParams>;
 
-const buildPaginationBody = (search?: Partial<SearchParams>): FlowsPaginateFilter => {
+const buildPaginationBody = (
+	search?: Partial<SearchParams>,
+): FlowsPaginateFilter => {
 	const hasNameFilter = Boolean(search?.name);
 	const hasTagsFilter = Boolean(search?.tags?.length);
 
