@@ -11,9 +11,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
-import type { ComponentProps } from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { type ComponentProps, type ReactNode, useState } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SimpleFlowRun } from "@/api/flow-runs";
+import type { StateType } from "@/api/flow-runs/constants";
+import { STATE_TYPES } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import {
 	createFakeFlow,
 	createFakeFlowRun,
@@ -45,13 +47,36 @@ const completed = createFakeSimpleFlowRun({
 
 type PlotProps = ComponentProps<typeof FlowRunsScatterPlot>;
 
-const renderPlot = (props: Partial<PlotProps> = {}) => {
+const PlotWithStateFilter = ({
+	selectedStateTypes: initialTypes,
+	onSelectedStateTypesChange,
+	...props
+}: PlotProps) => {
+	const [selectedStateTypes, setSelectedStateTypes] = useState(
+		() => new Set(initialTypes),
+	);
+	return (
+		<FlowRunsScatterPlot
+			{...props}
+			selectedStateTypes={selectedStateTypes}
+			onSelectedStateTypesChange={(types) => {
+				onSelectedStateTypesChange?.(types);
+				setSelectedStateTypes(types);
+			}}
+		/>
+	);
+};
+
+const renderPlot = (
+	props: Partial<PlotProps> = {},
+	Plot: (props: PlotProps) => ReactNode = PlotWithStateFilter,
+) => {
 	const rootRoute = createRootRoute({ component: Outlet });
 	const plotRoute = createRoute({
 		getParentRoute: () => rootRoute,
 		path: "/",
 		component: () => (
-			<FlowRunsScatterPlot
+			<Plot
 				history={[completed, crashed]}
 				startDate={START}
 				endDate={END}
@@ -88,6 +113,7 @@ const pointer = (
 
 describe("FlowRunsScatterPlot", () => {
 	beforeEach(() => {
+		HTMLElement.prototype.setPointerCapture = vi.fn();
 		server.use(
 			http.get(buildApiUrl("/flow_runs/:id"), ({ params }) =>
 				HttpResponse.json(
@@ -109,15 +135,17 @@ describe("FlowRunsScatterPlot", () => {
 	it("summarizes the window and counts each state", async () => {
 		renderPlot();
 
-		const legend = await screen.findByRole("list", { name: "Runs by state" });
-		expect(legend).toHaveTextContent("Completed1Crashed1");
+		expect(
+			await screen.findByRole("button", { name: /Completed\s*1/ }),
+		).toBeVisible();
+		expect(screen.getByRole("button", { name: /Crashed\s*1/ })).toBeVisible();
 		expect(screen.getByTestId("scatter-plot-readout")).toHaveTextContent(
 			"2 runs · median 1m 59s · p90 1m 59s",
 		);
 	});
 
 	it("says when the row limit left older runs out", async () => {
-		renderPlot({ totalCount: 7432 });
+		renderPlot({ totalCount: 7432, onRangeChange: vi.fn() });
 
 		const readout = await screen.findByTestId("scatter-plot-readout");
 		expect(readout).toHaveTextContent("Latest 2 of 7,432 runs, since");
@@ -250,6 +278,144 @@ describe("FlowRunsScatterPlot", () => {
 		);
 	});
 
+	it("zooms to the span dragged across", async () => {
+		const onRangeChange =
+			vi.fn<(range: { startDate: Date; endDate: Date }) => void>();
+		renderPlot({ onRangeChange });
+
+		const plot = await screen.findByRole("img");
+		pointer("pointerDown", plot, { x: 52, y: 100, pointerType: "mouse" });
+		pointer("pointerMove", plot, { x: 200, y: 104, pointerType: "mouse" });
+		pointer("pointerMove", plot, {
+			x: MIDDLE_X,
+			y: 104,
+			pointerType: "mouse",
+		});
+		pointer("pointerUp", plot, { x: MIDDLE_X, y: 104, pointerType: "mouse" });
+
+		expect(onRangeChange).toHaveBeenCalledTimes(1);
+		const [{ startDate, endDate }] = onRangeChange.mock.calls[0];
+		expect(startDate).toEqual(START);
+		expect(endDate).toEqual(new Date("2026-11-06T05:00:00Z"));
+	});
+
+	it("does not zoom on a vertical drag, which scrolls the page", async () => {
+		const onRangeChange = vi.fn();
+		renderPlot({ onRangeChange });
+
+		const plot = await screen.findByRole("img");
+		pointer("pointerDown", plot, { x: 200, y: 50, pointerType: "touch" });
+		pointer("pointerMove", plot, { x: 212, y: 150, pointerType: "touch" });
+		pointer("pointerUp", plot, { x: 212, y: 150, pointerType: "touch" });
+
+		expect(onRangeChange).not.toHaveBeenCalled();
+	});
+
+	it("filters to one state from the legend and restores the filter", async () => {
+		const user = userEvent.setup();
+		const onSelectedStateTypesChange = vi.fn<(types: Set<StateType>) => void>();
+		renderPlot({
+			selectedStateTypes: new Set(["COMPLETED", "CRASHED"]),
+			onSelectedStateTypesChange,
+		});
+
+		const chip = await screen.findByRole("button", { name: /Crashed/ });
+		await user.click(chip);
+		expect(onSelectedStateTypesChange).toHaveBeenLastCalledWith(
+			new Set(["CRASHED"]),
+		);
+		expect(chip).toHaveAttribute("aria-pressed", "true");
+
+		await user.click(chip);
+		expect(onSelectedStateTypesChange).toHaveBeenLastCalledWith(
+			new Set(["COMPLETED", "CRASHED"]),
+		);
+		expect(chip).toHaveAttribute("aria-pressed", "false");
+	});
+
+	it("restores the filter from before the first chip after switching chips", async () => {
+		const user = userEvent.setup();
+		const onSelectedStateTypesChange = vi.fn<(types: Set<StateType>) => void>();
+		renderPlot({
+			selectedStateTypes: new Set(["COMPLETED", "CRASHED"]),
+			onSelectedStateTypesChange,
+		});
+
+		await user.click(await screen.findByRole("button", { name: /Crashed/ }));
+		const completedChip = screen.getByRole("button", { name: /Completed/ });
+		await user.click(completedChip);
+		expect(onSelectedStateTypesChange).toHaveBeenLastCalledWith(
+			new Set(["COMPLETED"]),
+		);
+
+		await user.click(completedChip);
+		expect(onSelectedStateTypesChange).toHaveBeenLastCalledWith(
+			new Set(["COMPLETED", "CRASHED"]),
+		);
+		expect(completedChip).toHaveAttribute("aria-pressed", "false");
+	});
+
+	it("keeps a chip for every counted state while one is selected", async () => {
+		const user = userEvent.setup();
+		const onSelectedStateTypesChange = vi.fn<(types: Set<StateType>) => void>();
+		const counted = (
+			state_type: "COMPLETED" | "CRASHED",
+			count_runs: number,
+		) => ({
+			state_type,
+			state_name: state_type.charAt(0) + state_type.slice(1).toLowerCase(),
+			count_runs,
+			sum_estimated_run_time: 0,
+			sum_estimated_lateness: 0,
+		});
+		renderPlot({
+			history: [crashed],
+			selectedStateTypes: new Set(["CRASHED"]),
+			onSelectedStateTypesChange,
+			stateHistory: [
+				{
+					interval_start: START.toISOString(),
+					interval_end: END.toISOString(),
+					states: [counted("COMPLETED", 40), counted("CRASHED", 1)],
+				},
+			],
+		});
+
+		expect(
+			await screen.findByRole("button", { name: /Crashed\s*1/ }),
+		).toHaveAttribute("aria-pressed", "true");
+		const completedChip = screen.getByRole("button", {
+			name: /Completed\s*40/,
+		});
+		expect(completedChip).toHaveAttribute("aria-pressed", "false");
+
+		await user.click(completedChip);
+		expect(onSelectedStateTypesChange).toHaveBeenLastCalledWith(
+			new Set(["COMPLETED"]),
+		);
+	});
+
+	it("hides a state on shift-click", async () => {
+		const user = userEvent.setup();
+		const onSelectedStateTypesChange = vi.fn<(types: Set<StateType>) => void>();
+		renderPlot({ onSelectedStateTypesChange });
+
+		await user.keyboard("{Shift>}");
+		await user.click(await screen.findByRole("button", { name: /Completed/ }));
+
+		const [types] = onSelectedStateTypesChange.mock.lastCall ?? [];
+		expect(types?.has("COMPLETED")).toBe(false);
+		expect(types?.has("CRASHED")).toBe(true);
+		expect(types?.size).toBe(STATE_TYPES.length - 1);
+	});
+
+	it("shows a plain key when it cannot set the filter", async () => {
+		renderPlot({}, FlowRunsScatterPlot);
+
+		expect(await screen.findByText("Completed")).toBeVisible();
+		expect(screen.queryByRole("button", { name: /Completed/ })).toBeNull();
+	});
+
 	it("leaves out runs scheduled after an open-ended window", async () => {
 		const scheduled: SimpleFlowRun = createFakeSimpleFlowRun({
 			state_type: "SCHEDULED",
@@ -274,8 +440,6 @@ describe("FlowRunsScatterPlot", () => {
 		expect(screen.getByTestId("scatter-plot-readout")).toHaveTextContent(
 			"1 run",
 		);
-		expect(
-			screen.getByRole("list", { name: "Runs by state" }),
-		).not.toHaveTextContent("Scheduled");
+		expect(screen.queryByRole("button", { name: /Scheduled/ })).toBeNull();
 	});
 });

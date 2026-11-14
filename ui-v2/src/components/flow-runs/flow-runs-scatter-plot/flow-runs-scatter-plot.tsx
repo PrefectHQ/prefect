@@ -23,6 +23,7 @@ import {
 import { ScatterPlotLegend } from "./scatter-plot-legend";
 import { ScatterPlotReadout } from "./scatter-plot-readout";
 import {
+	countRunsByState,
 	createXAxisTickFormatter,
 	durationAxis,
 	findNearestPoint,
@@ -35,6 +36,7 @@ import {
 } from "./scatter-plot-utils";
 
 type StateType = components["schemas"]["StateType"];
+type HistoryResponse = components["schemas"]["HistoryResponse"];
 
 type FlowRunsScatterPlotProps = {
 	/** Undefined while the history is loading. */
@@ -43,6 +45,14 @@ type FlowRunsScatterPlotProps = {
 	endDate?: Date;
 	/** Runs matching the page's filters, to tell when the history was cut short. */
 	totalCount?: number;
+	/** Called with the span a person drags across; omit to disable zooming. */
+	onRangeChange?: (range: { startDate: Date; endDate: Date }) => void;
+	/** The page's state type filter, which the legend chips set. */
+	selectedStateTypes?: ReadonlySet<StateType>;
+	onSelectedStateTypesChange?: (types: Set<StateType>) => void;
+	/** Run counts per state for the window without the state type filter, so
+	 * the legend keeps a chip for every state while one is selected. */
+	stateHistory?: readonly HistoryResponse[];
 };
 
 const MARGIN = { top: 10, right: 12, bottom: 22, left: 46 };
@@ -52,6 +62,7 @@ const LANE_GAP = 12;
 const EDGE_PADDING = 6;
 /** Hatched strip marking that older runs exist but were not loaded. */
 const UNLOADED_STRIP = 12;
+const BRUSH_THRESHOLD = 8;
 const hitRadius = (pointerType: string) => (pointerType === "mouse" ? 12 : 24);
 
 const drawRank = new Map<StateType, number>(
@@ -63,6 +74,10 @@ export const FlowRunsScatterPlot = ({
 	startDate,
 	endDate,
 	totalCount,
+	onRangeChange,
+	selectedStateTypes,
+	onSelectedStateTypesChange,
+	stateHistory,
 }: FlowRunsScatterPlotProps) => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -73,7 +88,13 @@ export const FlowRunsScatterPlot = ({
 
 	const [hoverId, setHoverId] = useState<string>();
 	const [pinnedId, setPinnedId] = useState<string>();
-	const pressedPointer = useRef<number | null>(null);
+	const [brush, setBrush] = useState<{ from: number; to: number }>();
+	const gesture = useRef<{
+		pointerId: number;
+		x: number;
+		y: number;
+		brushing: boolean;
+	} | null>(null);
 
 	const allRuns = useMemo(() => history ?? [], [history]);
 	// A count below the runs already loaded is one that hasn't arrived yet.
@@ -109,6 +130,10 @@ export const FlowRunsScatterPlot = ({
 		[allRuns, timeWindow],
 	);
 	const summary = useMemo(() => summarizeRuns(runs), [runs]);
+	const legendCounts = useMemo(
+		() => (stateHistory ? countRunsByState(stateHistory) : summary.byState),
+		[stateHistory, summary],
+	);
 	const axis = useMemo(
 		() => durationAxis(runs.map((run) => run.duration)),
 		[runs],
@@ -237,23 +262,60 @@ export const FlowRunsScatterPlot = ({
 
 	const onPointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
 		if (event.pointerType === "mouse" && event.button !== 0) return;
-		pressedPointer.current = event.pointerId;
+		gesture.current = {
+			pointerId: event.pointerId,
+			...localPoint(event),
+			brushing: false,
+		};
 	};
 
 	const onPointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
-		if (!layout || event.pointerType !== "mouse") return;
+		if (!layout) return;
 		const point = localPoint(event);
-		setHoverId(
-			findNearestPoint(layout.points, point.x, point.y, hitRadius("mouse"))?.run
-				.id,
-		);
+		const current = gesture.current;
+		if (current?.pointerId === event.pointerId) {
+			const dx = point.x - current.x;
+			const dy = point.y - current.y;
+			if (
+				!current.brushing &&
+				onRangeChange &&
+				Math.abs(dx) > BRUSH_THRESHOLD &&
+				Math.abs(dx) > Math.abs(dy)
+			) {
+				current.brushing = true;
+				event.currentTarget.setPointerCapture(event.pointerId);
+				setHoverId(undefined);
+			}
+			if (current.brushing) {
+				setBrush({ from: current.x, to: point.x });
+				return;
+			}
+		}
+		if (event.pointerType === "mouse") {
+			setHoverId(
+				findNearestPoint(layout.points, point.x, point.y, hitRadius("mouse"))
+					?.run.id,
+			);
+		}
 	};
 
 	const onPointerUp = (event: PointerEvent<HTMLCanvasElement>) => {
-		const pressed = pressedPointer.current === event.pointerId;
-		pressedPointer.current = null;
-		if (!layout || !pressed) return;
+		const current = gesture.current;
+		gesture.current = null;
+		if (!layout || current?.pointerId !== event.pointerId) return;
 		const point = localPoint(event);
+		if (current.brushing) {
+			setBrush(undefined);
+			const from = Math.min(current.x, point.x);
+			const to = Math.max(current.x, point.x);
+			if (to - from >= BRUSH_THRESHOLD) {
+				onRangeChange?.({
+					startDate: layout.x.invert(from),
+					endDate: layout.x.invert(to),
+				});
+			}
+			return;
+		}
 		const hit = findNearestPoint(
 			layout.points,
 			point.x,
@@ -269,7 +331,8 @@ export const FlowRunsScatterPlot = ({
 	};
 
 	const onPointerCancel = () => {
-		pressedPointer.current = null;
+		gesture.current = null;
+		setBrush(undefined);
 	};
 
 	const onPointerLeave = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -316,7 +379,11 @@ export const FlowRunsScatterPlot = ({
 
 	return (
 		<div className="flex flex-col gap-3" data-testid="scatter-plot">
-			<ScatterPlotLegend counts={summary.byState} />
+			<ScatterPlotLegend
+				counts={legendCounts}
+				selectedStateTypes={selectedStateTypes}
+				onSelectedStateTypesChange={onSelectedStateTypesChange}
+			/>
 			<div ref={containerRef} className="relative h-52 w-full md:h-72">
 				<canvas
 					ref={canvasRef}
@@ -339,6 +406,7 @@ export const FlowRunsScatterPlot = ({
 						radius={layout.radius}
 					/>
 				)}
+				{layout && brush && <Brush brush={brush} geometry={layout.geometry} />}
 				{history === undefined ? (
 					<Skeleton className="absolute inset-0" />
 				) : runs.length === 0 ? (
@@ -356,6 +424,7 @@ export const FlowRunsScatterPlot = ({
 					totalCount={knownTotal}
 					loadedSince={since}
 					upcoming={timeWindow.upcoming}
+					canZoom={onRangeChange !== undefined}
 				/>
 			)}
 		</div>
@@ -418,6 +487,29 @@ const ActivePoint = ({
 				}}
 			/>
 		</>
+	);
+};
+
+const Brush = ({
+	brush,
+	geometry,
+}: {
+	brush: { from: number; to: number };
+	geometry: ScatterGeometry;
+}) => {
+	const from = Math.max(geometry.left, Math.min(brush.from, brush.to));
+	const to = Math.min(geometry.right, Math.max(brush.from, brush.to));
+	return (
+		<div
+			aria-hidden
+			className="pointer-events-none absolute border-x border-foreground/60 bg-foreground/10"
+			style={{
+				left: from,
+				width: Math.max(0, to - from),
+				top: geometry.top,
+				height: geometry.axisY - geometry.top,
+			}}
+		/>
 	);
 };
 
