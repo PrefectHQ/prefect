@@ -34,6 +34,7 @@ from sqlalchemy.dialects.postgresql.operators import (
     HAS_ALL,  # type: ignore
     HAS_ANY,  # type: ignore
 )
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import functions, schema
@@ -783,7 +784,7 @@ def get_max_query_parameters() -> int:
         return 999
 
 
-def is_unique_violation(exc: sa.exc.DBAPIError) -> bool:
+def is_unique_violation(exc: DBAPIError) -> bool:
     """
     Whether a database error is a unique constraint violation, on either
     PostgreSQL (SQLSTATE 23505) or SQLite.
