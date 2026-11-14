@@ -4,7 +4,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 from unittest.mock import AsyncMock
 from uuid import UUID
 
@@ -136,7 +136,7 @@ async def test_shell_run_command_update_current_env():
 
 
 class AsyncIter:
-    def __init__(self, items: list[str]):
+    def __init__(self, items: list[str], **kwargs: Any):
         self.items = items
 
     async def __aiter__(self):
