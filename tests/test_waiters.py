@@ -61,6 +61,32 @@ class TestFlowRunWaiter:
         await run
 
     @pytest.mark.timeout(20)
+    async def test_wait_for_flow_run_in_timed_out_state(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        A flow run that exceeds its timeout finishes in a `TimedOut` state, so its
+        final event is `prefect.flow-run.TimedOut`.
+        """
+
+        @flow(timeout_seconds=1)
+        async def test_flow() -> None:
+            await asyncio.sleep(5)
+
+        flow_run = await prefect_client.create_flow_run(test_flow, state=Pending())
+        run = asyncio.create_task(
+            run_flow_async(flow=test_flow, flow_run=flow_run, return_type="state")
+        )
+
+        await FlowRunWaiter.wait_for_flow_run(flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "TimedOut"
+        await run
+
+    @pytest.mark.timeout(20)
     async def test_non_singleton_mode(
         self, prefect_client: PrefectClient, emitting_events_pipeline: EventsPipeline
     ):

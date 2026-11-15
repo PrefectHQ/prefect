@@ -4,6 +4,7 @@ import uuid
 import pytest
 
 from prefect import task
+from prefect.server.events.pipeline import EventsPipeline
 from prefect.task_engine import run_task_async
 from prefect.task_runs import TaskRunWaiter
 
@@ -58,6 +59,35 @@ class TestTaskRunWaiter:
         # TaskRunWaiter stopped waiting before the task finished
         assert not run.done()
         await run
+
+    @pytest.mark.timeout(20)
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_wait_for_task_run_in_cached_state(
+        self, emitting_events_pipeline: EventsPipeline
+    ):
+        """
+        A cached task run finishes in a `Cached` state, so its final event is
+        `prefect.task-run.Cached`. Regression test for
+        https://github.com/PrefectHQ/prefect/issues/15427
+        """
+        cache_key = str(uuid.uuid4())
+
+        @task(cache_key_fn=lambda *args, **kwargs: cache_key, persist_result=True)
+        async def test_task() -> int:
+            return 42
+
+        await run_task_async(task=test_task)
+
+        task_run_id = uuid.uuid4()
+        await run_task_async(task=test_task, task_run_id=task_run_id)
+        # Store the events so the waiter receives them when it subscribes
+        await emitting_events_pipeline.process_events()
+
+        state = await TaskRunWaiter.wait_for_task_run(task_run_id)
+
+        assert state is not None
+        assert state.is_completed()
+        assert state.name == "Cached"
 
     @pytest.mark.timeout(20)
     @pytest.mark.usefixtures("use_hosted_api_server")
