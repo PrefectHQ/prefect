@@ -17,7 +17,7 @@ from cachetools import TTLCache
 from prometheus_client import Counter
 from typing_extensions import Self
 from websockets import Subprotocol
-from websockets.asyncio.client import ClientConnection
+from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
@@ -195,17 +195,18 @@ class PrefectLogsSubscriber:
         self._filter = filter or LogFilter()  # type: ignore[call-arg]
         self._seen_logs = TTLCache(maxsize=SEEN_LOGS_SIZE, ttl=SEEN_LOGS_TTL)
 
-        socket_url = logs_out_socket_from_api_url(api_url)
+        self._socket_url = logs_out_socket_from_api_url(api_url)
 
-        logger.debug("Connecting to %s", socket_url)
+        logger.debug("Connecting to %s", self._socket_url)
 
         # Configure SSL context for the connection
-        ssl_context = create_ssl_context_for_websocket(socket_url)
+        ssl_context = create_ssl_context_for_websocket(self._socket_url)
         connect_kwargs: dict[str, Any] = {"subprotocols": [Subprotocol("prefect")]}
         if ssl_context:
             connect_kwargs["ssl"] = ssl_context
 
-        self._connect = websocket_connect(socket_url, **connect_kwargs)
+        self._connect_kwargs = connect_kwargs
+        self._connect: Optional[connect] = None
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._reconnect_on_clean_close = reconnect_on_clean_close
@@ -225,29 +226,45 @@ class PrefectLogsSubscriber:
         except BaseException:
             # Callers do not exit a context that failed to enter, so close any
             # socket left open by a partial (failed or cancelled) setup here.
-            await self._close_partial_connection()
+            await self._close_connection()
             raise
         finally:
             LOG_WEBSOCKET_CONNECTIONS.labels(self.client_name, "out", "initial").inc()
         return self
 
-    async def _close_partial_connection(self) -> None:
-        if self._websocket:
-            self._websocket = None
-            await self._connect.__aexit__(None, None, None)
+    def _new_connect(self) -> connect:
+        """Create a connection object for a single connection attempt.
+
+        A websockets connection object can be entered only once, so every attempt
+        to connect needs a new one.
+        """
+        return websocket_connect(self._socket_url, **self._connect_kwargs)
+
+    async def _close_connection(self) -> None:
+        """Close the current connection, if one is open."""
+        self._websocket = None
+        connect_obj, self._connect = self._connect, None
+        if connect_obj is not None:
+            await connect_obj.__aexit__(None, None, None)
 
     async def _reconnect(self) -> None:
         logger.debug("Reconnecting...")
-        if self._websocket:
-            self._websocket = None
-            await self._connect.__aexit__(None, None, None)
+        await self._close_connection()
 
-        self._websocket = await self._connect.__aenter__()
+        connect_obj = self._new_connect()
+        try:
+            self._websocket = await connect_obj.__aenter__()
+            self._connect = connect_obj
 
-        # make sure we have actually connected
-        logger.debug("  pinging...")
-        pong = await self._websocket.ping()
-        await pong
+            # make sure we have actually connected
+            logger.debug("  pinging...")
+            pong = await self._websocket.ping()
+            await pong
+        except BaseException:
+            # Leave no half-open connection behind, and make sure the next
+            # attempt starts from a connection object that was never entered.
+            await self._close_connection()
+            raise
 
         # Send authentication message - logs WebSocket requires auth handshake
         auth_token = self._api_key or self._auth_token
@@ -295,7 +312,9 @@ class PrefectLogsSubscriber:
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._websocket = None
-        await self._connect.__aexit__(exc_type, exc_val, exc_tb)
+        connect_obj, self._connect = self._connect, None
+        if connect_obj is not None:
+            await connect_obj.__aexit__(exc_type, exc_val, exc_tb)
 
     def __aiter__(self) -> Self:
         return self
