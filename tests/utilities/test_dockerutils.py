@@ -1,13 +1,16 @@
-import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import pytest
 
 from prefect import __version_info__
-from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.dockerutils import (
+    ImageBuilder,
+    generate_default_dockerfile,
+    get_prefect_image_name,
+)
 
 # Get the short SHA from git, with fallback to version info
 try:
@@ -88,10 +91,54 @@ def test_get_prefect_image_name_preserves_dev_version_info(
     assert get_prefect_image_name(prefect_version) == expected
 
 
-def test_image_builder_write_text_is_utf8(tmp_path: Path):
-    """Non-ASCII context files must not depend on the platform default encoding."""
-    from prefect.utilities.dockerutils import ImageBuilder
+@pytest.fixture
+def ascii_default_encoding(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make writes that omit `encoding` fall back to ASCII.
 
+    CI hosts and most developer machines default to UTF-8, so a write that
+    relies on the platform default encoding still succeeds there. Wrapping the
+    `pathlib` write entry points used by the Docker utilities reproduces the
+    cp936/cp1252 failure on any host, without spawning a child process.
+    """
+    real_write_text = Path.write_text
+    real_open = Path.open
+
+    def write_text(
+        self: Path,
+        data: str,
+        encoding: Optional[str] = None,
+        errors: Optional[str] = None,
+        newline: Optional[str] = None,
+    ) -> int:
+        return real_write_text(
+            self, data, encoding=encoding or "ascii", errors=errors, newline=newline
+        )
+
+    def open_with_ascii_default(
+        self: Path,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: Optional[str] = None,
+        errors: Optional[str] = None,
+        newline: Optional[str] = None,
+    ) -> Any:
+        if "b" not in mode and encoding is None and any(c in mode for c in "wax+"):
+            encoding = "ascii"
+        return real_open(
+            self,
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+        )
+
+    monkeypatch.setattr(Path, "write_text", write_text)
+    monkeypatch.setattr(Path, "open", open_with_ascii_default)
+
+
+def test_image_builder_write_text_is_utf8(tmp_path: Path, ascii_default_encoding: None):
+    """Context files must be UTF-8 even when the default encoding is not."""
     text = "print('emoji 🔥')\n"
     builder = ImageBuilder(base_image="python:3.11", context=tmp_path)
     builder.write_text(text, "app.py")
@@ -101,41 +148,36 @@ def test_image_builder_write_text_is_utf8(tmp_path: Path):
     assert written[0].read_text(encoding="utf-8") == text
 
 
-def test_image_builder_write_text_under_an_ascii_locale(tmp_path: Path):
-    """The same write in a child process whose default encoding is ASCII."""
-    script = (
-        "from pathlib import Path\n"
-        "from prefect.utilities.dockerutils import ImageBuilder\n"
-        "context = Path.cwd()\n"
-        "builder = ImageBuilder(base_image='python:3.11', context=context)\n"
-        "builder.write_text(\"print('emoji \\U0001f525')\\n\", 'app.py')\n"
-        "print('context written')\n"
-    )
-    # The child runs with cwd=tmp_path and resolves the context with
-    # Path.cwd(), so a non-ASCII temp root never reaches this source. The
-    # interpreter decodes the -c argument with the filesystem encoding, so a
-    # literal non-ASCII character here would abort the child before it imports.
-    assert script.isascii()
+def test_image_builder_build_writes_utf8_dockerfile(
+    tmp_path: Path,
+    ascii_default_encoding: None,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The Dockerfile written by `build` must not use the default encoding."""
+    written: list[str] = []
 
-    env = {
-        **os.environ,
-        "LC_ALL": "C",
-        "LANG": "C",
-        "PYTHONUTF8": "0",
-        "PYTHONCOERCECLOCALE": "0",
-    }
-    completed = subprocess.run(
-        [sys.executable, "-c", script],
-        check=True,
-        env=env,
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
-    assert "context written" in completed.stdout
+    def fake_build_image(context: Path, *args: Any, **kwargs: Any) -> str:
+        # build() unlinks the Dockerfile after handing the context to Docker,
+        # so read it back while the build is still in progress.
+        written.append((context / "Dockerfile").read_text(encoding="utf-8"))
+        return "image-id"
 
-    written = [path for path in tmp_path.iterdir() if path.is_file()]
-    assert len(written) == 1
-    assert written[0].read_text(encoding="utf-8") == "print('emoji 🔥')\n"
-    # The bytes on disk are the UTF-8 encoding of the emoji, not an escape.
-    assert b"\xf0\x9f\x94\xa5" in written[0].read_bytes()
+    monkeypatch.setattr("prefect.utilities.dockerutils.build_image", fake_build_image)
+    builder = ImageBuilder(base_image="python:3.11", context=tmp_path)
+    builder.add_line("RUN echo 'emoji 🔥'")
+
+    assert builder.build() == "image-id"
+    assert written == ["FROM python:3.11\nRUN echo 'emoji 🔥'\n"]
+
+
+def test_generate_default_dockerfile_is_utf8(
+    tmp_path: Path, ascii_default_encoding: None
+):
+    """The default Dockerfile must stay UTF-8 for a non-ASCII context path."""
+    context = tmp_path / "项目"
+    context.mkdir()
+
+    with generate_default_dockerfile(context=context) as dockerfile:
+        contents = dockerfile.read_text(encoding="utf-8")
+
+    assert f"COPY . /opt/prefect/{context.name}/" in contents
