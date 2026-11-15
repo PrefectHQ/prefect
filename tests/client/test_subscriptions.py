@@ -159,8 +159,8 @@ async def test_subscription_integration_with_custom_headers(hosted_api_server: s
 
 
 async def test_subscription_reconnects_after_the_server_drops_the_connection():
-    """Regression test for websockets 17, which raises ``RuntimeError: connect()
-    isn't reentrant`` when a connection object that was already entered is entered
+    """Regression test for websockets 17, which raises RuntimeError: connect()
+    isn't reentrant when a connection object that was already entered is entered
     again.
 
     The subscription must close the previous connection and build a fresh one

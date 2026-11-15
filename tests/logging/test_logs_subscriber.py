@@ -454,7 +454,7 @@ async def test_subscriber_reconnects_after_losing_websocket_reference(
     """Regression test for the reconnect path when the connection object was
     entered but the reference to the websocket is gone.
 
-    websockets 17 raises ``RuntimeError: connect() isn't reentrant`` when an
+    websockets 17 raises RuntimeError: connect() isn't reentrant when an
     already entered connection object is entered again, so reconnecting must
     close the previous connection instead of re-entering it.
     """
