@@ -12,7 +12,7 @@ import { delay, HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildUiSettingsQuery } from "@/api/ui-settings";
 import { AuthContext, type AuthState } from "@/auth";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import * as uiVersionSwitch from "@/components/ui-version-switch";
 import { createFakeServerSettings } from "@/mocks";
 import { AppSidebar } from "./app-sidebar";
@@ -306,6 +306,36 @@ describe("AppSidebar", () => {
 
 			expect(mockLogout).toHaveBeenCalledTimes(1);
 			expect(router.state.location.pathname).toBe("/login");
+		});
+	});
+
+	describe("on a phone", () => {
+		it("closes the navigation after a link is tapped", async () => {
+			vi.spyOn(window, "innerWidth", "get").mockReturnValue(375);
+			const user = userEvent.setup();
+			const rootRoute = createRootRoute({
+				component: () => (
+					<SidebarProvider>
+						<SidebarTrigger />
+						<AppSidebar />
+					</SidebarProvider>
+				),
+			});
+			const router = createRouter({
+				routeTree: rootRoute,
+				history: createMemoryHistory({ initialEntries: ["/"] }),
+				context: { queryClient: new QueryClient() },
+			});
+			render(<RouterProvider router={router} />, { wrapper: createWrapper() });
+
+			await user.click(
+				await screen.findByRole("button", { name: "Toggle Sidebar" }),
+			);
+			await user.click(await screen.findByRole("link", { name: "Runs" }));
+
+			await waitFor(() => {
+				expect(screen.queryByRole("link", { name: "Runs" })).toBeNull();
+			});
 		});
 	});
 });
