@@ -897,13 +897,13 @@ Now that your infrastructure is deployed, you should update your ECS work pool c
                     "default": "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
                 }
 
-                # Update network configuration
+                # Update network configuration using boto3 `awsvpcConfiguration` keys
+                # directly, without a surrounding `awsvpcConfiguration` object
                 network_config = properties.setdefault("network_configuration", {})
-                network_props = network_config.setdefault("properties", {})
-                awsvpc_config = network_props.setdefault("awsvpcConfiguration", {})
-                awsvpc_props = awsvpc_config.setdefault("properties", {})
-                awsvpc_props["subnets"] = {
-                    "default": ["subnet-12345678", "subnet-87654321"]
+                network_config["default"] = {
+                    "subnets": ["subnet-12345678", "subnet-87654321"],
+                    "securityGroups": ["sg-12345678"],
+                    "assignPublicIp": "ENABLED",
                 }
 
                 # Update work pool
@@ -920,7 +920,7 @@ Now that your infrastructure is deployed, you should update your ECS work pool c
         asyncio.run(update_work_pool())
         ```
 
-        Replace the ARNs and IDs with your actual resource identifiers.
+        Replace the ARNs and IDs with your actual resource identifiers. The `network_configuration` keys are case-sensitive and require `vpc_id` to be set.
     </Step>
 </Steps>
 
