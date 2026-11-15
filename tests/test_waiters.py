@@ -87,6 +87,35 @@ class TestFlowRunWaiter:
         await run
 
     @pytest.mark.timeout(20)
+    async def test_wait_for_flow_run_keeps_waiting_through_retries(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        A retried flow run passes through `AwaitingRetry` and `Retrying`, which are
+        not final states.
+        """
+        attempts = 0
+
+        @flow(retries=1, retry_delay_seconds=2)
+        async def test_flow() -> int:
+            nonlocal attempts
+            attempts += 1
+            await asyncio.sleep(1)
+            if attempts == 1:
+                raise ValueError("fail the first attempt")
+            return 42
+
+        flow_run = await prefect_client.create_flow_run(test_flow, state=Pending())
+        run = asyncio.create_task(run_flow_async(flow=test_flow, flow_run=flow_run))
+
+        await FlowRunWaiter.wait_for_flow_run(flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+        assert await run == 42
+
+    @pytest.mark.timeout(20)
     async def test_non_singleton_mode(
         self, prefect_client: PrefectClient, emitting_events_pipeline: EventsPipeline
     ):

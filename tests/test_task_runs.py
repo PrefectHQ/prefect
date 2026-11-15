@@ -91,6 +91,37 @@ class TestTaskRunWaiter:
 
     @pytest.mark.timeout(20)
     @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_wait_for_task_run_keeps_waiting_through_retries(
+        self, emitting_events_pipeline: EventsPipeline
+    ):
+        """
+        A retried task run passes through `AwaitingRetry` and `Retrying`, which are
+        not final states.
+        """
+        attempts = 0
+
+        @task(retries=1, retry_delay_seconds=2)
+        async def test_task() -> int:
+            nonlocal attempts
+            attempts += 1
+            await asyncio.sleep(1)
+            if attempts == 1:
+                raise ValueError("fail the first attempt")
+            return 42
+
+        task_run_id = uuid.uuid4()
+        run = asyncio.create_task(
+            run_task_async(task=test_task, task_run_id=task_run_id)
+        )
+
+        state = await TaskRunWaiter.wait_for_task_run(task_run_id)
+
+        assert state is not None
+        assert state.is_completed()
+        assert await run == 42
+
+    @pytest.mark.timeout(20)
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_non_singleton_mode(self, prefect_client, emitting_events_pipeline):
         waiter = TaskRunWaiter()
         assert waiter is not TaskRunWaiter.instance()
