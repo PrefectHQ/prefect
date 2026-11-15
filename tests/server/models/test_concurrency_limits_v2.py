@@ -491,7 +491,8 @@ async def test_increment_active_slots_denied_slots_decay_over_time(
         concurrency_limit=ConcurrencyLimitV2(
             name="test-denied-slots-decay",
             limit=10,
-            avg_slot_occupancy_seconds=10.0,
+            # 30s is the maximum occupancy before clamping for non-tag limits.
+            avg_slot_occupancy_seconds=30.0,
         ),
     )
     await session.commit()
@@ -502,12 +503,13 @@ async def test_increment_active_slots_denied_slots_decay_over_time(
     await session.commit()
 
     # Backdate `updated` rather than sleeping so the elapsed time doesn't depend
-    # on wall-clock timing. With a decay rate of 1/10 slots/second, 15 seconds
-    # decays floor(1.5) = 1 slot, leaving 5 seconds of slack for slow CI runners.
+    # on wall-clock timing. With a decay rate of 1/30 slots/second, 45 seconds
+    # decays floor(1.5) = 1 slot, leaving 15 seconds of slack in either
+    # direction for slow CI runners or app/database clock skew.
     await session.execute(
         sa.update(db.ConcurrencyLimitV2)
         .where(db.ConcurrencyLimitV2.id == limit.id)
-        .values(updated=datetime.now(timezone.utc) - timedelta(seconds=15))
+        .values(updated=datetime.now(timezone.utc) - timedelta(seconds=45))
     )
     await session.commit()
 
