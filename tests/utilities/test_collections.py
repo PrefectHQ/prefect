@@ -246,6 +246,51 @@ class FrozenSlotsInitVarPrivateSlotCopyReturnsSelf(PrivateSlotBase):
         return self
 
 
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarPrivateSlot(PrivateSlotBase):
+    """Like the class above, but copied through the default protocol, whose
+    generated `__getstate__` returns only the dataclass fields."""
+
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        object.__setattr__(self, "_PrivateSlotBase__cache", seed)
+
+
+class DictStateBase:
+    """Non-slotted base, so instances of the subclass below keep a `__dict__`."""
+
+    def cached(self):
+        return self.__dict__["cache"]
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarInheritedDict(DictStateBase):
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        self.__dict__["cache"] = seed
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarCustomGetstate(PrivateSlotBase):
+    """Leaves the cache out of its own state on purpose."""
+
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        object.__setattr__(self, "_PrivateSlotBase__cache", seed)
+
+    def __getstate__(self):
+        return [self.x]
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "x", state[0])
+
+
 class WriteOnceDescriptor:
     """Descriptor whose setter rejects reassignment once a value is stored."""
 
@@ -559,6 +604,37 @@ class TestVisitCollection:
         assert result.x == 42
         assert result.cached() == 3
         assert inp.x is token
+
+    @pytest.mark.parametrize(
+        "cls", [FrozenSlotsInitVarPrivateSlot, FrozenSlotsInitVarInheritedDict]
+    )
+    def test_visit_collection_init_var_copy_preserves_inherited_state(self, cls: type):
+        token = object()
+        inp = cls(x=token, seed=3)
+        assert inp.cached() == 3
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, cls)
+        assert result is not inp
+        assert result.x == 42
+        assert result.cached() == 3
+        assert inp.x is token
+
+    def test_visit_collection_init_var_copy_trusts_a_custom_getstate(self):
+        token = object()
+        inp = FrozenSlotsInitVarCustomGetstate(x=token, seed=3)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, FrozenSlotsInitVarCustomGetstate)
+        assert result.x == 42
+        with pytest.raises(AttributeError):
+            result.cached()
 
     def test_visit_collection_init_var_copy_skips_setters_for_unchanged_fields(
         self,

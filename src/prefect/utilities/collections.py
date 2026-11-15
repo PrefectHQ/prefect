@@ -3,6 +3,7 @@ Utilities for extensions of and operations on Python collections.
 """
 
 import copy
+import dataclasses
 import io
 import itertools
 import types
@@ -262,36 +263,80 @@ def _is_required_init_var(field: Any) -> bool:
     return field._field_type is _FIELD_INITVAR or isinstance(field.type, InitVar)
 
 
+def _copy_instance_state(source: Any, target: Any, *, only_missing: bool) -> None:
+    """Copy `__dict__` entries and slot values from `source` to `target`.
+
+    Slots are read through each class's member descriptors, so private
+    (name-mangled) slots such as `__cache` -> `_Base__cache` and a base slot
+    shadowed by a subclass slot of the same name are both kept. With
+    `only_missing`, values `target` already holds are left alone.
+    """
+    source_dict = getattr(source, "__dict__", None)
+    if source_dict is not None:
+        target_dict = getattr(target, "__dict__", None)
+        if target_dict is None or not only_missing:
+            object.__setattr__(target, "__dict__", {**source_dict})
+        else:
+            for key, value in source_dict.items():
+                target_dict.setdefault(key, value)
+
+    cls = type(source)
+    for base in cls.__mro__:
+        for descriptor in vars(base).values():
+            if not isinstance(descriptor, types.MemberDescriptorType):
+                continue
+            try:
+                value = descriptor.__get__(source, cls)
+            except AttributeError:
+                continue
+            if only_missing:
+                try:
+                    descriptor.__get__(target, cls)
+                    continue
+                except AttributeError:
+                    pass
+            descriptor.__set__(target, value)
+
+
+def _copies_through_dataclass_state(cls: type) -> bool:
+    """True when `copy.copy` of `cls` goes through the default pickle protocol
+    and, for `slots=True` dataclasses, the generated `__getstate__`.
+
+    That `__getstate__` returns only `dataclasses.fields()`, so inherited
+    slots and inherited `__dict__` entries are missing from the copy. A class
+    that defines its own `__copy__`, `__reduce__`, `__reduce_ex__` or
+    `__getstate__` decides its own copy and is trusted as is.
+    """
+    generated_getstate = getattr(dataclasses, "_dataclass_getstate", None)
+    for base in cls.__mro__:
+        if base is object:
+            continue
+        attrs = vars(base)
+        if "__copy__" in attrs or "__reduce__" in attrs or "__reduce_ex__" in attrs:
+            return False
+        getstate = attrs.get("__getstate__")
+        if getstate is not None and getstate is not generated_getstate:
+            return False
+    return True
+
+
 def _copy_dataclass_instance(obj: Any) -> Any:
     """Return a distinct shallow copy of a dataclass instance.
 
     `copy.copy` is preferred so `__dict__` / slots / `__copy__` are honored.
     If `__copy__` returns `self` (valid for some frozen value objects), build a
     new instance via `__new__` and copy stored state so callers never mutate
-    the original through `object.__setattr__`.
+    the original through `object.__setattr__`. When the copy came from the
+    default protocol, state that a `slots=True` dataclass's generated
+    `__getstate__` leaves out (inherited slots and `__dict__` entries) is
+    filled in from `obj`, since `__post_init__` does not run to restore it.
     """
     result = copy.copy(obj)
-    if result is not obj:
-        return result
-
-    cls = type(obj)
-    result = object.__new__(cls)
-    obj_dict = getattr(obj, "__dict__", None)
-    if obj_dict is not None:
-        object.__setattr__(result, "__dict__", {**obj_dict})
-
-    # Copy slot values through each class's member descriptors so private
-    # (name-mangled) slots such as `__cache` -> `_Base__cache` are preserved.
-    for base in cls.__mro__:
-        for descriptor in vars(base).values():
-            if not isinstance(descriptor, types.MemberDescriptorType):
-                continue
-            try:
-                value = descriptor.__get__(obj, cls)
-            except AttributeError:
-                continue
-            descriptor.__set__(result, value)
-
+    if result is obj:
+        result = object.__new__(type(obj))
+        _copy_instance_state(obj, result, only_missing=False)
+    elif _copies_through_dataclass_state(type(obj)):
+        _copy_instance_state(obj, result, only_missing=True)
     return result
 
 
