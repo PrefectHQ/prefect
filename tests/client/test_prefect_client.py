@@ -819,6 +819,55 @@ async def test_update_deployment(prefect_client, storage_document_id):
     )
 
 
+async def test_create_and_update_deployment_labels(prefect_client: PrefectClient):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await prefect_client.create_flow(foo)
+
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name=f"test-deployment-{uuid4()}",
+        labels={"sig": "abc123", "env": "dev"},
+    )
+
+    deployment = await prefect_client.read_deployment(deployment_id)
+    assert deployment.labels == {
+        "prefect.flow.id": str(flow_id),
+        "sig": "abc123",
+        "env": "dev",
+    }
+
+    await prefect_client.update_deployment(
+        deployment_id=deployment_id,
+        deployment=client_schemas.actions.DeploymentUpdate(labels={"env": "prod"}),
+    )
+
+    updated_deployment = await prefect_client.read_deployment(deployment_id)
+    assert updated_deployment.labels == {
+        "prefect.flow.id": str(flow_id),
+        "env": "prod",
+    }
+
+
+def test_create_deployment_labels_sync(sync_prefect_client: SyncPrefectClient):
+    @flow
+    def foo():
+        pass
+
+    flow_id = sync_prefect_client.create_flow(foo)
+
+    deployment_id = sync_prefect_client.create_deployment(
+        flow_id=flow_id,
+        name=f"test-deployment-{uuid4()}",
+        labels={"sig": "abc123"},
+    )
+
+    deployment = sync_prefect_client.read_deployment(deployment_id)
+    assert deployment.labels == {"prefect.flow.id": str(flow_id), "sig": "abc123"}
+
+
 async def test_update_deployment_to_remove_schedules(
     prefect_client, storage_document_id
 ):

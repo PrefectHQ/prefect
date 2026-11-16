@@ -353,6 +353,11 @@ class DeploymentUpdate(ActionBaseModel):
         description="A list of deployment tags.",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: Optional[KeyValueLabels] = Field(
+        default=None,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
     work_queue_name: Optional[str] = Field(default=None)
     work_pool_name: Optional[str] = Field(
         default=None,

@@ -50,6 +50,7 @@ class DeploymentConfig(BaseModel):
     tags: Optional[Union[str, list[Any]]] = (
         None  # allow raw templated string or list; templating will normalize
     )
+    labels: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
 
     # schedule metadata

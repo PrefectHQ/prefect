@@ -2166,6 +2166,61 @@ class TestDeploymentLabels:
         assert merged_labels == expected
 
 
+    async def test_update_deployment_labels_preserves_system_labels(
+        self,
+        session: AsyncSession,
+        flow: orm_models.Flow,
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="Test Deployment with labels",
+                flow_id=flow.id,
+                labels={"env": "dev", "team": "data"},
+            ),
+        )
+        await session.commit()
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(labels={"env": "prod"}),
+        )
+        await session.commit()
+
+        updated = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated.labels == {"prefect.flow.id": str(flow.id), "env": "prod"}
+
+    async def test_update_deployment_retains_labels_if_not_provided(
+        self,
+        session: AsyncSession,
+        flow: orm_models.Flow,
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="Test Deployment with labels",
+                flow_id=flow.id,
+                labels={"env": "dev"},
+            ),
+        )
+        await session.commit()
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(description="updated"),
+        )
+        await session.commit()
+
+        updated = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated.labels == {"prefect.flow.id": str(flow.id), "env": "dev"}
+
+
 @contextlib.contextmanager
 def capture_deployment_updates(engine: sa.Engine):
     statements: list[str] = []

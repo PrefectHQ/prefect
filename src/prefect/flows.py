@@ -761,6 +761,7 @@ class Flow(Generic[P, R]):
         triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
+        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -791,6 +792,8 @@ class Flow(Generic[P, R]):
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. Values can be strings, numbers, or booleans.
             version: A version for the created deployment. Defaults to the flow's version.
             version_type: The type of version to use for the created deployment. The version type
                 will be inferred if not provided.
@@ -844,6 +847,7 @@ class Flow(Generic[P, R]):
                 schedules=schedules,
                 concurrency_limit=concurrency_limit,
                 tags=tags,
+                labels=labels,
                 triggers=triggers,
                 parameters=parameters or {},
                 description=description,
@@ -867,6 +871,7 @@ class Flow(Generic[P, R]):
                 schedules=schedules,
                 concurrency_limit=concurrency_limit,
                 tags=tags,
+                labels=labels,
                 triggers=triggers,
                 parameters=parameters or {},
                 description=description,
@@ -902,6 +907,7 @@ class Flow(Generic[P, R]):
         triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
+        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -932,6 +938,8 @@ class Flow(Generic[P, R]):
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. Values can be strings, numbers, or booleans.
             version: A version for the created deployment. Defaults to the flow's version.
             version_type: The type of version to use for the created deployment. The version type
                 will be inferred if not provided.
@@ -987,6 +995,7 @@ class Flow(Generic[P, R]):
                     schedules=schedules,
                     concurrency_limit=concurrency_limit,
                     tags=tags,
+                    labels=labels,
                     triggers=triggers,
                     parameters=parameters or {},
                     description=description,
@@ -1012,6 +1021,7 @@ class Flow(Generic[P, R]):
                 schedules=schedules,
                 concurrency_limit=concurrency_limit,
                 tags=tags,
+                labels=labels,
                 triggers=triggers,
                 parameters=parameters or {},
                 description=description,
@@ -1066,6 +1076,7 @@ class Flow(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
+        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         pause_on_shutdown: bool = True,
@@ -1099,6 +1110,8 @@ class Flow(Generic[P, R]):
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. Values can be strings, numbers, or booleans.
             version: A version for the created deployment. Defaults to the flow's version.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for the created deployment.
@@ -1161,6 +1174,7 @@ class Flow(Generic[P, R]):
             parameters=parameters,
             description=description,
             tags=tags,
+            labels=labels,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
             entrypoint_type=entrypoint_type,
@@ -1467,6 +1481,7 @@ class Flow(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
+        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -1521,6 +1536,8 @@ class Flow(Generic[P, R]):
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. Values can be strings, numbers, or booleans.
             version: A version for the created deployment. Defaults to the flow's version.
             version_type: The type of version to use for the created deployment. The version type
                 will be inferred if not provided.
@@ -1593,6 +1610,7 @@ class Flow(Generic[P, R]):
             parameters=parameters,
             description=description,
             tags=tags,
+            labels=labels,
             version=version,
             version_type=version_type,
             enforce_parameter_schema=enforce_parameter_schema,
@@ -1667,6 +1685,7 @@ class Flow(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
+        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -1719,6 +1738,8 @@ class Flow(Generic[P, R]):
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. Values can be strings, numbers, or booleans.
             version: A version for the created deployment. Defaults to the flow's version.
             version_type: The type of version to use for the created deployment. The version type
                 will be inferred if not provided.
@@ -1788,6 +1809,7 @@ class Flow(Generic[P, R]):
                 parameters=parameters,
                 description=description,
                 tags=tags,
+                labels=labels,
                 version=version,
                 version_type=version_type,
                 enforce_parameter_schema=enforce_parameter_schema,

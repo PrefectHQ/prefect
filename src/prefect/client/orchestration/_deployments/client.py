@@ -60,6 +60,7 @@ class DeploymentClient(BaseClient):
         work_queue_name: str | None = None,
         work_pool_name: str | None = None,
         tags: list[str] | None = None,
+        labels: "KeyValueLabelsField | None" = None,
         storage_document_id: UUID | None = None,
         path: str | None = None,
         entrypoint: str | None = None,
@@ -81,6 +82,8 @@ class DeploymentClient(BaseClient):
             name: the name of the deployment
             version: an optional version string for the deployment
             tags: an optional list of tags to apply to the deployment
+            labels: an optional dictionary of key-value labels to apply to the
+                deployment
             storage_document_id: an reference to the storage block document
                 used for the deployed flow
             infrastructure_document_id: an reference to the infrastructure block document
@@ -106,6 +109,7 @@ class DeploymentClient(BaseClient):
             version_info=version_info,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            labels=dict(labels or {}),
             work_queue_name=work_queue_name,
             description=description,
             storage_document_id=storage_document_id,
@@ -767,6 +771,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         work_queue_name: str | None = None,
         work_pool_name: str | None = None,
         tags: list[str] | None = None,
+        labels: "KeyValueLabelsField | None" = None,
         storage_document_id: UUID | None = None,
         path: str | None = None,
         entrypoint: str | None = None,
@@ -788,6 +793,8 @@ class DeploymentAsyncClient(BaseAsyncClient):
             name: the name of the deployment
             version: an optional version string for the deployment
             tags: an optional list of tags to apply to the deployment
+            labels: an optional dictionary of key-value labels to apply to the
+                deployment
             storage_document_id: an reference to the storage block document
                 used for the deployed flow
             infrastructure_document_id: an reference to the infrastructure block document
@@ -813,6 +820,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             version_info=version_info,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            labels=dict(labels or {}),
             work_queue_name=work_queue_name,
             description=description,
             storage_document_id=storage_document_id,

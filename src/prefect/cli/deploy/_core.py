@@ -376,6 +376,10 @@ async def _run_single_deploy(
 
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
+    optional_deployment_kwargs: dict[str, Any] = {}
+    if deploy_config.get("labels") is not None:
+        optional_deployment_kwargs["labels"] = deploy_config["labels"]
+
     deployment = RunnerDeployment(
         name=deploy_config["name"],
         flow_name=deploy_config.get("flow_name"),
@@ -392,6 +396,7 @@ async def _run_single_deploy(
         paused=deploy_config.get("paused"),
         storage=_PullStepStorage(pull_steps),
         job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
+        **optional_deployment_kwargs,
     )
 
     deployment._set_defaults_from_flow(flow)

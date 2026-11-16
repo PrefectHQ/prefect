@@ -135,6 +135,19 @@
                     "default": null,
                     "title": "Tags"
                 },
+                "labels": {
+                    "anyOf": [
+                        {
+                            "additionalProperties": true,
+                            "type": "object"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Labels"
+                },
                 "description": {
                     "anyOf": [
                         {

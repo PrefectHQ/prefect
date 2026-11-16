@@ -4648,6 +4648,7 @@ class TestFlowToDeployment:
             deployment = self.flow.to_deployment(
                 name="test",
                 tags=["price", "luggage"],
+                labels={"env": "prod"},
                 parameters={"name": "Arthur"},
                 concurrency_limit=42,
                 description="This is a test",
@@ -4670,6 +4671,7 @@ class TestFlowToDeployment:
             assert isinstance(deployment, RunnerDeployment)
             assert deployment.name == "test"
             assert deployment.tags == ["price", "luggage"]
+            assert deployment.labels == {"env": "prod"}
             assert deployment.parameters == {"name": "Arthur"}
             assert deployment.concurrency_limit == 42
             assert deployment.description == "This is a test"
@@ -4816,6 +4818,7 @@ class TestFlowToDeployment:
             deployment = await self.flow.ato_deployment(
                 name="test",
                 tags=["price", "luggage"],
+                labels={"env": "prod"},
                 parameters={"name": "Arthur"},
                 concurrency_limit=42,
                 description="This is a test",
@@ -4838,6 +4841,7 @@ class TestFlowToDeployment:
             assert isinstance(deployment, RunnerDeployment)
             assert deployment.name == "test"
             assert deployment.tags == ["price", "luggage"]
+            assert deployment.labels == {"env": "prod"}
             assert deployment.parameters == {"name": "Arthur"}
             assert deployment.concurrency_limit == 42
             assert deployment.description == "This is a test"
@@ -5589,6 +5593,7 @@ class TestFlowDeploy:
         await local_flow.deploy(
             name="test",
             tags=["price", "luggage"],
+            labels={"env": "prod"},
             parameters={"name": "Arthur"},
             concurrency_limit=42,
             description="This is a test",
@@ -5608,6 +5613,7 @@ class TestFlowDeploy:
             await local_flow.to_deployment(
                 name="test",
                 tags=["price", "luggage"],
+                labels={"env": "prod"},
                 parameters={"name": "Arthur"},
                 concurrency_limit=42,
                 description="This is a test",
@@ -5643,6 +5649,7 @@ class TestFlowDeploy:
         await remote_flow.deploy(
             name="test",
             tags=["price", "luggage"],
+            labels={"env": "prod"},
             parameters={"name": "Arthur"},
             description="This is a test",
             version="alpha",
@@ -5665,6 +5672,7 @@ class TestFlowDeploy:
             await remote_flow.to_deployment(
                 name="test",
                 tags=["price", "luggage"],
+                labels={"env": "prod"},
                 parameters={"name": "Arthur"},
                 description="This is a test",
                 version="alpha",

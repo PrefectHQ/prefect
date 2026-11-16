@@ -301,11 +301,13 @@ async def update_deployment(
         session=session, deployment_id=deployment_id
     )
     current_snapshot: Optional[dict[str, Any]] = None
+    current_flow_id: Optional[UUID] = None
     if current_deployment is not None:
         current_snapshot = {
             field: getattr(current_deployment, field, None)
             for field in DEPLOYMENT_EVENT_FIELDS
         }
+        current_flow_id = current_deployment.flow_id
         # Expire to avoid stale ORM state after the Core-level update below
         session.expire(current_deployment)
 
@@ -333,6 +335,13 @@ async def update_deployment(
         update_data["infra_overrides"] = job_variables
 
     should_update_schedules = update_data.pop("schedules", None) is not None
+
+    if "labels" in update_data and current_flow_id is not None:
+        update_data["labels"] = await _labels_with_system_defaults(
+            session,
+            flow_id=current_flow_id,
+            user_supplied_labels=deployment.labels,
+        )
 
     if deployment.work_pool_name and deployment.work_queue_name:
         # If a specific pool name/queue name combination was provided, get the
@@ -1494,20 +1503,28 @@ async def with_system_labels_for_deployment(
     deployment: schemas.core.Deployment,
 ) -> schemas.core.KeyValueLabels:
     """Augment user supplied labels with system default labels for a deployment."""
+    return await _labels_with_system_defaults(
+        session,
+        flow_id=deployment.flow_id,
+        user_supplied_labels=deployment.labels,
+    )
+
+
+async def _labels_with_system_defaults(
+    session: AsyncSession,
+    flow_id: UUID,
+    user_supplied_labels: Optional[schemas.core.KeyValueLabels],
+) -> schemas.core.KeyValueLabels:
     default_labels = cast(
         schemas.core.KeyValueLabels,
         {
-            "prefect.flow.id": str(deployment.flow_id),
+            "prefect.flow.id": str(flow_id),
         },
     )
 
-    user_supplied_labels = deployment.labels or {}
+    parent_labels = (await models.flows.read_flow_labels(session, flow_id)) or {}
 
-    parent_labels = (
-        await models.flows.read_flow_labels(session, deployment.flow_id)
-    ) or {}
-
-    return parent_labels | default_labels | user_supplied_labels
+    return parent_labels | default_labels | (user_supplied_labels or {})
 
 
 async def with_system_labels_for_deployment_flow_run(
