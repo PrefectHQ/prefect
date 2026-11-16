@@ -69,6 +69,9 @@ async def revoke_expired_lease(
             slots=expired_lease.metadata.slots,
             occupancy_seconds=occupancy_seconds,
         )
+        # Lets a later release of this lease, such as the flow run reaching a
+        # terminal state, skip its missing-lease fallback decrement.
+        await lease_storage.mark_lease_released(lease_id)
         await lease_storage.revoke_lease(lease_id)
 
 
