@@ -1379,8 +1379,9 @@ async def consumer(
     """The `triggers.consumer` processes all Events arriving on the event bus to
     determine if they meet the automation criteria, queuing up a corresponding
     `TriggeredAction` for the `actions` service if the automation criteria is met."""
-    # The consumer may be starting behind the event stream, so the clock is unknown
-    # until it handles an event
+    # The clock only describes the stream while this consumer is handling it, and the
+    # consumer may be starting behind the stream, so the clock is unknown until it
+    # handles an event
     await reset_events_clock()
 
     # Start the automation change listener task
@@ -1433,6 +1434,7 @@ async def consumer(
         proactive_task.cancel()
         # Wait for tasks to finish
         await asyncio.gather(sync_task, proactive_task, return_exceptions=True)
+        await reset_events_clock()
 
 
 async def proactive_evaluation(

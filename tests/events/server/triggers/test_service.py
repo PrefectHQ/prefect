@@ -256,18 +256,17 @@ async def test_loads_automations_at_startup(
         load_automations.assert_awaited_once_with(open_automations_session)
 
 
-async def test_resets_the_events_clock_at_startup(
+async def test_resets_the_events_clock_at_startup_and_shutdown(
     effective_automations,
     frozen_time: DateTime,
 ):
-    await triggers.update_events_clock(
-        ReceivedEvent(
-            occurred=frozen_time - timedelta(hours=2),
-            event="things.happened",
-            resource={"prefect.resource.id": "something"},
-            id=uuid4(),
-        )
+    event = ReceivedEvent(
+        occurred=frozen_time - timedelta(hours=2),
+        event="things.happened",
+        resource={"prefect.resource.id": "something"},
+        id=uuid4(),
     )
+    await triggers.update_events_clock(event)
     assert await triggers.get_events_clock() is not None
 
     async with triggers.consumer(
@@ -275,6 +274,12 @@ async def test_resets_the_events_clock_at_startup(
     ):
         assert await triggers.get_events_clock() is None
         assert not await triggers.events_clock_is_known(frozen_time)
+
+        await triggers.update_events_clock(event)
+        assert await triggers.events_clock_is_known(frozen_time)
+
+    assert await triggers.get_events_clock() is None
+    assert not await triggers.events_clock_is_known(frozen_time)
 
 
 async def test_reconcile_automations_skips_reload_when_snapshot_matches(
