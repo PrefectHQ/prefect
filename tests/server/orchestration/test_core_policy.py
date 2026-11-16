@@ -20,8 +20,8 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.database import orm_models as orm
-from prefect.server.database import provide_database_interface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import (
     concurrency_limits,
@@ -518,13 +518,15 @@ class TestCachingBackendLogic:
 
     async def test_deleted_run_does_not_hide_older_cached_state(
         self,
-        session,
-        initialize_orchestration,
-        db,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[OrchestrationContext]],
+        db: PrefectDBInterface,
     ):
         caching_policy = [CacheInsertion, CacheRetrieval]
 
-        async def complete_with_cache_key(expiration):
+        async def complete_with_cache_key(
+            expiration: datetime.datetime,
+        ) -> OrchestrationContext:
             intended_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
             details = {"cache_key": "cache-hit", "cache_expiration": expiration}
             ctx = await initialize_orchestration(
