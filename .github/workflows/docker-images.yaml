@@ -205,7 +205,8 @@ jobs:
   trigger-prefect-aws-microvm-build:
     name: Build prefect-aws MicroVM Docker image
     needs: [publish-docker-images, get-prefect-aws-version]
-    if: github.event_name == 'release' && needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION != ''
+    # The <aws>-python3.12-microvm tag pins a prefect-aws version; a nightly would swap its Prefect for a dev release.
+    if: github.event_name == 'release' && !github.event.release.prerelease && needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION != ''
     uses: ./.github/workflows/prefect-aws-microvm-docker-images.yaml
     with:
       prefect_version: ${{ github.ref_name }}
