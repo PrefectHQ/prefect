@@ -247,16 +247,17 @@ class StopVisiting(BaseException):
     """
 
 
-def _holds_value(obj: Any, name: str, value: Any) -> bool:
-    """True if reading `name` from `obj` gives exactly `value`.
+def _lacks_field(obj: Any, name: str) -> bool:
+    """True if `obj` cannot produce a value for `name`.
 
     Descriptors may raise something other than `AttributeError` (such as
-    `KeyError`) when they hold no value for `obj`; that counts as not holding it.
+    `KeyError`) when they hold no value for `obj`; that also counts as lacking it.
     """
     try:
-        return getattr(obj, name) is value
+        getattr(obj, name)
     except Exception:
-        return False
+        return True
+    return False
 
 
 def _is_required_init_var(field: Any) -> bool:
@@ -327,18 +328,20 @@ def _effective_class_attr(cls: type, name: str) -> Any:
 def _copies_through_dataclass_state(cls: type) -> bool:
     """True when `copy.copy` of `cls` uses only the default copy protocol.
 
-    That is: no `copyreg` reducer, no `__copy__`, and the `__reduce_ex__`,
-    `__reduce__`, `__getstate__` and `__setstate__` that lookup on `cls`
-    actually resolves to are the ones from `object` or the ones `dataclasses`
-    generates. The generated `__getstate__` returns only `dataclasses.fields()`,
-    so inherited slots and inherited `__dict__` entries are missing from such a
-    copy. A class with any effective custom hook decides its own copy and is
-    trusted as is.
+    That is: no `copyreg` reducer, and every hook `copy.copy` consults under
+    pickle protocol 4 (`__copy__`, `__reduce_ex__`, `__reduce__`,
+    `__getnewargs_ex__`, `__getnewargs__`, `__getstate__`, `__setstate__`)
+    resolves, the way attribute lookup on `cls` does, to the one from `object`,
+    the one `dataclasses` generates, or nothing. The generated `__getstate__`
+    returns only `dataclasses.fields()`, so inherited slots and inherited
+    `__dict__` entries are missing from such a copy. A class with any effective
+    custom hook decides its own copy and is trusted as is.
     """
     if cls in copyreg.dispatch_table:
         return False
-    if _effective_class_attr(cls, "__copy__") is not None:
-        return False
+    for name in ("__copy__", "__getnewargs_ex__", "__getnewargs__"):
+        if _effective_class_attr(cls, name) is not None:
+            return False
     for name in ("__reduce_ex__", "__reduce__"):
         if _effective_class_attr(cls, name) is not vars(object)[name]:
             return False
@@ -361,15 +364,17 @@ def _copy_dataclass_instance(obj: Any) -> Any:
 
     `copy.copy` is preferred so `__dict__` / slots / `__copy__` are honored.
     If `__copy__` returns `self` (valid for some frozen value objects), build a
-    new instance via `__new__` and copy stored state so callers never mutate
-    the original through `object.__setattr__`. When the copy came from the
+    new instance through the type's own `__new__` (so C-backed bases such as
+    `Exception` are allocated correctly) and copy stored state so callers never
+    mutate the original through `object.__setattr__`. When the copy came from the
     default protocol, state that a `slots=True` dataclass's generated
     `__getstate__` leaves out (inherited slots and `__dict__` entries) is
     filled in from `obj`, since `__post_init__` does not run to restore it.
     """
     result = copy.copy(obj)
     if result is obj:
-        result = object.__new__(type(obj))
+        cls = type(obj)
+        result = cls.__new__(cls)
         _copy_instance_state(obj, result, only_missing=False)
     elif _copies_through_dataclass_state(type(obj)):
         _copy_instance_state(obj, result, only_missing=True)
@@ -665,11 +670,12 @@ def visit_collection(
 
     elif is_dataclass(expr) and not isinstance(expr, type):
         expr_fields = fields(expr)
-        values = [visit_nested(getattr(expr, f.name)) for f in expr_fields]
+        # Read each field once: a descriptor may return a fresh object per read,
+        # which would otherwise look like a change made by the visitor.
+        originals = [getattr(expr, f.name) for f in expr_fields]
+        values = [visit_nested(original) for original in originals]
         if return_data:
-            modified = any(
-                getattr(expr, f.name) is not v for f, v in zip(expr_fields, values)
-            )
+            modified = any(o is not v for o, v in zip(originals, values))
             if modified:
                 # Required InitVars are excluded from fields() and are not stored
                 # on the instance, so replace() cannot rebuild the object. Copy
@@ -681,14 +687,12 @@ def visit_collection(
                 )
                 if requires_init_var:
                     result = _copy_dataclass_instance(expr)
-                    # Make every stored field hold its visited value, but only
-                    # write the ones the copy does not already hold, so setters
-                    # on untouched fields are not invoked. This also restores
-                    # fields whose value lives outside `__dict__` and slots
-                    # (for example a descriptor keyed by instance), which a
-                    # shallow copy does not carry over.
-                    for f, v in zip(expr_fields, values):
-                        if not _holds_value(result, f.name, v):
+                    # Write the fields the visitor changed. An unchanged field is
+                    # only written when the copy lacks it (for example a
+                    # descriptor that keeps values outside `__dict__` and slots),
+                    # so setters on fields the copy already holds are not invoked.
+                    for f, o, v in zip(expr_fields, originals, values):
+                        if o is not v or _lacks_field(result, f.name):
                             object.__setattr__(result, f.name, v)
                 else:
                     result = replace(

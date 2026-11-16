@@ -393,6 +393,55 @@ class DataclassWithInitVarAndWeakStoreField:
     y: int = WeakStoreDescriptor(0)
 
 
+class DefensiveWriteOnceDescriptor:
+    """Returns a fresh copy on every read and rejects reassignment."""
+
+    def __set_name__(self, owner, name):
+        self._attr = f"_{name}"
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return 0
+        return list(obj.__dict__[self._attr])
+
+    def __set__(self, obj, value):
+        if self._attr in obj.__dict__:
+            raise AttributeError("write-once field")
+        obj.__dict__[self._attr] = list(value)
+
+
+@dataclass
+class DataclassWithInitVarAndDefensiveField:
+    x: int
+    seed: InitVar[int]
+    y: list = DefensiveWriteOnceDescriptor()
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarCustomNewargs(PrivateSlotBase):
+    """Customizes reconstruction, so its copies are trusted as they come out."""
+
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        object.__setattr__(self, "_PrivateSlotBase__cache", seed)
+
+    def __getnewargs__(self):
+        return ()
+
+
+@dataclass(frozen=True)
+class FrozenInitVarErrorCopyReturnsSelf(Exception):
+    """`object.__new__` refuses `Exception` subclasses."""
+
+    x: int
+    seed: InitVar[int]
+
+    def __copy__(self):
+        return self
+
+
 class SimplePydantic(pydantic.BaseModel):
     x: int
     y: int
@@ -794,6 +843,47 @@ class TestVisitCollection:
         assert result.y == 7
         assert inp.x is token
         assert inp.y == 7
+
+    def test_visit_collection_init_var_copy_skips_setters_for_defensive_fields(self):
+        token = object()
+        inp = DataclassWithInitVarAndDefensiveField(x=token, seed=3, y=[1, 2])
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, DataclassWithInitVarAndDefensiveField)
+        assert result is not inp
+        assert result.x == 42
+        assert result.y == [1, 2]
+        assert inp.x is token
+
+    def test_visit_collection_init_var_copy_trusts_custom_newargs(self):
+        token = object()
+        inp = FrozenSlotsInitVarCustomNewargs(x=token, seed=3)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, FrozenSlotsInitVarCustomNewargs)
+        assert result is not inp
+        assert result.x == 42
+        with pytest.raises(AttributeError):
+            result.cached()
+
+    def test_visit_collection_init_var_copy_returns_self_on_exception_subclass(self):
+        token = object()
+        inp = FrozenInitVarErrorCopyReturnsSelf(x=token, seed=3)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, FrozenInitVarErrorCopyReturnsSelf)
+        assert result is not inp
+        assert result.x == 42
+        assert inp.x is token
 
     def test_visit_collection_does_not_consume_generators(self):
         def f():
