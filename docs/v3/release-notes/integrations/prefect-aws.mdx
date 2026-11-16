@@ -1,6 +1,39 @@
 ---
 title: prefect-aws
-description: Release notes for prefect-aws 0.5.14 through 0.7.12, including event-based ECS crash detection and a configurable base directory for included files.
+description: Release notes for prefect-aws 0.5.14 through 0.8.0, including a Lambda MicroVM entrypoint, event-based ECS crash detection, and a configurable base directory for included files.
+---
+
+## 0.8.0
+
+_Released on November 13, 2026_
+
+**Breaking Changes**
+
+- Drop Python 3.10 support [#23324](https://github.com/PrefectHQ/prefect/pull/23324) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Features**
+
+- Add a Lambda MicroVM base image and entrypoint [#23844](https://github.com/PrefectHQ/prefect/pull/23844) by [@bunchesofdonald](https://github.com/bunchesofdonald)
+
+**Bug Fixes**
+
+- Fix the ECS worker CLI on `typer` 0.29 [#23846](https://github.com/PrefectHQ/prefect/pull/23846) by [@bunchesofdonald](https://github.com/bunchesofdonald)
+- Preserve S3 bucket prefixes for paths with leading slashes [#23407](https://github.com/PrefectHQ/prefect/pull/23407) by [@ska2704](https://github.com/ska2704)
+- Omit inferred `securityGroups` so ECS tasks use the VPC default security group [#23132](https://github.com/PrefectHQ/prefect/pull/23132) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Documentation**
+
+- Link to the docs at www.prefect.io/docs [#23642](https://github.com/PrefectHQ/prefect/pull/23642) by [@maximearmstrong](https://github.com/maximearmstrong)
+
+**Maintenance**
+
+- Update classifiers and add Python 3.14 to integration tests [#23273](https://github.com/PrefectHQ/prefect/pull/23273) by [@vyagubov](https://github.com/vyagubov)
+- Fix ECS container resource expectations for Moto 5.2.4 [#23431](https://github.com/PrefectHQ/prefect/pull/23431) by [@desertaxle](https://github.com/desertaxle)
+- Replace Sanity-hosted logo URLs [#23235](https://github.com/PrefectHQ/prefect/pull/23235) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Update npm dependencies [#23163](https://github.com/PrefectHQ/prefect/pull/23163) by [@prefect-renovate](https://github.com/apps/prefect-renovate)
+- Update npm dependencies [#23101](https://github.com/PrefectHQ/prefect/pull/23101) by [@prefect-renovate](https://github.com/apps/prefect-renovate)
+- Update npm dependencies [#22992](https://github.com/PrefectHQ/prefect/pull/22992) by [@prefect-renovate](https://github.com/apps/prefect-renovate)
+
 ---
 
 ## 0.7.12

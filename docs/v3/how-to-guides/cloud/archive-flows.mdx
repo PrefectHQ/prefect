@@ -1,0 +1,201 @@
+---
+title: How to archive and restore flows
+sidebarTitle: Archive flows
+description: Keep your workspace organized by archiving retired flows and restoring them when you need them.
+keywords: ["inactive", "dormant", "workspace policies", "unarchive", "run history", "pause and archive"]
+---
+
+<span class="badge cloud"></span>
+
+Archive flows you no longer use to remove them from the default views without deleting their run history.
+You can archive flows yourself or use workspace policies to archive dormant flows and restore flows that run again.
+
+You need permission to manage flows (`manage_flows`) to archive or unarchive them.
+To configure workspace policies, you also need permission to manage automations.
+
+## Archive a flow
+
+1. Open **Flows** in your workspace.
+2. Open the flow's action menu, either in its list row or on its detail page, and select **Archive**.
+3. Review the confirmation and select **Archive**.
+
+An archived flow does not appear in the default view of the **Flows** page.
+Its deployments do not appear in the default view of the **Deployments** page, and they are labeled **Archived**.
+Search, the command palette, and the flow pickers still return the flow, with an **Archived** label.
+Runs of an archived flow also show the label.
+Favorited flows stay in **Favorites**, including archived flows.
+
+### Flows with schedules that are on
+
+Prefect Cloud does not archive a flow while one of its deployments has a schedule that is on.
+The confirmation lists those deployments, with links to their schedules.
+
+- If you can edit those deployments, the confirmation offers **Pause and archive**. This pauses the deployments and then archives the flow.
+- Otherwise, pause the deployments or turn their schedules off, then archive the flow.
+
+Unarchiving the flow does not resume the deployments.
+Resume them yourself when you want their schedules to run again.
+
+### What archiving changes
+
+<Note>
+Archiving never deletes run history. Your plan's normal retention policy still applies.
+</Note>
+
+Archiving deletes the flow's runs that its deployment schedules created and that have not started yet, including late runs.
+Pausing a deployment deletes the same runs.
+Runs that you scheduled yourself, and runs that have already started, are not changed.
+Archiving does not cancel runs, and it leaves the flow's deployments as they are.
+
+### Automations that run the flow's deployments
+
+If an automation runs one of the flow's deployments, the confirmation names the deployment and links to the automations.
+Archiving does not stop these runs.
+With [archived flow restoration](#restore-archived-flows-when-they-run-again) on, the next run unarchives the flow.
+
+## Find archived flows and deployments
+
+The **Flows** and **Deployments** pages have **All** and **Favorites** tabs.
+On the **All** tab, open the menu beside the tabs to choose a view:
+
+- **Unarchived** (the default) hides archived flows and their deployments.
+- **All** shows archived and unarchived items.
+- **Archived** shows only archived items.
+
+The menu button is highlighted while you are not in the default view.
+When a search also matches archived items, select **Show archived results** to include them.
+
+## Restore a flow
+
+Open the flow's action menu and select **Unarchive**.
+You can unarchive a flow from its list row in the **Archived** or **All** view, or from its detail page.
+The flow and its deployments return to the default views.
+Unarchiving does not resume paused deployments or turn schedules back on.
+
+## Archive or restore multiple flows
+
+1. Open **Flows** and select the flows you want to change. Select all to include every flow that matches the current view and search.
+2. Select **Archive selected flows** or **Unarchive selected flows**.
+3. Review the confirmation and the result.
+
+When you archive several flows, the confirmation lists the flows whose deployments have schedules that are on.
+If you can edit those deployments, select **Pause and archive** to pause them and archive every selected flow.
+Otherwise, Prefect Cloud archives the other selected flows and leaves those flows unarchived.
+
+## Run an archived flow
+
+What happens when you start a run of an archived flow depends on [archived flow restoration](#restore-archived-flows-when-they-run-again):
+
+- **Restoration on:** the run dialog warns that the flow is archived. The run starts, and the flow is unarchived.
+- **Restoration off:** the Prefect Cloud UI does not start a run of an archived flow. Unarchive the flow first, or turn on archived flow restoration.
+
+Automations, the API, and the Prefect CLI and SDK can still start runs of an archived flow.
+With restoration off, the flow stays archived when these runs start.
+
+## Enable automatic archival and restoration
+
+Prefect Cloud provides two policies that create automations for flow archival.
+Both policies are off by default, and you can enable them independently in each workspace.
+
+1. Open the workspace menu in the upper left and select **Settings**.
+2. Under **Account Settings → Controls**, make sure **Workspace policies** is enabled. If you cannot change this setting, ask an account administrator.
+3. Under **Workspace Settings → Policies**, enable **Dormant flow archival**, **Archived flow restoration**, or both.
+4. For **Dormant flow archival**, set the number of days without runs and select **Save** after changing the setting.
+
+Automations created by enabled policies appear in the **Workspace policies** section of the workspace's automations list.
+Enabling workspace policies in account controls alone does not turn on either policy for a workspace.
+
+### Archive dormant flows
+
+**Dormant flow archival** archives flows that have had no runs for the configured window.
+The default is **90 days**, and you can set a value from **1 to 365 days** (`inactive_days` in the API).
+Prefect Cloud uses the shorter of that window and your plan's run retention.
+For example, a 90-day setting on a plan with 30-day run retention uses a 30-day window.
+The settings page shows your plan's retention.
+
+A flow is eligible when all of the following are true:
+
+- It is not already archived.
+- It has not been created or updated within the window.
+- It has no recent runs and no unfinished runs, including scheduled, pending, running, or paused runs.
+- None of its deployments has a schedule that is on.
+- None of its deployments was created or updated within the window.
+- No enabled automation runs one of its deployments through a **Run a deployment** action that selects that deployment.
+
+Run activity uses the run's start time, or its expected start time if it has not started.
+A flow that has never run must still be older than the window.
+Manually unarchiving a flow updates it, giving it a full window before it can be archived again.
+
+Some runs cannot be predicted from the workspace's configuration.
+Examples are runs started from another flow, from an external system through the API, or by an automation that infers the deployment from its triggering event.
+Turn on archived flow restoration so that these flows come back when they run.
+
+Prefect Cloud checks daily and processes up to 50 eligible flows per workspace, spread across the day.
+Archival is gradual: a large backlog can take several days to clear.
+Each eligible flow produces a [`prefect.flow.dormant` event](/v3/api-ref/events/flow-events#prefect-flow-dormant), which triggers the archive action.
+The flow is checked again before the event is emitted.
+
+### Restore archived flows when they run again
+
+**Archived flow restoration** unarchives a flow when Prefect Cloud observes a `Scheduled`, `Pending`, or `Running` flow-run event whose related flow is archived.
+This applies to flows archived manually as well as those archived by an automation.
+There are no settings beyond enabling or disabling it.
+
+Restoration can happen when a run is scheduled, before execution starts.
+If you resume a deployment schedule for an archived flow, that schedule can create runs; with restoration enabled, its next run restores the flow.
+With restoration disabled, the flow stays archived even if you run it again.
+
+The automation groups matching events by flow within a 10-minute window to avoid repeated restoration actions during a burst of runs.
+It reacts to the first matching event; the window does not add a 10-minute delay.
+It matches the event names above, so custom state names do not match unless the run also emits one of those events.
+
+### Turn off a policy
+
+Turn off either policy under **Workspace Settings → Policies**.
+Turning off dormant flow archival leaves already archived flows archived.
+You can still unarchive them manually or use archived flow restoration.
+
+## Use archival in your own automations
+
+When [creating an automation](/v3/how-to-guides/automations/creating-automations), choose **Archive a flow** (`archive-flow`) or **Unarchive a flow** (`unarchive-flow`) as the action.
+Select a specific flow or infer it from the triggering event's resource or related resources.
+An archive action fails if one of the flow's deployments has a schedule that is on; it does not pause them.
+
+Manual, bulk, and automated changes emit the same [`prefect.flow.archived` and `prefect.flow.unarchived` events](/v3/api-ref/events/flow-events).
+Use them to trigger notifications or other actions regardless of how the change was made.
+Repeating an archive or unarchive action on a flow already in that state does not emit another event.
+
+## Filter archived flows through the API
+
+The Prefect Cloud API includes archived flows by default.
+To select only archived flows, send this body to `POST /flows/filter` relative to your workspace API URL:
+
+```json
+{
+  "flows": {
+    "archived": { "eq_": true }
+  }
+}
+```
+
+Use `false` for unarchived flows, or omit `archived` to include both.
+The same flow filter works with flow counts and pagination, and as the nested `flows` filter when querying deployments.
+Flow responses include `archived` and `archived_at`; unarchiving resets `archived_at` to `null`.
+
+To change a flow's archived state, use `POST /flows/{id}/archive` or `POST /flows/{id}/unarchive`.
+Both return `204` on success, including when the flow is already in the requested state.
+Archiving returns `409` while one of the flow's deployments has a schedule that is on; the API does not pause schedules for you.
+Archiving deletes the same scheduled runs as archiving in the UI.
+
+For bulk changes, use `POST /flows/bulk_archive` or `POST /flows/bulk_unarchive` with a nonempty `flows` filter and a `limit` from 1 to 50.
+The response reports per-flow results (`ARCHIVED`, `UNARCHIVED`, or `BLOCKED`), so a blocked flow does not stop the rest of the batch.
+A `BLOCKED` result lists the deployments with schedules that are on in `scheduled_deployments`.
+
+### Find archival automations with older clients
+
+Use `prefect` **3.9.0 or later** to read automations that contain archive or unarchive actions through the CLI or Python client.
+This version requires **Python 3.11 or later**.
+
+Older clients omit these automations from `prefect automation ls`, `prefect transfer`, and automation lookups such as `Automation.read()`.
+Inspecting one can report it as not found, even though it is visible in Prefect Cloud.
+Upgrade your client and, if needed, Python, or manage the automation in the Cloud UI.

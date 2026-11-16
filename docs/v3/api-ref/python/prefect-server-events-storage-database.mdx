@@ -70,7 +70,7 @@ Read events from the Postgres database.
 - A list of events ORM objects.
 
 
-### `write_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `write_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_events(session: AsyncSession, events: list[ReceivedEvent]) -> None
@@ -84,13 +84,13 @@ Write events to the database.
 - `events`: the events to insert
 
 
-### `get_number_of_event_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L290" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_number_of_event_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_number_of_event_fields() -> int
 ```
 
-### `get_number_of_resource_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_number_of_resource_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L327" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_number_of_resource_fields() -> int

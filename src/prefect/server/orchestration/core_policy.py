@@ -1538,7 +1538,12 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
             updated_policy["resuming"] = False
             updated_policy["pause_keys"] = set()
             updated_policy["retry_type"] = "reschedule"
-        else:
+        elif validated_state is not None and validated_state.is_scheduled():
+            # The run resumes from the top in a new process; the flag tells
+            # `IncrementFlowRunCount` that its next `Running` state continues
+            # the current attempt. A blocking pause resumed with `Running` is
+            # handled there directly, and leaving the flag set on any other
+            # state would make the next attempt skip its run count increment.
             updated_policy["resuming"] = True
 
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)

@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import threading
 import uuid
+from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -366,6 +367,161 @@ class TestCommitMode:
 
             assert not txn.is_committed()
             assert txn.is_rolled_back()
+
+
+@pytest.mark.parametrize("parent_type", [Transaction, AsyncTransaction])
+@pytest.mark.parametrize("child_type", [Transaction, AsyncTransaction])
+@pytest.mark.parametrize("fail_commit", [True, False])
+async def test_parent_commit_requires_committed_child(
+    parent_type: type[Transaction | AsyncTransaction],
+    child_type: type[Transaction | AsyncTransaction],
+    fail_commit: bool,
+    tmp_path: Path,
+):
+    store = ResultStore(result_storage=LocalFileSystem(basepath=tmp_path / "results"))
+    artifact = tmp_path / "invoice.txt"
+    artifact.write_text("invoice")
+    parent_commits = []
+
+    def on_commit(txn: BaseTransaction):
+        if fail_commit:
+            raise ValueError("billing service unavailable")
+
+    def on_rollback(txn: BaseTransaction):
+        artifact.unlink()
+
+    parent = parent_type(key="parent", store=store)
+    child = child_type(commit_mode=CommitMode.LAZY if fail_commit else CommitMode.EAGER)
+    async with AsyncExitStack() as outer:
+        if isinstance(parent, AsyncTransaction):
+            await outer.enter_async_context(parent)
+        else:
+            outer.enter_context(parent)
+        parent.stage("done", on_commit_hooks=[lambda txn: parent_commits.append(True)])
+        async with AsyncExitStack() as inner:
+            if isinstance(child, AsyncTransaction):
+                await inner.enter_async_context(child)
+            else:
+                inner.enter_context(child)
+            child.stage(
+                "invoice", on_commit_hooks=[on_commit], on_rollback_hooks=[on_rollback]
+            )
+
+    assert child.is_committed() is (not fail_commit)
+    assert parent.is_committed() is (not fail_commit)
+    assert parent.is_rolled_back() is fail_commit
+    assert artifact.exists() is (not fail_commit)
+    assert parent_commits == ([] if fail_commit else [True])
+    with transaction(key="parent", store=store) as reopened:
+        assert reopened.is_committed() is (not fail_commit)
+
+
+@pytest.mark.parametrize("parent_type", [Transaction, AsyncTransaction])
+@pytest.mark.parametrize("child_type", [Transaction, AsyncTransaction])
+async def test_child_persistence_failure_rolls_back_parent(
+    parent_type: type[Transaction | AsyncTransaction],
+    child_type: type[Transaction | AsyncTransaction],
+    tmp_path: Path,
+):
+    store = ResultStore(result_storage=LocalFileSystem(basepath=tmp_path / "results"))
+    child_storage = tmp_path / "child-results"
+    child_store = ResultStore(result_storage=LocalFileSystem(basepath=child_storage))
+    commits: list[str] = []
+    rollbacks: list[str] = []
+    parent = parent_type(key="parent", store=store)
+    child = child_type(key="child", store=child_store, commit_mode=CommitMode.LAZY)
+
+    async with AsyncExitStack() as outer:
+        if isinstance(parent, AsyncTransaction):
+            await outer.enter_async_context(parent)
+        else:
+            outer.enter_context(parent)
+        parent.stage(
+            "parent result",
+            on_commit_hooks=[lambda txn: commits.append("parent")],
+            on_rollback_hooks=[lambda txn: rollbacks.append("parent")],
+        )
+        async with AsyncExitStack() as inner:
+            if isinstance(child, AsyncTransaction):
+                await inner.enter_async_context(child)
+            else:
+                inner.enter_context(child)
+            child.stage(
+                child_store.create_result_record("child result", key="child"),
+                on_commit_hooks=[lambda txn: commits.append("child")],
+                on_rollback_hooks=[lambda txn: rollbacks.append("child")],
+            )
+        assert child.is_staged()
+        # A file where the storage directory belongs makes the real write fail.
+        child_storage.write_text("blocked")
+
+    assert child.is_rolled_back()
+    assert parent.is_rolled_back()
+    assert commits == ["child"]
+    assert rollbacks == ["child", "parent"]
+    assert not store.exists("parent")
+    assert not child_store.exists("child")
+
+
+@pytest.mark.parametrize("parent_type", [Transaction, AsyncTransaction])
+@pytest.mark.parametrize("child_type", [Transaction, AsyncTransaction])
+async def test_later_child_failure_preserves_committed_child(
+    parent_type: type[Transaction | AsyncTransaction],
+    child_type: type[Transaction | AsyncTransaction],
+    tmp_path: Path,
+):
+    store = ResultStore(result_storage=LocalFileSystem(basepath=tmp_path / "results"))
+    commits: list[str] = []
+    rollbacks: list[str] = []
+
+    def on_commit(txn: BaseTransaction):
+        assert txn.key is not None
+        commits.append(txn.key)
+        if txn.key == "failing":
+            raise ValueError("billing service unavailable")
+
+    def on_rollback(txn: BaseTransaction):
+        assert txn.key is not None
+        rollbacks.append(txn.key)
+
+    parent = parent_type(key="parent", store=store)
+    children = [
+        child_type(key=key, store=store, commit_mode=CommitMode.LAZY)
+        for key in ("first", "failing", "last")
+    ]
+    async with AsyncExitStack() as outer:
+        if isinstance(parent, AsyncTransaction):
+            await outer.enter_async_context(parent)
+        else:
+            outer.enter_context(parent)
+        parent.stage(
+            "parent result",
+            on_commit_hooks=[on_commit],
+            on_rollback_hooks=[on_rollback],
+        )
+        for child in children:
+            async with AsyncExitStack() as inner:
+                if isinstance(child, AsyncTransaction):
+                    await inner.enter_async_context(child)
+                else:
+                    inner.enter_context(child)
+                child.stage(
+                    child.key,
+                    on_commit_hooks=[on_commit],
+                    on_rollback_hooks=[on_rollback],
+                )
+            assert child.is_staged()
+
+    first, failing, last = children
+    assert first.is_committed()
+    assert failing.is_rolled_back()
+    assert last.is_rolled_back()
+    assert parent.is_rolled_back()
+    assert commits == ["first", "failing"]
+    assert rollbacks == ["failing", "parent", "last"]
+    assert store.read("first").result == "first"
+    for key in ("parent", "failing", "last"):
+        assert not store.exists(key)
 
 
 class TestRollBacks:

@@ -885,6 +885,76 @@ class TestRemoteFileSystemAsyncDispatch:
         content = await fs.read_path("uploaded/test.txt")
         assert content == b"hello aput"
 
+    def test_sync_put_directory_without_overwrite_raises_for_existing_file(
+        self, tmp_path: Path
+    ):
+        fs = RemoteFileSystem(basepath="memory://test-put-dir-no-overwrite/")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        local_file = local_dir / "test.txt"
+        local_file.write_bytes(b"original")
+        fs.put_directory(local_path=str(local_dir), to_path="uploaded/")
+
+        local_file.write_bytes(b"replacement")
+        with pytest.raises(FileExistsError, match="test.txt"):
+            fs.put_directory(
+                local_path=str(local_dir), to_path="uploaded/", overwrite=False
+            )
+
+        assert fs.read_path("uploaded/test.txt") == b"original"
+
+    def test_sync_put_directory_without_overwrite_uploads_new_files(
+        self, tmp_path: Path
+    ):
+        fs = RemoteFileSystem(basepath="memory://test-put-dir-no-overwrite-new/")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        (local_dir / "test.txt").write_bytes(b"hello")
+
+        count = fs.put_directory(
+            local_path=str(local_dir), to_path="uploaded/", overwrite=False
+        )
+
+        assert count == 1
+        assert fs.read_path("uploaded/test.txt") == b"hello"
+
+    def test_sync_put_directory_overwrites_existing_file_by_default(
+        self, tmp_path: Path
+    ):
+        fs = RemoteFileSystem(basepath="memory://test-put-dir-overwrite/")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        local_file = local_dir / "test.txt"
+        local_file.write_bytes(b"original")
+        fs.put_directory(local_path=str(local_dir), to_path="uploaded/")
+
+        local_file.write_bytes(b"replacement")
+        fs.put_directory(local_path=str(local_dir), to_path="uploaded/")
+
+        assert fs.read_path("uploaded/test.txt") == b"replacement"
+
+    async def test_async_put_directory_without_overwrite_raises_for_existing_file(
+        self, tmp_path: Path
+    ):
+        fs = RemoteFileSystem(basepath="memory://test-aput-dir-no-overwrite/")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        local_file = local_dir / "test.txt"
+        local_file.write_bytes(b"original")
+        await fs.aput_directory(local_path=str(local_dir), to_path="uploaded/")
+
+        local_file.write_bytes(b"replacement")
+        with pytest.raises(FileExistsError, match="test.txt"):
+            await fs.aput_directory(
+                local_path=str(local_dir), to_path="uploaded/", overwrite=False
+            )
+
+        assert await fs.aread_path("uploaded/test.txt") == b"original"
+
 
 try:
     import fsspec.implementations.smb  # noqa: F401
@@ -941,3 +1011,19 @@ class TestSMB:
             "The host name should not be duplicated"
         )
         assert unc_path == r"\\my.smb.server.edu\prefect\storage\test-dir"
+
+    @patch("fsspec.implementations.smb.smbclient")
+    async def test_put_directory_overwrites_existing_files(
+        self, mock_smbclient: MagicMock, smb_block: SMB, tmp_path: Path
+    ):
+        mock_smbclient.register_session.return_value = None
+        mock_smbclient.open_file.return_value = MagicMock()
+        (tmp_path / "flow.py").write_text("print('hello')")
+
+        count = await smb_block.aput_directory(local_path=str(tmp_path))
+
+        assert count == 1
+        mock_smbclient.open_file.assert_called_once()
+        call_args, call_kwargs = mock_smbclient.open_file.call_args
+        assert call_args[0] == r"\\my.smb.server.edu\prefect\storage\flow.py"
+        assert "overwrite" not in call_kwargs

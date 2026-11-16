@@ -1593,25 +1593,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         run_logger = self.get_flow_run_logger(flow_run)
 
-        if flow_run.deployment_id:
-            try:
-                await self.client.read_deployment(flow_run.deployment_id)
-            except ObjectNotFound:
-                self._logger.exception(
-                    f"Deployment {flow_run.deployment_id} no longer exists. "
-                    f"Flow run {flow_run.id} will not be submitted for"
-                    " execution"
-                )
-                self._submitting_flow_run_ids.remove(flow_run.id)
-                if self._cancelling_observer is not None:
-                    self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
-                await self._mark_flow_run_as_cancelled(
-                    flow_run,
-                    state_updates=dict(
-                        message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
-                    ),
-                )
-                return
+        if not await self._check_deployment_before_submission(flow_run, run_logger):
+            self._release_limit_slot(flow_run.id)
+            self._submitting_flow_run_ids.remove(flow_run.id)
+            if self._cancelling_observer is not None:
+                self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
+            return
 
         ready_to_submit = await self._propose_pending_state(flow_run)
         self._logger.debug(f"Ready to submit {flow_run.id}: {ready_to_submit}")
@@ -1647,6 +1634,50 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._submitting_flow_run_ids.remove(flow_run.id)
         if self._cancelling_observer is not None:
             self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
+
+    async def _check_deployment_before_submission(
+        self, flow_run: "FlowRun", run_logger: PrefectLogAdapter
+    ) -> bool:
+        """
+        Returns whether the flow run's deployment can be read, so the run can be
+        submitted.
+
+        Runs whose deployment no longer exists are cancelled. Any other error
+        leaves the run scheduled so a later poll can retry it; letting it escape
+        would crash the worker's task group.
+        """
+        if not flow_run.deployment_id:
+            return True
+
+        try:
+            await self.client.read_deployment(flow_run.deployment_id)
+            return True
+        except ObjectNotFound:
+            self._logger.exception(
+                f"Deployment {flow_run.deployment_id} no longer exists. "
+                f"Flow run {flow_run.id} will not be submitted for"
+                " execution"
+            )
+        except Exception:
+            run_logger.exception(
+                f"Failed to read deployment {flow_run.deployment_id} for flow run"
+                f" '{flow_run.id}'. The flow run will be retried on the next poll."
+            )
+            return False
+
+        try:
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates=dict(
+                    message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
+                ),
+            )
+        except Exception:
+            run_logger.exception(
+                f"Failed to cancel flow run '{flow_run.id}'. The flow run will be"
+                " retried on the next poll."
+            )
+        return False
 
     async def _submit_run_and_capture_errors(
         self,

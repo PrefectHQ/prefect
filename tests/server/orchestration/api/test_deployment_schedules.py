@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 from uuid import UUID, uuid4
 
 import pytest
@@ -8,7 +8,7 @@ from fastapi import status
 from httpx import AsyncClient
 
 from prefect.server import models, schemas
-from prefect.server.database import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, orm_models
 from prefect.types._datetime import now
 from tests.server import AsyncSessionGetter
 
@@ -174,6 +174,33 @@ class TestCreateDeploymentSchedules:
 
         assert response.status_code == status.HTTP_409_CONFLICT
 
+    async def test_create_hydrates_parameters(
+        self,
+        client: AsyncClient,
+        schedules_url: Callable[..., str],
+        deployment: orm_models.Deployment,
+    ):
+        # The UI sends parameters edited in JSON mode in their dehydrated form
+        response = await client.post(
+            schedules_url(deployment.id),
+            json=[
+                {
+                    "schedule": {"interval": 3600},
+                    "parameters": {
+                        "tables_to_fetch": {
+                            "__prefect_kind": "json",
+                            "value": '[{"prop": "value", "some_arr": []}]',
+                        }
+                    },
+                }
+            ],
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()[0]["parameters"] == {
+            "tables_to_fetch": [{"prop": "value", "some_arr": []}]
+        }
+
     async def test_404_non_existent_deployment(
         self,
         client: AsyncClient,
@@ -333,6 +360,82 @@ class TestUpdateDeploymentSchedule:
 
         assert the_schedule.parameters == {"foo": "bar"}
 
+    async def test_update_hydrates_parameters(
+        self,
+        get_server_session: AsyncSessionGetter,
+        client: AsyncClient,
+        deployment_with_schedules: orm_models.Deployment,
+        schedules_url: Callable[..., str],
+        schedule_to_update: schemas.core.DeploymentSchedule,
+    ):
+        url = schedules_url(
+            deployment_with_schedules.id, schedule_id=schedule_to_update.id
+        )
+        response = await client.patch(
+            url,
+            json={
+                "parameters": {
+                    "tables_to_fetch": {
+                        "__prefect_kind": "json",
+                        "value": '[{"prop": "value", "some_arr": []}]',
+                    }
+                }
+            },
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+            )
+
+        the_schedule = next(
+            schedule for schedule in schedules if schedule.id == schedule_to_update.id
+        )
+
+        assert the_schedule.parameters == {
+            "tables_to_fetch": [{"prop": "value", "some_arr": []}]
+        }
+
+    @pytest.mark.parametrize(
+        "parameters, error",
+        [
+            (
+                {"x": {"__prefect_kind": "json", "value": '{"invalid": json}'}},
+                "Invalid JSON: Expecting value:",
+            ),
+            (
+                {"__prefect_kind": "json", "value": "[1, 2]"},
+                "Parameters must be a JSON object",
+            ),
+            (
+                {"x": {"__prefect_kind": []}},
+                "Invalid __prefect_kind: expected a string, got list",
+            ),
+        ],
+        ids=["invalid-json", "not-an-object", "list-kind"],
+    )
+    async def test_update_with_parameters_that_fail_to_hydrate(
+        self,
+        client: AsyncClient,
+        deployment_with_schedules: orm_models.Deployment,
+        schedules_url: Callable[..., str],
+        schedule_to_update: schemas.core.DeploymentSchedule,
+        parameters: dict[str, Any],
+        error: str,
+    ):
+        url = schedules_url(
+            deployment_with_schedules.id, schedule_id=schedule_to_update.id
+        )
+        response = await client.patch(url, json={"parameters": parameters})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            f"Error hydrating schedule parameters: {error}" in response.json()["detail"]
+        )
+
     async def test_404_non_existent_deployment(
         self,
         client: AsyncClient,
@@ -403,6 +506,73 @@ class TestUpdateDeploymentSchedule:
 
         # Deleting the schedule should remove all scheduled runs
         assert len(flow_runs) == 0
+
+
+class TestLegacyInvalidRRuleTimezone:
+    @pytest.fixture
+    async def legacy_schedule(
+        self,
+        db: PrefectDBInterface,
+        get_server_session: AsyncSessionGetter,
+        deployment,
+    ) -> UUID:
+        # Stored before RRule timezones were validated on write.
+        async with get_server_session() as session:
+            await models.deployments.delete_schedules_for_deployment(
+                session=session, deployment_id=deployment.id
+            )
+            schedule = db.DeploymentSchedule(
+                deployment_id=deployment.id,
+                schedule=schemas.schedules.RRuleSchedule(
+                    rrule="FREQ=DAILY", timezone="UTC+2"
+                ),
+                active=False,
+            )
+            session.add(schedule)
+            await session.commit()
+            return schedule.id
+
+    async def test_legacy_schedule_stays_readable(
+        self,
+        client: AsyncClient,
+        schedules_url: Callable[..., str],
+        deployment,
+        legacy_schedule: UUID,
+    ):
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["schedules"][0]["schedule"]["timezone"] == "UTC+2"
+
+        response = await client.get(schedules_url(deployment.id))
+        assert response.status_code == status.HTTP_200_OK
+        assert [s["id"] for s in response.json()] == [str(legacy_schedule)]
+
+    async def test_legacy_schedule_can_be_repaired(
+        self,
+        get_server_session: AsyncSessionGetter,
+        client: AsyncClient,
+        schedules_url: Callable[..., str],
+        deployment,
+        legacy_schedule: UUID,
+    ):
+        url = schedules_url(deployment.id, schedule_id=legacy_schedule)
+        response = await client.patch(
+            url,
+            json={"schedule": {"rrule": "FREQ=DAILY", "timezone": "UTC+2"}},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+        response = await client.patch(
+            url,
+            json={"schedule": {"rrule": "FREQ=DAILY", "timezone": "Etc/GMT-2"}},
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session, deployment_id=deployment.id
+            )
+        assert [s.schedule.timezone for s in schedules] == ["Etc/GMT-2"]
 
 
 class TestDeleteDeploymentSchedule:

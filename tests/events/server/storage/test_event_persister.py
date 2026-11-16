@@ -536,6 +536,34 @@ async def test_successful_flush_resets_retry_counter(
     assert (await get_event_count(session)) >= 1
 
 
+async def test_event_with_null_bytes_does_not_drop_its_batch(
+    event: ReceivedEvent,
+    session: AsyncSession,
+):
+    """PostgreSQL rejects null bytes, and events are written in batches, so one
+    event with a null byte must not keep the rest of its batch from being stored."""
+    async with event_persister.create_handler(
+        batch_size=10,
+        flush_every=timedelta(days=100),
+    ) as handler:
+        for _ in range(9):
+            event.id = uuid4()
+            message = CapturedMessage(
+                data=event.model_dump_json().encode(), attributes={}
+            )
+            await handler(message)
+
+        event.id = uuid4()
+        event.payload = {"stdout": "binary\x00output"}
+        message = CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+        await handler(message)
+
+    assert (await get_event_count(session)) == 10
+    stored_event = await get_event(event.id)
+    assert stored_event
+    assert stored_event.payload == {"stdout": "binary\ufffdoutput"}
+
+
 async def test_logs_warning_at_high_queue_capacity(
     event: ReceivedEvent,
     caplog: pytest.LogCaptureFixture,

@@ -83,3 +83,56 @@ class TestHashObjects:
         assert "Unable to create hash" in error_msg
         assert "JSON error" in error_msg
         assert "Pickle error" in error_msg
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ((1, 2, 3), [1, 2, 3]),
+            ({"x": (1, 2, 3)}, {"x": [1, 2, 3]}),
+            ({"x": [(1, 2)]}, {"x": [[1, 2]]}),
+            ({1: "a", 2: "b"}, {"1": "a", "2": "b"}),
+            ({True: "a"}, {"true": "a"}),
+            ({None: "a"}, {"null": "a"}),
+            ({1: "a"}, {True: "a"}),
+            ({"x": {1: "a"}}, {"x": {"1": "a"}}),
+            ((1, 2), {"__tuple__": [1, 2]}),
+            ({1: "a"}, {"__dict__": [[1, "a"]]}),
+            (((1, 2),), ({"__tuple__": [1, 2]},)),
+            ({1: {"__dict__": [[1, "a"]]}}, {1: {1: "a"}}),
+        ],
+    )
+    def test_hash_objects_distinguishes_types_json_conflates(self, a, b):
+        assert hash_objects(a) != hash_objects(b)
+        assert hash_objects(x=a) != hash_objects(x=b)
+
+    def test_hash_objects_non_string_key_dicts_ignore_insertion_order(self):
+        assert hash_objects({1: "a", "b": 2, None: 3}) == hash_objects(
+            {None: 3, "b": 2, 1: "a"}
+        )
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ({"__tuple__": [1, 2]}, "0ec37ee9aedc75d89ae93290c56c0bfa"),
+            ({"a": {"__dict__": [[1, "a"]]}}, "27b3f9b96b0f98ea554f86eb4f8555ca"),
+        ],
+    )
+    def test_hash_objects_is_unchanged_for_json_native_inputs_using_tag_keys(
+        self, value, expected
+    ):
+        assert hash_objects(value) == expected
+
+    def test_hash_objects_is_unchanged_for_json_native_inputs(self):
+        assert (
+            hash_objects({"x": [1, 2, 3], "y": {"z": None}}, k={"q": [1]})
+            == "545bbf5dffb19812091387db64bb8755"
+        )
+
+    def test_hash_objects_falls_back_to_pickle_for_unsupported_keys(self):
+        assert hash_objects({(1, 2): "a"}) == hash_objects({(1, 2): "a"})
+        assert hash_objects({(1, 2): "a"}) != hash_objects({(1, 3): "a"})
+
+    def test_hash_objects_handles_self_referential_containers(self):
+        data: list[object] = [1]
+        data.append(data)
+        assert hash_objects(data) is not None
