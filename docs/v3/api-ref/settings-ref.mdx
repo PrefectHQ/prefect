@@ -1504,7 +1504,7 @@ Number of trusted proxies to walk in X-Forwarded-For when the guard middleware i
 `PREFECT_SERVER_API_GUARD_EXCLUDED_PATHS`
 
 ### `guard_blocked_countries`
-Comma-separated ISO country codes to block when the guard middleware is enabled. Requires IPINFO_TOKEN geo lookups.
+Comma-separated ISO country codes to block when the guard middleware is enabled. Requires `guard_ipinfo_token` and the `maxminddb` package that guard-core uses to read the IPInfo country database.
 
 **Type**: `string | None`
 
@@ -1516,7 +1516,7 @@ Comma-separated ISO country codes to block when the guard middleware is enabled.
 `PREFECT_SERVER_API_GUARD_BLOCKED_COUNTRIES`
 
 ### `guard_allowed_countries`
-Comma-separated ISO country codes to allow when the guard middleware is enabled. Requires IPINFO_TOKEN geo lookups.
+Comma-separated ISO country codes to allow when the guard middleware is enabled. Requires `guard_ipinfo_token` and the `maxminddb` package that guard-core uses to read the IPInfo country database.
 
 **Type**: `string | None`
 

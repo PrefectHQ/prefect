@@ -1321,7 +1321,7 @@
                         }
                     ],
                     "default": null,
-                    "description": "Comma-separated ISO country codes to block when the guard middleware is enabled. Requires IPINFO_TOKEN geo lookups.",
+                    "description": "Comma-separated ISO country codes to block when the guard middleware is enabled. Requires `guard_ipinfo_token` and the `maxminddb` package that guard-core uses to read the IPInfo country database.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_API_GUARD_BLOCKED_COUNTRIES"
                     ],
@@ -1337,7 +1337,7 @@
                         }
                     ],
                     "default": null,
-                    "description": "Comma-separated ISO country codes to allow when the guard middleware is enabled. Requires IPINFO_TOKEN geo lookups.",
+                    "description": "Comma-separated ISO country codes to allow when the guard middleware is enabled. Requires `guard_ipinfo_token` and the `maxminddb` package that guard-core uses to read the IPInfo country database.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_API_GUARD_ALLOWED_COUNTRIES"
                     ],
@@ -1362,7 +1362,9 @@
                 "guard_redis_url": {
                     "anyOf": [
                         {
-                            "type": "string"
+                            "format": "password",
+                            "type": "string",
+                            "writeOnly": true
                         },
                         {
                             "type": "null"
@@ -1378,7 +1380,9 @@
                 "guard_ipinfo_token": {
                     "anyOf": [
                         {
-                            "type": "string"
+                            "format": "password",
+                            "type": "string",
+                            "writeOnly": true
                         },
                         {
                             "type": "null"
