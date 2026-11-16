@@ -35,7 +35,7 @@ docs/
 ## Auto-generated content — do not edit
 
 - `v3/examples/` — generated from top-level `examples/` Python files by `generate_example_pages.py`
-- `v3/api-ref/python/`, `v3/api-ref/cli/` — generated API reference (Python SDK, CLI)
+- `v3/api-ref/python/`, `v3/api-ref/cli/` — generated API reference (Python SDK via `mdxify`, CLI via `scripts/generate_cli_docs.py` + `scripts/templates/docs_template.jinja`); fix titles/headings in the generator, then regenerate
 - `v3/api-ref/rest-api/` — individual endpoint pages are auto-generated; the `index.mdx` files at `rest-api/` and `rest-api/server/` are hand-authored and may be edited
 - `v3/api-ref/events/` is **hand-authored** and should be edited directly when event schemas change
 - `integrations/<name>/api-ref/` — generated per-integration API reference via `mdxify` (e.g., `integrations/prefect-kubernetes/api-ref/`); regenerated on each integration release
@@ -76,7 +76,7 @@ In-page anchors (`#...`) must match Mintlify's heading slugs, not GitHub's: back
 
 ## Redirects
 
-When renaming or moving a page, add a redirect in `docs/docs.json` `redirects` array so existing links continue to work. Never remove existing redirects unless you are certain the old URL has no inbound traffic. Paths should not include `.mdx`.
+When renaming or moving a page, add a redirect in `docs/docs.json` `redirects` array so existing links continue to work. Never remove existing redirects unless you are certain the old URL has no inbound traffic. Paths should not include `.mdx`. When a page moves, also retarget existing redirects whose `destination` is the old path — a destination must be a live page, never another redirect's `source` (chain) or a deleted page.
 
 Missing pages return a real 404 (`errors.404.redirect` is `false`), so a broken `https://www.prefect.io/docs/...` URL in source, CLI messages, `ui-v2/`, or READMEs is not masked by a homepage fallback — point it at a real page or add a redirect. Exact `source` matches beat wildcards, but among wildcard (`:slug*`) rules the first match in the array wins — place narrower wildcard sources before broader ones.
 
