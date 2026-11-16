@@ -29,6 +29,7 @@ from prefect.server.models import (
     deployments,
     flow_run_input,
     flow_runs,
+    task_runs,
 )
 from prefect.server.orchestration.core_policy import (
     BypassCancellingFlowRunsWithNoInfra,
@@ -514,6 +515,80 @@ class TestCachingBackendLogic:
             await ctx2.validate_proposed_state()
 
         assert ctx2.response_status == SetStateStatus.ACCEPT
+
+    async def test_deleted_run_does_not_hide_older_cached_state(
+        self,
+        session,
+        initialize_orchestration,
+        db,
+    ):
+        caching_policy = [CacheInsertion, CacheRetrieval]
+
+        async def complete_with_cache_key(expiration):
+            intended_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+            details = {"cache_key": "cache-hit", "cache_expiration": expiration}
+            ctx = await initialize_orchestration(
+                session,
+                "task",
+                *intended_transition,
+                initial_details=details,
+                proposed_details=details,
+            )
+            async with contextlib.AsyncExitStack() as stack:
+                for rule in caching_policy:
+                    ctx = await stack.enter_async_context(
+                        rule(ctx, *intended_transition)
+                    )
+                await ctx.validate_proposed_state()
+            assert ctx.response_status == SetStateStatus.ACCEPT
+            return ctx
+
+        # distinct expirations tell the two cached states apart after retrieval
+        older_expiration = now("UTC") + timedelta(days=2)
+        older = await complete_with_cache_key(older_expiration)
+        newer = await complete_with_cache_key(now("UTC") + timedelta(days=1))
+
+        # make the cache order explicit rather than relying on timestamp resolution
+        await session.execute(
+            sa.update(db.TaskRunStateCache)
+            .where(db.TaskRunStateCache.task_run_state_id == older.validated_state.id)
+            .values(created=now("UTC") - timedelta(minutes=1))
+        )
+        assert await task_runs.delete_task_run(session, newer.run.id)
+        await session.commit()
+
+        # the newer run's state is gone, but its cache entry is still the newest one
+        cache_rows = await session.scalars(
+            sa.select(db.TaskRunStateCache.task_run_state_id).order_by(
+                db.TaskRunStateCache.created.desc()
+            )
+        )
+        assert cache_rows.all() == [newer.validated_state.id, older.validated_state.id]
+        remaining_states = await session.scalars(
+            sa.select(db.TaskRunState.id).where(
+                db.TaskRunState.id.in_(
+                    [newer.validated_state.id, older.validated_state.id]
+                )
+            )
+        )
+        assert remaining_states.all() == [older.validated_state.id]
+
+        intended_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"cache_key": "cache-hit"},
+            proposed_details={"cache_key": "cache-hit"},
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in caching_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state.name == "Cached"
+        assert ctx.validated_state.state_details.cache_expiration == older_expiration
 
 
 class TestFlowRetryingRule:
