@@ -1,11 +1,11 @@
 {%- macro render_command(cmd) -%}
 {%- if cmd.indent == 1 -%}
 ---
-title: " "
+title: {{cmd.title.lower().replace('`', '`prefect ', 1).replace('`', '')}}
 sidebarTitle: {{cmd.title.lower().replace('`', '`prefect ', 1).replace('`', '')}}
 ---
 {% endif %}
-{{ '#' * (cmd.indent) }} {{ cmd.title.lower().replace('`', '`prefect ', 1) }}
+{% if cmd.indent != 1 %}{{ '#' * (cmd.indent) }} {{ cmd.title.lower().replace('`', '`prefect ', 1) }}{% endif %}
 
 
 
