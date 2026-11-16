@@ -1,0 +1,3 @@
+FROM prefecthq/prefect-dev:sha-8decde0-python3.12
+COPY . /opt/prefect/prefect-docker/
+WORKDIR /opt/prefect/prefect-docker/
