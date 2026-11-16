@@ -1,10 +1,12 @@
 import asyncio
 import logging
 import os
+import runpy
 import signal
 import threading
 import time
 import uuid
+import warnings
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from contextlib import asynccontextmanager, contextmanager, nullcontext
 from dataclasses import dataclass, field
@@ -24,7 +26,9 @@ import prefect.utilities.engine as engine_utils
 from prefect import Flow, __development_base_path__, flow, states, task
 from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
+    adopt_prestarted_flow_run_suspension_observer,
     mark_flow_run_suspension_requested,
+    prestart_flow_run_suspension_observer,
 )
 from prefect._internal.attempt_control import EngineOutcomeReceipt
 from prefect.cache_policies import INPUTS
@@ -4908,6 +4912,391 @@ class TestSuspendFlowRun:
         )
 
         assert age == 42
+
+
+@dataclass
+class FakeSuspendingObserverControls:
+    watch_started: threading.Event = field(default_factory=threading.Event)
+    release_watch: threading.Event = field(default_factory=threading.Event)
+    exited: threading.Event = field(default_factory=threading.Event)
+    watched_flow_run_ids: list[UUID] = field(default_factory=list)
+    suspend_with: State | None = None
+    on_suspended: Callable[[UUID, State], None] | None = None
+
+
+@pytest.fixture
+def fake_suspending_observer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[FakeSuspendingObserverControls, None, None]:
+    controls = FakeSuspendingObserverControls()
+    controls.release_watch.set()
+
+    class FakeFlowRunSuspendingObserver:
+        def __init__(self, on_suspended: Callable[[UUID, State], None], **kwargs: Any):
+            self.on_suspended = on_suspended
+            controls.on_suspended = on_suspended
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc_info: Any):
+            controls.exited.set()
+
+        async def watch_flow_run_id(self, flow_run_id: UUID) -> None:
+            controls.watched_flow_run_ids.append(flow_run_id)
+            controls.watch_started.set()
+            await asyncio.to_thread(controls.release_watch.wait)
+            if controls.suspend_with is not None:
+                self.on_suspended(flow_run_id, controls.suspend_with)
+
+    monkeypatch.setattr(
+        "prefect._internal.observers.FlowRunSuspendingObserver",
+        FakeFlowRunSuspendingObserver,
+    )
+    yield controls
+    controls.release_watch.set()
+
+
+class TestPrestartedFlowRunSuspensionObserver:
+    async def _create_deployment_backed_flow_run(
+        self, prefect_client: PrefectClient, flow_: Flow[Any, Any]
+    ) -> FlowRun:
+        flow_id = await prefect_client.create_flow(flow_)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id, name=f"prestarted-observer-{uuid.uuid4()}"
+        )
+        return await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_engine_adopts_prestarted_observer_and_waits_until_it_is_ready(
+        self,
+        prefect_client: PrefectClient,
+        fake_suspending_observer: FakeSuspendingObserverControls,
+        monkeypatch: pytest.MonkeyPatch,
+        engine_type: Literal["sync", "async"],
+    ):
+        controls = fake_suspending_observer
+        controls.release_watch.clear()
+        observe_flow_run_suspension = MagicMock(side_effect=AssertionError)
+        monkeypatch.setattr(
+            "prefect.flow_engine.observe_flow_run_suspension",
+            observe_flow_run_suspension,
+        )
+
+        running_proposed = threading.Event()
+        released_when_running_proposed: list[bool] = []
+
+        def record_running(state: State) -> None:
+            if state.is_running():
+                released_when_running_proposed.append(controls.release_watch.is_set())
+                running_proposed.set()
+
+        if engine_type == "sync":
+            original_set_state = FlowRunEngine.set_state
+
+            def recording_set_state(engine, state, force=False):
+                record_running(state)
+                return original_set_state(engine, state, force=force)
+
+            monkeypatch.setattr(FlowRunEngine, "set_state", recording_set_state)
+
+            @flow(name=f"test_adopt_prestarted_observer_{uuid.uuid4()}")
+            def adopting_flow():
+                return "done"
+        else:
+            original_async_set_state = AsyncFlowRunEngine.set_state
+
+            async def recording_async_set_state(engine, state, force=False):
+                record_running(state)
+                return await original_async_set_state(engine, state, force=force)
+
+            monkeypatch.setattr(
+                AsyncFlowRunEngine, "set_state", recording_async_set_state
+            )
+
+            @flow(name=f"test_adopt_prestarted_observer_{uuid.uuid4()}")
+            async def adopting_flow():
+                return "done"
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, adopting_flow
+        )
+        proposed_running_before_ready: list[bool] = []
+
+        def release_after_checking_for_running() -> None:
+            controls.watch_started.wait(timeout=5)
+            proposed_running_before_ready.append(running_proposed.wait(timeout=1))
+            controls.release_watch.set()
+
+        releaser = threading.Thread(target=release_after_checking_for_running)
+        releaser.start()
+        try:
+            with prestart_flow_run_suspension_observer(flow_run.id):
+                if engine_type == "sync":
+                    result = run_flow_sync(adopting_flow, flow_run=flow_run)
+                else:
+                    result = await run_flow_async(adopting_flow, flow_run=flow_run)
+        finally:
+            controls.release_watch.set()
+            releaser.join(timeout=5)
+
+        assert result == "done"
+        observe_flow_run_suspension.assert_not_called()
+        assert controls.watched_flow_run_ids == [flow_run.id]
+        assert proposed_running_before_ready == [False]
+        assert released_when_running_proposed == [True]
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_suspension_marked_while_loading_raises_pause(
+        self,
+        prefect_client: PrefectClient,
+        fake_suspending_observer: FakeSuspendingObserverControls,
+        monkeypatch: pytest.MonkeyPatch,
+        engine_type: Literal["sync", "async"],
+    ):
+        controls = fake_suspending_observer
+        suspended_state = states.Suspended()
+        controls.suspend_with = suspended_state
+        monkeypatch.setattr(
+            "prefect.flow_engine.observe_flow_run_suspension",
+            lambda *args, **kwargs: nullcontext(),
+        )
+        flow_ran = False
+
+        if engine_type == "sync":
+
+            @flow(name=f"test_prestarted_suspension_{uuid.uuid4()}")
+            def suspendable_flow():
+                nonlocal flow_ran
+                flow_ran = True
+        else:
+
+            @flow(name=f"test_prestarted_suspension_{uuid.uuid4()}")
+            async def suspendable_flow():
+                nonlocal flow_ran
+                flow_ran = True
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+
+        with prestart_flow_run_suspension_observer(flow_run.id):
+            prestarted_observer = adopt_prestarted_flow_run_suspension_observer(
+                flow_run.id
+            )
+            assert prestarted_observer
+            assert prestarted_observer.ready_event.wait(timeout=5)
+
+            with pytest.raises(Pause) as exc_info:
+                if engine_type == "sync":
+                    run_flow_sync(suspendable_flow, flow_run=flow_run)
+                else:
+                    await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        assert exc_info.value.state is suspended_state
+        assert not flow_ran
+
+    async def test_suspension_marked_while_running_stops_task_calls(
+        self,
+        prefect_client: PrefectClient,
+        fake_suspending_observer: FakeSuspendingObserverControls,
+    ):
+        controls = fake_suspending_observer
+        suspended_state = states.Suspended()
+        task_ran = False
+
+        @task
+        def suspendable_task():
+            nonlocal task_ran
+            task_ran = True
+
+        @flow(name=f"test_prestarted_suspension_while_running_{uuid.uuid4()}")
+        def suspendable_flow():
+            flow_run_context = FlowRunContext.get()
+            assert flow_run_context and controls.on_suspended
+            controls.on_suspended(flow_run_context.flow_run.id, suspended_state)
+            suspendable_task()
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+
+        with prestart_flow_run_suspension_observer(flow_run.id):
+            with pytest.raises(Pause):
+                run_flow_sync(suspendable_flow, flow_run=flow_run)
+
+        assert not task_ran
+
+    async def test_prestarted_observer_for_another_flow_run_is_not_adopted(
+        self,
+        prefect_client: PrefectClient,
+        fake_suspending_observer: FakeSuspendingObserverControls,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        observed_flow_run_ids: list[UUID] = []
+
+        @contextmanager
+        def record_observe_flow_run_suspension(flow_run_id, suspension_request):
+            observed_flow_run_ids.append(flow_run_id)
+            yield
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.observe_flow_run_suspension",
+            record_observe_flow_run_suspension,
+        )
+
+        @flow(name=f"test_other_prestarted_observer_{uuid.uuid4()}")
+        def unrelated_flow():
+            return "done"
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, unrelated_flow
+        )
+        other_flow_run_id = uuid.uuid4()
+
+        with prestart_flow_run_suspension_observer(other_flow_run_id):
+            assert run_flow_sync(unrelated_flow, flow_run=flow_run) == "done"
+            assert adopt_prestarted_flow_run_suspension_observer(flow_run.id) is None
+
+        assert observed_flow_run_ids == [flow_run.id]
+        assert fake_suspending_observer.watched_flow_run_ids == [other_flow_run_id]
+
+    def _patch_runtime_entrypoint(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        flow_run: Any,
+        load_flow: Callable[[], Any],
+    ) -> None:
+        monkeypatch.setattr("prefect.flow_engine.configure_from_env", lambda: None)
+        monkeypatch.setattr(
+            "prefect.flow_engine.load_flow_run", lambda flow_run_id: flow_run
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine._load_flow_from_runtime_entrypoint",
+            lambda entrypoint: load_flow(),
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.flow_run_logger", lambda flow_run: MagicMock()
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.RunMetrics", lambda flow_run, flow: nullcontext()
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.run_flow",
+            lambda flow, flow_run, error_logger: "run-result",
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine._drive_run_flow_result",
+            lambda flow, run_result: None,
+        )
+
+    def test_runtime_entrypoint_stops_prestarted_observer_for_run_without_deployment(
+        self,
+        flow_run: FlowRun,
+        fake_suspending_observer: FakeSuspendingObserverControls,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        assert flow_run.deployment_id is None
+        adopted_while_loading_flow: list[object] = []
+
+        def load_flow() -> MagicMock:
+            adopted_while_loading_flow.append(
+                adopt_prestarted_flow_run_suspension_observer(flow_run.id)
+            )
+            return MagicMock()
+
+        self._patch_runtime_entrypoint(monkeypatch, flow_run, load_flow)
+
+        _run_flow_from_runtime_entrypoint(flow_run.id, "package.flows:dog")
+
+        assert adopted_while_loading_flow == [None]
+        assert fake_suspending_observer.exited.wait(timeout=5)
+
+    def test_runtime_entrypoint_keeps_prestarted_observer_for_deployment_run(
+        self,
+        flow_run: FlowRun,
+        fake_suspending_observer: FakeSuspendingObserverControls,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        deployment_flow_run = SimpleNamespace(
+            id=flow_run.id, deployment_id=uuid.uuid4()
+        )
+        adopted_while_loading_flow: list[object] = []
+
+        def load_flow() -> MagicMock:
+            adopted_while_loading_flow.append(
+                adopt_prestarted_flow_run_suspension_observer(flow_run.id)
+            )
+            return MagicMock()
+
+        self._patch_runtime_entrypoint(monkeypatch, deployment_flow_run, load_flow)
+
+        _run_flow_from_runtime_entrypoint(flow_run.id, "package.flows:dog")
+
+        assert len(adopted_while_loading_flow) == 1
+        assert adopted_while_loading_flow[0] is not None
+        assert adopt_prestarted_flow_run_suspension_observer(flow_run.id) is None
+        assert fake_suspending_observer.exited.wait(timeout=5)
+
+    def test_runtime_entrypoint_stops_prestarted_observer_when_flow_fails_to_load(
+        self,
+        flow_run: FlowRun,
+        fake_suspending_observer: FakeSuspendingObserverControls,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        deployment_flow_run = SimpleNamespace(
+            id=flow_run.id, deployment_id=uuid.uuid4()
+        )
+
+        def load_flow() -> MagicMock:
+            raise ValueError("flow could not be loaded")
+
+        self._patch_runtime_entrypoint(monkeypatch, deployment_flow_run, load_flow)
+
+        with pytest.raises(SystemExit):
+            _run_flow_from_runtime_entrypoint(flow_run.id, "package.flows:dog")
+
+        assert adopt_prestarted_flow_run_suspension_observer(flow_run.id) is None
+        assert fake_suspending_observer.exited.wait(timeout=5)
+
+    def test_engine_main_stops_prestarted_observer_for_run_without_deployment(
+        self,
+        flow_run: FlowRun,
+        fake_suspending_observer: FakeSuspendingObserverControls,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        assert flow_run.deployment_id is None
+        adopted_while_loading_flow: list[object] = []
+
+        def load_flow(flow_run_arg: FlowRun) -> MagicMock:
+            adopted_while_loading_flow.append(
+                adopt_prestarted_flow_run_suspension_observer(flow_run.id)
+            )
+            return MagicMock()
+
+        monkeypatch.setattr("sys.argv", ["prefect.engine", str(flow_run.id)])
+        monkeypatch.setattr(
+            "prefect.flow_engine.load_flow_run", lambda flow_run_id: flow_run
+        )
+        monkeypatch.setattr("prefect.flow_engine.load_flow", load_flow)
+        monkeypatch.setattr(
+            "prefect.flow_engine.flow_run_logger", lambda flow_run: MagicMock()
+        )
+        monkeypatch.setattr(
+            "prefect._internal.metrics.RunMetrics", lambda flow_run, flow: nullcontext()
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.run_flow",
+            lambda flow, flow_run, error_logger: "run-result",
+        )
+
+        with warnings.catch_warnings():
+            # runpy warns because `prefect.engine` is already imported.
+            warnings.simplefilter("ignore", RuntimeWarning)
+            runpy.run_module("prefect.engine", run_name="__main__")
+
+        assert adopted_while_loading_flow == [None]
+        assert fake_suspending_observer.exited.wait(timeout=5)
 
 
 class TestGenerators:

@@ -4,7 +4,7 @@ import asyncio
 import contextvars
 import threading
 from contextlib import contextmanager
-from typing import Generator
+from typing import Callable, Generator, NamedTuple
 from uuid import UUID
 
 from prefect.client.schemas.objects import State
@@ -86,12 +86,17 @@ def raise_if_flow_run_suspension_requested() -> None:
         flow_run_context.flow_run_suspension_request.raise_if_requested()
 
 
-@contextmanager
-def observe_flow_run_suspension(
+def _start_flow_run_suspension_observer(
     flow_run_id: UUID,
     suspension_request: FlowRunSuspensionRequest,
     polling_interval: float = 10,
-) -> Generator[None, None, None]:
+) -> tuple[threading.Thread, threading.Event, threading.Event]:
+    """
+    Start a thread that watches a flow run for suspension.
+
+    Returns the thread, an event that is set once the observer has made its first
+    check of the flow run, and an event that stops the thread when set.
+    """
     from prefect._internal.observers import FlowRunSuspendingObserver
 
     logger = get_logger("flow_run_suspension")
@@ -127,6 +132,18 @@ def observe_flow_run_suspension(
 
     thread = threading.Thread(target=observer_thread, daemon=True)
     thread.start()
+    return thread, ready_event, stop_event
+
+
+@contextmanager
+def observe_flow_run_suspension(
+    flow_run_id: UUID,
+    suspension_request: FlowRunSuspensionRequest,
+    polling_interval: float = 10,
+) -> Generator[None, None, None]:
+    thread, ready_event, stop_event = _start_flow_run_suspension_observer(
+        flow_run_id, suspension_request, polling_interval
+    )
     ready_event.wait()
 
     try:
@@ -134,3 +151,71 @@ def observe_flow_run_suspension(
     finally:
         stop_event.set()
         thread.join(timeout=2)
+
+
+class PrestartedFlowRunSuspensionObserver(NamedTuple):
+    suspension_request: FlowRunSuspensionRequest
+    ready_event: threading.Event
+
+
+_prestarted_flow_run_suspension_observers: dict[
+    UUID, PrestartedFlowRunSuspensionObserver
+] = {}
+_prestarted_flow_run_suspension_observers_lock = threading.Lock()
+
+
+@contextmanager
+def prestart_flow_run_suspension_observer(
+    flow_run_id: UUID,
+) -> Generator[Callable[[], None], None, None]:
+    """
+    Start watching a flow run for suspension without waiting for the first check,
+    so the observer connects while the caller loads the flow run and the flow.
+
+    The flow run engine for this flow run uses this observer, through
+    `adopt_prestarted_flow_run_suspension_observer`, instead of starting its own.
+    Calling the yielded function stops the observer early, and the engine then
+    behaves as if no observer was prestarted.
+    """
+    suspension_request = FlowRunSuspensionRequest()
+    thread, ready_event, stop_event = _start_flow_run_suspension_observer(
+        flow_run_id, suspension_request
+    )
+    prestarted_observer = PrestartedFlowRunSuspensionObserver(
+        suspension_request, ready_event
+    )
+    with _prestarted_flow_run_suspension_observers_lock:
+        _prestarted_flow_run_suspension_observers[flow_run_id] = prestarted_observer
+
+    def stop() -> None:
+        with _prestarted_flow_run_suspension_observers_lock:
+            if (
+                _prestarted_flow_run_suspension_observers.get(flow_run_id)
+                is prestarted_observer
+            ):
+                _prestarted_flow_run_suspension_observers.pop(flow_run_id, None)
+        stop_event.set()
+
+    try:
+        yield stop
+    finally:
+        stopped_early = stop_event.is_set()
+        stop()
+        # The thread checks `stop_event` only after its first check of the flow
+        # run. Joining a thread that has not made that check, or one stopped
+        # early for a run without a deployment, would delay the caller.
+        if not stopped_early and ready_event.is_set():
+            thread.join(timeout=2)
+
+
+def adopt_prestarted_flow_run_suspension_observer(
+    flow_run_id: UUID,
+) -> PrestartedFlowRunSuspensionObserver | None:
+    """
+    Return the observer prestarted for `flow_run_id`, or None if there is none.
+
+    The caller must use the observer's `suspension_request` as its own, and wait
+    for its `ready_event` before it proposes a Running state.
+    """
+    with _prestarted_flow_run_suspension_observers_lock:
+        return _prestarted_flow_run_suspension_observers.get(flow_run_id)
