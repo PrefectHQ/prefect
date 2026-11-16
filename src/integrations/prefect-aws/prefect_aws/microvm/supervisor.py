@@ -14,7 +14,7 @@ from uuid import UUID
 # in the MicroVM snapshot, taken after `/ready`.
 from prefect._internal.control_listener import configure_from_env
 from prefect._internal.metrics import RunMetrics
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.context import refresh_global_settings_context
 from prefect.engine import _drive_run_flow_result, handle_engine_signals
 from prefect.events.worker import EventsWorker
@@ -90,11 +90,12 @@ def run_child(payload: RunHookPayload) -> NoReturn:
         # default disposition, whatever handler the parent had.
         signal.signal(signal.SIGTERM, signal.SIG_DFL)
         signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM})
-        _make_preferred_oom_victim()
-        # Settings and logging were configured at import time, before `/run`
-        # set the environment.
-        refresh_global_settings_context()
+        # Logging was configured at import time, before `/run` set the
+        # environment. A fresh setup also replaces the console handler, whose
+        # rich console lock a parent thread writing a log line at the fork may
+        # still hold.
         setup_logging(incremental=False)
+        _make_preferred_oom_victim()
         exit_code = _flow_run_exit_code(payload)
         _drain_api_workers()
     finally:
@@ -104,28 +105,36 @@ def run_child(payload: RunHookPayload) -> NoReturn:
         os._exit(exit_code)
 
 
-def supervise_flow_run(payload: RunHookPayload) -> int:
+def supervise_flow_run(
+    payload: RunHookPayload, restored_signal_mask: set[signal.Signals] | None = None
+) -> int:
     """
     Run the flow run in a forked child and wait for the child to exit.
 
     If the child exits nonzero or is killed by a signal, `Crashed` is proposed
     for the flow run. SIGTERM sent to this process is forwarded to the child.
-    Call this from the main thread.
+    Call this from the main thread, after refreshing the global settings
+    context from the environment that `/run` set; the child inherits those
+    settings.
 
     Args:
         payload: The flow run to execute.
+        restored_signal_mask: The signal mask to set once SIGTERM is forwarded
+            to the child. Defaults to the mask when this is called. A SIGTERM
+            that is pending when the mask is set is forwarded to the child.
 
     Returns:
         The exit code for this process: 0 if the child exited 0, otherwise 1.
     """
     # Blocked across the fork so a SIGTERM that arrives before the forwarding
-    # handler is installed waits for it instead of being lost. A hook handler still
-    # running past `stop_serving`'s wait, one trickling bytes, could take it instead.
-    previous_signal_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
+    # handler is installed waits for it instead of being lost.
+    signal_mask_on_entry = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
+    if restored_signal_mask is None:
+        restored_signal_mask = signal_mask_on_entry
     try:
         child_pid = os.fork()
     except BaseException:
-        signal.pthread_sigmask(signal.SIG_SETMASK, previous_signal_mask)
+        signal.pthread_sigmask(signal.SIG_SETMASK, restored_signal_mask)
         raise
     if child_pid == 0:
         run_child(payload)
@@ -141,7 +150,7 @@ def supervise_flow_run(payload: RunHookPayload) -> int:
     try:
         previous_sigterm_handler = signal.signal(signal.SIGTERM, forward_sigterm)
     finally:
-        signal.pthread_sigmask(signal.SIG_SETMASK, previous_signal_mask)
+        signal.pthread_sigmask(signal.SIG_SETMASK, restored_signal_mask)
     try:
         wait_status = _reap_until_collected(child_pid)
     finally:
@@ -193,9 +202,34 @@ def report_crash(flow_run_id: UUID, crash_reason: str) -> None:
         flow_run_id: The ID of the flow run.
         crash_reason: How the flow run's process ended, for the state message.
     """
-    # This process resolved its settings before `/run` set the API URL and key.
-    refresh_global_settings_context()
-    with get_client(sync_client=True) as client:
+    # When the settings from the `/run` environment fail to load, the crash is
+    # still reported, with the API URL and credentials read directly from the
+    # environment and the import-time settings for everything else.
+    try:
+        refresh_global_settings_context()
+    except Exception:
+        logger.warning(
+            "Could not load the settings to report flow run %s as crashed. Using "
+            "PREFECT_API_URL, PREFECT_API_KEY, and PREFECT_API_AUTH_STRING from "
+            "the environment.",
+            flow_run_id,
+        )
+        api_url = os.environ.get("PREFECT_API_URL")
+        if not api_url:
+            logger.error(
+                "Could not report flow run %s as crashed because PREFECT_API_URL "
+                "is not set.",
+                flow_run_id,
+            )
+            return
+        client = SyncPrefectClient(
+            api_url,
+            auth_string=os.environ.get("PREFECT_API_AUTH_STRING"),
+            api_key=os.environ.get("PREFECT_API_KEY"),
+        )
+    else:
+        client = get_client(sync_client=True)
+    with client:
         try:
             state = propose_state_sync(
                 client,

@@ -4,7 +4,7 @@ import signal
 import sys
 import threading
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 from types import FrameType
 from unittest.mock import MagicMock, create_autospec
@@ -227,15 +227,6 @@ def test_sigterm_sent_just_after_the_fork_is_forwarded_to_the_child(
 
 def sigterm_is_blocked() -> bool:
     return signal.SIGTERM in signal.pthread_sigmask(signal.SIG_BLOCK, [])
-
-
-@pytest.fixture
-def restore_signal_mask() -> Iterator[None]:
-    mask_before_test = signal.pthread_sigmask(signal.SIG_BLOCK, [])
-    try:
-        yield
-    finally:
-        signal.pthread_sigmask(signal.SIG_SETMASK, mask_before_test)
 
 
 @pytest.mark.usefixtures("restore_signal_mask")
