@@ -20,9 +20,34 @@ import prefect.settings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
-    from guard import SecurityConfig
+    from guard import SecurityConfig, SecurityMiddleware
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
 DEFAULT_EXCLUDED_PATHS = "/api/health,/ready,/docs,/redoc,/openapi.json"
+
+# fastapi-guard keeps rate limiting and ban checks active on excluded paths,
+# so health and readiness probes would be rate limited (and the client IP
+# auto-banned). They skip the guard entirely instead.
+PROBE_PATHS = frozenset({"/api/health", "/ready"})
+
+
+class _ProbeBypassGuard:
+    """Routes health and readiness probes around the SecurityMiddleware."""
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        guard_middleware: type[SecurityMiddleware],
+        config: SecurityConfig,
+    ) -> None:
+        self._app = app
+        self._guarded = guard_middleware(app, config=config)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope["path"] in PROBE_PATHS:
+            await self._app(scope, receive, send)
+        else:
+            await self._guarded(scope, receive, send)
 
 
 def _csv(raw: str | None) -> tuple[str, ...]:
@@ -89,11 +114,11 @@ def _build_guard_config() -> SecurityConfig:
 
     if redis_url := _setting("redis_url"):
         kwargs["enable_redis"] = True
-        kwargs["redis_url"] = redis_url
+        kwargs["redis_url"] = redis_url.get_secret_value()
         kwargs["redis_prefix"] = "prefect_guard:"
 
     if ipinfo_token := _setting("ipinfo_token"):
-        kwargs["ipinfo_token"] = ipinfo_token
+        kwargs["ipinfo_token"] = ipinfo_token.get_secret_value()
 
     return SecurityConfig(**kwargs)
 
@@ -116,4 +141,8 @@ def attach_guard(app: FastAPI) -> None:
             "Install it with: uv add fastapi-guard"
         ) from exc
 
-    app.add_middleware(SecurityMiddleware, config=_build_guard_config())
+    app.add_middleware(
+        _ProbeBypassGuard,
+        guard_middleware=SecurityMiddleware,
+        config=_build_guard_config(),
+    )

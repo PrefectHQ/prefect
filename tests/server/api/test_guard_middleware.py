@@ -4,6 +4,7 @@ import itertools
 
 import pytest
 from fastapi import FastAPI
+from pydantic import SecretStr
 
 from prefect.server.api.guard import attach_guard
 
@@ -14,9 +15,12 @@ from httpx import ASGITransport, AsyncClient
 from prefect.settings import (
     PREFECT_SERVER_API_GUARD_BLOCKED_IPS,
     PREFECT_SERVER_API_GUARD_ENABLED,
+    PREFECT_SERVER_API_GUARD_IPINFO_TOKEN,
     PREFECT_SERVER_API_GUARD_PASSIVE_MODE,
     PREFECT_SERVER_API_GUARD_RATE_LIMIT,
     PREFECT_SERVER_API_GUARD_RATE_LIMIT_WINDOW,
+    PREFECT_SERVER_API_GUARD_REDIS_URL,
+    Settings,
     get_current_settings,
     temporary_settings,
 )
@@ -146,3 +150,66 @@ def test_settings_fields_exist():
         "guard_passive_mode",
     ):
         assert hasattr(api_settings, name)
+
+
+@pytest.mark.parametrize("probe_path", ["/api/health", "/ready"])
+async def test_health_probes_are_never_rate_limited_or_banned(probe_path):
+    client_ip = _unique_ip()
+    app = FastAPI()
+
+    @app.get("/api/health")
+    @app.get("/ready")
+    async def probe():
+        return {"ok": True}
+
+    @app.get("/ping")
+    async def ping():
+        return {"ok": True}
+
+    with temporary_settings(
+        {
+            PREFECT_SERVER_API_GUARD_ENABLED: True,
+            PREFECT_SERVER_API_GUARD_RATE_LIMIT: 2,
+            PREFECT_SERVER_API_GUARD_RATE_LIMIT_WINDOW: 60,
+        }
+    ):
+        attach_guard(app)
+        transport = ASGITransport(app=app, client=(client_ip, 50000))
+        async with AsyncClient(
+            transport=transport, base_url="http://testserver"
+        ) as client:
+            statuses = [(await client.get(probe_path)).status_code for _ in range(30)]
+            assert statuses == [200] * 30
+            # Probe traffic must not have consumed or banned the client either.
+            assert (await client.get("/ping")).status_code == 200
+
+
+def test_guard_env_vars_load_without_validation_aliases(monkeypatch):
+    monkeypatch.setenv("PREFECT_SERVER_API_GUARD_RATE_LIMIT", "7")
+    monkeypatch.setenv("PREFECT_SERVER_API_GUARD_ENABLED", "true")
+    api_settings = Settings().server.api
+    assert api_settings.guard_rate_limit == 7
+    assert api_settings.guard_enabled is True
+
+
+def test_redis_url_and_ipinfo_token_are_secret_and_reach_the_guard():
+    redis_url = "redis://:hunter2@127.0.0.1:6538/9"
+    with temporary_settings(
+        {
+            PREFECT_SERVER_API_GUARD_ENABLED: True,
+            PREFECT_SERVER_API_GUARD_REDIS_URL: redis_url,
+            PREFECT_SERVER_API_GUARD_IPINFO_TOKEN: "tok-123",
+        }
+    ):
+        api_settings = get_current_settings().server.api
+        assert isinstance(api_settings.guard_redis_url, SecretStr)
+        assert isinstance(api_settings.guard_ipinfo_token, SecretStr)
+        dumped = str(get_current_settings().model_dump())
+        assert "hunter2" not in dumped
+        assert "tok-123" not in dumped
+
+        from prefect.server.api.guard import _build_guard_config
+
+        config = _build_guard_config()
+        assert config.redis_url == redis_url
+        assert config.ipinfo_token == "tok-123"
