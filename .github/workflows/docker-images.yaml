@@ -180,7 +180,6 @@ jobs:
     outputs:
       PREFECT_AWS_VERSION: ${{ steps.get_version.outputs.PREFECT_AWS_VERSION }}
       PREFECT_AWS_FINAL_VERSION: ${{ steps.get_version.outputs.PREFECT_AWS_FINAL_VERSION }}
-      IS_LATEST_RELEASE: ${{ steps.check_latest_release.outputs.IS_LATEST_RELEASE }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -197,24 +196,6 @@ jobs:
           PREFECT_AWS_FINAL_VERSION=$(git tag --list 'prefect-aws-*' --sort=-version:refname | grep -E '^prefect-aws-[0-9]+\.[0-9]+\.[0-9]+$' | head -1 | sed 's/^prefect-aws-//')
           echo "PREFECT_AWS_FINAL_VERSION=$PREFECT_AWS_FINAL_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Check whether this is the latest release
-        id: check_latest_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          LATEST_TAG=$(curl -qsSL \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "${{ github.api_url }}/repos/${{ github.repository }}/releases/latest" \
-          | jq -r .tag_name)
-          if [ "$RELEASE_TAG" = "$LATEST_TAG" ]; then
-            echo "IS_LATEST_RELEASE=true" >> $GITHUB_OUTPUT
-          else
-            echo "IS_LATEST_RELEASE=false" >> $GITHUB_OUTPUT
-          fi
-
   trigger-prefect-aws-build:
     name: Build prefect-aws Docker images
     needs: [publish-docker-images, get-prefect-aws-version]
@@ -225,11 +206,46 @@ jobs:
       prefect_aws_version: ${{ needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION }}
     secrets: inherit
 
+  check-latest-release:
+    name: Check whether this is the latest release
+    needs: publish-docker-images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    outputs:
+      IS_LATEST_RELEASE: ${{ steps.check_latest_release.outputs.IS_LATEST_RELEASE }}
+    steps:
+      - name: Compare this release with the repo's latest release
+        id: check_latest_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          LATEST_RELEASE_URL: ${{ github.api_url }}/repos/${{ github.repository }}/releases/latest
+        run: |
+          # A failed request or a body without a tag_name fails this job, which skips only the MicroVM build; re-run the job to retry.
+          if ! LATEST_RELEASE_BODY=$(curl -qfsSL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$LATEST_RELEASE_URL"); then
+            echo "::error::The request to $LATEST_RELEASE_URL failed, so the MicroVM image build is skipped. Re-run this job, or run the prefect-aws-microvm-docker-images.yaml workflow with workflow_dispatch."
+            exit 1
+          fi
+          if ! LATEST_TAG=$(printf '%s' "$LATEST_RELEASE_BODY" | jq -er '.tag_name | select(type == "string" and . != "")' 2>/dev/null); then
+            echo "::error::$LATEST_RELEASE_URL returned no tag_name, so the MicroVM image build is skipped. Re-run this job, or run the prefect-aws-microvm-docker-images.yaml workflow with workflow_dispatch."
+            exit 1
+          fi
+          if [ "$RELEASE_TAG" = "$LATEST_TAG" ]; then
+            echo "IS_LATEST_RELEASE=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "IS_LATEST_RELEASE=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::releases/latest returned $LATEST_TAG and this release is $RELEASE_TAG, so the MicroVM image build is skipped. To build it by hand, run the prefect-aws-microvm-docker-images.yaml workflow with workflow_dispatch."
+          fi
+
   trigger-prefect-aws-microvm-build:
     name: Build prefect-aws MicroVM Docker image
-    needs: [publish-docker-images, get-prefect-aws-version]
-    # A nightly or a patch on an older 3.x line would point latest-microvm and the other moving tags at a dev or older Prefect.
-    if: github.event_name == 'release' && !github.event.release.prerelease && needs.get-prefect-aws-version.outputs.IS_LATEST_RELEASE == 'true' && needs.get-prefect-aws-version.outputs.PREFECT_AWS_FINAL_VERSION != ''
+    needs: [publish-docker-images, get-prefect-aws-version, check-latest-release]
+    # A nightly would put a dev Prefect into the <aws>-python3.12-microvm tag; a patch on an older 3.x line would point latest-microvm at an older Prefect.
+    if: github.event_name == 'release' && !github.event.release.prerelease && needs.check-latest-release.outputs.IS_LATEST_RELEASE == 'true' && needs.get-prefect-aws-version.outputs.PREFECT_AWS_FINAL_VERSION != ''
     uses: ./.github/workflows/prefect-aws-microvm-docker-images.yaml
     with:
       prefect_version: ${{ github.ref_name }}
