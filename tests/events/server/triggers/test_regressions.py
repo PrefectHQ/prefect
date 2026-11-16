@@ -1141,3 +1141,49 @@ async def test_increment_bucket_returns_fresh_bucket_from_identity_map(
 
     assert incremented is bucket
     assert incremented.count == 3
+
+
+async def test_restarting_while_behind_keeps_buckets_open_in_event_time(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+    frozen_time: DateTime,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23942, where a
+    restarted triggers process assumed it was caught up and swept buckets that were
+    still open in event time"""
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="no heartbeat for 10 minutes",
+            trigger=EventTrigger(
+                match={"prefect.resource.id": "some.*"},
+                after={"heartbeat"},
+                expect={"heartbeat"},
+                for_each={"prefect.resource.id"},
+                posture=Posture.Proactive,
+                threshold=1,
+                within=timedelta(minutes=10),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+
+    # The consumer is 2 hours behind and handles a heartbeat.
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=frozen_time - timedelta(hours=2),
+            event="heartbeat",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+    )
+
+    # The process restarts and runs its first periodic pass.
+    await triggers.reset_events_clock()
+    await triggers.periodic_evaluation(frozen_time)
+
+    trigger = triggers.triggers[automation.trigger.id]
+    assert await triggers.read_bucket(automations_session, trigger, ("some.resource",))
