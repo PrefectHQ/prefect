@@ -100,7 +100,7 @@ exports[`property.type > array > base 1`] = `
               aria-live="assertive"
               id="DndLiveRegion-0"
               role="status"
-              style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;"
+              style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px 0px 0px 0px); clip-path: inset(100%); white-space: nowrap;"
             />
             <div
               class="flex justify-end"
@@ -784,7 +784,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
               aria-live="assertive"
               id="DndLiveRegion-2"
               role="status"
-              style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;"
+              style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px 0px 0px 0px); clip-path: inset(100%); white-space: nowrap;"
             />
             <div
               class="flex justify-end"
@@ -1250,7 +1250,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
               aria-live="assertive"
               id="DndLiveRegion-1"
               role="status"
-              style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;"
+              style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px 0px 0px 0px); clip-path: inset(100%); white-space: nowrap;"
             />
             <div
               class="flex justify-end"
