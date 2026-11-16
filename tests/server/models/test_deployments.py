@@ -2165,7 +2165,6 @@ class TestDeploymentLabels:
 
         assert merged_labels == expected
 
-
     async def test_update_deployment_labels_preserves_system_labels(
         self,
         session: AsyncSession,
