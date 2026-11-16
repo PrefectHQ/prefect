@@ -202,6 +202,16 @@ jobs:
       prefect_aws_version: ${{ needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION }}
     secrets: inherit
 
+  trigger-prefect-aws-microvm-build:
+    name: Build prefect-aws MicroVM Docker image
+    needs: [publish-docker-images, get-prefect-aws-version]
+    if: github.event_name == 'release' && needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION != ''
+    uses: ./.github/workflows/prefect-aws-microvm-docker-images.yaml
+    with:
+      prefect_version: ${{ github.ref_name }}
+      prefect_aws_version: ${{ needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION }}
+    secrets: inherit
+
   get-prefect-azure-version:
     name: Get latest prefect-azure version
     needs: publish-docker-images
