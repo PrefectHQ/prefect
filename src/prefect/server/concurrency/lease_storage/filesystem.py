@@ -11,6 +11,7 @@ from typing import Any, TypedDict
 from uuid import UUID
 
 import anyio
+import anyio.to_thread
 
 from prefect.locking._filelock import FileLock
 from prefect.server.concurrency.lease_storage import (
