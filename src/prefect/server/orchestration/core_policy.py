@@ -1007,6 +1007,14 @@ class CacheInsertion(TaskRunOrchestrationRule):
 
         cache_key = validated_state.state_details.cache_key
         if cache_key:
+            # This result supersedes any older entry for the key (it expired, was
+            # refreshed, or was recomputed). Remove those, so that losing this
+            # entry later, e.g. by deleting its run, cannot bring one back.
+            await context.session.execute(
+                sa.delete(db.TaskRunStateCache).where(
+                    db.TaskRunStateCache.cache_key == cache_key
+                )
+            )
             new_cache_item = db.TaskRunStateCache(
                 cache_key=cache_key,
                 cache_expiration=validated_state.state_details.cache_expiration,
@@ -1040,14 +1048,9 @@ class CacheRetrieval(TaskRunOrchestrationRule):
 
         cache_key = proposed_state.state_details.cache_key
         if cache_key and not proposed_state.state_details.refresh_cache:
-            # Check for cached states matching the cache key. Cache rows outlive
-            # the states they point to, so join before limiting to the newest one.
-            query = (
-                select(db.TaskRunState)
-                .join(
-                    db.TaskRunStateCache,
-                    db.TaskRunStateCache.task_run_state_id == db.TaskRunState.id,
-                )
+            # Check for cached states matching the cache key
+            cached_state_id = (
+                select(db.TaskRunStateCache.task_run_state_id)
                 .where(
                     sa.and_(
                         db.TaskRunStateCache.cache_key == cache_key,
@@ -1059,7 +1062,8 @@ class CacheRetrieval(TaskRunOrchestrationRule):
                 )
                 .order_by(db.TaskRunStateCache.created.desc())
                 .limit(1)
-            )
+            ).scalar_subquery()
+            query = select(db.TaskRunState).where(db.TaskRunState.id == cached_state_id)
             cached_state = (await context.session.execute(query)).scalar()
             if cached_state:
                 new_state = cached_state.as_state().fresh_copy()
