@@ -403,10 +403,11 @@ class TestFilesystemConcurrencyLeaseStorage:
         old_timestamp = (
             datetime.now(timezone.utc) - RELEASED_LEASE_RETENTION - timedelta(seconds=1)
         ).timestamp()
-        os.utime(
+        for path in (
             storage._released_marker_path(old_lease_id),
-            (old_timestamp, old_timestamp),
-        )
+            storage._released_dir_path() / ".pruned_at",
+        ):
+            os.utime(path, (old_timestamp, old_timestamp))
 
         await storage.mark_lease_released(uuid4())
 

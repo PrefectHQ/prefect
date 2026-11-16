@@ -87,11 +87,12 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     async def mark_lease_released(self, lease_id: UUID) -> None:
         now = datetime.now(timezone.utc)
         cutoff = now - RELEASED_LEASE_RETENTION
-        self.released = {
-            released_id: released_at
-            for released_id, released_at in self.released.items()
-            if released_at > cutoff
-        }
+        # Records are kept in release order, so expired records are at the front.
+        for released_id, released_at in list(self.released.items()):
+            if released_at > cutoff:
+                break
+            del self.released[released_id]
+        self.released.pop(lease_id, None)
         self.released[lease_id] = now
 
     async def is_lease_released(self, lease_id: UUID) -> bool:

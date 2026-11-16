@@ -223,6 +223,27 @@ class TestRevokeExpiredLease:
         assert await lease_storage.read_lease(lease.id) is None
         assert await lease_storage.is_lease_released(lease.id) is True
 
+    async def test_revoke_expired_lease_does_not_mark_unreturned_slots(
+        self, lease_storage, concurrency_limit, session: AsyncSession
+    ):
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 1)
+        concurrency_limit.active = False
+        await session.commit()
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        await revoke_expired_lease(
+            lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+
+        assert await lease_storage.read_lease(lease.id) is None
+        assert await lease_storage.is_lease_released(lease.id) is False
+
     async def test_revoke_expired_lease_missing_lease(
         self, lease_storage, concurrency_limit
     ):

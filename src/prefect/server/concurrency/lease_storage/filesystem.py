@@ -24,6 +24,9 @@ from prefect.server.concurrency.lease_storage import (
 from prefect.server.utilities.leasing import ResourceLease
 from prefect.settings.context import get_current_settings
 
+RELEASED_PRUNE_INTERVAL = timedelta(hours=1)
+RELEASED_PRUNED_AT_FILENAME = ".pruned_at"
+
 
 class _LeaseFile(TypedDict):
     id: str
@@ -301,20 +304,36 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         Record a released lease as an empty marker file.
 
         The marker's modification time is the release time. Markers older than
-        `RELEASED_LEASE_RETENTION` are removed when a new marker is written.
+        `RELEASED_LEASE_RETENTION` are removed at most once per
+        `RELEASED_PRUNE_INTERVAL`.
         """
         released_dir = self._released_dir_path()
         released_dir.mkdir(parents=True, exist_ok=True)
+        self._released_marker_path(lease_id).touch()
+        await anyio.to_thread.run_sync(self._prune_released_markers)
 
-        cutoff = (datetime.now(timezone.utc) - RELEASED_LEASE_RETENTION).timestamp()
+    def _prune_released_markers(self) -> None:
+        released_dir = self._released_dir_path()
+        pruned_at_path = released_dir / RELEASED_PRUNED_AT_FILENAME
+        now = datetime.now(timezone.utc).timestamp()
+        try:
+            if now - pruned_at_path.stat().st_mtime < (
+                RELEASED_PRUNE_INTERVAL.total_seconds()
+            ):
+                return
+        except FileNotFoundError:
+            pass
+        pruned_at_path.touch()
+
+        cutoff = now - RELEASED_LEASE_RETENTION.total_seconds()
         for marker in released_dir.iterdir():
+            if marker.name == RELEASED_PRUNED_AT_FILENAME:
+                continue
             try:
                 if marker.stat().st_mtime < cutoff:
                     marker.unlink(missing_ok=True)
             except OSError:
                 continue
-
-        self._released_marker_path(lease_id).touch()
 
     async def is_lease_released(self, lease_id: UUID) -> bool:
         return self._released_marker_path(lease_id).exists()
