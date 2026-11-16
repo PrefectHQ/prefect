@@ -42,10 +42,7 @@ from prefect.server.schemas.states import (
     StateDetails,
     StateType,
 )
-from prefect.settings import (
-    PREFECT_SERVER_EVENTS_MAXIMUM_RELATED_RESOURCES,
-    temporary_settings,
-)
+from prefect.settings import temporary_settings
 from prefect.states import Cancelled, to_state_create
 from prefect.types._datetime import DateTime, now
 
@@ -536,7 +533,8 @@ async def test_instrumenting_a_flow_run_with_more_tags_than_an_event_can_relate(
     deployment with more tags than an event can relate failed every state change of
     its flow runs."""
     automation_id = uuid4()
-    deployment.tags = ["tag-a", "tag-b", "tag-c", "tag-d"]
+    deployment.tags = ["tag-a", "tag-b", "tag-c"]
+    flow_run.tags = ["tag-a", "tag-b", "tag-c", "tag-d"]
     flow_run.deployment_id = deployment.id
     flow_run.created_by = CreatedBy(
         id=automation_id, type="AUTOMATION", display_value="I'm Triggered"
@@ -553,9 +551,7 @@ async def test_instrumenting_a_flow_run_with_more_tags_than_an_event_can_relate(
         parameters=orchestration_parameters,
     )
 
-    with temporary_settings(
-        updates={PREFECT_SERVER_EVENTS_MAXIMUM_RELATED_RESOURCES: 5}
-    ):
+    with temporary_settings(updates={"server.events.maximum_related_resources": 5}):
         async with InstrumentFlowRunStateTransitions(context, *transition):
             await context.validate_proposed_state()
     await session.commit()
