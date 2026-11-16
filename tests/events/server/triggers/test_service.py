@@ -256,6 +256,27 @@ async def test_loads_automations_at_startup(
         load_automations.assert_awaited_once_with(open_automations_session)
 
 
+async def test_resets_the_events_clock_at_startup(
+    effective_automations,
+    frozen_time: DateTime,
+):
+    await triggers.update_events_clock(
+        ReceivedEvent(
+            occurred=frozen_time - timedelta(hours=2),
+            event="things.happened",
+            resource={"prefect.resource.id": "something"},
+            id=uuid4(),
+        )
+    )
+    assert await triggers.get_events_clock() is not None
+
+    async with triggers.consumer(
+        periodic_granularity=timedelta(seconds=0.0001),
+    ):
+        assert await triggers.get_events_clock() is None
+        assert not await triggers.events_clock_is_known(frozen_time)
+
+
 async def test_reconcile_automations_skips_reload_when_snapshot_matches(
     open_automations_session: mock.Mock,
     load_automations: mock.AsyncMock,

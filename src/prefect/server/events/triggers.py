@@ -736,6 +736,10 @@ async def get_lost_followers() -> List[ReceivedEvent]:
 
 async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     """Periodic tasks that should be run regularly, but not as often as every event"""
+    # Until the events clock is known, buckets that look expired by wall time may still
+    # be open in event time.  This is checked before any events are evaluated below so
+    # that `as_of` always reflects a known clock.
+    clock_is_known = await events_clock_is_known(now)
     offset = await get_events_clock_offset()
     as_of = now + timedelta(seconds=offset)
 
@@ -758,9 +762,7 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     for event in await get_lost_followers():
         await reactive_evaluation(event)
 
-    # Until the events clock is known, buckets that look expired by wall time may still
-    # be open in event time.
-    if not await events_clock_is_known(now):
+    if not clock_is_known:
         logger.debug("Skipping sweep of closed buckets until the events clock is known")
         return
 
@@ -1377,6 +1379,10 @@ async def consumer(
     """The `triggers.consumer` processes all Events arriving on the event bus to
     determine if they meet the automation criteria, queuing up a corresponding
     `TriggeredAction` for the `actions` service if the automation criteria is met."""
+    # The consumer may be starting behind the event stream, so the clock is unknown
+    # until it handles an event
+    await reset_events_clock()
+
     # Start the automation change listener task
     sync_task = asyncio.create_task(listen_for_automation_changes())
 
