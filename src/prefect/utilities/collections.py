@@ -359,13 +359,41 @@ def _copies_through_dataclass_state(cls: type) -> bool:
     return True
 
 
+def _reconstruct_bypassing_copy_hook(obj: Any) -> Any:
+    """Build a distinct copy of `obj` for a `__copy__` that returned `self`.
+
+    Allocates through the same reduction `copy.copy` would use without
+    `__copy__` (a `copyreg` reducer or `__reduce_ex__(4)`), so state that
+    C-backed bases set up from those arguments, such as `BaseException.args`,
+    survives. If that reduction cannot rebuild the object (for example it calls
+    the constructor without the required arguments), fall back to the type's
+    own `__new__`. Either way, `__dict__` and slot values are then copied from
+    `obj`.
+    """
+    cls = type(obj)
+    result = None
+    reductor = copyreg.dispatch_table.get(cls)
+    try:
+        rv = reductor(obj) if reductor is not None else obj.__reduce_ex__(4)
+        if isinstance(rv, tuple):
+            # Leave out the reduced state: `__setstate__` may assign through a
+            # frozen `__setattr__`, and stored state is copied from `obj` below.
+            func, args, *rest = rv
+            result = copy._reconstruct(obj, None, func, args, None, *rest[1:3])
+    except Exception:
+        result = None
+    if result is None or result is obj:
+        result = cls.__new__(cls)
+    _copy_instance_state(obj, result, only_missing=False)
+    return result
+
+
 def _copy_dataclass_instance(obj: Any) -> Any:
     """Return a distinct shallow copy of a dataclass instance.
 
     `copy.copy` is preferred so `__dict__` / slots / `__copy__` are honored.
     If `__copy__` returns `self` (valid for some frozen value objects), build a
-    new instance through the type's own `__new__` (so C-backed bases such as
-    `Exception` are allocated correctly) and copy stored state so callers never
+    distinct instance with `_reconstruct_bypassing_copy_hook` so callers never
     mutate the original through `object.__setattr__`. When the copy came from the
     default protocol, state that a `slots=True` dataclass's generated
     `__getstate__` leaves out (inherited slots and `__dict__` entries) is
@@ -373,9 +401,7 @@ def _copy_dataclass_instance(obj: Any) -> Any:
     """
     result = copy.copy(obj)
     if result is obj:
-        cls = type(obj)
-        result = cls.__new__(cls)
-        _copy_instance_state(obj, result, only_missing=False)
+        result = _reconstruct_bypassing_copy_hook(obj)
     elif _copies_through_dataclass_state(type(obj)):
         _copy_instance_state(obj, result, only_missing=True)
     return result

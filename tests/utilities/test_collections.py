@@ -872,9 +872,15 @@ class TestVisitCollection:
         with pytest.raises(AttributeError):
             result.cached()
 
-    def test_visit_collection_init_var_copy_returns_self_on_exception_subclass(self):
+    @pytest.mark.parametrize("positional", [False, True])
+    def test_visit_collection_init_var_copy_returns_self_on_exception_subclass(
+        self, positional: bool
+    ):
         token = object()
-        inp = FrozenInitVarErrorCopyReturnsSelf(x=token, seed=3)
+        if positional:
+            inp = FrozenInitVarErrorCopyReturnsSelf(token, 3)
+        else:
+            inp = FrozenInitVarErrorCopyReturnsSelf(x=token, seed=3)
 
         result = visit_collection(
             inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
@@ -883,6 +889,8 @@ class TestVisitCollection:
         assert isinstance(result, FrozenInitVarErrorCopyReturnsSelf)
         assert result is not inp
         assert result.x == 42
+        # `BaseException.args` lives in C state, not in `__dict__` or slots.
+        assert result.args == inp.args
         assert inp.x is token
 
     def test_visit_collection_does_not_consume_generators(self):
