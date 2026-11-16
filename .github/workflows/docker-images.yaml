@@ -179,6 +179,7 @@ jobs:
     if: github.event_name == 'release'
     outputs:
       PREFECT_AWS_VERSION: ${{ steps.get_version.outputs.PREFECT_AWS_VERSION }}
+      PREFECT_AWS_FINAL_VERSION: ${{ steps.get_version.outputs.PREFECT_AWS_FINAL_VERSION }}
       IS_LATEST_RELEASE: ${{ steps.check_latest_release.outputs.IS_LATEST_RELEASE }}
     steps:
       - name: Checkout
@@ -192,6 +193,9 @@ jobs:
         run: |
           PREFECT_AWS_VERSION=$(git tag --list 'prefect-aws-*' --sort=-version:refname | head -1 | sed 's/^prefect-aws-//')
           echo "PREFECT_AWS_VERSION=$PREFECT_AWS_VERSION" >> $GITHUB_OUTPUT
+          # The MicroVM build moves its latest and minor tags only for a final prefect-aws, so it skips rc and beta tags.
+          PREFECT_AWS_FINAL_VERSION=$(git tag --list 'prefect-aws-*' --sort=-version:refname | grep -E '^prefect-aws-[0-9]+\.[0-9]+\.[0-9]+$' | head -1 | sed 's/^prefect-aws-//')
+          echo "PREFECT_AWS_FINAL_VERSION=$PREFECT_AWS_FINAL_VERSION" >> $GITHUB_OUTPUT
 
       - name: Check whether this is the latest release
         id: check_latest_release
@@ -225,11 +229,11 @@ jobs:
     name: Build prefect-aws MicroVM Docker image
     needs: [publish-docker-images, get-prefect-aws-version]
     # A nightly or a patch on an older 3.x line would point latest-microvm and the other moving tags at a dev or older Prefect.
-    if: github.event_name == 'release' && !github.event.release.prerelease && needs.get-prefect-aws-version.outputs.IS_LATEST_RELEASE == 'true' && needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION != ''
+    if: github.event_name == 'release' && !github.event.release.prerelease && needs.get-prefect-aws-version.outputs.IS_LATEST_RELEASE == 'true' && needs.get-prefect-aws-version.outputs.PREFECT_AWS_FINAL_VERSION != ''
     uses: ./.github/workflows/prefect-aws-microvm-docker-images.yaml
     with:
       prefect_version: ${{ github.ref_name }}
-      prefect_aws_version: ${{ needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION }}
+      prefect_aws_version: ${{ needs.get-prefect-aws-version.outputs.PREFECT_AWS_FINAL_VERSION }}
     secrets: inherit
 
   get-prefect-azure-version:
