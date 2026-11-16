@@ -3,6 +3,7 @@ Utilities for extensions of and operations on Python collections.
 """
 
 import copy
+import copyreg
 import dataclasses
 import io
 import itertools
@@ -246,6 +247,18 @@ class StopVisiting(BaseException):
     """
 
 
+def _holds_value(obj: Any, name: str, value: Any) -> bool:
+    """True if reading `name` from `obj` gives exactly `value`.
+
+    Descriptors may raise something other than `AttributeError` (such as
+    `KeyError`) when they hold no value for `obj`; that counts as not holding it.
+    """
+    try:
+        return getattr(obj, name) is value
+    except Exception:
+        return False
+
+
 def _is_required_init_var(field: Any) -> bool:
     """True for InitVar fields that `replace()` would require as kwargs.
 
@@ -298,25 +311,48 @@ def _copy_instance_state(source: Any, target: Any, *, only_missing: bool) -> Non
             descriptor.__set__(target, value)
 
 
-def _copies_through_dataclass_state(cls: type) -> bool:
-    """True when `copy.copy` of `cls` goes through the default pickle protocol
-    and, for `slots=True` dataclasses, the generated `__getstate__`.
+def _effective_class_attr(cls: type, name: str) -> Any:
+    """Return the definition of `name` that attribute lookup on `cls` finds.
 
-    That `__getstate__` returns only `dataclasses.fields()`, so inherited
-    slots and inherited `__dict__` entries are missing from the copy. A class
-    that defines its own `__copy__`, `__reduce__`, `__reduce_ex__` or
-    `__getstate__` decides its own copy and is trusted as is.
+    Walks the MRO like normal lookup, so a base method shadowed by a subclass
+    (for example by the `__getstate__` that `slots=True` dataclasses generate)
+    is not reported.
     """
-    generated_getstate = getattr(dataclasses, "_dataclass_getstate", None)
     for base in cls.__mro__:
-        if base is object:
-            continue
-        attrs = vars(base)
-        if "__copy__" in attrs or "__reduce__" in attrs or "__reduce_ex__" in attrs:
+        if name in vars(base):
+            return vars(base)[name]
+    return None
+
+
+def _copies_through_dataclass_state(cls: type) -> bool:
+    """True when `copy.copy` of `cls` uses only the default copy protocol.
+
+    That is: no `copyreg` reducer, no `__copy__`, and the `__reduce_ex__`,
+    `__reduce__`, `__getstate__` and `__setstate__` that lookup on `cls`
+    actually resolves to are the ones from `object` or the ones `dataclasses`
+    generates. The generated `__getstate__` returns only `dataclasses.fields()`,
+    so inherited slots and inherited `__dict__` entries are missing from such a
+    copy. A class with any effective custom hook decides its own copy and is
+    trusted as is.
+    """
+    if cls in copyreg.dispatch_table:
+        return False
+    if _effective_class_attr(cls, "__copy__") is not None:
+        return False
+    for name in ("__reduce_ex__", "__reduce__"):
+        if _effective_class_attr(cls, name) is not vars(object)[name]:
             return False
-        getstate = attrs.get("__getstate__")
-        if getstate is not None and getstate is not generated_getstate:
-            return False
+    getstate = _effective_class_attr(cls, "__getstate__")
+    if getstate not in (
+        vars(object).get("__getstate__"),
+        getattr(dataclasses, "_dataclass_getstate", None),
+    ):
+        return False
+    setstate = _effective_class_attr(cls, "__setstate__")
+    if setstate is not None and setstate is not getattr(
+        dataclasses, "_dataclass_setstate", None
+    ):
+        return False
     return True
 
 
@@ -645,11 +681,14 @@ def visit_collection(
                 )
                 if requires_init_var:
                     result = _copy_dataclass_instance(expr)
-                    # The copy already holds unchanged values; only write the
-                    # fields the visitor changed so descriptor setters on
-                    # untouched fields are not invoked.
+                    # Make every stored field hold its visited value, but only
+                    # write the ones the copy does not already hold, so setters
+                    # on untouched fields are not invoked. This also restores
+                    # fields whose value lives outside `__dict__` and slots
+                    # (for example a descriptor keyed by instance), which a
+                    # shallow copy does not carry over.
                     for f, v in zip(expr_fields, values):
-                        if getattr(expr, f.name) is not v:
+                        if not _holds_value(result, f.name, v):
                             object.__setattr__(result, f.name, v)
                 else:
                     result = replace(

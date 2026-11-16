@@ -1,8 +1,10 @@
+import copyreg
 import dataclasses
 import io
 import json
 import typing
 import uuid
+import weakref
 from collections import Counter, defaultdict, deque
 from dataclasses import InitVar, dataclass
 from typing import Any, NamedTuple
@@ -313,6 +315,82 @@ class DataclassWithInitVarAndWriteOnceField:
     x: int
     seed: InitVar[int]
     y: int = WriteOnceDescriptor()
+
+
+class GetstatePrivateSlotBase(PrivateSlotBase):
+    """Its `__getstate__` is shadowed by the one `slots=True` dataclasses generate."""
+
+    __slots__ = ()
+
+    def __getstate__(self):
+        raise AssertionError("shadowed; should not be called")
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarShadowedBaseGetstate(GetstatePrivateSlotBase):
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        object.__setattr__(self, "_PrivateSlotBase__cache", seed)
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarCopyreg(PrivateSlotBase):
+    """Copied by a `copyreg` reducer that leaves the cache out on purpose."""
+
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        object.__setattr__(self, "_PrivateSlotBase__cache", seed)
+
+
+def _rebuild_without_cache(cls: type, x: Any) -> Any:
+    obj = object.__new__(cls)
+    object.__setattr__(obj, "x", x)
+    return obj
+
+
+def _reduce_without_cache(obj: FrozenSlotsInitVarCopyreg) -> Any:
+    return _rebuild_without_cache, (type(obj), obj.x)
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotsInitVarCustomSetstate(PrivateSlotBase):
+    """Uses the generated `__getstate__` but drops the cache in `__setstate__`."""
+
+    x: int
+    seed: InitVar[int]
+
+    def __post_init__(self, seed: int):
+        object.__setattr__(self, "_PrivateSlotBase__cache", seed)
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "x", state[0])
+
+
+class WeakStoreDescriptor:
+    """Keeps values outside the instance, so a shallow copy does not carry them."""
+
+    def __init__(self, default: int):
+        self._default = default
+        self._values: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self._default
+        return self._values[obj]
+
+    def __set__(self, obj, value):
+        self._values[obj] = value
+
+
+@dataclass(eq=False)
+class DataclassWithInitVarAndWeakStoreField:
+    x: int
+    seed: InitVar[int]
+    y: int = WeakStoreDescriptor(0)
 
 
 class SimplePydantic(pydantic.BaseModel):
@@ -651,6 +729,71 @@ class TestVisitCollection:
         assert result.x == 42
         assert result.y == 7
         assert inp.x is token
+
+    def test_visit_collection_init_var_copy_ignores_shadowed_base_getstate(self):
+        token = object()
+        inp = FrozenSlotsInitVarShadowedBaseGetstate(x=token, seed=3)
+        assert inp.cached() == 3
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, FrozenSlotsInitVarShadowedBaseGetstate)
+        assert result is not inp
+        assert result.x == 42
+        assert result.cached() == 3
+        assert inp.x is token
+
+    def test_visit_collection_init_var_copy_trusts_a_copyreg_reducer(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setitem(
+            copyreg.dispatch_table, FrozenSlotsInitVarCopyreg, _reduce_without_cache
+        )
+        token = object()
+        inp = FrozenSlotsInitVarCopyreg(x=token, seed=3)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, FrozenSlotsInitVarCopyreg)
+        assert result is not inp
+        assert result.x == 42
+        with pytest.raises(AttributeError):
+            result.cached()
+
+    def test_visit_collection_init_var_copy_trusts_a_custom_setstate(self):
+        token = object()
+        inp = FrozenSlotsInitVarCustomSetstate(x=token, seed=3)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, FrozenSlotsInitVarCustomSetstate)
+        assert result is not inp
+        assert result.x == 42
+        with pytest.raises(AttributeError):
+            result.cached()
+
+    def test_visit_collection_init_var_copy_keeps_fields_stored_outside_instance(
+        self,
+    ):
+        token = object()
+        inp = DataclassWithInitVarAndWeakStoreField(x=token, seed=3, y=7)
+
+        result = visit_collection(
+            inp, visit_fn=lambda v: 42 if v is token else v, return_data=True
+        )
+
+        assert isinstance(result, DataclassWithInitVarAndWeakStoreField)
+        assert result is not inp
+        assert result.x == 42
+        assert result.y == 7
+        assert inp.x is token
+        assert inp.y == 7
 
     def test_visit_collection_does_not_consume_generators(self):
         def f():
