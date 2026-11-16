@@ -1170,9 +1170,23 @@ class TestObserverRecovery:
         caplog: pytest.LogCaptureFixture,
         monkeypatch: pytest.MonkeyPatch,
     ):
+        # Expire the setup deadline explicitly instead of racing a short
+        # wall-clock timeout against polling, which loses under CI load.
+        setup_timeout_seconds = 3600.0
         monkeypatch.setattr(
-            "prefect._internal._observation_delivery.SETUP_TIMEOUT_SECONDS", 0.2
+            "prefect._internal._observation_delivery.SETUP_TIMEOUT_SECONDS",
+            setup_timeout_seconds,
         )
+        setup_deadlines: list[asyncio.Timeout] = []
+        real_timeout = asyncio.timeout
+
+        def tracking_timeout(delay: float | None) -> asyncio.Timeout:
+            deadline = real_timeout(delay)
+            if delay == setup_timeout_seconds:
+                setup_deadlines.append(deadline)
+            return deadline
+
+        monkeypatch.setattr(asyncio, "timeout", tracking_timeout)
         stream.script = [ConnectionError("down"), HANG, ScriptedConnection()]
         flow_run_id = uuid.uuid4()
 
@@ -1186,6 +1200,9 @@ class TestObserverRecovery:
             await until(lambda: case.notified == [flow_run_id])
             assert stream.abandoned == 0
 
+            hanging_setup = setup_deadlines[-1]
+            assert not hanging_setup.expired()
+            hanging_setup.reschedule(asyncio.get_running_loop().time())
             await until(lambda: stream.abandoned == 1)
             await until(lambda: timer.pending == 1)
             assert "failed to reconnect to the events stream" in caplog.text
