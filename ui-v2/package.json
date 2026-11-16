@@ -141,7 +141,7 @@
     "eslint-plugin-testing-library": "^7.16.2",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.8.0",
-    "jsdom": "^30.0.1",
+    "jsdom": "^31.0.0",
     "msw": "^3.0.0",
     "msw-storybook-addon": "^3.0.0",
     "openapi-typescript": "^7.13.0",
