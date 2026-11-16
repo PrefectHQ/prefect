@@ -137,13 +137,23 @@ def _start_flow_run_suspension_observer(
                 observer_task = None
 
     def stop() -> None:
+        nonlocal observer_task
         with observer_task_lock:
             stop_event.set()
+            if observer_task is None:
+                return
+            loop, task = observer_task
+            observer_task = None
+
             # The first check retries until it reads the flow run and never polls
             # `stop_event`, so a thread still in it must be cancelled to exit.
-            if observer_task is not None and not ready_event.is_set():
-                loop, task = observer_task
-                loop.call_soon_threadsafe(task.cancel)
+            # Checking `ready_event` on the loop thread, where it is set, keeps a
+            # check that has already finished from being cancelled during cleanup.
+            def cancel_during_first_check() -> None:
+                if not ready_event.is_set():
+                    task.cancel()
+
+            loop.call_soon_threadsafe(cancel_during_first_check)
 
     context = contextvars.copy_context()
 

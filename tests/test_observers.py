@@ -17,6 +17,7 @@ from websockets.exceptions import ConnectionClosedError
 from prefect import flow
 from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
+    _start_flow_run_suspension_observer,
     adopt_prestarted_flow_run_suspension_observer,
     is_suspended_flow_run_state,
     observe_flow_run_suspension,
@@ -1026,6 +1027,143 @@ class TestPrestartFlowRunSuspensionObserver:
                     adopt_prestarted_flow_run_suspension_observer(flow_run_id)
                     is newer_observer
                 )
+
+
+class TestStartFlowRunSuspensionObserver:
+    @pytest.fixture
+    def release_check(self) -> Generator[threading.Event, None, None]:
+        release_check = threading.Event()
+        yield release_check
+        release_check.set()
+
+    @pytest.fixture
+    def cleanup_finished(self) -> threading.Event:
+        return threading.Event()
+
+    @pytest.fixture
+    def loops_in_first_check(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        release_check: threading.Event,
+        cleanup_finished: threading.Event,
+    ) -> "queue.Queue[asyncio.AbstractEventLoop]":
+        loops_in_first_check: queue.Queue[asyncio.AbstractEventLoop] = queue.Queue()
+
+        class FirstCheckBlocksTheLoop:
+            def __init__(self, on_suspended, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                await asyncio.sleep(0.01)
+                cleanup_finished.set()
+
+            async def watch_flow_run_id(self, flow_run_id):
+                loops_in_first_check.put(asyncio.get_running_loop())
+                # Blocking holds the loop thread, so a callback queued while the
+                # check is blocked runs only after the check returns.
+                release_check.wait(timeout=5)
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FirstCheckBlocksTheLoop,
+        )
+        return loops_in_first_check
+
+    def test_stop_during_first_check_does_not_cancel_cleanup_after_check_finishes(
+        self,
+        loops_in_first_check: "queue.Queue[asyncio.AbstractEventLoop]",
+        release_check: threading.Event,
+        cleanup_finished: threading.Event,
+    ):
+        thread, ready_event, stop = _start_flow_run_suspension_observer(
+            uuid.uuid4(), FlowRunSuspensionRequest()
+        )
+        loops_in_first_check.get(timeout=2)
+
+        stop()
+        release_check.set()
+
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+        assert ready_event.is_set()
+        assert cleanup_finished.is_set()
+
+    def test_stop_twice_queues_one_cancel(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        loops_in_first_check: "queue.Queue[asyncio.AbstractEventLoop]",
+        release_check: threading.Event,
+    ):
+        thread, _, stop = _start_flow_run_suspension_observer(
+            uuid.uuid4(), FlowRunSuspensionRequest()
+        )
+        loop = loops_in_first_check.get(timeout=2)
+        queued_callbacks: list[Callable[..., object]] = []
+        call_soon_threadsafe = loop.call_soon_threadsafe
+
+        def record_queued_callback(callback, *args, **kwargs):
+            queued_callbacks.append(callback)
+            return call_soon_threadsafe(callback, *args, **kwargs)
+
+        monkeypatch.setattr(loop, "call_soon_threadsafe", record_queued_callback)
+
+        stop()
+        stop()
+        callbacks_queued_by_stop = len(queued_callbacks)
+        release_check.set()
+
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+        assert callbacks_queued_by_stop == 1
+
+    def test_stop_before_the_event_loop_starts_skips_the_first_check(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        first_check_entered = threading.Event()
+
+        class FirstCheckNeverCompletes:
+            def __init__(self, on_suspended, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                pass
+
+            async def watch_flow_run_id(self, flow_run_id):
+                first_check_entered.set()
+                await asyncio.Event().wait()
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FirstCheckNeverCompletes,
+        )
+
+        loop_start_gate = threading.Event()
+        run = asyncio.run
+
+        def run_after_gate(main, **kwargs):
+            loop_start_gate.wait(timeout=5)
+            return run(main, **kwargs)
+
+        monkeypatch.setattr("prefect._flow_run_suspension.asyncio.run", run_after_gate)
+
+        try:
+            thread, ready_event, stop = _start_flow_run_suspension_observer(
+                uuid.uuid4(), FlowRunSuspensionRequest()
+            )
+            stop()
+        finally:
+            loop_start_gate.set()
+
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+        assert not first_check_entered.is_set()
+        assert ready_event.is_set()
 
 
 CLOSE = object()
