@@ -10,6 +10,7 @@ from uuid import UUID
 from prefect.client.schemas.objects import State
 from prefect.exceptions import Pause
 from prefect.logging.loggers import get_logger
+from prefect.settings import PREFECT_API_URL
 
 
 class FlowRunSuspensionRequest:
@@ -90,24 +91,26 @@ def _start_flow_run_suspension_observer(
     flow_run_id: UUID,
     suspension_request: FlowRunSuspensionRequest,
     polling_interval: float = 10,
-) -> tuple[threading.Thread, threading.Event, threading.Event]:
+) -> tuple[threading.Thread, threading.Event, Callable[[], None]]:
     """
     Start a thread that watches a flow run for suspension.
 
     Returns the thread, an event that is set once the observer has made its first
-    check of the flow run, and an event that stops the thread when set.
+    check of the flow run or has exited, and a function that stops the thread.
     """
     from prefect._internal.observers import FlowRunSuspendingObserver
 
     logger = get_logger("flow_run_suspension")
     stop_event = threading.Event()
     ready_event = threading.Event()
+    observer_task_lock = threading.Lock()
+    observer_task: tuple[asyncio.AbstractEventLoop, asyncio.Task[None]] | None = None
 
     def mark_suspended(flow_run_id: UUID, state: State) -> None:
         if not mark_flow_run_suspension_requested(flow_run_id, state):
             suspension_request.mark_requested(state)
 
-    async def run_observer() -> None:
+    async def watch_until_stopped() -> None:
         async with FlowRunSuspendingObserver(
             on_suspended=mark_suspended,
             polling_interval=polling_interval,
@@ -116,6 +119,31 @@ def _start_flow_run_suspension_observer(
             ready_event.set()
             while not stop_event.is_set():
                 await asyncio.sleep(0.2)
+
+    async def run_observer() -> None:
+        nonlocal observer_task
+        task = asyncio.current_task()
+        with observer_task_lock:
+            if stop_event.is_set() or task is None:
+                return
+            observer_task = (asyncio.get_running_loop(), task)
+        try:
+            await watch_until_stopped()
+        except asyncio.CancelledError:
+            if not stop_event.is_set():
+                raise
+        finally:
+            with observer_task_lock:
+                observer_task = None
+
+    def stop() -> None:
+        with observer_task_lock:
+            stop_event.set()
+            # The first check retries until it reads the flow run and never polls
+            # `stop_event`, so a thread still in it must be cancelled to exit.
+            if observer_task is not None and not ready_event.is_set():
+                loop, task = observer_task
+                loop.call_soon_threadsafe(task.cancel)
 
     context = contextvars.copy_context()
 
@@ -132,7 +160,7 @@ def _start_flow_run_suspension_observer(
 
     thread = threading.Thread(target=observer_thread, daemon=True)
     thread.start()
-    return thread, ready_event, stop_event
+    return thread, ready_event, stop
 
 
 @contextmanager
@@ -141,7 +169,7 @@ def observe_flow_run_suspension(
     suspension_request: FlowRunSuspensionRequest,
     polling_interval: float = 10,
 ) -> Generator[None, None, None]:
-    thread, ready_event, stop_event = _start_flow_run_suspension_observer(
+    thread, ready_event, stop = _start_flow_run_suspension_observer(
         flow_run_id, suspension_request, polling_interval
     )
     ready_event.wait()
@@ -149,7 +177,7 @@ def observe_flow_run_suspension(
     try:
         yield
     finally:
-        stop_event.set()
+        stop()
         thread.join(timeout=2)
 
 
@@ -169,16 +197,27 @@ def prestart_flow_run_suspension_observer(
     flow_run_id: UUID,
 ) -> Generator[Callable[[], None], None, None]:
     """
-    Start watching a flow run for suspension without waiting for the first check,
-    so the observer connects while the caller loads the flow run and the flow.
+    Start a thread that watches a flow run for suspension, and yield a function
+    that stops it.
 
-    The flow run engine for this flow run uses this observer, through
-    `adopt_prestarted_flow_run_suspension_observer`, instead of starting its own.
-    Calling the yielded function stops the observer early, and the engine then
-    behaves as if no observer was prestarted.
+    While the context is open and the observer is not stopped,
+    `adopt_prestarted_flow_run_suspension_observer` returns this observer, and the
+    flow run engine for `flow_run_id` uses it instead of starting its own. After
+    the yielded function is called, the engine starts its own observer as if none
+    was prestarted. Exiting the context stops the observer. If no API URL is
+    configured, no observer is started and the yielded function does nothing.
     """
+    if not PREFECT_API_URL.value():
+        # Without an API URL, `get_client` starts an ephemeral server, and that
+        # startup is not safe to run from the observer thread and the caller at
+        # the same time.
+        yield lambda: None
+        return
+
     suspension_request = FlowRunSuspensionRequest()
-    thread, ready_event, stop_event = _start_flow_run_suspension_observer(
+    # The observer does not wait for its first check here, so it connects while
+    # the caller loads the flow run and the flow.
+    thread, ready_event, stop_observer = _start_flow_run_suspension_observer(
         flow_run_id, suspension_request
     )
     prestarted_observer = PrestartedFlowRunSuspensionObserver(
@@ -186,6 +225,7 @@ def prestart_flow_run_suspension_observer(
     )
     with _prestarted_flow_run_suspension_observers_lock:
         _prestarted_flow_run_suspension_observers[flow_run_id] = prestarted_observer
+    stopped = threading.Event()
 
     def stop() -> None:
         with _prestarted_flow_run_suspension_observers_lock:
@@ -194,16 +234,17 @@ def prestart_flow_run_suspension_observer(
                 is prestarted_observer
             ):
                 _prestarted_flow_run_suspension_observers.pop(flow_run_id, None)
-        stop_event.set()
+        stopped.set()
+        stop_observer()
 
     try:
         yield stop
     finally:
-        stopped_early = stop_event.is_set()
+        stopped_early = stopped.is_set()
         stop()
-        # The thread checks `stop_event` only after its first check of the flow
-        # run. Joining a thread that has not made that check, or one stopped
-        # early for a run without a deployment, would delay the caller.
+        # A thread cancelled during its first check, or stopped early for a run
+        # without a deployment, can take time to close its client. Joining it
+        # would delay the caller, and no engine uses it.
         if not stopped_early and ready_event.is_set():
             thread.join(timeout=2)
 

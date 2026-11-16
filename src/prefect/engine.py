@@ -167,6 +167,7 @@ if __name__ == "__main__":
             run_flow,
         )
 
+        stop_suspension_observer: Callable[[], None]
         with prestart_flow_run_suspension_observer(
             flow_run_id
         ) as stop_suspension_observer:

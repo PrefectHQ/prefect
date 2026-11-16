@@ -656,7 +656,7 @@ class BaseFlowRunEngine(Generic[P, R]):
             and flow_run_suspension_request is self._flow_run_suspension_request
             else None
         )
-        if prestarted_observer:
+        if prestarted_observer is not None:
             # The prestarted observer marks its own request, so the engine and
             # its tasks must check that same object.
             self._flow_run_suspension_request = prestarted_observer.suspension_request
@@ -668,7 +668,7 @@ class BaseFlowRunEngine(Generic[P, R]):
                     self.flow_run.id, flow_run_suspension_request
                 )
             )
-            if prestarted_observer:
+            if prestarted_observer is not None:
                 prestarted_observer.ready_event.wait()
             elif self.flow_run.deployment_id:
                 stack.enter_context(

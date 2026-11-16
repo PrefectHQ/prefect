@@ -1,5 +1,7 @@
 import asyncio
+import queue
 import threading
+import time
 import uuid
 from collections.abc import Awaitable, Callable, Generator
 from contextlib import AsyncExitStack
@@ -31,6 +33,7 @@ from prefect.events import Event, Resource
 from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
 from prefect.events.utilities import emit_event
 from prefect.exceptions import ObjectNotFound
+from prefect.settings import PREFECT_API_URL, temporary_settings
 from prefect.states import Running, Scheduled, Suspended
 from prefect.types._datetime import DateTime, now
 
@@ -807,6 +810,10 @@ class TestPrestartFlowRunSuspensionObserver:
         return threading.Event()
 
     @pytest.fixture
+    def watch_started(self) -> threading.Event:
+        return threading.Event()
+
+    @pytest.fixture
     def suspended_state(self) -> State:
         return Suspended()
 
@@ -816,6 +823,7 @@ class TestPrestartFlowRunSuspensionObserver:
         monkeypatch: pytest.MonkeyPatch,
         release_watch: threading.Event,
         observer_exited: threading.Event,
+        watch_started: threading.Event,
         suspended_state: State,
     ) -> None:
         class FakeFlowRunSuspendingObserver:
@@ -829,6 +837,7 @@ class TestPrestartFlowRunSuspensionObserver:
                 observer_exited.set()
 
             async def watch_flow_run_id(self, flow_run_id):
+                watch_started.set()
                 await asyncio.to_thread(release_watch.wait)
                 self.on_suspended(flow_run_id, suspended_state)
 
@@ -880,21 +889,125 @@ class TestPrestartFlowRunSuspensionObserver:
         assert observer_exited.is_set()
 
     def test_early_stop_does_not_wait_for_initial_check(
-        self, release_watch: threading.Event, observer_exited: threading.Event
+        self, release_watch: threading.Event
     ):
         flow_run_id = uuid.uuid4()
         stopped = threading.Event()
 
         with prestart_flow_run_suspension_observer(flow_run_id) as stop:
+            prestarted_observer = adopt_prestarted_flow_run_suspension_observer(
+                flow_run_id
+            )
+            assert prestarted_observer is not None
             stopper = threading.Thread(target=lambda: (stop(), stopped.set()))
             stopper.start()
 
             assert stopped.wait(timeout=1)
             assert adopt_prestarted_flow_run_suspension_observer(flow_run_id) is None
-            assert not observer_exited.is_set()
 
         release_watch.set()
-        assert observer_exited.wait(timeout=2)
+        assert prestarted_observer.ready_event.wait(timeout=2)
+
+    @pytest.fixture
+    def threads_in_first_check(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> "queue.Queue[threading.Thread]":
+        threads_in_first_check: queue.Queue[threading.Thread] = queue.Queue()
+
+        class FirstCheckNeverCompletes:
+            def __init__(self, on_suspended, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                pass
+
+            async def watch_flow_run_id(self, flow_run_id):
+                threads_in_first_check.put(threading.current_thread())
+                await asyncio.Event().wait()
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FirstCheckNeverCompletes,
+        )
+        return threads_in_first_check
+
+    def test_stop_ends_an_observer_still_in_its_first_check(
+        self, threads_in_first_check: "queue.Queue[threading.Thread]"
+    ):
+        flow_run_id = uuid.uuid4()
+
+        with prestart_flow_run_suspension_observer(flow_run_id) as stop:
+            prestarted_observer = adopt_prestarted_flow_run_suspension_observer(
+                flow_run_id
+            )
+            assert prestarted_observer is not None
+            observer_thread = threads_in_first_check.get(timeout=2)
+
+            stop()
+
+            observer_thread.join(timeout=2)
+            assert not observer_thread.is_alive()
+            assert prestarted_observer.ready_event.is_set()
+
+    def test_exit_ends_an_observer_still_in_its_first_check(
+        self, threads_in_first_check: "queue.Queue[threading.Thread]"
+    ):
+        flow_run_id = uuid.uuid4()
+
+        with prestart_flow_run_suspension_observer(flow_run_id):
+            prestarted_observer = adopt_prestarted_flow_run_suspension_observer(
+                flow_run_id
+            )
+            assert prestarted_observer is not None
+            observer_thread = threads_in_first_check.get(timeout=2)
+
+        observer_thread.join(timeout=2)
+        assert not observer_thread.is_alive()
+        assert prestarted_observer.ready_event.is_set()
+
+    def test_exit_does_not_wait_for_an_observer_stopped_early(
+        self, watch_started: threading.Event
+    ):
+        # Once the fake observer's first check starts, its thread cannot exit
+        # until `release_watch` is set, so a join on exit would take its full
+        # timeout.
+        prestart = prestart_flow_run_suspension_observer(uuid.uuid4())
+        stop = prestart.__enter__()
+        assert watch_started.wait(timeout=2)
+        stop()
+
+        started = time.monotonic()
+        prestart.__exit__(None, None, None)
+
+        assert time.monotonic() - started < 1
+
+    def test_exit_does_not_wait_for_an_observer_that_is_not_ready(
+        self, watch_started: threading.Event
+    ):
+        # Once the fake observer's first check starts, its thread cannot exit
+        # until `release_watch` is set, so a join on exit would take its full
+        # timeout.
+        prestart = prestart_flow_run_suspension_observer(uuid.uuid4())
+        prestart.__enter__()
+        assert watch_started.wait(timeout=2)
+
+        started = time.monotonic()
+        prestart.__exit__(None, None, None)
+
+        assert time.monotonic() - started < 1
+
+    def test_no_observer_is_prestarted_without_an_api_url(self):
+        flow_run_id = uuid.uuid4()
+
+        with temporary_settings({PREFECT_API_URL: None}):
+            with prestart_flow_run_suspension_observer(flow_run_id) as stop:
+                assert (
+                    adopt_prestarted_flow_run_suspension_observer(flow_run_id) is None
+                )
+                stop()
 
     def test_exit_keeps_a_newer_observer_for_the_same_flow_run(
         self, release_watch: threading.Event
