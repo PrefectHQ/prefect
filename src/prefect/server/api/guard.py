@@ -23,14 +23,20 @@ if TYPE_CHECKING:
     from guard import SecurityConfig, SecurityMiddleware
     from starlette.types import ASGIApp, Receive, Scope, Send
 
-DEFAULT_EXCLUDED_PATHS = "/api/health,/ready,/docs,/redoc,/openapi.json"
+DEFAULT_EXCLUDED_PATHS = "/docs,/redoc,/openapi.json"
+
+
+def probe_paths() -> frozenset[str]:
+    """The API's health and readiness probes, under the path the API app is
+    mounted at (PREFECT_SERVER_API_BASE_PATH, else /api)."""
+    base_path = prefect.settings.get_current_settings().server.api.base_path
+    base = (base_path or "/api").rstrip("/")
+    return frozenset({f"{base}/health", f"{base}/ready"})
+
 
 # fastapi-guard keeps rate limiting and ban checks active on excluded paths,
 # so health and readiness probes would be rate limited (and the client IP
 # auto-banned). They skip the guard entirely instead.
-PROBE_PATHS = frozenset({"/api/health", "/ready"})
-
-
 class _ProbeBypassGuard:
     """Routes health and readiness probes around the SecurityMiddleware."""
 
@@ -39,12 +45,14 @@ class _ProbeBypassGuard:
         app: ASGIApp,
         guard_middleware: type[SecurityMiddleware],
         config: SecurityConfig,
+        probe_paths: frozenset[str],
     ) -> None:
         self._app = app
         self._guarded = guard_middleware(app, config=config)
+        self._probe_paths = probe_paths
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http" and scope["path"] in PROBE_PATHS:
+        if scope["type"] == "http" and scope["path"] in self._probe_paths:
             await self._app(scope, receive, send)
         else:
             await self._guarded(scope, receive, send)
@@ -99,7 +107,8 @@ def _build_guard_config() -> SecurityConfig:
         "trusted_proxies": _csv(_setting("trusted_proxies")),
         "trusted_proxy_depth": _setting("trusted_proxy_depth"),
         "exclude_paths": list(
-            _csv(_setting("excluded_paths")) or DEFAULT_EXCLUDED_PATHS.split(",")
+            _csv(_setting("excluded_paths"))
+            or [*sorted(probe_paths()), *DEFAULT_EXCLUDED_PATHS.split(",")]
         ),
     }
 
@@ -145,4 +154,5 @@ def attach_guard(app: FastAPI) -> None:
         _ProbeBypassGuard,
         guard_middleware=SecurityMiddleware,
         config=_build_guard_config(),
+        probe_paths=probe_paths(),
     )

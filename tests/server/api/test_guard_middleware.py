@@ -13,6 +13,7 @@ pytest.importorskip("guard")
 from httpx import ASGITransport, AsyncClient
 
 from prefect.settings import (
+    PREFECT_SERVER_API_BASE_PATH,
     PREFECT_SERVER_API_GUARD_BLOCKED_IPS,
     PREFECT_SERVER_API_GUARD_ENABLED,
     PREFECT_SERVER_API_GUARD_IPINFO_TOKEN,
@@ -152,13 +153,20 @@ def test_settings_fields_exist():
         assert hasattr(api_settings, name)
 
 
-@pytest.mark.parametrize("probe_path", ["/api/health", "/ready"])
-async def test_health_probes_are_never_rate_limited_or_banned(probe_path):
+@pytest.mark.parametrize(
+    ("base_path", "probe_path"),
+    [
+        (None, "/api/health"),
+        (None, "/api/ready"),
+        ("/v2/api", "/v2/api/health"),
+        ("/v2/api/", "/v2/api/ready"),
+    ],
+)
+async def test_health_probes_are_never_rate_limited_or_banned(base_path, probe_path):
     client_ip = _unique_ip()
     app = FastAPI()
 
-    @app.get("/api/health")
-    @app.get("/ready")
+    @app.get(probe_path)
     async def probe():
         return {"ok": True}
 
@@ -168,6 +176,7 @@ async def test_health_probes_are_never_rate_limited_or_banned(probe_path):
 
     with temporary_settings(
         {
+            PREFECT_SERVER_API_BASE_PATH: base_path,
             PREFECT_SERVER_API_GUARD_ENABLED: True,
             PREFECT_SERVER_API_GUARD_RATE_LIMIT: 2,
             PREFECT_SERVER_API_GUARD_RATE_LIMIT_WINDOW: 60,
