@@ -7,7 +7,7 @@ from prefect._internal.waiters import FlowRunWaiter
 from prefect.client.orchestration import PrefectClient
 from prefect.flow_engine import run_flow_async
 from prefect.server.events.pipeline import EventsPipeline
-from prefect.states import Pending
+from prefect.states import Completed, Pending, State
 
 
 class TestFlowRunWaiter:
@@ -114,6 +114,31 @@ class TestFlowRunWaiter:
         assert flow_run.state
         assert flow_run.state.is_completed()
         assert await run == 42
+
+    @pytest.mark.timeout(20)
+    async def test_wait_for_flow_run_in_completed_state_named_pending(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        A final state can have the name of a non-final state type, so its event is
+        `prefect.flow-run.Pending`.
+        """
+
+        @flow
+        async def test_flow() -> State:
+            await asyncio.sleep(1)
+            return Completed(name="Pending")
+
+        flow_run = await prefect_client.create_flow_run(test_flow, state=Pending())
+        run = asyncio.create_task(run_flow_async(flow=test_flow, flow_run=flow_run))
+
+        await FlowRunWaiter.wait_for_flow_run(flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+        assert flow_run.state.name == "Pending"
+        await run
 
     @pytest.mark.timeout(20)
     async def test_non_singleton_mode(

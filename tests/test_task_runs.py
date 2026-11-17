@@ -5,6 +5,7 @@ import pytest
 
 from prefect import task
 from prefect.server.events.pipeline import EventsPipeline
+from prefect.states import Completed, State
 from prefect.task_engine import run_task_async
 from prefect.task_runs import TaskRunWaiter
 
@@ -119,6 +120,31 @@ class TestTaskRunWaiter:
         assert state is not None
         assert state.is_completed()
         assert await run == 42
+
+    @pytest.mark.timeout(20)
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_wait_for_task_run_in_completed_state_named_pending(
+        self, emitting_events_pipeline: EventsPipeline
+    ):
+        """
+        A final state can have the name of a non-final state type, so its event is
+        `prefect.task-run.Pending`.
+        """
+
+        @task
+        async def test_task() -> State:
+            return Completed(name="Pending")
+
+        task_run_id = uuid.uuid4()
+        await run_task_async(task=test_task, task_run_id=task_run_id)
+        # Store the events so the waiter receives them when it subscribes
+        await emitting_events_pipeline.process_events()
+
+        state = await TaskRunWaiter.wait_for_task_run(task_run_id)
+
+        assert state is not None
+        assert state.is_completed()
+        assert state.name == "Pending"
 
     @pytest.mark.timeout(20)
     @pytest.mark.usefixtures("use_hosted_api_server")
