@@ -119,16 +119,7 @@ class FlowRunWaiter:
 
     async def _consume_events(self, consumer_started: asyncio.Event):
         async with get_events_subscriber(
-            filter=EventFilter(
-                event=EventNameFilter(
-                    prefix=["prefect.flow-run."],
-                    exclude_name=[
-                        f"prefect.flow-run.{state.name.title()}"
-                        for state in StateType
-                        if state not in TERMINAL_STATES
-                    ],
-                )
-            )
+            filter=EventFilter(event=EventNameFilter(prefix=["prefect.flow-run."]))
         ) as subscriber:
             consumer_started.set()
             async for event in subscriber:
