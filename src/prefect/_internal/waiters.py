@@ -125,6 +125,8 @@ class FlowRunWaiter:
             async for event in subscriber:
                 try:
                     state_type = event.resource.get("prefect.state-type")
+                    if not state_type and "validated_state" in event.payload:
+                        state_type = event.payload["validated_state"].get("type")
                     if not state_type or StateType(state_type) not in TERMINAL_STATES:
                         continue
 
