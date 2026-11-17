@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 import signal
 import sys
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from types import FrameType
 from typing import NoReturn
@@ -33,6 +35,17 @@ from prefect.states import Crashed
 from prefect.utilities.engine import propose_state_sync
 from prefect_aws.microvm.payload import RunHookPayload
 
+try:
+    from prefect._flow_run_suspension import prestart_flow_run_suspension_observer
+except ImportError:
+    # Older Prefect versions have no prestarted observer; the engine starts its own.
+    @contextmanager
+    def prestart_flow_run_suspension_observer(
+        flow_run_id: UUID,
+    ) -> Iterator[Callable[[], None]]:
+        yield lambda: None
+
+
 logger = get_logger("prefect_aws.microvm")
 
 CHILD_OOM_SCORE_ADJ = 1000
@@ -58,20 +71,25 @@ def execute_flow_run(payload: RunHookPayload) -> None:
     # The same sequence as `python -m prefect.engine`.
     configure_from_env()
     with handle_engine_signals(payload.flow_run_id):
-        flow_run = load_flow_run(flow_run_id=payload.flow_run_id)
-        run_logger = flow_run_logger(flow_run=flow_run)
-        try:
-            flow = load_flow(flow_run)
-        except Exception:
-            run_logger.exception(
-                "Unexpected exception encountered when trying to load flow"
-            )
-            raise
-        with RunMetrics(flow_run, flow):
-            run_result = run_flow(flow, flow_run=flow_run, error_logger=run_logger)
-            # `run_flow` returns an unstarted coroutine or generator for async
-            # and generator flows; this runs it.
-            _drive_run_flow_result(flow, run_result)
+        with prestart_flow_run_suspension_observer(
+            payload.flow_run_id
+        ) as stop_suspension_observer:
+            flow_run = load_flow_run(flow_run_id=payload.flow_run_id)
+            if not flow_run.deployment_id:
+                stop_suspension_observer()
+            run_logger = flow_run_logger(flow_run=flow_run)
+            try:
+                flow = load_flow(flow_run)
+            except Exception:
+                run_logger.exception(
+                    "Unexpected exception encountered when trying to load flow"
+                )
+                raise
+            with RunMetrics(flow_run, flow):
+                run_result = run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+                # `run_flow` returns an unstarted coroutine or generator for
+                # async and generator flows; this runs it.
+                _drive_run_flow_result(flow, run_result)
 
 
 def run_child(payload: RunHookPayload) -> NoReturn:

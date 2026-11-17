@@ -28,6 +28,7 @@ CORE_FILES_USED_BY_INTEGRATIONS: dict[str, set[str]] = {
     "prefect-aws": {
         "src/prefect/engine.py",
         "src/prefect/flow_engine.py",
+        "src/prefect/_flow_run_suspension.py",
         "src/prefect/context.py",
         "src/prefect/_internal/concurrency/services.py",
         "src/prefect/_internal/control_listener.py",
