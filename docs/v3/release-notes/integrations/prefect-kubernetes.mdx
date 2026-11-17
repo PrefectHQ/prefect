@@ -1,6 +1,21 @@
 ---
 title: prefect-kubernetes
-description: Release notes for prefect-kubernetes 0.6.5 through 0.8.0, including options to disable the worker observer and server-side filtering of observer watches.
+description: Release notes for prefect-kubernetes 0.6.5 through 0.8.1, including options to disable the worker observer and server-side filtering of observer watches.
+---
+
+## 0.8.1
+
+_Released on November 12, 2026_
+
+**Bug Fixes**
+
+- Handle concurrent API-key Secret creation in Kubernetes workers [#23649](https://github.com/PrefectHQ/prefect/pull/23649) by [@j-hamet](https://github.com/j-hamet)
+- Fix `KubernetesJobRun.wait_for_completion` raising on interim K8s 1.31+ Job conditions [#23526](https://github.com/PrefectHQ/prefect/pull/23526) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Documentation**
+
+- Link to the docs at www.prefect.io/docs [#23642](https://github.com/PrefectHQ/prefect/pull/23642) by [@maximearmstrong](https://github.com/maximearmstrong)
+
 ---
 
 ## 0.8.0

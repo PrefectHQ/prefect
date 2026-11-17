@@ -81,6 +81,8 @@ The first authenticated connection consumes its attempt token. Replay and connec
 
 Each execution mode has a ProcessStarter implementation. To add a new execution mode, implement the ProcessStarter protocol and inject it into FlowRunExecutor -- do not add a new code path to Runner.
 
+A starter must give its `ProcessHandle` a termination scope that matches how it launched the child. The default scope stops a Windows child with `CTRL_BREAK_EVENT`, which only works when the child has its own console process group (`CREATE_NEW_PROCESS_GROUP`, as `EngineCommandStarter` sets); otherwise the event reaches every process on the console. `multiprocessing` spawn children share the runner's group, so use `create_spawn_process_termination_scope()`; use `create_isolated_termination_scope()` when the starter owns a whole process tree.
+
 ## Work Pool Clearing in `add_flow`
 
 `Runner.add_flow()` explicitly assigns `deployment.work_pool_name = None` and `deployment.work_queue_name = None` *after* the `RunnerDeployment` is constructed, not via constructor kwargs. This is intentional: post-construction assignment adds the fields to Pydantic's `model_fields_set`, which `server/models/deployments.py:update_deployment` checks to detect "explicitly cleared" vs. "not provided." Constructing with `work_pool_name=None` in kwargs does *not* trigger clearing — `RunnerDeployment` factory methods now omit `None`-valued work pool fields from the constructor. If you ever need another field to signal "clear this on the server side," follow the same post-construction-assignment pattern.

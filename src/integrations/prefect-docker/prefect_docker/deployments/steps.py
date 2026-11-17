@@ -268,7 +268,7 @@ def build_docker_image(
         if Path(temp_dockerfile).exists():
             raise ValueError("Dockerfile already exists.")
 
-        with Path(temp_dockerfile).open("w") as f:
+        with Path(temp_dockerfile).open("w", encoding="utf-8") as f:
             f.writelines(line + "\n" for line in lines)
 
         if persist_dockerfile:
@@ -276,7 +276,7 @@ def build_docker_image(
                 f"Persisting auto-generated Dockerfile to {dockerfile_output_path or 'Dockerfile.generated'}. Please update your 'dockerfile' value to use this Dockerfile for subsequent runs."
             )
             output_path = Path(dockerfile_output_path or "Dockerfile.generated")
-            with output_path.open("w") as out_file:
+            with output_path.open("w", encoding="utf-8") as out_file:
                 out_file.writelines(line + "\n" for line in lines)
         else:
             logger.info(
