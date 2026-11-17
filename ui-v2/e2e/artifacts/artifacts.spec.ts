@@ -17,12 +17,10 @@ import {
 const LIST_PREFIX = "e2e-art-list-";
 
 async function waitForArtifactsPageReady(page: Page): Promise<void> {
-	// The "Artifacts" text is rendered as a BreadcrumbItem (<li>), not a heading,
-	// so we match the empty-state heading OR the breadcrumb text to detect page ready.
+	// The "Artifacts" breadcrumb (<li>, not a heading) renders in both the empty
+	// and non-empty states once the route's queries resolve.
 	await expect(
-		page
-			.getByRole("heading", { name: /create an artifact to get started/i })
-			.or(page.getByRole("listitem").filter({ hasText: /^Artifacts$/ })),
+		page.getByRole("listitem").filter({ hasText: /^Artifacts$/ }),
 	).toBeVisible({ timeout: 10000 });
 }
 
@@ -53,17 +51,26 @@ test.describe("Artifacts List Page", () => {
 		const artifacts = await listArtifacts(apiClient);
 		test.skip(artifacts.length > 0, "Artifacts already exist from other tests");
 
-		// Use toPass retry pattern to handle slow page loads under CI load
+		// Other tests running in parallel create and delete artifacts at any
+		// time, so an API check before or after navigation can disagree with
+		// what the page rendered. Capture the exact list response the page used
+		// and decide based on that.
+		let renderedArtifacts: unknown[] = [];
 		await expect(async () => {
+			const listResponse = page.waitForResponse(
+				(response) =>
+					response.url().endsWith("/artifacts/latest/filter") &&
+					response.request().method() === "POST",
+			);
 			await page.goto("/artifacts");
+			renderedArtifacts = (await (await listResponse).json()) as unknown[];
 			await waitForArtifactsPageReady(page);
 		}).toPass({ timeout: 15000 });
 
-		// Another shard may have created artifacts between the skip-check and
-		// page load, putting us in the non-empty state. Re-verify via API so a
-		// rendering bug in the empty state still surfaces as a real failure.
-		const rechecked = await listArtifacts(apiClient);
-		test.skip(rechecked.length > 0, "Artifacts appeared from another shard");
+		test.skip(
+			renderedArtifacts.length > 0,
+			"Artifacts appeared from another test",
+		);
 
 		await expect(
 			page.getByRole("heading", {
