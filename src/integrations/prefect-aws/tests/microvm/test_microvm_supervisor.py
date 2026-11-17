@@ -570,14 +570,15 @@ def test_null_entrypoint_run_without_deployment_stops_the_prestarted_observer(
     assert engine_observers_started == []
 
 
-def test_null_entrypoint_runs_the_flow_with_a_prefect_without_prestarted_observers(
+def test_null_entrypoint_deployment_run_with_a_prefect_without_prestarted_observers(
     monkeypatch: pytest.MonkeyPatch,
-    flow_run_in: CreateFlowRun,
     watched_flow_run_ids: list[UUID],
+    engine_observers_started: list[UUID],
 ):
-    flow_run = flow_run_in(Pending())
     ran: list[bool] = []
     loaded_flow = flow_that_records_it_ran(ran)
+    flow_run = deployment_flow_run(loaded_flow)
+    assert flow_run.deployment_id is not None
     adopted_while_loading_flow_run: list[
         PrestartedFlowRunSuspensionObserver | None
     ] = []
@@ -606,6 +607,7 @@ def test_null_entrypoint_runs_the_flow_with_a_prefect_without_prestarted_observe
     assert ran == [True]
     assert read_state(flow_run.id).type == StateType.COMPLETED
     assert adopted_while_loading_flow_run == [None]
+    assert engine_observers_started == [flow_run.id]
     assert watched_flow_run_ids == []
     assert (
         supervisor.prestart_flow_run_suspension_observer
