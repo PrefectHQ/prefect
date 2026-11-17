@@ -136,25 +136,35 @@ def commit_after_work_pool_read(
     original_read_work_pool_by_name = models.workers.read_work_pool_by_name
     writers: list[threading.Thread] = []
 
-    def commit_write(work_pool_name: str) -> None:
-        connection = sqlite3.connect(database, timeout=60, isolation_level=None)
+    def commit_write(work_pool_name: str, settled: threading.Event) -> None:
+        # With no busy timeout, `BEGIN IMMEDIATE` either commits right away or
+        # fails because the heartbeat transaction already holds the write lock.
+        connection = sqlite3.connect(database, timeout=0, isolation_level=None)
         try:
-            connection.execute("BEGIN IMMEDIATE")
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+            except sqlite3.OperationalError:
+                settled.set()
+                connection.execute("PRAGMA busy_timeout = 60000")
+                connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 "UPDATE work_pool SET description = ? WHERE name = ?",
                 (str(uuid.uuid4()), work_pool_name),
             )
             connection.execute("COMMIT")
         finally:
+            settled.set()
             connection.close()
 
     async def read_then_commit_elsewhere(*args, **kwargs):
         work_pool = await original_read_work_pool_by_name(*args, **kwargs)
-        writer = threading.Thread(target=commit_write, args=(kwargs["work_pool_name"],))
+        settled = threading.Event()
+        writer = threading.Thread(
+            target=commit_write, args=(kwargs["work_pool_name"], settled)
+        )
         writers.append(writer)
         writer.start()
-        # Gives the other writer time to commit if it does not have to wait.
-        await asyncio.to_thread(writer.join, 0.5)
+        assert await asyncio.to_thread(settled.wait, 60)
         return work_pool
 
     monkeypatch.setattr(
