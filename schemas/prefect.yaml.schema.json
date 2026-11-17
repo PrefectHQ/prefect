@@ -138,7 +138,22 @@
                 "labels": {
                     "anyOf": [
                         {
-                            "additionalProperties": true,
+                            "additionalProperties": {
+                                "anyOf": [
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "type": "integer"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ]
+                            },
                             "type": "object"
                         },
                         {

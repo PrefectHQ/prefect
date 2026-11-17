@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from prefect._experimental.sla.objects import SlaTypes
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.types import KeyValueLabels
 
 _ACTION_FIELDS = ("build", "push", "pull")
 
@@ -50,7 +51,7 @@ class DeploymentConfig(BaseModel):
     tags: Optional[Union[str, list[Any]]] = (
         None  # allow raw templated string or list; templating will normalize
     )
-    labels: Optional[Dict[str, Any]] = None
+    labels: Optional[KeyValueLabels] = None
     description: Optional[str] = None
 
     # schedule metadata
