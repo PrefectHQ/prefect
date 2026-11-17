@@ -60,7 +60,7 @@ class TestFlowRunWaiter:
         assert not run.done()
         await run
 
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     async def test_wait_for_flow_run_in_timed_out_state(
         self, prefect_client: PrefectClient
     ):
@@ -69,7 +69,7 @@ class TestFlowRunWaiter:
         final event is `prefect.flow-run.TimedOut`.
         """
 
-        @flow(timeout_seconds=1)
+        @flow(timeout_seconds=2)
         async def test_flow() -> None:
             await asyncio.sleep(5)
 
