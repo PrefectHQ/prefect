@@ -60,7 +60,6 @@ class DeploymentClient(BaseClient):
         work_queue_name: str | None = None,
         work_pool_name: str | None = None,
         tags: list[str] | None = None,
-        labels: "KeyValueLabelsField | None" = None,
         storage_document_id: UUID | None = None,
         path: str | None = None,
         entrypoint: str | None = None,
@@ -73,6 +72,7 @@ class DeploymentClient(BaseClient):
         branch: str | None = None,
         base: UUID | None = None,
         root: UUID | None = None,
+        labels: "KeyValueLabelsField | None" = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -771,7 +771,6 @@ class DeploymentAsyncClient(BaseAsyncClient):
         work_queue_name: str | None = None,
         work_pool_name: str | None = None,
         tags: list[str] | None = None,
-        labels: "KeyValueLabelsField | None" = None,
         storage_document_id: UUID | None = None,
         path: str | None = None,
         entrypoint: str | None = None,
@@ -784,6 +783,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         branch: str | None = None,
         base: UUID | None = None,
         root: UUID | None = None,
+        labels: "KeyValueLabelsField | None" = None,
     ) -> UUID:
         """
         Create a deployment.

@@ -1052,7 +1052,6 @@ class RunnerDeployment(BaseModel):
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        labels: Optional[KeyValueLabels] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -1061,6 +1060,7 @@ class RunnerDeployment(BaseModel):
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        labels: Optional[KeyValueLabels] = None,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -1210,13 +1210,13 @@ class RunnerDeployment(BaseModel):
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        labels: Optional[KeyValueLabels] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        labels: Optional[KeyValueLabels] = None,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -1321,7 +1321,6 @@ class RunnerDeployment(BaseModel):
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        labels: Optional[KeyValueLabels] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -1329,6 +1328,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        labels: Optional[KeyValueLabels] = None,
     ) -> "RunnerDeployment":
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
@@ -1468,7 +1468,6 @@ class RunnerDeployment(BaseModel):
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        labels: Optional[KeyValueLabels] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -1476,6 +1475,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        labels: Optional[KeyValueLabels] = None,
     ) -> "RunnerDeployment":
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a

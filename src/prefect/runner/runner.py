@@ -344,10 +344,10 @@ class Runner:
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        labels: Optional[dict[str, Any]] = None,
     ) -> UUID:
         """
         Provides a flow to the runner to be run based on the provided configuration.
@@ -446,10 +446,10 @@ class Runner:
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        labels: Optional[dict[str, Any]] = None,
     ) -> UUID:
         """
         Provides a flow to the runner to be run based on the provided configuration.

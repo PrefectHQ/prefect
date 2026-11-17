@@ -761,7 +761,6 @@ class Flow(Generic[P, R]):
         triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
-        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -770,6 +769,7 @@ class Flow(Generic[P, R]):
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        labels: Optional[dict[str, Any]] = None,
     ) -> "RunnerDeployment":
         """
         Asynchronously creates a runner deployment object for this flow.
@@ -907,7 +907,6 @@ class Flow(Generic[P, R]):
         triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
-        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -916,6 +915,7 @@ class Flow(Generic[P, R]):
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        labels: Optional[dict[str, Any]] = None,
     ) -> "RunnerDeployment":
         """
         Creates a runner deployment object for this flow.
@@ -1076,7 +1076,6 @@ class Flow(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
-        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         pause_on_shutdown: bool = True,
@@ -1084,6 +1083,7 @@ class Flow(Generic[P, R]):
         limit: Optional[int] = None,
         webserver: bool = False,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        labels: Optional[dict[str, Any]] = None,
     ) -> None:
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
@@ -1481,7 +1481,6 @@ class Flow(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
-        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -1489,6 +1488,7 @@ class Flow(Generic[P, R]):
         print_next_steps: bool = True,
         ignore_warnings: bool = False,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
+        labels: Optional[dict[str, Any]] = None,
     ) -> UUID:
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
@@ -1685,7 +1685,6 @@ class Flow(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
-        labels: Optional[dict[str, Any]] = None,
         version: Optional[str] = None,
         version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
@@ -1693,6 +1692,7 @@ class Flow(Generic[P, R]):
         print_next_steps: bool = True,
         ignore_warnings: bool = False,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
+        labels: Optional[dict[str, Any]] = None,
     ) -> UUID:
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
