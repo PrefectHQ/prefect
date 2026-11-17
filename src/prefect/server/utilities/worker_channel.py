@@ -681,7 +681,7 @@ class WorkerChannelConnection:
 
                 try:
                     async with self.db.session_context(
-                        begin_transaction=True
+                        begin_transaction=True, with_for_update=True
                     ) as session:
                         pool_updated = await _persist_worker_channel_heartbeat(
                             session=session,
