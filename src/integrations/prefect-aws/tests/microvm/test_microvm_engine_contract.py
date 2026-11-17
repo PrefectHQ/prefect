@@ -93,6 +93,7 @@ def test_drain_all_accepts_a_timeout(worker: type[QueueService[typing.Any]]):
         ("prefect.flow_engine", "load_flow"),
         ("prefect.flow_engine", "flow_run_logger"),
         ("prefect.utilities.engine", "propose_state_sync"),
+        ("prefect._flow_run_suspension", "prestart_flow_run_suspension_observer"),
     ],
 )
 def test_engine_functions_the_entrypoint_calls_import(module: str, name: str):
