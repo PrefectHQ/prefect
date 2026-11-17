@@ -150,13 +150,10 @@ expect(items.find((i) => i.name === itemName)?.value).toBe(expectedValue);
 
 **Base empty-state skips on the data the page rendered:**
 
-Tests that skip based on global state (e.g., "skip if no artifacts exist") must not trust only a pre-navigation API check: another test may change global state before the page loads, hiding a real rendering bug behind a skip. A separate API recheck after the page loads is also racy, because data can be deleted between the page's request and the recheck, so the recheck sees an empty list while the page shows items. Capture the response the page used and decide from it:
+Tests that skip based on global state (e.g., "skip if no artifacts exist") must not decide from a separate API check. A pre-navigation check is racy: another test may delete the data before the page loads, hiding a real rendering bug behind a skip. A post-navigation recheck is also racy, because data can be deleted between the page's request and the recheck, so the recheck sees an empty list while the page shows items. Capture the response the page used and decide from it:
 
 ```typescript
 // ✅ Good - skip decision uses the same data the page rendered
-const preCheck = await listItems(apiClient);
-test.skip(preCheck.length > 0, "Items exist, skipping empty-state test");
-
 const listResponse = page.waitForResponse(
   (response) =>
     response.url().endsWith("/items/filter") &&
@@ -167,7 +164,7 @@ const body: unknown = await (await listResponse).json();
 if (!Array.isArray(body)) {
   throw new Error(`Unexpected items response: ${JSON.stringify(body)}`);
 }
-test.skip(body.length > 0, "Items appeared from another test");
+test.skip(body.length > 0, "Items exist from other tests");
 
 await expect(page.getByRole("heading", { name: /get started/i })).toBeVisible();
 ```

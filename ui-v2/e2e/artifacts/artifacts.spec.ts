@@ -9,7 +9,6 @@ import {
 	createMarkdownArtifact,
 	createTableArtifact,
 	expect,
-	listArtifacts,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
@@ -47,13 +46,10 @@ test.describe("Artifacts List Page", () => {
 		}
 	});
 
-	test("Empty state when no artifacts exist", async ({ page, apiClient }) => {
-		const artifacts = await listArtifacts(apiClient);
-		test.skip(artifacts.length > 0, "Artifacts already exist from other tests");
-
+	test("Empty state when no artifacts exist", async ({ page }) => {
 		// Other tests running in parallel create and delete artifacts at any
-		// time, so an API check before or after navigation can disagree with
-		// what the page rendered. Capture the exact list response the page used
+		// time, so a separate API check before or after navigation can disagree
+		// with what the page rendered. Capture the exact list response the page used
 		// and decide based on that.
 		let renderedArtifactsCount = 0;
 		await expect(async () => {
@@ -73,10 +69,7 @@ test.describe("Artifacts List Page", () => {
 			await waitForArtifactsPageReady(page);
 		}).toPass({ timeout: 15000 });
 
-		test.skip(
-			renderedArtifactsCount > 0,
-			"Artifacts appeared from another test",
-		);
+		test.skip(renderedArtifactsCount > 0, "Artifacts exist from other tests");
 
 		await expect(
 			page.getByRole("heading", {
