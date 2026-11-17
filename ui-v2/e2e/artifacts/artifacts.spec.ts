@@ -55,7 +55,7 @@ test.describe("Artifacts List Page", () => {
 		// time, so an API check before or after navigation can disagree with
 		// what the page rendered. Capture the exact list response the page used
 		// and decide based on that.
-		let renderedArtifacts: unknown[] = [];
+		let renderedArtifactsCount = 0;
 		await expect(async () => {
 			const listResponse = page.waitForResponse(
 				(response) =>
@@ -63,12 +63,18 @@ test.describe("Artifacts List Page", () => {
 					response.request().method() === "POST",
 			);
 			await page.goto("/artifacts");
-			renderedArtifacts = (await (await listResponse).json()) as unknown[];
+			const body: unknown = await (await listResponse).json();
+			if (!Array.isArray(body)) {
+				throw new Error(
+					`Unexpected artifacts response: ${JSON.stringify(body)}`,
+				);
+			}
+			renderedArtifactsCount = body.length;
 			await waitForArtifactsPageReady(page);
 		}).toPass({ timeout: 15000 });
 
 		test.skip(
-			renderedArtifacts.length > 0,
+			renderedArtifactsCount > 0,
 			"Artifacts appeared from another test",
 		);
 
