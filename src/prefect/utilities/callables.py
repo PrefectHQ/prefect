@@ -100,7 +100,7 @@ def _resolve_field_info_default(value: Any) -> Any:
             except (ValueError, TypeError):
                 # Builtin types (list, dict, set, …) have no inspectable
                 # signature; they are always zero-argument constructors.
-                return value.default_factory()
+                return value.default_factory()  # type: ignore[call-arg]
             required_params = [
                 p
                 for p in sig.parameters.values()
@@ -115,7 +115,7 @@ def _resolve_field_info_default(value: Any) -> Any:
                 # Factory requires arguments we cannot supply here; return
                 # the callable so the caller can invoke it with the right data.
                 return value.default_factory
-            return value.default_factory()
+            return value.default_factory()  # type: ignore[call-arg]
         return value.default
     return value
 
