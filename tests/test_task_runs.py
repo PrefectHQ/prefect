@@ -4,6 +4,7 @@ import uuid
 import pytest
 
 from prefect import task
+from prefect.events import emit_event
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.states import Completed, State
 from prefect.task_engine import run_task_async
@@ -145,6 +146,30 @@ class TestTaskRunWaiter:
         assert state is not None
         assert state.is_completed()
         assert state.name == "Pending"
+
+    @pytest.mark.timeout(20)
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_wait_for_task_run_with_state_type_only_in_payload(
+        self, emitting_events_pipeline: EventsPipeline
+    ):
+        """
+        A final state event without a `prefect.state-type` label still wakes the
+        waiter through the state type in its payload.
+        """
+        task_run_id = uuid.uuid4()
+        emit_event(
+            event="prefect.task-run.Completed",
+            resource={"prefect.resource.id": f"prefect.task-run.{task_run_id}"},
+            payload={"validated_state": {"type": "COMPLETED", "name": "Completed"}},
+            id=uuid.uuid4(),
+        )
+        # Store the event so the waiter receives it when it subscribes
+        await emitting_events_pipeline.process_events()
+
+        state = await TaskRunWaiter.wait_for_task_run(task_run_id)
+
+        assert state is not None
+        assert state.is_completed()
 
     @pytest.mark.timeout(20)
     @pytest.mark.usefixtures("use_hosted_api_server")

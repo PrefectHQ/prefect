@@ -1,10 +1,12 @@
 import asyncio
+import uuid
 
 import pytest
 
 from prefect import flow
 from prefect._internal.waiters import FlowRunWaiter
 from prefect.client.orchestration import PrefectClient
+from prefect.events import emit_event
 from prefect.flow_engine import run_flow_async
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.states import Completed, Pending, State
@@ -139,6 +141,27 @@ class TestFlowRunWaiter:
         assert flow_run.state.is_completed()
         assert flow_run.state.name == "Pending"
         await run
+
+    @pytest.mark.timeout(20)
+    async def test_wait_for_flow_run_with_state_type_only_in_payload(
+        self, emitting_events_pipeline: EventsPipeline
+    ):
+        """
+        A final state event without a `prefect.state-type` label still wakes the
+        waiter through the state type in its payload. This test will fail with a
+        timeout error if it doesn't.
+        """
+        flow_run_id = uuid.uuid4()
+        emit_event(
+            event="prefect.flow-run.Completed",
+            resource={"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"},
+            payload={"validated_state": {"type": "COMPLETED", "name": "Completed"}},
+            id=uuid.uuid4(),
+        )
+        # Store the event so the waiter receives it when it subscribes
+        await emitting_events_pipeline.process_events()
+
+        await FlowRunWaiter.wait_for_flow_run(flow_run_id)
 
     @pytest.mark.timeout(20)
     async def test_non_singleton_mode(
