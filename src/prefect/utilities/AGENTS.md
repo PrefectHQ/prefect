@@ -18,7 +18,7 @@ Each subpackage owns its own `AGENTS.md` with entry points and pitfalls specific
 
 - `schema_tools/` → Hydration and validation of `__prefect_kind` template structures (see `schema_tools/AGENTS.md`)
 - `processutils/` → Subprocess execution, output streaming, and command serialization (see `processutils/AGENTS.md`)
-- `callables/` → Function signature introspection, parameter coercion, parameter schema generation (see `callables/AGENTS.md`)
+- `callables.py` — Function signature introspection, parameter coercion, parameter schema generation
 - `asyncutils/` → Async/sync bridging, thread coordination, concurrency primitives (see `asyncutils/AGENTS.md`)
 - `templating/` → Placeholder detection and value application for Prefect's `{{ }}` templating (see `templating/AGENTS.md`)
 - `engine/` → Result-to-state linking, SIGTERM bridge management, and control-intent coordination (see `engine/AGENTS.md`)

@@ -90,7 +90,7 @@ def get_call_parameters(
 
 def _resolve_field_info_default(value: Any) -> Any:
     """
-    Resolve a ``pydantic.Field(...)`` used as a signature default to its actual
+    Resolve a `pydantic.Field(...)` used as a signature default to its actual
     default value. Other values are returned unchanged.
     """
     if isinstance(value, pydantic.fields.FieldInfo):
