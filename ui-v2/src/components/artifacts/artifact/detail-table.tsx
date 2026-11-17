@@ -14,7 +14,10 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 		() => JSON.parse(tableData) as Record<string, string>[],
 		[tableData],
 	);
-	const headers = useMemo(() => Object.keys(rows[0] ?? {}), [rows]);
+	const headers = useMemo(
+		() => [...new Set(rows.flatMap((row) => Object.keys(row)))],
+		[rows],
+	);
 	const [input, setInput] = useState<string>("");
 
 	const columns = useMemo(
