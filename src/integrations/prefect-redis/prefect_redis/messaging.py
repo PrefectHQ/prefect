@@ -777,8 +777,9 @@ def _warn_if_skipped_group_has_unprocessed_entries(
     stream_name: str, group: dict[str, Any], reason: str
 ) -> None:
     pending = group.get("pending") or 0
+    # `lag` is missing before Redis 7.0 and can be null when Redis can't compute it
     lag = group.get("lag")
-    if pending or lag != 0:
+    if pending or lag:
         logger.warning(
             "Excluding consumer group %r (%s) from the trim floor of stream %s "
             "while it has %d pending entries and a lag of %s; entries it has not "
