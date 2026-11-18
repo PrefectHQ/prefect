@@ -28,6 +28,10 @@ describe("isSafeRedirectPath", () => {
 		"//[",
 		"/\\[",
 		"//evil.example:99999",
+		"//redirect-check-a.invalid/phish",
+		"//redirect-check-b.invalid/phish",
+		"/\\redirect-check-a.invalid/phish",
+		"/\t/redirect-check-b.invalid/phish",
 	])("rejects %j", (value) => {
 		expect(isSafeRedirectPath(value)).toBe(false);
 	});
