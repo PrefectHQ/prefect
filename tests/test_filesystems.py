@@ -445,6 +445,11 @@ class TestRemoteFileSystem:
         ):
             RemoteFileSystem(basepath="memory://")
 
+    def test_settings_are_passed_to_fsspec_implementation(self):
+        settings = {"custom_option": "value"}
+        fs = RemoteFileSystem(basepath="memory://root", settings=settings)
+        assert fs.filesystem.storage_options == settings
+
     async def test_read_write_roundtrip(self):
         fs = RemoteFileSystem(basepath="memory://root")
         path = await fs.write_path("test.txt", content=b"hello")
