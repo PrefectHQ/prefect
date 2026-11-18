@@ -1844,45 +1844,41 @@ def run_generator_task_sync(
                 ):
                     # TODO: generators should default to commit_mode=OFF
                     # because they are dynamic by definition
-                    # for now we just prevent this branch explicitly
-                    if False and txn.is_committed():
-                        txn.read()
-                    else:
-                        call_args, call_kwargs = parameters_to_args_kwargs(
-                            task.fn, engine.parameters or {}
-                        )
-                        gen = task.fn(*call_args, **call_kwargs)
+                    call_args, call_kwargs = parameters_to_args_kwargs(
+                        task.fn, engine.parameters or {}
+                    )
+                    gen = task.fn(*call_args, **call_kwargs)
+                    try:
+                        while True:
+                            gen_result = next(gen)
+                            # link the current state to the result for dependency tracking
+                            #
+                            # TODO: this could grow the task_run_result
+                            # dictionary in an unbounded way, so finding a
+                            # way to periodically clean it up (using
+                            # weakrefs or similar) would be good
+                            link_state_to_task_run_result(engine.state, gen_result)
+                            raise_if_flow_run_suspension_requested()
+                            yield gen_result
+                    except StopIteration as exc:
+                        engine.handle_success(exc.value, transaction=txn)
+                    except GeneratorExit as exc:
+                        engine.handle_success(None, transaction=txn)
                         try:
-                            while True:
-                                gen_result = next(gen)
-                                # link the current state to the result for dependency tracking
-                                #
-                                # TODO: this could grow the task_run_result
-                                # dictionary in an unbounded way, so finding a
-                                # way to periodically clean it up (using
-                                # weakrefs or similar) would be good
-                                link_state_to_task_run_result(engine.state, gen_result)
-                                raise_if_flow_run_suspension_requested()
-                                yield gen_result
-                        except StopIteration as exc:
-                            engine.handle_success(exc.value, transaction=txn)
-                        except GeneratorExit as exc:
-                            engine.handle_success(None, transaction=txn)
-                            try:
-                                gen.throw(exc)
-                            except StopIteration:
-                                # the generator suppressed GeneratorExit and
-                                # returned; treat that as a successful close
-                                pass
-                            except Exception as close_exc:
-                                raise _GeneratorFinalizerError(close_exc) from close_exc
-                            else:
-                                # the generator yielded while handling
-                                # GeneratorExit; a plain generator's close
-                                # rejects that
-                                raise _GeneratorFinalizerError(
-                                    RuntimeError("generator ignored GeneratorExit")
-                                )
+                            gen.throw(exc)
+                        except StopIteration:
+                            # the generator suppressed GeneratorExit and
+                            # returned; treat that as a successful close
+                            pass
+                        except Exception as close_exc:
+                            raise _GeneratorFinalizerError(close_exc) from close_exc
+                        else:
+                            # the generator yielded while handling
+                            # GeneratorExit; a plain generator's close
+                            # rejects that
+                            raise _GeneratorFinalizerError(
+                                RuntimeError("generator ignored GeneratorExit")
+                            )
                 raise_if_flow_run_suspension_requested()
 
     except _GeneratorFinalizerError as wrapper:
@@ -1921,55 +1917,51 @@ async def run_generator_task_async(
                 ):
                     # TODO: generators should default to commit_mode=OFF
                     # because they are dynamic by definition
-                    # for now we just prevent this branch explicitly
-                    if False and txn.is_committed():
-                        txn.read()
-                    else:
-                        call_args, call_kwargs = parameters_to_args_kwargs(
-                            task.fn, engine.parameters or {}
-                        )
-                        gen = task.fn(*call_args, **call_kwargs)
-                        try:
-                            while True:
-                                # can't use anext in Python < 3.10
-                                gen_result = await gen.__anext__()
-                                # link the current state to the result for dependency tracking
-                                #
-                                # TODO: this could grow the task_run_result
-                                # dictionary in an unbounded way, so finding a
-                                # way to periodically clean it up (using
-                                # weakrefs or similar) would be good
-                                link_state_to_task_run_result(engine.state, gen_result)
-                                raise_if_flow_run_suspension_requested()
-                                yield gen_result
-                        except (StopAsyncIteration, GeneratorExit) as exc:
-                            await engine.handle_success(None, transaction=txn)
-                            if isinstance(exc, GeneratorExit):
-                                try:
-                                    await gen.athrow(exc)
-                                except StopAsyncIteration:
-                                    # the generator suppressed GeneratorExit and
-                                    # returned; treat that as a successful close
-                                    pass
-                                except Exception as close_exc:
-                                    # The consumer is closing the generator and
-                                    # its finalizer raised. Wrap the error so
-                                    # the transaction rolls back and the run
-                                    # contexts do not schedule a retry; the
-                                    # consumer sees the original error from
-                                    # aclose(), like a plain async generator.
-                                    raise _GeneratorFinalizerError(close_exc) from (
-                                        close_exc
+                    call_args, call_kwargs = parameters_to_args_kwargs(
+                        task.fn, engine.parameters or {}
+                    )
+                    gen = task.fn(*call_args, **call_kwargs)
+                    try:
+                        while True:
+                            # can't use anext in Python < 3.10
+                            gen_result = await gen.__anext__()
+                            # link the current state to the result for dependency tracking
+                            #
+                            # TODO: this could grow the task_run_result
+                            # dictionary in an unbounded way, so finding a
+                            # way to periodically clean it up (using
+                            # weakrefs or similar) would be good
+                            link_state_to_task_run_result(engine.state, gen_result)
+                            raise_if_flow_run_suspension_requested()
+                            yield gen_result
+                    except (StopAsyncIteration, GeneratorExit) as exc:
+                        await engine.handle_success(None, transaction=txn)
+                        if isinstance(exc, GeneratorExit):
+                            try:
+                                await gen.athrow(exc)
+                            except StopAsyncIteration:
+                                # the generator suppressed GeneratorExit and
+                                # returned; treat that as a successful close
+                                pass
+                            except Exception as close_exc:
+                                # The consumer is closing the generator and
+                                # its finalizer raised. Wrap the error so
+                                # the transaction rolls back and the run
+                                # contexts do not schedule a retry; the
+                                # consumer sees the original error from
+                                # aclose(), like a plain async generator.
+                                raise _GeneratorFinalizerError(close_exc) from (
+                                    close_exc
+                                )
+                            else:
+                                # the generator yielded while handling
+                                # GeneratorExit; a plain async generator's
+                                # aclose rejects that
+                                raise _GeneratorFinalizerError(
+                                    RuntimeError(
+                                        "async generator ignored GeneratorExit"
                                     )
-                                else:
-                                    # the generator yielded while handling
-                                    # GeneratorExit; a plain async generator's
-                                    # aclose rejects that
-                                    raise _GeneratorFinalizerError(
-                                        RuntimeError(
-                                            "async generator ignored GeneratorExit"
-                                        )
-                                    )
+                                )
                 raise_if_flow_run_suspension_requested()
 
     except _GeneratorFinalizerError as wrapper:
