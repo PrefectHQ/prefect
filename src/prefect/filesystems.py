@@ -376,12 +376,34 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     Supports any remote file system supported by `fsspec`. The file system is specified
     using a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
 
-    Example:
+    Credentials and connection options for the file system are passed through
+    `settings` as keyword arguments to the `fsspec` implementation for the protocol.
+    The accepted keys depend on the implementation; see the
+    [fsspec implementations](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations)
+    and [other known implementations](https://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations)
+    for details. To connect to an SMB share, use the `SMB` block instead.
+
+    Examples:
         Load stored remote file system config:
         ```python
         from prefect.filesystems import RemoteFileSystem
 
         remote_file_system_block = RemoteFileSystem.load("BLOCK_NAME")
+        ```
+
+        Connect to an S3-compatible service, such as MinIO, by passing `s3fs` options
+        through `settings`:
+        ```python
+        from prefect.filesystems import RemoteFileSystem
+
+        remote_file_system_block = RemoteFileSystem(
+            basepath="s3://my-bucket/my-folder/",
+            settings={
+                "key": "MY_ACCESS_KEY_ID",
+                "secret": "MY_SECRET_ACCESS_KEY",
+                "client_kwargs": {"endpoint_url": "http://localhost:9000"},
+            },
+        )
         ```
     """
 
@@ -396,7 +418,19 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     )
     settings: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Additional settings to pass through to fsspec.",
+        description=(
+            "Additional settings, such as credentials or connection options, passed"
+            " as keyword arguments to the fsspec implementation for the base path's"
+            " protocol. The accepted keys depend on the implementation; see"
+            " https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations."
+        ),
+        examples=[
+            {
+                "key": "MY_ACCESS_KEY_ID",
+                "secret": "MY_SECRET_ACCESS_KEY",
+                "client_kwargs": {"endpoint_url": "http://localhost:9000"},
+            }
+        ],
     )
 
     # Cache for the configured fsspec file system used for access
