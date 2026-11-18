@@ -9,6 +9,7 @@ import websockets.asyncio.client
 import websockets.exceptions
 from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
+from websockets.asyncio.client import connect
 
 from prefect._internal.schemas.bases import IDBaseModel
 from prefect._internal.websockets import websocket_connect
@@ -36,10 +37,10 @@ class Subscription(Generic[S]):
 
         self.keys: list[str] = list(keys)
 
-        self._connect = websocket_connect(
-            self.subscription_url,
-            subprotocols=[websockets.Subprotocol("prefect")],
-        )
+        self._connect_kwargs: dict[str, Any] = {
+            "subprotocols": [websockets.Subprotocol("prefect")]
+        }
+        self._connect: Optional[connect] = None
         self._websocket = None
 
     def __aiter__(self) -> Self:
@@ -64,16 +65,32 @@ class Subscription(Generic[S]):
                 ConnectionRefusedError,
                 websockets.exceptions.ConnectionClosedError,
             ):
-                self._websocket = None
-                if hasattr(self._connect, "protocol"):
-                    await self._connect.__aexit__(None, None, None)
+                await self._close_connection()
                 await asyncio.sleep(0.5)
 
-    async def _ensure_connected(self):
+    def _new_connect(self) -> connect:
+        """Create a connection object for a single connection attempt.
+
+        A websockets connection object can be entered only once, so every attempt
+        to connect needs a new one.
+        """
+        return websocket_connect(self.subscription_url, **self._connect_kwargs)
+
+    async def _close_connection(self) -> None:
+        """Close the current connection, if one is open."""
+        self._websocket = None
+        connect_obj, self._connect = self._connect, None
+        if connect_obj is not None:
+            await connect_obj.__aexit__(None, None, None)
+
+    async def _ensure_connected(self) -> None:
         if self._websocket:
             return
 
-        websocket = await self._connect.__aenter__()
+        connect_obj = self._new_connect()
+        websocket = await connect_obj.__aenter__()
+        self._connect = connect_obj
+        self._websocket = websocket
 
         try:
             settings = get_current_settings()
@@ -101,6 +118,7 @@ class Subscription(Generic[S]):
             AssertionError,
             websockets.exceptions.ConnectionClosedError,
         ) as e:
+            await self._close_connection()
             if isinstance(e, AssertionError) or (
                 e.rcvd and e.rcvd.code == WS_1008_POLICY_VIOLATION
             ):
@@ -122,8 +140,6 @@ class Subscription(Generic[S]):
                 )
                 raise Exception(error_message) from e
             raise
-        else:
-            self._websocket = websocket
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}[{self.model.__name__}]"

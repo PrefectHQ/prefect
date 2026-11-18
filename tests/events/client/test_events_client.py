@@ -4,6 +4,7 @@ import contextlib
 import logging
 import ssl
 from typing import Type
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
@@ -92,8 +93,12 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(
         }
     ):
         client = get_events_client()
+        assert isinstance(client, PrefectEventsClient)
 
-    ssl_ctx = client._connect.connection_kwargs["ssl"]
+        with patch("prefect._internal.websockets.connect") as mock_connect:
+            client._new_connect()
+
+    ssl_ctx = mock_connect.call_args.kwargs["ssl"]
 
     # Verify it's an SSL context with the correct insecure settings
     assert isinstance(ssl_ctx, ssl.SSLContext)
@@ -489,7 +494,9 @@ def test_events_client_sends_basic_auth_header():
         client = PrefectEventsClient()
 
     token = base64.b64encode(b"admin:pass").decode()
-    assert client._connect.additional_headers == {"Authorization": f"Basic {token}"}
+    assert client._new_connect().additional_headers == {
+        "Authorization": f"Basic {token}"
+    }
 
 
 def test_events_client_omits_basic_auth_header_without_auth_string():
@@ -501,7 +508,7 @@ def test_events_client_omits_basic_auth_header_without_auth_string():
     ):
         client = PrefectEventsClient()
 
-    assert not client._connect.additional_headers
+    assert not client._new_connect().additional_headers
 
 
 def test_cloud_events_client_sends_bearer_auth_header():
@@ -514,7 +521,9 @@ def test_cloud_events_client_sends_bearer_auth_header():
     ):
         client = PrefectCloudEventsClient()
 
-    assert client._connect.additional_headers == {"Authorization": "bearer my-token"}
+    assert client._new_connect().additional_headers == {
+        "Authorization": "bearer my-token"
+    }
 
 
 async def test_events_client_aexit_handles_failed_connection(

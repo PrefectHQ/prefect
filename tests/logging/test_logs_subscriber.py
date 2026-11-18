@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from typing import Optional, Type
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import orjson
@@ -442,6 +442,36 @@ async def test_subscriber_reconnects_on_hard_disconnects(
     assert log_recorder.logs == [example_log_1, example_log_2]
 
 
+async def test_subscriber_reconnects_after_losing_websocket_reference(
+    Subscriber: Type[PrefectLogsSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    example_log_1: Log,
+    example_log_2: Log,
+    log_recorder: LogRecorder,
+    log_puppeteer: LogPuppeteer,
+):
+    """Regression test for the reconnect path when the connection object was
+    entered but the reference to the websocket is gone.
+
+    websockets 17 raises RuntimeError: connect() isn't reentrant when an
+    already entered connection object is entered again, so reconnecting must
+    close the previous connection instead of re-entering it.
+    """
+    expected_token = token or "my-token"
+    log_puppeteer.token = expected_token
+    log_puppeteer.outgoing_logs = [example_log_1, example_log_2]
+
+    async with Subscriber() as subscriber:
+        # Emulate a connection that was lost without the reference being cleared
+        # through the usual path.
+        subscriber._websocket = None
+        log_recorder.logs.append(await anext(subscriber))
+
+    assert log_recorder.connections == 2
+    assert log_recorder.logs == [example_log_1]
+
+
 async def test_subscriber_gives_up_after_so_many_attempts(
     Subscriber: Type[PrefectLogsSubscriber],
     socket_path: str,
@@ -645,7 +675,7 @@ def test_subscriber_sleep_logic():
     assert 2 <= 2  # This would NOT trigger sleep on attempt 2
 
 
-async def test_subscriber_auth_with_none_token():
+async def test_subscriber_auth_with_none_token(monkeypatch: pytest.MonkeyPatch):
     """Test that authentication works when auth token is None (Prefect server)"""
     from prefect.logging.clients import PrefectLogsSubscriber
 
@@ -672,7 +702,10 @@ async def test_subscriber_auth_with_none_token():
 
         mock_connect.__aenter__.return_value = mock_websocket
         mock_connect.__aexit__ = AsyncMock()
-        subscriber._connect = mock_connect
+        monkeypatch.setattr(
+            "prefect.logging.clients.websocket_connect",
+            Mock(return_value=mock_connect),
+        )
 
         # Should not raise ValueError - None tokens are valid for Prefect server
         await subscriber._reconnect()
@@ -686,7 +719,7 @@ async def test_subscriber_auth_with_none_token():
         assert auth_message["token"] is None
 
 
-async def test_subscriber_auth_with_empty_token():
+async def test_subscriber_auth_with_empty_token(monkeypatch: pytest.MonkeyPatch):
     """Test that authentication works when auth token is empty string"""
     from prefect.logging.clients import PrefectLogsSubscriber
 
@@ -713,7 +746,10 @@ async def test_subscriber_auth_with_empty_token():
 
         mock_connect.__aenter__.return_value = mock_websocket
         mock_connect.__aexit__ = AsyncMock()
-        subscriber._connect = mock_connect
+        monkeypatch.setattr(
+            "prefect.logging.clients.websocket_connect",
+            Mock(return_value=mock_connect),
+        )
 
         # Should not raise ValueError - empty tokens are valid
         await subscriber._reconnect()
@@ -726,7 +762,7 @@ async def test_subscriber_auth_with_empty_token():
         assert auth_message["token"] == ""
 
 
-async def test_subscriber_auth_with_falsy_tokens():
+async def test_subscriber_auth_with_falsy_tokens(monkeypatch: pytest.MonkeyPatch):
     """Test authentication with various falsy token values"""
     from prefect.logging.clients import PrefectLogsSubscriber
 
@@ -756,7 +792,10 @@ async def test_subscriber_auth_with_falsy_tokens():
 
             mock_connect.__aenter__.return_value = mock_websocket
             mock_connect.__aexit__ = AsyncMock()
-            subscriber._connect = mock_connect
+            monkeypatch.setattr(
+                "prefect.logging.clients.websocket_connect",
+                Mock(return_value=mock_connect),
+            )
 
             # Should not raise ValueError - all falsy tokens should be sent
             await subscriber._reconnect()
@@ -781,7 +820,10 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
     context that fails to enter is never exited by its caller."""
     log_puppeteer.token = token
 
+    connections: list[ClientConnection] = []
+
     async def never_respond(self: ClientConnection, *args: object, **kwargs: object):
+        connections.append(self)
         await asyncio.Event().wait()
 
     monkeypatch.setattr(ClientConnection, "recv", never_respond)
@@ -795,4 +837,6 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
             await subscriber.__aenter__()
 
     assert log_recorder.connections == 1
-    assert subscriber._connect.connection.state is WebsocketState.CLOSED
+    # The abandoned handshake's connection must have been closed
+    assert len(connections) == 1
+    assert connections[0].state is WebsocketState.CLOSED

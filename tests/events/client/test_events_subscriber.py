@@ -659,7 +659,10 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
     context that fails to enter is never exited by its caller."""
     puppeteer.token = token
 
+    connections: list[ClientConnection] = []
+
     async def never_respond(self: ClientConnection, *args: object, **kwargs: object):
+        connections.append(self)
         await asyncio.Event().wait()
 
     monkeypatch.setattr(ClientConnection, "recv", never_respond)
@@ -673,4 +676,6 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
             await subscriber.__aenter__()
 
     assert recorder.connections == 1
-    assert subscriber._connect.connection.state is WebsocketState.CLOSED
+    # The abandoned handshake's connection must have been closed
+    assert len(connections) == 1
+    assert connections[0].state is WebsocketState.CLOSED
