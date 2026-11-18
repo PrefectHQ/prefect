@@ -28,7 +28,9 @@ async def mark_flow_run_late(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Mark a single flow run as late (docket task)."""
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         result = await session.execute(
             sa.select(db.FlowRun.id, db.FlowRun.next_scheduled_start_time).where(
                 db.FlowRun.id == flow_run_id
