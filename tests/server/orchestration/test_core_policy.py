@@ -558,6 +558,30 @@ class TestFlowRetryingRule:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.SCHEDULED
 
+    async def test_retry_state_keeps_the_proposed_transition_id(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        transition_id = uuid4()
+        intended_transition = (states.StateType.RUNNING, states.StateType.FAILED)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            proposed_details={"transition_id": transition_id},
+        )
+        ctx.run.run_count = 1
+        ctx.run_settings.retries = 1
+
+        async with RetryFailedFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state.name == "AwaitingRetry"
+        # lets `PreventDuplicateTransitions` recognize a resend of the `Failed` proposal
+        assert ctx.validated_state.state_details.transition_id == transition_id
+
     async def test_stops_retrying_eventually(
         self,
         session,

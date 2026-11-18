@@ -4,6 +4,7 @@ import random
 import sqlite3
 from itertools import product
 from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
 import pytest
 import sqlalchemy.exc
@@ -385,6 +386,82 @@ class TestBaseOrchestrationRule:
         assert before_transition_hook.call_count == 1
         assert after_transition_hook.call_count == 1
         assert cleanup_step.call_count == 0
+
+    @pytest.mark.parametrize("substitute_transition_id", [None, uuid4()])
+    async def test_rejecting_with_a_new_state_keeps_the_proposed_transition_id(
+        self, session, task_run, substitute_transition_id
+    ):
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.reject_transition(
+                    states.Scheduled(
+                        state_details={"transition_id": substitute_transition_id}
+                    ),
+                    reason="for testing, of course",
+                )
+
+        intended_transition = (states.StateType.RUNNING, states.StateType.FAILED)
+        initial_state = await commit_task_run_state(
+            session, task_run, intended_transition[0]
+        )
+        transition_id = uuid4()
+        proposed_state = states.State(
+            type=intended_transition[1],
+            state_details={"transition_id": transition_id},
+        )
+
+        ctx = OrchestrationContext(
+            session=session,
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            run=task_run,
+        )
+
+        async with StateMutatingRule(ctx, *intended_transition) as ctx:
+            pass
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.proposed_state.type == states.StateType.SCHEDULED
+        assert ctx.proposed_state.state_details.transition_id == transition_id
+
+    async def test_rejecting_with_a_new_state_without_a_proposed_transition_id(
+        self, session, task_run
+    ):
+        substitute_transition_id = uuid4()
+
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.reject_transition(
+                    states.Scheduled(
+                        state_details={"transition_id": substitute_transition_id}
+                    ),
+                    reason="for testing, of course",
+                )
+
+        intended_transition = (states.StateType.RUNNING, states.StateType.FAILED)
+        initial_state = await commit_task_run_state(
+            session, task_run, intended_transition[0]
+        )
+        ctx = OrchestrationContext(
+            session=session,
+            initial_state=initial_state,
+            proposed_state=states.State(type=intended_transition[1]),
+            run=task_run,
+        )
+
+        async with StateMutatingRule(ctx, *intended_transition) as ctx:
+            pass
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert (
+            ctx.proposed_state.state_details.transition_id == substitute_transition_id
+        )
 
     async def test_rules_that_wait_do_not_fizzle_themselves(self, session, task_run):
         before_transition_hook = MagicMock()
