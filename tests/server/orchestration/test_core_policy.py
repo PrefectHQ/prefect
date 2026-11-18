@@ -1836,6 +1836,7 @@ class TestPreventPendingTransitions:
         StateType.CANCELLED,
         StateType.RUNNING,
         StateType.PENDING,
+        StateType.COMPLETED,
     ]
     banned_transitions = [(type_, StateType.PENDING) for type_ in banned_states]
     all_states = set(ALL_ORCHESTRATION_STATES) - {None}
