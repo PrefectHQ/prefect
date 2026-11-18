@@ -25,6 +25,9 @@ describe("isSafeRedirectPath", () => {
 		"dashboard",
 		" /dashboard",
 		"",
+		"//[",
+		"/\\[",
+		"//evil.example:99999",
 	])("rejects %j", (value) => {
 		expect(isSafeRedirectPath(value)).toBe(false);
 	});
