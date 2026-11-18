@@ -5,8 +5,11 @@ from uuid import UUID, uuid4
 
 import pytest
 from docket import Docket
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database import PrefectDBInterface
+from prefect.server.database.orm_models import FlowRun
 from prefect.server.services.pause_expirations import (
     fail_expired_pause,
     monitor_expired_pauses,
@@ -140,7 +143,10 @@ async def test_monitor_finds_expired_pause_past_first_batch(session, flow, db):
 
 
 async def test_fails_expired_pause_despite_concurrent_sqlite_write(
-    session, expired_pause, db, commit_after_run_read: ConcurrentCommits
+    session: AsyncSession,
+    expired_pause: FlowRun,
+    db: PrefectDBInterface,
+    commit_after_run_read: ConcurrentCommits,
 ):
     commit_after_run_read.armed = True
     await fail_expired_pause(expired_pause.id, str(THE_PAST), db=db)

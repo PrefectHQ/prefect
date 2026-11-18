@@ -24,7 +24,13 @@ from prefect.server import models, schemas
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
-from prefect.server.database.orm_models import Deployment, Flow, WorkPool, WorkQueue
+from prefect.server.database.orm_models import (
+    Deployment,
+    Flow,
+    FlowRun,
+    WorkPool,
+    WorkQueue,
+)
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
@@ -1577,9 +1583,9 @@ class TestResumeFlowrun:
 
     async def test_resuming_blocking_pause_despite_concurrent_sqlite_write(
         self,
-        blocking_paused_flow_run,
-        client,
-        session,
+        blocking_paused_flow_run: FlowRun,
+        client: AsyncClient,
+        session: AsyncSession,
         commit_after_run_read: ConcurrentCommits,
     ):
         commit_after_run_read.armed = True

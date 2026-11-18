@@ -86,7 +86,7 @@ def commit_after_run_read(
             settled.set()
             connection.close()
 
-    def commit_after(module: Any, name: str, table: str) -> None:
+    def commit_after(module: Any, name: str) -> None:
         original = getattr(module, name)
 
         async def read_then_commit_elsewhere(*args: Any, **kwargs: Any) -> Any:
@@ -94,7 +94,8 @@ def commit_after_run_read(
             if commits.armed and run is not None:
                 settled = threading.Event()
                 writer = threading.Thread(
-                    target=commit_write, args=(table, str(run.id), settled)
+                    target=commit_write,
+                    args=(run.__table__.name, str(run.id), settled),
                 )
                 commits.writers.append(writer)
                 writer.start()
@@ -103,8 +104,8 @@ def commit_after_run_read(
 
         monkeypatch.setattr(module, name, read_then_commit_elsewhere)
 
-    commit_after(models.flow_runs, "read_flow_run", "flow_run")
-    commit_after(models.task_runs, "read_task_run", "task_run")
+    commit_after(models.flow_runs, "read_flow_run")
+    commit_after(models.task_runs, "read_task_run")
     yield commits
     for writer in commits.writers:
         writer.join(timeout=60)
