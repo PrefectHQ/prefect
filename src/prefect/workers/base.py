@@ -1912,7 +1912,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         Cancel a flow run by killing its infrastructure and marking it cancelled.
 
         Only cancels flow runs that were pending (not yet started).
+
+        This runs in the worker's task group, so errors are logged rather than
+        raised; an escaping error would stop the worker.
         """
+        try:
+            await self._cancel_pending_run(flow_run_id)
+        except Exception:
+            self._logger.exception(f"Failed to cancel flow run '{flow_run_id}'")
+
+    async def _cancel_pending_run(self, flow_run_id: UUID) -> None:
         try:
             flow_run = await self.client.read_flow_run(flow_run_id)
         except ObjectNotFound:

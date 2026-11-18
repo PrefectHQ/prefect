@@ -5847,6 +5847,51 @@ class TestWorkerCancellationHandling:
                 # doesn't support killing infrastructure
                 mock_mark.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "failing_call", ["read_flow_run", "read_deployment", "set_flow_run_state"]
+    )
+    async def test_cancel_run_api_error_does_not_stop_worker(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment: DeploymentResponse,
+        caplog: pytest.LogCaptureFixture,
+        failing_call: str,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+        )
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test-pid")
+
+        # Exiting the worker context re-raises anything that escaped into the
+        # worker's task group.
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            with (
+                mock.patch.object(
+                    worker, "kill_infrastructure", new_callable=AsyncMock
+                ) as mock_kill,
+                mock.patch.object(
+                    worker.client,
+                    failing_call,
+                    new_callable=AsyncMock,
+                    side_effect=_bad_gateway_error(),
+                ),
+            ):
+                worker._runs_task_group.start_soon(worker._cancel_run, flow_run.id)
+                async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+                    with attempt:
+                        assert (
+                            f"Failed to cancel flow run '{flow_run.id}'" in caplog.text
+                        )
+
+        if failing_call == "set_flow_run_state":
+            mock_kill.assert_awaited_once()
+        else:
+            mock_kill.assert_not_called()
+
     async def test_teardown_cancellation_handling_cleans_up(
         self, monkeypatch: pytest.MonkeyPatch
     ):
