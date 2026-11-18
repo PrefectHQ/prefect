@@ -599,7 +599,7 @@ class GitRepository:
         """
         Clones the repository into the local destination.
         """
-        self._logger.debug("Cloning repository %s", self._url)
+        self._logger.debug("Cloning repository %s", strip_auth_from_url(self._url))
 
         repository_url = self._repository_url_with_credentials
         cmd = ["git"]
@@ -700,7 +700,8 @@ class GitRepository:
 
     def __repr__(self) -> str:
         return (
-            f"GitRepository(name={self._name!r} repository={self._url!r},"
+            f"GitRepository(name={self._name!r}"
+            f" repository={strip_auth_from_url(self._url)!r},"
             f" branch={self._branch!r})"
         )
 
