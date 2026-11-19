@@ -49,7 +49,7 @@ exception"), e.g. a NUL character or `NaN` in a PostgreSQL JSON value.
 is_client_retryable_exception(exc: Exception) -> bool
 ```
 
-### `replace_placeholder_string_in_files` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `replace_placeholder_string_in_files` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L389" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 replace_placeholder_string_in_files(directory: str, placeholder: str, replacement: str, allowed_extensions: list[str] | None = None) -> None
@@ -60,13 +60,13 @@ Recursively loops through all files in the given directory and replaces
 a placeholder string.
 
 
-### `copy_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L412" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `copy_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L416" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 copy_directory(directory: str, path: str) -> None
 ```
 
-### `custom_internal_exception_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L432" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `custom_internal_exception_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L436" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 custom_internal_exception_handler(request: Request, exc: Exception) -> JSONResponse
@@ -78,7 +78,7 @@ Log a detailed exception for internal server errors before returning.
 Send 422 for values the database rejected and 503 for errors clients can retry on.
 
 
-### `prefect_object_not_found_exception_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L478" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `prefect_object_not_found_exception_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L482" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prefect_object_not_found_exception_handler(request: Request, exc: ObjectNotFoundError) -> JSONResponse
@@ -88,7 +88,7 @@ prefect_object_not_found_exception_handler(request: Request, exc: ObjectNotFound
 Return 404 status code on object not found exceptions.
 
 
-### `create_api_app` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L490" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_api_app` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L494" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_api_app(dependencies: list[Any] | None = None, health_check_path: str = '/health', version_check_path: str = '/version', fast_api_app_kwargs: dict[str, Any] | None = None, final: bool = False, ignore_cache: bool = False) -> FastAPI
@@ -110,13 +110,13 @@ an existing app in the cache
 - a FastAPI app that serves the Prefect REST API
 
 
-### `create_ui_app` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L621" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_ui_app` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L625" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_ui_app(ephemeral: bool) -> FastAPI
 ```
 
-### `create_app` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L917" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_app` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L921" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_app(settings: Optional[prefect.settings.Settings] = None, ephemeral: bool = False, webserver_only: bool = False, final: bool = False, ignore_cache: bool = False) -> FastAPI
@@ -150,35 +150,35 @@ at high volume. Ideally, we would only apply the limit to routes that perform
 writes.
 
 
-### `SubprocessASGIServer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SubprocessASGIServer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `address` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `address` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 address(self) -> str
 ```
 
-#### `api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 api_url(self) -> str
 ```
 
-#### `find_available_port` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `find_available_port` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 find_available_port(self) -> int
 ```
 
-#### `is_port_available` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_port_available` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_port_available(port: int) -> bool
 ```
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self, timeout: Optional[int] = None) -> None
@@ -191,7 +191,7 @@ the server once.
 - `timeout`: The maximum time to wait for the server to start
 
 
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1268" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/server.py#L1272" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self) -> None
