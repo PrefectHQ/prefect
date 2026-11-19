@@ -3,6 +3,35 @@ title: prefect-dbt
 description: Release notes for prefect-dbt 0.7.7 through 0.7.25, including dbt Cloud asset materializations and dbt unit test support in PrefectDbtRunner.
 ---
 
+## 0.8.0
+
+_Released on November 19, 2026_
+
+**Breaking Changes**
+
+- Drop Python 3.10 support [#23324](https://github.com/PrefectHQ/prefect/pull/23324) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Bug Fixes**
+
+- Fix dbt Cloud timeout errors printing the `run_id` placeholder [#23502](https://github.com/PrefectHQ/prefect/pull/23502) by [@alleyxd](https://github.com/alleyxd)
+- Track microbatch models as a single task run [#23357](https://github.com/PrefectHQ/prefect/pull/23357) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Shut down dbt worker threads when a task times out or is cancelled [#23162](https://github.com/PrefectHQ/prefect/pull/23162) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Route source freshness logs to the enclosing task [#22989](https://github.com/PrefectHQ/prefect/pull/22989) by [@vyagubov](https://github.com/vyagubov)
+- Raise on skipped dbt nodes in `PrefectDbtRunner` [#23050](https://github.com/PrefectHQ/prefect/pull/23050) by [@vyagubov](https://github.com/vyagubov)
+
+**Documentation**
+
+- Link to the dbt integration docs at www.prefect.io/docs [#23642](https://github.com/PrefectHQ/prefect/pull/23642) by [@maximearmstrong](https://github.com/maximearmstrong)
+- Drop `Args` entries for parameters that do not exist [#22843](https://github.com/PrefectHQ/prefect/pull/22843) by [@muhzuhaib](https://github.com/muhzuhaib)
+- Regenerate API references with `mdxify>=0.2.45` to drop empty stubs [#22344](https://github.com/PrefectHQ/prefect/pull/22344) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+**Maintenance**
+
+- Update Python classifiers and add Python 3.14 to integration tests [#23273](https://github.com/PrefectHQ/prefect/pull/23273) by [@vyagubov](https://github.com/vyagubov)
+- Modernize type annotations to Python 3.10+ syntax [#23173](https://github.com/PrefectHQ/prefect/pull/23173) by [@vyagubov](https://github.com/vyagubov)
+
+---
+
 ## 0.7.25
 
 _Released on June 05, 2026_
