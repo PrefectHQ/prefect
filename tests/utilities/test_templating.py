@@ -633,6 +633,22 @@ class TestResolveBlockDocumentReferences:
         # Standard placeholders should be left intact for later resolution.
         assert result == {"key": "{{ standard_placeholder }}/hello"}
 
+    async def test_resolve_block_document_references_does_not_substitute_inserted_placeholders(
+        self, prefect_client: PrefectClient
+    ):
+        first_name = f"secret-block-{uuid.uuid4().hex[:8]}"
+        second_name = f"secret-block-{uuid.uuid4().hex[:8]}"
+        first_placeholder = f"{{{{ prefect.blocks.secret.{first_name} }}}}"
+        second_placeholder = f"{{{{ prefect.blocks.secret.{second_name} }}}}"
+        await Secret(value=second_placeholder).save(name=first_name)
+        await Secret(value=first_placeholder).save(name=second_name)
+
+        result = await resolve_block_document_references(
+            f"{first_placeholder} / {second_placeholder}", client=prefect_client
+        )
+
+        assert result == f"{second_placeholder} / {first_placeholder}"
+
     async def test_resolve_block_document_references_raises_on_inline_non_scalar_value(
         self, prefect_client, block_document_id
     ):
@@ -809,6 +825,27 @@ class TestResolveVariables:
         )
         result = await resolve_variables(template, client=prefect_client)
         assert result == " - "
+
+    async def test_resolve_does_not_substitute_inserted_placeholders(
+        self, prefect_client: PrefectClient
+    ):
+        first_name = f"test_variable_{uuid.uuid4().hex}"
+        second_name = f"test_variable_{uuid.uuid4().hex}"
+        first_placeholder = f"{{{{ prefect.variables.{first_name} }}}}"
+        second_placeholder = f"{{{{ prefect.variables.{second_name} }}}}"
+        for name, value in [
+            (first_name, second_placeholder),
+            (second_name, first_placeholder),
+        ]:
+            await prefect_client._client.post(
+                "/variables/", json={"name": name, "value": value}
+            )
+
+        result = await resolve_variables(
+            f"{first_placeholder} / {second_placeholder}", client=prefect_client
+        )
+
+        assert result == f"{second_placeholder} / {first_placeholder}"
 
     async def test_resolve_caches_variable_reads_within_single_call(self):
         """Repeated variable placeholders only trigger one API read per name."""
