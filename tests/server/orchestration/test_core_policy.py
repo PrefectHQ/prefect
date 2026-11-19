@@ -4832,26 +4832,31 @@ class TestFlowConcurrencyLimits:
         ctx = await initialize_orchestration(
             session, "flow", *pending_transition, deployment_id=deployment.id
         )
+        await session.commit()
 
-        with (
-            mock.patch(
-                "prefect.server.orchestration.core_policy.get_concurrency_lease_storage",
-                return_value=lease_storage,
-            ),
-            mock.patch.object(
-                lease_storage,
-                "create_lease",
-                side_effect=create_lease_then_raise,
-            ),
-        ):
-            async with SecureFlowConcurrencySlots(ctx, *pending_transition) as ctx:
-                await ctx.validate_proposed_state()
+        db = provide_database_interface()
+        # An explicit transaction keeps SQLite from autocommitting the slot
+        # increment, which would survive the rollback below.
+        async with db.database_config.begin_transaction(session) as transaction:
+            with (
+                mock.patch(
+                    "prefect.server.orchestration.core_policy.get_concurrency_lease_storage",
+                    return_value=lease_storage,
+                ),
+                mock.patch.object(
+                    lease_storage,
+                    "create_lease",
+                    side_effect=create_lease_then_raise,
+                ),
+            ):
+                async with SecureFlowConcurrencySlots(ctx, *pending_transition) as ctx:
+                    await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.ABORT
-        assert isinstance(ctx.orchestration_error, RuntimeError)
-        assert str(ctx.orchestration_error) == "lease creation response lost"
+            assert ctx.response_status == SetStateStatus.ABORT
+            assert isinstance(ctx.orchestration_error, RuntimeError)
+            assert str(ctx.orchestration_error) == "lease creation response lost"
 
-        await session.rollback()
+            await transaction.rollback()
         assert orphan_lease_id is not None
         assert await lease_storage.read_lease(orphan_lease_id) is not None
         await session.refresh(flow)
