@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useId, useState } from "react";
+import { useId } from "react";
 import { type FieldPathValue, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,6 +7,14 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -100,18 +108,18 @@ function Choice({
 	onChange: (value: string) => void;
 	hideLabel?: boolean;
 }) {
-	const id = useId();
 	return (
-		<div className="space-y-2">
-			{!hideLabel && <Label htmlFor={id}>{label}</Label>}
+		<FormItem>
+			{!hideLabel && <FormLabel>{label}</FormLabel>}
 			<Select value={value} onValueChange={onChange}>
-				<SelectTrigger
-					id={id}
-					type="button"
-					aria-label={hideLabel ? label : undefined}
-				>
-					<SelectValue />
-				</SelectTrigger>
+				<FormControl>
+					<SelectTrigger
+						type="button"
+						aria-label={hideLabel ? label : undefined}
+					>
+						<SelectValue />
+					</SelectTrigger>
+				</FormControl>
 				<SelectContent>
 					{options.map((option) => (
 						<SelectItem key={option.value} value={option.value}>
@@ -120,7 +128,8 @@ function Choice({
 					))}
 				</SelectContent>
 			</Select>
-		</div>
+			<FormMessage role="alert" />
+		</FormItem>
 	);
 }
 
@@ -133,24 +142,20 @@ function BuilderFields({
 	timezone: string;
 	onChange: (rule: string) => void;
 }) {
-	const { register, getValues, setValue, watch } = useForm<RuleForm>({
+	const form = useForm<RuleForm>({
 		values: value,
 		resolver: zodResolver(ruleFormSchema),
 	});
+	const { control, getValues, setValue, watch, trigger } = form;
 	const current = watch();
 	const monthly = getMonthlyOptions(current);
 	const annualLabel = getAnnualLabel(current);
-	const [error, setError] = useState("");
 	const id = useId();
 	const emit = () => {
-		try {
-			onChange(serializeRule(getValues(), timezone));
-			setError("");
-		} catch {
-			setError(
-				"Enter valid recurrence settings. Select at least one weekday and use positive intervals and occurrence counts.",
-			);
-		}
+		void trigger();
+		const values = getValues();
+		if (ruleFormSchema.safeParse(values).success)
+			onChange(serializeRule(values, timezone));
 	};
 	const update = <K extends keyof RuleForm>(
 		key: K,
@@ -165,165 +170,276 @@ function BuilderFields({
 		type: string,
 		min?: number,
 		max?: number,
+		inline = false,
+		hideLabel = false,
+		disabled = false,
 	) => (
-		<div className="space-y-2">
-			<Label htmlFor={`${id}-${key}`}>{label}</Label>
-			<Input
-				id={`${id}-${key}`}
-				type={type}
-				min={min}
-				max={max}
-				{...register(key, {
-					valueAsNumber: type === "number",
-					onChange: () => {
-						if (
-							key === "start" &&
-							current.frequency === "YEARLY" &&
-							annualLabel
-						) {
-							const date = new Date(`${getValues("start")}T00:00:00Z`);
-							if (Number.isFinite(date.getTime())) {
-								setValue("month", date.getUTCMonth() + 1);
-								setValue("day", date.getUTCDate());
+		<FormField
+			control={control}
+			name={key}
+			render={({ field }) => (
+				<FormItem
+					className={
+						inline ? "flex flex-wrap items-center gap-3 space-y-0" : undefined
+					}
+				>
+					{!hideLabel && <FormLabel>{label}</FormLabel>}
+					<FormControl>
+						<Input
+							{...field}
+							value={Number.isNaN(field.value) ? "" : field.value}
+							aria-label={hideLabel ? label : undefined}
+							disabled={disabled}
+							className={
+								key === "interval" || key === "count" ? "w-20" : "w-auto"
 							}
-						}
-						emit();
-					},
-				})}
-			/>
-		</div>
+							type={type}
+							min={min}
+							max={max}
+							onChange={(event) => {
+								field.onChange(
+									type === "number"
+										? event.target.valueAsNumber
+										: event.target.value,
+								);
+								if (key === "start" && current.frequency === "MONTHLY") {
+									const oldDate = new Date(`${current.start}T00:00:00Z`);
+									const newDate = new Date(`${event.target.value}T00:00:00Z`);
+									const oldDay = oldDate.getUTCDate();
+									const oldWeekday = weekdays[(oldDate.getUTCDay() + 6) % 7];
+									const oldLast =
+										oldDay + 7 >
+										new Date(
+											Date.UTC(
+												oldDate.getUTCFullYear(),
+												oldDate.getUTCMonth() + 1,
+												0,
+											),
+										).getUTCDate();
+									if (Number.isFinite(newDate.getTime())) {
+										if (current.monthly === "day" && current.day === oldDay)
+											setValue("day", newDate.getUTCDate());
+										if (
+											current.monthly === "weekday" &&
+											current.weekday === oldWeekday &&
+											(current.position === Math.ceil(oldDay / 7) ||
+												(current.position === -1 && oldLast))
+										) {
+											const newDay = newDate.getUTCDate();
+											const newLast =
+												newDay + 7 >
+												new Date(
+													Date.UTC(
+														newDate.getUTCFullYear(),
+														newDate.getUTCMonth() + 1,
+														0,
+													),
+												).getUTCDate();
+											setValue(
+												"weekday",
+												weekdays[(newDate.getUTCDay() + 6) % 7],
+											);
+											setValue(
+												"position",
+												current.position === -1 && newLast
+													? -1
+													: Math.ceil(newDay / 7),
+											);
+										}
+									}
+								}
+								if (
+									key === "start" &&
+									current.frequency === "YEARLY" &&
+									annualLabel
+								) {
+									const date = new Date(`${getValues("start")}T00:00:00Z`);
+									if (Number.isFinite(date.getTime())) {
+										setValue("month", date.getUTCMonth() + 1);
+										setValue("day", date.getUTCDate());
+									}
+								}
+								emit();
+							}}
+						/>
+					</FormControl>
+					<FormMessage role="alert" />
+				</FormItem>
+			)}
+		/>
 	);
 	return (
-		<div className="space-y-4">
-			<div className="flex flex-wrap items-center gap-3">
-				<Label htmlFor={`${id}-interval`}>Repeat every</Label>
-				<Input
-					id={`${id}-interval`}
-					type="number"
-					min={1}
-					className="w-20"
-					{...register("interval", { valueAsNumber: true, onChange: emit })}
-				/>
-				<Choice
-					label="Recurrence unit"
-					hideLabel
-					value={current.frequency}
-					options={frequencies.map((frequency, index) => ({
-						value: frequency,
-						label: `${["day", "week", "month", "year"][index]}${current.interval > 1 ? "s" : ""}`,
-					}))}
-					onChange={(next) => {
-						const frequency = frequencies.find((item) => item === next);
-						if (frequency) update("frequency", frequency);
-					}}
-				/>
-			</div>
-			{current.frequency === "WEEKLY" && (
-				<div className="space-y-2">
-					<Label>Repeat on</Label>
-					<ToggleGroup
-						type="multiple"
-						variant="outline"
-						value={current.weekdays}
-						onValueChange={(next) =>
-							update(
-								"weekdays",
-								weekdays.filter((day) => next.includes(day)),
-							)
-						}
-						aria-label="Weekdays"
-					>
-						{weekdays.map((day, index) => (
-							<ToggleGroupItem
-								type="button"
-								key={day}
-								value={day}
-								aria-label={dayNames[index]}
-							>
-								{dayNames[index].slice(0, 1)}
-							</ToggleGroupItem>
-						))}
-					</ToggleGroup>
+		<Form {...form}>
+			<div className="space-y-4">
+				<div className="flex flex-wrap items-center gap-3">
+					{input("interval", "Repeat every", "number", 1, undefined, true)}
+					<FormField
+						control={control}
+						name="frequency"
+						render={() => (
+							<Choice
+								label="Recurrence unit"
+								hideLabel
+								value={current.frequency}
+								options={frequencies.map((frequency, index) => ({
+									value: frequency,
+									label: `${["day", "week", "month", "year"][index]}${current.interval > 1 ? "s" : ""}`,
+								}))}
+								onChange={(next) => {
+									const frequency = frequencies.find((item) => item === next);
+									if (frequency) update("frequency", frequency);
+								}}
+							/>
+						)}
+					/>
 				</div>
-			)}
-			{current.frequency === "MONTHLY" && (
-				<Choice
-					label="Monthly recurrence"
-					hideLabel
-					value={monthly.selected}
-					options={monthly.options}
-					onChange={(next) => {
-						const option = monthly.options.find(
-							(option) => option.value === next,
-						);
-						if (option) {
-							setValue("monthly", option.settings.monthly);
-							setValue("day", option.settings.day);
-							setValue("position", option.settings.position);
-							setValue("weekday", option.settings.weekday);
-							emit();
-						}
-					}}
+				{current.frequency === "WEEKLY" && (
+					<FormField
+						control={control}
+						name="weekdays"
+						render={() => (
+							<FormItem>
+								<FormLabel>Repeat on</FormLabel>
+								<FormControl>
+									<ToggleGroup
+										type="multiple"
+										variant="outline"
+										value={current.weekdays}
+										onValueChange={(next) =>
+											update(
+												"weekdays",
+												weekdays.filter((day) => next.includes(day)),
+											)
+										}
+										aria-label="Weekdays"
+									>
+										{weekdays.map((day, index) => (
+											<ToggleGroupItem
+												type="button"
+												key={day}
+												value={day}
+												aria-label={dayNames[index]}
+											>
+												{dayNames[index].slice(0, 1)}
+											</ToggleGroupItem>
+										))}
+									</ToggleGroup>
+								</FormControl>
+								<FormMessage role="alert" />
+							</FormItem>
+						)}
+					/>
+				)}
+				{current.frequency === "MONTHLY" && (
+					<FormField
+						control={control}
+						name={current.monthly === "day" ? "day" : "position"}
+						render={() => (
+							<Choice
+								label="Monthly recurrence"
+								hideLabel
+								value={monthly.selected}
+								options={monthly.options}
+								onChange={(next) => {
+									const option = monthly.options.find(
+										(option) => option.value === next,
+									);
+									if (option) {
+										setValue("monthly", option.settings.monthly);
+										setValue("day", option.settings.day);
+										setValue("position", option.settings.position);
+										setValue("weekday", option.settings.weekday);
+										emit();
+									}
+								}}
+							/>
+						)}
+					/>
+				)}
+				{current.frequency === "YEARLY" &&
+					(annualLabel ? (
+						<p className="text-sm">{annualLabel}</p>
+					) : (
+						<div className="flex gap-3">
+							{input("month", "Month of year", "number", 1, 12)}
+							{input("day", "Day of month", "number", 1, 31)}
+						</div>
+					))}
+				<div className="flex flex-wrap gap-3">
+					{input("start", "Start date", "date")}
+					{input("time", `Time (${timezone})`, "time")}
+				</div>
+				<FormField
+					control={control}
+					name="end"
+					render={() => (
+						<FormItem className="space-y-3">
+							<FormLabel id={`${id}-ends`}>Ends</FormLabel>
+							<FormControl>
+								<RadioGroup
+									aria-labelledby={`${id}-ends`}
+									value={current.end}
+									onValueChange={(next) => {
+										if (
+											next === "never" ||
+											next === "until" ||
+											next === "count"
+										)
+											update("end", next);
+									}}
+								>
+									<div className="flex items-center gap-3">
+										<RadioGroupItem
+											type="button"
+											id={`${id}-never`}
+											value="never"
+										/>
+										<Label htmlFor={`${id}-never`}>Never</Label>
+									</div>
+									<div className="flex items-center gap-3">
+										<RadioGroupItem
+											type="button"
+											id={`${id}-on`}
+											value="until"
+										/>
+										<Label htmlFor={`${id}-on`}>On</Label>
+										{input(
+											"until",
+											"End date",
+											"date",
+											undefined,
+											undefined,
+											false,
+											true,
+											current.end !== "until",
+										)}
+									</div>
+									<div className="flex items-center gap-3">
+										<RadioGroupItem
+											type="button"
+											id={`${id}-after`}
+											value="count"
+										/>
+										<Label htmlFor={`${id}-after`}>After</Label>
+										{input(
+											"count",
+											"Occurrences",
+											"number",
+											1,
+											undefined,
+											false,
+											true,
+											current.end !== "count",
+										)}
+										<span className="text-sm">occurrences</span>
+									</div>
+								</RadioGroup>
+							</FormControl>
+							<FormMessage role="alert" />
+						</FormItem>
+					)}
 				/>
-			)}
-			{current.frequency === "YEARLY" &&
-				(annualLabel ? (
-					<p className="text-sm">{annualLabel}</p>
-				) : (
-					<div className="flex gap-3">
-						{input("month", "Month of year", "number", 1, 12)}
-						{input("day", "Day of month", "number", 1, 31)}
-					</div>
-				))}
-			<div className="flex flex-wrap gap-3">
-				{input("start", "Start date", "date")}
-				{input("time", `Time (${timezone})`, "time")}
 			</div>
-			<div className="space-y-3">
-				<Label id={`${id}-ends`}>Ends</Label>
-				<RadioGroup
-					aria-labelledby={`${id}-ends`}
-					value={current.end}
-					onValueChange={(next) => {
-						if (next === "never" || next === "until" || next === "count")
-							update("end", next);
-					}}
-				>
-					<div className="flex items-center gap-3">
-						<RadioGroupItem type="button" id={`${id}-never`} value="never" />
-						<Label htmlFor={`${id}-never`}>Never</Label>
-					</div>
-					<div className="flex items-center gap-3">
-						<RadioGroupItem type="button" id={`${id}-on`} value="until" />
-						<Label htmlFor={`${id}-on`}>On</Label>
-						<Input
-							className="w-auto"
-							type="date"
-							aria-label="End date"
-							disabled={current.end !== "until"}
-							{...register("until", { onChange: emit })}
-						/>
-					</div>
-					<div className="flex items-center gap-3">
-						<RadioGroupItem type="button" id={`${id}-after`} value="count" />
-						<Label htmlFor={`${id}-after`}>After</Label>
-						<Input
-							className="w-20"
-							type="number"
-							min={1}
-							aria-label="Occurrences"
-							disabled={current.end !== "count"}
-							{...register("count", { valueAsNumber: true, onChange: emit })}
-						/>
-						<span className="text-sm">occurrences</span>
-					</div>
-				</RadioGroup>
-			</div>
-			{error && (
-				<p role="alert" className="text-sm text-destructive">
-					{error}
-				</p>
-			)}
-		</div>
+		</Form>
 	);
 }

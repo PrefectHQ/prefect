@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,6 +69,23 @@ describe("rrule-builder", () => {
 		expect(screen.getByRole("status")).not.toHaveTextContent("UNTIL=");
 		expect(screen.getByRole("status")).not.toHaveTextContent("COUNT=");
 	});
+	it("can choose Never after clearing an occurrence count", async () => {
+		const user = userEvent.setup();
+		render(<Controlled />);
+		await user.click(screen.getByRole("radio", { name: "After" }));
+		expect(screen.getByRole("status")).toHaveTextContent("COUNT=10");
+		fireEvent.change(screen.getByLabelText("Occurrences"), {
+			target: { value: "" },
+		});
+		expect(await screen.findByRole("alert")).toHaveTextContent(
+			"Enter a positive whole number of occurrences.",
+		);
+		await user.click(screen.getByRole("radio", { name: "Never" }));
+		expect(screen.getByRole("status")).not.toHaveTextContent("COUNT=");
+		await waitFor(() =>
+			expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+		);
+	});
 	it("edits the local start and time together with the recurrence time", () => {
 		render(<Controlled />);
 		fireEvent.change(screen.getByLabelText("Start date"), {
@@ -136,13 +153,22 @@ describe("rrule-builder", () => {
 			expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
 		},
 	);
-	it("shows invalid input without emitting it", () => {
+	it("shows invalid input next to its field without emitting it", async () => {
 		const onChange = vi.fn();
 		render(<RRuleBuilder value={initial} onChange={onChange} />);
 		fireEvent.change(screen.getByLabelText("Repeat every"), {
 			target: { value: "0" },
 		});
-		expect(screen.getByRole("alert")).toBeVisible();
+		const message = await screen.findByRole("alert");
+		expect(message).toBeVisible();
+		expect(screen.getByLabelText("Repeat every")).toHaveAttribute(
+			"aria-invalid",
+			"true",
+		);
+		expect(screen.getByLabelText("Repeat every")).toHaveAttribute(
+			"aria-describedby",
+			expect.stringContaining(message.id),
+		);
 		expect(onChange).not.toHaveBeenCalled();
 	});
 	it("renders empty and invalid rules without losing their raw text", () => {
@@ -187,6 +213,56 @@ describe("rrule-builder", () => {
 		);
 		await user.click(screen.getByRole("option", { name: "Monthly on day 19" }));
 		expect(screen.getByRole("status")).toHaveTextContent("BYMONTHDAY=19");
+	});
+	it.each([
+		["BYMONTHDAY=19", "2026-12-20", "Monthly on day 20", "BYMONTHDAY=20"],
+		[
+			"BYDAY=TH;BYSETPOS=3",
+			"2026-12-20",
+			"Monthly on the third Sunday",
+			"BYDAY=SU;BYSETPOS=3",
+		],
+		["BYMONTHDAY=31", "2026-12-20", "Monthly on day 31", "BYMONTHDAY=31"],
+		[
+			"BYDAY=FR;BYSETPOS=-1",
+			"2026-12-20",
+			"Monthly on the last Friday",
+			"BYDAY=FR;BYSETPOS=-1",
+		],
+	])(
+		"syncs only start-matching monthly settings for %s",
+		(pattern, start, label, emitted) => {
+			render(
+				<Controlled
+					initialValue={`DTSTART;TZID=UTC:20261119T090000\nRRULE:FREQ=MONTHLY;${pattern}`}
+				/>,
+			);
+			fireEvent.change(screen.getByLabelText("Start date"), {
+				target: { value: start },
+			});
+			expect(
+				screen.getByRole("combobox", { name: "Monthly recurrence" }),
+			).toHaveTextContent(label);
+			expect(screen.getByRole("status")).toHaveTextContent(emitted);
+		},
+	);
+	it("follows matching last-week monthly rules when the start changes", () => {
+		render(
+			<Controlled
+				initialValue={
+					"DTSTART;TZID=UTC:20261126T090000\nRRULE:FREQ=MONTHLY;BYDAY=TH;BYSETPOS=-1"
+				}
+			/>,
+		);
+		fireEvent.change(screen.getByLabelText("Start date"), {
+			target: { value: "2026-12-27" },
+		});
+		expect(
+			screen.getByRole("combobox", { name: "Monthly recurrence" }),
+		).toHaveTextContent("Monthly on the last Sunday");
+		expect(screen.getByRole("status")).toHaveTextContent(
+			"BYDAY=SU;BYSETPOS=-1",
+		);
 	});
 	it("shows an annual summary and follows start-date edits for matching rules", () => {
 		render(

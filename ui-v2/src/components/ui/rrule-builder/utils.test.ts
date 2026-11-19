@@ -4,6 +4,7 @@ import {
 	getMonthlyOptions,
 	parseRule,
 	type RuleForm,
+	ruleFormSchema,
 	serializeRule,
 } from "./utils";
 
@@ -112,6 +113,43 @@ describe("rrule-builder mapper", () => {
 			weekday: "TU",
 		});
 	});
+	it("rejects yearly month-day expansion without narrowing it to the start month", () => {
+		expect(
+			parseRule(
+				"DTSTART;TZID=UTC:20260301T093000\nRRULE:FREQ=YEARLY;BYMONTHDAY=15",
+			),
+		).toEqual({
+			supported: false,
+			reason: "Yearly day-of-month filters require an explicit month.",
+		});
+	});
+	it.each([
+		["Asia/Kathmandu", "21:00"],
+		["America/Chicago", "00:15"],
+		["America/Chicago", "23:45"],
+	])(
+		"uses server-local end-of-day clock fields for %s at %s",
+		(timezone, time) => {
+			const rule = serializeRule(
+				{ ...examples[0], time, end: "until", until: "2026-03-10" },
+				timezone,
+			);
+			expect(rule).toContain("UNTIL=20260310T235959Z");
+			const parsed = parseRule(rule, timezone);
+			expect(parsed.supported && parsed.value.until).toBe("2026-03-10");
+			if (parsed.supported)
+				expect(serializeRule(parsed.value, timezone)).toBe(rule);
+		},
+	);
+	it.each(["never", "until"] as const)(
+		"ignores and normalizes a cleared count when ending with %s",
+		(end) => {
+			const form = { ...examples[0], end, count: Number.NaN };
+			expect(serializeRule(form)).not.toContain("COUNT=");
+			expect(ruleFormSchema.parse(form).count).toBe(10);
+			expect(() => serializeRule({ ...form, end: "count" })).toThrow();
+		},
+	);
 	it.each([
 		"FREQ=HOURLY",
 		"FREQ=MINUTELY",

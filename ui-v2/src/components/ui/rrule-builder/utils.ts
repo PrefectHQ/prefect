@@ -1,4 +1,3 @@
-import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { RRule, rrulestr } from "rrule";
 import { z } from "zod";
 
@@ -42,10 +41,8 @@ const validDate = (value: string) =>
 	new Date(value).toISOString().slice(0, 10) === value;
 const stamp = (date: string, time: string) =>
 	`${date.replaceAll("-", "")}T${time.replace(":", "")}00`;
-const untilInstant = (date: string, timezone: string) =>
-	fromZonedTime(`${date}T23:59:59`, timezone);
-const utcStamp = (date: Date) =>
-	date.toISOString().replaceAll(/[-:]/g, "").replace(".000", "");
+const serverUntilStamp = (date: string) =>
+	`${date.replaceAll("-", "")}T235959Z`;
 
 export const ruleFormSchema = z
 	.object({
@@ -61,26 +58,42 @@ export const ruleFormSchema = z
 		weekday: z.enum(weekdays),
 		end: z.enum(["never", "until", "count"]),
 		until: z.string(),
-		count: z.number(),
+		count: z.union([z.number(), z.nan()]),
 	})
-	.refine((value) => value.frequency !== "WEEKLY" || value.weekdays.length > 0)
+	.refine(
+		(value) => value.frequency !== "WEEKLY" || value.weekdays.length > 0,
+		{ path: ["weekdays"], message: "Select at least one weekday." },
+	)
 	.refine(
 		(value) => value.end !== "count" || integer(value.count, 1, 2147483647),
+		{
+			path: ["count"],
+			message: "Enter a positive whole number of occurrences.",
+		},
 	)
 	.refine(
 		(value) =>
 			value.end !== "until" ||
 			(validDate(value.until) && value.until >= value.start),
+		{
+			path: ["until"],
+			message: "Choose an end date on or after the start date.",
+		},
 	)
 	.refine(
 		(value) =>
 			value.frequency !== "YEARLY" ||
 			value.day <= new Date(Date.UTC(2000, value.month, 0)).getUTCDate(),
-	);
+		{ path: ["day"], message: "Choose a valid day for this month." },
+	)
+	.transform((value) => ({
+		...value,
+		count: value.end === "count" ? value.count : 10,
+	}));
 
-export function serializeRule(value: RuleForm, timezone = "UTC"): string {
+export function serializeRule(form: RuleForm, timezone = "UTC"): string {
 	new Intl.DateTimeFormat("en", { timeZone: timezone });
-	ruleFormSchema.parse(value);
+	const value = ruleFormSchema.parse(form);
 	const [hour, minute] = value.time.split(":").map(Number);
 	const parts = [`FREQ=${value.frequency}`, `INTERVAL=${value.interval}`];
 	if (value.frequency === "WEEKLY")
@@ -96,7 +109,7 @@ export function serializeRule(value: RuleForm, timezone = "UTC"): string {
 	parts.push(`BYHOUR=${hour}`, `BYMINUTE=${minute}`, "BYSECOND=0");
 	if (value.end === "count") parts.push(`COUNT=${value.count}`);
 	if (value.end === "until")
-		parts.push(`UNTIL=${utcStamp(untilInstant(value.until, timezone))}`);
+		parts.push(`UNTIL=${serverUntilStamp(value.until)}`);
 	return `DTSTART;TZID=${timezone}:${stamp(value.start, value.time)}\nRRULE:${parts.join(";")}`;
 }
 
@@ -181,6 +194,10 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 			);
 		if (fields.COUNT && fields.UNTIL)
 			return unsupported("COUNT and UNTIL cannot be combined.");
+		if (frequency === "YEARLY" && fields.BYMONTHDAY && !fields.BYMONTH)
+			return unsupported(
+				"Yearly day-of-month filters require an explicit month.",
+			);
 		if (fields.BYMONTH && frequency !== "YEARLY")
 			return unsupported("Month filters are only supported for yearly rules.");
 		if (fields.BYMONTHDAY && frequency !== "MONTHLY" && frequency !== "YEARLY")
@@ -221,11 +238,13 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 		}
 		if (fields.UNTIL) {
 			if (!/^\d{8}T\d{6}Z$/.test(fields.UNTIL))
-				return unsupported("UNTIL must be a UTC end-of-day timestamp.");
+				return unsupported(
+					"UNTIL must be a Z-suffixed local end-of-day timestamp.",
+				);
 			const until = RRule.parseString(`FREQ=DAILY;UNTIL=${fields.UNTIL}`).until;
 			if (!until) return unsupported("Invalid end date.");
-			value.until = formatInTimeZone(until, timezone, "yyyy-MM-dd");
-			if (utcStamp(untilInstant(value.until, timezone)) !== fields.UNTIL)
+			value.until = until.toISOString().slice(0, 10);
+			if (serverUntilStamp(value.until) !== fields.UNTIL)
 				return unsupported(
 					"Only end-of-day UNTIL values can be edited in the builder.",
 				);
