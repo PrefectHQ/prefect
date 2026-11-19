@@ -1,6 +1,31 @@
 ---
 title: prefect-aws
-description: Release notes for prefect-aws 0.5.14 through 0.8.0, including a Lambda MicroVM entrypoint, event-based ECS crash detection, and a configurable base directory for included files.
+description: Release notes for prefect-aws 0.5.14 through 0.8.1, including faster Lambda MicroVM startup and clearer ECS work pool network configuration guidance.
+---
+
+## 0.8.1
+
+_Released on November 19, 2026_
+
+**Enhancements**
+
+- Speed up AWS Lambda MicroVM flow run startup by warming DNS lookups before forking [#23898](https://github.com/PrefectHQ/prefect/pull/23898) by [@bunchesofdonald](https://github.com/bunchesofdonald)
+
+**Bug Fixes**
+
+- Start the suspension observer before pulling flow code in AWS Lambda MicroVM deployments [#23957](https://github.com/PrefectHQ/prefect/pull/23957) by [@bunchesofdonald](https://github.com/bunchesofdonald)
+
+**Documentation**
+
+- Clarify how to override ECS work pool network settings with `network_configuration` [#23911](https://github.com/PrefectHQ/prefect/pull/23911) by [@prabhushreyas](https://github.com/prabhushreyas)
+- Document the AWS Lambda MicroVM entrypoint's reliance on private Prefect engine APIs in `AGENTS.md` [#23884](https://github.com/PrefectHQ/prefect/pull/23884) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Document how unpinned `aws-cdk-lib` versions can affect ECS template generation in `AGENTS.md` [#23900](https://github.com/PrefectHQ/prefect/pull/23900) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Maintenance**
+
+- Update the AWS CDK CLI to `2.1148.0` [#23700](https://github.com/PrefectHQ/prefect/pull/23700) by [@prefect-renovate](https://github.com/apps/prefect-renovate)
+- Update `uv` to `0.13.8` in the AWS Lambda MicroVM image [#23934](https://github.com/PrefectHQ/prefect/pull/23934) by [@prefect-renovate](https://github.com/apps/prefect-renovate)
+
 ---
 
 ## 0.8.0

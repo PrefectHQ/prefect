@@ -10,7 +10,38 @@ Process entrypoint for a Prefect flow run in an AWS Lambda MicroVM.
 
 ## Functions
 
-### `main` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/entrypoint.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `start_name_lookup_warm_up` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/entrypoint.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start_name_lookup_warm_up() -> threading.Thread
+```
+
+
+Start looking up `127.0.0.1` and then `localhost` on a daemon thread. A
+lookup error is logged and ignored.
+
+**Returns:**
+- The thread doing the lookups.
+
+
+### `start_api_host_lookup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/entrypoint.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start_api_host_lookup(api_url: str | None) -> threading.Thread | None
+```
+
+
+Start resolving the host of `api_url` on a daemon thread.
+
+**Args:**
+- `api_url`: The Prefect API URL.
+
+**Returns:**
+- The thread doing the lookup, or None if `api_url` is missing or is not
+- an http or https URL with a hostname and a valid port.
+
+
+### `main` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/entrypoint.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 main(port: int = HOOK_SERVER_PORT) -> int
@@ -20,10 +51,16 @@ main(port: int = HOOK_SERVER_PORT) -> int
 Serve the lifecycle hooks, run the flow run from the first `/run` request,
 and return the process exit code.
 
+SIGTERM is blocked before a valid `/run` request is answered, stays blocked
+until the flow run's process exists, and is then forwarded to it.
+
 **Args:**
 - `port`: The port to serve the lifecycle hooks on.
 
 **Returns:**
 - 0 if the flow run's process exited 0. 1 if the `/run` request was
-- rejected or the flow run's process failed.
+- rejected, the run's settings could not be loaded, the write of the 200
+- reply to the `/run` request failed, or the flow run's process failed.
+- The runtime's response to a failed `/run` reply is not documented, so
+- the flow run is not started after one.
 
