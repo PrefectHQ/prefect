@@ -1,6 +1,6 @@
 ---
 title: prefect-dbt
-description: Release notes for prefect-dbt 0.7.7 through 0.7.25, including dbt Cloud asset materializations and dbt unit test support in PrefectDbtRunner.
+description: Release notes for prefect-dbt 0.7.7 through 0.8.0, including dbt Cloud asset materializations and dbt unit test support in PrefectDbtRunner.
 ---
 
 ## 0.8.0
@@ -9,13 +9,13 @@ _Released on November 19, 2026_
 
 **Breaking Changes**
 
-- Drop Python 3.10 support [#23324](https://github.com/PrefectHQ/prefect/pull/23324) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Drop Python 3.10 support [#23324](https://github.com/PrefectHQ/prefect/pull/23324) by [@app/devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 **Bug Fixes**
 
 - Fix dbt Cloud timeout errors printing the `run_id` placeholder [#23502](https://github.com/PrefectHQ/prefect/pull/23502) by [@alleyxd](https://github.com/alleyxd)
-- Track microbatch models as a single task run [#23357](https://github.com/PrefectHQ/prefect/pull/23357) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
-- Shut down dbt worker threads when a task times out or is cancelled [#23162](https://github.com/PrefectHQ/prefect/pull/23162) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Track microbatch models as a single task run and treat `NodeStatus.PartialSuccess` as a failure when batches fail in dbt 1.9+ [#23357](https://github.com/PrefectHQ/prefect/pull/23357) by [@app/devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Shut down dbt worker threads when a task times out or is cancelled [#23162](https://github.com/PrefectHQ/prefect/pull/23162) by [@app/devin-ai-integration](https://github.com/apps/devin-ai-integration)
 - Route source freshness logs to the enclosing task [#22989](https://github.com/PrefectHQ/prefect/pull/22989) by [@vyagubov](https://github.com/vyagubov)
 - Raise on skipped dbt nodes in `PrefectDbtRunner` [#23050](https://github.com/PrefectHQ/prefect/pull/23050) by [@vyagubov](https://github.com/vyagubov)
 
