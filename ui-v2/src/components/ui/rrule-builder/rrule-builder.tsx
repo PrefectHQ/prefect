@@ -2,8 +2,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useId, useState } from "react";
 import { type FieldPathValue, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
 	Select,
 	SelectContent,
@@ -11,11 +17,13 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
+	dayNames,
 	describeRule,
 	frequencies,
+	getAnnualLabel,
+	getMonthlyOptions,
 	parseRule,
 	type RuleForm,
 	ruleFormSchema,
@@ -29,73 +37,41 @@ export type RRuleBuilderProps = {
 	onChange: (value: string) => void;
 };
 
-const dayNames = [
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday",
-	"Sunday",
-];
-
 export function RRuleBuilder({
 	value,
 	timezone = "UTC",
 	onChange,
 }: RRuleBuilderProps) {
-	const [raw, setRaw] = useState(false);
 	const parsed = parseRule(value, timezone);
-	const id = useId();
 	return (
 		<div className="space-y-4 text-foreground">
-			{raw ? (
-				<div className="space-y-2">
-					<Label htmlFor={id}>Raw recurrence rule</Label>
-					<Textarea
-						id={id}
-						value={value}
-						onChange={(event) => onChange(event.target.value)}
-						className="font-mono"
-					/>
-					<p className="text-sm text-muted-foreground">
-						Include DTSTART with TZID to preserve the intended local start time.
-						Advanced rules are preserved as entered.
-					</p>
-					<Button
-						type="button"
-						variant="outline"
-						disabled={!parsed.supported}
-						onClick={() => setRaw(false)}
-					>
-						Use builder
-					</Button>
-					{!parsed.supported && (
-						<p className="text-sm text-muted-foreground">{parsed.reason}</p>
-					)}
-				</div>
+			{parsed.supported ? (
+				<BuilderFields
+					key={timezone}
+					value={parsed.value}
+					timezone={timezone}
+					onChange={onChange}
+				/>
 			) : (
-				<>
-					{parsed.supported ? (
-						<BuilderFields
-							key={timezone}
-							value={parsed.value}
-							timezone={timezone}
-							onChange={onChange}
-						/>
-					) : (
-						<div className="space-y-2">
-							<p>{describeRule(value)}</p>
-							<p className="text-sm text-muted-foreground">{parsed.reason}</p>
+				<div className="space-y-2">
+					<p>{describeRule(value) || "No recurrence rule"}</p>
+					<p className="text-sm text-muted-foreground">
+						This schedule can only be edited in code.
+					</p>
+					<p className="text-sm text-muted-foreground">{parsed.reason}</p>
+					<Collapsible key={value}>
+						<CollapsibleTrigger asChild>
+							<Button type="button" variant="ghost">
+								Show rule
+							</Button>
+						</CollapsibleTrigger>
+						<CollapsibleContent>
 							<pre className="whitespace-pre-wrap break-all rounded-md bg-muted p-3 text-sm">
 								{value || "No recurrence rule"}
 							</pre>
-						</div>
-					)}
-					<Button type="button" variant="ghost" onClick={() => setRaw(true)}>
-						Edit raw rule
-					</Button>
-				</>
+						</CollapsibleContent>
+					</Collapsible>
+				</div>
 			)}
 		</div>
 	);
@@ -106,18 +82,24 @@ function Choice({
 	value,
 	options,
 	onChange,
+	hideLabel = false,
 }: {
 	label: string;
 	value: string;
 	options: { value: string; label: string }[];
 	onChange: (value: string) => void;
+	hideLabel?: boolean;
 }) {
 	const id = useId();
 	return (
 		<div className="space-y-2">
-			<Label htmlFor={id}>{label}</Label>
+			{!hideLabel && <Label htmlFor={id}>{label}</Label>}
 			<Select value={value} onValueChange={onChange}>
-				<SelectTrigger id={id} type="button">
+				<SelectTrigger
+					id={id}
+					type="button"
+					aria-label={hideLabel ? label : undefined}
+				>
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
@@ -146,6 +128,8 @@ function BuilderFields({
 		resolver: zodResolver(ruleFormSchema),
 	});
 	const current = watch();
+	const monthly = getMonthlyOptions(current);
+	const annualLabel = getAnnualLabel(current);
 	const [error, setError] = useState("");
 	const id = useId();
 	const emit = () => {
@@ -179,20 +163,44 @@ function BuilderFields({
 				type={type}
 				min={min}
 				max={max}
-				{...register(key, { valueAsNumber: type === "number", onChange: emit })}
+				{...register(key, {
+					valueAsNumber: type === "number",
+					onChange: () => {
+						if (
+							key === "start" &&
+							current.frequency === "YEARLY" &&
+							annualLabel
+						) {
+							const date = new Date(`${getValues("start")}T00:00:00Z`);
+							if (Number.isFinite(date.getTime())) {
+								setValue("month", date.getUTCMonth() + 1);
+								setValue("day", date.getUTCDate());
+							}
+						}
+						emit();
+					},
+				})}
 			/>
 		</div>
 	);
 	return (
 		<div className="space-y-4">
-			<div className="flex flex-wrap items-end gap-3">
-				{input("interval", "Repeat every", "number", 1)}
+			<div className="flex flex-wrap items-center gap-3">
+				<Label htmlFor={`${id}-interval`}>Repeat every</Label>
+				<Input
+					id={`${id}-interval`}
+					type="number"
+					min={1}
+					className="w-20"
+					{...register("interval", { valueAsNumber: true, onChange: emit })}
+				/>
 				<Choice
-					label="Frequency"
+					label="Recurrence unit"
+					hideLabel
 					value={current.frequency}
 					options={frequencies.map((frequency, index) => ({
 						value: frequency,
-						label: ["Daily", "Weekly", "Monthly", "Yearly"][index],
+						label: `${["day", "week", "month", "year"][index]}${current.interval > 1 ? "s" : ""}`,
 					}))}
 					onChange={(next) => {
 						const frequency = frequencies.find((item) => item === next);
@@ -222,89 +230,85 @@ function BuilderFields({
 								value={day}
 								aria-label={dayNames[index]}
 							>
-								{dayNames[index].slice(0, 2)}
+								{dayNames[index].slice(0, 1)}
 							</ToggleGroupItem>
 						))}
 					</ToggleGroup>
 				</div>
 			)}
 			{current.frequency === "MONTHLY" && (
-				<>
-					<Choice
-						label="Monthly pattern"
-						value={current.monthly}
-						options={[
-							{ value: "day", label: "On day of month" },
-							{ value: "weekday", label: "On ordinal weekday" },
-						]}
-						onChange={(next) => {
-							if (next === "day" || next === "weekday") update("monthly", next);
-						}}
-					/>
-					{current.monthly === "weekday" && (
-						<div className="flex flex-wrap gap-3">
-							<Choice
-								label="Ordinal"
-								value={String(current.position)}
-								options={[1, 2, 3, 4, 5, -1].map((position, index) => ({
-									value: String(position),
-									label: [
-										"First",
-										"Second",
-										"Third",
-										"Fourth",
-										"Fifth",
-										"Last",
-									][index],
-								}))}
-								onChange={(next) => update("position", Number(next))}
-							/>
-							<Choice
-								label="Weekday"
-								value={current.weekday}
-								options={weekdays.map((day, index) => ({
-									value: day,
-									label: dayNames[index],
-								}))}
-								onChange={(next) => {
-									const day = weekdays.find((item) => item === next);
-									if (day) update("weekday", day);
-								}}
-							/>
-						</div>
-					)}
-				</>
+				<Choice
+					label="Monthly recurrence"
+					hideLabel
+					value={monthly.selected}
+					options={monthly.options}
+					onChange={(next) => {
+						const option = monthly.options.find(
+							(option) => option.value === next,
+						);
+						if (option) {
+							setValue("monthly", option.settings.monthly);
+							setValue("day", option.settings.day);
+							setValue("position", option.settings.position);
+							setValue("weekday", option.settings.weekday);
+							emit();
+						}
+					}}
+				/>
 			)}
 			{current.frequency === "YEARLY" &&
-				input("month", "Month", "number", 1, 12)}
-			{(current.frequency === "YEARLY" ||
-				(current.frequency === "MONTHLY" && current.monthly === "day")) && (
-				<>
-					{input("day", "Day of month", "number", 1, 31)}
-					<p className="text-sm text-muted-foreground">
-						Months without this day are skipped.
-					</p>
-				</>
-			)}
+				(annualLabel ? (
+					<p className="text-sm">{annualLabel}</p>
+				) : (
+					<div className="flex gap-3">
+						{input("month", "Month of year", "number", 1, 12)}
+						{input("day", "Day of month", "number", 1, 31)}
+					</div>
+				))}
 			<div className="flex flex-wrap gap-3">
 				{input("start", "Start date", "date")}
 				{input("time", `Time (${timezone})`, "time")}
 			</div>
-			<Choice
-				label="Ends"
-				value={current.end}
-				options={[
-					{ value: "never", label: "Never" },
-					{ value: "until", label: "On date" },
-					{ value: "count", label: "After occurrences" },
-				]}
-				onChange={(next) => {
-					if (next === "never" || next === "until" || next === "count")
-						update("end", next);
-				}}
-			/>
-			{current.end === "until" && input("until", "End date", "date")}
-			{current.end === "count" && input("count", "Occurrences", "number", 1)}
+			<div className="space-y-3">
+				<Label id={`${id}-ends`}>Ends</Label>
+				<RadioGroup
+					aria-labelledby={`${id}-ends`}
+					value={current.end}
+					onValueChange={(next) => {
+						if (next === "never" || next === "until" || next === "count")
+							update("end", next);
+					}}
+				>
+					<div className="flex items-center gap-3">
+						<RadioGroupItem type="button" id={`${id}-never`} value="never" />
+						<Label htmlFor={`${id}-never`}>Never</Label>
+					</div>
+					<div className="flex items-center gap-3">
+						<RadioGroupItem type="button" id={`${id}-on`} value="until" />
+						<Label htmlFor={`${id}-on`}>On</Label>
+						<Input
+							className="w-auto"
+							type="date"
+							aria-label="End date"
+							disabled={current.end !== "until"}
+							{...register("until", { onChange: emit })}
+						/>
+					</div>
+					<div className="flex items-center gap-3">
+						<RadioGroupItem type="button" id={`${id}-after`} value="count" />
+						<Label htmlFor={`${id}-after`}>After</Label>
+						<Input
+							className="w-20"
+							type="number"
+							min={1}
+							aria-label="Occurrences"
+							disabled={current.end !== "count"}
+							{...register("count", { valueAsNumber: true, onChange: emit })}
+						/>
+						<span className="text-sm">occurrences</span>
+					</div>
+				</RadioGroup>
+			</div>
 			{error && (
 				<p role="alert" className="text-sm text-destructive">
 					{error}

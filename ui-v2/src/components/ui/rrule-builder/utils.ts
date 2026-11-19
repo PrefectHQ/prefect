@@ -5,6 +5,15 @@ import { z } from "zod";
 export const weekdays = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"] as const;
 export type Weekday = (typeof weekdays)[number];
 export const frequencies = ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"] as const;
+export const dayNames = [
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+	"Sunday",
+];
 export type RuleForm = {
 	frequency: (typeof frequencies)[number];
 	interval: number;
@@ -238,4 +247,67 @@ export function describeRule(rule: string): string {
 	} catch {
 		return rule;
 	}
+}
+
+type MonthlySettings = Pick<
+	RuleForm,
+	"monthly" | "day" | "position" | "weekday"
+>;
+const ordinalNames: Record<number, string> = {
+	1: "first",
+	2: "second",
+	3: "third",
+	4: "fourth",
+	5: "fifth",
+	[-1]: "last",
+};
+function monthlyOption(settings: MonthlySettings) {
+	return {
+		value:
+			settings.monthly === "day"
+				? `day:${settings.day}`
+				: `weekday:${settings.position}:${settings.weekday}`,
+		label:
+			settings.monthly === "day"
+				? `Monthly on day ${settings.day}`
+				: `Monthly on the ${ordinalNames[settings.position]} ${dayNames[weekdays.indexOf(settings.weekday)]}`,
+		settings,
+	};
+}
+
+export function getMonthlyOptions(value: RuleForm) {
+	const options = [];
+	if (validDate(value.start)) {
+		const date = new Date(`${value.start}T00:00:00Z`);
+		const day = date.getUTCDate();
+		const weekday = weekdays[(date.getUTCDay() + 6) % 7];
+		options.push(monthlyOption({ ...value, monthly: "day", day }));
+		options.push(
+			monthlyOption({
+				...value,
+				monthly: "weekday",
+				position: Math.ceil(day / 7),
+				weekday,
+			}),
+		);
+		const daysInMonth = new Date(
+			Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
+		).getUTCDate();
+		if (day + 7 > daysInMonth)
+			options.push(
+				monthlyOption({ ...value, monthly: "weekday", position: -1, weekday }),
+			);
+	}
+	const current = monthlyOption(value);
+	if (!options.some((option) => option.value === current.value))
+		options.push(current);
+	return { options, selected: current.value };
+}
+
+export function getAnnualLabel(value: RuleForm): string | null {
+	if (!validDate(value.start)) return null;
+	const date = new Date(`${value.start}T00:00:00Z`);
+	if (date.getUTCMonth() + 1 !== value.month || date.getUTCDate() !== value.day)
+		return null;
+	return `Annually on ${new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "UTC" }).format(date)}`;
 }

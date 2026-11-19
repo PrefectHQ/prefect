@@ -7,9 +7,6 @@ function Controlled(props: RRuleBuilderProps) {
 	return (
 		<div className="max-w-lg p-4">
 			<RRuleBuilder {...props} value={value} onChange={setValue} />
-			<pre className="mt-4 whitespace-pre-wrap break-all text-sm text-muted-foreground">
-				{value}
-			</pre>
 		</div>
 	);
 }

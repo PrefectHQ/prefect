@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { parseRule, type RuleForm, serializeRule } from "./utils";
+import {
+	getAnnualLabel,
+	getMonthlyOptions,
+	parseRule,
+	type RuleForm,
+	serializeRule,
+} from "./utils";
 
 const examples: RuleForm[] = [
 	{
@@ -53,6 +59,37 @@ examples.push(
 );
 
 describe("rrule-builder mapper", () => {
+	it("derives monthly options from the start date and only offers last in the final week", () => {
+		const value = { ...examples[0], start: "2026-11-19", day: 19 };
+		expect(
+			getMonthlyOptions(value).options.map((option) => option.label),
+		).toEqual(["Monthly on day 19", "Monthly on the third Thursday"]);
+		expect(
+			getMonthlyOptions({ ...value, start: "2026-11-26", day: 26 }).options.map(
+				(option) => option.label,
+			),
+		).toEqual([
+			"Monthly on day 26",
+			"Monthly on the fourth Thursday",
+			"Monthly on the last Thursday",
+		]);
+	});
+	it("preserves a nonmatching monthly day and handles temporarily invalid starts", () => {
+		const value = { ...examples[0], start: "2026-11-19", day: 31 };
+		expect(getMonthlyOptions(value).selected).toBe("day:31");
+		expect(getMonthlyOptions(value).options.at(-1)?.label).toBe(
+			"Monthly on day 31",
+		);
+		expect(
+			getMonthlyOptions({ ...value, start: "" }).options.map(
+				(option) => option.label,
+			),
+		).toEqual(["Monthly on day 31"]);
+		expect(getAnnualLabel({ ...value, start: "invalid" })).toBeNull();
+		expect(getAnnualLabel({ ...value, month: 11, day: 19 })).toBe(
+			"Annually on November 19",
+		);
+	});
 	it.each(examples)("round trips $frequency $monthly $end", (form) => {
 		for (const timezone of ["UTC", "America/Chicago", "Asia/Kathmandu"]) {
 			const rule = serializeRule(form, timezone);
