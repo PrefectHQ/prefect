@@ -4828,15 +4828,15 @@ wheels = [
 
 [[package]]
 name = "prefect-sqlalchemy"
-version = "0.6.1"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prefect" },
     { name = "sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/14/41a605724a067e2917c6e88bdc254ed8675d2031179e52d05c772733708a/prefect_sqlalchemy-0.6.1.tar.gz", hash = "sha256:7fb13101a568840a9fff1697d1cb1ac6931a340a52a3ec0a3b75929daebb5c77", size = 19185, upload-time = "2026-02-12T22:03:55.885Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b0/bb/24a2a8acb0a60f94884f92446e01bd7c428d7f206703e7e514d868e61c84/prefect_sqlalchemy-0.7.0.tar.gz", hash = "sha256:eb88010002059c537fa51c1519108819b21e1eea73efddcbf2a3c5332797bdd8", size = 21232, upload-time = "2026-11-19T17:53:16.609Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/19/2eb0b80e92fb1597ce53f765548fa58a87949fceeb0bacb350388d2be00a/prefect_sqlalchemy-0.6.1-py3-none-any.whl", hash = "sha256:c7cf4dbaedf30b987cbdbb3cd645e55d6d59dbac6308f8385b808f936da267e3", size = 14827, upload-time = "2026-02-12T22:03:54.224Z" },
+    { url = "https://files.pythonhosted.org/packages/27/25/9ed1d6e4f302b06f8ac9dcd9ca1a70659bfcc75036fc22c829315d503eb4/prefect_sqlalchemy-0.7.0-py3-none-any.whl", hash = "sha256:6cb96d768132e8b3687927c556528e8ce1566dad919dc717e4f565bf0a47d242", size = 14817, upload-time = "2026-11-19T17:53:15.49Z" },
 ]
 
 [[package]]
