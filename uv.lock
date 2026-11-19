@@ -4774,15 +4774,15 @@ wheels = [
 
 [[package]]
 name = "prefect-redis"
-version = "0.3.1"
+version = "0.3.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prefect" },
     { name = "redis" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/10/c2/7156ae36a58fbbe58206a87bfb4ae485d3770f18498cb195186eacded47c/prefect_redis-0.3.1.tar.gz", hash = "sha256:07257dabf36ca01cad5c6f5cef6fcc7e94446256137c041600d725ad9afeb075", size = 76159, upload-time = "2026-11-16T15:21:40.034Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ac/99/295954db29845cc86eb4c0cca01573ac2c8804d54c436cdb850d2e730522/prefect_redis-0.3.2.tar.gz", hash = "sha256:6aad31c90bc276cbc4873402187b0520901cef3f051a9b80c0e91a4322063936", size = 77987, upload-time = "2026-11-19T17:53:00.384Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/e6/596e06d804fd702bc4a15cb995ae30ac069226c6fe4dc232e732294c1fb0/prefect_redis-0.3.1-py3-none-any.whl", hash = "sha256:f0fbddaf3e6a1df529126c05b7a4d8bb67abf7eda1ce3707a81fe79f47e8c8ec", size = 45057, upload-time = "2026-11-16T15:21:38.648Z" },
+    { url = "https://files.pythonhosted.org/packages/46/7d/83b18829d03289e57a45cb38e7b5f1d5d75194b72bcd6b223fe37c2122fc/prefect_redis-0.3.2-py3-none-any.whl", hash = "sha256:78aed3a4ffaf896a29a380c86afbf9a6077be18e09e116ddae8c1a2120b25e66", size = 45918, upload-time = "2026-11-19T17:52:59.168Z" },
 ]
 
 [[package]]
