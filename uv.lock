@@ -4581,7 +4581,7 @@ type-checking = [
 
 [[package]]
 name = "prefect-aws"
-version = "0.8.0"
+version = "0.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiobotocore" },
@@ -4593,9 +4593,9 @@ dependencies = [
     { name = "tenacity" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7c/bd/483e6547ec905c20a0838633bd7965160d7ec18c6cc27eef05fa4ec0da9f/prefect_aws-0.8.0.tar.gz", hash = "sha256:102bdd86fa87ef062ba74955371b28744ca7062d54995dc95340f284e36f8557", size = 187193, upload-time = "2026-11-13T21:54:23.533Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0c/11/13e2437b579c9d21edf1e3424087f73c38623dcb2b8b64403961eb926d0e/prefect_aws-0.8.1.tar.gz", hash = "sha256:d661f296ea897531694c2a7065b094bf8a13ebe57d9ecc1707717d3f2741adcb", size = 199512, upload-time = "2026-11-19T18:14:17.499Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/12/8a/5c7620f031fcd80c4189ab3e2c43fd91a085ad857cdfa4f33ef39a947dac/prefect_aws-0.8.0-py3-none-any.whl", hash = "sha256:334bce51571b32292fbbdf99072d719af1b0fb94bd65dbd435d4837ec2c51c07", size = 105275, upload-time = "2026-11-13T21:54:22.011Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/ea/7eff38a89e0ec9faf3439b2b6a376b4fada3a1c14028a9728e2d7370ae45/prefect_aws-0.8.1-py3-none-any.whl", hash = "sha256:d4ffd1d75a549c2fb9ad35c79b633e48f62d47f2a62b14be31232308ad9f152d", size = 108715, upload-time = "2026-11-19T18:14:15.917Z" },
 ]
 
 [[package]]
