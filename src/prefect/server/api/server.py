@@ -523,7 +523,13 @@ def create_api_app(
         return API_APP_CACHE[cache_key]
 
     fast_api_app_kwargs = fast_api_app_kwargs or {}
-    api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
+    api_app = FastAPI(
+        title=API_TITLE,
+        **{
+            "generate_unique_id_function": lambda route: route.name,
+            **fast_api_app_kwargs,
+        },
+    )
 
     if logfire:
         logfire.instrument_fastapi(api_app)  # pyright: ignore
