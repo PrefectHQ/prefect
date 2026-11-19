@@ -612,7 +612,7 @@ async def test_subscriber_resets_retry_counter_after_successful_reconnect(
     example_log_1: Log,
 ):
     """A stream that reconnects successfully must not exhaust its retry budget on
-    the total number of disconnects seen by a single ``__anext__`` call.
+    the total number of disconnects seen by a single `__anext__` call.
 
     Mirrors the event subscriber fix for https://github.com/PrefectHQ/prefect/issues/18428.
     """
