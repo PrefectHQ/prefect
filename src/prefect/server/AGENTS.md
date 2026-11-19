@@ -26,6 +26,8 @@ Follow this layering order:
 
 The `variables` endpoints are a good canonical example of this pattern for simple CRUD.
 
+**Route handler function names are public API surface.** `create_api_app` uses `route.name` as the OpenAPI `operationId`, which names the generated `ui-v2/src/api/prefect.ts` operations and `Body_<name>` request schemas that UI code imports. Renaming a handler breaks those UI types (regenerate with `npm run service-sync` in `ui-v2/` and `just generate-openapi`). IDs must be unique app-wide: pass an explicit `operation_id=` when a name collides across routers (e.g. work-queue handlers in `api/workers.py` vs `api/work_queues.py`) or one function is decorated for multiple paths; `tests/server/api/test_server.py` enforces uniqueness.
+
 **Singleton server settings** (not tied to a specific run or resource) skip a dedicated table — store them as JSON in the `Configuration` key-value store via `models/configuration.py`. Define a string key constant in the wrapping module (see `models/storage_defaults.py` for the pattern).
 
 ## Object Lifecycle Events
