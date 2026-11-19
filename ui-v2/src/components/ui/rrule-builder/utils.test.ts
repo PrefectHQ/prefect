@@ -324,6 +324,95 @@ describe("rrule-builder mapper", () => {
 				.supported,
 		).toBe(false);
 	});
+	it.each([
+		["rrule:freq=daily;interval=2", "RRULE:FREQ=DAILY;INTERVAL=2"],
+		["fReQ=WeEkLy;bYdAy=Mo,wE", "FREQ=WEEKLY;BYDAY=MO,WE"],
+		["rrule:freq=monthly;byday=2tu", "RRULE:FREQ=MONTHLY;BYDAY=2TU"],
+		[
+			"rRuLe:fReQ=mOnThLy;ByDaY=fR;BySeTpOs=-1",
+			"RRULE:FREQ=MONTHLY;BYDAY=FR;BYSETPOS=-1",
+		],
+		[
+			"freq=yearly;bymonth=11;bymonthday=19;byhour=9;byminute=30;bysecond=0",
+			"FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=19;BYHOUR=9;BYMINUTE=30;BYSECOND=0",
+		],
+		[
+			"rrule:freq=daily;until=20261231t235959z",
+			"RRULE:FREQ=DAILY;UNTIL=20261231T235959Z",
+		],
+	])("normalizes rule fields and values for %s", (rule, canonical) => {
+		const start = "DTSTART;TZID=America/Chicago:20260301T093000\n";
+		const parsed = parseRule(`${start}${rule}`, "America/Chicago");
+		expect(parsed.supported).toBe(true);
+		expect(parsed).toEqual(
+			parseRule(`${start}${canonical}`, "America/Chicago"),
+		);
+		if (parsed.supported)
+			expect(
+				parseRule(
+					serializeRule(parsed.value, "America/Chicago"),
+					"America/Chicago",
+				),
+			).toEqual(parsed);
+	});
+	it.each([
+		["dtstart;tzid=America/Chicago:20260301t093000", "America/Chicago"],
+		["DtStArT;TzId=Asia/Kathmandu:20260301T093000", "Asia/Kathmandu"],
+		["dtstart:20260301t093000", "America/Chicago"],
+		["DtStart:20260301t093000z", "UTC"],
+	])("accepts case-insensitive DTSTART syntax %s", (start, timezone) => {
+		const parsed = parseRule(
+			`${start}\nrrule:freq=weekly;byday=mo,we`,
+			timezone,
+		);
+		expect(parsed.supported).toBe(true);
+		expect(parsed).toEqual(
+			parseRule(
+				`DTSTART;TZID=${timezone}:20260301T093000\nRRULE:FREQ=WEEKLY;BYDAY=MO,WE`,
+				timezone,
+			),
+		);
+		if (parsed.supported)
+			expect(serializeRule(parsed.value, timezone)).toContain(
+				`DTSTART;TZID=${timezone}:20260301T093000\nRRULE:FREQ=WEEKLY;`,
+			);
+	});
+	it.each([
+		"freq=daily;FREQ=weekly",
+		"FREQ=DAILY;interval=2;INTERVAL=3",
+		"freq=weekly;BYDAY=mo;byday=we",
+		"freq=monthly;bymonthday=19;BYMONTHDAY=20",
+		"freq=daily;Until=20261231t235959z;UNTIL=20261231T235959Z",
+	])("rejects duplicate fields regardless of case: %s", (rule) => {
+		expect(parseRule(`dtstart:20260301t093000\nrrule:${rule}`)).toMatchObject({
+			supported: false,
+			reason: "This rule contains unsupported or duplicate fields.",
+		});
+	});
+	it.each(["freq=hourly", "freq=daily;byweekno=2", "freq=weekly;byday=xx"])(
+		"keeps unsupported lowercase rules read-only: %s",
+		(rule) => {
+			expect(
+				parseRule(`dtstart:20260301t093000\nrrule:${rule}`).supported,
+			).toBe(false);
+		},
+	);
+	it("normalizes COUNT before identifying it as unsupported", () => {
+		expect(
+			parseRule("dtstart:20260301t093000\nrrule:freq=daily;count=2"),
+		).toMatchObject({
+			supported: false,
+			reason: "This rule uses COUNT, which Prefect doesn't support.",
+		});
+	});
+	it("does not case-fold timezone identifiers to match another timezone", () => {
+		expect(
+			parseRule(
+				"dtstart;tzid=america/chicago:20260301t093000\nrrule:freq=daily",
+				"America/Chicago",
+			).supported,
+		).toBe(false);
+	});
 	it("rejects dates outside the server's year range", () => {
 		expect(() =>
 			serializeRule({ ...examples[0], start: "0000-01-01" }),

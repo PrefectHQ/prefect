@@ -150,7 +150,7 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 				"The builder requires one DTSTART and one RRULE, without additional rules or dates.",
 			);
 		const startMatch =
-			/^DTSTART(?:;TZID=([^:]+))?:(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/.exec(
+			/^DTSTART(?:;TZID=([^:]+))?:(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/i.exec(
 				lines[0],
 			);
 		if (!startMatch) return unsupported("A complete DTSTART is required.");
@@ -177,7 +177,9 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 			"COUNT",
 			"UNTIL",
 		];
-		const ruleLine = /^RRULE:/i.test(lines[1]) ? lines[1].slice(6) : lines[1];
+		const ruleLine = (
+			/^RRULE:/i.test(lines[1]) ? lines[1].slice(6) : lines[1]
+		).toUpperCase();
 		for (const part of ruleLine.split(";")) {
 			const [key, value, extra] = part.split("=");
 			if (!allowed.includes(key) || !value || extra || key in fields)
@@ -275,7 +277,8 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 				);
 		}
 		serializeRule(value, timezone);
-		rrulestr(rule);
+		const normalizedStart = `DTSTART${tzid ? `;TZID=${tzid}` : ""}:${year}${month}${day}T${hour}${minute}${second}${zulu.toUpperCase()}`;
+		rrulestr(`${normalizedStart}\nRRULE:${ruleLine}`);
 		return { supported: true, value };
 	} catch {
 		return unsupported(
