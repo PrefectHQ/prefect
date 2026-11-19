@@ -3,6 +3,35 @@ title: prefect-sqlalchemy
 description: Release notes for prefect-sqlalchemy 0.6.0 and 0.6.1, which split the connector into SqlAlchemyConnector and AsyncSqlAlchemyConnector.
 ---
 
+## 0.7.0
+
+_Released on November 19, 2026_
+
+**Breaking Changes**
+
+- Drop Python 3.10 support [#23324](https://github.com/PrefectHQ/prefect/pull/23324) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Bug Fixes**
+
+- Fix SQLAlchemy cursor reuse for parameterized fetches [#23847](https://github.com/PrefectHQ/prefect/pull/23847) by [@shion233](https://github.com/shion233)
+- Fix keyword argument annotations to accept `Any` instead of only dictionaries [#21864](https://github.com/PrefectHQ/prefect/pull/21864) by [@zepaz](https://github.com/zepaz)
+
+**Documentation**
+
+- Fix broken documentation links in the `prefect-sqlalchemy` README [#23651](https://github.com/PrefectHQ/prefect/pull/23651) by [@maximearmstrong](https://github.com/maximearmstrong)
+- Link to the docs at www.prefect.io/docs [#23642](https://github.com/PrefectHQ/prefect/pull/23642) by [@maximearmstrong](https://github.com/maximearmstrong)
+- Regenerate API references with `mdxify>=0.2.45` to drop empty stubs [#22344](https://github.com/PrefectHQ/prefect/pull/22344) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Fix integration API reference generation [#20789](https://github.com/PrefectHQ/prefect/pull/20789) by [@desertaxle](https://github.com/desertaxle)
+- Set up automatic `prefect-sqlalchemy` API reference documentation via `mdxify` [#20717](https://github.com/PrefectHQ/prefect/pull/20717) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Add the Python 3.14 classifier [#23273](https://github.com/PrefectHQ/prefect/pull/23273) by [@vyagubov](https://github.com/vyagubov)
+- Replace Sanity-hosted logo URLs [#23235](https://github.com/PrefectHQ/prefect/pull/23235) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Complete SQLAlchemy keyword argument typing cleanup [#21865](https://github.com/PrefectHQ/prefect/pull/21865) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+---
+
 ## 0.6.1
 
 _Released on February 12, 2026_
