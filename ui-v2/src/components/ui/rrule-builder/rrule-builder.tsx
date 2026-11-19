@@ -58,6 +58,16 @@ export function RRuleBuilder({
 					<p className="text-sm text-muted-foreground">
 						This schedule can only be edited in code.
 					</p>
+					<p className="text-sm text-muted-foreground">
+						<a
+							href="https://www.prefect.io/docs/v3/concepts/schedules#rrule"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="underline hover:text-foreground"
+						>
+							Learn how to define RRule schedules
+						</a>
+					</p>
 					<p className="text-sm text-muted-foreground">{parsed.reason}</p>
 					<Collapsible key={value}>
 						<CollapsibleTrigger asChild>

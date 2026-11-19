@@ -98,6 +98,15 @@ describe("rrule-builder", () => {
 		expect(
 			screen.getByText("This schedule can only be edited in code."),
 		).toBeVisible();
+		const docsLink = screen.getByRole("link", {
+			name: "Learn how to define RRule schedules",
+		});
+		expect(docsLink).toHaveAttribute(
+			"href",
+			"https://www.prefect.io/docs/v3/concepts/schedules#rrule",
+		);
+		expect(docsLink).toHaveAttribute("target", "_blank");
+		expect(docsLink).toHaveAttribute("rel", "noopener noreferrer");
 		expect(
 			screen.getByText(
 				"The builder requires one DTSTART and one RRULE, without additional rules or dates.",
