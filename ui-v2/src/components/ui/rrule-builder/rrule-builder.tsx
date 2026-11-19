@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useId } from "react";
+import { useId, useRef } from "react";
 import { type FieldPathValue, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -151,6 +151,7 @@ function BuilderFields({
 	const monthly = getMonthlyOptions(current);
 	const annualLabel = getAnnualLabel(current);
 	const id = useId();
+	const lastValidStart = useRef(value.start);
 	const emit = () => {
 		void trigger();
 		const values = getValues();
@@ -201,7 +202,15 @@ function BuilderFields({
 										: event.target.value,
 								);
 								if (key === "start" && current.frequency === "MONTHLY") {
-									const oldDate = new Date(`${current.start}T00:00:00Z`);
+									if (
+										Number.isFinite(
+											new Date(`${current.start}T00:00:00Z`).getTime(),
+										)
+									)
+										lastValidStart.current = current.start;
+									const oldDate = new Date(
+										`${lastValidStart.current}T00:00:00Z`,
+									);
 									const newDate = new Date(`${event.target.value}T00:00:00Z`);
 									const oldDay = oldDate.getUTCDate();
 									const oldWeekday = weekdays[(oldDate.getUTCDay() + 6) % 7];
@@ -215,6 +224,7 @@ function BuilderFields({
 											),
 										).getUTCDate();
 									if (Number.isFinite(newDate.getTime())) {
+										lastValidStart.current = event.target.value;
 										if (current.monthly === "day" && current.day === oldDay)
 											setValue("day", newDate.getUTCDate());
 										if (

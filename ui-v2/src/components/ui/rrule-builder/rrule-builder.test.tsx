@@ -321,6 +321,40 @@ describe("rrule-builder", () => {
 			"BYDAY=SU;BYSETPOS=-1",
 		);
 	});
+	it.each([
+		["BYMONTHDAY=19", "BYMONTHDAY=20"],
+		["BYDAY=TH;BYSETPOS=3", "BYDAY=SU;BYSETPOS=3"],
+		["BYMONTHDAY=31", "BYMONTHDAY=31"],
+		["BYDAY=FR;BYSETPOS=-1", "BYDAY=FR;BYSETPOS=-1"],
+	])(
+		"preserves monthly start derivation through a cleared start for %s",
+		async (pattern, emitted) => {
+			render(
+				<Controlled
+					initialValue={`DTSTART;TZID=UTC:20261119T090000\nRRULE:FREQ=MONTHLY;${pattern}`}
+				/>,
+			);
+			fireEvent.change(screen.getByLabelText("Start date"), {
+				target: { value: "" },
+			});
+			expect(
+				await screen.findByText("Enter a valid start date."),
+			).toBeVisible();
+			expect(screen.getByRole("status")).toHaveTextContent(
+				"DTSTART;TZID=UTC:20261119T090000",
+			);
+			fireEvent.change(screen.getByLabelText("Start date"), {
+				target: { value: "2026-12-20" },
+			});
+			expect(screen.getByRole("status")).toHaveTextContent(
+				"DTSTART;TZID=UTC:20261220T090000",
+			);
+			expect(screen.getByRole("status")).toHaveTextContent(emitted);
+			await waitFor(() =>
+				expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+			);
+		},
+	);
 	it("shows an annual summary and follows start-date edits for matching rules", () => {
 		render(
 			<Controlled

@@ -300,6 +300,24 @@ describe("rrule-builder mapper", () => {
 			parseRule(`${start}RRULE:FREQ=DAILY`, "America/Chicago"),
 		);
 	});
+	it.each(["rrule:", "RrUlE:"])(
+		"accepts the case-insensitive prefix %s",
+		(prefix) => {
+			const start = "DTSTART;TZID=America/Chicago:20260301T093000\n";
+			const parsed = parseRule(
+				`${start}${prefix}FREQ=DAILY`,
+				"America/Chicago",
+			);
+			expect(parsed.supported).toBe(true);
+			expect(parsed).toEqual(
+				parseRule(`${start}RRULE:FREQ=DAILY`, "America/Chicago"),
+			);
+			if (parsed.supported)
+				expect(serializeRule(parsed.value, "America/Chicago")).toContain(
+					"\nRRULE:FREQ=DAILY;",
+				);
+		},
+	);
 	it("still rejects a UTC start when the schedule timezone differs", () => {
 		expect(
 			parseRule("DTSTART:20260301T093000Z\nFREQ=DAILY", "America/Chicago")

@@ -177,9 +177,7 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 			"COUNT",
 			"UNTIL",
 		];
-		const ruleLine = lines[1].startsWith("RRULE:")
-			? lines[1].slice(6)
-			: lines[1];
+		const ruleLine = /^RRULE:/i.test(lines[1]) ? lines[1].slice(6) : lines[1];
 		for (const part of ruleLine.split(";")) {
 			const [key, value, extra] = part.split("=");
 			if (!allowed.includes(key) || !value || extra || key in fields)
