@@ -41,7 +41,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.openapi.utils import get_openapi
+from fastapi.openapi.constants import REF_PREFIX
+from fastapi.openapi.utils import get_openapi, validation_error_definition
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from packaging.version import Version
@@ -322,6 +323,68 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
+_INVALID_REQUEST_RESPONSE_SCHEMA: dict[str, Any] = {
+    "title": "InvalidRequestResponse",
+    "type": "object",
+    "properties": {
+        "exception_message": {"title": "Exception Message", "type": "string"},
+        "exception_detail": {
+            "title": "Exception Detail",
+            "type": "array",
+            "items": {"$ref": f"{REF_PREFIX}ValidationError"},
+        },
+        "request_body": {"title": "Request Body"},
+    },
+    "required": ["exception_message", "exception_detail"],
+}
+
+_HTTP_ERROR_RESPONSE_SCHEMA: dict[str, Any] = {
+    "title": "HTTPErrorResponse",
+    "type": "object",
+    "properties": {"detail": {"title": "Detail", "type": "string"}},
+    "required": ["detail"],
+}
+
+
+def _document_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
+    """
+    Document the 422 bodies the Prefect API sends: `InvalidRequestResponse` from
+    the request validation handler, or `HTTPErrorResponse` from an
+    `HTTPException`. These replace FastAPI's default `HTTPValidationError`, and
+    are added to any 422 body that a route declares.
+    """
+    default_ref = f"{REF_PREFIX}HTTPValidationError"
+    documented = False
+    for path_item in schema.get("paths", {}).values():
+        for operation in path_item.values():
+            content = (
+                operation.get("responses", {})
+                .get("422", {})
+                .get("content", {})
+                .get("application/json", {})
+            )
+            ref = content.get("schema", {}).get("$ref")
+            if ref is None:
+                continue
+            route_bodies = [] if ref == default_ref else [{"$ref": ref}]
+            content["schema"] = {
+                "anyOf": [
+                    *route_bodies,
+                    {"$ref": f"{REF_PREFIX}InvalidRequestResponse"},
+                    {"$ref": f"{REF_PREFIX}HTTPErrorResponse"},
+                ]
+            }
+            documented = True
+
+    if documented:
+        schemas = schema.setdefault("components", {}).setdefault("schemas", {})
+        schemas.pop("HTTPValidationError", None)
+        schemas.setdefault("ValidationError", validation_error_definition)
+        schemas["InvalidRequestResponse"] = _INVALID_REQUEST_RESPONSE_SCHEMA
+        schemas["HTTPErrorResponse"] = _HTTP_ERROR_RESPONSE_SCHEMA
+    return schema
+
+
 async def integrity_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Capture database integrity errors."""
     logger.error("Encountered exception in request:", exc_info=True)
@@ -520,6 +583,13 @@ def create_api_app(
 
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
+    if RequestValidationError not in (
+        fast_api_app_kwargs.get("exception_handlers") or {}
+    ):
+        api_app.add_exception_handler(
+            RequestValidationError,
+            validation_exception_handler,
+        )
 
     if logfire:
         logfire.instrument_fastapi(api_app)  # pyright: ignore
@@ -612,6 +682,19 @@ def create_api_app(
                     content={"exception_message": "Unauthorized"},
                 )
             return await call_next(request)
+
+    def openapi() -> dict[str, Any]:
+        if api_app.openapi_schema is None:
+            schema = FastAPI.openapi(api_app)
+            if (
+                api_app.exception_handlers.get(RequestValidationError)
+                is validation_exception_handler
+            ):
+                schema = _document_error_responses(schema)
+            api_app.openapi_schema = schema
+        return api_app.openapi_schema
+
+    api_app.openapi = openapi
 
     API_APP_CACHE[cache_key] = api_app
 
@@ -1101,10 +1184,12 @@ def create_app(
 
         This method is attached to the global public app for easy access.
         """
-        partial_schema = get_openapi(
-            title=API_TITLE,
-            version=API_VERSION,
-            routes=api_app.routes,
+        partial_schema = _document_error_responses(
+            get_openapi(
+                title=API_TITLE,
+                version=API_VERSION,
+                routes=api_app.routes,
+            )
         )
         new_schema = partial_schema.copy()
 
