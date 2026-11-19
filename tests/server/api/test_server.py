@@ -292,6 +292,8 @@ def test_sqlite_locked_log_filter_works_for_docket_worker_logger():
         asyncpg.exceptions.QueryCanceledError(),
         asyncpg.exceptions.ConnectionDoesNotExistError(),
         asyncpg.exceptions.CannotConnectNowError(),
+        socket.gaierror(socket.EAI_NONAME, "Name or service not known"),
+        ConnectionRefusedError(errno.ECONNREFUSED, "Connect call failed"),
         sa.exc.InvalidRequestError(),
         sa.orm.exc.DetachedInstanceError(),
     ),
@@ -365,6 +367,11 @@ def test_non_data_database_errors_remain_retryable():
     assert is_client_retryable_exception(
         asyncpg.exceptions.PostgresConnectionError("connection failure")
     )
+
+
+def test_other_os_errors_are_not_retryable():
+    assert not is_client_retryable_exception(OSError(errno.EACCES, "Permission denied"))
+    assert not is_client_retryable_exception(FileNotFoundError("missing"))
 
 
 def _write_fake_ui_bundle(directory: pathlib.Path, marker: str) -> pathlib.Path:

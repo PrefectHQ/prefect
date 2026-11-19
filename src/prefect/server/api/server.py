@@ -373,6 +373,10 @@ def is_client_retryable_exception(exc: Exception) -> bool:
             asyncpg.exceptions.ConnectionDoesNotExistError,
             asyncpg.exceptions.CannotConnectNowError,
             asyncpg.exceptions.PostgresConnectionError,
+            # raised unwrapped by asyncpg when the database host does not
+            # resolve or refuses the connection, e.g. during a restart
+            socket.gaierror,
+            ConnectionRefusedError,
             sqlalchemy.exc.InvalidRequestError,
             sqlalchemy.orm.exc.DetachedInstanceError,
         ),
