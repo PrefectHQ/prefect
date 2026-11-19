@@ -822,7 +822,10 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
     context that fails to enter is never exited by its caller."""
     log_puppeteer.token = token
 
+    waiting_for_auth = asyncio.Event()
+
     async def never_respond(self: ClientConnection, *args: object, **kwargs: object):
+        waiting_for_auth.set()
         await asyncio.Event().wait()
 
     monkeypatch.setattr(ClientConnection, "recv", never_respond)
@@ -831,9 +834,14 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
         filter=LogFilter(level=LogFilterLevel(ge_=logging.INFO)),
         reconnection_attempts=0,
     )
-    with pytest.raises(TimeoutError):
-        async with asyncio.timeout(0.5):
-            await subscriber.__aenter__()
+    # Cancel only once the handshake has completed and setup is blocked waiting
+    # for the auth response; a wall-clock timeout can fire before the socket
+    # opens on a slow runner.
+    setup = asyncio.create_task(subscriber.__aenter__())
+    await waiting_for_auth.wait()
+    setup.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await setup
 
     assert log_recorder.connections == 1
     assert subscriber._connect.connection.state is WebsocketState.CLOSED
