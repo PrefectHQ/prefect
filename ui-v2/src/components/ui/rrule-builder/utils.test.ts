@@ -22,7 +22,6 @@ const examples: RuleForm[] = [
 		weekday: "MO",
 		end: "never",
 		until: "2026-12-31",
-		count: 10,
 	},
 ];
 examples.push(
@@ -30,8 +29,7 @@ examples.push(
 		...examples[0],
 		frequency: "WEEKLY",
 		weekdays: ["MO", "WE"],
-		end: "count",
-		count: 8,
+		end: "until",
 	},
 	{ ...examples[0], frequency: "MONTHLY", day: 31 },
 	{
@@ -141,15 +139,51 @@ describe("rrule-builder mapper", () => {
 				expect(serializeRule(parsed.value, timezone)).toBe(rule);
 		},
 	);
-	it.each(["never", "until"] as const)(
-		"ignores and normalizes a cleared count when ending with %s",
-		(end) => {
-			const form = { ...examples[0], end, count: Number.NaN };
-			expect(serializeRule(form)).not.toContain("COUNT=");
-			expect(ruleFormSchema.parse(form).count).toBe(10);
-			expect(() => serializeRule({ ...form, end: "count" })).toThrow();
+	it.each(["DAILY", "WEEKLY"] as const)(
+		"normalizes unused day and month for %s",
+		(frequency) => {
+			const form = {
+				...examples[0],
+				frequency,
+				day: Number.NaN,
+				month: Number.NaN,
+			};
+			expect(serializeRule(form)).not.toMatch(/BYMONTH(DAY)?=/);
+			expect(ruleFormSchema.parse(form)).toMatchObject({ day: 1, month: 3 });
 		},
 	);
+	it("validates only the day for monthly day rules and neither field for ordinal rules", () => {
+		const form = {
+			...examples[0],
+			frequency: "MONTHLY" as const,
+			month: Number.NaN,
+		};
+		expect(serializeRule(form)).toContain("BYMONTHDAY=1");
+		expect(() => serializeRule({ ...form, day: Number.NaN })).toThrow();
+		expect(
+			serializeRule({ ...form, monthly: "weekday", day: Number.NaN }),
+		).toContain("BYDAY=MO;BYSETPOS=1");
+	});
+	it.each(["day", "month"] as const)(
+		"rejects a cleared active yearly %s",
+		(key) => {
+			expect(() =>
+				serializeRule({
+					...examples[0],
+					frequency: "YEARLY",
+					[key]: Number.NaN,
+				}),
+			).toThrow();
+		},
+	);
+	it("keeps COUNT rules unsupported with a specific reason", () => {
+		expect(
+			parseRule("DTSTART;TZID=UTC:20260301T093000\nRRULE:FREQ=DAILY;COUNT=5"),
+		).toEqual({
+			supported: false,
+			reason: "This rule uses COUNT, which Prefect doesn't support.",
+		});
+	});
 	it.each([
 		"FREQ=HOURLY",
 		"FREQ=MINUTELY",

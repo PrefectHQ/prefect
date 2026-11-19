@@ -27,7 +27,7 @@ export const Weekly: Story = {};
 export const Monthly: Story = {
 	args: {
 		value:
-			"DTSTART;TZID=America/Chicago:20261119T090000\nRRULE:FREQ=MONTHLY;BYDAY=FR;BYSETPOS=-1;COUNT=10",
+			"DTSTART;TZID=America/Chicago:20261119T090000\nRRULE:FREQ=MONTHLY;BYDAY=FR;BYSETPOS=-1",
 	},
 };
 export const Unsupported: Story = {

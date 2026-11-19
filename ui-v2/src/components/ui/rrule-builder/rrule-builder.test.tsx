@@ -51,12 +51,10 @@ describe("rrule-builder", () => {
 	it("edits end conditions", async () => {
 		const user = userEvent.setup();
 		render(<Controlled />);
-		expect(screen.getByLabelText("Occurrences")).toBeDisabled();
-		await user.click(screen.getByRole("radio", { name: "After" }));
-		fireEvent.change(screen.getByLabelText("Occurrences"), {
-			target: { value: "5" },
-		});
-		expect(screen.getByRole("status")).toHaveTextContent("COUNT=5");
+		expect(
+			screen.queryByRole("radio", { name: "After" }),
+		).not.toBeInTheDocument();
+		expect(screen.queryByLabelText("Occurrences")).not.toBeInTheDocument();
 		await user.click(screen.getByRole("radio", { name: "On" }));
 		fireEvent.change(screen.getByLabelText("End date"), {
 			target: { value: "2026-12-31" },
@@ -69,22 +67,45 @@ describe("rrule-builder", () => {
 		expect(screen.getByRole("status")).not.toHaveTextContent("UNTIL=");
 		expect(screen.getByRole("status")).not.toHaveTextContent("COUNT=");
 	});
-	it("can choose Never after clearing an occurrence count", async () => {
+	it("can switch to weekly after clearing an active yearly day", async () => {
 		const user = userEvent.setup();
-		render(<Controlled />);
-		await user.click(screen.getByRole("radio", { name: "After" }));
-		expect(screen.getByRole("status")).toHaveTextContent("COUNT=10");
-		fireEvent.change(screen.getByLabelText("Occurrences"), {
+		render(
+			<Controlled
+				initialValue={
+					"DTSTART;TZID=UTC:20261119T090000\nRRULE:FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=28"
+				}
+			/>,
+		);
+		fireEvent.change(screen.getByLabelText("Day of month"), {
 			target: { value: "" },
 		});
-		expect(await screen.findByRole("alert")).toHaveTextContent(
-			"Enter a positive whole number of occurrences.",
+		expect(
+			await screen.findByText("Enter a day between 1 and 31."),
+		).toBeVisible();
+		fireEvent.keyDown(
+			screen.getByRole("combobox", { name: "Recurrence unit" }),
+			{ key: "Enter" },
 		);
-		await user.click(screen.getByRole("radio", { name: "Never" }));
-		expect(screen.getByRole("status")).not.toHaveTextContent("COUNT=");
+		await user.click(screen.getByRole("option", { name: "week" }));
+		expect(screen.getByRole("status")).toHaveTextContent("FREQ=WEEKLY");
+		expect(screen.getByRole("status")).not.toHaveTextContent("BYMONTH");
 		await waitFor(() =>
 			expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
 		);
+	});
+	it("shows a COUNT rule read-only instead of exposing count editing", () => {
+		const onChange = vi.fn();
+		render(
+			<RRuleBuilder
+				value={"DTSTART;TZID=UTC:20260301T093000\nRRULE:FREQ=DAILY;COUNT=5"}
+				onChange={onChange}
+			/>,
+		);
+		expect(
+			screen.getByText("This rule uses COUNT, which Prefect doesn't support."),
+		).toBeVisible();
+		expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+		expect(onChange).not.toHaveBeenCalled();
 	});
 	it("edits the local start and time together with the recurrence time", () => {
 		render(<Controlled />);

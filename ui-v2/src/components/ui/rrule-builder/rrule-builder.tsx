@@ -165,7 +165,7 @@ function BuilderFields({
 		emit();
 	};
 	const input = (
-		key: "start" | "time" | "interval" | "day" | "month" | "count" | "until",
+		key: "start" | "time" | "interval" | "day" | "month" | "until",
 		label: string,
 		type: string,
 		min?: number,
@@ -190,9 +190,7 @@ function BuilderFields({
 							value={Number.isNaN(field.value) ? "" : field.value}
 							aria-label={hideLabel ? label : undefined}
 							disabled={disabled}
-							className={
-								key === "interval" || key === "count" ? "w-20" : "w-auto"
-							}
+							className={key === "interval" ? "w-20" : "w-auto"}
 							type={type}
 							min={min}
 							max={max}
@@ -380,11 +378,7 @@ function BuilderFields({
 									aria-labelledby={`${id}-ends`}
 									value={current.end}
 									onValueChange={(next) => {
-										if (
-											next === "never" ||
-											next === "until" ||
-											next === "count"
-										)
+										if (next === "never" || next === "until")
 											update("end", next);
 									}}
 								>
@@ -413,25 +407,6 @@ function BuilderFields({
 											true,
 											current.end !== "until",
 										)}
-									</div>
-									<div className="flex items-center gap-3">
-										<RadioGroupItem
-											type="button"
-											id={`${id}-after`}
-											value="count"
-										/>
-										<Label htmlFor={`${id}-after`}>After</Label>
-										{input(
-											"count",
-											"Occurrences",
-											"number",
-											1,
-											undefined,
-											false,
-											true,
-											current.end !== "count",
-										)}
-										<span className="text-sm">occurrences</span>
 									</div>
 								</RadioGroup>
 							</FormControl>

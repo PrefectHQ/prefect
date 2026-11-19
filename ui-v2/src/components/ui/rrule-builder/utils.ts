@@ -24,9 +24,8 @@ export type RuleForm = {
 	month: number;
 	position: number;
 	weekday: Weekday;
-	end: "never" | "until" | "count";
+	end: "never" | "until";
 	until: string;
-	count: number;
 };
 export type ParsedRule =
 	| { supported: true; value: RuleForm }
@@ -52,23 +51,32 @@ export const ruleFormSchema = z
 		time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
 		weekdays: z.array(z.enum(weekdays)),
 		monthly: z.enum(["day", "weekday"]),
-		day: z.number().int().min(1).max(31),
-		month: z.number().int().min(1).max(12),
+		day: z.union([z.number(), z.nan()]),
+		month: z.union([z.number(), z.nan()]),
 		position: z.number().refine((value) => [1, 2, 3, 4, 5, -1].includes(value)),
 		weekday: z.enum(weekdays),
-		end: z.enum(["never", "until", "count"]),
+		end: z.enum(["never", "until"]),
 		until: z.string(),
-		count: z.union([z.number(), z.nan()]),
 	})
 	.refine(
 		(value) => value.frequency !== "WEEKLY" || value.weekdays.length > 0,
 		{ path: ["weekdays"], message: "Select at least one weekday." },
 	)
 	.refine(
-		(value) => value.end !== "count" || integer(value.count, 1, 2147483647),
+		(value) =>
+			(value.frequency !== "YEARLY" &&
+				(value.frequency !== "MONTHLY" || value.monthly !== "day")) ||
+			integer(value.day, 1, 31),
 		{
-			path: ["count"],
-			message: "Enter a positive whole number of occurrences.",
+			path: ["day"],
+			message: "Enter a day between 1 and 31.",
+		},
+	)
+	.refine(
+		(value) => value.frequency !== "YEARLY" || integer(value.month, 1, 12),
+		{
+			path: ["month"],
+			message: "Enter a month between 1 and 12.",
 		},
 	)
 	.refine(
@@ -88,7 +96,15 @@ export const ruleFormSchema = z
 	)
 	.transform((value) => ({
 		...value,
-		count: value.end === "count" ? value.count : 10,
+		day:
+			value.frequency === "YEARLY" ||
+			(value.frequency === "MONTHLY" && value.monthly === "day")
+				? value.day
+				: new Date(`${value.start}T00:00:00Z`).getUTCDate(),
+		month:
+			value.frequency === "YEARLY"
+				? value.month
+				: new Date(`${value.start}T00:00:00Z`).getUTCMonth() + 1,
 	}));
 
 export function serializeRule(form: RuleForm, timezone = "UTC"): string {
@@ -107,7 +123,6 @@ export function serializeRule(form: RuleForm, timezone = "UTC"): string {
 	if (value.frequency === "YEARLY")
 		parts.push(`BYMONTH=${value.month}`, `BYMONTHDAY=${value.day}`);
 	parts.push(`BYHOUR=${hour}`, `BYMINUTE=${minute}`, "BYSECOND=0");
-	if (value.end === "count") parts.push(`COUNT=${value.count}`);
 	if (value.end === "until")
 		parts.push(`UNTIL=${serverUntilStamp(value.until)}`);
 	return `DTSTART;TZID=${timezone}:${stamp(value.start, value.time)}\nRRULE:${parts.join(";")}`;
@@ -162,6 +177,10 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 				);
 			fields[key] = value;
 		}
+		if (fields.COUNT)
+			return unsupported(
+				"This rule uses COUNT, which Prefect doesn't support.",
+			);
 		const frequency = frequencies.find((item) => item === fields.FREQ);
 		if (!frequency)
 			return unsupported(
@@ -181,8 +200,7 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 			month: Number(fields.BYMONTH ?? month),
 			position: 1,
 			weekday: "MO",
-			end: fields.COUNT ? "count" : fields.UNTIL ? "until" : "never",
-			count: Number(fields.COUNT ?? 10),
+			end: fields.UNTIL ? "until" : "never",
 			until: start,
 		};
 		if (
@@ -192,8 +210,6 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 			return unsupported(
 				"Multiple times or a start time different from the recurrence time are not supported.",
 			);
-		if (fields.COUNT && fields.UNTIL)
-			return unsupported("COUNT and UNTIL cannot be combined.");
 		if (frequency === "YEARLY" && fields.BYMONTHDAY && !fields.BYMONTH)
 			return unsupported(
 				"Yearly day-of-month filters require an explicit month.",
