@@ -3,11 +3,10 @@ import type { components } from "../prefect";
 import { getQueryService } from "../service";
 
 export type Event = components["schemas"]["ReceivedEvent"];
-export type EventsFilter =
-	components["schemas"]["Body_read_events_events_filter_post"];
+export type EventsFilter = components["schemas"]["Body_read_events"];
 export type EventsPage = components["schemas"]["EventPage"];
 export type EventsCountFilter =
-	components["schemas"]["Body_count_account_events_events_count_by__countable__post"];
+	components["schemas"]["Body_count_account_events"];
 export type EventsCount = components["schemas"]["EventCount"];
 
 /**

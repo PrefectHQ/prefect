@@ -3,8 +3,7 @@ import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
 export type BlockType = components["schemas"]["BlockType"];
-export type BlockTypesFilter =
-	components["schemas"]["Body_read_block_types_block_types_filter_post"];
+export type BlockTypesFilter = components["schemas"]["Body_read_block_types"];
 /**
  * ```
  *  🏗️ Block Types queries construction 👷
