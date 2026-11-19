@@ -3,6 +3,60 @@ title: 3.9
 description: Release notes for Prefect 3.9.0 and 3.9.1, including Python 3.15 support, custom state discovery and filters, and the end of Python 3.10 support.
 ---
 
+## 3.9.4 - It’s not you, it’s `CTRL_BREAK`
+
+*Released on November 19, 2026*
+
+**Enhancements ➕➕**
+
+* Accept only same-origin paths in the UI v2 login redirect by [@znicholasbrown](https://github.com/znicholasbrown) in [#23980](https://github.com/PrefectHQ/prefect/pull/23980)
+* Start the flow run suspension observer before the engine loads the flow by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#23947](https://github.com/PrefectHQ/prefect/pull/23947)
+
+**Bug Fixes 🐞**
+
+* Write Dockerfiles and build context files as UTF-8 by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23923](https://github.com/PrefectHQ/prefect/pull/23923)
+* Allow nested `tmpchdir` contexts on the same thread by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23871](https://github.com/PrefectHQ/prefect/pull/23871)
+* Exclude inactive limits from leases created by `increment-with-lease` by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23735](https://github.com/PrefectHQ/prefect/pull/23735)
+* Prevent stale workers from moving completed flow runs to `Pending` by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23962](https://github.com/PrefectHQ/prefect/pull/23962)
+* Keep the row index in `INPUTS` cache keys for zero-column DataFrames by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23832](https://github.com/PrefectHQ/prefect/pull/23832)
+* Vacuum terminal flow runs that have no `end_time` by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23982](https://github.com/PrefectHQ/prefect/pull/23982)
+* Retry `run-deployment` actions when the database is unreachable by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23966](https://github.com/PrefectHQ/prefect/pull/23966)
+* Keep flow run state change events within the related resource maximum by [@gedaliakliger](https://github.com/gedaliakliger) in [#23940](https://github.com/PrefectHQ/prefect/pull/23940)
+* Reset the logs subscriber retry budget after a successful reconnect by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23986](https://github.com/PrefectHQ/prefect/pull/23986)
+* Fix the subflow run count to respect the state filter by [@Shanmukh-l33t](https://github.com/Shanmukh-l33t) in [#23912](https://github.com/PrefectHQ/prefect/pull/23912)
+* Stop served flow runs on Windows without a console-wide `CTRL_BREAK` by [@EnesSoydan](https://github.com/EnesSoydan) in [#23895](https://github.com/PrefectHQ/prefect/pull/23895)
+* Accept any task runner in `@flow` and `Flow` `task_runner` type hints by [@dayan02dev](https://github.com/dayan02dev) in [#23893](https://github.com/PrefectHQ/prefect/pull/23893)
+* Strip credentials from repository URL in `GitRepository` clone debug log by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23969](https://github.com/PrefectHQ/prefect/pull/23969)
+* Center the V2 empty flow run graph message on phones by [@zzstoatzz](https://github.com/zzstoatzz) in [#23910](https://github.com/PrefectHQ/prefect/pull/23910)
+* Close the V2 sidebar on phones after a link is tapped by [@zzstoatzz](https://github.com/zzstoatzz) in [#23909](https://github.com/PrefectHQ/prefect/pull/23909)
+* Keep workers alive when cancelling a run hits an API error by [@mansur-akhmadi](https://github.com/mansur-akhmadi) in [#23973](https://github.com/PrefectHQ/prefect/pull/23973)
+
+**Integrations & Dependencies 🤝**
+
+* Require `apprise>=2.2,<3` in `prefect` and the `prefect-client` notifications extra by [@prefect-renovate](https://github.com/apps/prefect-renovate) in [#23701](https://github.com/PrefectHQ/prefect/pull/23701)
+* Bump `tornado` from 6.6 to 6.6.1 by [@dependabot](https://github.com/dependabot) in [#23901](https://github.com/PrefectHQ/prefect/pull/23901)
+* Bump `opentelemetry-api` from 1.45.1 to 1.45.2 by [@dependabot](https://github.com/dependabot) in [#23883](https://github.com/PrefectHQ/prefect/pull/23883)
+
+**Development & Tidiness 🧹**
+
+* Fix CodSpeed import benchmark timeout and fail the job on benchmark failures by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23897](https://github.com/PrefectHQ/prefect/pull/23897)
+* Fix flaky `test_concurrency_context_releases_slots_async` by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23891](https://github.com/PrefectHQ/prefect/pull/23891)
+* Fix flaky `test_read_task_workers` by resetting the in-memory task worker tracker by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23903](https://github.com/PrefectHQ/prefect/pull/23903)
+* Run the TLA+ model check on Amazon Corretto 21 by [@chrisguidry](https://github.com/chrisguidry) in [#23970](https://github.com/PrefectHQ/prefect/pull/23970)
+* Remove unreachable branch and unused internal helpers by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23967](https://github.com/PrefectHQ/prefect/pull/23967)
+
+**Documentation 📓**
+
+* Document error responses for `create_flow_run` and `PATCH /deployments/{id}` in OpenAPI by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23879](https://github.com/PrefectHQ/prefect/pull/23879)
+* Document `RemoteFileSystem` settings with an example by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23959](https://github.com/PrefectHQ/prefect/pull/23959)
+* Document custom work pool defaults with the CLI by [@prabhushreyas](https://github.com/prabhushreyas) in [#23914](https://github.com/PrefectHQ/prefect/pull/23914)
+* Document that parent transactions roll back when a child fails to commit by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#23882](https://github.com/PrefectHQ/prefect/pull/23882)
+* Fix dead and chained redirects, CLI page titles, and stale links by [@madureira-gabriel](https://github.com/madureira-gabriel) in [#23941](https://github.com/PrefectHQ/prefect/pull/23941)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.9.3...3.9.4
+
+---
+
 ## 3.9.3 - `aclose()`ing time
 
 *Released on November 13, 2026*

@@ -125,6 +125,9 @@ vacuum_old_flow_runs() -> None
 
 Delete old top-level terminal flow runs past the retention period.
 
+Age is measured by `end_time`, or by `state_timestamp` for terminal runs
+with no `end_time`.
+
 `log` and `artifact` have no `ON DELETE CASCADE` from `flow_run`. Each run
 batch is selected and deleted in one locking transaction, then its children
 are deleted by `flow_run_id` using indexed lookups.
@@ -137,7 +140,7 @@ preserving a run after some of its children were permanently deleted. If
 child cleanup is interrupted, orphan reconciliation recovers it.
 
 
-### `vacuum_events_with_retention_overrides` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_events_with_retention_overrides` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_events_with_retention_overrides() -> None
@@ -151,7 +154,7 @@ events (and their resources) that are older than the configured retention
 for that type, capped by the global events retention period.
 
 
-### `vacuum_old_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `vacuum_old_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L396" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 vacuum_old_events() -> None
