@@ -394,6 +394,27 @@ async def test_subscriber_limits_consecutive_clean_disconnects(
         await subscriber.__anext__()
 
 
+async def test_subscriber_raises_when_clean_close_during_reconnect_exhausts_retries():
+    subscriber = PrefectEventSubscriber(
+        "http://example.com",
+        reconnection_attempts=1,
+        reconnect_on_clean_close=True,
+    )
+    subscriber._websocket = AsyncMock(spec=ClientConnection)
+    subscriber._websocket.recv.side_effect = ConnectionClosedError(None, None)
+
+    reconnect_error = ConnectionClosedOK(None, None, None)
+    reconnect_socket = AsyncMock(spec=ClientConnection)
+    reconnect_socket.ping.side_effect = reconnect_error
+    subscriber._connect = AsyncMock()
+    subscriber._connect.__aenter__.return_value = reconnect_socket
+
+    with pytest.raises(ConnectionClosedOK) as exc_info:
+        await anext(subscriber)
+
+    assert exc_info.value is reconnect_error
+
+
 async def test_subscriber_gives_up_after_so_many_attempts(
     Subscriber: Type[PrefectEventSubscriber],
     socket_path: str,
