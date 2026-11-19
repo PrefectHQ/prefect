@@ -608,7 +608,14 @@ async def test_subscriber_reconnects_on_clean_disconnect_when_configured(
     assert reconnect_count == 3
 
 
-async def test_subscriber_limits_abnormal_disconnects_after_reconnecting():
+async def test_subscriber_resets_retry_counter_after_successful_reconnect(
+    example_log_1: Log,
+):
+    """A stream that reconnects successfully must not exhaust its retry budget on
+    the total number of disconnects seen by a single ``__anext__`` call.
+
+    Mirrors the event subscriber fix for https://github.com/PrefectHQ/prefect/issues/18428.
+    """
     subscriber = PrefectLogsSubscriber(
         "http://example.com",
         reconnection_attempts=2,
@@ -616,20 +623,25 @@ async def test_subscriber_limits_abnormal_disconnects_after_reconnecting():
     subscriber._websocket = AsyncMock()
     subscriber._websocket.recv.side_effect = ConnectionClosedError(None, None)
 
+    log_json = orjson.dumps(
+        {"type": "log", "log": example_log_1.model_dump(mode="json")}
+    )
     reconnect_count = 0
 
     async def reconnect() -> None:
         nonlocal reconnect_count
         reconnect_count += 1
-        subscriber._websocket = AsyncMock()
-        subscriber._websocket.recv.side_effect = ConnectionClosedError(None, None)
+        mock_ws = AsyncMock()
+        if reconnect_count <= 3:
+            mock_ws.recv = AsyncMock(side_effect=ConnectionClosedError(None, None))
+        else:
+            mock_ws.recv = AsyncMock(return_value=log_json)
+        subscriber._websocket = mock_ws
 
     subscriber._reconnect = reconnect
 
-    with pytest.raises(ConnectionClosedError):
-        await subscriber.__anext__()
-
-    assert reconnect_count == 2
+    assert await subscriber.__anext__() == example_log_1
+    assert reconnect_count == 4
 
 
 def test_subscriber_sleep_logic():
