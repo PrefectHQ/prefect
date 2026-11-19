@@ -261,7 +261,40 @@ function BuilderFields({
 							}}
 						/>
 					</FormControl>
-					<FormMessage role="alert" />
+					{key === "interval" && (
+						<FormField
+							control={control}
+							name="frequency"
+							render={() => (
+								<Choice
+									label="Recurrence unit"
+									hideLabel
+									value={current.frequency}
+									options={frequencies.map((frequency, index) => ({
+										value: frequency,
+										label: `${["day", "week", "month", "year"][index]}${current.interval > 1 ? "s" : ""}`,
+									}))}
+									onChange={(next) => {
+										const frequency = frequencies.find((item) => item === next);
+										if (frequency) {
+											if (frequency === "YEARLY") {
+												const date = new Date(
+													`${getValues("start")}T00:00:00Z`,
+												);
+												setValue("month", date.getUTCMonth() + 1);
+												setValue("day", date.getUTCDate());
+											}
+											update("frequency", frequency);
+										}
+									}}
+								/>
+							)}
+						/>
+					)}
+					<FormMessage
+						role="alert"
+						className={inline ? "basis-full" : undefined}
+					/>
 				</FormItem>
 			)}
 		/>
@@ -269,28 +302,7 @@ function BuilderFields({
 	return (
 		<Form {...form}>
 			<div className="space-y-4">
-				<div className="flex flex-wrap items-center gap-3">
-					{input("interval", "Repeat every", "number", 1, undefined, true)}
-					<FormField
-						control={control}
-						name="frequency"
-						render={() => (
-							<Choice
-								label="Recurrence unit"
-								hideLabel
-								value={current.frequency}
-								options={frequencies.map((frequency, index) => ({
-									value: frequency,
-									label: `${["day", "week", "month", "year"][index]}${current.interval > 1 ? "s" : ""}`,
-								}))}
-								onChange={(next) => {
-									const frequency = frequencies.find((item) => item === next);
-									if (frequency) update("frequency", frequency);
-								}}
-							/>
-						)}
-					/>
-				</div>
+				{input("interval", "Repeat every", "number", 1, undefined, true)}
 				{current.frequency === "WEEKLY" && (
 					<FormField
 						control={control}

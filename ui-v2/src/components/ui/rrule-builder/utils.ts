@@ -46,9 +46,19 @@ const serverUntilStamp = (date: string) =>
 export const ruleFormSchema = z
 	.object({
 		frequency: z.enum(frequencies),
-		interval: z.number().int().min(1).max(2147483647),
-		start: z.string().refine(validDate),
-		time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+		interval: z
+			.number({ error: "Enter a whole number of 1 or more." })
+			.int({ error: "Enter a whole number of 1 or more." })
+			.min(1, { error: "Enter a whole number of 1 or more." })
+			.max(2147483647, {
+				error: "Enter a whole number no greater than 2147483647.",
+			}),
+		start: z
+			.string()
+			.refine(validDate, { message: "Enter a valid start date." }),
+		time: z
+			.string()
+			.regex(/^([01]\d|2[0-3]):[0-5]\d$/, { message: "Enter a valid time." }),
 		weekdays: z.array(z.enum(weekdays)),
 		monthly: z.enum(["day", "weekday"]),
 		day: z.union([z.number(), z.nan()]),
@@ -143,12 +153,10 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 			/^DTSTART(?:;TZID=([^:]+))?:(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/.exec(
 				lines[0],
 			);
-		if (!startMatch || !lines[1].startsWith("RRULE:"))
-			return unsupported("A complete DTSTART is required.");
+		if (!startMatch) return unsupported("A complete DTSTART is required.");
 		const [, tzid, year, month, day, hour, minute, second, zulu] = startMatch;
 		if (
 			(tzid ?? (zulu ? "UTC" : timezone)) !== timezone ||
-			(!tzid && !zulu && timezone !== "UTC") ||
 			(tzid && zulu) ||
 			second !== "00"
 		)
@@ -169,7 +177,10 @@ export function parseRule(rule: string, timezone = "UTC"): ParsedRule {
 			"COUNT",
 			"UNTIL",
 		];
-		for (const part of lines[1].slice(6).split(";")) {
+		const ruleLine = lines[1].startsWith("RRULE:")
+			? lines[1].slice(6)
+			: lines[1];
+		for (const part of ruleLine.split(";")) {
 			const [key, value, extra] = part.split("=");
 			if (!allowed.includes(key) || !value || extra || key in fields)
 				return unsupported(

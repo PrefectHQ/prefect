@@ -58,6 +58,37 @@ examples.push(
 );
 
 describe("rrule-builder mapper", () => {
+	it.each([
+		["interval", Number.NaN, "Enter a whole number of 1 or more."],
+		["interval", 0, "Enter a whole number of 1 or more."],
+		["interval", 1.5, "Enter a whole number of 1 or more."],
+		[
+			"interval",
+			2147483648,
+			"Enter a whole number no greater than 2147483647.",
+		],
+		["start", "", "Enter a valid start date."],
+		["start", "2026-02-30", "Enter a valid start date."],
+		["time", "", "Enter a valid time."],
+		["day", Number.NaN, "Enter a day between 1 and 31."],
+		["month", Number.NaN, "Enter a month between 1 and 12."],
+		["until", "", "Choose an end date on or after the start date."],
+	] as const)(
+		"uses friendly feedback for invalid %s (%s)",
+		(key, value, message) => {
+			const result = ruleFormSchema.safeParse({
+				...examples[0],
+				frequency: "YEARLY",
+				end: "until",
+				[key]: value,
+			});
+			expect(result.success).toBe(false);
+			if (!result.success)
+				expect(
+					result.error.issues.find((issue) => issue.path[0] === key)?.message,
+				).toBe(message);
+		},
+	);
 	it("derives monthly options from the start date and only offers last in the final week", () => {
 		const value = { ...examples[0], start: "2026-11-19", day: 19 };
 		expect(
@@ -237,9 +268,41 @@ describe("rrule-builder mapper", () => {
 			parseRule(serializeRule(examples[0], "America/Chicago"), "UTC").supported,
 		).toBe(false);
 	});
-	it("does not assign a timezone to a floating DTSTART", () => {
+	it.each(["UTC", "America/Chicago", "Asia/Kathmandu"])(
+		"interprets floating starts in %s with either rule prefix",
+		(timezone) => {
+			for (const prefix of ["RRULE:", ""]) {
+				const parsed = parseRule(
+					`DTSTART:20260301T093000\n${prefix}FREQ=DAILY`,
+					timezone,
+				);
+				expect(parsed.supported).toBe(true);
+				if (parsed.supported) {
+					expect(parsed.value).toMatchObject({
+						start: "2026-03-01",
+						time: "09:30",
+						frequency: "DAILY",
+					});
+					const serialized = serializeRule(parsed.value, timezone);
+					expect(serialized).toContain(
+						`DTSTART;TZID=${timezone}:20260301T093000\nRRULE:FREQ=DAILY`,
+					);
+					expect(parseRule(serialized, timezone)).toEqual(parsed);
+				}
+			}
+		},
+	);
+	it("accepts a bare rule line with an explicit TZID", () => {
+		const start = "DTSTART;TZID=America/Chicago:20260301T093000\n";
+		const parsed = parseRule(`${start}FREQ=DAILY`, "America/Chicago");
+		expect(parsed.supported).toBe(true);
+		expect(parsed).toEqual(
+			parseRule(`${start}RRULE:FREQ=DAILY`, "America/Chicago"),
+		);
+	});
+	it("still rejects a UTC start when the schedule timezone differs", () => {
 		expect(
-			parseRule("DTSTART:20260301T093000\nRRULE:FREQ=DAILY", "America/Chicago")
+			parseRule("DTSTART:20260301T093000Z\nFREQ=DAILY", "America/Chicago")
 				.supported,
 		).toBe(false);
 	});

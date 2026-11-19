@@ -107,6 +107,25 @@ describe("rrule-builder", () => {
 		expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
 		expect(onChange).not.toHaveBeenCalled();
 	});
+	it("initializes yearly month and day from DTSTART instead of the monthly day", async () => {
+		const user = userEvent.setup();
+		render(
+			<Controlled
+				initialValue={
+					"DTSTART;TZID=UTC:20260430T090000\nRRULE:FREQ=MONTHLY;BYMONTHDAY=31"
+				}
+			/>,
+		);
+		fireEvent.keyDown(
+			screen.getByRole("combobox", { name: "Recurrence unit" }),
+			{ key: "Enter" },
+		);
+		await user.click(screen.getByRole("option", { name: "year" }));
+		expect(screen.getByRole("status")).toHaveTextContent(
+			"FREQ=YEARLY;INTERVAL=1;BYMONTH=4;BYMONTHDAY=30",
+		);
+		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+	});
 	it("edits the local start and time together with the recurrence time", () => {
 		render(<Controlled />);
 		fireEvent.change(screen.getByLabelText("Start date"), {
@@ -174,24 +193,41 @@ describe("rrule-builder", () => {
 			expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
 		},
 	);
-	it("shows invalid input next to its field without emitting it", async () => {
-		const onChange = vi.fn();
-		render(<RRuleBuilder value={initial} onChange={onChange} />);
-		fireEvent.change(screen.getByLabelText("Repeat every"), {
-			target: { value: "0" },
-		});
-		const message = await screen.findByRole("alert");
-		expect(message).toBeVisible();
-		expect(screen.getByLabelText("Repeat every")).toHaveAttribute(
-			"aria-invalid",
-			"true",
-		);
-		expect(screen.getByLabelText("Repeat every")).toHaveAttribute(
-			"aria-describedby",
-			expect.stringContaining(message.id),
-		);
-		expect(onChange).not.toHaveBeenCalled();
-	});
+	it.each(["", "0", "1.5"])(
+		"shows a friendly interval error for %s without emitting it",
+		async (value) => {
+			const onChange = vi.fn();
+			render(<RRuleBuilder value={initial} onChange={onChange} />);
+			fireEvent.change(screen.getByLabelText("Repeat every"), {
+				target: { value },
+			});
+			const message = await screen.findByRole("alert");
+			expect(message).toBeVisible();
+			expect(message).toHaveTextContent("Enter a whole number of 1 or more.");
+			expect(message).toHaveClass("basis-full");
+			expect(message.parentElement).toContainElement(
+				screen.getByRole("combobox", { name: "Recurrence unit" }),
+			);
+			expect(screen.getByLabelText("Repeat every")).toHaveAttribute(
+				"aria-invalid",
+				"true",
+			);
+			expect(screen.getByLabelText("Repeat every")).toHaveAttribute(
+				"aria-describedby",
+				expect.stringContaining(message.id),
+			);
+			expect(onChange).not.toHaveBeenCalled();
+			fireEvent.change(screen.getByLabelText("Repeat every"), {
+				target: { value: "2" },
+			});
+			await waitFor(() =>
+				expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+			);
+			expect(onChange).toHaveBeenCalledWith(
+				expect.stringContaining("INTERVAL=2"),
+			);
+		},
+	);
 	it("renders empty and invalid rules without losing their raw text", () => {
 		render(<RRuleBuilder value="not a rule" onChange={vi.fn()} />);
 		expect(screen.getAllByText("not a rule").length).toBeGreaterThan(0);
