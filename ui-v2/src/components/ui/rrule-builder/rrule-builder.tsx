@@ -133,6 +133,27 @@ function Choice({
 	);
 }
 
+function getStartFields(start: string) {
+	const date = new Date(`${start}T00:00:00Z`);
+	if (
+		!Number.isFinite(date.getTime()) ||
+		date.toISOString().slice(0, 10) !== start
+	)
+		return null;
+	const day = date.getUTCDate();
+	return {
+		day,
+		month: date.getUTCMonth() + 1,
+		weekday: weekdays[(date.getUTCDay() + 6) % 7],
+		position: Math.ceil(day / 7),
+		last:
+			day + 7 >
+			new Date(
+				Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
+			).getUTCDate(),
+	};
+}
+
 function BuilderFields({
 	value,
 	timezone,
@@ -164,6 +185,45 @@ function BuilderFields({
 	) => {
 		setValue(key, next);
 		emit();
+	};
+	const initializeFrequency = (
+		frequency: RuleForm["frequency"],
+		start: NonNullable<ReturnType<typeof getStartFields>>,
+		preferLast = false,
+	) => {
+		if (frequency === "WEEKLY") setValue("weekdays", [start.weekday]);
+		if (frequency === "MONTHLY") {
+			setValue("day", start.day);
+			setValue("weekday", start.weekday);
+			setValue("position", preferLast && start.last ? -1 : start.position);
+		}
+		if (frequency === "YEARLY") {
+			setValue("day", start.day);
+			setValue("month", start.month);
+		}
+	};
+	const syncStart = (next: string) => {
+		if (getStartFields(current.start)) lastValidStart.current = current.start;
+		const previous = getStartFields(lastValidStart.current);
+		const start = getStartFields(next);
+		if (!start) return;
+		lastValidStart.current = next;
+		if (!previous) return;
+		const derived =
+			(current.frequency === "WEEKLY" &&
+				current.weekdays.length === 1 &&
+				current.weekdays[0] === previous.weekday) ||
+			(current.frequency === "YEARLY" &&
+				current.day === previous.day &&
+				current.month === previous.month) ||
+			(current.frequency === "MONTHLY" &&
+				((current.monthly === "day" && current.day === previous.day) ||
+					(current.monthly === "weekday" &&
+						current.weekday === previous.weekday &&
+						(current.position === previous.position ||
+							(current.position === -1 && previous.last)))));
+		if (derived)
+			initializeFrequency(current.frequency, start, current.position === -1);
 	};
 	const input = (
 		key: "start" | "time" | "interval" | "day" | "month" | "until",
@@ -201,72 +261,7 @@ function BuilderFields({
 										? event.target.valueAsNumber
 										: event.target.value,
 								);
-								if (key === "start" && current.frequency === "MONTHLY") {
-									if (
-										Number.isFinite(
-											new Date(`${current.start}T00:00:00Z`).getTime(),
-										)
-									)
-										lastValidStart.current = current.start;
-									const oldDate = new Date(
-										`${lastValidStart.current}T00:00:00Z`,
-									);
-									const newDate = new Date(`${event.target.value}T00:00:00Z`);
-									const oldDay = oldDate.getUTCDate();
-									const oldWeekday = weekdays[(oldDate.getUTCDay() + 6) % 7];
-									const oldLast =
-										oldDay + 7 >
-										new Date(
-											Date.UTC(
-												oldDate.getUTCFullYear(),
-												oldDate.getUTCMonth() + 1,
-												0,
-											),
-										).getUTCDate();
-									if (Number.isFinite(newDate.getTime())) {
-										lastValidStart.current = event.target.value;
-										if (current.monthly === "day" && current.day === oldDay)
-											setValue("day", newDate.getUTCDate());
-										if (
-											current.monthly === "weekday" &&
-											current.weekday === oldWeekday &&
-											(current.position === Math.ceil(oldDay / 7) ||
-												(current.position === -1 && oldLast))
-										) {
-											const newDay = newDate.getUTCDate();
-											const newLast =
-												newDay + 7 >
-												new Date(
-													Date.UTC(
-														newDate.getUTCFullYear(),
-														newDate.getUTCMonth() + 1,
-														0,
-													),
-												).getUTCDate();
-											setValue(
-												"weekday",
-												weekdays[(newDate.getUTCDay() + 6) % 7],
-											);
-											setValue(
-												"position",
-												current.position === -1 && newLast
-													? -1
-													: Math.ceil(newDay / 7),
-											);
-										}
-									}
-								}
-								if (
-									key === "start" &&
-									current.frequency === "YEARLY" &&
-									annualLabel
-								) {
-									const date = new Date(`${getValues("start")}T00:00:00Z`);
-									if (Number.isFinite(date.getTime())) {
-										setValue("month", date.getUTCMonth() + 1);
-										setValue("day", date.getUTCDate());
-									}
-								}
+								if (key === "start") syncStart(event.target.value);
 								emit();
 							}}
 						/>
@@ -287,13 +282,10 @@ function BuilderFields({
 									onChange={(next) => {
 										const frequency = frequencies.find((item) => item === next);
 										if (frequency) {
-											if (frequency === "YEARLY") {
-												const date = new Date(
-													`${getValues("start")}T00:00:00Z`,
-												);
-												setValue("month", date.getUTCMonth() + 1);
-												setValue("day", date.getUTCDate());
-											}
+											const start =
+												getStartFields(getValues("start")) ??
+												getStartFields(lastValidStart.current);
+											if (start) initializeFrequency(frequency, start);
 											update("frequency", frequency);
 										}
 									}}

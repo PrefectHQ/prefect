@@ -386,4 +386,137 @@ describe("rrule-builder", () => {
 		expect(screen.getByLabelText("Day of month")).toHaveValue(29);
 		expect(onChange).not.toHaveBeenCalled();
 	});
+	it.each([
+		[
+			"YEARLY;BYMONTH=11;BYMONTHDAY=19",
+			"BYMONTH=12;BYMONTHDAY=20",
+			"BYMONTH=1;BYMONTHDAY=21",
+		],
+		[
+			"YEARLY;BYMONTH=2;BYMONTHDAY=28",
+			"BYMONTH=2;BYMONTHDAY=28",
+			"BYMONTH=2;BYMONTHDAY=28",
+		],
+		["WEEKLY;BYDAY=TH", "BYDAY=SU", "BYDAY=TH"],
+		["WEEKLY;BYDAY=MO", "BYDAY=MO", "BYDAY=MO"],
+		["WEEKLY;BYDAY=MO,TH", "BYDAY=MO,TH", "BYDAY=MO,TH"],
+		[
+			"MONTHLY;BYDAY=TH;BYSETPOS=3",
+			"BYDAY=SU;BYSETPOS=3",
+			"BYDAY=TH;BYSETPOS=3",
+		],
+	])(
+		"retains start derivation across successive cleared starts for %s",
+		async (rule, december, january) => {
+			render(
+				<Controlled
+					initialValue={`DTSTART;TZID=UTC:20261119T090000\nRRULE:FREQ=${rule}`}
+				/>,
+			);
+			for (const [date, pattern] of [
+				["2026-12-20", december],
+				["2027-01-21", january],
+			]) {
+				const previous = screen.getByRole("status").textContent;
+				fireEvent.change(screen.getByLabelText("Start date"), {
+					target: { value: "" },
+				});
+				expect(
+					await screen.findByText("Enter a valid start date."),
+				).toBeVisible();
+				expect(screen.getByRole("status").textContent).toBe(previous);
+				fireEvent.change(screen.getByLabelText("Start date"), {
+					target: { value: date },
+				});
+				expect(screen.getByRole("status")).toHaveTextContent(pattern);
+				expect(screen.getByRole("status")).toHaveTextContent(
+					`DTSTART;TZID=UTC:${date.replaceAll("-", "")}T090000`,
+				);
+				await waitFor(() =>
+					expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+				);
+			}
+		},
+	);
+	const transitionRules = [
+		"DAILY",
+		"WEEKLY;BYDAY=MO,WE",
+		"MONTHLY;BYMONTHDAY=31",
+		"YEARLY;BYMONTH=2;BYMONTHDAY=28",
+	];
+	it.each(
+		transitionRules.flatMap((from) =>
+			(["day", "week", "month", "year"] as const)
+				.filter((_, index) => index !== transitionRules.indexOf(from))
+				.flatMap((to) =>
+					[false, true].map((cleared) => ({ from, to, cleared })),
+				),
+		),
+	)(
+		"initializes $to fields from DTSTART when leaving $from (cleared=$cleared)",
+		async ({ from, to, cleared }) => {
+			const user = userEvent.setup();
+			render(
+				<Controlled
+					initialValue={`DTSTART;TZID=UTC:20261119T090000\nRRULE:FREQ=${from}`}
+				/>,
+			);
+			fireEvent.change(screen.getByLabelText("Start date"), {
+				target: { value: "2026-12-20" },
+			});
+			if (cleared)
+				fireEvent.change(screen.getByLabelText("Start date"), {
+					target: { value: "" },
+				});
+			fireEvent.keyDown(
+				screen.getByRole("combobox", { name: "Recurrence unit" }),
+				{ key: "Enter" },
+			);
+			await user.click(screen.getByRole("option", { name: to }));
+			if (cleared) {
+				expect(screen.getByRole("status")).toHaveTextContent(
+					`FREQ=${from.split(";")[0]}`,
+				);
+				fireEvent.change(screen.getByLabelText("Start date"), {
+					target: { value: "2027-01-21" },
+				});
+			}
+			const output = screen.getByRole("status");
+			const frequency = {
+				day: "DAILY",
+				week: "WEEKLY",
+				month: "MONTHLY",
+				year: "YEARLY",
+			}[to];
+			expect(output).toHaveTextContent(`FREQ=${frequency}`);
+			if (to === "week")
+				expect(output).toHaveTextContent(cleared ? "BYDAY=TH" : "BYDAY=SU");
+			if (to === "year")
+				expect(output).toHaveTextContent(
+					cleared ? "BYMONTH=1;BYMONTHDAY=21" : "BYMONTH=12;BYMONTHDAY=20",
+				);
+			if (to === "month") {
+				expect(output).toHaveTextContent(
+					cleared ? "BYMONTHDAY=21" : "BYMONTHDAY=20",
+				);
+				fireEvent.keyDown(
+					screen.getByRole("combobox", { name: "Monthly recurrence" }),
+					{ key: "Enter" },
+				);
+				await user.click(
+					screen.getByRole("option", {
+						name: cleared
+							? "Monthly on the third Thursday"
+							: "Monthly on the third Sunday",
+					}),
+				);
+				expect(output).toHaveTextContent(
+					cleared ? "BYDAY=TH;BYSETPOS=3" : "BYDAY=SU;BYSETPOS=3",
+				);
+			}
+			await waitFor(() =>
+				expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+			);
+		},
+	);
 });
