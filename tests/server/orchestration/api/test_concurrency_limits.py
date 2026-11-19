@@ -7,6 +7,7 @@ from starlette import status
 
 from prefect.server import schemas
 from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
+from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.schemas.actions import ConcurrencyLimitCreate
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 
@@ -485,6 +486,34 @@ class TestV1ToV2Adapter:
         read_response = await client.get("/concurrency_limits/tag/reset-v2")
         data = read_response.json()
         assert set(data["active_slots"]) == set(new_task_ids)
+
+    async def test_reset_leases_record_incremented_limit(self, session, client):
+        data = ConcurrencyLimitCreate(
+            tag="reset-v2-ownership",
+            concurrency_limit=3,
+        ).model_dump(mode="json")
+        create_response = await client.post("/concurrency_limits/", json=data)
+        limit_id = create_response.json()["id"]
+
+        reset_response = await client.post(
+            "/concurrency_limits/tag/reset-v2-ownership/reset",
+            json={"slot_override": [str(uuid4())]},
+        )
+        assert reset_response.status_code == status.HTTP_200_OK
+
+        lease_storage = get_concurrency_lease_storage()
+        lease_ids = await lease_storage.read_active_lease_ids(limit=100)
+        leases = [await lease_storage.read_lease(lease_id) for lease_id in lease_ids]
+        reset_leases = [
+            lease
+            for lease in leases
+            if lease is not None and str(limit_id) in map(str, lease.resource_ids)
+        ]
+        assert len(reset_leases) == 1
+        assert reset_leases[0].metadata is not None
+        assert [
+            str(i) for i in reset_leases[0].metadata.incremented_limit_ids or []
+        ] == [str(limit_id)]
 
     async def test_delete_cleans_up_v2_leases(self, session, client):
         """Test that delete properly cleans up V2 limits and leases."""

@@ -10,10 +10,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
 from prefect.server.database import PrefectDBInterface
 from prefect.server.models.concurrency_limits_v2 import (
     MINIMUM_OCCUPANCY_SECONDS_PER_SLOT,
     bulk_decrement_active_slots,
+    bulk_decrement_active_slots_for_lease,
     bulk_increment_active_slots,
     bulk_read_concurrency_limits,
     bulk_update_denied_slots,
@@ -29,6 +31,7 @@ from prefect.server.schemas.actions import (
     ConcurrencyLimitV2Update,
 )
 from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.server.utilities.leasing import ResourceLease
 
 pytestmark = pytest.mark.clear_db
 
@@ -542,6 +545,160 @@ async def test_bulk_decrement_active_slots_clamped(
     assert refreshed.active_slots == 0
 
 
+async def test_bulk_decrement_active_slots_skips_inactive_limit(
+    session: AsyncSession,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+):
+    await update_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2Update(active=False),
+        concurrency_limit_id=locked_concurrency_limit.id,
+    )
+
+    assert not await bulk_decrement_active_slots(
+        session=session, concurrency_limit_ids=[locked_concurrency_limit.id], slots=1
+    )
+
+    refreshed = await read_concurrency_limit(
+        session=session, concurrency_limit_id=locked_concurrency_limit.id
+    )
+    assert refreshed
+    assert refreshed.active_slots == locked_concurrency_limit.limit
+
+
+async def test_bulk_decrement_active_slots_include_inactive(
+    session: AsyncSession,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+):
+    await update_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2Update(active=False),
+        concurrency_limit_id=locked_concurrency_limit.id,
+    )
+
+    assert await bulk_decrement_active_slots(
+        session=session,
+        concurrency_limit_ids=[locked_concurrency_limit.id],
+        slots=1,
+        include_inactive=True,
+    )
+
+    refreshed = await read_concurrency_limit(
+        session=session, concurrency_limit_id=locked_concurrency_limit.id
+    )
+    assert refreshed
+    assert refreshed.active_slots == locked_concurrency_limit.limit - 1
+
+
+class TestBulkDecrementActiveSlotsForLease:
+    async def test_releases_recorded_limits_after_they_are_disabled(
+        self,
+        session: AsyncSession,
+        locked_concurrency_limit: ConcurrencyLimitV2,
+    ):
+        lease = ResourceLease(
+            expiration=datetime.now(timezone.utc) + timedelta(minutes=5),
+            resource_ids=[locked_concurrency_limit.id],
+            metadata=ConcurrencyLimitLeaseMetadata(
+                slots=1, incremented_limit_ids=[locked_concurrency_limit.id]
+            ),
+        )
+        await update_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2Update(active=False),
+            concurrency_limit_id=locked_concurrency_limit.id,
+        )
+
+        assert await bulk_decrement_active_slots_for_lease(
+            session=session, lease=lease, slots=1
+        )
+
+        refreshed = await read_concurrency_limit(
+            session=session, concurrency_limit_id=locked_concurrency_limit.id
+        )
+        assert refreshed
+        assert refreshed.active_slots == locked_concurrency_limit.limit - 1
+
+    async def test_does_not_release_unrecorded_resource_ids(
+        self,
+        session: AsyncSession,
+        concurrency_limit: ConcurrencyLimitV2,
+        locked_concurrency_limit: ConcurrencyLimitV2,
+    ):
+        # The lease names the locked limit but its acquire did not increment it,
+        # as for a limit that was inactive at acquisition, so its slots belong
+        # to other holders.
+        await bulk_increment_active_slots(
+            session=session, concurrency_limit_ids=[concurrency_limit.id], slots=1
+        )
+        lease = ResourceLease(
+            expiration=datetime.now(timezone.utc) + timedelta(minutes=5),
+            resource_ids=[concurrency_limit.id, locked_concurrency_limit.id],
+            metadata=ConcurrencyLimitLeaseMetadata(
+                slots=1, incremented_limit_ids=[concurrency_limit.id]
+            ),
+        )
+
+        assert await bulk_decrement_active_slots_for_lease(
+            session=session, lease=lease, slots=1
+        )
+
+        locked = await read_concurrency_limit(
+            session=session, concurrency_limit_id=locked_concurrency_limit.id
+        )
+        assert locked
+        assert locked.active_slots == locked_concurrency_limit.limit
+
+    async def test_legacy_lease_does_not_release_inactive_limit(
+        self,
+        session: AsyncSession,
+        locked_concurrency_limit: ConcurrencyLimitV2,
+    ):
+        # Leases from before `incremented_limit_ids` was recorded can name a
+        # limit that was inactive, and so not incremented, when they acquired.
+        lease = ResourceLease(
+            expiration=datetime.now(timezone.utc) + timedelta(minutes=5),
+            resource_ids=[locked_concurrency_limit.id],
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        await update_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2Update(active=False),
+            concurrency_limit_id=locked_concurrency_limit.id,
+        )
+
+        assert not await bulk_decrement_active_slots_for_lease(
+            session=session, lease=lease, slots=1
+        )
+
+        refreshed = await read_concurrency_limit(
+            session=session, concurrency_limit_id=locked_concurrency_limit.id
+        )
+        assert refreshed
+        assert refreshed.active_slots == locked_concurrency_limit.limit
+
+    async def test_legacy_lease_releases_active_limit(
+        self,
+        session: AsyncSession,
+        locked_concurrency_limit: ConcurrencyLimitV2,
+    ):
+        lease = ResourceLease(
+            expiration=datetime.now(timezone.utc) + timedelta(minutes=5),
+            resource_ids=[locked_concurrency_limit.id],
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        assert await bulk_decrement_active_slots_for_lease(
+            session=session, lease=lease, slots=1
+        )
+
+        refreshed = await read_concurrency_limit(
+            session=session, concurrency_limit_id=locked_concurrency_limit.id
+        )
+        assert refreshed
+        assert refreshed.active_slots == locked_concurrency_limit.limit - 1
+
+
 async def test_bulk_decrement_active_slots_updates_occupancy_seconds(
     session: AsyncSession,
     locked_concurrency_limit: ConcurrencyLimitV2,
@@ -599,6 +756,34 @@ async def test_bulk_decrement_active_slots_avg_occupancy_seconds_has_minimum(
         assert (
             refreshed.avg_slot_occupancy_seconds == MINIMUM_OCCUPANCY_SECONDS_PER_SLOT
         )
+
+
+async def test_bulk_decrement_active_slots_with_occupancy_on_zero_limit(
+    session: AsyncSession,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+):
+    original_avg = locked_concurrency_limit.avg_slot_occupancy_seconds
+    await update_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2Update(active=False, limit=0),
+        concurrency_limit_id=locked_concurrency_limit.id,
+    )
+
+    assert await bulk_decrement_active_slots(
+        session=session,
+        concurrency_limit_ids=[locked_concurrency_limit.id],
+        slots=1,
+        occupancy_seconds=5.0,
+        include_inactive=True,
+    )
+
+    refreshed = await read_concurrency_limit(
+        session=session, concurrency_limit_id=locked_concurrency_limit.id
+    )
+    assert refreshed
+    await session.refresh(refreshed)
+    assert refreshed.active_slots == locked_concurrency_limit.active_slots - 1
+    assert refreshed.avg_slot_occupancy_seconds == original_avg
 
 
 async def test_bulk_update_denied_slots(

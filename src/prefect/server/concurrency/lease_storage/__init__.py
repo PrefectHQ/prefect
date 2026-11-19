@@ -25,6 +25,10 @@ class ConcurrencyLimitLeaseMetadata(BaseModel):
 
     slots: int
     holder: Optional[ConcurrencyLeaseHolder] = None
+    # The limits whose active slots the lease's acquire incremented. `None` for
+    # leases created before this was recorded; those release the active limits
+    # in `resource_ids`.
+    incremented_limit_ids: Optional[list[UUID]] = None
 
 
 class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):

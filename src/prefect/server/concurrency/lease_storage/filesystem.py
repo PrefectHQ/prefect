@@ -158,6 +158,10 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             metadata_dict = {"slots": lease.metadata.slots}
             if lease.metadata.holder is not None:
                 metadata_dict["holder"] = lease.metadata.holder.model_dump(mode="json")
+            if lease.metadata.incremented_limit_ids is not None:
+                metadata_dict["incremented_limit_ids"] = [
+                    str(limit_id) for limit_id in lease.metadata.incremented_limit_ids
+                ]
 
         return {
             "id": str(lease.id),
@@ -175,7 +179,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         metadata = None
         if data["metadata"]:
             metadata = ConcurrencyLimitLeaseMetadata(
-                slots=data["metadata"]["slots"], holder=data["metadata"].get("holder")
+                slots=data["metadata"]["slots"],
+                holder=data["metadata"].get("holder"),
+                incremented_limit_ids=data["metadata"].get("incremented_limit_ids"),
             )
         expiration = datetime.fromisoformat(data["expiration"])
         created_at = datetime.fromisoformat(data["created_at"])
