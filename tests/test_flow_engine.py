@@ -1065,10 +1065,16 @@ async def test_completion_save_failure_does_not_trigger_failure_hook(
 @pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
 @pytest.mark.parametrize(
     "lost_state_type, expected_state_name",
-    [(StateType.COMPLETED, "Completed"), (StateType.FAILED, "AwaitingRetry")],
+    [
+        # The server has a final state, so the engine keeps it
+        (StateType.COMPLETED, "Completed"),
+        # The server has an in-process `AwaitingRetry` that this engine can no
+        # longer run and workers do not pick up, so the engine crashes the run
+        (StateType.FAILED, "Crashed"),
+    ],
     ids=["completed", "failed-awaiting-retry"],
 )
-async def test_lost_proposal_response_preserves_server_state(
+async def test_lost_proposal_response(
     async_flow: bool,
     lost_state_type: StateType,
     expected_state_name: str,
@@ -1134,7 +1140,9 @@ async def test_lost_proposal_response_preserves_server_state(
     saved_run = await prefect_client.read_flow_run(flow_run.id)
     assert saved_run.state is not None
     assert saved_run.state.name == expected_state_name
-    assert not hook_states
+    assert [state.name for state in hook_states] == (
+        ["Crashed"] if expected_state_name == "Crashed" else []
+    )
 
 
 @pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
