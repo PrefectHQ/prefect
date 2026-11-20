@@ -1,15 +1,11 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { components } from "@/api/prefect";
-import {
-	createFakeFlowRun,
-	createFakeLog,
-	createFakeWorkPoolWorker,
-} from "@/mocks";
+import { createFakeFlowRun, createFakeLog } from "@/mocks";
 import { FlowRunLogs } from "./flow-run-logs";
 
 const renderFlowRunLogs = () => {
@@ -123,70 +119,6 @@ describe("FlowRunLogs", () => {
 				screen.queryByText("Debug: connection established"),
 			).not.toBeInTheDocument();
 		});
-	});
-
-	it("shows worker attribution only in the logger tooltip", async () => {
-		const flowRun = createFakeFlowRun({ work_pool_name: "my-work-pool" });
-		const submitter = createFakeWorkPoolWorker({ name: "worker-a" });
-		const otherWorkerId = "62e15371-2f99-48df-8491-62b5282cbc97";
-		server.use(
-			http.post(buildApiUrl("/logs/filter"), () =>
-				HttpResponse.json([
-					createFakeLog({
-						message: "Run started",
-						name: "prefect.flow_runs",
-					}),
-					createFakeLog({
-						message: "Submitted to infrastructure",
-						name: "prefect.flow_runs.worker",
-						worker_id: submitter.id,
-					}),
-					createFakeLog({
-						message: "Aborted submission",
-						name: "prefect.flow_runs.worker",
-						worker_id: otherWorkerId,
-					}),
-				]),
-			),
-			http.post(buildApiUrl("/work_pools/my-work-pool/workers/filter"), () =>
-				HttpResponse.json([submitter]),
-			),
-		);
-		render(<FlowRunLogs flowRun={flowRun} virtualize={false} />, {
-			wrapper: createWrapper(),
-		});
-
-		const rows = await screen.findAllByRole("listitem");
-		const [runLog, submitLog, abortLog] = rows;
-		expect(screen.queryByText(/^Worker:/)).not.toBeInTheDocument();
-		expect(
-			within(runLog).queryByText("prefect.flow_runs", { selector: "button" }),
-		).not.toBeInTheDocument();
-		expect(
-			within(submitLog).getByText("Submitted to infrastructure"),
-		).toBeInTheDocument();
-		act(() => {
-			within(submitLog)
-				.getByText("prefect.flow_runs.worker", { selector: "button" })
-				.focus();
-		});
-		expect(
-			await screen.findByText("Worker: worker-a", {
-				selector: '[role="tooltip"]',
-			}),
-		).toBeInTheDocument();
-		act(() => {
-			within(abortLog)
-				.getByText("prefect.flow_runs.worker", {
-					selector: "button",
-				})
-				.focus();
-		});
-		expect(
-			await screen.findByText(`Worker: ${otherWorkerId}`, {
-				selector: '[role="tooltip"]',
-			}),
-		).toBeInTheDocument();
 	});
 
 	it("handles empty logs response for scheduled flow runs", async () => {

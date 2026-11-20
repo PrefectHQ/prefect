@@ -5,18 +5,12 @@ import { format } from "date-fns-tz";
 import { useCallback, useEffect, useRef } from "react";
 import type { components } from "@/api/prefect";
 import { Badge } from "@/components/ui/badge";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/utils";
 import { renderLogMessage } from "./render-log-message";
 
 type RunLogsProps = {
 	logs: components["schemas"]["Log"][];
 	taskRun?: components["schemas"]["TaskRun"];
-	workerNames?: ReadonlyMap<string, string>;
 	onBottomReached: () => void;
 	virtualize?: boolean;
 	className?: string;
@@ -33,7 +27,6 @@ type RunLogsProps = {
 export const RunLogs = ({
 	logs,
 	taskRun,
-	workerNames,
 	onBottomReached,
 	virtualize = true,
 	className,
@@ -147,13 +140,7 @@ export const RunLogs = ({
 							{shouldShowDivider && (
 								<LogDivider date={new Date(log.timestamp)} />
 							)}
-							<RunLogRow
-								log={log}
-								taskRunName={taskRun?.name}
-								workerName={
-									log.worker_id ? workerNames?.get(log.worker_id) : undefined
-								}
-							/>
+							<RunLogRow log={log} taskRunName={taskRun?.name} />
 						</li>
 					);
 				})}
@@ -165,10 +152,9 @@ export const RunLogs = ({
 type RunLogRowProps = {
 	log: components["schemas"]["Log"];
 	taskRunName?: string;
-	workerName?: string;
 };
 
-const RunLogRow = ({ log, taskRunName, workerName }: RunLogRowProps) => {
+const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 	return (
 		<div className="grid grid-cols-[84px_minmax(0,1fr)_150px] gap-2 text-sm py-2">
 			<div>
@@ -180,23 +166,9 @@ const RunLogRow = ({ log, taskRunName, workerName }: RunLogRowProps) => {
 			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-muted-foreground truncate">
 				<span>{format(log.timestamp, "pp")}</span>
 				{taskRunName && <span>{taskRunName}</span>}
-				{log.worker_id ? (
-					<Tooltip>
-						<TooltipTrigger
-							type="button"
-							className="cursor-help text-right font-bold break-all whitespace-normal"
-						>
-							{log.name}
-						</TooltipTrigger>
-						<TooltipContent className="max-w-xs whitespace-normal wrap-anywhere">
-							Worker: {workerName ?? log.worker_id}
-						</TooltipContent>
-					</Tooltip>
-				) : (
-					<span className="font-bold break-all whitespace-normal">
-						{log.name}
-					</span>
-				)}
+				<span className="font-bold break-all whitespace-normal">
+					{log.name}
+				</span>
 			</div>
 		</div>
 	);
