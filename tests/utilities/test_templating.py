@@ -442,6 +442,25 @@ class TestResolveBlockDocumentReferences:
             client=prefect_client,
         )
 
+    async def test_resolve_block_document_references_with_uuid_string_reference(
+        self, prefect_client: PrefectClient, block_document_id: dict[str, Any]
+    ):
+        assert {
+            "key": {"a": 1, "b": "hello"}
+        } == await resolve_block_document_references(
+            {"key": {"$ref": str(block_document_id["id"])}},
+            client=prefect_client,
+        )
+
+    async def test_resolve_block_document_references_ignores_non_uuid_string_reference(
+        self, prefect_client: PrefectClient
+    ):
+        template = {"key": {"$ref": "#/definitions/Foo"}}
+        assert (
+            await resolve_block_document_references(template, client=prefect_client)
+            == template
+        )
+
     async def test_resolve_block_document_references_with_nested_block_document_references(
         self, prefect_client, block_document_id
     ):

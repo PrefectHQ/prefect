@@ -464,6 +464,66 @@ class TestInfraOverrides:
         # the job_variables should not pull that value in
         assert response.json()["job_variables"] == {}
 
+    @pytest.mark.parametrize("definitions_key", ["definitions", "$defs"])
+    async def test_deployment_job_variable_references_to_blocks(
+        self,
+        session,
+        hosted_api_client,
+        k8s_credentials,
+        definitions_key: str,
+    ):
+        job_variables = {
+            "k8s_credentials": {
+                "$ref": {"block_document_id": f"{k8s_credentials._block_document_id}"}
+            }
+        }
+        *_, deployment = await create_objects_for_pool(
+            session,
+            pool_job_config={
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "k8s_credentials": {
+                            "anyOf": [
+                                {"$ref": f"#/{definitions_key}/k8s_credentials"},
+                                {"type": "null"},
+                            ],
+                            "default": None,
+                        },
+                    },
+                    definitions_key: {
+                        "k8s_credentials": {
+                            "type": "object",
+                            "title": "k8s_credentials",
+                            "required": ["context_name", "config"],
+                            "properties": {
+                                "context_name": {"type": "string"},
+                                "config": {"type": "object"},
+                            },
+                            "block_type_slug": "k8s-credentials",
+                            "block_schema_references": {},
+                        }
+                    },
+                },
+                "job_configuration": {
+                    "k8s_credentials": "{{ k8s_credentials }}",
+                },
+            },
+            deployment_vars=job_variables,
+        )
+
+        response = await hosted_api_client.post(
+            f"/deployments/{deployment.id}/create_flow_run", json={}
+        )
+        assert response.status_code == 201, response.text
+
+        response = await hosted_api_client.post(
+            f"/deployments/{deployment.id}/create_flow_run",
+            json={"job_variables": {"k8s_credentials": "not-an-object"}},
+        )
+        assert response.status_code == 422, response.text
+        assert "k8s_credentials" in response.json()["detail"]
+
 
 class TestInfraOverridesUpdates:
     async def test_updating_flow_run_with_valid_updates(
