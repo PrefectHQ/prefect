@@ -2,12 +2,14 @@
 title: How to manage Access Control Lists (ACLs)
 sidebarTitle: Access Control Lists (ACLs)
 description: Control which users, service accounts, and teams can view, run, and manage individual blocks, deployments, and work pools in a workspace.
-keywords: ["ACL", "access control", "permissions", "RBAC", "workspace role", "block access", "deployment access", "work pool access"]
+keywords: ["permissions", "rbac", "workspace role", "restrict access", "team isolation"]
 ---
 
 Prefect Cloud's [Enterprise plan](https://www.prefect.io/pricing) offers object-level access control lists (ACLs).
 A [workspace role](/v3/how-to-guides/cloud/manage-users/manage-roles) gives a member the same permissions on every object in a workspace.
 An ACL sets who can view, run, and manage one object.
+
+On this page, a member is any user or service account that has access to the workspace.
 
 ## What ACLs cover
 
@@ -155,17 +157,21 @@ ACLs control access to existing objects. To control who can create deployments, 
 
 ## Troubleshooting
 
-**A member no longer sees a deployment or work pool, and their role did not change.**
-Check the ACL of the deployment's work pool as well as the deployment. A restricted work pool hides its deployments from members who are not on the work pool's ACL.
+### A member no longer sees a deployment or work pool
+
+If the member's role did not change, check the ACL of the deployment's work pool as well as the deployment. A restricted work pool hides its deployments from members who are not on the work pool's ACL.
 If the **Access Control** page looks empty, read the ACL through the API. A list that Terraform or the API set to empty also shows no entries.
 
-**A member can see objects that an ACL should hide.**
+### A member sees objects that an ACL should hide
+
 Check whether their role, or the role of a team they belong to, includes Manage ACLs. Account Owners and Admins always have it.
 
-**A member was added to a deployment's ACL and still cannot run it.**
+### A member on a deployment's ACL cannot run the deployment
+
 The deployment's work pool has a restricted Run list. Add the member to the work pool's ACL.
 
-**A request returns `404` for an object that exists.**
+### A request returns 404 for an object that exists
+
 The caller cannot view the object. A `403` means the caller can view the object but lacks the Run or Manage level.
 
 ## Manage ACLs with the API or Terraform
@@ -206,3 +212,9 @@ curl -X PUT "https://api.prefect.cloud/api/accounts/$ACCOUNT_ID/workspaces/$WORK
 
 The [Prefect Terraform provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs) has the `prefect_deployment_access`, `prefect_work_pool_access`, and `prefect_block_access` resources, which follow the same rules.
 Check a plan that changes one of these resources for lists that become empty.
+
+## Further reading
+
+- [Manage account roles](/v3/how-to-guides/cloud/manage-users/manage-roles)
+- [Manage teams](/v3/how-to-guides/cloud/manage-users/manage-teams)
+- [Manage service accounts](/v3/how-to-guides/cloud/manage-users/service-accounts)
