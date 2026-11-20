@@ -23,7 +23,7 @@ def workspace_events_client(
         AssertingEventsClient,
     )
     monkeypatch.setattr(
-        "prefect.server.orchestration.instrumentation_policies.PrefectServerEventsClient",
+        "prefect.server.events._publishing.PrefectServerEventsClient",
         AssertingEventsClient,
     )
     monkeypatch.setattr(

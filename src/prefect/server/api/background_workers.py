@@ -8,6 +8,7 @@ from docket import Docket, Worker
 from prefect.logging import get_logger
 from prefect.server.api.flow_runs import delete_flow_run_logs
 from prefect.server.api.task_runs import delete_task_run_logs
+from prefect.server.events._publishing import publish_event
 from prefect.server.events.services import triggers as _triggers_module  # noqa: F401
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.work_queues import mark_work_queues_ready
@@ -30,6 +31,7 @@ from prefect.server.services.perpetual_services import (
     register_and_schedule_perpetual_services,
 )
 from prefect.server.services.repossessor import revoke_expired_lease
+from prefect.server.utilities._docket import serving_docket
 
 logger: Logger = get_logger(__name__)
 
@@ -40,6 +42,7 @@ task_functions: list[Callable[..., Any]] = [
     mark_deployments_ready,
     delete_task_run_logs,
     delete_flow_run_logs,
+    publish_event,
     # Find-and-flood pattern tasks used by perpetual services
     handle_cancelling_timeout,
     cancel_child_task_runs,
@@ -63,7 +66,10 @@ async def background_worker(
     webserver_only: bool = False,
 ) -> AsyncGenerator[None, None]:
     worker_task: asyncio.Task[None] | None = None
-    try:
+
+    # Serving the docket makes it available to code that enqueues background work
+    # without a request or task context, like the orchestration engine
+    with serving_docket(docket):
         async with Worker(docket) as worker:
             # Register background task functions
             docket.register_collection(
@@ -82,12 +88,11 @@ async def background_worker(
             finally:
                 if worker_task:
                     worker_task.cancel()
-    finally:
-        # Exiting the `Worker` context above signals the worker loop to stop and
-        # waits for it, so shutdown completes even if the cancellation was lost
-        # (e.g. `asyncio.wait_for` on Python 3.11 can swallow a cancellation).
-        if worker_task:
-            try:
-                await worker_task
-            except asyncio.CancelledError:
-                pass
+    # Exiting the `Worker` context above signals the worker loop to stop and
+    # waits for it, so shutdown completes even if the cancellation was lost
+    # (e.g. `asyncio.wait_for` on Python 3.11 can swallow a cancellation).
+    if worker_task:
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            pass
