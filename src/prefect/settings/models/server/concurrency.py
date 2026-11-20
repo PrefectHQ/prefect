@@ -12,8 +12,12 @@ class ServerConcurrencySettings(PrefectBaseSettings):
     )
 
     lease_storage: str = Field(
-        default="prefect.server.concurrency.lease_storage.memory",
-        description="The module to use for storing concurrency limit leases.",
+        default="prefect.server.concurrency.lease_storage.filesystem",
+        description=(
+            "The module to use for storing concurrency limit leases. Leases must"
+            " outlive a server restart: the slots they hold are counted in the"
+            " database, and a lease that is lost can never release them."
+        ),
     )
 
     initial_deployment_lease_duration: float = Field(

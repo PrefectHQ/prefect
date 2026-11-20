@@ -1254,8 +1254,8 @@
         "ServerConcurrencySettings": {
             "properties": {
                 "lease_storage": {
-                    "default": "prefect.server.concurrency.lease_storage.memory",
-                    "description": "The module to use for storing concurrency limit leases.",
+                    "default": "prefect.server.concurrency.lease_storage.filesystem",
+                    "description": "The module to use for storing concurrency limit leases. Leases must outlive a server restart: the slots they hold are counted in the database, and a lease that is lost can never release them.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE"
                     ],
