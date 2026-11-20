@@ -14,6 +14,7 @@ from typing import (
     cast,
     overload,
 )
+from uuid import UUID
 
 import prefect.exceptions
 from prefect.client.utilities import inject_client
@@ -263,6 +264,23 @@ def apply_values(
         raise ValueError(f"Unexpected template type {type(template).__name__!r}")
 
 
+def _get_block_document_id_from_ref(ref: Any) -> Any:
+    """
+    Return the block document ID from a `$ref` value, which may be a UUID or a
+    dictionary containing `block_document_id`.
+    """
+    if isinstance(ref, dict):
+        return cast(dict[str, Any], ref).get("block_document_id")
+    if isinstance(ref, UUID):
+        return ref
+    if isinstance(ref, str):
+        try:
+            return UUID(ref)
+        except ValueError:
+            return None
+    return None
+
+
 @inject_client
 async def resolve_block_document_references(
     template: T,
@@ -439,7 +457,7 @@ async def resolve_block_document_references(
 
     async def _resolve(tmpl: T) -> Union[T, dict[str, Any]]:
         if isinstance(tmpl, dict):
-            block_document_id = tmpl.get("$ref", {}).get("block_document_id")
+            block_document_id = _get_block_document_id_from_ref(tmpl.get("$ref"))
             if block_document_id:
                 block_document = await _read_block_document_by_id(block_document_id)
                 return deepcopy(block_document.data)
