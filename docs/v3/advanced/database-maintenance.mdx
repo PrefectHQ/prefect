@@ -259,7 +259,7 @@ export PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE=200
 
 ### How the vacuum service works
 
-The vacuum services schedule separate cleanup tasks. All cleanup tasks share one concurrency slot, so they run one at a time. A long-running task, such as an orphan reconciliation pass, delays the tasks queued behind it until it finishes. If a cycle runs while a task is still queued from an earlier cycle, Prefect does not enqueue a duplicate.
+The vacuum services schedule separate cleanup tasks. All cleanup tasks share one concurrency slot, so they run one at a time. A long-running task, such as an orphan reconciliation pass, delays the tasks queued behind it until it finishes. While a cleanup task runs, a new cycle does not enqueue another copy of a task that already waits for the slot.
 
 <Steps>
 ### Flow run vacuum (when `flow_runs` is enabled)
