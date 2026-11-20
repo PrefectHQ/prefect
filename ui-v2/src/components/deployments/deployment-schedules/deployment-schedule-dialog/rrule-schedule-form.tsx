@@ -98,10 +98,11 @@ export function RRuleScheduleForm({
 				);
 				onSubmit();
 			},
-			onError: (error: Error) =>
-				form.setError("root", {
-					message: error.message || "Unable to save deployment schedule.",
-				}),
+			onError: (error: Error) => {
+				const message = error.message || "Unable to save deployment schedule.";
+				form.setError("root", { message });
+				toast.error(message);
+			},
 		};
 		if (scheduleToEdit)
 			updateDeploymentSchedule(
@@ -195,7 +196,12 @@ export function RRuleScheduleForm({
 					</DialogClose>
 					<Button
 						type="submit"
-						disabled={!readOnly && !valid}
+						disabled={
+							(!readOnly && !valid) ||
+							creating ||
+							updating ||
+							form.formState.isSubmitting
+						}
 						loading={creating || updating || form.formState.isSubmitting}
 					>
 						Save

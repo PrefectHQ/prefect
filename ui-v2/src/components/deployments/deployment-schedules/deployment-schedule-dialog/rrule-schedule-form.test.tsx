@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { createWrapper, server } from "@tests/utils";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { DeploymentSchedule } from "@/api/deployments";
 import { Dialog } from "@/components/ui/dialog";
 import { RRuleScheduleForm } from "./rrule-schedule-form";
@@ -41,6 +42,9 @@ function setup(
 }
 
 describe("RRuleScheduleForm", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
 	beforeAll(() => {
 		window.HTMLElement.prototype.scrollIntoView = vi.fn();
 		window.HTMLElement.prototype.releasePointerCapture = vi.fn();
@@ -156,6 +160,9 @@ describe("RRuleScheduleForm", () => {
 		);
 	});
 	it("does not close or discard edits on a failed save", async () => {
+		const errorToast = vi
+			.spyOn(toast, "error")
+			.mockImplementation(() => "toast-id");
 		server.use(
 			http.patch(buildApiUrl("/deployments/:id/schedules/:schedule_id"), () =>
 				HttpResponse.json({ detail: "Could not update" }, { status: 500 }),
@@ -170,7 +177,59 @@ describe("RRuleScheduleForm", () => {
 			"Could not update",
 		);
 		expect(onSubmit).not.toHaveBeenCalled();
+		expect(errorToast).toHaveBeenCalledWith("Could not update");
 		expect(screen.getByLabelText("Time (UTC)")).toHaveValue("10:30");
+		expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+	});
+	it.each([false, true])(
+		"disables Save during a pending mutation (edit: %s)",
+		async (edit) => {
+			let resolveResponse!: () => void;
+			const response = new Promise<void>((resolve) => {
+				resolveResponse = resolve;
+			});
+			const request = vi.fn(async () => {
+				await response;
+				return new HttpResponse(null, { status: edit ? 204 : 201 });
+			});
+			server.use(
+				edit
+					? http.patch(
+							buildApiUrl("/deployments/:id/schedules/:schedule_id"),
+							request,
+						)
+					: http.post(buildApiUrl("/deployments/:id/schedules"), request),
+			);
+			const onSubmit = setup(edit ? existing : undefined);
+			const save = screen.getByRole("button", { name: "Save" });
+			await userEvent.click(save);
+			await waitFor(() => expect(request).toHaveBeenCalledOnce());
+			expect(save).toBeDisabled();
+			await userEvent.click(save);
+			expect(request).toHaveBeenCalledOnce();
+			resolveResponse();
+			await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+		},
+	);
+	it("disables Save while validating parameter overrides", async () => {
+		let resolveValidation!: (valid: boolean) => void;
+		const validation = new Promise<boolean>((resolve) => {
+			resolveValidation = resolve;
+		});
+		const validate = vi.fn(() => validation);
+		setup(undefined, {
+			schema: undefined,
+			values: {},
+			errors: [],
+			setValues: vi.fn(),
+			validate,
+		});
+		const save = screen.getByRole("button", { name: "Save" });
+		await userEvent.click(save);
+		await waitFor(() => expect(validate).toHaveBeenCalledOnce());
+		expect(save).toBeDisabled();
+		resolveValidation(false);
+		await waitFor(() => expect(save).toBeEnabled());
 	});
 	it("does not save invalid parameter overrides", async () => {
 		const validate = vi.fn().mockResolvedValue(false);
