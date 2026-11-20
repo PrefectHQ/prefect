@@ -1,5 +1,5 @@
 import { getRouteApi } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { StateType } from "@/api/flow-runs/constants";
 import type { DateRangePreset } from "@/components/flow-runs/flow-runs-list";
 import type { SavedFilter as SavedFiltersMenuFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/saved-filters-menu";
@@ -8,9 +8,9 @@ import {
 	serializeStateNames,
 } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import {
+	readDefaultFilter,
 	type SavedFilter,
 	type SavedFilterValues,
-	SYSTEM_DEFAULT_FILTER,
 	useSavedFilters,
 } from "./use-saved-filters";
 
@@ -279,83 +279,24 @@ export function useRunsSavedFilters(): UseRunsSavedFiltersReturn {
 }
 
 /**
- * Hook to apply the default filter on initial page load.
- * Should be called in the route component.
- *
- * This hook will apply a default filter when:
- * 1. The page first loads
- * 2. No filters are currently active in the URL
+ * Search params that apply the default filter to a runs page URL with no
+ * filters, or undefined when the URL already filters the page.
  *
  * Filter priority:
  * 1. User-set default filter (if one is set in localStorage)
  * 2. System default filter ("Past week") - always applied as baseline
  *
  * This matches the Vue UI behavior where the "Past week" filter is applied
- * by default on page load.
- *
- * It uses a ref guard to ensure the default filter is only applied once per mount,
- * preventing issues with React StrictMode and edge cases where navigation might
- * not change the URL.
+ * by default on page load. The route applies it before loading so the first
+ * queries already use it.
  */
-export function useApplyDefaultFilterOnMount(): void {
-	const navigate = routeApi.useNavigate();
-	const search = routeApi.useSearch();
-	const { defaultFilterId, getFilterById } = useSavedFilters();
-
-	// Ref to track if we've already applied the default filter this mount
-	const didApplyRef = useRef(false);
-
-	// Compute whether there are any active filters in the URL
-	const hasActiveFilters = useMemo(() => {
-		return !!(
-			parseStateNames(search.state).length ||
-			search["state-types"]?.length ||
-			search.flows ||
-			search.deployments ||
-			search["work-pools"] ||
-			search.tags ||
-			search.range ||
-			search.start ||
-			search.end
-		);
-	}, [search]);
-
-	useEffect(() => {
-		// Only apply once per mount
-		if (didApplyRef.current) return;
-
-		// Don't apply if filters are already active in URL
-		if (hasActiveFilters) return;
-
-		// Determine which filter to apply:
-		// 1. User-set default filter (if set and exists)
-		// 2. System default filter ("Past week") as baseline
-		let filterToApply: SavedFilter | undefined;
-
-		if (defaultFilterId) {
-			// User has set a default filter - use it if it exists
-			filterToApply = getFilterById(defaultFilterId);
-		}
-
-		// If no user default or it doesn't exist, use system default
-		if (!filterToApply) {
-			filterToApply = SYSTEM_DEFAULT_FILTER;
-		}
-
-		// Mark as applied before navigating
-		didApplyRef.current = true;
-
-		const urlParams = filterValuesToUrlParams(filterToApply.filters);
-
-		void navigate({
-			to: ".",
-			search: (prev) => ({
-				...prev,
-				...urlParams,
-				page: 1, // Reset pagination when applying default filter
-				"task-runs-page": 1,
-			}),
-			replace: true,
-		});
-	}, [defaultFilterId, hasActiveFilters, getFilterById, navigate]);
+export function defaultFilterSearch(
+	search: Parameters<typeof urlParamsToFilterValues>[0],
+) {
+	if (Object.keys(urlParamsToFilterValues(search)).length > 0) return undefined;
+	return {
+		...filterValuesToUrlParams(readDefaultFilter().filters),
+		page: 1,
+		"task-runs-page": 1,
+	};
 }
