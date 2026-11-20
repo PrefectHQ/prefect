@@ -11,6 +11,7 @@ Example usage:
 
 from logging import Logger
 
+import prefect
 from prefect.exceptions import MissingContextError
 from prefect.logging import get_logger as _get_logger
 from prefect.logging import get_run_logger as _get_run_logger
@@ -18,7 +19,8 @@ from prefect.logging.loggers import LoggingAdapter
 
 from . import deployment, flow_run, task_run
 
-__all__ = ["deployment", "flow_run", "get_logger", "task_run"]
+# Keep `prefect` available to result-storage key templates.
+__all__ = ["deployment", "flow_run", "get_logger", "prefect", "task_run"]
 
 
 def get_logger() -> Logger | LoggingAdapter:
