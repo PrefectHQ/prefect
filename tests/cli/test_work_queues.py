@@ -25,8 +25,29 @@ class TestCreateWorkQueue:
             expected_output_contains=[
                 "Created work queue with properties:",
                 "name - 'q-name'",
-                "prefect worker start -q 'q-name' -p '",
+                "work pool - 'default-agent-pool'",
+                "Workers cannot poll 'default-agent-pool' because it is a"
+                " 'prefect-agent' typed work pool.",
+                "prefect work-pool create '<WORK POOL NAME>' --type process",
+                "prefect work-queue create 'q-name' -p '<WORK POOL NAME>'",
+                "prefect work-queue inspect 'q-name'",
             ],
+            expected_output_does_not_contain="prefect worker start",
+            expected_code=0,
+        )
+
+    async def test_create_work_queue_with_prefect_agent_pool(
+        self, prefect_client, prefect_agent_work_pool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"work-queue create q-name -p {prefect_agent_work_pool.name}",
+            expected_output_contains=[
+                f"Workers cannot poll '{prefect_agent_work_pool.name}' because it is"
+                " a 'prefect-agent' typed work pool.",
+                "prefect work-queue create 'q-name' -p '<WORK POOL NAME>'",
+            ],
+            expected_output_does_not_contain="prefect worker start",
             expected_code=0,
         )
 
@@ -51,7 +72,9 @@ class TestCreateWorkQueue:
             command=f"work-queue create {queue_name} -p {work_pool.name}",
             expected_output_contains=[
                 f"prefect worker start -q '{queue_name}' -p '{work_pool.name}'",
+                f"prefect work-queue inspect '{queue_name}'",
             ],
+            expected_output_does_not_contain="Workers cannot poll",
             expected_code=0,
         )
 

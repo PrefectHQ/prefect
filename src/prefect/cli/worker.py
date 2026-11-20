@@ -191,8 +191,12 @@ async def start(
 
         if worker_type == "prefect-agent":
             exit_with_error(
-                "'prefect-agent' typed work pools work with Prefect Agents instead of"
-                " Workers. Please use the 'prefect agent start' to start a Prefect Agent."
+                "Workers cannot poll 'prefect-agent' typed work pools, and Prefect"
+                " Agents were removed in Prefect 3. Create a work pool with a worker"
+                " type (for example, `prefect work-pool create '<WORK POOL NAME>'"
+                " --type process`) and start a worker for that pool instead. See"
+                " https://www.prefect.io/docs/v3/how-to-guides/migrate/upgrade-agents-to-workers"
+                " for more information."
             )
 
         # Load or install worker class (matches typer's _get_worker_class flow)

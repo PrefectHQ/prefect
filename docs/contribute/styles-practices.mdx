@@ -189,18 +189,17 @@ When executing a command that creates an object, the output message should offer
 Output Example:
 
 ```js
-$ prefect work-queue create testing
+$ prefect work-queue create 'abcde' -p 'my-pool'
 
 Created work queue with properties:
     name - 'abcde'
-    uuid - 940f9828-c820-4148-9526-ea8107082bda
-    tags - None
-    deployment_ids - None
+    work pool - 'my-pool'
+    id - 940f9828-c820-4148-9526-ea8107082bda
+    concurrency limit - None
+Start a worker to pick up flow runs from the work queue:
+    prefect worker start -q 'abcde' -p 'my-pool'
 
-Start an agent to pick up flows from the created work queue:
-    prefect agent start -q 'abcde'
-
-Inspect the created work queue:
+Inspect the work queue:
     prefect work-queue inspect 'abcde'
 
 ```
@@ -233,14 +232,14 @@ output_msg = dedent(
     f"""
     Created work queue with properties:
         name - {name!r}
-        uuid - {result}
-        tags - {tags or None}
-        deployment_ids - {deployment_ids or None}
+        work pool - {pool!r}
+        id - {result.id}
+        concurrency limit - {limit}
 
-    Start an agent to pick up flows from the created work queue:
-        prefect agent start -q {name!r}
+    Start a worker to pick up flow runs from the work queue:
+        prefect worker start -q {name!r} -p {pool!r}
 
-    Inspect the created work queue:
+    Inspect the work queue:
         prefect work-queue inspect {name!r}
     """
 )
