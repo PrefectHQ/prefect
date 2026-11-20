@@ -17,6 +17,7 @@ from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.threads import get_global_loop
 from prefect.client.schemas.objects import (
     TERMINAL_STATES,
+    StateType,
 )
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
@@ -118,18 +119,17 @@ class FlowRunWaiter:
 
     async def _consume_events(self, consumer_started: asyncio.Event):
         async with get_events_subscriber(
-            filter=EventFilter(
-                event=EventNameFilter(
-                    name=[
-                        f"prefect.flow-run.{state.name.title()}"
-                        for state in TERMINAL_STATES
-                    ],
-                )
-            )
+            filter=EventFilter(event=EventNameFilter(prefix=["prefect.flow-run."]))
         ) as subscriber:
             consumer_started.set()
             async for event in subscriber:
                 try:
+                    state_type = event.resource.get("prefect.state-type")
+                    if not state_type and "validated_state" in event.payload:
+                        state_type = event.payload["validated_state"].get("type")
+                    if not state_type or StateType(state_type) not in TERMINAL_STATES:
+                        continue
+
                     self.logger.debug(
                         f"Received event: {event.resource['prefect.resource.id']}"
                     )
