@@ -104,6 +104,10 @@ Workers have two statuses: `ONLINE` and `OFFLINE`. A worker is online if it send
 If a worker misses three heartbeats, it is considered offline. By default, a worker is considered offline a maximum of 90 seconds 
 after it stopped sending heartbeats, but you can configure the threshold with the `PREFECT_WORKER_HEARTBEAT_SECONDS` setting.
 
+### Identify the worker that wrote a flow run log
+
+In the self-hosted React UI, open **Logs** on a flow run to see which worker wrote each worker-generated entry, such as a submission or abort message. The UI shows the worker name when it can find the worker in the work pool and shows the worker ID otherwise. The REST API returns the same attribution in the `worker_id` field.
+
 ### Worker logs
 
 <span class="badge cloud"></span>

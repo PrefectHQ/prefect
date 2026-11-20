@@ -1,11 +1,15 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { components } from "@/api/prefect";
-import { createFakeFlowRun, createFakeLog } from "@/mocks";
+import {
+	createFakeFlowRun,
+	createFakeLog,
+	createFakeWorkPoolWorker,
+} from "@/mocks";
 import { FlowRunLogs } from "./flow-run-logs";
 
 const renderFlowRunLogs = () => {
@@ -119,6 +123,46 @@ describe("FlowRunLogs", () => {
 				screen.queryByText("Debug: connection established"),
 			).not.toBeInTheDocument();
 		});
+	});
+
+	it("attributes each worker log without changing its message", async () => {
+		const flowRun = createFakeFlowRun({ work_pool_name: "my-work-pool" });
+		const submitter = createFakeWorkPoolWorker({ name: "worker-a" });
+		const otherWorkerId = "62e15371-2f99-48df-8491-62b5282cbc97";
+		server.use(
+			http.post(buildApiUrl("/logs/filter"), () =>
+				HttpResponse.json([
+					createFakeLog({ message: "Run started" }),
+					createFakeLog({
+						message: "Submitted to infrastructure",
+						worker_id: submitter.id,
+					}),
+					createFakeLog({
+						message: "Aborted submission",
+						worker_id: otherWorkerId,
+					}),
+				]),
+			),
+			http.post(buildApiUrl("/work_pools/my-work-pool/workers/filter"), () =>
+				HttpResponse.json([submitter]),
+			),
+		);
+		render(<FlowRunLogs flowRun={flowRun} virtualize={false} />, {
+			wrapper: createWrapper(),
+		});
+
+		const rows = await screen.findAllByRole("listitem");
+		const [runLog, submitLog, abortLog] = rows;
+		expect(within(runLog).queryByText(/^Worker:/)).not.toBeInTheDocument();
+		expect(
+			within(submitLog).getByText("Submitted to infrastructure"),
+		).toBeVisible();
+		expect(
+			await within(submitLog).findByText("Worker: worker-a"),
+		).toBeVisible();
+		expect(
+			within(abortLog).getByText(`Worker: ${otherWorkerId}`),
+		).toBeVisible();
 	});
 
 	it("handles empty logs response for scheduled flow runs", async () => {

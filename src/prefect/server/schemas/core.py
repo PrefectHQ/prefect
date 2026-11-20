@@ -975,6 +975,9 @@ class Log(TimeSeriesBaseModel, ORMBaseModel):
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run ID associated with the log."
     )
+    worker_id: Optional[UUID] = Field(
+        default=None, description="The ID of the worker that wrote the log."
+    )
 
 
 class QueueFilter(PrefectBaseModel):

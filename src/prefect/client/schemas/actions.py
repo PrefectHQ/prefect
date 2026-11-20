@@ -777,8 +777,7 @@ class LogCreate(ActionBaseModel):
 
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """
-        The worker_id field is only included in logs sent to Prefect Cloud.
-        If it's unset, we should not include it in the log payload.
+        Omit an unset worker ID so older servers can still accept the log.
         """
         data = super().model_dump(*args, **kwargs)
         if self.worker_id is None:

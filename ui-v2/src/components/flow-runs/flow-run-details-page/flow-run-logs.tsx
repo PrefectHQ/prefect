@@ -1,7 +1,8 @@
-import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import type { components } from "@/api/prefect";
+import { buildListWorkPoolWorkersQuery } from "@/api/work-pools";
 import { RunLogs } from "@/components/ui/run-logs";
 import {
 	Select,
@@ -51,7 +52,18 @@ export const FlowRunLogs = ({
 		isFetchingNextPage,
 	} = useSuspenseInfiniteQuery(queryOptions);
 
-	const noLogs = logs.pages.length === 1 && logs.pages[0].length === 0;
+	const entries = useMemo(() => logs.pages.flat(), [logs.pages]);
+	const { data: workers } = useQuery({
+		...buildListWorkPoolWorkersQuery(flowRun.work_pool_name ?? ""),
+		enabled:
+			Boolean(flowRun.work_pool_name) && entries.some((log) => log.worker_id),
+	});
+	const workerNames = useMemo(
+		() => new Map(workers?.map((worker) => [worker.id, worker.name])),
+		[workers],
+	);
+
+	const noLogs = entries.length === 0;
 	let message = "This run did not produce any logs.";
 	if (noLogs) {
 		if (levelFilter > 0) {
@@ -83,7 +95,8 @@ export const FlowRunLogs = ({
 			) : (
 				<div className="rounded-md">
 					<RunLogs
-						logs={logs.pages.flat()}
+						logs={entries}
+						workerNames={workerNames}
 						onBottomReached={() => {
 							if (hasNextPage && !isFetchingNextPage) {
 								fetchNextPage().catch((error) => {

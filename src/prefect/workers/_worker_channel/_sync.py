@@ -192,7 +192,7 @@ class WorkPoolWorkerChannel:
             self._logger.debug("Worker has no work pool; skipping heartbeat.")
             return None
 
-        should_get_worker_id = self._should_get_worker_id()
+        should_get_worker_id = self._protocol.worker_id is None
 
         params: dict[str, Any] = {
             "work_pool_name": self.work_pool_name,
@@ -224,7 +224,11 @@ class WorkPoolWorkerChannel:
         if "worker_metadata" in params:
             self._protocol.record_worker_metadata_sent()
 
-        if should_get_worker_id and worker_id is None:
+        if (
+            should_get_worker_id
+            and worker_id is None
+            and self._client.server_type == ServerType.CLOUD
+        ):
             self._logger.warning(
                 "Failed to retrieve worker ID from the Prefect API server."
             )
@@ -371,10 +375,4 @@ class WorkPoolWorkerChannel:
             work_pool=WorkPoolUpdate(
                 base_job_template=job_template,
             ),
-        )
-
-    def _should_get_worker_id(self) -> bool:
-        return (
-            self._client.server_type == ServerType.CLOUD
-            and self._protocol.worker_id is None
         )

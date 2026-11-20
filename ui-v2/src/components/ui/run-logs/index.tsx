@@ -11,6 +11,7 @@ import { renderLogMessage } from "./render-log-message";
 type RunLogsProps = {
 	logs: components["schemas"]["Log"][];
 	taskRun?: components["schemas"]["TaskRun"];
+	workerNames?: ReadonlyMap<string, string>;
 	onBottomReached: () => void;
 	virtualize?: boolean;
 	className?: string;
@@ -27,6 +28,7 @@ type RunLogsProps = {
 export const RunLogs = ({
 	logs,
 	taskRun,
+	workerNames,
 	onBottomReached,
 	virtualize = true,
 	className,
@@ -140,7 +142,13 @@ export const RunLogs = ({
 							{shouldShowDivider && (
 								<LogDivider date={new Date(log.timestamp)} />
 							)}
-							<RunLogRow log={log} taskRunName={taskRun?.name} />
+							<RunLogRow
+								log={log}
+								taskRunName={taskRun?.name}
+								workerName={
+									log.worker_id ? workerNames?.get(log.worker_id) : undefined
+								}
+							/>
 						</li>
 					);
 				})}
@@ -152,9 +160,10 @@ export const RunLogs = ({
 type RunLogRowProps = {
 	log: components["schemas"]["Log"];
 	taskRunName?: string;
+	workerName?: string;
 };
 
-const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
+const RunLogRow = ({ log, taskRunName, workerName }: RunLogRowProps) => {
 	return (
 		<div className="grid grid-cols-[84px_minmax(0,1fr)_150px] gap-2 text-sm py-2">
 			<div>
@@ -169,6 +178,11 @@ const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 				<span className="font-bold break-all whitespace-normal">
 					{log.name}
 				</span>
+				{log.worker_id && (
+					<span className="break-all whitespace-normal" title={log.worker_id}>
+						Worker: {workerName ?? log.worker_id}
+					</span>
+				)}
 			</div>
 		</div>
 	);
