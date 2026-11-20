@@ -2032,7 +2032,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Worker Heartbeat */
+        /**
+         * Worker Heartbeat
+         * @description Record a heartbeat and optionally return the worker's ID.
+         */
         post: operations["worker_heartbeat"];
         delete?: never;
         options?: never;
