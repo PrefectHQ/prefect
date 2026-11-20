@@ -737,6 +737,8 @@ jobs:
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+          docker run --rm --user 1001 prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} \
+            bash -ec 'test "$HOME" = /home/prefect && test -w "$HOME" && prefect version && prefect config view'
 
       # The Dockerfile constrains the install to uv.lock; assert the built image matches it.
       - name: Check image dependencies match uv.lock
