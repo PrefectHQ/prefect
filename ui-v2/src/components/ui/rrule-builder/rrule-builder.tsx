@@ -43,12 +43,14 @@ export type RRuleBuilderProps = {
 	value: string;
 	timezone?: string;
 	onChange: (value: string) => void;
+	onValidityChange?: (valid: boolean) => void;
 };
 
 export function RRuleBuilder({
 	value,
 	timezone = "UTC",
 	onChange,
+	onValidityChange,
 }: RRuleBuilderProps) {
 	const parsed = parseRule(value, timezone);
 	return (
@@ -59,6 +61,7 @@ export function RRuleBuilder({
 					value={parsed.value}
 					timezone={timezone}
 					onChange={onChange}
+					onValidityChange={onValidityChange}
 				/>
 			) : (
 				<div className="space-y-2">
@@ -158,10 +161,12 @@ function BuilderFields({
 	value,
 	timezone,
 	onChange,
+	onValidityChange,
 }: {
 	value: RuleForm;
 	timezone: string;
 	onChange: (rule: string) => void;
+	onValidityChange?: (valid: boolean) => void;
 }) {
 	const form = useForm<RuleForm>({
 		values: value,
@@ -176,8 +181,9 @@ function BuilderFields({
 	const emit = () => {
 		void trigger();
 		const values = getValues();
-		if (ruleFormSchema.safeParse(values).success)
-			onChange(serializeRule(values, timezone));
+		const valid = ruleFormSchema.safeParse(values).success;
+		onValidityChange?.(valid);
+		if (valid) onChange(serializeRule(values, timezone));
 	};
 	const update = <K extends keyof RuleForm>(
 		key: K,
