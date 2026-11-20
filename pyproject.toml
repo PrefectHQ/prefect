@@ -27,7 +27,7 @@ dependencies = [
     # Server dependencies
     "aiosqlite>=0.17.0,<1.0.0",
     "alembic>=1.7.5,<2.0.0",
-    "apprise>=1.13.0,<2.1.0",
+    "apprise>=2.2.0,<3.0.0",
     "asyncpg>=0.23,<1.0.0",
     "click>=8.0,<9",
     "cryptography>=36.0.1",
@@ -145,7 +145,7 @@ dev = [
     "moto>=5",
     # numpy 2.5+ stubs use `type` statements mypy can't parse with
     # python_version = "3.11"; only 2.5+ publishes cp315 wheels
-    "numpy<2.5; python_version<'3.15'",
+    "numpy<2.6; python_version<'3.15'",
     "numpy>=2.5.4; python_version>='3.15'",
     "pendulum[test]>=3.1.0,<4; python_version<'3.13'",
     "pillow>=11.1.0; python_version<'3.14'",
@@ -171,7 +171,7 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.3",
-    "ruff==0.17.3",
+    "ruff==0.17.4",
     "mypy==2.4.1",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",

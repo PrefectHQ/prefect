@@ -10,7 +10,7 @@ Tasks for querying a database with SQLAlchemy
 
 ## Functions
 
-### `check_make_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `check_make_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 check_make_url(url: str) -> str
@@ -18,7 +18,7 @@ check_make_url(url: str) -> str
 
 ## Classes
 
-### `SqlAlchemyConnector` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SqlAlchemyConnector` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Block used to manage authentication with a database using synchronous drivers.
@@ -43,7 +43,7 @@ DBAPI's connect() method as additional keyword arguments.
 
 **Methods:**
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -52,7 +52,7 @@ block_initialization(self) -> None
 Initializes the engine.
 
 
-#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L631" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L637" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 close(self) -> None
@@ -61,7 +61,7 @@ close(self) -> None
 Closes sync connections and its cursors.
 
 
-#### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L531" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Any) -> CursorResult
@@ -96,7 +96,7 @@ with SqlAlchemyConnector.load("MY_BLOCK") as database:
 ```
 
 
-#### `execute_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `execute_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L575" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute_many(self, operation: str, seq_of_parameters: List[Dict[str, Any]], **execution_options: Any) -> CursorResult
@@ -135,7 +135,7 @@ with SqlAlchemyConnector.load("MY_BLOCK") as database:
 ```
 
 
-#### `fetch_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L472" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L478" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_all(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Any) -> List[Tuple[Any]]
@@ -182,7 +182,7 @@ with SqlAlchemyConnector.load("MY_BLOCK") as database:
 ```
 
 
-#### `fetch_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L415" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_many(self, operation: str, parameters: Optional[Dict[str, Any]] = None, size: Optional[int] = None, **execution_options: Any) -> List[Tuple[Any]]
@@ -231,7 +231,7 @@ with SqlAlchemyConnector.load("MY_BLOCK") as database:
 ```
 
 
-#### `fetch_one` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L362" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_one` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_one(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Any) -> Tuple[Any]
@@ -278,7 +278,7 @@ with SqlAlchemyConnector.load("MY_BLOCK") as database:
 ```
 
 
-#### `get_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_client(self, client_type: Literal['engine', 'connection'], **get_client_kwargs: Any) -> Union[Engine, Connection]
@@ -314,7 +314,7 @@ with sqlalchemy_connector.get_client(client_type="connection") as conn:
 ```
 
 
-#### `get_connection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_connection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_connection(self, begin: bool = True, **connect_kwargs: Any) -> Connection
@@ -343,7 +343,7 @@ with sqlalchemy_connector.get_connection(begin=False) as connection:
 ```
 
 
-#### `get_engine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_engine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_engine(self, **create_engine_kwargs: Any) -> Engine
@@ -382,7 +382,7 @@ sqlalchemy_credentials_flow()
 ```
 
 
-#### `reset_connections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_connections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_connections(self) -> None
@@ -403,7 +403,7 @@ with SqlAlchemyConnector.load("MY_BLOCK") as database:
 ```
 
 
-### `AsyncSqlAlchemyConnector` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L660" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AsyncSqlAlchemyConnector` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L666" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Block used to manage authentication with a database using asynchronous drivers.
@@ -428,7 +428,7 @@ DBAPI's connect() method as additional keyword arguments.
 
 **Methods:**
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L756" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L762" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -437,7 +437,7 @@ block_initialization(self) -> None
 Initializes the engine.
 
 
-#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 close(self) -> None
@@ -446,7 +446,7 @@ close(self) -> None
 Closes async connections and its cursors.
 
 
-#### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Any) -> CursorResult
@@ -485,7 +485,7 @@ asyncio.run(example_run())
 ```
 
 
-#### `execute_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `execute_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute_many(self, operation: str, seq_of_parameters: List[Dict[str, Any]], **execution_options: Any) -> CursorResult
@@ -528,7 +528,7 @@ asyncio.run(example_run())
 ```
 
 
-#### `fetch_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_all(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Any) -> List[Tuple[Any]]
@@ -579,7 +579,7 @@ asyncio.run(example_run())
 ```
 
 
-#### `fetch_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1062" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_many(self, operation: str, parameters: Optional[Dict[str, Any]] = None, size: Optional[int] = None, **execution_options: Any) -> List[Tuple[Any]]
@@ -632,7 +632,7 @@ asyncio.run(example_run())
 ```
 
 
-#### `fetch_one` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1005" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_one` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L1016" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_one(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Any) -> Tuple[Any]
@@ -683,7 +683,7 @@ asyncio.run(example_run())
 ```
 
 
-#### `get_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L869" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L875" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_client(self, client_type: Literal['engine', 'connection'], **get_client_kwargs: Any) -> Union[AsyncEngine, AsyncConnection]
@@ -719,7 +719,7 @@ async with sqlalchemy_connector.get_client(client_type="connection") as conn:
 ```
 
 
-#### `get_connection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L832" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_connection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L838" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_connection(self, begin: bool = True, **connect_kwargs: Any) -> AsyncConnection
@@ -752,7 +752,7 @@ asyncio.run(main())
 ```
 
 
-#### `get_engine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L782" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_engine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L788" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_engine(self, **create_engine_kwargs: Any) -> AsyncEngine
@@ -791,7 +791,7 @@ asyncio.run(sqlalchemy_credentials_flow())
 ```
 
 
-#### `reset_connections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L978" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_connections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sqlalchemy/prefect_sqlalchemy/database.py#L989" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_connections(self) -> None

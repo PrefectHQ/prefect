@@ -2446,6 +2446,24 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == await third_state.result()
         assert await first_state.result() == 1
 
+    async def test_task_input_hash_distinguishes_tuples_from_lists(self):
+        @task(cache_key_fn=task_input_hash, persist_result=True)
+        def foo(x):
+            return type(x).__name__
+
+        @flow
+        def bar():
+            return (
+                foo((1, 2, 3), return_state=True),
+                foo([1, 2, 3], return_state=True),
+            )
+
+        tuple_state, list_state = bar()
+        assert tuple_state.name == "Completed"
+        assert list_state.name == "Completed"
+        assert await tuple_state.result() == "tuple"
+        assert await list_state.result() == "list"
+
     async def test_task_input_hash_between_flows(
         self,
     ):

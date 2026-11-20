@@ -1,6 +1,37 @@
 ---
 title: prefect-docker
-description: Release notes for prefect-docker 0.7.0 through 0.7.4, including registry authentication only when an image pull is required and Podman fixes.
+description: Release notes for prefect-docker 0.7.0 through 0.8.0, including the Python 3.10 drop, `container_wait_timeout`, `include_files` sidecars for direct submissions, registry authentication only when an image pull is required, and Podman fixes.
+---
+
+## 0.8.0
+
+_Released on November 19, 2026_
+
+**Breaking Changes**
+
+- Drop Python 3.10 support [#23324](https://github.com/PrefectHQ/prefect/pull/23324) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Enhancements**
+
+- Add `container_wait_timeout` to `DockerWorkerJobConfiguration` [#23151](https://github.com/PrefectHQ/prefect/pull/23151) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Bug Fixes**
+
+- Write auto-generated deployment Dockerfiles as UTF-8 in `prefect-docker` [#23929](https://github.com/PrefectHQ/prefect/pull/23929) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Preserve configured volumes in direct flow submissions [#23683](https://github.com/PrefectHQ/prefect/pull/23683) by [@ashutosh8021](https://github.com/ashutosh8021)
+- Deliver `include_files` sidecar for direct Docker submissions [#22858](https://github.com/PrefectHQ/prefect/pull/22858) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Documentation**
+
+- Fix broken docs links and stop redirecting missing pages to the homepage [#23651](https://github.com/PrefectHQ/prefect/pull/23651) by [@maximearmstrong](https://github.com/maximearmstrong)
+- Link to the docs at www.prefect.io/docs [#23642](https://github.com/PrefectHQ/prefect/pull/23642) by [@maximearmstrong](https://github.com/maximearmstrong)
+
+**Maintenance**
+
+- Update Python version classifiers and add Python 3.14 to integration tests [#23273](https://github.com/PrefectHQ/prefect/pull/23273) by [@vyagubov](https://github.com/vyagubov)
+- Replace Sanity-hosted logo URLs [#23235](https://github.com/PrefectHQ/prefect/pull/23235) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Bump `prefect` lower bound to `>=3.8.7`
+
 ---
 
 ## 0.7.4
@@ -13,8 +44,8 @@ _Released on September 08, 2026_
 
 **Bug Fixes**
 
-- Resolve relative Docker bind-volume sources against the worker CWD [#22910](https://github.com/PrefectHQ/prefect/pull/22910) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
-- Handle Podman missing-container responses when auto-removing containers [#23005](https://github.com/PrefectHQ/prefect/pull/23005) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Resolve relative Docker bind-volume sources against the worker CWD [#22910](https://github.com/PrefectHQ/prefect/pull/22910) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Handle Podman missing-container responses when auto-removing containers [#23005](https://github.com/PrefectHQ/prefect/pull/23005) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 **Maintenance**
 

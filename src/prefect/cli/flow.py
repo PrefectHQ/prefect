@@ -21,7 +21,7 @@ from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import construct_schedule
 from prefect.client.schemas.sorting import FlowSort
 from prefect.deployments.runner import RunnerDeployment
-from prefect.exceptions import MissingFlowError
+from prefect.exceptions import MissingFlowError, ScriptError, exception_traceback
 from prefect.runner import Runner
 from prefect.utilities import urls
 
@@ -225,6 +225,9 @@ async def serve(
             version=version,
             concurrency_limit=global_limit,
         )
+    except ScriptError as exc:
+        print_verbatim(exception_traceback(exc.user_exc))
+        exit_with_error(str(exc))
     except (MissingFlowError, ValueError) as exc:
         exit_with_error(str(exc))
 

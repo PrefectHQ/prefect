@@ -935,7 +935,10 @@ class PrefectEventSubscriber:
                     attempts,
                     self._reconnection_attempts,
                 )
-                if attempts > self._reconnection_attempts:
+                if (
+                    consecutive_failures > self._reconnection_attempts
+                    or consecutive_clean_closes > self._reconnection_attempts
+                ):
                     raise
 
                 if attempts > 2:

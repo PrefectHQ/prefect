@@ -1,3 +1,4 @@
+import datetime
 import json
 import sys
 from typing import TYPE_CHECKING
@@ -5,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 
+import prefect.types._datetime
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import Artifact
 from prefect.settings import PREFECT_CLI_WRAP_LINES, temporary_settings
@@ -33,6 +35,32 @@ def interactive_console(monkeypatch: pytest.MonkeyPatch):
         return sys.stdin.read(1)
 
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
+
+
+@pytest.fixture
+def rendered_updated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[datetime.datetime | None, str]]:
+    """
+    Record each `(timestamp, text)` that `human_friendly_diff` renders.
+
+    `artifact ls` renders `updated` relative to the wall clock at render time, so
+    asserting a fixed string like "now" is flaky when the CLI is slow under load.
+    """
+    rendered: list[tuple[datetime.datetime | None, str]] = []
+    original = prefect.types._datetime.human_friendly_diff
+
+    def recording_human_friendly_diff(
+        dt: datetime.datetime | None, other: datetime.datetime | None = None
+    ) -> str:
+        text = original(dt, other)
+        rendered.append((dt, text))
+        return text
+
+    monkeypatch.setattr(
+        prefect.types._datetime, "human_friendly_diff", recording_human_friendly_diff
+    )
+    return rendered
 
 
 @pytest.fixture
@@ -102,38 +130,42 @@ def test_listing_artifacts_when_none_exist():
 
 def test_listing_artifacts_after_creating_artifacts(
     artifact: models.artifacts.Artifact,
+    rendered_updated: list[tuple[datetime.datetime | None, str]],
 ):
     assert artifact.id is not None, "artifact id should not be None"
     assert artifact.key is not None, "artifact key should not be None"
     assert artifact.updated is not None, "artifact updated should not be None"
 
-    invoke_and_assert(
+    result = invoke_and_assert(
         ["artifact", "ls"],
         expected_output_contains=[
             str(artifact.id),
             str(artifact.key),
             str(artifact.type),
-            "a few seconds ago" if sys.version_info < (3, 13) else "now",
         ],
     )
+    assert [dt for dt, _ in rendered_updated] == [artifact.updated]
+    assert rendered_updated[0][1] in result.stdout
 
 
 def test_listing_artifacts_after_creating_artifacts_with_null_fields(
     artifact_null_field: models.artifacts.Artifact,
+    rendered_updated: list[tuple[datetime.datetime | None, str]],
 ):
     artifact = artifact_null_field
     assert artifact.id is not None, "artifact id should not be None"
     assert artifact.key is not None, "artifact key should not be None"
     assert artifact.updated is not None, "artifact updated should not be None"
 
-    invoke_and_assert(
+    result = invoke_and_assert(
         ["artifact", "ls"],
         expected_output_contains=[
             str(artifact.id),
             str(artifact.key),
-            "a few seconds ago" if sys.version_info < (3, 13) else "now",
         ],
     )
+    assert [dt for dt, _ in rendered_updated] == [artifact.updated]
+    assert rendered_updated[0][1] in result.stdout
 
 
 def test_listing_artifacts_with_limit(
