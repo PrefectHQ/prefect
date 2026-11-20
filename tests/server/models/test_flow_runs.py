@@ -5,8 +5,13 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.testing import retry_asserts
 from prefect.server import models, schemas
-from prefect.server.database import orm_models
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLimitLeaseMetadata,
+    get_concurrency_lease_storage,
+)
+from prefect.server.database import PrefectDBInterface, orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.schemas.core import TaskRunResult
 from prefect.types import KeyValueLabels
@@ -1557,6 +1562,120 @@ class TestDeleteFlowRun:
 
         await session.refresh(concurrency_limit)
         assert concurrency_limit.active_slots == expected_slots
+
+    @pytest.mark.parametrize("lease_exists", [True, False])
+    async def test_delete_blocking_paused_flow_run_releases_leased_slot(
+        self,
+        session: AsyncSession,
+        flow: orm_models.Flow,
+        deployment_with_concurrency_limit: orm_models.Deployment,
+        lease_exists: bool,
+    ):
+        concurrency_limit_id = deployment_with_concurrency_limit.concurrency_limit_id
+        assert concurrency_limit_id is not None
+        await models.concurrency_limits_v2.bulk_increment_active_slots(
+            session=session, concurrency_limit_ids=[concurrency_limit_id], slots=1
+        )
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit_id],
+            ttl=datetime.timedelta(seconds=60),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        if not lease_exists:
+            # The slot was released when the lease expired and now belongs
+            # to another run.
+            await lease_storage.revoke_lease(lease.id)
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment_with_concurrency_limit.id,
+                state=schemas.states.Paused(
+                    reschedule=False,
+                    state_details={"deployment_concurrency_lease_id": lease.id},
+                ),
+            ),
+        )
+        await session.commit()
+
+        assert await models.flow_runs.delete_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+        await session.commit()
+
+        concurrency_limit = await models.concurrency_limits_v2.read_concurrency_limit(
+            session=session, concurrency_limit_id=concurrency_limit_id
+        )
+        assert concurrency_limit is not None
+        await session.refresh(concurrency_limit)
+        assert concurrency_limit.active_slots == (0 if lease_exists else 1)
+        async for attempt in retry_asserts(max_attempts=10, delay=0.05):
+            with attempt:
+                assert await lease_storage.read_lease(lease.id) is None
+
+    async def test_retrying_rolled_back_delete_of_blocking_paused_flow_run_releases_slot(
+        self,
+        session: AsyncSession,
+        db: PrefectDBInterface,
+        flow: orm_models.Flow,
+        deployment_with_concurrency_limit: orm_models.Deployment,
+    ):
+        concurrency_limit_id = deployment_with_concurrency_limit.concurrency_limit_id
+        assert concurrency_limit_id is not None
+        await models.concurrency_limits_v2.bulk_increment_active_slots(
+            session=session, concurrency_limit_ids=[concurrency_limit_id], slots=1
+        )
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit_id],
+            ttl=datetime.timedelta(seconds=60),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment_with_concurrency_limit.id,
+                state=schemas.states.Paused(
+                    reschedule=False,
+                    state_details={"deployment_concurrency_lease_id": lease.id},
+                ),
+            ),
+        )
+        flow_run_id = flow_run.id
+        await session.commit()
+
+        class DeleteFailed(Exception):
+            pass
+
+        async def read_active_slots() -> int:
+            async with db.session_context() as read_session:
+                limit = await models.concurrency_limits_v2.read_concurrency_limit(
+                    session=read_session, concurrency_limit_id=concurrency_limit_id
+                )
+                assert limit is not None
+                return limit.active_slots
+
+        with pytest.raises(DeleteFailed):
+            async with db.session_context(begin_transaction=True) as failed_session:
+                assert await models.flow_runs.delete_flow_run(
+                    session=failed_session, flow_run_id=flow_run_id
+                )
+                raise DeleteFailed
+
+        assert await lease_storage.read_lease(lease.id) is not None
+        assert await read_active_slots() == 1
+
+        async with db.session_context(begin_transaction=True) as retry_session:
+            assert await models.flow_runs.delete_flow_run(
+                session=retry_session, flow_run_id=flow_run_id
+            )
+
+        assert await read_active_slots() == 0
+        async for attempt in retry_asserts(max_attempts=10, delay=0.05):
+            with attempt:
+                assert await lease_storage.read_lease(lease.id) is None
 
 
 class TestCountFlowRunsJoinFastPath:

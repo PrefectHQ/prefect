@@ -15,13 +15,14 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.result_records import ResultRecordMetadata
+from prefect._internal.testing import retry_asserts
 from prefect.server import schemas
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.database import orm_models as orm
-from prefect.server.database import provide_database_interface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import (
     concurrency_limits,
@@ -36,12 +37,14 @@ from prefect.server.orchestration.core_policy import (
     CacheRetrieval,
     CopyScheduledTime,
     CopyTaskParametersID,
+    CoreFlowPolicy,
     EnforceCancellingToCancelledTransition,
     EnsureOnlyScheduledFlowsMarkedLate,
     HandleFlowTerminalStateTransitions,
     HandlePausingFlows,
     HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
+    MinimalFlowPolicy,
     PreserveDeploymentConcurrencyLeaseId,
     PreventDuplicateTransitions,
     PreventPendingTransitions,
@@ -96,6 +99,15 @@ def transition_names(transition):
     initial = f"{transition[0].name if transition[0] else None}"
     proposed = f" => {transition[1].name if transition[1] else None}"
     return initial + proposed
+
+
+async def commit_and_assert_lease_revoked(session: AsyncSession, lease_id: UUID):
+    """Commit the session and wait for the deferred revocation of `lease_id`."""
+    await session.commit()
+    lease_storage = get_concurrency_lease_storage()
+    async for attempt in retry_asserts(max_attempts=10, delay=0.05):
+        with attempt:
+            assert await lease_storage.read_lease(lease_id) is None
 
 
 async def assert_deployment_concurrency_limit(
@@ -5812,6 +5824,565 @@ class TestFlowConcurrencyLimits:
 
         actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
         assert abs(actual_ttl_seconds - 720.0) < 5
+
+    async def apply_flow_policy(
+        self,
+        policy: type[CoreFlowPolicy] | type[MinimalFlowPolicy],
+        ctx: FlowOrchestrationContext,
+    ) -> FlowOrchestrationContext:
+        transition = (ctx.initial_state_type, ctx.proposed_state_type)
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in policy.compile_transition_rules(*transition):
+                ctx = await stack.enter_async_context(rule(ctx, *transition))
+            await ctx.validate_proposed_state()
+        return ctx
+
+    async def test_blocking_pause_keeps_concurrency_slot_until_run_finishes(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 2, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        other_ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        other_lease_id = (
+            other_ctx.validated_state.state_details.deployment_concurrency_lease_id
+        )
+        lease_storage = get_concurrency_lease_storage()
+
+        # A blocking pause keeps the process alive, so the run keeps its slot
+        # and the engine can keep renewing its lease.
+        paused_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.RUNNING,
+                states.StateType.PAUSED,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details=ctx.validated_state.state_details,
+                proposed_details={"pause_reschedule": False},
+            ),
+        )
+
+        assert paused_ctx.response_status == SetStateStatus.ACCEPT
+        assert (
+            paused_ctx.validated_state.state_details.deployment_concurrency_lease_id
+            == lease_id
+        )
+        renewed = await lease_storage.renew_lease(
+            lease_id, ttl=datetime.timedelta(seconds=60)
+        )
+        assert renewed is not False
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=2, expected_active_slots=2
+        )
+
+        # Resuming keeps the same lease.
+        resumed_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.PAUSED,
+                states.StateType.RUNNING,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details=paused_ctx.validated_state.state_details,
+            ),
+        )
+
+        assert resumed_ctx.response_status == SetStateStatus.ACCEPT
+        assert (
+            resumed_ctx.validated_state.state_details.deployment_concurrency_lease_id
+            == lease_id
+        )
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=2, expected_active_slots=2
+        )
+
+        # Terminal cleanup releases only this run's slot.
+        completed_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.RUNNING,
+                states.StateType.COMPLETED,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details=resumed_ctx.validated_state.state_details,
+            ),
+        )
+
+        assert completed_ctx.response_status == SetStateStatus.ACCEPT
+        assert await lease_storage.read_lease(lease_id) is None
+        assert await lease_storage.read_lease(other_lease_id) is not None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=2, expected_active_slots=1
+        )
+
+    @pytest.mark.parametrize("policy", [CoreFlowPolicy, MinimalFlowPolicy])
+    @pytest.mark.parametrize(
+        "proposed_state_type, proposed_state_name",
+        [
+            (states.StateType.FAILED, None),
+            (states.StateType.CRASHED, None),
+            (states.StateType.CANCELLED, None),
+            (states.StateType.COMPLETED, None),
+            (states.StateType.SCHEDULED, "AwaitingRetry"),
+        ],
+    )
+    async def test_leaving_blocking_pause_releases_concurrency_slot(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+        policy: type[CoreFlowPolicy] | type[MinimalFlowPolicy],
+        proposed_state_type: states.StateType,
+        proposed_state_name: str | None,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 2, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+
+        exit_ctx = await self.apply_flow_policy(
+            policy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.PAUSED,
+                proposed_state_type,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details={
+                    "deployment_concurrency_lease_id": lease_id,
+                    "pause_reschedule": False,
+                },
+                proposed_state_name=proposed_state_name,
+            ),
+        )
+
+        assert exit_ctx.response_status == SetStateStatus.ACCEPT
+        assert exit_ctx.validated_state.type == proposed_state_type
+        await commit_and_assert_lease_revoked(session, lease_id)
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=2, expected_active_slots=1
+        )
+
+    async def test_rolled_back_exit_from_blocking_pause_can_be_retried(
+        self,
+        session: AsyncSession,
+        db: PrefectDBInterface,
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        concurrency_limit_id = deployment.concurrency_limit_id
+        assert concurrency_limit_id is not None
+        await concurrency_limits_v2.bulk_increment_active_slots(
+            session=session, concurrency_limit_ids=[concurrency_limit_id], slots=1
+        )
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit_id],
+            ttl=timedelta(seconds=60),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        flow_run = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Paused(
+                    reschedule=False,
+                    state_details={"deployment_concurrency_lease_id": lease.id},
+                ),
+            ),
+        )
+        flow_run_id = flow_run.id
+        await session.commit()
+
+        class TransitionFailed(Exception):
+            pass
+
+        async def complete_paused_run(transition_session: AsyncSession) -> None:
+            result = await flow_runs.set_flow_run_state(
+                session=transition_session,
+                flow_run_id=flow_run_id,
+                state=states.Completed(),
+            )
+            assert result.status == SetStateStatus.ACCEPT
+
+        async def read_active_slots() -> int:
+            async with db.session_context() as read_session:
+                limit = await concurrency_limits_v2.read_concurrency_limit(
+                    session=read_session, concurrency_limit_id=concurrency_limit_id
+                )
+                assert limit is not None
+                return limit.active_slots
+
+        with pytest.raises(TransitionFailed):
+            async with db.session_context(begin_transaction=True) as failed_session:
+                await complete_paused_run(failed_session)
+                raise TransitionFailed
+
+        assert await lease_storage.read_lease(lease.id) is not None
+        assert await read_active_slots() == 1
+
+        async with db.session_context(begin_transaction=True) as retry_session:
+            await complete_paused_run(retry_session)
+
+        assert await read_active_slots() == 0
+        async for attempt in retry_asserts(max_attempts=10, delay=0.05):
+            with attempt:
+                assert await lease_storage.read_lease(lease.id) is None
+
+    async def test_blocking_pause_without_live_lease_releases_slot_once(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 2, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        other_ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        other_lease_id = (
+            other_ctx.validated_state.state_details.deployment_concurrency_lease_id
+        )
+        lease_storage = get_concurrency_lease_storage()
+        # `RemoveDeploymentConcurrencyLeaseForOldClientVersions` revokes the
+        # lease of an old client and leaves the slot occupied.
+        await lease_storage.revoke_lease(lease_id)
+
+        paused_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.RUNNING,
+                states.StateType.PAUSED,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details=ctx.validated_state.state_details,
+                proposed_details={"pause_reschedule": False},
+            ),
+        )
+
+        assert paused_ctx.response_status == SetStateStatus.ACCEPT
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=2, expected_active_slots=1
+        )
+
+        completed_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.PAUSED,
+                states.StateType.COMPLETED,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details=paused_ctx.validated_state.state_details,
+            ),
+        )
+
+        assert completed_ctx.response_status == SetStateStatus.ACCEPT
+        assert await lease_storage.read_lease(other_lease_id) is not None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=2, expected_active_slots=1
+        )
+
+    async def test_leaving_blocking_pause_after_lease_expiry_keeps_other_slots(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 2, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+        assert deployment.concurrency_limit_id is not None
+
+        paused_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.RUNNING,
+                states.StateType.PAUSED,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details=ctx.validated_state.state_details,
+                proposed_details={"pause_reschedule": False},
+            ),
+        )
+        assert paused_ctx.response_status == SetStateStatus.ACCEPT
+
+        # The paused process dies, the repossessor releases the slot of its
+        # expired lease, and another run takes the slot.
+        await concurrency_limits_v2.bulk_decrement_active_slots(
+            session=session,
+            concurrency_limit_ids=[deployment.concurrency_limit_id],
+            slots=1,
+        )
+        await get_concurrency_lease_storage().revoke_lease(lease_id)
+        await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=2, expected_active_slots=2
+        )
+
+        exit_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.PAUSED,
+                states.StateType.FAILED,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details=paused_ctx.validated_state.state_details,
+            ),
+        )
+
+        assert exit_ctx.response_status == SetStateStatus.ACCEPT
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=2, expected_active_slots=2
+        )
+
+    async def test_blocking_pause_timeout_releases_concurrency_slot(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+
+        resume_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.PAUSED,
+                states.StateType.RUNNING,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details={
+                    "deployment_concurrency_lease_id": lease_id,
+                    "pause_reschedule": False,
+                    "pause_timeout": now("UTC") - timedelta(seconds=1),
+                },
+            ),
+        )
+
+        assert resume_ctx.response_status == SetStateStatus.REJECT
+        assert resume_ctx.validated_state.type == states.StateType.FAILED
+        await commit_and_assert_lease_revoked(session, lease_id)
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+    async def test_cancelling_blocking_pause_releases_slot_once_cancelled(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        lease_storage = get_concurrency_lease_storage()
+
+        # The paused process is still running until it observes the cancellation.
+        cancelling_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.PAUSED,
+                states.StateType.CANCELLING,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details={
+                    "deployment_concurrency_lease_id": lease_id,
+                    "pause_reschedule": False,
+                },
+            ),
+        )
+
+        assert cancelling_ctx.response_status == SetStateStatus.ACCEPT
+        assert cancelling_ctx.validated_state.type == states.StateType.CANCELLING
+        assert await lease_storage.read_lease(lease_id) is not None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+        cancelled_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.CANCELLING,
+                states.StateType.CANCELLED,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details=cancelling_ctx.validated_state.state_details,
+            ),
+        )
+
+        assert cancelled_ctx.response_status == SetStateStatus.ACCEPT
+        assert await lease_storage.read_lease(lease_id) is None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+    async def test_pending_proposal_from_blocking_pause_keeps_concurrency_slot(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+
+        # The run already holds the only slot, so it must not be queued
+        # for a new one.
+        pending_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.PAUSED,
+                states.StateType.PENDING,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details={
+                    "deployment_concurrency_lease_id": lease_id,
+                    "pause_reschedule": False,
+                },
+            ),
+        )
+
+        assert pending_ctx.response_status == SetStateStatus.REJECT
+        assert pending_ctx.validated_state.type == states.StateType.PAUSED
+        assert (
+            pending_ctx.validated_state.state_details.deployment_concurrency_lease_id
+            == lease_id
+        )
+        lease_storage = get_concurrency_lease_storage()
+        assert await lease_storage.read_lease(lease_id) is not None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+    async def test_suspend_releases_concurrency_slot(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 2, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+
+        # A reschedule-style pause exits the process, so the slot is released.
+        suspended_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.RUNNING,
+                states.StateType.PAUSED,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details=ctx.validated_state.state_details,
+                proposed_details={"pause_reschedule": True},
+                proposed_state_name="Suspended",
+            ),
+        )
+
+        assert suspended_ctx.response_status == SetStateStatus.ACCEPT
+        lease_storage = get_concurrency_lease_storage()
+        assert await lease_storage.read_lease(lease_id) is None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=2, expected_active_slots=1
+        )
+
+        # Leaving the suspension does not release the slot again.
+        resuming_ctx = await self.apply_flow_policy(
+            CoreFlowPolicy,
+            await initialize_orchestration(
+                session,
+                "flow",
+                states.StateType.PAUSED,
+                states.StateType.SCHEDULED,
+                deployment_id=deployment.id,
+                run_override=ctx.run,
+                initial_details=suspended_ctx.validated_state.state_details,
+                proposed_state_name="Resuming",
+            ),
+        )
+
+        assert resuming_ctx.response_status == SetStateStatus.ACCEPT
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=2, expected_active_slots=1
+        )
 
 
 class TestPreserveDeploymentConcurrencyLeaseId:
