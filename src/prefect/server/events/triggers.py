@@ -1354,10 +1354,7 @@ async def consumer(
     `TriggeredAction` for the `actions` service if the automation criteria is met."""
     # Start the automation change listener task
     sync_task = asyncio.create_task(listen_for_automation_changes())
-
-    await reconcile_automations(force=True)
-
-    proactive_task = asyncio.create_task(evaluate_periodically(periodic_granularity))
+    proactive_task: asyncio.Task[None] | None = None
 
     ordering = get_triggers_causal_ordering()
 
@@ -1395,13 +1392,20 @@ async def consumer(
             pass  # it's fine to ACK this message, since it is safe in the DB
 
     try:
+        await reconcile_automations(force=True)
+
+        proactive_task = asyncio.create_task(
+            evaluate_periodically(periodic_granularity)
+        )
+
         logger.debug("Starting reactive evaluation task")
         yield message_handler
     finally:
-        sync_task.cancel()
-        proactive_task.cancel()
+        background_tasks = [t for t in (sync_task, proactive_task) if t is not None]
+        for task in background_tasks:
+            task.cancel()
         # Wait for tasks to finish
-        await asyncio.gather(sync_task, proactive_task, return_exceptions=True)
+        await asyncio.gather(*background_tasks, return_exceptions=True)
 
 
 async def proactive_evaluation(

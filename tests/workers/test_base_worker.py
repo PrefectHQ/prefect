@@ -5847,6 +5847,59 @@ class TestWorkerCancellationHandling:
                 # doesn't support killing infrastructure
                 mock_mark.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "failing_call, infrastructure_killed",
+        [
+            ("read_flow_run", False),
+            # Resolving the job configuration reads the deployment
+            ("read_deployment", False),
+            ("set_flow_run_state", True),
+        ],
+    )
+    async def test_worker_survives_api_error_while_cancelling_run(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment: DeploymentResponse,
+        caplog: pytest.LogCaptureFixture,
+        failing_call: str,
+        infrastructure_killed: bool,
+    ):
+        """
+        `_cancel_run` runs in the worker's task group, so an error escaping it
+        would stop the worker and every run it supervises.
+        """
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+        )
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test-pid")
+
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            with (
+                mock.patch.object(
+                    worker.client,
+                    failing_call,
+                    new_callable=AsyncMock,
+                    side_effect=_bad_gateway_error(),
+                ) as failing_mock,
+                mock.patch.object(
+                    worker, "kill_infrastructure", new_callable=AsyncMock
+                ) as mock_kill,
+                caplog.at_level(logging.ERROR),
+            ):
+                await worker._cancel_run(flow_run.id)
+
+                failing_mock.assert_awaited_once()
+                assert mock_kill.await_count == int(infrastructure_killed)
+                assert f"Failed to cancel flow run {flow_run.id}" in caplog.text
+
+        updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert updated_flow_run.state is not None
+        assert not updated_flow_run.state.is_cancelled()
+
     async def test_teardown_cancellation_handling_cleans_up(
         self, monkeypatch: pytest.MonkeyPatch
     ):

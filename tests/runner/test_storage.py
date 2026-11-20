@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import re
 import shutil
@@ -535,6 +536,35 @@ class TestGitRepository:
             repr(repo) == "GitRepository(name='repo'"
             " repository='https://github.com/org/repo.git', branch=None)"
         )
+
+    def test_repr_strips_credentials_from_url(self):
+        repo = GitRepository(
+            url="https://x-access-token:super-secret@github.com/org/repo.git"
+        )
+        assert (
+            repr(repo) == "GitRepository(name='repo'"
+            " repository='https://github.com/org/repo.git', branch=None)"
+        )
+
+    async def test_clone_repo_debug_log_strips_credentials_from_url(
+        self,
+        mock_run_process: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo = GitRepository(
+            url="https://x-access-token:super-secret@github.com/org/repo.git"
+        )
+        with caplog.at_level(
+            logging.DEBUG, logger="prefect.runner.storage.git-repository.repo"
+        ):
+            await repo.pull_code()
+
+        messages = [record.getMessage() for record in caplog.records]
+        assert "Cloning repository https://github.com/org/repo.git" in messages
+        assert not any("super-secret" in message for message in messages)
 
     async def test_include_submodules_property(
         self, mock_run_process: AsyncMock, monkeypatch

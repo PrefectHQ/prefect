@@ -85,7 +85,6 @@ ALL_ORCHESTRATION_STATES = list(
     sorted(ALL_ORCHESTRATION_STATES, key=lambda item: str(item))
     # Set the key to sort the `None` state
 )
-CANONICAL_STATES = list(states.StateType)
 TERMINAL_STATES = list(sorted(TERMINAL_STATES))
 
 
@@ -1388,19 +1387,6 @@ class TestRenameRetryingStates:
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestTransitionsFromTerminalStatesRule:
-    all_transitions = set(product(ALL_ORCHESTRATION_STATES, CANONICAL_STATES))
-    terminal_transitions = set(product(TERMINAL_STATES, ALL_ORCHESTRATION_STATES))
-
-    # Cast to sorted lists for deterministic ordering.
-    # Sort as strings to handle `None`.
-    active_transitions = list(
-        sorted(all_transitions - terminal_transitions, key=lambda item: str(item))
-    )
-    all_transitions = list(sorted(all_transitions, key=lambda item: str(item)))
-    terminal_transitions = list(
-        sorted(terminal_transitions, key=lambda item: str(item))
-    )
-
     @pytest.mark.parametrize(
         "intended_transition",
         [(terminal_state, StateType.CRASHED) for terminal_state in TERMINAL_STATES],
@@ -1547,7 +1533,19 @@ class TestTransitionsFromTerminalStatesRule:
         assert ctx.response_status == SetStateStatus.REJECT, ctx.response_details
 
     @pytest.mark.parametrize(
-        "intended_transition", active_transitions, ids=transition_names
+        "intended_transition",
+        [
+            (initial_state, StateType.CRASHED)
+            for initial_state in (
+                None,
+                StateType.SCHEDULED,
+                StateType.PENDING,
+                StateType.RUNNING,
+                StateType.PAUSED,
+                StateType.CANCELLING,
+            )
+        ],
+        ids=transition_names,
     )
     async def test_does_not_block_transitions_from_non_terminal_states(
         self,
@@ -1836,12 +1834,30 @@ class TestPreventPendingTransitions:
         StateType.CANCELLED,
         StateType.RUNNING,
         StateType.PENDING,
+        StateType.COMPLETED,
     ]
     banned_transitions = [(type_, StateType.PENDING) for type_ in banned_states]
-    all_states = set(ALL_ORCHESTRATION_STATES) - {None}
-    allowed_transitions = list(
-        sorted(set(product(all_states, all_states)).difference(banned_transitions))
-    )
+    # Keep the re-run cases: they guard against regressing
+    # PrefectHQ/prefect#9447 and PrefectHQ/prefect#7116.
+    allowed_transitions = [
+        # initial state outside `FROM_STATES`
+        (StateType.SCHEDULED, StateType.PENDING),
+        (StateType.FAILED, StateType.PENDING),
+        (StateType.CRASHED, StateType.PENDING),
+        (StateType.PAUSED, StateType.PENDING),
+        # infrastructure restart (PrefectHQ/prefect#7116)
+        (StateType.RUNNING, StateType.RUNNING),
+        # ad-hoc re-run
+        (StateType.CANCELLING, StateType.RUNNING),
+        (StateType.CANCELLED, StateType.RUNNING),
+        # deployed re-run
+        (StateType.PENDING, StateType.SCHEDULED),
+        (StateType.RUNNING, StateType.SCHEDULED),
+        (StateType.CANCELLING, StateType.SCHEDULED),
+        (StateType.CANCELLED, StateType.SCHEDULED),
+        # terminal target
+        (StateType.RUNNING, StateType.COMPLETED),
+    ]
 
     @pytest.mark.parametrize(
         "intended_transition", banned_transitions, ids=transition_names
@@ -4816,26 +4832,31 @@ class TestFlowConcurrencyLimits:
         ctx = await initialize_orchestration(
             session, "flow", *pending_transition, deployment_id=deployment.id
         )
+        await session.commit()
 
-        with (
-            mock.patch(
-                "prefect.server.orchestration.core_policy.get_concurrency_lease_storage",
-                return_value=lease_storage,
-            ),
-            mock.patch.object(
-                lease_storage,
-                "create_lease",
-                side_effect=create_lease_then_raise,
-            ),
-        ):
-            async with SecureFlowConcurrencySlots(ctx, *pending_transition) as ctx:
-                await ctx.validate_proposed_state()
+        db = provide_database_interface()
+        # An explicit transaction keeps SQLite from autocommitting the slot
+        # increment, which would survive the rollback below.
+        async with db.database_config.begin_transaction(session) as transaction:
+            with (
+                mock.patch(
+                    "prefect.server.orchestration.core_policy.get_concurrency_lease_storage",
+                    return_value=lease_storage,
+                ),
+                mock.patch.object(
+                    lease_storage,
+                    "create_lease",
+                    side_effect=create_lease_then_raise,
+                ),
+            ):
+                async with SecureFlowConcurrencySlots(ctx, *pending_transition) as ctx:
+                    await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.ABORT
-        assert isinstance(ctx.orchestration_error, RuntimeError)
-        assert str(ctx.orchestration_error) == "lease creation response lost"
+            assert ctx.response_status == SetStateStatus.ABORT
+            assert isinstance(ctx.orchestration_error, RuntimeError)
+            assert str(ctx.orchestration_error) == "lease creation response lost"
 
-        await session.rollback()
+            await transaction.rollback()
         assert orphan_lease_id is not None
         assert await lease_storage.read_lease(orphan_lease_id) is not None
         await session.refresh(flow)

@@ -1,6 +1,7 @@
 export { calculateBucketSize } from "./calculate-bucket-size";
 export { cn } from "./css";
 export { formatDate, formatDateTimeRelative, getLocalTimezone } from "./date";
+export { isSafeRedirectPath } from "./safe-redirect";
 export {
 	intervalToSeconds,
 	secondsToApproximateString,

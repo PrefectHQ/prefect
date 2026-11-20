@@ -2111,6 +2111,54 @@ class TestSetFlowRunState:
         )
         assert run.state.type == StateType.CANCELLING
 
+    async def test_stale_pending_proposal_for_completed_flow_run_is_aborted(
+        self,
+        deployment: Deployment,
+        client: AsyncClient,
+        session: AsyncSession,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23961
+
+        A worker with a stale copy of a run must not move a completed run without
+        persisted result data back to Pending. A rerun through Scheduled must
+        still be possible."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id, deployment_id=deployment.id
+            ),
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+
+        async def set_state(type: StateType, **kwargs: Any) -> OrchestrationResult:
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=dict(type=type.value, **kwargs)),
+            )
+            assert response.status_code in (200, 201), response.text
+            return OrchestrationResult.model_validate(response.json())
+
+        await set_state(StateType.PENDING)
+        await set_state(StateType.RUNNING)
+        result = await set_state(StateType.COMPLETED)
+        assert result.status == responses.SetStateStatus.ACCEPT
+
+        result = await set_state(StateType.PENDING)
+        assert result.status == responses.SetStateStatus.ABORT
+
+        session.expire_all()
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run is not None
+        assert run.state.type == StateType.COMPLETED
+
+        result = await set_state(StateType.SCHEDULED, name="AwaitingRetry")
+        assert result.status == responses.SetStateStatus.ACCEPT
+        result = await set_state(StateType.PENDING)
+        assert result.status == responses.SetStateStatus.ACCEPT
+
     async def test_pauses_fire_again_after_blocking_pause_is_rescheduled(
         self,
         deployment: Deployment,

@@ -32,7 +32,7 @@ ephemeral application.
 Uses the same database as the rest of the tests.
 
 
-### `use_hosted_api_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `use_hosted_api_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 use_hosted_api_server(hosted_api_server: str) -> Generator[str, None, None]
@@ -42,7 +42,7 @@ use_hosted_api_server(hosted_api_server: str) -> Generator[str, None, None]
 Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
 
 
-### `disable_hosted_api_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `disable_hosted_api_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 disable_hosted_api_server() -> Generator[None, None, None]
@@ -52,7 +52,7 @@ disable_hosted_api_server() -> Generator[None, None, None]
 Disables the hosted API server by setting `PREFECT_API_URL` to `None`.
 
 
-### `enable_ephemeral_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `enable_ephemeral_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enable_ephemeral_server(disable_hosted_api_server: None) -> Generator[None, None, None]
@@ -62,7 +62,7 @@ enable_ephemeral_server(disable_hosted_api_server: None) -> Generator[None, None
 Enables the ephemeral server by setting `PREFECT_SERVER_EPHEMERAL_ENABLED` to `True`.
 
 
-### `mock_anyio_sleep` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `mock_anyio_sleep` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L224" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 mock_anyio_sleep(monkeypatch: pytest.MonkeyPatch) -> Generator[Callable[[float], None], None, None]
@@ -76,67 +76,67 @@ Provides "assert_sleeps_for" context manager which asserts a sleep time occurred
 within the context while using the actual runtime of the context as a tolerance.
 
 
-### `recorder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L313" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `recorder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L326" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 recorder() -> Recorder
 ```
 
-### `puppeteer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L318" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `puppeteer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 puppeteer() -> Puppeteer
 ```
 
-### `events_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `events_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_server(unused_tcp_port: int, recorder: Recorder, puppeteer: Puppeteer) -> AsyncGenerator[Server, None]
 ```
 
-### `events_api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L426" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `events_api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_api_url(events_server: Server, unused_tcp_port: int) -> str
 ```
 
-### `events_cloud_api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `events_cloud_api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L444" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_cloud_api_url(events_server: Server, unused_tcp_port: int) -> str
 ```
 
-### `mock_should_emit_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L436" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `mock_should_emit_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L449" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 mock_should_emit_events(monkeypatch: pytest.MonkeyPatch) -> mock.Mock
 ```
 
-### `asserting_events_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L444" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `asserting_events_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asserting_events_worker(monkeypatch: pytest.MonkeyPatch) -> Generator[EventsWorker, None, None]
 ```
 
-### `asserting_and_emitting_events_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `asserting_and_emitting_events_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asserting_and_emitting_events_worker(monkeypatch: pytest.MonkeyPatch) -> Generator[EventsWorker, None, None]
 ```
 
-### `events_pipeline` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `events_pipeline` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L483" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_pipeline(asserting_events_worker: EventsWorker) -> AsyncGenerator[EventsPipeline, None]
 ```
 
-### `emitting_events_pipeline` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `emitting_events_pipeline` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L534" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emitting_events_pipeline(asserting_and_emitting_events_worker: EventsWorker) -> AsyncGenerator[EventsPipeline, None]
 ```
 
-### `reset_worker_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L540" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `reset_worker_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L553" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_worker_events(asserting_events_worker: EventsWorker) -> Generator[None, None, None]
@@ -144,6 +144,6 @@ reset_worker_events(asserting_events_worker: EventsWorker) -> Generator[None, No
 
 ## Classes
 
-### `Recorder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L282" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Recorder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Puppeteer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Puppeteer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/fixtures.py#L308" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

@@ -280,6 +280,29 @@ class TestCreateDeployment:
         assert len(schedules) == 2
         assert schedules[0].id == first_schedule.id
 
+    async def test_create_deployment_hydrates_schedule_parameters(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "schedules": [
+                    {
+                        "schedule": {"interval": 3600},
+                        "parameters": {
+                            "x": {"__prefect_kind": "json", "value": '"str_of_json"'}
+                        },
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["schedules"][0]["parameters"] == {"x": "str_of_json"}
+
     async def test_default_work_queue_name_is_none(self, session, client, flow):
         data = DeploymentCreate(name="My Deployment", flow_id=flow.id).model_dump(
             mode="json"
@@ -1729,6 +1752,11 @@ class TestPaginateDeployments:
 
 
 class TestUpdateDeployment:
+    async def test_openapi_documents_error_responses(self, client):
+        response = await client.get("/openapi.json")
+        responses = response.json()["paths"]["/deployments/{id}"]["patch"]["responses"]
+        assert set(responses) == {"204", "400", "404", "409", "422"}
+
     async def test_update_deployment_clears_job_variables_with_empty_dict(
         self, client, flow, work_pool
     ):
@@ -2090,6 +2118,57 @@ class TestUpdateDeployment:
 
         response = await client.get(f"/deployments/{deployment.id}")
         assert response.json()["parameters"] == {"x": value}
+
+    @pytest.mark.parametrize(
+        "existing_slug",
+        [None, "test-schedule"],
+        ids=["replaces-schedules", "updates-schedules-by-slug"],
+    )
+    async def test_update_deployment_hydrates_schedule_parameters(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+        existing_slug: str | None,
+    ):
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "schedules": [{"schedule": {"interval": 3600}, "slug": existing_slug}],
+            },
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        parameters = {"x": {"__prefect_kind": "json", "value": '"str_of_json"'}}
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={
+                "schedules": [
+                    {
+                        "schedule": {"interval": 3600},
+                        "slug": "test-schedule",
+                        "parameters": parameters,
+                    },
+                    {
+                        "schedule": {"interval": 7200},
+                        "slug": "new-schedule",
+                        "parameters": parameters,
+                    },
+                ]
+            },
+        )
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert {
+            schedule["slug"]: schedule["parameters"]
+            for schedule in response.json()["schedules"]
+        } == {
+            "test-schedule": {"x": "str_of_json"},
+            "new-schedule": {"x": "str_of_json"},
+        }
 
     async def test_update_deployment_can_update_pull_steps(
         self,
@@ -3953,6 +4032,16 @@ class TestCreateFlowRunFromDeployment:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "is not associated with a work pool" in response.json()["detail"]
+
+    async def test_openapi_documents_create_flow_run_responses(self, client):
+        response = await client.get("/openapi.json")
+        responses = response.json()["paths"]["/deployments/{id}/create_flow_run"][
+            "post"
+        ]["responses"]
+        assert set(responses) == {"200", "201", "400", "404", "409", "422"}
+        assert responses["201"]["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/FlowRunResponse"
+        }
 
     async def test_create_flow_run_enforces_parameter_schema(
         self,
