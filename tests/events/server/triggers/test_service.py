@@ -559,8 +559,17 @@ async def test_reactive_triggers_service_can_stop_while_loading_automations(
         reconciling.set()
         await asyncio.Event().wait()
 
+    listener_cancelled = asyncio.Event()
+
+    async def listen_forever() -> None:
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            listener_cancelled.set()
+            raise
+
     monkeypatch.setattr(triggers, "reconcile_automations", never_finish_reconciling)
-    monkeypatch.setattr(triggers, "listen_for_automation_changes", mock.AsyncMock())
+    monkeypatch.setattr(triggers, "listen_for_automation_changes", listen_forever)
 
     service = ReactiveTriggers()
     start_task = asyncio.create_task(service.start())
@@ -570,3 +579,4 @@ async def test_reactive_triggers_service_can_stop_while_loading_automations(
     await start_task
 
     assert service.consumer_task is None
+    assert listener_cancelled.is_set()
