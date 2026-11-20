@@ -117,7 +117,7 @@ describe("useCreateFlowRunForm", () => {
 			await renderUseCreateFlowRunForm(initialDeployment);
 
 		act(() => {
-			result.current.setParametersFormValues({ foo: "edited" });
+			result.current.onParametersFormValuesChange({ foo: "edited" });
 		});
 		expect(result.current.parametersFormValues).toEqual({ foo: "edited" });
 
@@ -168,7 +168,7 @@ describe("useCreateFlowRunForm", () => {
 		);
 
 		act(() => {
-			result.current.setParametersFormValues({ foo: "y" });
+			result.current.onParametersFormValuesChange({ foo: "y" });
 		});
 		expect(result.current.parametersFormValues).toEqual({ foo: "y" });
 
@@ -255,6 +255,44 @@ describe("useCreateFlowRunForm", () => {
 				config: { nested: { value: 1 } },
 				name: "copied",
 			});
+		});
+
+		it("keeps form mode and the edit when a field has malformed JSON", async () => {
+			const deployment = createFakeDeployment({
+				parameters: {},
+				parameter_openapi_schema: PARAMETERS_SCHEMA,
+			});
+			const unfinished = { __prefect_kind: "json", value: '{"a": [1, ' };
+
+			const { result } = await renderUseCreateFlowRunForm(deployment, {
+				config: unfinished,
+			});
+
+			act(() => {
+				result.current.onParametersInputModeChange("json");
+			});
+
+			expect(result.current.parametersInputMode).toBe("form");
+			expect(result.current.parametersFormValues).toEqual({
+				config: unfinished,
+			});
+			expect(result.current.parametersFormError).toBe(
+				'Invalid JSON in "config". Fix it before you switch to JSON.',
+			);
+			expect(result.current.skipParameterDefaults).toBe(false);
+
+			act(() => {
+				result.current.onParametersFormValuesChange({
+					config: { __prefect_kind: "json", value: '{"a": [1, 2]}' },
+				});
+			});
+			expect(result.current.parametersFormError).toBeNull();
+
+			act(() => {
+				result.current.onParametersInputModeChange("json");
+			});
+			expect(result.current.parametersInputMode).toBe("json");
+			expect(result.current.skipParameterDefaults).toBe(true);
 		});
 
 		it("unwraps json prefect kind values from the schema form", async () => {

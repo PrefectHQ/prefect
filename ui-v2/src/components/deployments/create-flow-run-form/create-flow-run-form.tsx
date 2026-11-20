@@ -46,8 +46,10 @@ export const CreateFlowRunForm = ({
 		form,
 		onCreate,
 		parameterFormErrors,
-		setParametersFormValues,
+		onParametersFormValuesChange,
 		parametersFormValues,
+		parametersFormError,
+		skipParameterDefaults,
 		parametersInputMode,
 		onParametersInputModeChange,
 		parametersJson,
@@ -109,16 +111,22 @@ export const CreateFlowRunForm = ({
 						</div>
 
 						{parametersOpenAPISchema && (
-							<TabsContent value="form">
+							<TabsContent value="form" className="flex flex-col gap-2">
 								<LazySchemaForm
 									schema={
 										parametersOpenAPISchema as unknown as PrefectSchemaObject
 									}
 									errors={parameterFormErrors}
 									values={parametersFormValues}
-									onValuesChange={setParametersFormValues}
+									onValuesChange={onParametersFormValuesChange}
 									kinds={["json"]}
+									skipDefaultValueInitialization={skipParameterDefaults}
 								/>
+								{parametersFormError && (
+									<p className="text-destructive text-sm">
+										{parametersFormError}
+									</p>
+								)}
 							</TabsContent>
 						)}
 

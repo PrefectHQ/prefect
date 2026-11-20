@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,8 +10,9 @@ import {
 	useDeploymentCreateFlowRun,
 } from "@/api/flow-runs";
 import { useSchemaForm } from "@/components/schemas";
+import { isPrefectKindValueJson } from "@/components/schemas/types/prefect-kind-value";
 import type { SchemaFormValues } from "@/components/schemas/types/values";
-import { isRecord } from "@/components/schemas/utilities/guards";
+import { isArray, isRecord } from "@/components/schemas/utilities/guards";
 import { removePrefectKindValues } from "@/components/schemas/utilities/removePrefectKindValues";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/utils/date";
@@ -185,6 +186,12 @@ export const useCreateFlowRunForm = (
 	const [parametersJsonError, setParametersJsonError] = useState<string | null>(
 		null,
 	);
+	const [parametersFormError, setParametersFormError] = useState<string | null>(
+		null,
+	);
+	// The schema form fills in defaults when it mounts. After the user edits the
+	// JSON document, remounting the form must not add back values they removed.
+	const [skipParameterDefaults, setSkipParameterDefaults] = useState(false);
 
 	const { createDeploymentFlowRun } = useDeploymentCreateFlowRun();
 
@@ -194,18 +201,35 @@ export const useCreateFlowRunForm = (
 		}
 
 		if (mode === "json") {
-			const values = removePrefectKindValues(parametersFormValues);
-			if (isRecord(values)) {
-				setParametersFormValues(values);
+			const invalidJsonPath =
+				findInvalidPrefectKindJsonPath(parametersFormValues);
+			if (invalidJsonPath !== null) {
+				setParametersFormError(
+					`Invalid JSON in "${invalidJsonPath}". Fix it before you switch to JSON.`,
+				);
+				return;
 			}
+
+			const values = removePrefectKindValues(parametersFormValues);
+			setParametersFormValues(values);
 			setParametersJson(formatParametersJson(values));
 			setParametersJsonError(null);
+			setParametersFormError(null);
+			setSkipParameterDefaults(true);
 		} else if (!hasParametersSchema || parametersJsonError) {
 			return;
 		}
 
 		setParametersInputMode(mode);
 	};
+
+	const onParametersFormValuesChange = useCallback(
+		(values: SchemaFormValues) => {
+			setParametersFormError(null);
+			setParametersFormValues(values);
+		},
+		[setParametersFormValues],
+	);
 
 	// Valid JSON is applied to the schema form values right away, so validation,
 	// submission, and switching back to the form all use the latest JSON document.
@@ -297,8 +321,10 @@ export const useCreateFlowRunForm = (
 		form,
 		onCreate,
 		parametersFormValues,
-		setParametersFormValues,
+		onParametersFormValuesChange,
 		parameterFormErrors,
+		parametersFormError,
+		skipParameterDefaults,
 		parametersInputMode,
 		onParametersInputModeChange,
 		parametersJson,
@@ -326,6 +352,48 @@ const DEFAULT_STATE = {
 
 function formatParametersJson(values: unknown): string {
 	return JSON.stringify(values, null, 2);
+}
+
+function findInvalidPrefectKindJsonPath(
+	value: unknown,
+	path = "",
+): string | null {
+	if (isPrefectKindValueJson(value)) {
+		if (value.value === undefined || value.value.trim() === "") {
+			return null;
+		}
+
+		try {
+			JSON.parse(value.value);
+			return null;
+		} catch {
+			return path;
+		}
+	}
+
+	if (isArray(value)) {
+		for (const [index, item] of value.entries()) {
+			const invalidPath = findInvalidPrefectKindJsonPath(
+				item,
+				`${path}[${index}]`,
+			);
+			if (invalidPath !== null) {
+				return invalidPath;
+			}
+		}
+	} else if (isRecord(value)) {
+		for (const [key, item] of Object.entries(value)) {
+			const invalidPath = findInvalidPrefectKindJsonPath(
+				item,
+				path ? `${path}.${key}` : key,
+			);
+			if (invalidPath !== null) {
+				return invalidPath;
+			}
+		}
+	}
+
+	return null;
 }
 
 function createPayload(
