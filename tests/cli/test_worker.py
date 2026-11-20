@@ -1050,6 +1050,39 @@ async def test_start_with_prefect_agent_type_pool(prefect_client: PrefectClient)
     )
 
 
+async def test_start_with_explicit_prefect_agent_type(prefect_client: PrefectClient):
+    work_pool = await prefect_client.create_work_pool(
+        work_pool=WorkPoolCreate(
+            name=f"test-process-pool-{uuid.uuid4()}", type="process"
+        )
+    )
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            work_pool.name,
+            "-n",
+            "test-worker",
+            "-t",
+            "prefect-agent",
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "'prefect-agent' is not a worker type; Prefect Agents were removed in"
+            " Prefect 3.",
+            "Remove `--type` to use the work pool's type",
+        ],
+        expected_output_does_not_contain=[
+            "prefect agent start",
+            "Workers cannot poll 'prefect-agent' typed work pools",
+        ],
+    )
+
+
 POLL_INTERVAL = 0.5
 STARTUP_TIMEOUT = 20
 SHUTDOWN_TIMEOUT = 5

@@ -183,6 +183,13 @@ async def start(
                 style="yellow",
             )
 
+        if worker_type == "prefect-agent":
+            exit_with_error(
+                "'prefect-agent' is not a worker type; Prefect Agents were removed"
+                " in Prefect 3. Remove `--type` to use the work pool's type, or pass"
+                " a worker type such as `--type process`."
+            )
+
         # Resolve worker type
         if worker_type is None:
             worker_type = await _retrieve_worker_type_from_pool(

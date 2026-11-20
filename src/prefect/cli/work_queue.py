@@ -99,7 +99,16 @@ async def create(
     from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
     from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
+    pool_name = pool or DEFAULT_AGENT_WORK_POOL_NAME
     async with get_client() as client:
+        try:
+            work_pool_type = (await client.read_work_pool(pool_name)).type
+        except ObjectNotFound:
+            if pool:
+                exit_with_error(f"Work pool with name: {pool!r} not found.")
+            # The server creates the default pool as a 'prefect-agent' pool.
+            work_pool_type = "prefect-agent"
+
         try:
             result = await client.create_work_queue(
                 name=name, work_pool_name=pool, priority=priority
@@ -114,29 +123,25 @@ async def create(
         except ObjectNotFound:
             exit_with_error(f"Work pool with name: {pool!r} not found.")
 
-        if not pool:
-            pool = DEFAULT_AGENT_WORK_POOL_NAME
-        work_pool = await client.read_work_pool(pool)
-
-    if work_pool.type == "prefect-agent":
+    if work_pool_type == "prefect-agent":
         next_steps = (
-            f"Workers cannot poll {pool!r} because it is a 'prefect-agent' typed"
-            " work pool.\nTo pick up flow runs, create the work queue in a work pool"
-            " with a worker type:\n"
+            f"Workers cannot poll {pool_name!r} because it is a 'prefect-agent'"
+            " typed work pool.\nTo pick up flow runs, create the work queue in a"
+            " work pool with a worker type:\n"
             "    prefect work-pool create '<WORK POOL NAME>' --type process\n"
-            f"    prefect work-queue create '{result.name}' -p '<WORK POOL NAME>'\n"
+            f"    prefect work-queue create {result.name!r} -p '<WORK POOL NAME>'\n"
         )
     else:
         next_steps = (
             "Start a worker to pick up flow runs from the work queue:\n"
-            f"    prefect worker start -q '{result.name}' -p '{pool}'\n"
+            f"    prefect worker start -q {result.name!r} -p {pool_name!r}\n"
         )
     output_msg = (
         dedent(
             f"""
             Created work queue with properties:
                 name - {name!r}
-                work pool - {pool!r}
+                work pool - {pool_name!r}
                 id - {result.id}
                 concurrency limit - {limit}
             """
@@ -145,7 +150,7 @@ async def create(
         + dedent(
             f"""
             Inspect the work queue:
-                prefect work-queue inspect '{result.name}'
+                prefect work-queue inspect {result.name!r}
             """
         )
     )

@@ -51,6 +51,25 @@ class TestCreateWorkQueue:
             expected_code=0,
         )
 
+    async def test_create_work_queue_quotes_name_in_commands(
+        self, prefect_client, prefect_agent_work_pool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-queue",
+                "create",
+                "it's-a-queue",
+                "-p",
+                prefect_agent_work_pool.name,
+            ],
+            expected_output_contains=[
+                "prefect work-queue create \"it's-a-queue\" -p '<WORK POOL NAME>'",
+                'prefect work-queue inspect "it\'s-a-queue"',
+            ],
+            expected_code=0,
+        )
+
     def test_create_work_queue_with_limit(self):
         invoke_and_assert(
             command="work-queue create q-name -l 3",
