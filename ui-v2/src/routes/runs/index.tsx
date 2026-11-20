@@ -606,7 +606,7 @@ export const Route = createFileRoute("/runs/")({
 				dateRange={dateRange}
 				onDateRangeChange={onDateRangeChange}
 				// Scatter plot props
-				flowRunHistory={flowRunHistory ?? []}
+				flowRunHistory={flowRunHistory}
 				scatterPlotDateRange={scatterPlotDateRange}
 				// Task runs props
 				taskRuns={taskRuns}
