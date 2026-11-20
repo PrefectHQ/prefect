@@ -108,7 +108,8 @@ Flow runs and logs from both teams stay visible to everyone whose role can view 
 4. Add Everyone at View if the rest of the workspace should still see the deployment.
 
 The user can run that deployment and no others.
-If the deployment's work pool has an ACL, add the user at Run there instead.
+This pattern needs a work pool without an ACL.
+Run access on a work pool's ACL covers every deployment in that work pool, so it cannot limit someone to one deployment.
 
 ### Restrict a block that holds credentials
 
@@ -124,6 +125,7 @@ ACLs control access to existing objects. To control who can create deployments, 
 
 1. Create a custom workspace role for your users that leaves out **Create and edit deployments**. Keep **Run deployments** if they should trigger runs.
 2. Give the service account that CI uses a role that includes **Create and edit deployments**.
+3. On deployment and work pool ACLs, add those users at Run or View. Manage access lets someone edit a deployment even when their role does not.
 
 ## Troubleshooting
 
