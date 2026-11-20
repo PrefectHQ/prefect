@@ -31,12 +31,15 @@ from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.events.schemas.events import Event
 from prefect.logging.loggers import get_logger
 from prefect.states import State
+from prefect.utilities.collections import batched_iterable
 
 if TYPE_CHECKING:
     import logging
 
 # How often to read the task runs being waited on while the events stream is down
 TASK_RUN_POLLING_INTERVAL_SECONDS = 10.0
+# Leave room for state, limit, and offset binds under SQLite's 999-bind budget.
+_TASK_RUN_POLLING_BATCH_SIZE = 500
 
 
 class TaskRunWaiter:
@@ -159,7 +162,7 @@ class TaskRunWaiter:
             )
             started_at = loop.time()
             try:
-                await delivery.start()
+                await delivery.start(reconcile=failed_attempts > 0)
                 await unavailable.wait()
             finally:
                 await delivery.stop()
@@ -214,21 +217,24 @@ class TaskRunWaiter:
         if not task_run_ids:
             return
 
-        task_run_filter = TaskRunFilter(
-            id=TaskRunFilterId(any_=task_run_ids),
-            state=TaskRunFilterState(
-                type=TaskRunFilterStateType(any_=list(TERMINAL_STATES))
-            ),
-        )
         async with get_client() as client:
-            offset = 0
-            while task_runs := await client.read_task_runs(
-                task_run_filter=task_run_filter, sort=TaskRunSort.ID_DESC, offset=offset
-            ):
-                offset += len(task_runs)
-                for task_run in task_runs:
-                    if task_run.state is not None and task_run.state.is_final():
-                        self._mark_task_run_finished(task_run.id, task_run.state)
+            for batch in batched_iterable(task_run_ids, _TASK_RUN_POLLING_BATCH_SIZE):
+                task_run_filter = TaskRunFilter(
+                    id=TaskRunFilterId(any_=list(batch)),
+                    state=TaskRunFilterState(
+                        type=TaskRunFilterStateType(any_=list(TERMINAL_STATES))
+                    ),
+                )
+                offset = 0
+                while task_runs := await client.read_task_runs(
+                    task_run_filter=task_run_filter,
+                    sort=TaskRunSort.ID_DESC,
+                    offset=offset,
+                ):
+                    offset += len(task_runs)
+                    for task_run in task_runs:
+                        if task_run.state is not None and task_run.state.is_final():
+                            self._mark_task_run_finished(task_run.id, task_run.state)
 
     def _mark_task_run_finished(
         self, task_run_id: uuid.UUID, state: State[Any]
