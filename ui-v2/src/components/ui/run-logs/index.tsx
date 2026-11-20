@@ -179,9 +179,13 @@ const RunLogRow = ({ log, taskRunName, workerName }: RunLogRowProps) => {
 					{log.name}
 				</span>
 				{log.worker_id && (
-					<span className="break-all whitespace-normal" title={log.worker_id}>
+					<Badge
+						variant="outline"
+						className="max-w-full rounded-sm border-border px-1.5 text-right font-normal break-all whitespace-normal"
+						title={log.worker_id}
+					>
 						Worker: {workerName ?? log.worker_id}
-					</span>
+					</Badge>
 				)}
 			</div>
 		</div>
