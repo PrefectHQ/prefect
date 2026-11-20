@@ -941,8 +941,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             return
         if server_state and server_state.is_final():
             self.flow_run.state = server_state
-            self.flow_run.state_name = server_state.name
-            self.flow_run.state_type = server_state.type
             self._capture_state_report(server_state)
             return
         self.handle_crash(exc)
@@ -1702,8 +1700,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             return
         if server_state and server_state.is_final():
             self.flow_run.state = server_state
-            self.flow_run.state_name = server_state.name
-            self.flow_run.state_type = server_state.type
             self._capture_state_report(server_state)
             return
         await self.handle_crash(exc)
