@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
@@ -125,20 +125,25 @@ describe("FlowRunLogs", () => {
 		});
 	});
 
-	it("attributes each worker log without changing its message", async () => {
+	it("shows worker attribution only in the logger tooltip", async () => {
 		const flowRun = createFakeFlowRun({ work_pool_name: "my-work-pool" });
 		const submitter = createFakeWorkPoolWorker({ name: "worker-a" });
 		const otherWorkerId = "62e15371-2f99-48df-8491-62b5282cbc97";
 		server.use(
 			http.post(buildApiUrl("/logs/filter"), () =>
 				HttpResponse.json([
-					createFakeLog({ message: "Run started" }),
+					createFakeLog({
+						message: "Run started",
+						name: "prefect.flow_runs",
+					}),
 					createFakeLog({
 						message: "Submitted to infrastructure",
+						name: "prefect.flow_runs.worker",
 						worker_id: submitter.id,
 					}),
 					createFakeLog({
 						message: "Aborted submission",
+						name: "prefect.flow_runs.worker",
 						worker_id: otherWorkerId,
 					}),
 				]),
@@ -153,16 +158,35 @@ describe("FlowRunLogs", () => {
 
 		const rows = await screen.findAllByRole("listitem");
 		const [runLog, submitLog, abortLog] = rows;
-		expect(within(runLog).queryByText(/^Worker:/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/^Worker:/)).not.toBeInTheDocument();
+		expect(
+			within(runLog).queryByText("prefect.flow_runs", { selector: "button" }),
+		).not.toBeInTheDocument();
 		expect(
 			within(submitLog).getByText("Submitted to infrastructure"),
-		).toBeVisible();
+		).toBeInTheDocument();
+		act(() => {
+			within(submitLog)
+				.getByText("prefect.flow_runs.worker", { selector: "button" })
+				.focus();
+		});
 		expect(
-			await within(submitLog).findByText("Worker: worker-a"),
-		).toBeVisible();
+			await screen.findByText("Worker: worker-a", {
+				selector: '[role="tooltip"]',
+			}),
+		).toBeInTheDocument();
+		act(() => {
+			within(abortLog)
+				.getByText("prefect.flow_runs.worker", {
+					selector: "button",
+				})
+				.focus();
+		});
 		expect(
-			within(abortLog).getByText(`Worker: ${otherWorkerId}`),
-		).toBeVisible();
+			await screen.findByText(`Worker: ${otherWorkerId}`, {
+				selector: '[role="tooltip"]',
+			}),
+		).toBeInTheDocument();
 	});
 
 	it("handles empty logs response for scheduled flow runs", async () => {

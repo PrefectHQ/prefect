@@ -4,6 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 from typing import TYPE_CHECKING, Generator, Optional, Sequence, Tuple
+from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,6 +118,26 @@ async def read_logs(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+@db_injector
+async def read_flow_run_logs_with_worker_names(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run_id: UUID,
+    offset: int,
+    limit: int,
+) -> list[tuple[orm_models.Log, str | None]]:
+    """Read one page of flow run logs with any matching worker names."""
+    query = (
+        select(db.Log, db.Worker.name)
+        .outerjoin(db.Worker, db.Log.worker_id == db.Worker.id)
+        .where(db.Log.flow_run_id == flow_run_id)
+        .order_by(db.Log.timestamp, db.Log.id)
+        .offset(offset)
+        .limit(limit)
+    )
+    return [(log, worker_name) for log, worker_name in await session.execute(query)]
 
 
 @db_injector

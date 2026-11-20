@@ -5,6 +5,11 @@ import { format } from "date-fns-tz";
 import { useCallback, useEffect, useRef } from "react";
 import type { components } from "@/api/prefect";
 import { Badge } from "@/components/ui/badge";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/utils";
 import { renderLogMessage } from "./render-log-message";
 
@@ -175,17 +180,22 @@ const RunLogRow = ({ log, taskRunName, workerName }: RunLogRowProps) => {
 			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-muted-foreground truncate">
 				<span>{format(log.timestamp, "pp")}</span>
 				{taskRunName && <span>{taskRunName}</span>}
-				<span className="font-bold break-all whitespace-normal">
-					{log.name}
-				</span>
-				{log.worker_id && (
-					<Badge
-						variant="outline"
-						className="max-w-full rounded-sm border-border px-1.5 text-right font-normal break-all whitespace-normal"
-						title={log.worker_id}
-					>
-						Worker: {workerName ?? log.worker_id}
-					</Badge>
+				{log.worker_id ? (
+					<Tooltip>
+						<TooltipTrigger
+							type="button"
+							className="cursor-help text-right font-bold break-all whitespace-normal"
+						>
+							{log.name}
+						</TooltipTrigger>
+						<TooltipContent className="max-w-xs whitespace-normal wrap-anywhere">
+							Worker: {workerName ?? log.worker_id}
+						</TooltipContent>
+					</Tooltip>
+				) : (
+					<span className="font-bold break-all whitespace-normal">
+						{log.name}
+					</span>
 				)}
 			</div>
 		</div>

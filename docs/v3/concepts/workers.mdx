@@ -106,7 +106,7 @@ after it stopped sending heartbeats, but you can configure the threshold with th
 
 ### Identify the worker that wrote a flow run log
 
-In the self-hosted React UI, open **Logs** on a flow run to see which worker wrote each worker-generated entry, such as a submission or abort message. The UI shows the worker name when it can find the worker in the work pool and shows the worker ID otherwise. The REST API returns the same attribution in the `worker_id` field.
+In the self-hosted React UI, open **Logs** on a flow run and hover over or focus the logger name on a worker-generated entry, such as a submission or abort message. The tooltip shows the worker name when available and the worker ID otherwise. The CSV download includes the worker ID and, when available, the worker name. The REST API returns the worker ID in the `worker_id` field.
 
 ### Worker logs
 
