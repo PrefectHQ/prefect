@@ -1092,7 +1092,15 @@ async def download_logs(
         csv_writer = csv.writer(data)
 
         csv_writer.writerow(
-            ["timestamp", "level", "flow_run_id", "task_run_id", "message"]
+            [
+                "timestamp",
+                "level",
+                "flow_run_id",
+                "task_run_id",
+                "message",
+                "worker_id",
+                "worker_name",
+            ]
         )
         data.seek(0)
         yield data.read()
@@ -1104,14 +1112,11 @@ async def download_logs(
 
         async with db.session_context() as session:
             while True:
-                results = await models.logs.read_logs(
+                results = await models.logs.read_flow_run_logs_with_worker_names(
                     session=session,
-                    log_filter=schemas.filters.LogFilter(
-                        flow_run_id={"any_": [flow_run_id]}
-                    ),
+                    flow_run_id=flow_run_id,
                     offset=offset,
                     limit=limit,
-                    sort=schemas.sorting.LogSort.TIMESTAMP_ASC,
                 )
 
                 if not results:
@@ -1119,7 +1124,13 @@ async def download_logs(
 
                 offset += limit
 
-                for log in results:
+                for log, worker_name in results:
+                    # Keep worker names that resemble formulas as text in spreadsheets.
+                    if worker_name and (
+                        worker_name.startswith(("\t", "\r", "\n"))
+                        or worker_name.lstrip().startswith(("=", "+", "-", "@"))
+                    ):
+                        worker_name = f"'{worker_name}"
                     csv_writer.writerow(
                         [
                             log.timestamp,
@@ -1127,6 +1138,8 @@ async def download_logs(
                             log.flow_run_id,
                             log.task_run_id,
                             log.message,
+                            log.worker_id,
+                            worker_name,
                         ]
                     )
                     data.seek(0)
