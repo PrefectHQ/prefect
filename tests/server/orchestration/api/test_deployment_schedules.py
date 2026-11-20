@@ -173,6 +173,10 @@ class TestCreateDeploymentSchedules:
         )
 
         assert response.status_code == status.HTTP_409_CONFLICT
+        assert (
+            response.json()["detail"]
+            == "Schedule slugs must be unique within a deployment."
+        )
 
     async def test_create_hydrates_parameters(
         self,
