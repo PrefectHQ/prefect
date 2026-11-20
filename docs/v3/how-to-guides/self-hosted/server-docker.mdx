@@ -38,6 +38,42 @@ prefect dashboard open
 
 For more information, see the Docker topic about [Networking using the host network](https://docs.docker.com/network/network-tutorial-host/).
 
+## Run as a non-root user
+
+The image runs as root by default. To run as the built-in `prefect` user, use `--user 1001` (or `--user prefect`):
+
+```bash
+docker run --rm --user 1001 -p 4200:4200 \
+  -e PREFECT_UI_STATIC_DIRECTORY=/tmp/prefect-ui \
+  prefecthq/prefect:3-latest prefect server start --host 0.0.0.0
+```
+
+This user has primary group 0 and home `/home/prefect`, so the default Prefect home, `~/.prefect`, is writable.
+Both `/home/prefect` and `/opt/prefect` are writable by group 0, including arbitrary user IDs in that group.
+Root continues to use `/root/.prefect`.
+
+Set `PREFECT_UI_STATIC_DIRECTORY` to a writable directory so the server can prepare both UI bundles. The server creates separate `v1` and `v2` subdirectories there instead of writing to the installed package directory.
+
+For a read-only root filesystem, provide writable temporary storage with `--tmpfs /tmp` and set `PREFECT_HOME` to a directory there:
+
+```bash
+docker run --rm --user 1001 --read-only --tmpfs /tmp \
+  -e PREFECT_HOME=/tmp/.prefect -p 4200:4200 \
+  -e PREFECT_UI_STATIC_DIRECTORY=/tmp/prefect-ui \
+  prefecthq/prefect:3-latest prefect server start --host 0.0.0.0
+```
+
+For an arbitrary UID without an `/etc/passwd` entry, `HOME` defaults to `/`. Set `PREFECT_HOME` explicitly to a writable directory even without `--read-only`:
+
+```bash
+docker run --rm --user 12345:0 --read-only --tmpfs /tmp \
+  -e PREFECT_HOME=/tmp/.prefect -p 4200:4200 \
+  -e PREFECT_UI_STATIC_DIRECTORY=/tmp/prefect-ui \
+  prefecthq/prefect:3-latest prefect server start --host 0.0.0.0
+```
+
+Data in `/tmp` is ephemeral. To persist server data, mount a writable volume and set `PREFECT_HOME` to that location instead. Ensure the volume permissions allow your container user to write to it.
+
 ## Further reading
 
 - [How to scale self-hosted Prefect](/v3/advanced/self-hosted)
