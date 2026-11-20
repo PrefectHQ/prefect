@@ -174,8 +174,8 @@ class IntervalSchedule(PrefectBaseModel):
     continue to fire at 9am in the local time zone.
 
     On Python 3.13 and later, an ISO 8601 duration with months or years, such
-    as `"P1M"`, is kept as a calendar interval and runs on the same day of each
-    month. Other durations are `datetime.timedelta` values.
+    as `"P1M"`, is kept as a calendar interval and advances one calendar month
+    at a time. Other durations are `datetime.timedelta` values.
 
     Args:
         interval (datetime.timedelta): an interval to schedule on
