@@ -467,7 +467,7 @@ async def resolve_block_document_references(
             else:
                 # Inline substitution: replace each block placeholder with its resolved value.
                 # Any non-block placeholders are left intact for later resolution.
-                result = tmpl
+                replacements: dict[str, str] = {}
                 for placeholder in placeholders:
                     if placeholder.type is not PlaceholderType.BLOCK_DOCUMENT:
                         continue
@@ -479,9 +479,17 @@ async def resolve_block_document_references(
                             " which cannot be used for inline string substitution."
                             " Resolve a scalar attribute instead (e.g., '.value' or '.url')."
                         )
-                    result = result.replace(placeholder.full_match, str(value))
+                    replacements[placeholder.full_match] = str(value)
 
-                return cast(T, result)
+                # Substitute in a single pass over the original template so that
+                # inserted values are never themselves treated as placeholders.
+                return cast(
+                    T,
+                    PLACEHOLDER_CAPTURE_REGEX.sub(
+                        lambda match: replacements.get(match.group(1), match.group(1)),
+                        tmpl,
+                    ),
+                )
 
         return tmpl
 
@@ -545,14 +553,23 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
                 else:
                     return cast(T, value)
             else:
+                replacements: dict[str, str] = {}
                 for full_match, name, placeholder_type in placeholders:
                     if placeholder_type is PlaceholderType.VARIABLE:
                         value = await _read_variable(name)
-                        if value is _MISSING:
-                            tmpl = tmpl.replace(full_match, "")
-                        else:
-                            tmpl = tmpl.replace(full_match, str(value))
-                return tmpl
+                        replacements[full_match] = (
+                            "" if value is _MISSING else str(value)
+                        )
+
+                # Substitute in a single pass over the original template so that
+                # inserted values are never themselves treated as placeholders.
+                return cast(
+                    T,
+                    PLACEHOLDER_CAPTURE_REGEX.sub(
+                        lambda match: replacements.get(match.group(1), match.group(1)),
+                        tmpl,
+                    ),
+                )
         elif isinstance(tmpl, dict):
             return {key: await _resolve(value) for key, value in tmpl.items()}
         elif isinstance(tmpl, list):
