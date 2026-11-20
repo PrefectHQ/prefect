@@ -2012,6 +2012,31 @@ class TestPreprocessSchemaBlockTypes:
         assert "Secret" in result["definitions"]
         assert "oneOf" in result["definitions"]["Secret"]
 
+    def test_block_type_slug_in_defs_accepts_block_reference(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "registry_credentials": {"$ref": "#/$defs/DockerRegistryCredentials"}
+            },
+            "$defs": {
+                "DockerRegistryCredentials": {
+                    "title": "DockerRegistryCredentials",
+                    "type": "object",
+                    "block_type_slug": "docker-registry",
+                    "properties": {"username": {"type": "string"}},
+                    "required": ["username"],
+                }
+            },
+        }
+
+        values = {
+            "registry_credentials": {
+                "$ref": {"block_document_id": "00000000-0000-0000-0000-000000000000"}
+            }
+        }
+
+        assert not validate(values, schema)
+
 
 class TestPreprocessSchemaPydanticV2Tuples:
     # We should always be conforming to PydanticV2 and there should
