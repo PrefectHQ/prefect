@@ -15,13 +15,14 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.result_records import ResultRecordMetadata
+from prefect._internal.testing import retry_asserts
 from prefect.server import schemas
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.database import orm_models as orm
-from prefect.server.database import provide_database_interface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import (
     concurrency_limits,
@@ -99,6 +100,15 @@ def transition_names(transition):
     initial = f"{transition[0].name if transition[0] else None}"
     proposed = f" => {transition[1].name if transition[1] else None}"
     return initial + proposed
+
+
+async def commit_and_assert_lease_revoked(session: AsyncSession, lease_id: UUID):
+    """Commit the session and wait for the deferred revocation of `lease_id`."""
+    await session.commit()
+    lease_storage = get_concurrency_lease_storage()
+    async for attempt in retry_asserts(max_attempts=10, delay=0.05):
+        with attempt:
+            assert await lease_storage.read_lease(lease_id) is None
 
 
 async def assert_deployment_concurrency_limit(
@@ -5925,11 +5935,79 @@ class TestFlowConcurrencyLimits:
 
         assert exit_ctx.response_status == SetStateStatus.ACCEPT
         assert exit_ctx.validated_state.type == proposed_state_type
-        lease_storage = get_concurrency_lease_storage()
-        assert await lease_storage.read_lease(lease_id) is None
+        await commit_and_assert_lease_revoked(session, lease_id)
         await assert_deployment_concurrency_limit(
             session, deployment, expected_limit=2, expected_active_slots=1
         )
+
+    async def test_rolled_back_exit_from_blocking_pause_can_be_retried(
+        self,
+        session: AsyncSession,
+        db: PrefectDBInterface,
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        concurrency_limit_id = deployment.concurrency_limit_id
+        assert concurrency_limit_id is not None
+        await concurrency_limits_v2.bulk_increment_active_slots(
+            session=session, concurrency_limit_ids=[concurrency_limit_id], slots=1
+        )
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit_id],
+            ttl=timedelta(seconds=60),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        flow_run = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Paused(
+                    reschedule=False,
+                    state_details={"deployment_concurrency_lease_id": lease.id},
+                ),
+            ),
+        )
+        flow_run_id = flow_run.id
+        await session.commit()
+
+        class TransitionFailed(Exception):
+            pass
+
+        async def complete_paused_run(transition_session: AsyncSession) -> None:
+            result = await flow_runs.set_flow_run_state(
+                session=transition_session,
+                flow_run_id=flow_run_id,
+                state=states.Completed(),
+            )
+            assert result.status == SetStateStatus.ACCEPT
+
+        async def read_active_slots() -> int:
+            async with db.session_context() as read_session:
+                limit = await concurrency_limits_v2.read_concurrency_limit(
+                    session=read_session, concurrency_limit_id=concurrency_limit_id
+                )
+                assert limit is not None
+                return limit.active_slots
+
+        with pytest.raises(TransitionFailed):
+            async with db.session_context(begin_transaction=True) as failed_session:
+                await complete_paused_run(failed_session)
+                raise TransitionFailed
+
+        assert await lease_storage.read_lease(lease.id) is not None
+        assert await read_active_slots() == 1
+
+        async with db.session_context(begin_transaction=True) as retry_session:
+            await complete_paused_run(retry_session)
+
+        assert await read_active_slots() == 0
+        async for attempt in retry_asserts(max_attempts=10, delay=0.05):
+            with attempt:
+                assert await lease_storage.read_lease(lease.id) is None
 
     async def test_blocking_pause_without_live_lease_releases_slot_once(
         self,
@@ -6093,8 +6171,7 @@ class TestFlowConcurrencyLimits:
 
         assert resume_ctx.response_status == SetStateStatus.REJECT
         assert resume_ctx.validated_state.type == states.StateType.FAILED
-        lease_storage = get_concurrency_lease_storage()
-        assert await lease_storage.read_lease(lease_id) is None
+        await commit_and_assert_lease_revoked(session, lease_id)
         await assert_deployment_concurrency_limit(
             session, deployment, expected_limit=1, expected_active_slots=0
         )

@@ -35,7 +35,7 @@ from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import (
     MinimalFlowPolicy,
     _is_leased_blocking_pause,
-    _release_concurrency_lease,
+    _release_concurrency_lease_on_commit,
 )
 from prefect.server.orchestration.global_policy import GlobalFlowPolicy
 from prefect.server.orchestration.policies import (
@@ -362,7 +362,7 @@ async def cleanup_flow_run_concurrency_slots(
     if flow_run.deployment_id and state and _is_leased_blocking_pause(state):
         lease_id = state.state_details.deployment_concurrency_lease_id
         assert lease_id is not None
-        await _release_concurrency_lease(session=session, lease_id=lease_id)
+        await _release_concurrency_lease_on_commit(session=session, lease_id=lease_id)
         return
 
     if (
