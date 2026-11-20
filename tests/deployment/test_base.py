@@ -1,12 +1,17 @@
+import datetime
 import shutil
+import sys
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 import yaml
 
 import prefect
+from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.deployments.base import (
     _deployment_already_saved_to_prefect_file,
+    _interval_schedule_to_dict,
     configure_project_by_recipe,
     initialize_project,
 )
@@ -195,3 +200,19 @@ class TestDeploymentAlreadySavedToPrefectFile:
         assert not _deployment_already_saved_to_prefect_file(
             {"name": "x", "entrypoint": "flows/hello.py:my_flow"},
         )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 13),
+    reason="Calendar intervals need Python 3.13+, where the shared Interval type includes them",
+)
+def test_calendar_interval_is_saved_as_its_iso_duration():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/16371
+    """
+    anchor = datetime.datetime(2024, 1, 1, tzinfo=ZoneInfo("UTC"))
+    monthly = IntervalSchedule(interval="P1M", anchor_date=anchor)
+    hourly = IntervalSchedule(interval=3600, anchor_date=anchor)
+
+    assert _interval_schedule_to_dict(monthly)["interval"] == "P1M"
+    assert _interval_schedule_to_dict(hourly)["interval"] == 3600

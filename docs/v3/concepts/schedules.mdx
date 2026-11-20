@@ -99,6 +99,8 @@ The `interval` value accepts multiple formats:
 - ISO 8601 duration strings: `PT10M` (10 minutes), `PT1H30M` (1 hour 30 minutes), `P1D` (1 day)
 - Time format strings: `1:30:00` (1 hour 30 minutes), `00:10:00` (10 minutes)
 
+ISO 8601 durations with months or years, such as `P1M` or `P1Y`, are calendar intervals when Prefect runs on Python 3.13 or later: a `P1M` schedule anchored on January 1 runs on the first of every month. On Python 3.10 to 3.12, months count as 30 days and years as 365 days.
+
 ```yaml
 schedule:
   interval: PT10M  # 10 minutes, equivalent to 600
