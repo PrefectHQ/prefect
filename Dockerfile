@@ -230,4 +230,7 @@ RUN prefect version
 
 # Setup entrypoint
 COPY scripts/entrypoint.sh ./entrypoint.sh
+RUN useradd --uid 1001 --gid 0 --create-home --home-dir /home/prefect prefect && \
+    chgrp -R 0 /home/prefect /opt/prefect && \
+    chmod -R g=u /home/prefect /opt/prefect
 ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/opt/prefect/entrypoint.sh"]
