@@ -290,6 +290,26 @@ Then run another process with the complementary set of services enabled. As long
 
 <Note>
 Some services maintain their own at-least-once semantics at the database or Redis level rather than relying on Docket's run-once guarantee. Running multiple processes with the same service enabled is supported, but starting with one process per service (and scaling up only when you observe a specific bottleneck) keeps operations simple.
+
+### When to scale an individual background service
+
+Isolate a *specific* service only when that service falls behind—not as the default for every deployment. `prefect server services start` always starts every **enabled** service in the process; there is no `--only` flag. To dedicate a process to one service, disable the others with the matching `PREFECT_API_SERVICES_*_ENABLED` / service enable settings (as in the examples above), then start another process with the complementary set enabled.
+
+| Signal | Likely bottleneck | What to try first |
+| --- | --- | --- |
+| Scheduled runs appear late; `PREFECT_API_SERVICES_SCHEDULER_*` loop lags | Scheduler | Run a process with only the scheduler enabled, or raise scheduler concurrency settings before adding many replicas |
+| Automations fire late after events | Automations / triggers | Isolate automation services via enable flags; confirm Redis/Docket latency is healthy |
+| Event or log retention grows; trim/vacuum jobs overdue | Persistence / maintenance services | Isolate those services; check Postgres load before adding replicas |
+| API latency is high but background work is fine | API servers | Scale API replicas (`prefect server start --no-services`), not background services |
+| Background CPU high while Postgres waits | Too many service processes fighting the DB | Reduce replicas; fix DB capacity or connection pooling |
+
+**Heuristics:**
+
+1. Confirm the symptom is service backlog (delayed schedules, overdue maintenance), not API or database saturation.
+2. Prefer configuration changes (batch sizes, intervals, Redis/Docket health) before horizontal scale.
+3. Change one service's enable set at a time, and keep a single process for services that are not the bottleneck.
+4. If Postgres or Redis is the limiter, adding more service replicas usually makes the backlog worse—capacity-plan the dependency first.
+
 </Note>
 
 ### Database migrations
