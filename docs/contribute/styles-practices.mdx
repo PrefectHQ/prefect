@@ -200,7 +200,7 @@ Start a worker to pick up flow runs from the work queue:
     prefect worker start -q 'abcde' -p 'my-pool'
 
 Inspect the work queue:
-    prefect work-queue inspect 'abcde'
+    prefect work-queue inspect 'abcde' -p 'my-pool'
 
 ```
 
@@ -240,7 +240,7 @@ output_msg = dedent(
         prefect worker start -q {name!r} -p {pool!r}
 
     Inspect the work queue:
-        prefect work-queue inspect {name!r}
+        prefect work-queue inspect {name!r} -p {pool!r}
     """
 )
 

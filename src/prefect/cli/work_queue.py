@@ -64,6 +64,11 @@ async def _get_work_queue_id_from_name_or_id(
                 )
 
 
+def _shell_quote(value: str) -> str:
+    """Single-quote a value so it can be pasted into a POSIX shell command."""
+    return "'" + value.replace("'", "'\"'\"'") + "'"
+
+
 @work_queue_app.command(name="create")
 @with_cli_exception_handling
 async def create(
@@ -123,18 +128,26 @@ async def create(
         except ObjectNotFound:
             exit_with_error(f"Work pool with name: {pool!r} not found.")
 
+    queue_arg = _shell_quote(result.name)
+    pool_arg = _shell_quote(pool_name)
     if work_pool_type == "prefect-agent":
+        queue_options = ""
+        if limit is not None:
+            queue_options += f" -l {limit}"
+        if priority is not None:
+            queue_options += f" -q {priority}"
         next_steps = (
             f"Workers cannot poll {pool_name!r} because it is a 'prefect-agent'"
             " typed work pool.\nTo pick up flow runs, create the work queue in a"
             " work pool with a worker type:\n"
             "    prefect work-pool create '<WORK POOL NAME>' --type process\n"
-            f"    prefect work-queue create {result.name!r} -p '<WORK POOL NAME>'\n"
+            f"    prefect work-queue create {queue_arg} -p '<WORK POOL NAME>'"
+            f"{queue_options}\n"
         )
     else:
         next_steps = (
             "Start a worker to pick up flow runs from the work queue:\n"
-            f"    prefect worker start -q {result.name!r} -p {pool_name!r}\n"
+            f"    prefect worker start -q {queue_arg} -p {pool_arg}\n"
         )
     output_msg = (
         dedent(
@@ -150,7 +163,7 @@ async def create(
         + dedent(
             f"""
             Inspect the work queue:
-                prefect work-queue inspect {result.name!r}
+                prefect work-queue inspect {queue_arg} -p {pool_arg}
             """
         )
     )
