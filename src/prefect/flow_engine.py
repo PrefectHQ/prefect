@@ -955,6 +955,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if server_state and (server_state.is_final() or server_state.is_paused()):
             self.flow_run.state = server_state
             self._capture_state_report(server_state)
+            self._telemetry.update_state(server_state)
+            if server_state.is_completed():
+                self._telemetry.end_span_on_success()
+            elif server_state.is_final():
+                self._telemetry.end_span_on_failure(server_state.message)
             return True
         return False
 
@@ -1707,19 +1712,22 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         Crash the run unless the server already has a final or paused state,
         e.g. a `Completed` proposal that committed but whose response was lost.
         """
-        if await self._adopt_final_or_paused_server_state():
-            return
-        try:
-            # Not forced, so the server rejects the crash if the run became
-            # final after the read above
-            await self._set_crashed_state(exc, force=False)
-        except Abort as abort:
-            self.logger.debug(f"Crash not reported: {abort}")
-            self._attempt_conclusion = EngineOutcomeReceipt.orchestration_aborted()
-        except Exception:
-            self.logger.debug("Unable to report crash", exc_info=True)
-            # The crash may have committed even though its response was lost
-            await self._adopt_final_or_paused_server_state()
+        # need to shield from asyncio cancellation to ensure we update the state
+        # on the server before exiting
+        with CancelScope(shield=True):
+            if await self._adopt_final_or_paused_server_state():
+                return
+            try:
+                # Not forced, so the server rejects the crash if the run became
+                # final after the read above
+                await self._set_crashed_state(exc, force=False)
+            except Abort as abort:
+                self.logger.debug(f"Crash not reported: {abort}")
+                self._attempt_conclusion = EngineOutcomeReceipt.orchestration_aborted()
+            except Exception:
+                self.logger.debug("Unable to report crash", exc_info=True)
+                # The crash may have committed even though its response was lost
+                await self._adopt_final_or_paused_server_state()
 
     async def _adopt_final_or_paused_server_state(self) -> bool:
         try:
@@ -1730,6 +1738,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if server_state and (server_state.is_final() or server_state.is_paused()):
             self.flow_run.state = server_state
             self._capture_state_report(server_state)
+            self._telemetry.update_state(server_state)
+            if server_state.is_completed():
+                self._telemetry.end_span_on_success()
+            elif server_state.is_final():
+                self._telemetry.end_span_on_failure(server_state.message)
             return True
         return False
 
