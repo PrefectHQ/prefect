@@ -74,6 +74,7 @@ class WorkPoolWorkerChannel:
         self._work_pool_is_available = work_pool_is_available
         self._logger = logger
         self._cleanup_executor = cleanup_executor
+        self._rest_worker_id_supported = True
 
         self.consumer_id = uuid7()
         self.state = WorkerChannelState()
@@ -192,7 +193,9 @@ class WorkPoolWorkerChannel:
             self._logger.debug("Worker has no work pool; skipping heartbeat.")
             return None
 
-        should_get_worker_id = self._protocol.worker_id is None
+        should_get_worker_id = (
+            self._rest_worker_id_supported and self._protocol.worker_id is None
+        )
 
         params: dict[str, Any] = {
             "work_pool_name": self.work_pool_name,
@@ -213,11 +216,12 @@ class WorkPoolWorkerChannel:
             worker_id = await self._client.send_worker_heartbeat(**params)
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 422 and should_get_worker_id:
+                params["get_worker_id"] = False
+                worker_id = await self._client.send_worker_heartbeat(**params)
+                self._rest_worker_id_supported = False
                 self._logger.warning(
                     "Failed to retrieve worker ID from the Prefect API server."
                 )
-                params["get_worker_id"] = False
-                worker_id = await self._client.send_worker_heartbeat(**params)
             else:
                 raise
 

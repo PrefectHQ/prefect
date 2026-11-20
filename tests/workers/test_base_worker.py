@@ -541,6 +541,43 @@ async def test_worker_heartbeats_against_server_without_worker_ids(
         assert json.loads(heartbeat.calls.last.request.content)["return_id"] is True
 
 
+async def test_worker_only_probes_once_if_server_rejects_worker_id(
+    respx_mock: respx.MockRouter,
+    worker_channel_endpoint_unavailable: None,
+    work_pool: WorkPool,
+    caplog: pytest.LogCaptureFixture,
+):
+    respx_mock.get(f"api/work_pools/{work_pool.name}").pass_through()
+    respx_mock.get("api/csrf-token?").pass_through()
+    heartbeat = respx_mock.post(
+        f"api/work_pools/{work_pool.name}/workers/heartbeat",
+    )
+    heartbeat.mock(
+        side_effect=lambda request: httpx.Response(
+            422
+            if "return_id" in json.loads(request.content)
+            else status.HTTP_204_NO_CONTENT
+        )
+    )
+
+    async with WorkerTestImpl(name="test", work_pool_name=work_pool.name) as worker:
+        await worker.sync_with_backend()
+        await worker.sync_with_backend()
+
+        assert worker.backend_id is None
+
+    requests_with_id = [
+        "return_id" in json.loads(call.request.content) for call in heartbeat.calls
+    ]
+    assert requests_with_id == [True, False, False, False]
+    assert (
+        caplog.messages.count(
+            "Failed to retrieve worker ID from the Prefect API server."
+        )
+        == 1
+    )
+
+
 async def test_worker_sends_heartbeat_only_gets_id_once(
     worker_channel_endpoint_unavailable: None,
 ):

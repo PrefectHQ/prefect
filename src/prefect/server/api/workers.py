@@ -1278,7 +1278,11 @@ async def worker_heartbeat(
     heartbeat_interval_seconds: Optional[int] = Body(
         None, description="The worker's heartbeat interval in seconds", embed=True
     ),
-    return_id: bool = Body(False, description="Return the worker ID.", embed=True),
+    return_id: bool = Body(
+        default_factory=lambda: False,
+        description="Return the worker ID. Defaults to false.",
+        embed=True,
+    ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> Response:

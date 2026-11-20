@@ -5269,10 +5269,9 @@ export interface components {
             heartbeat_interval_seconds?: number | null;
             /**
              * Return Id
-             * @description Return the worker ID.
-             * @default false
+             * @description Return the worker ID. Defaults to false.
              */
-            return_id: boolean;
+            return_id?: boolean;
         };
         /**
          * CLISettings

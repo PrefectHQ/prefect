@@ -3113,6 +3113,22 @@ class TestWorkerChannelConnect:
 
 
 class TestWorkerProcess:
+    async def test_heartbeat_return_id_is_optional_in_openapi(
+        self, client: AsyncClient
+    ):
+        response = await client.get("/openapi.json")
+        assert response.status_code == status.HTTP_200_OK
+        openapi = response.json()
+        path = openapi["paths"]["/work_pools/{work_pool_name}/workers/heartbeat"]
+        schema_ref = path["post"]["requestBody"]["content"]["application/json"][
+            "schema"
+        ]["$ref"]
+        schema = openapi["components"]["schemas"][schema_ref.rsplit("/", 1)[-1]]
+        return_id = schema["properties"]["return_id"]
+        assert "return_id" not in schema["required"]
+        assert return_id["type"] == "boolean"
+        assert "default" not in return_id
+
     async def test_heartbeat_returns_worker_id_on_request(
         self, client: AsyncClient, work_pool: WorkPool
     ):
