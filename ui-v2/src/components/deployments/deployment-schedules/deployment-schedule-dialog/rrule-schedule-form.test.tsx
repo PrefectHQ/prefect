@@ -1,10 +1,4 @@
-import {
-	fireEvent,
-	render,
-	screen,
-	waitFor,
-	within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper, server } from "@tests/utils";
 import { buildApiUrl } from "@tests/utils/handlers";
@@ -72,11 +66,6 @@ describe("RRuleScheduleForm", () => {
 		};
 		const onSubmit = setup(undefined, overrides);
 		expect(screen.getByLabelText("Time (UTC)")).toHaveValue("09:00");
-		expect(
-			screen
-				.getByRole("region", { name: "Upcoming runs" })
-				.querySelectorAll("time"),
-		).toHaveLength(5);
 		await userEvent.click(screen.getByRole("switch", { name: "Active" }));
 		await userEvent.click(screen.getByRole("button", { name: "Save" }));
 		await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
@@ -146,25 +135,18 @@ describe("RRuleScheduleForm", () => {
 			},
 		);
 		expect(screen.getByText(/Save updates only Active/)).toBeVisible();
-		expect(
-			screen.queryByRole("region", { name: "Upcoming runs" }),
-		).not.toBeInTheDocument();
 		expect(screen.queryByLabelText(/select timezone/i)).not.toBeInTheDocument();
 		await userEvent.click(screen.getByRole("switch", { name: "Active" }));
 		await userEvent.click(screen.getByRole("button", { name: "Save" }));
 		await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
 		expect(body).toEqual({ active: false, parameters: { name: "changed" } });
 	});
-	it("blocks Save and stale preview while the builder has an invalid draft", async () => {
+	it("blocks Save while the builder has an invalid draft", async () => {
 		setup();
 		fireEvent.change(screen.getByLabelText("Repeat every"), {
 			target: { value: "" },
 		});
 		expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-		expect(
-			screen.getByText("Enter a valid recurrence to see upcoming runs."),
-		).toBeVisible();
-		expect(screen.queryAllByRole("listitem")).toHaveLength(0);
 		fireEvent.change(screen.getByLabelText("Repeat every"), {
 			target: { value: "2" },
 		});
@@ -214,25 +196,5 @@ describe("RRuleScheduleForm", () => {
 		expect(screen.getByLabelText("Time (America/Chicago)")).toHaveValue(
 			"09:00",
 		);
-		expect(
-			within(screen.getByRole("region", { name: "Upcoming runs" })).getByRole(
-				"heading",
-			),
-		).toHaveTextContent("America/Chicago");
-	});
-	it("shows exhausted and computation-limit states", () => {
-		setup({
-			...existing,
-			schedule: {
-				rrule:
-					"DTSTART;TZID=UTC:20000401T090000\nRRULE:FREQ=MONTHLY;INTERVAL=12;BYMONTHDAY=31",
-				timezone: "UTC",
-			},
-		});
-		expect(
-			screen.getByText(
-				"Couldn't compute upcoming runs within the preview limit.",
-			),
-		).toBeVisible();
 	});
 });

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -25,7 +25,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
 import type { CronScheduleFormProps } from "./cron-schedule-form";
-import { previewRRule } from "./rrule-schedule-preview";
 import { ScheduleParameterOverridesFormSection } from "./schedule-parameter-overrides-form-section";
 
 const schema = z.object({
@@ -65,13 +64,6 @@ export function RRuleScheduleForm({
 		resolver: zodResolver(schema),
 	});
 	const schedule = form.watch("schedule");
-	const preview = useMemo(
-		() =>
-			readOnly || !valid
-				? null
-				: previewRRule(schedule.rrule, schedule.timezone),
-		[schedule.rrule, schedule.timezone, readOnly, valid],
-	);
 	const { createDeploymentSchedule, isPending: creating } =
 		useCreateDeploymentSchedule();
 	const { updateDeploymentSchedule, isPending: updating } =
@@ -192,42 +184,6 @@ export function RRuleScheduleForm({
 						</FormItem>
 					)}
 				/>
-				{!readOnly && (
-					<section aria-label="Upcoming runs" className="space-y-2">
-						<h3 className="text-sm font-medium">
-							Upcoming runs ({schedule.timezone})
-						</h3>
-						{!valid ? (
-							<p className="text-sm text-muted-foreground">
-								Enter a valid recurrence to see upcoming runs.
-							</p>
-						) : preview?.status === "ready" ? (
-							preview.dates.length ? (
-								<ol className="space-y-1 text-sm">
-									{preview.dates.map((date) => (
-										<li key={date.toISOString()}>
-											<time dateTime={date.toISOString()}>
-												{new Intl.DateTimeFormat("en-US", {
-													timeZone: schedule.timezone,
-													dateStyle: "medium",
-													timeStyle: "long",
-												}).format(date)}
-											</time>
-										</li>
-									))}
-								</ol>
-							) : (
-								<p className="text-sm text-muted-foreground">
-									No upcoming runs.
-								</p>
-							)
-						) : (
-							<p className="text-sm text-muted-foreground">
-								{"Couldn't compute upcoming runs within the preview limit."}
-							</p>
-						)}
-					</section>
-				)}
 				{parameterOverrides && (
 					<ScheduleParameterOverridesFormSection {...parameterOverrides} />
 				)}
