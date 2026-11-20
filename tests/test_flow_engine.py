@@ -1200,6 +1200,94 @@ async def test_crash_does_not_overwrite_final_state_set_after_server_read(
 
 
 @pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+async def test_setup_failure_does_not_crash_run_paused_on_server(
+    async_flow: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def body() -> None:
+        pass
+
+    async def async_body() -> None:
+        pass
+
+    test_flow = flow(async_body if async_flow else body)
+    flow_run = await prefect_client.create_flow_run(test_flow)
+
+    def pause_then_fail() -> None:
+        # Another actor pauses the run before setup fails
+        with get_client(sync_client=True) as client:
+            client.set_flow_run_state(
+                flow_run.id, states.Paused(timeout_seconds=300), force=True
+            )
+        raise ValueError("setup failed")
+
+    monkeypatch.setattr(flow_engine_module, "get_result_store", pause_then_fail)
+
+    with pytest.raises(ValueError, match="setup failed"):
+        if async_flow:
+            await run_flow_async(test_flow, flow_run=flow_run)
+        else:
+            run_flow_sync(test_flow, flow_run=flow_run)
+
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    assert saved_run.state.is_paused()
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+async def test_setup_failure_crashes_run_when_server_read_fails(
+    async_flow: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def body() -> None:
+        pass
+
+    async def async_body() -> None:
+        pass
+
+    test_flow = flow(async_body if async_flow else body)
+    flow_run = await prefect_client.create_flow_run(test_flow)
+
+    reads_fail = False
+
+    def fail_setup() -> None:
+        nonlocal reads_fail
+        reads_fail = True
+        raise ValueError("setup failed")
+
+    original_read = SyncPrefectClient.read_flow_run
+    original_read_async = PrefectClient.read_flow_run
+
+    def read_flow_run(self: SyncPrefectClient, flow_run_id: UUID) -> FlowRun:
+        if reads_fail:
+            raise ConnectionError("read failed")
+        return original_read(self, flow_run_id)
+
+    async def read_flow_run_async(self: PrefectClient, flow_run_id: UUID) -> FlowRun:
+        if reads_fail:
+            raise ConnectionError("read failed")
+        return await original_read_async(self, flow_run_id)
+
+    monkeypatch.setattr(flow_engine_module, "get_result_store", fail_setup)
+    monkeypatch.setattr(SyncPrefectClient, "read_flow_run", read_flow_run)
+    monkeypatch.setattr(PrefectClient, "read_flow_run", read_flow_run_async)
+
+    with pytest.raises(ValueError, match="setup failed"):
+        if async_flow:
+            await run_flow_async(test_flow, flow_run=flow_run)
+        else:
+            run_flow_sync(test_flow, flow_run=flow_run)
+
+    reads_fail = False
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    assert saved_run.state.is_crashed()
+    assert "setup failed" in saved_run.state.message
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
 async def test_result_storage_failure_does_not_trigger_failure_hook(
     async_flow: bool,
     prefect_client: PrefectClient,

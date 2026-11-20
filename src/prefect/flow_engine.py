@@ -929,29 +929,39 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
     def _handle_crash_unless_final_on_server(self, exc: Exception) -> None:
         """
-        Crash the run unless the server already has a final state, e.g. a
-        `Completed` proposal that committed but whose response was lost.
+        Crash the run unless the server already has a final or paused state,
+        e.g. a `Completed` proposal that committed but whose response was lost.
         """
-        try:
-            server_state = self.client.read_flow_run(self.flow_run.id).state
-        except Exception:
-            self.logger.debug(
-                "Unable to read flow run state; not reporting a crash", exc_info=True
-            )
-            return
-        if server_state and server_state.is_final():
-            self.flow_run.state = server_state
-            self._capture_state_report(server_state)
+        if self._adopt_final_or_paused_server_state():
             return
         try:
             # Not forced, so the server rejects the crash if the run became
             # final after the read above
-            self.handle_crash(exc, force=False)
+            self._set_crashed_state(exc, force=False)
         except Abort as abort:
             self.logger.debug(f"Crash not reported: {abort}")
             self._attempt_conclusion = EngineOutcomeReceipt.orchestration_aborted()
+        except Exception:
+            self.logger.debug("Unable to report crash", exc_info=True)
+            # The crash may have committed even though its response was lost
+            self._adopt_final_or_paused_server_state()
 
-    def handle_crash(self, exc: BaseException, force: bool = True) -> None:
+    def _adopt_final_or_paused_server_state(self) -> bool:
+        try:
+            server_state = self.client.read_flow_run(self.flow_run.id).state
+        except Exception:
+            self.logger.debug("Unable to read flow run state", exc_info=True)
+            return False
+        if server_state and (server_state.is_final() or server_state.is_paused()):
+            self.flow_run.state = server_state
+            self._capture_state_report(server_state)
+            return True
+        return False
+
+    def handle_crash(self, exc: BaseException) -> None:
+        self._set_crashed_state(exc, force=True)
+
+    def _set_crashed_state(self, exc: BaseException, force: bool) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
@@ -1694,29 +1704,39 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
     async def _handle_crash_unless_final_on_server(self, exc: Exception) -> None:
         """
-        Crash the run unless the server already has a final state, e.g. a
-        `Completed` proposal that committed but whose response was lost.
+        Crash the run unless the server already has a final or paused state,
+        e.g. a `Completed` proposal that committed but whose response was lost.
         """
-        try:
-            server_state = (await self.client.read_flow_run(self.flow_run.id)).state
-        except Exception:
-            self.logger.debug(
-                "Unable to read flow run state; not reporting a crash", exc_info=True
-            )
-            return
-        if server_state and server_state.is_final():
-            self.flow_run.state = server_state
-            self._capture_state_report(server_state)
+        if await self._adopt_final_or_paused_server_state():
             return
         try:
             # Not forced, so the server rejects the crash if the run became
             # final after the read above
-            await self.handle_crash(exc, force=False)
+            await self._set_crashed_state(exc, force=False)
         except Abort as abort:
             self.logger.debug(f"Crash not reported: {abort}")
             self._attempt_conclusion = EngineOutcomeReceipt.orchestration_aborted()
+        except Exception:
+            self.logger.debug("Unable to report crash", exc_info=True)
+            # The crash may have committed even though its response was lost
+            await self._adopt_final_or_paused_server_state()
 
-    async def handle_crash(self, exc: BaseException, force: bool = True) -> None:
+    async def _adopt_final_or_paused_server_state(self) -> bool:
+        try:
+            server_state = (await self.client.read_flow_run(self.flow_run.id)).state
+        except Exception:
+            self.logger.debug("Unable to read flow run state", exc_info=True)
+            return False
+        if server_state and (server_state.is_final() or server_state.is_paused()):
+            self.flow_run.state = server_state
+            self._capture_state_report(server_state)
+            return True
+        return False
+
+    async def handle_crash(self, exc: BaseException) -> None:
+        await self._set_crashed_state(exc, force=True)
+
+    async def _set_crashed_state(self, exc: BaseException, force: bool) -> None:
         # need to shield from asyncio cancellation to ensure we update the state
         # on the server before exiting
         with CancelScope(shield=True):
