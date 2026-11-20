@@ -181,7 +181,8 @@ The [Prefect Terraform provider](https://registry.terraform.io/providers/Prefect
 
 <Warning>
 In the API and Terraform, an ACL with every list empty is different from no ACL. It hides the object from everyone except the people listed in [Who ACLs do not restrict](#who-acls-do-not-restrict).
-To remove an ACL, set the actor list for every level to `["*"]`.
+To remove an ACL through the API, set the actor list for every level to `["*"]`.
+To remove an ACL in Terraform, remove the access resource. Leaving its lists empty does not remove the ACL.
 </Warning>
 
 ## Further reading
