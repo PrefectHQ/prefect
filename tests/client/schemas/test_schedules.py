@@ -570,3 +570,34 @@ class TestCalendarIntervals:
         )
         dates = await server_schedule.get_dates(n=3, start=anchor)
         assert [(d.month, d.day) for d in dates] == [(1, 1), (2, 1), (3, 1)]
+
+    @pytest.mark.parametrize("timezone, hour", [("UTC", 10), ("America/New_York", 5)])
+    @pytest.mark.parametrize(
+        "start, expected",
+        [
+            (datetime.datetime(2024, 2, 1), [(2, 1), (3, 1), (4, 1)]),
+            (datetime.datetime(2024, 3, 15), [(4, 1), (5, 1), (6, 1)]),
+        ],
+    )
+    async def test_monthly_schedule_started_after_its_anchor_keeps_the_anchor_day(
+        self,
+        timezone: str,
+        hour: int,
+        start: datetime.datetime,
+        expected: list[tuple[int, int]],
+    ):
+        anchor = datetime.datetime(2024, 1, 1, 10, tzinfo=ZoneInfo("UTC"))
+        schedule = IntervalSchedule(
+            interval="P1M", anchor_date=anchor, timezone=timezone
+        )
+        server_schedule = ServerIntervalSchedule.model_validate(
+            schedule.model_dump(mode="json")
+        )
+
+        dates = await server_schedule.get_dates(
+            n=3, start=start.replace(tzinfo=ZoneInfo("UTC"))
+        )
+
+        assert [(d.month, d.day, d.hour) for d in dates] == [
+            (month, day, hour) for month, day in expected
+        ]
