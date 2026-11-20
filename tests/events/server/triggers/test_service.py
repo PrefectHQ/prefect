@@ -2,7 +2,7 @@ import asyncio
 import datetime
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Callable
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -254,6 +254,32 @@ async def test_loads_automations_at_startup(
         periodic_granularity=timedelta(seconds=0.0001),
     ):
         load_automations.assert_awaited_once_with(open_automations_session)
+
+
+async def test_resets_the_events_clock_at_startup_and_shutdown(
+    effective_automations,
+    frozen_time: DateTime,
+):
+    event = ReceivedEvent(
+        occurred=frozen_time - timedelta(hours=2),
+        event="things.happened",
+        resource={"prefect.resource.id": "something"},
+        id=uuid4(),
+    )
+    await triggers.update_events_clock(event)
+    assert await triggers.get_events_clock() is not None
+
+    async with triggers.consumer(
+        periodic_granularity=timedelta(seconds=0.0001),
+    ):
+        assert await triggers.get_events_clock() is None
+        assert not await triggers.events_clock_is_known(frozen_time)
+
+        await triggers.update_events_clock(event)
+        assert await triggers.events_clock_is_known(frozen_time)
+
+    assert await triggers.get_events_clock() is None
+    assert not await triggers.events_clock_is_known(frozen_time)
 
 
 async def test_reconcile_automations_skips_reload_when_snapshot_matches(
@@ -544,3 +570,61 @@ async def test_offset_is_resilient_to_low_volume(
     mock_now.return_value = base_time + timedelta(seconds=10)
     assert await triggers.get_events_clock() == event.occurred.timestamp()
     assert await triggers.get_events_clock_offset() == -42.0
+
+
+async def test_events_clock_is_unknown_until_an_event_is_handled(
+    frozen_time: DateTime,
+):
+    await triggers.reset_events_clock()
+    assert not await triggers.events_clock_is_known(frozen_time)
+
+    event = ReceivedEvent(
+        occurred=frozen_time - timedelta(hours=2),
+        event="things.happened",
+        resource={"prefect.resource.id": "something"},
+        id=uuid4(),
+    )
+    await triggers.update_events_clock(event)
+    assert await triggers.events_clock_is_known(frozen_time)
+
+
+async def test_events_clock_is_known_after_being_idle(frozen_time: DateTime):
+    await triggers.reset_events_clock()
+
+    threshold = triggers.EVENTS_CLOCK_IDLE_THRESHOLD
+    assert not await triggers.events_clock_is_known(
+        frozen_time + threshold - timedelta(seconds=1)
+    )
+    assert await triggers.events_clock_is_known(frozen_time + threshold)
+
+
+async def test_proactive_triggers_wait_for_the_events_clock(
+    advance_time: Callable[[timedelta], DateTime],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    proactive_evaluation = mock.AsyncMock(spec=triggers.proactive_evaluation)
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.proactive_evaluation", proactive_evaluation
+    )
+
+    automation = Automation(
+        name="proactive",
+        trigger=EventTrigger(
+            expect={"things.happened"},
+            posture=Posture.Proactive,
+            threshold=1,
+            within=timedelta(minutes=10),
+        ),
+        actions=[actions.DoNothing()],
+    )
+    triggers.load_automation(automation)
+
+    await triggers.reset_events_clock()
+    await triggers.evaluate_proactive_triggers()
+    proactive_evaluation.assert_not_awaited()
+
+    proactive_evaluation.return_value = advance_time(
+        triggers.EVENTS_CLOCK_IDLE_THRESHOLD
+    )
+    await triggers.evaluate_proactive_triggers()
+    proactive_evaluation.assert_awaited_once()

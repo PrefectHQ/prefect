@@ -85,6 +85,10 @@ AutomationStateSnapshot: TypeAlias = Tuple[
 
 AUTOMATION_BUCKET_BATCH_SIZE = 500
 
+# How long a process that has not handled any events waits before assuming that it is
+# caught up with the event stream
+EVENTS_CLOCK_IDLE_THRESHOLD = timedelta(seconds=30)
+
 
 async def evaluate(
     session: AsyncSession,
@@ -521,6 +525,7 @@ async def act(firing: Firing) -> None:
 __events_clock_lock: Optional[asyncio.Lock] = None
 _events_clock: Optional[float] = None
 _events_clock_updated: Optional[float] = None
+_events_clock_reset: float = prefect.types._datetime.now("UTC").timestamp()
 
 
 def _events_clock_lock() -> asyncio.Lock:
@@ -571,11 +576,25 @@ async def get_events_clock_offset() -> float:
     return offset
 
 
+async def events_clock_is_known(now: prefect.types._datetime.DateTime) -> bool:
+    """Whether the events clock can be trusted as of `now`.  Until this process has
+    handled an event, it can't tell how far behind the event stream it is, so the
+    clock is only trusted once the process has been idle long enough to assume that
+    it is caught up."""
+    async with _events_clock_lock():
+        if _events_clock is not None:
+            return True
+
+        idle = now.timestamp() - _events_clock_reset
+        return idle >= EVENTS_CLOCK_IDLE_THRESHOLD.total_seconds()
+
+
 async def reset_events_clock() -> None:
-    global _events_clock, _events_clock_updated
+    global _events_clock, _events_clock_updated, _events_clock_reset
     async with _events_clock_lock():
         _events_clock = None
         _events_clock_updated = None
+        _events_clock_reset = prefect.types._datetime.now("UTC").timestamp()
 
 
 async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
@@ -717,6 +736,10 @@ async def get_lost_followers() -> List[ReceivedEvent]:
 
 async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     """Periodic tasks that should be run regularly, but not as often as every event"""
+    # Until the events clock is known, buckets that look expired by wall time may still
+    # be open in event time.  This is checked before any events are evaluated below so
+    # that `as_of` always reflects a known clock.
+    clock_is_known = await events_clock_is_known(now)
     offset = await get_events_clock_offset()
     as_of = now + timedelta(seconds=offset)
 
@@ -738,6 +761,10 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     # These events can just be evaluated now in the order they occurred.
     for event in await get_lost_followers():
         await reactive_evaluation(event)
+
+    if not clock_is_known:
+        logger.debug("Skipping sweep of closed buckets until the events clock is known")
+        return
 
     async with automations_session() as session:
         await sweep_closed_buckets(
@@ -1352,6 +1379,11 @@ async def consumer(
     """The `triggers.consumer` processes all Events arriving on the event bus to
     determine if they meet the automation criteria, queuing up a corresponding
     `TriggeredAction` for the `actions` service if the automation criteria is met."""
+    # The clock only describes the stream while this consumer is handling it, and the
+    # consumer may be starting behind the stream, so the clock is unknown until it
+    # handles an event
+    await reset_events_clock()
+
     # Start the automation change listener task
     sync_task = asyncio.create_task(listen_for_automation_changes())
 
@@ -1402,6 +1434,7 @@ async def consumer(
         proactive_task.cancel()
         # Wait for tasks to finish
         await asyncio.gather(sync_task, proactive_task, return_exceptions=True)
+        await reset_events_clock()
 
 
 async def proactive_evaluation(
@@ -1461,6 +1494,10 @@ async def proactive_evaluation(
 
 
 async def evaluate_proactive_triggers() -> None:
+    if not await events_clock_is_known(prefect.types._datetime.now("UTC")):
+        logger.debug("Skipping proactive evaluation until the events clock is known")
+        return
+
     for trigger in list(triggers.values()):
         if trigger.posture != Posture.Proactive:
             continue
