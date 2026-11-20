@@ -1,8 +1,8 @@
 import asyncio
 import datetime
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import AsyncGenerator
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -20,6 +20,7 @@ from prefect.server.events.schemas.automations import (
     TriggeredAction,
     TriggerState,
 )
+from prefect.server.events.services.triggers import ReactiveTriggers
 from prefect.server.utilities.messaging import MessageHandler
 from prefect.server.utilities.messaging.memory import MemoryMessage
 from prefect.types import DateTime
@@ -544,3 +545,28 @@ async def test_offset_is_resilient_to_low_volume(
     mock_now.return_value = base_time + timedelta(seconds=10)
     assert await triggers.get_events_clock() == event.occurred.timestamp()
     assert await triggers.get_events_clock_offset() == -42.0
+
+
+async def test_reactive_triggers_service_can_stop_while_loading_automations(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Regression test for a race where a short-lived server would shut down while
+    `ReactiveTriggers` was still loading automations, causing `stop()` to fail with
+    "Reactive triggers not started"."""
+    reconciling = asyncio.Event()
+
+    async def never_finish_reconciling(force: bool = False) -> None:
+        reconciling.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(triggers, "reconcile_automations", never_finish_reconciling)
+    monkeypatch.setattr(triggers, "listen_for_automation_changes", mock.AsyncMock())
+
+    service = ReactiveTriggers()
+    start_task = asyncio.create_task(service.start())
+    await reconciling.wait()
+
+    await service.stop()
+    await start_task
+
+    assert service.consumer_task is None
