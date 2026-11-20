@@ -2095,6 +2095,19 @@ class TestPreprocessSchemaBlockTypes:
         )
         assert is_valid({"aws_credentials": {"region_name": "us-east-1"}}, schema)
         assert not is_valid({"aws_credentials": "not-an-object"}, schema)
+        assert not is_valid({"aws_credentials": {"$ref": "not-a-uuid"}}, schema)
+        assert not is_valid({"aws_credentials": {"$ref": {}}}, schema)
+
+    def test_boolean_defs_are_left_unchanged(self):
+        schema = {
+            "type": "object",
+            "properties": {"forbidden": {"$ref": "#/$defs/Forbidden"}},
+            "$defs": {"Forbidden": False},
+        }
+
+        assert preprocess_schema(schema)["$defs"] == {"Forbidden": False}
+        assert is_valid({}, schema)
+        assert not is_valid({"forbidden": 1}, schema)
 
     def test_defs_properties_are_preprocessed(self):
         schema = {

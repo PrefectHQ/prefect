@@ -276,17 +276,20 @@ def preprocess_schema(
             continue
         definitions = cast(dict[str, Any], schema[definitions_key])
         for name, definition in list(definitions.items()):
+            if not isinstance(definition, dict):
+                continue
             if "properties" in definition:
                 required_fields = definition.get("required", [])
                 process_properties(
                     definition["properties"], required_fields, allow_none_with_default
                 )
-            # Allow block types to be referenced by their id. `anyOf` because a
-            # reference also satisfies block schemas without required fields.
+            # Allow block types to be referenced by their id. The block value
+            # branch excludes `$ref` so that malformed references are rejected
+            # for block schemas without required fields.
             if "block_type_slug" in definition:
                 definitions[name] = {
                     "anyOf": [
-                        definition,
+                        {"allOf": [definition, {"not": {"required": ["$ref"]}}]},
                         {
                             "type": "object",
                             "properties": {
