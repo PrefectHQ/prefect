@@ -158,15 +158,24 @@ class DeploymentScheduleCreate(ActionBaseModel):
 
     @classmethod
     def from_schedule(cls, schedule: Schedule) -> "DeploymentScheduleCreate":
+        # Leave out what the caller didn't set, so that updating a deployment doesn't
+        # override it on the server, e.g. re-activate a schedule that was paused
+        omitted: frozenset[str] = getattr(schedule, "_omitted", frozenset())
+        active: dict[str, Any] = (
+            {} if "active" in omitted else {"active": schedule.active}
+        )
+        anchor_date: dict[str, Any] = (
+            {} if "anchor_date" in omitted else {"anchor_date": schedule.anchor_date}
+        )
         if schedule.interval is not None:
             return cls(
                 schedule=IntervalSchedule(
                     interval=schedule.interval,
                     timezone=schedule.timezone,
-                    anchor_date=schedule.anchor_date,
+                    **anchor_date,
                 ),
                 parameters=schedule.parameters,
-                active=schedule.active,
+                **active,
                 slug=schedule.slug,
             )
         elif schedule.cron is not None:
@@ -177,7 +186,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
                     day_or=schedule.day_or,
                 ),
                 parameters=schedule.parameters,
-                active=schedule.active,
+                **active,
                 slug=schedule.slug,
             )
         elif schedule.rrule is not None:
@@ -187,7 +196,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
                     timezone=schedule.timezone,
                 ),
                 parameters=schedule.parameters,
-                active=schedule.active,
+                **active,
                 slug=schedule.slug,
             )
         else:
