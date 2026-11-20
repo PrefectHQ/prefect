@@ -24,7 +24,7 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.models import concurrency_limits
 from prefect.server.models import concurrency_limits_v2 as cl_v2_models
 from prefect.server.utilities.server import PrefectRouter
@@ -43,7 +43,7 @@ V1_LEASE_TTL = timedelta(days=100 * 365)  # ~100 years
 async def create_concurrency_limit(
     concurrency_limit: schemas.actions.ConcurrencyLimitCreate,
     response: Response,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
     """
     Create a task run concurrency limit.
@@ -103,7 +103,7 @@ async def read_concurrency_limit(
     concurrency_limit_id: UUID = Path(
         ..., description="The concurrency limit id", alias="id"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
     """
     Get a concurrency limit by id.
@@ -147,7 +147,7 @@ async def read_concurrency_limit(
 @router.get("/tag/{tag}")
 async def read_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name", alias="tag"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
     """
     Get a concurrency limit by tag.
@@ -191,7 +191,7 @@ async def read_concurrency_limit_by_tag(
 async def read_concurrency_limits(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> Sequence[schemas.core.ConcurrencyLimit]:
     """
     Query for concurrency limits.
@@ -245,7 +245,7 @@ async def reset_concurrency_limit_by_tag(
         embed=True,
         description="Manual override for active concurrency limit slots.",
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     # Try V2 first
     v2_name = f"tag:{tag}"
@@ -317,7 +317,7 @@ async def delete_concurrency_limit(
     concurrency_limit_id: UUID = Path(
         ..., description="The concurrency limit id", alias="id"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     # Try V2 first
     async with db.session_context(begin_transaction=True) as session:
@@ -373,7 +373,7 @@ async def delete_concurrency_limit(
 @router.delete("/tag/{tag}")
 async def delete_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     # Try V2 first
     v2_name = f"tag:{tag}"
@@ -442,7 +442,7 @@ async def increment_concurrency_limits_v1(
     task_run_id: UUID = Body(
         ..., description="The ID of the task run acquiring the slot"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
     """
     Increment concurrency limits for the given tags.
@@ -577,7 +577,7 @@ async def decrement_concurrency_limits_v1(
     task_run_id: UUID = Body(
         ..., description="The ID of the task run releasing the slot"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
     """
     Decrement concurrency limits for the given tags.
