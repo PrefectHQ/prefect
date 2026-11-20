@@ -1007,6 +1007,14 @@ class CacheInsertion(TaskRunOrchestrationRule):
 
         cache_key = validated_state.state_details.cache_key
         if cache_key:
+            # This result supersedes any older entry for the key (it expired, was
+            # refreshed, or was recomputed). Remove those, so that losing this
+            # entry later, e.g. by deleting its run, cannot bring one back.
+            await context.session.execute(
+                sa.delete(db.TaskRunStateCache).where(
+                    db.TaskRunStateCache.cache_key == cache_key
+                )
+            )
             new_cache_item = db.TaskRunStateCache(
                 cache_key=cache_key,
                 cache_expiration=validated_state.state_details.cache_expiration,

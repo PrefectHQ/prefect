@@ -20,8 +20,8 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.database import orm_models as orm
-from prefect.server.database import provide_database_interface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import (
     concurrency_limits,
@@ -29,6 +29,7 @@ from prefect.server.models import (
     deployments,
     flow_run_input,
     flow_runs,
+    task_runs,
 )
 from prefect.server.orchestration.core_policy import (
     BypassCancellingFlowRunsWithNoInfra,
@@ -513,6 +514,107 @@ class TestCachingBackendLogic:
             await ctx2.validate_proposed_state()
 
         assert ctx2.response_status == SetStateStatus.ACCEPT
+
+    async def _cache_completed_state(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[OrchestrationContext]],
+        expiration: Optional[datetime.datetime],
+    ) -> OrchestrationContext:
+        intended_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+        details = {"cache_key": "cache-hit", "cache_expiration": expiration}
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details=details,
+            proposed_details=details,
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in [CacheInsertion, CacheRetrieval]:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        return ctx
+
+    async def _propose_running(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[OrchestrationContext]],
+    ) -> OrchestrationContext:
+        intended_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"cache_key": "cache-hit"},
+            proposed_details={"cache_key": "cache-hit"},
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in [CacheInsertion, CacheRetrieval]:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+        return ctx
+
+    async def test_removing_newer_cache_entry_does_not_restore_older_one(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[OrchestrationContext]],
+        db: PrefectDBInterface,
+    ):
+        older = await self._cache_completed_state(
+            session, initialize_orchestration, now("UTC") + timedelta(days=2)
+        )
+        # keep the cache order explicit rather than relying on timestamp resolution
+        await session.execute(
+            sa.update(db.TaskRunStateCache)
+            .where(db.TaskRunStateCache.task_run_state_id == older.validated_state.id)
+            .values(created=now("UTC") - timedelta(minutes=1))
+        )
+        newer = await self._cache_completed_state(
+            session, initialize_orchestration, now("UTC") + timedelta(days=1)
+        )
+
+        cache_rows = await session.scalars(
+            sa.select(db.TaskRunStateCache.task_run_state_id)
+        )
+        assert cache_rows.all() == [newer.validated_state.id]
+
+        # delete the newer run, then clean up the cache entry it leaves behind
+        assert await task_runs.delete_task_run(session, newer.run.id)
+        await session.execute(
+            sa.delete(db.TaskRunStateCache).where(
+                db.TaskRunStateCache.task_run_state_id == newer.validated_state.id
+            )
+        )
+        await session.commit()
+
+        ctx = await self._propose_running(session, initialize_orchestration)
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state.name == "Running"
+
+    async def test_expired_newer_cache_entry_does_not_restore_older_one(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[OrchestrationContext]],
+        db: PrefectDBInterface,
+    ):
+        older = await self._cache_completed_state(
+            session, initialize_orchestration, now("UTC") + timedelta(days=2)
+        )
+        await session.execute(
+            sa.update(db.TaskRunStateCache)
+            .where(db.TaskRunStateCache.task_run_state_id == older.validated_state.id)
+            .values(created=now("UTC") - timedelta(minutes=1))
+        )
+        await self._cache_completed_state(
+            session, initialize_orchestration, now("UTC") - timedelta(days=1)
+        )
+        await session.commit()
+
+        ctx = await self._propose_running(session, initialize_orchestration)
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state.name == "Running"
 
 
 class TestFlowRetryingRule:
