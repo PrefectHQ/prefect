@@ -36,7 +36,7 @@ const MOCK_BLOCK_DOCUMENT: BlockDocument = {
 		block_type_id: "a0d50399-39b7-44ea-a0b8-4c5e99388b8f",
 		updated: "2024-12-02T18:19:07.924910Z",
 		block_type: {
-			documentation_url: "https://docs.prefect.io/latest/develop/blocks",
+			documentation_url: "https://www.prefect.io/docs/latest/develop/blocks",
 			slug: "json",
 			name: "JSON",
 			code_example:
@@ -61,7 +61,7 @@ const MOCK_BLOCK_DOCUMENT: BlockDocument = {
 		slug: "json",
 		logo_url:
 			"https://cdn.sanity.io/images/3ugk85nk/production/4fcef2294b6eeb423b1332d1ece5156bf296ff96-48x48.png",
-		documentation_url: "https://docs.prefect.io/latest/develop/blocks",
+		documentation_url: "https://www.prefect.io/docs/latest/develop/blocks",
 		description:
 			"A block that represents JSON. Deprecated, please use Variables to store JSON data instead.",
 		code_example:

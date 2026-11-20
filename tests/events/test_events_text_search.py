@@ -539,6 +539,46 @@ async def test_no_matches_returns_empty(
     assert len(events) == 0
 
 
+async def test_underscore_and_percent_are_matched_literally(
+    events_query_session: list[Event],
+    query_events: QueryEventsFn,
+    full_occurred_range: EventOccurredFilter,
+    test_events: list[Event],
+):
+    """`_` and `%` in a search term are literal characters, not SQL wildcards"""
+
+    # The test events contain "flow-run" but never "flow_run"; an unescaped
+    # LIKE would let `_` match the hyphen
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            text=EventTextFilter(query="flow_run"),
+        ),
+    )
+    assert events == []
+
+    # No test event contains a literal "%"
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            text=EventTextFilter(query="%"),
+        ),
+    )
+    assert events == []
+
+    # Excluding "flow_run" must not hide the "flow-run" events
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            text=EventTextFilter(query="-flow_run"),
+        ),
+    )
+    assert len(events) == len(test_events)
+
+
 async def test_does_not_search_resource_label_keys(
     events_query_session: list[Event],
     query_events: QueryEventsFn,

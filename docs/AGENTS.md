@@ -4,7 +4,7 @@ Structural context for any agent working in `docs/`. For the full writing guide 
 
 ## Platform
 
-[Mintlify](https://mintlify.com/) docs published to [docs.prefect.io](https://docs.prefect.io). All files use `.mdx` (Markdown + JSX). Site config lives in `docs/docs.json`.
+[Mintlify](https://mintlify.com/) docs published to [www.prefect.io/docs](https://www.prefect.io/docs). All files use `.mdx` (Markdown + JSX). Site config lives in `docs/docs.json`.
 
 ## Directory structure
 
@@ -72,9 +72,13 @@ See the [flows documentation](/v3/concepts/flows) for details.
 
 Do not use relative paths or include `.mdx` in links.
 
+In-page anchors (`#...`) must match Mintlify's heading slugs, not GitHub's: backticks are dropped, dots and spaces become hyphens, underscores are kept (heading `prefect.automation.created` → `#prefect-automation-created`; `connection_url` → `#connection_url`). `just links` (and CI) skip anchors by default — verify with `npx mint@latest broken-links --check-anchors --files <path>`.
+
 ## Redirects
 
 When renaming or moving a page, add a redirect in `docs/docs.json` `redirects` array so existing links continue to work. Never remove existing redirects unless you are certain the old URL has no inbound traffic. Paths should not include `.mdx`.
+
+Missing pages return a real 404 (`errors.404.redirect` is `false`), so a broken `https://www.prefect.io/docs/...` URL in source, CLI messages, `ui-v2/`, or READMEs is not masked by a homepage fallback — point it at a real page or add a redirect. Exact `source` matches beat wildcards, but among wildcard (`:slug*`) rules the first match in the array wins — place narrower wildcard sources before broader ones.
 
 ## Terminology and casing
 

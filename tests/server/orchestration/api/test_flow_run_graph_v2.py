@@ -723,6 +723,7 @@ async def linked_tasks(
     return task_runs
 
 
+@pytest.mark.filterwarnings("error::sqlalchemy.exc.SADeprecationWarning")
 async def test_reading_graph_for_flow_run_with_linked_tasks(
     session: AsyncSession,
     flow_run,  # db.FlowRun,

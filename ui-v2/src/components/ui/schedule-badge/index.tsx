@@ -23,7 +23,7 @@ import { capitalize, cn, intervalToSeconds } from "@/utils";
 
 type DeploymentSchedule = components["schemas"]["DeploymentSchedule"];
 type CronSchedule = components["schemas"]["CronSchedule"];
-type IntervalSchedule = components["schemas"]["IntervalSchedule"];
+type IntervalSchedule = components["schemas"]["IntervalSchedule-Output"];
 type RRuleSchedule = components["schemas"]["RRuleSchedule"];
 
 type ScheduleBadgeProps = BadgeProps & {

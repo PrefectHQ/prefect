@@ -1,5 +1,9 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { getAllStateColors, getStateColor, STATE_COLORS } from "./state-colors";
+
+afterEach(() => {
+	vi.restoreAllMocks();
+});
 
 describe("STATE_COLORS", () => {
 	test("should have all state types defined", () => {
@@ -42,41 +46,31 @@ describe("STATE_COLORS", () => {
 });
 
 describe("getStateColor", () => {
-	beforeEach(() => {
-		vi.restoreAllMocks();
-	});
-
 	test("should return fallback color when document is undefined", () => {
-		const originalDocument = globalThis.document;
-		// @ts-expect-error - intentionally setting document to undefined for testing
-		globalThis.document = undefined;
+		// @ts-expect-error - intentionally returning undefined to simulate server rendering
+		vi.spyOn(globalThis, "document", "get").mockReturnValueOnce(undefined);
 
 		const RESULT = getStateColor("COMPLETED");
 		const EXPECTED = STATE_COLORS.COMPLETED;
 
 		expect(RESULT).toEqual(EXPECTED);
-
-		globalThis.document = originalDocument;
 	});
 
 	test("should return CSS variable value when available", () => {
 		const mockColor = "#00ff00";
-		const mockGetComputedStyle = vi.fn().mockReturnValue({
-			getPropertyValue: vi.fn().mockReturnValue(mockColor),
-		});
-		vi.stubGlobal("getComputedStyle", mockGetComputedStyle);
+		vi.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue").mockReturnValue(
+			mockColor,
+		);
 
 		const RESULT = getStateColor("COMPLETED");
 
 		expect(RESULT).toEqual(mockColor);
-		expect(mockGetComputedStyle).toHaveBeenCalledWith(document.documentElement);
 	});
 
 	test("should return fallback color when CSS variable is empty", () => {
-		const mockGetComputedStyle = vi.fn().mockReturnValue({
-			getPropertyValue: vi.fn().mockReturnValue(""),
-		});
-		vi.stubGlobal("getComputedStyle", mockGetComputedStyle);
+		vi.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue").mockReturnValue(
+			"",
+		);
 
 		const RESULT = getStateColor("FAILED");
 		const EXPECTED = STATE_COLORS.FAILED;
@@ -85,11 +79,9 @@ describe("getStateColor", () => {
 	});
 
 	test("should use correct CSS variable name with default shade", () => {
-		const mockGetPropertyValue = vi.fn().mockReturnValue("#123456");
-		const mockGetComputedStyle = vi.fn().mockReturnValue({
-			getPropertyValue: mockGetPropertyValue,
-		});
-		vi.stubGlobal("getComputedStyle", mockGetComputedStyle);
+		const mockGetPropertyValue = vi
+			.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue")
+			.mockReturnValue("#123456");
 
 		getStateColor("RUNNING");
 
@@ -97,11 +89,9 @@ describe("getStateColor", () => {
 	});
 
 	test("should use correct CSS variable name with custom shade", () => {
-		const mockGetPropertyValue = vi.fn().mockReturnValue("#123456");
-		const mockGetComputedStyle = vi.fn().mockReturnValue({
-			getPropertyValue: mockGetPropertyValue,
-		});
-		vi.stubGlobal("getComputedStyle", mockGetComputedStyle);
+		const mockGetPropertyValue = vi
+			.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue")
+			.mockReturnValue("#123456");
 
 		getStateColor("SCHEDULED", 500);
 
@@ -109,10 +99,9 @@ describe("getStateColor", () => {
 	});
 
 	test("should trim whitespace from CSS variable value", () => {
-		const mockGetComputedStyle = vi.fn().mockReturnValue({
-			getPropertyValue: vi.fn().mockReturnValue("  #abcdef  "),
-		});
-		vi.stubGlobal("getComputedStyle", mockGetComputedStyle);
+		vi.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue").mockReturnValue(
+			"  #abcdef  ",
+		);
 
 		const RESULT = getStateColor("PAUSED");
 
@@ -121,15 +110,10 @@ describe("getStateColor", () => {
 });
 
 describe("getAllStateColors", () => {
-	beforeEach(() => {
-		vi.restoreAllMocks();
-	});
-
 	test("should return all state colors", () => {
-		const mockGetComputedStyle = vi.fn().mockReturnValue({
-			getPropertyValue: vi.fn().mockReturnValue(""),
-		});
-		vi.stubGlobal("getComputedStyle", mockGetComputedStyle);
+		vi.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue").mockReturnValue(
+			"",
+		);
 
 		const RESULT = getAllStateColors();
 
@@ -146,11 +130,9 @@ describe("getAllStateColors", () => {
 	});
 
 	test("should use default shade of 600", () => {
-		const mockGetPropertyValue = vi.fn().mockReturnValue("");
-		const mockGetComputedStyle = vi.fn().mockReturnValue({
-			getPropertyValue: mockGetPropertyValue,
-		});
-		vi.stubGlobal("getComputedStyle", mockGetComputedStyle);
+		const mockGetPropertyValue = vi
+			.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue")
+			.mockReturnValue("");
 
 		getAllStateColors();
 
@@ -159,11 +141,9 @@ describe("getAllStateColors", () => {
 	});
 
 	test("should use custom shade when provided", () => {
-		const mockGetPropertyValue = vi.fn().mockReturnValue("");
-		const mockGetComputedStyle = vi.fn().mockReturnValue({
-			getPropertyValue: mockGetPropertyValue,
-		});
-		vi.stubGlobal("getComputedStyle", mockGetComputedStyle);
+		const mockGetPropertyValue = vi
+			.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue")
+			.mockReturnValue("");
 
 		getAllStateColors(500);
 
@@ -172,10 +152,9 @@ describe("getAllStateColors", () => {
 	});
 
 	test("should return fallback colors when CSS variables are not available", () => {
-		const mockGetComputedStyle = vi.fn().mockReturnValue({
-			getPropertyValue: vi.fn().mockReturnValue(""),
-		});
-		vi.stubGlobal("getComputedStyle", mockGetComputedStyle);
+		vi.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue").mockReturnValue(
+			"",
+		);
 
 		const RESULT = getAllStateColors();
 

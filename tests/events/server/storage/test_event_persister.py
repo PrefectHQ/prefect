@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.testing import retry_asserts
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.database.orm_models import ORMEventResource
 from prefect.server.events.schemas.events import (
@@ -351,6 +352,89 @@ async def test_flushes_messages_periodically(
         assert (await get_event_count(session)) == 9
 
 
+async def test_periodic_flush_survives_cancelled_error_from_database(
+    event: ReceivedEvent,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """During a database outage, the driver can raise CancelledError from a
+    write. That must not end periodic flushing or lose the batch."""
+    call_count = 0
+
+    async def cancelled_once_write_events(session, events):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise asyncio.CancelledError()
+        return await write_events(session=session, events=events)
+
+    monkeypatch.setattr(
+        "prefect.server.events.services.event_persister.write_events",
+        cancelled_once_write_events,
+    )
+
+    # batch_size is never reached, so only the periodic flush can persist events
+    async with event_persister.create_handler(
+        batch_size=100,
+        flush_every=timedelta(seconds=0.01),
+    ) as handler:
+        first_id = event.id
+        await handler(
+            CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+        )
+
+        async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+            with attempt:
+                assert await get_event(first_id)
+
+        event.id = uuid4()
+        await handler(
+            CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+        )
+
+        # assert before exiting the context, since teardown also flushes
+        async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+            with attempt:
+                assert await get_event(event.id)
+
+    assert call_count >= 3
+
+
+async def test_shutdown_persists_batch_from_cancelled_periodic_flush(
+    event: ReceivedEvent,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Shutdown cancels the periodic flush; a batch it was writing must still be
+    persisted by the final flush."""
+    write_started = asyncio.Event()
+    call_count = 0
+
+    async def hanging_once_write_events(session, events):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            write_started.set()
+            await asyncio.sleep(100)
+        return await write_events(session=session, events=events)
+
+    monkeypatch.setattr(
+        "prefect.server.events.services.event_persister.write_events",
+        hanging_once_write_events,
+    )
+
+    async with event_persister.create_handler(
+        batch_size=100,
+        flush_every=timedelta(seconds=0.01),
+    ) as handler:
+        await handler(
+            CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+        )
+        await asyncio.wait_for(write_started.wait(), timeout=5)
+
+    assert await get_event(event.id)
+
+
 async def test_drops_events_when_queue_is_full(
     event: ReceivedEvent,
     caplog: pytest.LogCaptureFixture,
@@ -450,6 +534,34 @@ async def test_successful_flush_resets_retry_counter(
 
     # Event should be persisted after retry succeeded
     assert (await get_event_count(session)) >= 1
+
+
+async def test_event_with_null_bytes_does_not_drop_its_batch(
+    event: ReceivedEvent,
+    session: AsyncSession,
+):
+    """PostgreSQL rejects null bytes, and events are written in batches, so one
+    event with a null byte must not keep the rest of its batch from being stored."""
+    async with event_persister.create_handler(
+        batch_size=10,
+        flush_every=timedelta(days=100),
+    ) as handler:
+        for _ in range(9):
+            event.id = uuid4()
+            message = CapturedMessage(
+                data=event.model_dump_json().encode(), attributes={}
+            )
+            await handler(message)
+
+        event.id = uuid4()
+        event.payload = {"stdout": "binary\x00output"}
+        message = CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+        await handler(message)
+
+    assert (await get_event_count(session)) == 10
+    stored_event = await get_event(event.id)
+    assert stored_event
+    assert stored_event.payload == {"stdout": "binary\ufffdoutput"}
 
 
 async def test_logs_warning_at_high_queue_capacity(

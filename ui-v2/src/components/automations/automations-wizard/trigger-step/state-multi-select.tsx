@@ -1,10 +1,11 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
-	STATE_NAME_TO_TYPE,
 	STATE_NAMES,
 	STATE_NAMES_WITHOUT_SCHEDULED,
-	type StateName,
 } from "@/api/flow-runs/constants";
+import { useStateOptions } from "@/api/observed-states";
+import { isFlowRunStateName } from "@/components/automations/trigger-details/trigger-utils";
+import { StateNameBadge } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-name-badge";
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -15,20 +16,19 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
-import { StateBadge } from "@/components/ui/state-badge";
 
 const ALL_RUN_STATES = "All run states";
 const ALL_EXCEPT_SCHEDULED = "All except scheduled";
 
 type StateMultiSelectProps = {
-	selectedStates: StateName[];
-	onStateChange: (states: StateName[]) => void;
+	selectedStates: string[];
+	onStateChange: (states: string[]) => void;
 	emptyMessage?: string;
 };
 
-function isAllExceptScheduled(states: StateName[]): boolean {
+function isAllExceptScheduled(states: string[]): boolean {
 	if (states.length !== STATE_NAMES.length - 1) return false;
-	return !states.includes("Scheduled");
+	return STATE_NAMES_WITHOUT_SCHEDULED.every((name) => states.includes(name));
 }
 
 export function StateMultiSelect({
@@ -37,7 +37,13 @@ export function StateMultiSelect({
 	emptyMessage = "Any state",
 }: StateMultiSelectProps) {
 	const [search, setSearch] = useState("");
-	const deferredSearch = useDeferredValue(search);
+	const [open, setOpen] = useState(false);
+	const {
+		names: filteredStates,
+		data,
+		isFetching,
+		isError,
+	} = useStateOptions(search, selectedStates, open);
 
 	const displayValue = useMemo(() => {
 		if (selectedStates.length === 0) {
@@ -49,20 +55,13 @@ export function StateMultiSelect({
 		return selectedStates;
 	}, [selectedStates]);
 
-	const filteredStates = useMemo(() => {
-		const lowerSearch = deferredSearch.toLowerCase();
-		return STATE_NAMES.filter((name) =>
-			name.toLowerCase().includes(lowerSearch),
-		);
-	}, [deferredSearch]);
-
 	const showConvenienceOptions = useMemo(() => {
-		const lowerSearch = deferredSearch.toLowerCase();
+		const lowerSearch = search.toLowerCase();
 		return (
 			ALL_RUN_STATES.toLowerCase().includes(lowerSearch) ||
 			ALL_EXCEPT_SCHEDULED.toLowerCase().includes(lowerSearch)
 		);
-	}, [deferredSearch]);
+	}, [search]);
 
 	const handleConvenienceSelect = (option: string) => {
 		if (option === ALL_RUN_STATES) {
@@ -73,7 +72,7 @@ export function StateMultiSelect({
 		setSearch("");
 	};
 
-	const handleStateToggle = (stateName: StateName) => {
+	const handleStateToggle = (stateName: string) => {
 		if (selectedStates.includes(stateName)) {
 			onStateChange(selectedStates.filter((s) => s !== stateName));
 		} else {
@@ -92,19 +91,14 @@ export function StateMultiSelect({
 		return (
 			<div className="flex flex-wrap gap-1">
 				{selectedStates.map((stateName) => (
-					<StateBadge
-						key={stateName}
-						type={STATE_NAME_TO_TYPE[stateName]}
-						name={stateName}
-						className="cursor-pointer"
-					/>
+					<StateNameBadge key={stateName} name={stateName} />
 				))}
 			</div>
 		);
 	};
 
 	return (
-		<Combobox>
+		<Combobox onOpenChange={setOpen}>
 			<ComboboxTrigger selected={selectedStates.length > 0}>
 				{renderSelectedStates()}
 			</ComboboxTrigger>
@@ -116,6 +110,13 @@ export function StateMultiSelect({
 				/>
 				<ComboboxCommandEmtpy>No state found</ComboboxCommandEmtpy>
 				<ComboboxCommandList>
+					{isFetching && <p role="status">Loading states...</p>}
+					{isError && <p role="status">Could not load observed states.</p>}
+					{data?.length === 200 && (
+						<p className="text-sm text-muted-foreground">
+							Showing up to 200 observed states. Search by prefix to find more.
+						</p>
+					)}
 					<ComboboxCommandGroup>
 						{showConvenienceOptions && (
 							<>
@@ -142,15 +143,22 @@ export function StateMultiSelect({
 						{filteredStates.map((stateName) => (
 							<ComboboxCommandItem
 								key={stateName}
+								aria-label={stateName}
+								disabled={
+									!isFlowRunStateName(stateName) &&
+									!selectedStates.includes(stateName)
+								}
 								selected={selectedStates.includes(stateName)}
 								onSelect={() => handleStateToggle(stateName)}
 								value={stateName}
 								closeOnSelect={false}
 							>
-								<StateBadge
-									type={STATE_NAME_TO_TYPE[stateName]}
-									name={stateName}
-								/>
+								<StateNameBadge name={stateName} />
+								{!isFlowRunStateName(stateName) && (
+									<span className="text-muted-foreground">
+										Use Custom trigger
+									</span>
+								)}
 							</ComboboxCommandItem>
 						))}
 					</ComboboxCommandGroup>

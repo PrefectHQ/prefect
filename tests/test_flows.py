@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import datetime
 import enum
 import inspect
@@ -29,6 +30,7 @@ from prefect import flow, tags, task
 from prefect._internal.versioning import GitVersionInfo, VersionInfo, VersionType
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
     TaskRunResult,
@@ -56,6 +58,7 @@ from prefect.exceptions import (
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import (
     Flow,
+    FlowStateHook,
     load_flow_arguments_from_entrypoint,
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
@@ -73,10 +76,13 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import (
+    AwaitingRetry,
     Cancelled,
     Cancelling,
+    Failed,
     Paused,
     PausedRun,
+    Scheduled,
     State,
     StateType,
     raise_state_exception,
@@ -510,6 +516,32 @@ class TestFlowWithOptions:
         assert flow_with_options.result_storage == storage
         assert flow_with_options.cache_result_in_memory is False
         assert flow_with_options.log_prints is False
+
+    @pytest.mark.parametrize(
+        "hook_name",
+        ["on_completion", "on_failure", "on_cancellation", "on_crashed", "on_running"],
+    )
+    def test_hooks_are_copied_from_original_flow(self, hook_name: str):
+        "Ensure hooks added to the new flow don't affect the original flow"
+
+        def original_hook(flow, flow_run, state):
+            pass
+
+        def added_hook(flow, flow_run, state):
+            pass
+
+        @flow(**{hook_name: [original_hook]})
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(name="With options flow")
+        getattr(flow_with_options, hook_name)(added_hook)
+
+        assert getattr(initial_flow, f"{hook_name}_hooks") == [original_hook]
+        assert getattr(flow_with_options, f"{hook_name}_hooks") == [
+            original_hook,
+            added_hook,
+        ]
 
     def test_with_options_can_unset_timeout_seconds_with_zero(self):
         @flow(timeout_seconds=1)
@@ -1819,6 +1851,25 @@ class TestFlowParameterTypes:
         # See #22244.
         assert my_flow.serialize_parameters({"x": data}) == {"x": "<Cyclic>"}
 
+    def test_serialize_parameters_falls_back_on_arbitrary_encoder_errors(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        class Uncopyable:
+            def __reduce__(self):
+                raise NotImplementedError
+
+        @dataclasses.dataclass
+        class Holder:
+            value: Uncopyable
+
+        # jsonable_encoder deep-copies dataclasses, so any error raised by
+        # `__reduce__` escapes the encoder. See #23629.
+        assert my_flow.serialize_parameters({"x": Holder(Uncopyable())}) == {
+            "x": "<Holder>"
+        }
+
     def test_flow_parameter_annotations_can_be_non_pydantic_classes(self):
         class Test:
             pass
@@ -1896,6 +1947,15 @@ class TestFlowParameterTypes:
             return keys
 
         assert my_flow(keys="hello") == "hello"
+
+    @pytest.mark.parametrize("value", [None, 0, False, "ab", {"b": 2}])
+    def test_invalid_var_positional_values_are_rejected(self, value):
+        @flow
+        def my_flow(x: int = 1, *args: int):
+            return x, args
+
+        with pytest.raises(ParameterTypeError):
+            my_flow.validate_parameters({"args": value})
 
 
 class TestSubflowTaskInputs:
@@ -2087,11 +2147,19 @@ async def _wait_for_logs(
     prefect_client: PrefectClient,
     expected_num_logs: Optional[int] = None,
     timeout: int = 10,
+    flow_run_ids: list[uuid.UUID] | None = None,
 ):
+    # Filter by flow run so logs persisted by earlier tests sharing the database
+    # don't satisfy `expected_num_logs` before this test's logs are flushed.
+    log_filter = (
+        LogFilter(flow_run_id=LogFilterFlowRunId(any_=flow_run_ids))
+        if flow_run_ids
+        else None
+    )
     logs = []
     start_time = time.time()
     while True:
-        logs = await prefect_client.read_logs()
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         if logs:
             if expected_num_logs is None:
                 break
@@ -2112,10 +2180,12 @@ class TestFlowRunLogs:
             logger = get_run_logger()
             logger.info("Hello world!")
 
-        my_flow()
-        await _wait_for_logs(prefect_client, expected_num_logs=3)
-
-        logs = await prefect_client.read_logs()
+        state = my_flow(return_state=True)
+        logs = await _wait_for_logs(
+            prefect_client,
+            expected_num_logs=3,
+            flow_run_ids=[state.state_details.flow_run_id],
+        )
         assert "Hello world!" in {log.message for log in logs}
 
     async def test_repeated_flow_calls_send_logs_to_orion(self, prefect_client):
@@ -2124,10 +2194,17 @@ class TestFlowRunLogs:
             logger = get_run_logger()
             logger.info(f"Hello {i}")
 
-        await my_flow(1)
-        await my_flow(2)
+        state_1 = await my_flow(1, return_state=True)
+        state_2 = await my_flow(2, return_state=True)
 
-        logs = await _wait_for_logs(prefect_client, expected_num_logs=6)
+        logs = await _wait_for_logs(
+            prefect_client,
+            expected_num_logs=6,
+            flow_run_ids=[
+                state_1.state_details.flow_run_id,
+                state_2.state_details.flow_run_id,
+            ],
+        )
         assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})
 
     @pytest.mark.clear_db
@@ -2284,6 +2361,132 @@ class TestFlowRetries:
 
         assert foo() == "hello"
         assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_state(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            return [Failed(message="boom")]
+
+        state = foo(return_state=True)
+        assert state.is_failed()
+        assert run_count == 2
+
+    async def test_async_flow_retry_with_returned_failed_state(self):
+        run_count = 0
+
+        @flow(retries=1)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            return Failed(message="boom")
+
+        state = await foo(return_state=True)
+        assert state.is_failed()
+        assert run_count == 2
+
+    @pytest.mark.parametrize("returned_state", [Scheduled, AwaitingRetry])
+    @pytest.mark.parametrize("retries", [0, 1])
+    def test_flow_returning_scheduled_state_is_not_retried(
+        self, returned_state, retries
+    ):
+        run_count = 0
+
+        @flow(retries=retries)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            return returned_state()
+
+        state = foo(return_state=True)
+        assert state.is_scheduled()
+        assert run_count == 1
+
+    @pytest.mark.parametrize("returned_state", [Scheduled, AwaitingRetry])
+    @pytest.mark.parametrize("retries", [0, 1])
+    async def test_async_flow_returning_scheduled_state_is_not_retried(
+        self, returned_state, retries
+    ):
+        run_count = 0
+
+        @flow(retries=retries)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            return returned_state()
+
+        state = await foo(return_state=True)
+        assert state.is_scheduled()
+        assert run_count == 1
+
+    def test_flow_retry_with_returned_failed_state_then_success(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            return "hello"
+
+        assert foo() == "hello"
+        assert run_count == 2
+
+    async def test_async_flow_retry_with_returned_failed_state_then_success(self):
+        run_count = 0
+
+        @flow(retries=1)
+        async def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            return "hello"
+
+        assert await foo() == "hello"
+        assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_state_then_error(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                return Failed(message="boom")
+            raise ValueError("second attempt")
+
+        with pytest.raises(ValueError, match="second attempt"):
+            foo()
+        assert run_count == 2
+
+    def test_flow_retry_with_returned_failed_task_future(self):
+        flow_run_count = 0
+        task_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+            if flow_run_count == 1:
+                raise ValueError()
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            return my_task.submit()
+
+        state = foo(return_state=True)
+        assert state.is_completed()
+        assert flow_run_count == 2
+        assert task_run_count == 2
 
     async def test_flow_retry_with_error_in_flow_and_successful_task(self):
         task_run_count = 0
@@ -2885,6 +3088,94 @@ class TestLoadFlowFromEntrypoint:
                 f"{fpath}:{entrypoint_without_filename}", use_placeholder_flow=False
             )
 
+    @pytest.mark.parametrize(
+        "source_code",
+        [
+            pytest.param(
+                """
+                import not_a_module
+                from prefect import flow
+
+                @flow
+                def etl():
+                    pass
+
+                etl_daily = etl.with_options(name="etl-daily")
+                """,
+                id="with_options",
+            ),
+            pytest.param(
+                """
+                import not_a_module
+                from prefect import flow
+
+                def run_etl():
+                    pass
+
+                etl_daily = flow(name="etl-daily")(run_etl)
+                """,
+                id="decorator-call",
+            ),
+            pytest.param(
+                """
+                import not_a_module
+                from prefect import Flow, flow
+
+                @flow
+                def etl():
+                    pass
+
+                etl_daily: Flow = etl.with_options(name="etl-daily")
+                """,
+                id="annotated-assignment",
+            ),
+            pytest.param(
+                """
+                import not_a_module
+                from prefect import flow as etl_daily
+                """,
+                id="re-export",
+            ),
+        ],
+    )
+    def test_load_flow_from_entrypoint_raises_script_error_for_non_def_entrypoint(
+        self, tmp_path: Path, source_code: str
+    ):
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(source_code))
+
+        with pytest.raises(ScriptError) as exc_info:
+            load_flow_from_entrypoint(f"{fpath}:etl_daily")
+
+        assert isinstance(exc_info.value.user_exc, ModuleNotFoundError)
+
+    def test_load_flow_from_entrypoint_raises_script_error_for_import_time_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("PREFECT_TEST_UNSET_ENV_VAR", raising=False)
+        fpath = tmp_path / "f.py"
+        fpath.write_text(
+            dedent(
+                """
+                import os
+                from prefect import flow
+
+                SECRET = os.environ["PREFECT_TEST_UNSET_ENV_VAR"]
+
+                @flow
+                def etl():
+                    pass
+
+                etl_daily = etl.with_options(name="etl-daily")
+                """
+            )
+        )
+
+        with pytest.raises(ScriptError) as exc_info:
+            load_flow_from_entrypoint(f"{fpath}:etl_daily")
+
+        assert isinstance(exc_info.value.user_exc, KeyError)
+
     @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_handling_script_with_unprotected_call_in_flow_script(
         self, tmp_path, caplog, prefect_client
@@ -3203,6 +3494,138 @@ class TestFlowHooksWithKwargs:
         state = foo_flow(return_state=True)
 
         assert data == dict(name="hook", state=state, kwargs={"foo": 42})
+
+
+def _hooks_by_signature(received: list[tuple[Any, Any, Any]]) -> dict[str, Any]:
+    def alternate_names(flow_, run, state_):
+        received.append((flow_, run, state_))
+
+    def documented_run_name(flow, run, state):
+        received.append((flow, run, state))
+
+    def keyword_only(*, flow, flow_run, state):
+        received.append((flow, flow_run, state))
+
+    def reordered_names(state, flow, flow_run):
+        received.append((flow, flow_run, state))
+
+    async def async_keyword_only(*, flow, flow_run, state):
+        received.append((flow, flow_run, state))
+
+    return {
+        hook.__name__: hook
+        for hook in (
+            alternate_names,
+            documented_run_name,
+            keyword_only,
+            reordered_names,
+            async_keyword_only,
+        )
+    }
+
+
+HOOK_SIGNATURES = [
+    "alternate_names",
+    "documented_run_name",
+    "keyword_only",
+    "reordered_names",
+    "async_keyword_only",
+]
+
+
+class TestFlowHookSignatures:
+    @pytest.mark.parametrize("signature", HOOK_SIGNATURES)
+    def test_hook_receives_flow_flow_run_and_state(self, signature: str):
+        received: list[tuple[Any, Any, Any]] = []
+
+        @flow(on_completion=[_hooks_by_signature(received)[signature]])
+        def foo_flow():
+            pass
+
+        state = foo_flow(return_state=True)
+
+        assert len(received) == 1
+        hook_flow, hook_flow_run, hook_state = received[0]
+        assert hook_flow is foo_flow
+        assert hook_flow_run.id == state.state_details.flow_run_id
+        assert hook_state == state
+
+    @pytest.mark.parametrize("signature", HOOK_SIGNATURES)
+    async def test_hook_receives_flow_flow_run_and_state_in_async_flow(
+        self, signature: str
+    ):
+        received: list[tuple[Any, Any, Any]] = []
+
+        @flow(on_completion=[_hooks_by_signature(received)[signature]])
+        async def foo_flow():
+            pass
+
+        state = await foo_flow(return_state=True)
+
+        assert len(received) == 1
+        hook_flow, hook_flow_run, hook_state = received[0]
+        assert hook_flow is foo_flow
+        assert hook_flow_run.id == state.state_details.flow_run_id
+        assert hook_state == state
+
+    def test_hook_that_raises_type_error_runs_once(self, caplog):
+        calls: list[Any] = []
+
+        def hook(flow, flow_run, state):
+            calls.append(state)
+            raise TypeError("raised inside the hook")
+
+        @flow(on_completion=[hook])
+        def foo_flow():
+            pass
+
+        foo_flow()
+
+        assert len(calls) == 1
+        assert "raised inside the hook" in caplog.text
+
+    def test_hook_with_incompatible_signature_is_not_called(self, caplog):
+        calls: list[Any] = []
+
+        def hook(flow, flow_run):
+            calls.append(flow_run)
+
+        @flow(on_completion=[hook])
+        def foo_flow():
+            pass
+
+        foo_flow()
+
+        assert calls == []
+        assert "must accept the flow, the flow run and the state" in caplog.text
+
+    @pytest.mark.parametrize(
+        "base",
+        [FlowStateHook, FlowStateHook[..., None]],
+        ids=["protocol", "parametrized-protocol"],
+    )
+    def test_flow_state_hook_subclass_receives_flow_flow_run_and_state(self, base: Any):
+        received: list[tuple[Any, Any, Any]] = []
+
+        class Hook(base):
+            def __call__(self, flow, flow_run, state):
+                received.append((flow, flow_run, state))
+
+        hook = Hook()
+
+        @flow
+        def foo_flow():
+            pass
+
+        assert foo_flow.on_completion(hook) is hook
+
+        state = foo_flow(return_state=True)
+
+        assert len(received) == 1
+        hook_flow, hook_flow_run, hook_state = received[0]
+        assert hook_flow is foo_flow
+        assert hook_flow_run.id == state.state_details.flow_run_id
+        assert hook_state == state
 
 
 class TestFlowHooksOnCompletion:

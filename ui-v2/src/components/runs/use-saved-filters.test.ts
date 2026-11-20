@@ -8,12 +8,26 @@ import {
 	filterValuesToDateRangeUrlState,
 	type SavedFilter,
 	type SavedFilterValues,
+	SYSTEM_FILTER_HIDE_SCHEDULED_ID,
 	SYSTEM_FILTERS,
 	URL_PARAM_TO_FILTER_KEY_MAP,
 	useSavedFilters,
 } from "./use-saved-filters";
 
 describe("areFiltersEqual", () => {
+	it("keeps custom names exact and compares types independently", () => {
+		const filters: SavedFilterValues = {
+			state: ["Baseline, NOT Met"],
+			stateTypes: ["FAILED"],
+		};
+		expect(areFiltersEqual(filters, { ...filters })).toBe(true);
+		expect(
+			areFiltersEqual(filters, { ...filters, stateTypes: ["RUNNING"] }),
+		).toBe(false);
+		expect(
+			areFiltersEqual(filters, { ...filters, state: ["baseline, NOT Met"] }),
+		).toBe(false);
+	});
 	it("returns true for identical empty filters", () => {
 		const filterA: SavedFilterValues = {};
 		const filterB: SavedFilterValues = {};
@@ -185,6 +199,37 @@ describe("useSavedFilters", () => {
 		// savedFilters includes system filters by default
 		expect(result.current.savedFilters).toEqual(SYSTEM_FILTERS);
 		expect(result.current.defaultFilterId).toBeNull();
+	});
+
+	it("restores a system default by ID while keeping user-saved names exact", () => {
+		const legacyFilter = {
+			id: "legacy-name-filter",
+			name: "Completed names",
+			filters: { state: ["Completed", "Cached"] },
+		};
+		vi.mocked(localStorage.getItem).withImplementation(
+			(key) => {
+				if (key === "prefect-ui-v2-default-filter-id") {
+					return JSON.stringify(SYSTEM_FILTER_HIDE_SCHEDULED_ID);
+				}
+				if (key === "prefect-ui-v2-saved-filters") {
+					return JSON.stringify([legacyFilter]);
+				}
+				return null;
+			},
+			() => {
+				const { result } = renderHook(() => useSavedFilters());
+				const systemDefault = result.current.getFilterById(
+					result.current.defaultFilterId ?? "",
+				);
+				expect(systemDefault?.filters.state).toBeUndefined();
+				expect(systemDefault?.filters.stateTypes).toContain("COMPLETED");
+				expect(systemDefault?.filters.stateTypes).not.toContain("SCHEDULED");
+				expect(result.current.getFilterById(legacyFilter.id)).toEqual(
+					legacyFilter,
+				);
+			},
+		);
 	});
 
 	it("saves a new filter", () => {

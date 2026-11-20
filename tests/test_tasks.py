@@ -10,7 +10,8 @@ import threading
 import time
 import weakref
 from asyncio import Event, sleep
-from functools import partial
+from collections import defaultdict, deque
+from functools import partial, wraps
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import ANY, MagicMock, call
@@ -139,6 +140,16 @@ class TestTaskName:
 
 
 class TestTaskKey:
+    def test_user_decorator_keeps_its_own_task_key(self):
+        def original(value: int) -> int:
+            return value
+
+        @wraps(original)
+        def decorated(value: int) -> int:
+            return original(value) + 1
+
+        assert task(decorated).task_key != task(original).task_key
+
     def test_task_key_typical_case(self):
         @task
         def my_task():
@@ -2219,6 +2230,29 @@ class TestTaskCaching:
 
         assert foo(1) == 1
 
+    def test_cache_policy_configuration_survives_input_exclusion(self, tmp_path):
+        lock_manager = MemoryLockManager()
+        cache_policy = (
+            INPUTS.configure(
+                key_storage=tmp_path,
+                lock_manager=lock_manager,
+                isolation_level=IsolationLevel.SERIALIZABLE,
+            )
+            - "y"
+        )
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1, "y": 2}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x, y):
+            assert lock_manager.is_locked(expected_cache_key)
+            return x
+
+        assert foo(1, 2) == 1
+        assert (tmp_path / expected_cache_key).exists()
+        assert not lock_manager.is_locked(expected_cache_key)
+
     async def test_cache_policy_lock_manager_async(self, tmp_path):
         """Regression test for https://github.com/PrefectHQ/prefect/issues/17785"""
         cache_policy = (INPUTS + TASK_SOURCE).configure(
@@ -2411,6 +2445,24 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() != await second_state.result()
         assert await first_state.result() == await third_state.result()
         assert await first_state.result() == 1
+
+    async def test_task_input_hash_distinguishes_tuples_from_lists(self):
+        @task(cache_key_fn=task_input_hash, persist_result=True)
+        def foo(x):
+            return type(x).__name__
+
+        @flow
+        def bar():
+            return (
+                foo((1, 2, 3), return_state=True),
+                foo([1, 2, 3], return_state=True),
+            )
+
+        tuple_state, list_state = bar()
+        assert tuple_state.name == "Completed"
+        assert list_state.name == "Completed"
+        assert await tuple_state.result() == "tuple"
+        assert await list_state.result() == "list"
 
     async def test_task_input_hash_between_flows(
         self,
@@ -3047,6 +3099,41 @@ class TestTaskInputs:
                 TaskRunResult(id=b.state_details.task_run_id),
                 TaskRunResult(id=c.state_details.task_run_id),
             },
+        )
+
+    async def test_task_inputs_populated_with_upstream_futures_in_stdlib_containers(
+        self, prefect_client, events_pipeline
+    ):
+        @task
+        def foo(x):
+            return x
+
+        @task
+        def bar(x, y):
+            return x, y
+
+        @flow
+        def test_flow():
+            a = foo.submit(1)
+            b = foo.submit(2)
+            d = bar(defaultdict(list, {"a": [a]}), deque([b]), return_state=True)
+            return a, b, d
+
+        flow_state = test_flow(return_state=True)
+
+        a, b, d = await flow_state.result()
+        x, y = await d.result()
+
+        assert x == defaultdict(list, {"a": [1]})
+        assert y == deque([2])
+
+        await events_pipeline.process_events()
+
+        task_run = await prefect_client.read_task_run(d.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunResult(id=a.state_details.task_run_id)],
+            y=[TaskRunResult(id=b.state_details.task_run_id)],
         )
 
     async def test_task_inputs_populated_with_subflow_upstream(
@@ -4075,8 +4162,17 @@ class TestTaskWithOptions:
             timeout_seconds=42,
             refresh_cache=True,
             result_storage_key="test",
+            version="1.2.3",
         )
         def initial_task():
+            pass
+
+        @initial_task.on_rollback
+        def rollback_hook(txn):
+            pass
+
+        @initial_task.on_commit
+        def commit_hook(txn):
             pass
 
         task_with_options = initial_task.with_options()
@@ -4099,6 +4195,9 @@ class TestTaskWithOptions:
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "test"
+        assert task_with_options.version == "1.2.3"
+        assert task_with_options.on_rollback_hooks == [rollback_hook]
+        assert task_with_options.on_commit_hooks == [commit_hook]
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         result_storage = LocalFileSystem(basepath=tmp_path)
@@ -4137,6 +4236,29 @@ class TestTaskWithOptions:
         assert initial_task.tags == {"tag1", "tag2", "tag3"}
         assert with_options_task.tags == {"tag1", "tag2"}
 
+    @pytest.mark.parametrize("hook_name", ["on_completion", "on_failure", "on_running"])
+    def test_hooks_are_copied_from_original_task(self, hook_name: str):
+        "Ensure hooks added to the new task don't affect the original task"
+
+        def original_hook(task, task_run, state):
+            pass
+
+        def added_hook(task, task_run, state):
+            pass
+
+        @task(**{hook_name: [original_hook]})
+        def initial_task():
+            pass
+
+        with_options_task = initial_task.with_options(name="With options task")
+        getattr(with_options_task, hook_name)(added_hook)
+
+        assert getattr(initial_task, f"{hook_name}_hooks") == [original_hook]
+        assert getattr(with_options_task, f"{hook_name}_hooks") == [
+            original_hook,
+            added_hook,
+        ]
+
     def test_with_options_signature_aligns_with_task_signature(self):
         task_params = set(inspect.signature(task).parameters.keys())
         with_options_params = set(
@@ -4159,6 +4281,16 @@ class TestTaskWithOptions:
         task_with_options = initial_task.with_options(retries=0, retry_delay_seconds=0)
         assert task_with_options.retries == 0
         assert task_with_options.retry_delay_seconds == 0
+
+    @pytest.mark.parametrize("empty_tags", [[], set(), ()])
+    def test_with_options_can_clear_tags_with_empty_collection(self, empty_tags):
+        @task(tags=["original"])
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options(tags=empty_tags)
+        assert task_with_options.tags == set()
+        assert initial_task.tags == {"original"}
 
     async def test_with_options_refresh_cache(
         self,
@@ -4293,6 +4425,29 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
+
+    def test_map_can_take_futures_in_variadic_keywords(self):
+        @task
+        def numbers() -> list[int]:
+            return [1, 2, 3]
+
+        @task
+        def add(**kwargs: int) -> tuple[int, set[UUID]]:
+            context = TaskRunContext.get()
+            assert context is not None
+            upstream_ids = {
+                value.id for value in context.task_run.task_inputs["kwargs"]
+            }
+            return kwargs["x"] + kwargs["y"], upstream_ids
+
+        @flow
+        def my_flow() -> tuple[set[UUID], list[tuple[int, set[UUID]]]]:
+            x = numbers.submit()
+            y = numbers.submit()
+            return {x.task_run_id, y.task_run_id}, add.map(x=x, y=y).result()
+
+        upstream_ids, results = my_flow()
+        assert results == [(value, upstream_ids) for value in [2, 4, 6]]
 
     @staticmethod
     @task
@@ -4611,6 +4766,30 @@ class TestTaskMap:
         def my_flow():
             numbers = [1, 2, 3]
             return add_some.map(numbers)
+
+        task_states = my_flow()
+        assert [await state.result() for state in task_states] == [6, 7, 8]
+
+    async def test_with_keyword_with_field_default(self):
+        @task
+        def add_some(x: int, y: int = pydantic.Field(default=5)):
+            return x + y
+
+        @flow
+        def my_flow():
+            return add_some.map([1, 2, 3])
+
+        task_states = my_flow()
+        assert [await state.result() for state in task_states] == [6, 7, 8]
+
+    async def test_with_keyword_with_field_default_async_task(self):
+        @task
+        async def add_some(x: int, y: int = pydantic.Field(default=5)):
+            return x + y
+
+        @flow
+        def my_flow():
+            return add_some.map([1, 2, 3])
 
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [6, 7, 8]

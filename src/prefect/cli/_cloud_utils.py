@@ -70,7 +70,7 @@ class ServerExit(Exception):
 
 
 def set_login_api_ready_event() -> None:
-    login_api.extra["ready-event"].set()
+    login_api.state.ready_event.set()
 
 
 @asynccontextmanager
@@ -97,14 +97,14 @@ login_api.add_middleware(
 
 @login_api.post("/success")
 def receive_login(payload: LoginSuccess) -> None:
-    login_api.extra["result"] = LoginResult(type="success", content=payload)
-    login_api.extra["result-event"].set()
+    login_api.state.result = LoginResult(type="success", content=payload)
+    login_api.state.result_event.set()
 
 
 @login_api.post("/failure")
 def receive_failure(payload: LoginFailed) -> None:
-    login_api.extra["result"] = LoginResult(type="failure", content=payload)
-    login_api.extra["result-event"].set()
+    login_api.state.result = LoginResult(type="failure", content=payload)
+    login_api.state.result_event.set()
 
 
 # ---------------------------------------------------------------------------
@@ -360,10 +360,10 @@ async def login_with_browser(console: Console) -> str:
     from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
     # Set up an event that the login API will toggle on startup
-    ready_event = login_api.extra["ready-event"] = anyio.Event()
+    ready_event = login_api.state.ready_event = anyio.Event()
 
     # Set up an event that the login API will set when a response comes from the UI
-    result_event = login_api.extra["result-event"] = anyio.Event()
+    result_event = login_api.state.result_event = anyio.Event()
 
     timeout_scope = None
     async with anyio.create_task_group() as tg:
@@ -397,7 +397,7 @@ async def login_with_browser(console: Console) -> str:
         # Shut down the background uvicorn server
         tg.cancel_scope.cancel()
 
-    result = login_api.extra.get("result")
+    result = getattr(login_api.state, "result", None)
     if not result:
         if timeout_scope and timeout_scope.cancel_called:
             _exit_with_error("Timed out while waiting for authorization.", console)

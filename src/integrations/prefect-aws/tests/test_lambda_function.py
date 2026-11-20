@@ -78,7 +78,7 @@ def mock_lambda_code():
 def mock_lambda_function(lambda_mock, mock_iam_rule, mock_lambda_code):
     r = lambda_mock.create_function(
         FunctionName="test-function",
-        Runtime="python3.10",
+        Runtime="python3.11",
         Role=mock_iam_rule["Role"]["Arn"],
         Handler="foo.handler",
         Code={"ZipFile": mock_lambda_code},

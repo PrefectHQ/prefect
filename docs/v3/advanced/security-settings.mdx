@@ -37,16 +37,16 @@ PREFECT_API_AUTH_STRING="admin:pass"
 
 When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a 
  hosted Prefect UI instance, you must also configure the self-hosted Prefect server instance to connect to the API. 
-The [`ui.api_url`](/v3/develop/settings-ref/#api_url) setting should be set to the external proxy URL.
+The [`server.ui.api_url`](/v3/api-ref/settings-ref#serveruisettings) setting should be set to the external proxy URL.
 
 For example, if your external URL is `https://prefect-server.example.com` then you can configure a `prefect.toml` file for your server like this:
 
 ```toml prefect.toml
-[ui]
+[server.ui]
 api_url = "https://prefect-server.example.com/api"
 ```
 
-If you do not set `ui.api_url`, then `api.url` will be used as a fallback.
+If you do not set `server.ui.api_url`, then `api.url` will be used as a fallback.
 
 ## CSRF protection settings
 

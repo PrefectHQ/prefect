@@ -6,8 +6,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import warnings
 from datetime import timedelta
 from pathlib import Path
+from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Optional
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -19,6 +21,10 @@ import yaml
 
 import prefect
 from prefect.blocks.system import Secret
+from prefect.cli.deploy._config import (
+    _filter_matching_deploy_config,
+    _parse_name_from_pattern,
+)
 from prefect.cli.deploy._storage import _PullStepStorage
 from prefect.cli.deploy._triggers import (
     _create_deployment_triggers,
@@ -486,6 +492,38 @@ class TestProjectDeploy:
         )
         assert deployment.name == "test-name"
         assert deployment.work_pool_name == work_pool.name
+
+    async def test_deploy_reports_script_error_for_non_def_entrypoint(
+        self, project_dir: Path, work_pool: WorkPool
+    ):
+        (project_dir / "flows" / "etl.py").write_text(
+            dedent(
+                """
+                import not_a_module
+                from prefect import flow
+
+                @flow
+                def etl():
+                    pass
+
+                etl_daily = etl.with_options(name="etl-daily")
+                """
+            )
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/etl.py:etl_daily -n test-name -p {work_pool.name}"
+            ),
+            expected_code=1,
+            expected_output_contains=[
+                "import not_a_module",
+                "ModuleNotFoundError: No module named 'not_a_module'",
+                "encountered an exception: ModuleNotFoundError",
+            ],
+            expected_output_does_not_contain=["load_flow_from_entrypoint"],
+        )
 
     async def test_project_deploy_with_default_work_pool(
         self, project_dir: Path, prefect_client: PrefectClient
@@ -1786,6 +1824,35 @@ class TestProjectDeploy:
         assert deployment.version == "foo"
         assert deployment.tags == ["b", "2", "3"]
         assert deployment.description == "This one is actually a string"
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_project_deploy_templates_step_outputs_in_list_items(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        deployment_name = f"test-name-{uuid4()}"
+        prefect_config["deployments"][0]["name"] = deployment_name
+        prefect_config["deployments"][0]["tags"] = ["{{ input }}", "static"]
+        prefect_config["build"] = [
+            {"prefect.testing.utilities.a_test_step": {"input": "foo"}}
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool.name}",
+        )
+        assert result.exit_code == 0
+
+        deployment = await prefect_client.read_deployment_by_name(
+            f"An important name/{deployment_name}"
+        )
+        assert deployment.tags == ["foo", "static"]
 
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_env_var_values(
@@ -3351,6 +3418,101 @@ class TestSchedules:
         assert actual_slug_active == expected_slug_active
 
     @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.parametrize("clear_schedules", [False, True])
+    @pytest.mark.parametrize("slug", [None, "daily"])
+    @pytest.mark.parametrize(
+        "schedule_config, clears_schedules, interactive",
+        [
+            pytest.param({}, False, False, id="omitted"),
+            pytest.param({"schedules": None}, False, False, id="null"),
+            pytest.param({"schedules": []}, True, False, id="empty"),
+            pytest.param({}, False, True, id="prompt-declined"),
+        ],
+    )
+    async def test_redeploy_existing_schedules(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        schedule_config: dict[str, Any],
+        clears_schedules: bool,
+        interactive: bool,
+        slug: str | None,
+        clear_schedules: bool,
+        request: pytest.FixtureRequest,
+    ):
+        if interactive:
+            request.getfixturevalue("interactive_console")
+
+        config = {
+            "build": [],
+            "push": [],
+            "pull": [],
+            "deployments": [
+                {
+                    "name": "test-name",
+                    "entrypoint": "flows/hello.py:my_flow",
+                    "work_pool": {"name": work_pool.name},
+                    "schedules": [{"cron": "0 4 * * *", "slug": slug}],
+                }
+            ],
+        }
+        prefect_file = Path("prefect.yaml")
+        prefect_file.write_text(yaml.safe_dump(config))
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            user_input="n\n" if interactive else None,
+        )
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].active is True
+        deployment_id = deployment.id
+        existing_schedule = deployment.schedules[0]
+
+        config["deployments"][0].pop("schedules")
+        config["deployments"][0].update(schedule_config)
+        config["deployments"][0]["description"] = "Updated description"
+        prefect_file.write_text(yaml.safe_dump(config))
+
+        with temporary_settings(
+            {"deployments.clear_schedules_on_empty": clear_schedules}
+        ):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", FutureWarning)
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command="deploy --all",
+                    expected_code=0,
+                    # Decline configuring schedules when prompted.
+                    user_input="n\n" if interactive else None,
+                )
+        deprecations = [w for w in caught if issubclass(w.category, FutureWarning)]
+        if clears_schedules and not clear_schedules:
+            assert len(deprecations) == 1
+            assert "PREFECT_DEPLOYMENTS_CLEAR_SCHEDULES_ON_EMPTY=true" in str(
+                deprecations[0].message
+            )
+        else:
+            assert deprecations == []
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.id == deployment_id
+        assert deployment.description == "Updated description"
+        assert deployment.paused is False
+        if clears_schedules and clear_schedules:
+            assert deployment.schedules == []
+        else:
+            assert len(deployment.schedules) == 1
+            assert deployment.schedules[0].id == existing_schedule.id
+            assert deployment.schedules[0].schedule == existing_schedule.schedule
+            assert deployment.schedules[0].active is True
+
+    @pytest.mark.usefixtures("project_dir")
     async def test_yaml_null_schedules(
         self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
@@ -4474,6 +4636,101 @@ class TestDeployPattern:
             )
 
     @pytest.mark.parametrize(
+        "name_pattern", ["my-flow*/release", "my-flow/rel*", "*my-flow*/*release*"]
+    )
+    def test_pattern_with_flow_keeps_flow_qualifier(self, name_pattern: str):
+        deploy_configs = [
+            {"name": "release", "entrypoint": "flows.py:my_flow"},
+            {"name": "release", "entrypoint": "flows.py:other_flow"},
+        ]
+
+        parsed_names = _parse_name_from_pattern(deploy_configs, name_pattern)
+
+        assert parsed_names == ["my_flow/release"]
+        assert _filter_matching_deploy_config(parsed_names[0], deploy_configs) == [
+            deploy_configs[0]
+        ]
+
+    @pytest.mark.parametrize(
+        "deploy_name",
+        [
+            "test-name*",
+            "*test-name*",
+            ("*test-name", "*test-name-backfill"),
+            "my-flow/test-name*",
+            ("my-flow*/test-name", "*my-flow/test-name-backfill"),
+            "*my-flow*/*test-name*",
+        ],
+    )
+    async def test_pattern_deploy_wildcard_matches_empty_string(
+        self,
+        deploy_name: str | tuple[str, ...],
+        project_dir: Path,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "test-name-backfill",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "dont-deploy-me",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        if isinstance(deploy_name, tuple):
+            deploy_command = "deploy " + " ".join(
+                [f"-n '{name}'" for name in deploy_name]
+            )
+        else:
+            deploy_command = f"deploy -n '{deploy_name}'"
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=deploy_command,
+            expected_code=0,
+            expected_output_contains=[
+                "Deploying flows with selected deployment configurations...",
+                "An important name/test-name'",
+                "An important name/test-name-backfill",
+            ],
+            expected_output_does_not_contain=[
+                "An important name/dont-deploy-me",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.work_pool_name == work_pool.name
+
+        backfill_deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-backfill"
+        )
+        assert backfill_deployment.work_pool_name == work_pool.name
+
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name(
+                "An important name/dont-deploy-me"
+            )
+
+    @pytest.mark.parametrize(
         "deploy_name",
         [
             "*/nonexistent-deployment-name",
@@ -5297,7 +5554,7 @@ class TestSaveUserInputs:
         assert len(config["deployments"]) == 1
         assert config["deployments"][0]["name"] == "default"
         assert config["deployments"][0]["entrypoint"] == "flows/hello.py:my_flow"
-        assert config["deployments"][0]["schedules"] == []
+        assert config["deployments"][0]["schedules"] is None
         assert config["deployments"][0]["work_pool"]["name"] == "inflatable"
 
     def test_save_user_inputs_existing_prefect_file(self):

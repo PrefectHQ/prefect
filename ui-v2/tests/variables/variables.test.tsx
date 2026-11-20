@@ -122,7 +122,9 @@ describe("Variables page", () => {
 			await user.type(screen.getByLabelText("Name"), "my-variable");
 			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
 			await user.click(screen.getByRole("button", { name: "Create" }));
-			expect(screen.getByText("Failed to create variable")).toBeVisible();
+			expect(
+				await screen.findByText("Failed to create variable"),
+			).toBeVisible();
 		});
 
 		it("should show error when API call fails without detail", async () => {
@@ -143,7 +145,7 @@ describe("Variables page", () => {
 			await user.click(screen.getByRole("button", { name: "Create" }));
 
 			expect(
-				screen.getByText("Unknown error", {
+				await screen.findByText("Unknown error", {
 					exact: false,
 				}),
 			).toBeVisible();
@@ -230,7 +232,9 @@ describe("Variables page", () => {
 			await user.type(within(dialog).getByLabelText("Name"), "new_name");
 			await user.click(screen.getByRole("button", { name: "Save" }));
 			expect(
-				screen.getByText("Failed to update variable. Here's some detail..."),
+				await screen.findByText(
+					"Failed to update variable. Here's some detail...",
+				),
 			).toBeVisible();
 		});
 	});
@@ -272,7 +276,9 @@ describe("Variables page", () => {
 
 		await user.type(within(dialog).getByLabelText("Name"), "new_name");
 		await user.click(screen.getByRole("button", { name: "Save" }));
-		expect(screen.getByText("Unknown error", { exact: false })).toBeVisible();
+		expect(
+			await screen.findByText("Unknown error", { exact: false }),
+		).toBeVisible();
 	});
 
 	describe("Variables table", () => {

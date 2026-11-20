@@ -59,7 +59,7 @@ class DbtCloudCredentials(CredentialsBlock):
 
     _block_type_name = "dbt Cloud Credentials"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-dbt"  # noqa
 
     api_key: SecretStr = Field(
         default=...,

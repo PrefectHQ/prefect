@@ -1,5 +1,3 @@
-import sys
-
 import dask
 import pytest
 from distributed import Client
@@ -85,14 +83,8 @@ class TestDaskAsyncClient:
         def test_flow():
             return test_task.submit()
 
-        if sys.version_info < (3, 11):
-            with pytest.raises(AttributeError, match="__enter__"):
-                test_flow()
-        else:
-            with pytest.raises(
-                TypeError, match="not support the context manager protocol"
-            ):
-                test_flow()
+        with pytest.raises(TypeError, match="not support the context manager protocol"):
+            test_flow()
 
     async def test_from_flow(self):
         @flow(task_runner=DaskTaskRunner)
@@ -111,14 +103,8 @@ class TestDaskAsyncClient:
             with get_async_dask_client():
                 pass
 
-        if sys.version_info < (3, 11):
-            with pytest.raises(AttributeError, match="__enter__"):
-                test_flow()
-        else:
-            with pytest.raises(
-                TypeError, match="not support the context manager protocol"
-            ):
-                test_flow()
+        with pytest.raises(TypeError, match="not support the context manager protocol"):
+            test_flow()
 
     async def test_outside_run_context(self):
         delayed_num = dask.delayed(42)

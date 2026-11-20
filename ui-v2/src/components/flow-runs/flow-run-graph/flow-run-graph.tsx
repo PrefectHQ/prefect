@@ -13,6 +13,7 @@ import { buildCountTaskRunsQuery } from "@/api/task-runs";
 import {
 	emitter,
 	type GraphItemSelection,
+	isArtifactSelection,
 	isArtifactsSelection,
 	isEventSelection,
 	isEventsSelection,
@@ -79,6 +80,12 @@ export function FlowRunGraph({
 	const fullscreen = controlledFullscreen ?? internalFullscreen;
 	const selected = controlledSelected ?? internalSelected;
 	const isTerminal = stateType && TERMINAL_STATES.includes(stateType);
+	// Clicking a single artifact in the graph selects it directly, while
+	// artifacts picked from a cluster's popover are tracked separately.
+	const drawerArtifactId =
+		selected && isArtifactSelection(selected)
+			? selected.id
+			: selectedArtifactId;
 
 	const { data: taskRunCount } = useQuery(
 		buildCountTaskRunsQuery({
@@ -193,8 +200,8 @@ export function FlowRunGraph({
 		<div className={`${heightClass} ${className ?? ""}`} style={style}>
 			<div ref={stageRef} className="size-full [&>canvas]:size-full" />
 			{!hasNodes && (
-				<div className="absolute inset-0 flex items-center justify-center bg-background/50">
-					<p className="text-muted-foreground">
+				<div className="absolute inset-0 flex items-center justify-center bg-background/80 px-6">
+					<p className="max-w-sm text-balance text-center text-sm text-muted-foreground">
 						{isTerminal
 							? "This flow run did not generate any task or subflow runs"
 							: "This flow run has not yet generated any task or subflow runs"}
@@ -258,8 +265,14 @@ export function FlowRunGraph({
 				/>
 			)}
 			<FlowRunGraphArtifactDrawer
-				artifactId={selectedArtifactId}
-				onClose={() => setSelectedArtifactId(null)}
+				artifactId={drawerArtifactId}
+				onClose={() => {
+					setSelectedArtifactId(null);
+					if (selected && isArtifactSelection(selected)) {
+						setInternalSelected(undefined);
+						onSelectedChange?.(undefined);
+					}
+				}}
 			/>
 		</div>
 	);

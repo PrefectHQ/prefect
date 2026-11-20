@@ -1,4 +1,5 @@
 import datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 import sqlalchemy as sa
@@ -25,6 +26,86 @@ from prefect.types._datetime import now
 from prefect.utilities.callables import parameter_schema
 
 pytestmark = pytest.mark.clear_db
+
+
+@pytest.mark.parametrize("schedule_type", ["cron", "interval"])
+async def test_berlin_fall_back_scheduler_refill(
+    flow: schemas.core.Flow,
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    monkeypatch: pytest.MonkeyPatch,
+    schedule_type: str,
+):
+    """Refilling a persisted queue preserves cron's first-occurrence policy."""
+    zone = ZoneInfo("Europe/Berlin")
+    before = datetime.datetime(2026, 10, 25, 2, 31, tzinfo=zone)
+    refill = datetime.datetime(2026, 10, 25, 2, 31, tzinfo=zone, fold=1).astimezone(
+        datetime.timezone.utc
+    )
+    schedule = (
+        schemas.schedules.CronSchedule(cron="*/15 * * * *", timezone=zone.key)
+        if schedule_type == "cron"
+        else schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(minutes=15),
+            anchor_date=before.replace(hour=0, minute=0),
+            timezone=zone.key,
+        )
+    )
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="berlin-fall-back",
+            flow_id=flow.id,
+            schedules=[schemas.core.DeploymentSchedule(schedule=schedule)],
+        ),
+    )
+    await session.commit()
+
+    with temporary_settings(
+        {
+            PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS: 3,
+            PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS: 100,
+            PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME: datetime.timedelta(
+                hours=1
+            ),
+            PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME: datetime.timedelta(
+                days=100
+            ),
+        }
+    ):
+        monkeypatch.setattr(
+            "prefect.server.services.scheduler.now",
+            lambda *_: before.astimezone(datetime.timezone.utc),
+        )
+        await schedule_deployments()
+        initial_runs = await models.flow_runs.read_flow_runs(session)
+        assert initial_runs
+        initial_ids = {run.id for run in initial_runs}
+
+        monkeypatch.setattr("prefect.server.services.scheduler.now", lambda *_: refill)
+        query = _get_select_deployments_to_schedule_query(
+            db, 100, 3, datetime.timedelta(hours=1)
+        )
+        assert deployment.id in (await session.execute(query)).scalars().all()
+        await schedule_deployments()
+
+        runs = await models.flow_runs.read_flow_runs(session)
+        dates = [run.expected_start_time.astimezone(zone) for run in runs]
+        repeated = [date for date in dates if date.hour == 2 and date.fold == 1]
+        assert len(repeated) == (0 if schedule_type == "cron" else 4)
+        assert initial_ids <= {run.id for run in runs}
+        assert len(runs) > len(initial_runs)
+        assert all(
+            run.expected_start_time.timestamp() >= refill.timestamp()
+            for run in runs
+            if run.id not in initial_ids
+        )
+        assert len({run.expected_start_time.timestamp() for run in runs}) == len(runs)
+
+        await schedule_deployments()
+        assert {run.id for run in await models.flow_runs.read_flow_runs(session)} == {
+            run.id for run in runs
+        }
 
 
 @pytest.fixture

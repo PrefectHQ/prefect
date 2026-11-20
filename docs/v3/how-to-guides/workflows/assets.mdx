@@ -1,5 +1,6 @@
 ---
 title: How to use assets to track workflow outputs
+description: Use the @materialize decorator to track the data, files, and models your workflows produce as assets, and declare dependencies between them.
 sidebarTitle: Use assets to track workflow outputs
 keywords: ["asset", "track", "workflow output", "data lineage", "materializer"]
 ---
@@ -127,7 +128,7 @@ def generate_reports():
 
 ## Dynamic asset materialization
 
-Use [the `with_options` pattern](/v3/api-ref/python/prefect-tasks#with-options) to dynamically change asset keys and dependencies at runtime. This is useful when you need to parameterize asset paths based on flow inputs, dates, or other runtime conditions:
+Use [the `with_options` pattern](/v3/api-ref/python/prefect-tasks#with_options) to dynamically change asset keys and dependencies at runtime. This is useful when you need to parameterize asset paths based on flow inputs, dates, or other runtime conditions:
 
 ```python
 from prefect import flow

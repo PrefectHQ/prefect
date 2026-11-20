@@ -126,8 +126,8 @@ async def still_connected(websocket: WebSocket) -> bool:
     """Checks that a client websocket still seems to be connected during a period where
     the server is expected to be sending messages."""
     try:
-        await asyncio.wait_for(websocket.receive(), timeout=0.1)
-        return True  # this should never happen, but if it does, we're still connected
+        message = await asyncio.wait_for(websocket.receive(), timeout=0.1)
+        return message["type"] != "websocket.disconnect"
     except asyncio.TimeoutError:
         # The fact that we timed out rather than getting another kind of error
         # here means we're still connected to our client, so we can continue to send

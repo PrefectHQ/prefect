@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from typing import Optional, Type
@@ -6,7 +7,9 @@ from uuid import uuid4
 
 import orjson
 import pytest
-from websockets.exceptions import ConnectionClosedError
+from websockets.asyncio.client import ClientConnection
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
+from websockets.protocol import State as WebsocketState
 
 from prefect.client.schemas.filters import LogFilter, LogFilterLevel
 from prefect.client.schemas.objects import Log
@@ -554,8 +557,6 @@ def test_subscriber_auth_token_missing_error():
 
 
 async def test_subscriber_stops_on_clean_disconnect_by_default():
-    from websockets.exceptions import ConnectionClosedOK
-
     from prefect.logging.clients import PrefectLogsSubscriber
 
     subscriber = PrefectLogsSubscriber("http://example.com")
@@ -572,8 +573,6 @@ async def test_subscriber_stops_on_clean_disconnect_by_default():
 async def test_subscriber_reconnects_on_clean_disconnect_when_configured(
     example_log_1: Log,
 ):
-    from websockets.exceptions import ConnectionClosedOK
-
     from prefect.logging.clients import PrefectLogsSubscriber
 
     subscriber = PrefectLogsSubscriber(
@@ -605,7 +604,49 @@ async def test_subscriber_reconnects_on_clean_disconnect_when_configured(
     assert reconnect_count == 3
 
 
-async def test_subscriber_limits_abnormal_disconnects_after_reconnecting():
+async def test_subscriber_limits_consecutive_clean_disconnects():
+    subscriber = PrefectLogsSubscriber(
+        "http://example.com",
+        reconnection_attempts=1,
+        reconnect_on_clean_close=True,
+    )
+    subscriber._websocket = AsyncMock()
+    subscriber._websocket.recv.side_effect = [
+        ConnectionClosedOK(None, None, None),
+        ConnectionClosedOK(None, None, None),
+    ]
+    subscriber._reconnect = AsyncMock()
+
+    with pytest.raises(ConnectionClosedOK):
+        await anext(subscriber)
+
+    subscriber._reconnect.assert_awaited_once()
+
+
+async def test_subscriber_raises_when_clean_close_during_reconnect_exhausts_retries():
+    subscriber = PrefectLogsSubscriber(
+        "http://example.com",
+        reconnection_attempts=1,
+        reconnect_on_clean_close=True,
+    )
+    subscriber._websocket = AsyncMock(spec=ClientConnection)
+    subscriber._websocket.recv.side_effect = ConnectionClosedError(None, None)
+
+    reconnect_error = ConnectionClosedOK(None, None, None)
+    reconnect_socket = AsyncMock(spec=ClientConnection)
+    reconnect_socket.ping.side_effect = reconnect_error
+    subscriber._connect = AsyncMock()
+    subscriber._connect.__aenter__.return_value = reconnect_socket
+
+    with pytest.raises(ConnectionClosedOK) as exc_info:
+        await anext(subscriber)
+
+    assert exc_info.value is reconnect_error
+
+
+async def test_subscriber_resets_retry_counter_after_successful_reconnect(
+    example_log_1: Log,
+):
     subscriber = PrefectLogsSubscriber(
         "http://example.com",
         reconnection_attempts=2,
@@ -619,14 +660,17 @@ async def test_subscriber_limits_abnormal_disconnects_after_reconnecting():
         nonlocal reconnect_count
         reconnect_count += 1
         subscriber._websocket = AsyncMock()
-        subscriber._websocket.recv.side_effect = ConnectionClosedError(None, None)
+        if reconnect_count < 4:
+            subscriber._websocket.recv.side_effect = ConnectionClosedError(None, None)
+        else:
+            subscriber._websocket.recv.return_value = orjson.dumps(
+                {"type": "log", "log": example_log_1.model_dump(mode="json")}
+            )
 
     subscriber._reconnect = reconnect
 
-    with pytest.raises(ConnectionClosedError):
-        await subscriber.__anext__()
-
-    assert reconnect_count == 2
+    assert await anext(subscriber) == example_log_1
+    assert reconnect_count == 4
 
 
 def test_subscriber_sleep_logic():
@@ -764,3 +808,40 @@ async def test_subscriber_auth_with_falsy_tokens():
             auth_message = orjson.loads(auth_call[0][0])
             assert auth_message["type"] == "auth"
             assert auth_message["token"] == falsy_token
+
+
+async def test_subscriber_closes_socket_when_setup_is_cancelled(
+    Subscriber: Type[PrefectLogsSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    log_recorder: LogRecorder,
+    log_puppeteer: LogPuppeteer,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A setup abandoned mid-handshake must not leak its open socket, since a
+    context that fails to enter is never exited by its caller."""
+    log_puppeteer.token = token
+
+    waiting_for_auth = asyncio.Event()
+
+    async def never_respond(self: ClientConnection, *args: object, **kwargs: object):
+        waiting_for_auth.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(ClientConnection, "recv", never_respond)
+
+    subscriber = Subscriber(
+        filter=LogFilter(level=LogFilterLevel(ge_=logging.INFO)),
+        reconnection_attempts=0,
+    )
+    # Cancel only once the handshake has completed and setup is blocked waiting
+    # for the auth response; a wall-clock timeout can fire before the socket
+    # opens on a slow runner.
+    setup = asyncio.create_task(subscriber.__aenter__())
+    await waiting_for_auth.wait()
+    setup.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await setup
+
+    assert log_recorder.connections == 1
+    assert subscriber._connect.connection.state is WebsocketState.CLOSED

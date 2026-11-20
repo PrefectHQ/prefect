@@ -14,7 +14,7 @@
 # **The problem:** Using `--limit 1` on the worker forces entire flow runs to be
 # sequential. But often only specific tasks need limits—other tasks could overlap.
 #
-# **The solution:** Use [Global Concurrency Limits](https://docs.prefect.io/v3/develop/global-concurrency-limits)
+# **The solution:** Use [Global Concurrency Limits](https://www.prefect.io/docs/v3/develop/global-concurrency-limits)
 # with worker-specific names. GCLs are coordinated by the Prefect server, so they
 # work across the separate subprocesses that each flow run executes in.
 #
@@ -200,8 +200,8 @@ def process_image(image_id: int = 1) -> str:
 #
 # ## Related docs
 #
-# - [Global Concurrency Limits](https://docs.prefect.io/v3/develop/global-concurrency-limits)
-# - [Workers](https://docs.prefect.io/v3/deploy/infrastructure-concepts/workers)
+# - [Global Concurrency Limits](https://www.prefect.io/docs/v3/develop/global-concurrency-limits)
+# - [Workers](https://www.prefect.io/docs/v3/deploy/infrastructure-concepts/workers)
 
 if __name__ == "__main__":
     process_image(image_id=1)

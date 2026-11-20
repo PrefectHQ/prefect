@@ -1,3 +1,4 @@
+import itertools
 import json
 import sys
 from datetime import timedelta
@@ -87,6 +88,18 @@ async def flojo_deployment(
     create_flojo_deployment: UUID, prefect_client: PrefectClient
 ) -> DeploymentResponse:
     return await prefect_client.read_deployment(create_flojo_deployment)
+
+
+@pytest.fixture
+async def flojo_deployment_with_schedule_parameters(
+    flojo_deployment: DeploymentResponse, prefect_client: PrefectClient
+) -> DeploymentResponse:
+    await prefect_client.update_deployment_schedule(
+        flojo_deployment.id,
+        flojo_deployment.schedules[0].id,
+        parameters={"foo": "baz"},
+    )
+    return await prefect_client.read_deployment(flojo_deployment.id)
 
 
 def test_list_schedules(flojo_deployment: DeploymentResponse):
@@ -179,6 +192,28 @@ def test_list_schedules_with_json_output(flojo_deployment: DeploymentResponse):
             "true",
         ],
         expected_output_does_not_contain="false",
+    )
+
+
+@pytest.mark.parametrize(
+    "command,extra_args",
+    [
+        (["inspect"], []),
+        (["schedule", "create"], ["--interval", "60"]),
+        (["schedule", "delete"], ["ccb86ed0-e824-4d8b-b825-880401320e41"]),
+        (["schedule", "pause"], ["ccb86ed0-e824-4d8b-b825-880401320e41"]),
+        (["schedule", "resume"], ["ccb86ed0-e824-4d8b-b825-880401320e41"]),
+        (["schedule", "ls"], []),
+        (["schedule", "clear"], []),
+    ],
+)
+def test_deployment_name_with_extra_slash(command: list[str], extra_args: list[str]):
+    invoke_and_assert(
+        ["deployment", *command, "rence-griffith/test-deployment/extra", *extra_args],
+        expected_code=1,
+        expected_output_contains=(
+            "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
+        ),
     )
 
 
@@ -636,6 +671,32 @@ class TestDeploymentSchedules:
             ],
             expected_output_contains=["'active': True"],
         )
+
+    def test_pausing_and_resuming_schedule_keeps_its_parameters(
+        self, flojo_deployment_with_schedule_parameters: DeploymentResponse
+    ):
+        schedule_id = str(flojo_deployment_with_schedule_parameters.schedules[0].id)
+
+        for command in ("pause", "resume"):
+            invoke_and_assert(
+                [
+                    "deployment",
+                    "schedule",
+                    command,
+                    "rence-griffith/test-deployment",
+                    schedule_id,
+                ],
+                expected_code=0,
+            )
+
+            invoke_and_assert(
+                [
+                    "deployment",
+                    "inspect",
+                    "rence-griffith/test-deployment",
+                ],
+                expected_output_contains=["'parameters': {'foo': 'baz'}"],
+            )
 
     @pytest.mark.usefixtures("create_flojo_deployment")
     def test_schedule_pause_deployment_not_found_raises(
@@ -1430,6 +1491,26 @@ class TestDeploymentDelete:
             expected_code=0,
         )
 
+    def test_delete_deployment_by_id_not_found(self):
+        missing_deployment_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
+        invoke_and_assert(
+            ["deployment", "delete", "--id", missing_deployment_id],
+            expected_code=1,
+            expected_output_contains=f"Deployment '{missing_deployment_id}' not found!",
+        )
+
+    @pytest.mark.parametrize(
+        "name", ["rence-griffith", "rence-griffith/test-deployment/extra"]
+    )
+    def test_delete_deployment_by_invalid_name(self, name: str):
+        invoke_and_assert(
+            ["deployment", "delete", name],
+            expected_code=1,
+            expected_output_contains=(
+                "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
+            ),
+        )
+
     @pytest.fixture
     async def setup_many_deployments(
         self,
@@ -1453,6 +1534,61 @@ class TestDeploymentDelete:
         )
         deployments = await prefect_client.read_deployments()
         assert len(deployments) == 0
+
+    @pytest.fixture
+    def small_unstable_pages(self, monkeypatch: pytest.MonkeyPatch):
+        """Serve deployments two at a time, rotating the full ordering on every
+        request to mimic a server whose ordering of tied names is unstable."""
+        original_read_deployments = PrefectClient.read_deployments
+        calls = itertools.count()
+
+        async def read_deployments(
+            self: PrefectClient, *, offset: int = 0, **kwargs: Any
+        ):
+            rows = await original_read_deployments(self, **kwargs)
+            if rows:
+                shift = next(calls) % len(rows)
+                rows = rows[shift:] + rows[:shift]
+            return rows[offset : offset + 2]
+
+        monkeypatch.setattr(PrefectClient, "read_deployments", read_deployments)
+
+    @pytest.fixture
+    async def setup_tied_name_deployments(self, prefect_client: PrefectClient):
+        for i in range(5):
+
+            @flow(name=f"tied-flow-{i}")
+            def tied_flow():
+                pass
+
+            flow_id = await prefect_client.create_flow(tied_flow)
+            await prefect_client.create_deployment(flow_id=flow_id, name="daily")
+
+    @pytest.mark.usefixtures("setup_tied_name_deployments", "small_unstable_pages")
+    async def test_delete_all_deployments_across_pages(
+        self, prefect_client: PrefectClient
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["deployment", "delete", "--all"],
+            expected_code=0,
+            expected_output_contains="Deleted 5 deployments.",
+        )
+        assert await prefect_client.read_deployments() == []
+
+    @pytest.mark.usefixtures(
+        "setup_tied_name_deployments", "small_unstable_pages", "interactive_console"
+    )
+    def test_delete_all_deployments_confirmation_counts_all_pages(self):
+        invoke_and_assert(
+            ["deployment", "delete", "--all"],
+            expected_code=0,
+            user_input="y",
+            expected_output_contains=[
+                "Are you sure you want to delete all 5 deployments?",
+                "Deleted 5 deployments.",
+            ],
+        )
 
     @pytest.mark.usefixtures("setup_many_deployments", "interactive_console")
     def test_delete_all_deployments_needs_confirmation_with_interactive_console(

@@ -13,7 +13,7 @@ const mockWorkersResponse = {
 			logo_url:
 				"https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg",
 			documentation_url:
-				"https://docs.prefect.io/guides/deployment/push-work-pools/",
+				"https://www.prefect.io/docs/guides/deployment/push-work-pools/",
 			is_beta: false,
 		},
 	},

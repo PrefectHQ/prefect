@@ -2207,6 +2207,26 @@ class TestWorkPools:
         updated_work_pool = await prefect_client.read_work_pool(work_pool.name)
         assert updated_work_pool.type == work_pool.type
 
+    async def test_create_work_pool_unsupported_by_plan(self, cloud_client):
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
+            create_route = router.post("/work_pools/").mock(
+                return_value=httpx.Response(
+                    403,
+                    json={
+                        "detail": "Your plan does not support work pools of this type."
+                    },
+                )
+            )
+
+            with pytest.raises(prefect.exceptions.ObjectUnsupported):
+                await cloud_client.create_work_pool(
+                    work_pool=WorkPoolCreate(name="test-pool", type="ecs:push")
+                )
+
+            assert create_route.called
+
     async def test_update_work_pool(self, prefect_client):
         work_pool = await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(name="test-pool-1")

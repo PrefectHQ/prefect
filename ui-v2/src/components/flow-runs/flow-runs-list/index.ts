@@ -16,7 +16,6 @@ export {
 export {
 	FLOW_RUN_STATES,
 	FLOW_RUN_STATES_NO_SCHEDULED,
-	FLOW_RUN_STATES_WITHOUT_SCHEDULED,
 	type FlowRunState,
 } from "./flow-runs-filters/state-filters.constants";
 export { FlowRunsList } from "./flow-runs-list";

@@ -1,5 +1,7 @@
 import datetime
 import json
+from pathlib import Path
+from textwrap import dedent
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -37,6 +39,36 @@ class TestFlowServe:
             command=["flow", "serve"],
             expected_code=1,
             expected_output_contains="requires an argument",
+        )
+
+    def test_flow_serve_cli_reports_script_error_for_non_def_entrypoint(
+        self, tmp_path: Path
+    ):
+        flow_file = tmp_path / "etl.py"
+        flow_file.write_text(
+            dedent(
+                """
+                import not_a_module
+                from prefect import flow
+
+                @flow
+                def etl():
+                    pass
+
+                etl_daily = etl.with_options(name="etl-daily")
+                """
+            )
+        )
+
+        invoke_and_assert(
+            command=["flow", "serve", f"{flow_file}:etl_daily", "--name", "test"],
+            expected_code=1,
+            expected_output_contains=[
+                "import not_a_module",
+                "ModuleNotFoundError: No module named 'not_a_module'",
+                "encountered an exception: ModuleNotFoundError",
+            ],
+            expected_output_does_not_contain=["load_flow_from_entrypoint"],
         )
 
     async def test_flow_serve_cli_creates_deployment(

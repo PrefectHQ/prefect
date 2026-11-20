@@ -1,14 +1,8 @@
 import logging
-import sys
 
 from typing_extensions import Self
 
-if sys.version_info < (3, 11):
-
-    def getLevelNamesMapping() -> dict[str, int]:
-        return getattr(logging, "_nameToLevel").copy()
-else:
-    getLevelNamesMapping = logging.getLevelNamesMapping  # novermin
+getLevelNamesMapping = logging.getLevelNamesMapping
 
 
 class SafeLogger(logging.Logger):

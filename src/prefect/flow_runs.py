@@ -133,6 +133,7 @@ async def wait_for_flow_run(
     )
 
     with anyio.move_on_after(timeout):
+        received_final_event = False
         async with get_events_subscriber(filter=event_filter) as subscriber:
             flow_run = await client.read_flow_run(flow_run_id)
             if flow_run.state and flow_run.state.is_final():
@@ -151,7 +152,19 @@ async def wait_for_flow_run(
                     logger.info(f"Flow run is in state {state.name!r}")
 
                 if state.is_final():
-                    return await client.read_flow_run(flow_run_id)
+                    received_final_event = True
+                    break
+
+        if received_final_event:
+            # A final state event can be delivered before the state change is
+            # visible to API reads, so read until the run reports a final state
+            poll_delay = 0.1
+            while True:
+                flow_run = await client.read_flow_run(flow_run_id)
+                if flow_run.state and flow_run.state.is_final():
+                    return flow_run
+                await anyio.sleep(poll_delay)
+                poll_delay = min(poll_delay * 2, 5)
 
     raise FlowRunWaitTimeout(
         f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
@@ -233,6 +246,8 @@ async def apause_flow_run(
     """
     # Get the flow run context - this works even when called from within a task
     # since both FlowRunContext and TaskRunContext are independently active
+    if timeout is not None and timeout < 0:
+        raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
     context = FlowRunContext.get()
     if not context:
         raise RuntimeError("Flow runs can only be paused from within a flow run.")
@@ -271,7 +286,7 @@ async def apause_flow_run(
             if wait_for_input:
                 # The flow run wanted input, so we need to load it and return it
                 # to the user.
-                await wait_for_input.aload(run_input_keyset)
+                return await wait_for_input.aload(run_input_keyset)
 
             return
 
@@ -387,6 +402,9 @@ def pause_flow_run(
 
     # Get the flow run context - this works even when called from within a task
     # since both FlowRunContext and TaskRunContext are independently active
+
+    if timeout is not None and timeout < 0:
+        raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
     context = FlowRunContext.get()
     if not context:
         raise RuntimeError("Flow runs can only be paused from within a flow run.")
@@ -524,6 +542,8 @@ async def asuspend_flow_run(
             resumed with the input, the flow will resume and the input will be
             loaded and returned from this function.
     """
+    if timeout is not None and timeout < 0:
+        raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
     context = FlowRunContext.get()
 
     if flow_run_id is None:
@@ -651,6 +671,8 @@ def suspend_flow_run(
             resumed with the input, the flow will resume and the input will be
             loaded and returned from this function.
     """
+    if timeout is not None and timeout < 0:
+        raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
     context = FlowRunContext.get()
 
     if flow_run_id is None:

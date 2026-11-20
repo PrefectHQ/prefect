@@ -99,7 +99,7 @@ allocated to Kubernetes jobs created by workers in this work pool, but the limit
 is hard-coded and cannot be changed by deployments.
 
 For more information about work pools and workers,
-checkout out the [Prefect docs](https://docs.prefect.io/concepts/work-pools/).
+checkout out the [Prefect docs](https://www.prefect.io/docs/concepts/work-pools/).
 """
 
 from __future__ import annotations
@@ -137,7 +137,14 @@ from kubernetes_asyncio.client.models import (
     V1Secret,
 )
 from pydantic import Field, field_validator, model_validator
-from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, wait_random
+from tenacity import (
+    AsyncRetrying,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_fixed,
+    wait_random,
+)
 from typing_extensions import Literal, Self
 
 import prefect
@@ -834,7 +841,7 @@ class KubernetesWorker(
         "Kubernetes cluster."
     )
     _display_name = "Kubernetes"
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-kubernetes"
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-kubernetes"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/kubernetes.png"  # noqa
 
     def __init__(self, *args: Any, **kwargs: Any):
@@ -1310,6 +1317,14 @@ class KubernetesWorker(
 
         return None
 
+    @retry(
+        retry=retry_if_exception(
+            lambda exc: isinstance(exc, ApiException) and exc.status == 409
+        ),
+        stop=stop_after_attempt(3),
+        wait=wait_random(0, 1),
+        reraise=True,
+    )
     async def _upsert_secret(
         self, name: str, value: str, namespace: str, client: "ApiClient"
     ):
@@ -1321,6 +1336,8 @@ class KubernetesWorker(
             current_secret = await core_client.read_namespaced_secret(
                 name=name, namespace=namespace
             )
+            if current_secret.data == {"value": encoded_value}:
+                return current_secret
             current_secret.data = {"value": encoded_value}
             secret = await core_client.replace_namespaced_secret(
                 name=name, namespace=namespace, body=current_secret

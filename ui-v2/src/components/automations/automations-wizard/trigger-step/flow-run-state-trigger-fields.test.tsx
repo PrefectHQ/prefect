@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Form } from "@/components/ui/form";
@@ -17,10 +17,16 @@ const FlowRunStateTriggerFieldsContainer = ({
 	defaultPosture = "Reactive" as const,
 	defaultMatchRelated,
 	defaultWithin = 0,
+	defaultAfter,
+	defaultExpect,
+	defaultMatch,
 }: {
 	defaultPosture?: "Reactive" | "Proactive";
 	defaultMatchRelated?: MatchRelated;
 	defaultWithin?: number;
+	defaultAfter?: string[];
+	defaultExpect?: string[];
+	defaultMatch?: ResourceSpecification;
 }) => {
 	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
@@ -32,20 +38,91 @@ const FlowRunStateTriggerFieldsContainer = ({
 				threshold: 1,
 				within: defaultWithin,
 				match_related: defaultMatchRelated,
+				match: defaultMatch,
+				after: defaultAfter,
+				expect: defaultExpect,
 			},
 		},
 	});
 
+	const trigger = useWatch({ control: form.control, name: "trigger" });
 	return (
 		<Form {...form}>
 			<form>
 				<FlowRunStateTriggerFields />
+				<output data-testid="trigger-value">{JSON.stringify(trigger)}</output>
 			</form>
 		</Form>
 	);
 };
 
 describe("FlowRunStateTriggerFields", () => {
+	it("requires state names instead of a global type match for Stays in", async () => {
+		const user = userEvent.setup();
+		render(
+			<FlowRunStateTriggerFieldsContainer
+				defaultExpect={["prefect.flow-run.Running"]}
+				defaultMatch={{ "prefect.resource.id": "prefect.flow-run.*" }}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await user.click(screen.getByRole("button", { name: "State types" }));
+		await user.click(screen.getByRole("menuitem", { name: "Running" }));
+		await user.keyboard("{Escape}");
+		await user.click(screen.getByLabelText("select posture"));
+		expect(screen.getByRole("option", { name: "Stays in" })).toHaveAttribute(
+			"aria-disabled",
+			"true",
+		);
+		await user.keyboard("{Escape}");
+		await user.click(screen.getByRole("button", { name: "State types" }));
+		await user.click(screen.getByRole("menuitem", { name: "All state types" }));
+		await user.keyboard("{Escape}");
+		await user.click(screen.getByLabelText("select posture"));
+		await user.click(screen.getByRole("option", { name: "Stays in" }));
+		expect(
+			screen.queryByRole("button", { name: "State types" }),
+		).not.toBeInTheDocument();
+		expect(
+			JSON.parse(screen.getByTestId("trigger-value").textContent ?? "{}"),
+		).toMatchObject({
+			posture: "Proactive",
+			after: ["prefect.flow-run.Running"],
+			expect: [],
+			match: { "prefect.resource.id": "prefect.flow-run.*" },
+		});
+		expect(
+			JSON.parse(screen.getByTestId("trigger-value").textContent ?? "{}"),
+		).not.toHaveProperty(["match", "prefect.state-type"]);
+	});
+
+	it("edits custom states and types without dropping existing match conditions", async () => {
+		const user = userEvent.setup();
+		render(
+			<FlowRunStateTriggerFieldsContainer
+				defaultExpect={["prefect.flow-run.Baseline NOT Met"]}
+				defaultMatch={{
+					"prefect.resource.id": "prefect.flow-run.*",
+					"custom.label": "keep",
+				}}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		expect(screen.getByText("Baseline NOT Met")).toBeVisible();
+		await user.click(screen.getByRole("button", { name: "State types" }));
+		await user.click(screen.getByRole("menuitem", { name: "Failed" }));
+		const trigger: unknown = JSON.parse(
+			screen.getByTestId("trigger-value").textContent ?? "{}",
+		);
+		expect(trigger).toMatchObject({
+			expect: ["prefect.flow-run.Baseline NOT Met"],
+			match: {
+				"prefect.resource.id": "prefect.flow-run.*",
+				"custom.label": "keep",
+				"prefect.state-type": ["FAILED"],
+			},
+		});
+	});
 	beforeAll(() => {
 		mockPointerEvents();
 	});
@@ -134,6 +211,35 @@ describe("FlowRunStateTriggerFields", () => {
 		await user.click(screen.getByRole("option", { name: /Completed/i }));
 
 		expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
+	});
+
+	it("displays selected states from expect events", () => {
+		render(
+			<FlowRunStateTriggerFieldsContainer
+				defaultExpect={[
+					"prefect.flow-run.Completed",
+					"prefect.flow-run.Failed",
+				]}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		expect(screen.getByText("Completed")).toBeVisible();
+		expect(screen.getByText("Failed")).toBeVisible();
+	});
+
+	it("ignores flow run events that are not state names", () => {
+		render(
+			<FlowRunStateTriggerFieldsContainer
+				defaultPosture="Proactive"
+				defaultAfter={["prefect.flow-run.heartbeat"]}
+				defaultExpect={["prefect.flow-run.heartbeat"]}
+				defaultWithin={90}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		expect(screen.getByText("Any state")).toBeVisible();
 	});
 
 	it("renders flow multi-select with 'All flows' placeholder", () => {

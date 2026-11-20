@@ -7,4 +7,4 @@
         <img src="https://img.shields.io/pypi/dm/prefect-shell?color=0052FF&labelColor=090422" /></a>
 </p>
 
-See the docs at [https://docs.prefect.io/integrations/prefect-shell](https://docs.prefect.io/integrations/prefect-shell) for more information.
+See the docs at [https://www.prefect.io/docs/integrations/prefect-shell](https://www.prefect.io/docs/integrations/prefect-shell) for more information.

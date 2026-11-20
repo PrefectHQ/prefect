@@ -16,7 +16,6 @@ import { FlowRunsList } from "@/components/flow-runs/flow-runs-list";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import type { SortFilters } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter.constants";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
-import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import {
 	FlowRunsPagination,
 	type PaginationState,
@@ -31,7 +30,7 @@ type FlowRunSubflowsProps = {
 export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 	const queryClient = useQueryClient();
 	const [search, setSearch] = useState("");
-	const [stateFilter, setStateFilter] = useState<Set<FlowRunState>>(new Set());
+	const [stateFilter, setStateFilter] = useState<Set<string>>(new Set());
 	const [sort, setSort] = useState<SortFilters>("START_TIME_DESC");
 	const [pagination, setPagination] = useState<PaginationState>({
 		page: 1,
@@ -40,6 +39,8 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 
 	const debouncedSearch = useDebounce(search, 300);
 
+	// Unfiltered count, used to tell "no subflows at all" apart from
+	// "no subflows match the current filters".
 	const countFilter: FlowRunsCountFilter = useMemo(() => {
 		return {
 			flow_runs: {
@@ -127,7 +128,7 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 		setPagination((prev) => ({ ...prev, page: 1 }));
 	};
 
-	const handleStateFilterChange = (newFilters: Set<FlowRunState>) => {
+	const handleStateFilterChange = (newFilters: Set<string>) => {
 		setStateFilter(newFilters);
 		setPagination((prev) => ({ ...prev, page: 1 }));
 	};
@@ -157,6 +158,11 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 
 	const hasFilters = search || stateFilter.size > 0;
 
+	// The heading must reflect the active state and name filters, so derive it
+	// from the paginated response (same filter as the list) instead of the
+	// unfiltered total. Falls back to the total until the first page resolves.
+	const filteredCount = paginatedData?.count ?? countData;
+
 	if (countData === 0) {
 		return (
 			<div className="flex items-center justify-center h-48 border rounded-lg bg-muted/50">
@@ -172,7 +178,7 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 			<div className="grid grid-cols-12 items-center gap-2">
 				<div className="flex flex-col gap-1 xl:col-span-3 md:col-span-12 col-span-6 md:order-0 order-2">
 					<p className="text-sm text-muted-foreground">
-						{countData} Subflow run{countData !== 1 ? "s" : ""}
+						{filteredCount} Subflow run{filteredCount !== 1 ? "s" : ""}
 					</p>
 				</div>
 

@@ -137,8 +137,8 @@ Because the hook runs a fraction of a second after the state change, your custom
 Prefect's own state change event (like `prefect.flow-run.Failed`) occur within a second or
 two of each other, and Prefect does not guarantee the
 [order they arrive](/v3/concepts/events#event-ordering) at the automation system. If a
-trigger uses the state change event in `after` and your custom event in `expect`, that
-race can cause missed or spurious firings.
+Reactive trigger uses the state change event in `after` and your custom event in `expect`,
+that race can cause missed firings.
 
 To make the order deterministic, emit your event with `follows` referencing the state
 change event. The `state` argument your hook receives carries what you need: `state.id`

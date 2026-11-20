@@ -587,6 +587,69 @@ class TestReadFlowRuns:
         )
         assert len(result) == 0
 
+    async def test_read_flow_runs_filters_by_states_any_and_not_any(
+        self, flow, session
+    ):
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(name="My Running State"),
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Completed(name="My Completed State"),
+            ),
+        )
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Failed(name="RIP")
+            ),
+        )
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                state=dict(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=["RUNNING", "COMPLETED"], not_any_=["COMPLETED"]
+                    )
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                state=dict(
+                    name=schemas.filters.FlowRunFilterStateName(
+                        any_=["My Running State", "My Completed State"],
+                        not_any_=["My Completed State"],
+                    )
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                state=dict(
+                    operator="or_",
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=["RUNNING", "COMPLETED"], not_any_=["COMPLETED"]
+                    ),
+                    name=schemas.filters.FlowRunFilterStateName(any_=["RIP"]),
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id, flow_run_3.id}
+
     async def test_read_flow_runs_filters_by_flow_versions_any(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
@@ -1204,11 +1267,12 @@ class TestReadFlowRuns:
         assert {r.id for r in result} == {fr.id for fr in flow_runs}
 
         # name and state_type were not loaded and raise an error
-        # because the async session is closed
+        # because the async session is closed (SQLAlchemy 2.1 wraps the
+        # MissingGreenlet in a StatementError)
         for r in result:
-            with pytest.raises(sa.exc.MissingGreenlet):
+            with pytest.raises((sa.exc.MissingGreenlet, sa.exc.StatementError)):
                 r.name
-            with pytest.raises(sa.exc.MissingGreenlet):
+            with pytest.raises((sa.exc.MissingGreenlet, sa.exc.StatementError)):
                 r.state_type
 
     @pytest.mark.filterwarnings(
@@ -1229,7 +1293,7 @@ class TestReadFlowRuns:
         # state_type was not loaded and raises an error
         # because the async session is closed
         for r in result:
-            with pytest.raises(sa.exc.MissingGreenlet):
+            with pytest.raises((sa.exc.MissingGreenlet, sa.exc.StatementError)):
                 r.state_type
 
     async def test_read_flow_runs_filters_by_created_by(self, flow, session):

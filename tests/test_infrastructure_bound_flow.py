@@ -934,10 +934,10 @@ class TestInfrastructureBoundFlow:
         """Test that retry() method reuses the same flow run ID and sets state to Pending."""
         from unittest.mock import AsyncMock
 
-        # Mock execute_bundle to avoid race conditions with aresult
-        mock_execute_bundle = AsyncMock()
+        # Mock bundle execution to avoid race conditions with aresult
+        mock_submit = AsyncMock()
         monkeypatch.setattr(
-            "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+            "prefect.runner._flow_run_executor.FlowRunExecutor.submit", mock_submit
         )
 
         @flow(result_storage=result_storage)
@@ -966,7 +966,7 @@ class TestInfrastructureBoundFlow:
         # Verify the flow run was reused and state was set to Pending
         retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
         assert retried_flow_run.id == initial_flow_run.id
-        # The state should be Pending (since we mocked execute_bundle)
+        # The state should be Pending (since we mocked bundle execution)
         assert retried_flow_run.state is not None
         assert retried_flow_run.state.type == StateType.PENDING
 
@@ -982,10 +982,10 @@ class TestInfrastructureBoundFlow:
         """Test that retry() properly sets state to Pending when retrying a flow run."""
         from unittest.mock import AsyncMock
 
-        # Mock execute_bundle to avoid race conditions with aresult
-        mock_execute_bundle = AsyncMock()
+        # Mock bundle execution to avoid race conditions with aresult
+        mock_submit = AsyncMock()
         monkeypatch.setattr(
-            "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+            "prefect.runner._flow_run_executor.FlowRunExecutor.submit", mock_submit
         )
 
         @flow(result_storage=result_storage)

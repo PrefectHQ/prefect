@@ -14,9 +14,9 @@
 #
 # In this example you will:
 # 1. Write regular Python functions for web scraping
-# 2. Add production features ([retries](https://docs.prefect.io/v3/develop/write-tasks#retries), [logging](https://docs.prefect.io/v3/develop/logging#configure-logging)) with just two decorators:
-#    - `@task` - Turn any function into a [retryable, observable unit](https://docs.prefect.io/v3/develop/write-tasks#write-and-run-tasks)
-#    - `@flow` - Compose tasks into a [reliable pipeline](https://docs.prefect.io/v3/develop/write-flows#write-and-run-flows)
+# 2. Add production features ([retries](https://www.prefect.io/docs/v3/develop/write-tasks#retries), [logging](https://www.prefect.io/docs/v3/develop/logging#configure-logging)) with just two decorators:
+#    - `@task` - Turn any function into a [retryable, observable unit](https://www.prefect.io/docs/v3/develop/write-tasks#write-and-run-tasks)
+#    - `@flow` - Compose tasks into a [reliable pipeline](https://www.prefect.io/docs/v3/develop/write-flows#write-and-run-flows)
 # 3. Keep your code clean and Pythonic - no framework-specific patterns needed
 #
 # ## The Power of Regular Python

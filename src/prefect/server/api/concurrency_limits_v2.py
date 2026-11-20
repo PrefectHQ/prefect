@@ -43,7 +43,7 @@ async def create_concurrency_limit_v2(
     """
     Create a task run concurrency limit.
 
-    For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/global-concurrency-limits.
+    For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/global-concurrency-limits.
     """
     async with db.session_context(begin_transaction=True) as session:
         model = await models.concurrency_limits_v2.create_concurrency_limit(
@@ -302,7 +302,7 @@ async def _generate_concurrency_locked_response(
 @router.post("/increment", status_code=status.HTTP_200_OK)
 async def bulk_increment_active_slots(
     slots: int = Body(..., gt=0),
-    names: List[str] = Body(..., min_items=1),
+    names: List[str] = Body(..., min_length=1),
     mode: Literal["concurrency", "rate_limit"] = Body("concurrency"),
     create_if_missing: Optional[bool] = Body(
         None,
@@ -337,7 +337,7 @@ async def bulk_increment_active_slots(
 @router.post("/increment-with-lease", status_code=status.HTTP_200_OK)
 async def bulk_increment_active_slots_with_lease(
     slots: int = Body(..., gt=0),
-    names: List[str] = Body(..., min_items=1),
+    names: List[str] = Body(..., min_length=1),
     mode: Literal["concurrency", "rate_limit"] = Body("concurrency"),
     lease_duration: float = Body(
         300,  # 5 minutes
@@ -362,7 +362,10 @@ async def bulk_increment_active_slots_with_lease(
     if acquired:
         lease_storage = get_concurrency_lease_storage()
         lease = await lease_storage.create_lease(
-            resource_ids=[limit.id for limit in acquired_limits],
+            # Only active limits were incremented. Releasing the lease decrements
+            # its `resource_ids`, so an inactive limit enabled later must not be
+            # among them or the release would free another holder's slot.
+            resource_ids=[limit.id for limit in acquired_limits if limit.active],
             ttl=timedelta(seconds=lease_duration),
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=slots,
@@ -391,7 +394,7 @@ async def bulk_increment_active_slots_with_lease(
 @router.post("/decrement", status_code=status.HTTP_200_OK)
 async def bulk_decrement_active_slots(
     slots: int = Body(..., gt=0),
-    names: List[str] = Body(..., min_items=1),
+    names: List[str] = Body(..., min_length=1),
     occupancy_seconds: Optional[float] = Body(None, gt=0.0),
     create_if_missing: bool = Body(
         None,

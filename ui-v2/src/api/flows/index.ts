@@ -8,10 +8,8 @@ import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
 export type Flow = components["schemas"]["Flow"];
-export type FlowsFilter =
-	components["schemas"]["Body_read_flows_flows_filter_post"];
-export type FlowsPaginateFilter =
-	components["schemas"]["Body_paginate_flows_flows_paginate_post"];
+export type FlowsFilter = components["schemas"]["Body_read_flows"];
+export type FlowsPaginateFilter = components["schemas"]["Body_paginate_flows"];
 export type SimpleNextFlowRun = components["schemas"]["SimpleNextFlowRun"];
 
 /**
@@ -39,12 +37,10 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.lists(), "paginate", filter] as const,
 	details: () => [...queryKeyFactory.all(), "detail"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
+	deploymentsCounts: () =>
+		[...queryKeyFactory.all(), "deploymentsCount"] as const,
 	deploymentsCount: (flowIds: string[]) =>
-		[
-			...queryKeyFactory.all(),
-			"deploymentsCount",
-			[...flowIds].sort(),
-		] as const,
+		[...queryKeyFactory.deploymentsCounts(), [...flowIds].sort()] as const,
 	nextRuns: (flowIds: string[]) =>
 		[...queryKeyFactory.all(), "nextRuns", [...flowIds].sort()] as const,
 };
@@ -199,7 +195,10 @@ export const buildCountFlowsFilteredQuery = (filter: FlowsFilter) =>
  */
 export const buildDeploymentsCountByFlowQuery = (
 	flowIds: string[],
-	{ enabled = true }: { enabled?: boolean } = {},
+	{
+		enabled = true,
+		refetchInterval = 30_000,
+	}: { enabled?: boolean; refetchInterval?: number } = {},
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.deploymentsCount(flowIds),
@@ -213,6 +212,7 @@ export const buildDeploymentsCountByFlowQuery = (
 			return result.data ?? {};
 		},
 		staleTime: 1000,
+		refetchInterval,
 		placeholderData: keepPreviousData,
 		enabled: enabled && flowIds.length > 0,
 	});

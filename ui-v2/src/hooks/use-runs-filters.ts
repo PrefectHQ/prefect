@@ -1,21 +1,13 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
+import type { StateType } from "@/api/flow-runs/constants";
+import type { DateRangeUrlState } from "@/components/flow-runs/flow-runs-list";
 import {
-	type DateRangeUrlState,
-	FLOW_RUN_STATES,
-	type FlowRunState,
-} from "@/components/flow-runs/flow-runs-list";
+	parseStateNames,
+	serializeStateNames,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 
 const routeApi = getRouteApi("/runs/");
-
-const parseStateFilter = (stateString: string): FlowRunState[] => {
-	if (!stateString) return [];
-	return stateString
-		.split(",")
-		.filter((s): s is FlowRunState =>
-			FLOW_RUN_STATES.includes(s as FlowRunState),
-		);
-};
 
 const parseCommaSeparatedFilter = (filterString: string): string[] => {
 	if (!filterString) return [];
@@ -23,14 +15,16 @@ const parseCommaSeparatedFilter = (filterString: string): string[] => {
 };
 
 export type RunsFilters = {
-	states: Set<FlowRunState>;
+	states: Set<string>;
+	stateTypes: Set<StateType>;
+	onStateTypesChange: (types: Set<StateType>) => void;
 	flows: Set<string>;
 	deployments: Set<string>;
 	workPools: Set<string>;
 	tags: Set<string>;
 	dateRange: DateRangeUrlState;
 
-	onStatesChange: (states: Set<FlowRunState>) => void;
+	onStatesChange: (states: Set<string>) => void;
 	onFlowsChange: (flows: Set<string>) => void;
 	onDeploymentsChange: (deployments: Set<string>) => void;
 	onWorkPoolsChange: (workPools: Set<string>) => void;
@@ -46,8 +40,29 @@ export function useRunsFilters(): RunsFilters {
 	const navigate = routeApi.useNavigate();
 
 	const states = useMemo(
-		() => new Set<FlowRunState>(parseStateFilter(search.state ?? "")),
+		() => new Set<string>(parseStateNames(search.state)),
 		[search.state],
+	);
+
+	const stateTypeValues = search["state-types"];
+	const stateTypes = useMemo(
+		() => new Set(stateTypeValues ?? []),
+		[stateTypeValues],
+	);
+	const onStateTypesChange = useCallback(
+		(types: Set<StateType>) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"state-types": [...types],
+					page: 1,
+					"task-runs-page": 1,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
 	);
 
 	const flows = useMemo(
@@ -81,13 +96,13 @@ export function useRunsFilters(): RunsFilters {
 	);
 
 	const onStatesChange = useCallback(
-		(newStates: Set<FlowRunState>) => {
+		(newStates: Set<string>) => {
 			const statesArray = Array.from(newStates);
 			void navigate({
 				to: ".",
 				search: (prev) => ({
 					...prev,
-					state: statesArray.length > 0 ? statesArray.join(",") : "",
+					state: serializeStateNames(statesArray),
 					page: 1,
 					"task-runs-page": 1,
 				}),
@@ -188,6 +203,7 @@ export function useRunsFilters(): RunsFilters {
 	const hasActiveFilters = useMemo(() => {
 		return (
 			states.size > 0 ||
+			stateTypes.size > 0 ||
 			flows.size > 0 ||
 			deployments.size > 0 ||
 			workPools.size > 0 ||
@@ -196,7 +212,7 @@ export function useRunsFilters(): RunsFilters {
 			dateRange.start !== undefined ||
 			dateRange.end !== undefined
 		);
-	}, [states, flows, deployments, workPools, tags, dateRange]);
+	}, [states, stateTypes, flows, deployments, workPools, tags, dateRange]);
 
 	const clearAllFilters = useCallback(() => {
 		void navigate({
@@ -204,6 +220,7 @@ export function useRunsFilters(): RunsFilters {
 			search: (prev) => ({
 				...prev,
 				state: "",
+				"state-types": undefined,
 				flows: "",
 				deployments: "",
 				"work-pools": "",
@@ -220,6 +237,8 @@ export function useRunsFilters(): RunsFilters {
 
 	return {
 		states,
+		stateTypes,
+		onStateTypesChange,
 		flows,
 		deployments,
 		workPools,

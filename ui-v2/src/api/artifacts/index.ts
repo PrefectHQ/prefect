@@ -10,11 +10,10 @@ export type ArtifactWithFlowRunAndTaskRun = Artifact & {
 	task_run?: components["schemas"]["TaskRun"];
 };
 
-export type ArtifactsFilter =
-	components["schemas"]["Body_read_artifacts_artifacts_filter_post"];
+export type ArtifactsFilter = components["schemas"]["Body_read_artifacts"];
 
 export type ArtifactCollectionsFilter =
-	components["schemas"]["Body_read_latest_artifacts_artifacts_latest_filter_post"];
+	components["schemas"]["Body_read_latest_artifacts"];
 
 /**
  * Query key factory for artifacts-related queries

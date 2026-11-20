@@ -1,10 +1,9 @@
-"""Verify that every test file under tests/ is covered by at least one
-test matrix entry in the CI workflow.
+"""Verify that every test file under tests/ is selected by the CI workflow.
 
 This script parses .github/workflows/python-tests.yaml, discovers all
-test files on disk, and checks that the union of the run-tests matrix
-entries covers every file. It exits non-zero if any test file would be
-silently skipped by CI.
+test files on disk, and checks that every file is covered by both the
+`PYTEST_SELECTION` of the regular test jobs and the Logfire profiling
+test types. It exits non-zero if any test file would be silently skipped.
 """
 
 from __future__ import annotations
@@ -12,13 +11,18 @@ from __future__ import annotations
 import fnmatch
 import os
 import sys
+from typing import Any
 
 import yaml
 
 WORKFLOW_PATH = ".github/workflows/python-tests.yaml"
 
-# Test directories that are handled by dedicated jobs outside the
-# run-tests matrix and should not be flagged as uncovered.
+# Jobs whose test step runs `pytest $PYTEST_SELECTION`.
+REGULAR_TEST_JOBS = ("run-tests", "run-canonical-tests")
+LOGFIRE_PROFILE_JOB = "profile-tests-with-logfire"
+
+# Test directories that are handled by dedicated jobs and should not be
+# flagged as uncovered.
 SEPARATELY_HANDLED = {
     "tests/typesafety",
 }
@@ -85,53 +89,37 @@ def file_covered_by(
     return True
 
 
-def validate_excluded_test_types(
-    test_types: list[dict[str, str]], excludes: list[dict[str, object]]
-) -> list[str]:
-    """Return errors for excludes whose test-type entry no longer matches."""
-    known_test_types = {
-        (entry.get("id"), entry.get("name"), entry.get("modules"))
-        for entry in test_types
-    }
-
-    errors: list[str] = []
-    for index, exclude in enumerate(excludes, start=1):
-        test_type = exclude.get("test-type")
-        if not isinstance(test_type, dict):
-            continue
-
-        key = (
-            test_type.get("id"),
-            test_type.get("name"),
-            test_type.get("modules"),
-        )
-        if key not in known_test_types:
-            name = test_type.get("name", "<unnamed>")
-            errors.append(
-                f"matrix exclude #{index} references test-type {name!r}, "
-                "but its definition does not match any matrix test-type entry"
+def regular_test_selections(jobs: dict[str, Any]) -> list[str]:
+    """Return the `PYTEST_SELECTION` consumed by each regular test job."""
+    selections: list[str] = []
+    for job_name in REGULAR_TEST_JOBS:
+        steps = [
+            step
+            for step in jobs[job_name]["steps"]
+            if "PYTEST_SELECTION" in step.get("env", {})
+        ]
+        if len(steps) != 1 or "$PYTEST_SELECTION" not in steps[0].get("run", ""):
+            raise ValueError(
+                f"{job_name} must have exactly one step that runs "
+                "`pytest $PYTEST_SELECTION`"
             )
+        selections.append(steps[0]["env"]["PYTEST_SELECTION"])
+    return selections
 
-    return errors
+
+def uncovered_test_files(relevant: set[str], selections: list[str]) -> list[str]:
+    covered: set[str] = set()
+    for selection in selections:
+        paths, ignores, ignore_globs = parse_modules(selection)
+        for f in relevant:
+            if file_covered_by(f, paths, ignores, ignore_globs):
+                covered.add(f)
+    return sorted(relevant - covered)
 
 
 def main() -> None:
     with open(WORKFLOW_PATH) as f:
-        workflow = yaml.safe_load(f)
-
-    matrix = workflow["jobs"]["run-tests"]["strategy"]["matrix"]
-    test_types: list[dict[str, str]] = matrix["test-type"]
-
-    exclude_errors = validate_excluded_test_types(test_types, matrix.get("exclude", []))
-    if exclude_errors:
-        print("ERROR: Some run-tests matrix excludes are stale:")
-        for error in exclude_errors:
-            print(f"  {error}")
-        print(
-            "\nPlease update the exclude entry in "
-            f"{WORKFLOW_PATH} to match the corresponding test-type matrix entry."
-        )
-        sys.exit(1)
+        jobs = yaml.safe_load(f)["jobs"]
 
     all_test_files = discover_test_files("tests")
 
@@ -142,31 +130,29 @@ def main() -> None:
         if not any(f == sh or f.startswith(sh + "/") for sh in SEPARATELY_HANDLED)
     }
 
-    covered: set[str] = set()
-    for entry in test_types:
-        paths, ignores, ignore_globs = parse_modules(entry["modules"])
-        for f in relevant:
-            if file_covered_by(f, paths, ignores, ignore_globs):
-                covered.add(f)
+    scopes = {
+        "regular test job PYTEST_SELECTION": regular_test_selections(jobs),
+        f"{LOGFIRE_PROFILE_JOB} test-type": [
+            entry["modules"]
+            for entry in jobs[LOGFIRE_PROFILE_JOB]["strategy"]["matrix"]["test-type"]
+        ],
+    }
 
-    uncovered = sorted(relevant - covered)
-    if uncovered:
-        print(
-            "ERROR: The following test files are not covered by any "
-            "run-tests matrix entry in the CI workflow:"
-        )
-        for f in uncovered:
-            print(f"  {f}")
-        print(f"\nTotal uncovered: {len(uncovered)}")
-        print(
-            "Please update the test-type matrix in "
-            f"{WORKFLOW_PATH} to include these files."
-        )
+    failed = False
+    for scope, selections in scopes.items():
+        uncovered = uncovered_test_files(relevant, selections)
+        if uncovered:
+            failed = True
+            print(f"ERROR: The following test files are not covered by any {scope}:")
+            for f in uncovered:
+                print(f"  {f}")
+            print(f"\nTotal uncovered: {len(uncovered)}")
+        else:
+            print(f"OK: All {len(relevant)} test files are covered by the {scope}.")
+
+    if failed:
+        print(f"\nPlease update the test selection in {WORKFLOW_PATH}.")
         sys.exit(1)
-    else:
-        print(
-            f"OK: All {len(relevant)} test files are covered by the run-tests matrix."
-        )
 
 
 if __name__ == "__main__":

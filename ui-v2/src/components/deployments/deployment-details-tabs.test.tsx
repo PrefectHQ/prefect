@@ -11,7 +11,13 @@ import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { createFakeDeployment } from "@/mocks";
+import type { FlowRunsFilter } from "@/api/flow-runs";
+import {
+	createFakeDeployment,
+	createFakeFlow,
+	createFakeFlowRun,
+	createFakeState,
+} from "@/mocks";
 import { DeploymentDetailsTabs } from "./deployment-details-tabs";
 
 const searchParams = z.object({
@@ -69,7 +75,10 @@ const renderDeploymentDetailsTabs = ({
 	initialTab?: "Details" | "Runs" | "Upcoming";
 	detailsContent?: React.ReactNode;
 } = {}) => {
-	const deployment = createFakeDeployment({ name: "test-deployment" });
+	const deployment = createFakeDeployment({
+		id: "test-id",
+		name: "test-deployment",
+	});
 
 	const rootRoute = createRootRoute();
 	const deploymentRoute = createRoute({
@@ -140,6 +149,55 @@ describe("DeploymentDetailsTabs", () => {
 			value: vi.fn().mockReturnValue(matchMediaMock.mql),
 		});
 	};
+
+	it("shows the exact Scheduled run in Next Run when earlier scheduled-type runs exist", async () => {
+		const flow = createFakeFlow();
+		const now = Date.now();
+		const flowRuns = [
+			{ name: "late-run", stateName: "Late", minutes: -60 },
+			{
+				name: "custom-scheduled-run",
+				stateName: "Custom Scheduled",
+				minutes: 30,
+			},
+			{ name: "scheduled-run", stateName: "Scheduled", minutes: 60 },
+		].map(({ name, stateName, minutes }) =>
+			createFakeFlowRun({
+				name,
+				flow_id: flow.id,
+				deployment_id: "test-id",
+				state: createFakeState({ type: "SCHEDULED", name: stateName }),
+				expected_start_time: new Date(now + minutes * 60_000).toISOString(),
+				start_time: null,
+				end_time: null,
+			}),
+		);
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
+				const filter = (await request.json()) as FlowRunsFilter;
+				const state = filter.flow_runs?.state;
+				const matches = flowRuns.filter(
+					(run) =>
+						(!state?.name?.any_ ||
+							state.name.any_.includes(run.state_name ?? "")) &&
+						(!state?.type?.any_ ||
+							(run.state_type != null &&
+								state.type.any_.includes(run.state_type))),
+				);
+				return HttpResponse.json(
+					matches.slice(0, filter.limit ?? matches.length),
+				);
+			}),
+			http.post(buildApiUrl("/flows/filter"), () => HttpResponse.json([flow])),
+		);
+		mockMatchMedia(true);
+		renderDeploymentDetailsTabs({ initialTab: "Runs" });
+
+		expect(await screen.findByText("scheduled-run")).toBeInTheDocument();
+		expect(screen.getByText("Next Run")).toBeInTheDocument();
+		expect(screen.queryByText("late-run")).not.toBeInTheDocument();
+		expect(screen.queryByText("custom-scheduled-run")).not.toBeInTheDocument();
+	});
 
 	it("keeps the Details tab selected on narrow viewports", async () => {
 		mockMatchMedia(false);

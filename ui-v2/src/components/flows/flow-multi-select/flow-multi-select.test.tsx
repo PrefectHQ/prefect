@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildApiUrl, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
 import { useState } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { FlowMultiSelect } from "./flow-multi-select";
@@ -23,6 +25,17 @@ function renderWithQueryClient(ui: React.ReactElement) {
 }
 
 describe("FlowMultiSelect", () => {
+	const mockListFlows = () => {
+		server.use(
+			http.post(buildApiUrl("/flows/filter"), () =>
+				HttpResponse.json([
+					{ id: "flow-1", name: "Flow one", tags: [] },
+					{ id: "flow-2", name: "Flow two", tags: [] },
+				]),
+			),
+		);
+	};
+
 	const TestFlowMultiSelect = ({
 		initialSelectedFlowIds = [],
 		emptyMessage = "Any flow",
@@ -33,17 +46,10 @@ describe("FlowMultiSelect", () => {
 		const [selectedFlowIds, setSelectedFlowIds] = useState<string[]>(
 			initialSelectedFlowIds,
 		);
-		const handleToggleFlow = (flowId: string) => {
-			setSelectedFlowIds((prev) =>
-				prev.includes(flowId)
-					? prev.filter((id) => id !== flowId)
-					: [...prev, flowId],
-			);
-		};
 		return (
 			<FlowMultiSelect
 				selectedFlowIds={selectedFlowIds}
-				onToggleFlow={handleToggleFlow}
+				onSelectFlowIds={setSelectedFlowIds}
 				emptyMessage={emptyMessage}
 			/>
 		);
@@ -83,5 +89,39 @@ describe("FlowMultiSelect", () => {
 		});
 
 		expect(screen.getByRole("listbox")).toBeVisible();
+	});
+
+	it("selects, deselects, and clears flows", async () => {
+		const user = userEvent.setup();
+		mockListFlows();
+		renderWithQueryClient(<TestFlowMultiSelect />);
+
+		await user.click(screen.getByRole("button", { name: /any flow/i }));
+
+		const anyFlow = await screen.findByRole("option", { name: "Any flow" });
+		const flowOne = screen.getByRole("option", { name: "Flow one" });
+		const flowTwo = screen.getByRole("option", { name: "Flow two" });
+		const anyFlowCheckbox = within(anyFlow).getByRole("checkbox");
+		const flowOneCheckbox = within(flowOne).getByRole("checkbox");
+		const flowTwoCheckbox = within(flowTwo).getByRole("checkbox");
+
+		expect(anyFlowCheckbox).toBeChecked();
+		expect(flowOneCheckbox).not.toBeChecked();
+
+		await user.click(flowOne);
+		expect(anyFlowCheckbox).not.toBeChecked();
+		expect(flowOneCheckbox).toBeChecked();
+
+		await user.click(flowTwo);
+		expect(flowOneCheckbox).toBeChecked();
+		expect(flowTwoCheckbox).toBeChecked();
+
+		await user.click(flowOne);
+		expect(flowOneCheckbox).not.toBeChecked();
+		expect(flowTwoCheckbox).toBeChecked();
+
+		await user.click(anyFlow);
+		expect(anyFlowCheckbox).toBeChecked();
+		expect(flowTwoCheckbox).not.toBeChecked();
 	});
 });

@@ -30,14 +30,14 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
           filter: blob:none
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.12"
           enable-cache: true
@@ -55,7 +55,7 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v5
+        uses: CodSpeedHQ/action@af75f77f17a054769abefaa42fe8dc2975469b5f # v5.6.3
         env:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
@@ -71,9 +71,17 @@ jobs:
           # reference prefect.* warning classes, which would otherwise
           # trigger a prefect import during pytest startup.
           #
+          # --timeout=600 raises the global 90s pytest-timeout for the import
+          # benchmarks: cold imports run far slower under simulation mode and
+          # the heavier ones (e.g. prefect.server.api.server) exceed 90s.
+          #
           # pytest-codspeed writes each invocation's results to a unique file
           # (keyed by PID), so the CodSpeed action collects all of them.
+          #
+          # Failures are tracked in `status` so every benchmark still runs,
+          # but any failing invocation fails the job.
           run: |
+            status=0
             for module in \
               prefect \
               prefect.client.schemas.objects \
@@ -84,10 +92,10 @@ jobs:
               prefect.task_runners \
             ; do
               uv run pytest "benches/bench_import.py::bench_import_module[$module]" \
-                --codspeed -vv -o 'filterwarnings='
+                --codspeed -vv -o 'filterwarnings=' --timeout=600 || status=1
             done
             uv run pytest benches/bench_import.py::bench_import_prefect_flow \
-              --codspeed -vv -o 'filterwarnings='
+              --codspeed -vv -o 'filterwarnings=' --timeout=600 || status=1
             uv run pytest \
               benches/bench_tasks.py \
               benches/bench_flows.py::bench_flow_decorator \
@@ -95,5 +103,6 @@ jobs:
               --codspeed \
               --numprocesses auto \
               --dist worksteal \
-              -vv
+              -vv || status=1
+            exit $status
           token: ${{ secrets.CODSPEED_TOKEN }}

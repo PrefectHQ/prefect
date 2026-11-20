@@ -15,6 +15,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -171,9 +172,9 @@ async def inspect(
             automation = no_really_json(automation)
 
         if yaml or (output and output.lower() == "yaml"):
-            _cli.console.print(pyyaml.dump(automation, sort_keys=False))
+            print_verbatim(pyyaml.dump(automation, sort_keys=False))
         elif json or (output and output.lower() == "json"):
-            _cli.console.print(
+            print_verbatim(
                 orjson.dumps(automation, option=orjson.OPT_INDENT_2).decode()
             )
     else:
@@ -333,15 +334,17 @@ async def delete(
                 exit_with_error(
                     "Cannot provide an automation name or id when deleting all automations."
                 )
-            automations = await client.read_automations()
-            if len(automations) == 0:
+            total = 0
+            while page := await client.read_automations(offset=total):
+                total += len(page)
+            if total == 0:
                 exit_with_success("No automations found.")
 
             if _cli.is_interactive():
                 from prefect.cli._prompts import confirm
 
                 if not confirm(
-                    f"Are you sure you want to delete all {len(automations)} automations?",
+                    f"Are you sure you want to delete all {total} automations?",
                     default=False,
                     console=_cli.console,
                 ):
@@ -353,12 +356,16 @@ async def delete(
                 async with semaphore:
                     await client.delete_automation(automation_id)
 
-            await asyncio.gather(
-                *[limited_delete(automation.id) for automation in automations]
-            )
+            # Always read from the start: deleting shifts later pages.
+            deleted = 0
+            while page := await client.read_automations():
+                await asyncio.gather(
+                    *[limited_delete(automation.id) for automation in page]
+                )
+                deleted += len(page)
 
-            plural = "" if len(automations) == 1 else "s"
-            exit_with_success(f"Deleted {len(automations)} automation{plural}.")
+            plural = "" if deleted == 1 else "s"
+            exit_with_success(f"Deleted {deleted} automation{plural}.")
 
         if not id and not name:
             exit_with_error("Please provide either a name or an id.")

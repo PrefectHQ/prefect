@@ -44,6 +44,13 @@ def test_client_dependency_matches_prefect(
         f"Dependency '{dep_name}' exists in client but not in prefect"
     )
     prefect_spec = prefect_dependencies[dep_name]
+    if dep_name == "whenever":
+        # The server uses Whenever's transition lookup on every Python version.
+        # The client excludes that code and only needs Whenever on Python 3.13+.
+        # Keep the version bounds identical while checking this exact exception.
+        client_spec, separator, marker = client_spec.partition(";")
+        assert separator == ";"
+        assert marker.strip() == "python_version>='3.13'"
     assert client_spec == prefect_spec, (
         f"Dependency '{dep_name}' has different specifiers:\n"
         f"  prefect: {prefect_spec}\n"

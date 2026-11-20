@@ -7,4 +7,4 @@
         <img src="https://img.shields.io/pypi/dm/prefect-kubernetes?color=26272B&labelColor=090422" /></a>
 </p>
 
-See the docs at [https://docs.prefect.io/integrations/prefect-kubernetes](https://docs.prefect.io/integrations/prefect-kubernetes) for more information.
+See the docs at [https://www.prefect.io/docs/integrations/prefect-kubernetes](https://www.prefect.io/docs/integrations/prefect-kubernetes) for more information.

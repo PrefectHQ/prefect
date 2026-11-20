@@ -7,11 +7,8 @@ import { categorizeError } from "@/api/error-utils";
 import { buildFLowDetailsQuery } from "@/api/flows";
 import { buildWorkQueueDetailsQuery } from "@/api/work-queues";
 import { DeploymentDetailsPage } from "@/components/deployments/deployment-details-page";
-import {
-	FLOW_RUN_STATES,
-	FLOW_RUN_STATES_NO_SCHEDULED,
-	SORT_FILTERS,
-} from "@/components/flow-runs/flow-runs-list";
+import { SORT_FILTERS } from "@/components/flow-runs/flow-runs-list";
+import { STATE_TYPES } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 
@@ -40,11 +37,8 @@ const searchParams = z.object({
 			flowRuns: z
 				.object({
 					name: z.string().optional(),
-					state: z
-						.array(z.enum(FLOW_RUN_STATES))
-						.optional()
-						.default(FLOW_RUN_STATES_NO_SCHEDULED)
-						.catch(FLOW_RUN_STATES_NO_SCHEDULED),
+					state: z.array(z.string()).optional(),
+					stateTypes: z.array(z.enum(STATE_TYPES)).optional(),
 				})
 				.optional(),
 			page: z.number().int().positive().optional().default(1).catch(1),
@@ -61,11 +55,8 @@ const searchParams = z.object({
 			flowRuns: z
 				.object({
 					name: z.string().optional(),
-					state: z
-						.array(z.enum(FLOW_RUN_STATES))
-						.optional()
-						.default(["Scheduled"])
-						.catch(["Scheduled"]),
+					state: z.array(z.string()).optional(),
+					stateTypes: z.array(z.enum(STATE_TYPES)).optional(),
 				})
 				.optional(),
 			page: z.number().int().positive().optional().default(1).catch(1),

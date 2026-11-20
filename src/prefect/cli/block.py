@@ -22,6 +22,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -77,7 +78,7 @@ def _display_block_type(block_type: BlockType) -> Table:
         "Description",
         (
             block_type.description.splitlines()[0].partition(".")[0]
-            if block_type.description is not None
+            if block_type.description
             else ""
         ),
         end_section=True,
@@ -287,7 +288,7 @@ async def block_ls(
     if output and output.lower() == "json":
         blocks_json = [block.model_dump(mode="json") for block in blocks]
         json_output = orjson.dumps(blocks_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Blocks", caption="List Block Types using `prefect block type ls`"
@@ -334,7 +335,7 @@ async def block_delete(
         if slug is None and block_id is not None:
             try:
                 if _cli.is_interactive() and not confirm(
-                    f"Are you sure you want to delete block with id {block_id!r}?",
+                    f"Are you sure you want to delete block with id '{block_id}'?",
                     default=False,
                     console=_cli.console,
                 ):
@@ -342,11 +343,11 @@ async def block_delete(
                 await client.delete_block_document(block_id)
                 exit_with_success(f"Deleted Block '{block_id}'.")
             except ObjectNotFound:
-                exit_with_error(f"Block {block_id!r} not found!")
+                exit_with_error(f"Block '{block_id}' not found!")
         elif slug is not None:
-            if "/" not in slug:
+            if slug.count("/") != 1:
                 exit_with_error(
-                    f"{slug!r} is not valid. Slug must contain a '/', e.g. 'json/my-json-block'"
+                    f"{slug!r} is not valid. Slug must contain exactly one '/', e.g. 'json/my-json-block'"
                 )
             block_type_slug, block_document_name = slug.split("/")
             try:
@@ -445,11 +446,11 @@ async def block_inspect(
                     block_id, include_secrets=False
                 )
             except ObjectNotFound:
-                exit_with_error(f"Block {block_id!r} not found!")
+                exit_with_error(f"Block '{block_id}' not found!")
         elif slug is not None:
-            if "/" not in slug:
+            if slug.count("/") != 1:
                 exit_with_error(
-                    f"{slug!r} is not valid. Slug must contain a '/', e.g. 'json/my-json-block'"
+                    f"{slug!r} is not valid. Slug must contain exactly one '/', e.g. 'json/my-json-block'"
                 )
             block_type_slug, block_document_name = slug.split("/")
             try:
@@ -464,7 +465,7 @@ async def block_inspect(
         if output and output.lower() == "json":
             block_json = block_document.model_dump(mode="json")
             json_output = orjson.dumps(block_json, option=orjson.OPT_INDENT_2).decode()
-            _cli.console.print(json_output, soft_wrap=True)
+            print_verbatim(json_output)
         else:
             _cli.console.print(_display_block(block_document))
 
@@ -501,7 +502,7 @@ async def list_types(
         json_output = orjson.dumps(
             block_types_json, option=orjson.OPT_INDENT_2
         ).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Block Types",
@@ -519,7 +520,7 @@ async def list_types(
                 str(blocktype.slug),
                 (
                     str(blocktype.description.splitlines()[0].partition(".")[0])
-                    if blocktype.description is not None
+                    if blocktype.description
                     else ""
                 ),
                 f"prefect block create {blocktype.slug}",
@@ -572,7 +573,7 @@ async def blocktype_inspect(
                 {"block_type": block_type_json, "schema": schema_json},
                 option=orjson.OPT_INDENT_2,
             ).decode()
-            _cli.console.print(json_output, soft_wrap=True)
+            print_verbatim(json_output)
             return
 
         _cli.console.print(_display_block_type(block_type))

@@ -203,3 +203,263 @@ describe("QuickRunParametersDialog", () => {
 		expect(createFlowRun).not.toHaveBeenCalled();
 	});
 });
+
+describe("QuickRunParametersDialog onRunCreated", () => {
+	it("calls onRunCreated after a successful run creation", async () => {
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: parameterSchema,
+			enforce_parameter_schema: true,
+		});
+		const flowRun = createFakeFlowRun();
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), () =>
+				HttpResponse.json({ valid: true, errors: [] }),
+			),
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () =>
+				HttpResponse.json(flowRun),
+			),
+		);
+		const onRunCreated = vi.fn();
+		const user = userEvent.setup();
+		const router = createTestRouter(
+			<QuickRunParametersDialog
+				deployment={deployment}
+				open
+				onOpenChange={vi.fn()}
+				onRunCreated={onRunCreated}
+			/>,
+		);
+		await waitFor(() =>
+			render(<RouterProvider router={router} />, { wrapper: createWrapper() }),
+		);
+
+		await user.click(screen.getByRole("button", { name: "Run" }));
+
+		await waitFor(() =>
+			expect(onRunCreated).toHaveBeenCalledWith(
+				expect.objectContaining({ id: flowRun.id }),
+			),
+		);
+	});
+
+	it("does not call onRunCreated when the run creation fails", async () => {
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: parameterSchema,
+			enforce_parameter_schema: true,
+		});
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), () =>
+				HttpResponse.json({ valid: true, errors: [] }),
+			),
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () =>
+				HttpResponse.error(),
+			),
+		);
+		const onRunCreated = vi.fn();
+		const user = userEvent.setup();
+		const router = createTestRouter(
+			<QuickRunParametersDialog
+				deployment={deployment}
+				open
+				onOpenChange={vi.fn()}
+				onRunCreated={onRunCreated}
+			/>,
+		);
+		await waitFor(() =>
+			render(<RouterProvider router={router} />, { wrapper: createWrapper() }),
+		);
+
+		await user.click(screen.getByRole("button", { name: "Run" }));
+
+		await waitFor(() =>
+			expect(screen.getByText(/error|failed/i)).toBeVisible(),
+		);
+		expect(onRunCreated).not.toHaveBeenCalled();
+	});
+
+	it("creates exactly one run for repeated submissions while pending", async () => {
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: parameterSchema,
+			enforce_parameter_schema: true,
+		});
+		let resolveRequest: (() => void) | undefined;
+		const createFlowRun = vi.fn();
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), () =>
+				HttpResponse.json({ valid: true, errors: [] }),
+			),
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), async () => {
+				createFlowRun();
+				await new Promise<void>((resolve) => {
+					resolveRequest = resolve;
+				});
+				return HttpResponse.json(createFakeFlowRun());
+			}),
+		);
+		const user = userEvent.setup();
+		const router = createTestRouter(
+			<QuickRunParametersDialog
+				deployment={deployment}
+				open
+				onOpenChange={vi.fn()}
+			/>,
+		);
+		await waitFor(() =>
+			render(<RouterProvider router={router} />, { wrapper: createWrapper() }),
+		);
+
+		await user.click(screen.getByRole("button", { name: "Run" }));
+		await waitFor(() => expect(createFlowRun).toHaveBeenCalledTimes(1));
+
+		// The submit button is disabled while the mutation is pending
+		const submit = screen
+			.getAllByRole("button")
+			.find((b) => b.matches(":disabled"));
+		expect(submit).toBeDefined();
+		await user.keyboard("{Enter}");
+		expect(createFlowRun).toHaveBeenCalledTimes(1);
+
+		resolveRequest?.();
+	});
+});
+
+describe("QuickRunParametersDialog duplicate submission", () => {
+	it("blocks repeat submits while parameter validation is pending", async () => {
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: parameterSchema,
+			enforce_parameter_schema: true,
+		});
+		const validate = vi.fn();
+		let resolveValidation: ((r: Response) => void) | undefined;
+		const createFlowRun = vi.fn();
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), async () => {
+				validate();
+				return await new Promise<Response>((resolve) => {
+					resolveValidation = resolve;
+				});
+			}),
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+				createFlowRun();
+				return HttpResponse.json(createFakeFlowRun());
+			}),
+		);
+		const user = userEvent.setup();
+		const router = createTestRouter(
+			<QuickRunParametersDialog
+				deployment={deployment}
+				open
+				onOpenChange={vi.fn()}
+			/>,
+		);
+		await waitFor(() =>
+			render(<RouterProvider router={router} />, { wrapper: createWrapper() }),
+		);
+
+		const submit = screen.getByRole("button", { name: "Run" });
+		await user.click(submit);
+		await waitFor(() => expect(validate).toHaveBeenCalledTimes(1));
+
+		// While validation is in flight the submit button is disabled and a
+		// second attempt cannot dispatch another validation/create cycle.
+		await waitFor(() => expect(submit).toBeDisabled());
+		await user.click(submit);
+		resolveValidation?.(HttpResponse.json({ valid: true, errors: [] }));
+
+		await waitFor(() => expect(createFlowRun).toHaveBeenCalledTimes(1));
+		expect(validate).toHaveBeenCalledTimes(1);
+	});
+
+	it("re-enables the submit button after an invalid validation result", async () => {
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: parameterSchema,
+			enforce_parameter_schema: true,
+		});
+		let validateCalls = 0;
+		const createFlowRun = vi.fn();
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), () => {
+				validateCalls += 1;
+				return HttpResponse.json(
+					validateCalls === 1
+						? { valid: false, errors: [] }
+						: { valid: true, errors: [] },
+				);
+			}),
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+				createFlowRun();
+				return HttpResponse.json(createFakeFlowRun());
+			}),
+		);
+		const user = userEvent.setup();
+		const onOpenChange = vi.fn();
+		const router = createTestRouter(
+			<QuickRunParametersDialog
+				deployment={deployment}
+				open
+				onOpenChange={onOpenChange}
+			/>,
+		);
+		await waitFor(() =>
+			render(<RouterProvider router={router} />, { wrapper: createWrapper() }),
+		);
+
+		const submit = screen.getByRole("button", { name: "Run" });
+		await user.click(submit);
+		await waitFor(() => expect(validateCalls).toBe(1));
+
+		await waitFor(() => expect(submit).toBeEnabled());
+		await user.click(submit);
+
+		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+		expect(createFlowRun).toHaveBeenCalledTimes(1);
+		expect(validateCalls).toBe(2);
+	});
+
+	it("does not revalidate after the dialog unmounts", async () => {
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: parameterSchema,
+			enforce_parameter_schema: true,
+		});
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), () =>
+				HttpResponse.json({
+					valid: false,
+					errors: [
+						{
+							type: "value_error",
+							property: "project",
+							errors: ["Project is required"],
+						},
+					],
+				}),
+			),
+		);
+		const user = userEvent.setup();
+		const { unmount } = render(
+			<QuickRunParametersDialog
+				deployment={deployment}
+				open
+				onOpenChange={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await user.click(screen.getByRole("button", { name: "Run" }));
+		await waitFor(() =>
+			expect(screen.getByText("Project is required")).toBeVisible(),
+		);
+		unmount();
+
+		let postUnmountCalls = 0;
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), () => {
+				postUnmountCalls += 1;
+				return HttpResponse.json({ valid: true, errors: [] });
+			}),
+		);
+		// Wait past the schema form's 1s debounced revalidation window
+		await new Promise((resolve) => setTimeout(resolve, 1500));
+		expect(postUnmountCalls).toBe(0);
+	});
+});

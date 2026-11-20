@@ -28,7 +28,7 @@ define the push and pull steps for a specific deployment.
             credentials: "{{ prefect.blocks.azure-blob-storage-credentials.dev-credentials }}"
     ```
 
-For more information about using deployment steps, check out out the Prefect [docs](https://docs.prefect.io/latest/deploy/).
+For more information about using deployment steps, check out out the Prefect [docs](https://www.prefect.io/docs/v3/concepts/deployments).
 """  # noqa
 
 from pathlib import Path, PurePosixPath

@@ -24,6 +24,13 @@ import {
 	type SchemaValueIndexError,
 } from "./types/errors";
 import { isArray } from "./utilities/guards";
+
+type KeyedValue = { key: string; value: unknown };
+
+function toKeyedValues(values: unknown[] | undefined): KeyedValue[] {
+	return values?.map((value) => ({ key: uuidv4(), value })) ?? [];
+}
+
 export type SchemaFormInputArrayListProps = {
 	property: SchemaObject & ArraySubtype;
 	values: unknown[] | undefined;
@@ -48,17 +55,22 @@ export function SchemaFormInputArrayList({
 		}),
 	);
 
-	const [localKeyedValues, setLocalKeyedValues] = useState<
-		{
-			key: string;
-			value: unknown;
-		}[]
-	>(
-		values?.map((value) => ({
-			key: uuidv4(),
-			value,
-		})) ?? [],
+	const [localKeyedValues, setLocalKeyedValues] = useState(() =>
+		toKeyedValues(values),
 	);
+	const [syncedValues, setSyncedValues] = useState(values);
+
+	if (values !== syncedValues) {
+		setSyncedValues(values);
+		setLocalKeyedValues(toKeyedValues(values));
+	}
+
+	function emitKeyedValues(newKeyedValues: KeyedValue[]) {
+		const newValues = newKeyedValues.map(({ value }) => value);
+		setLocalKeyedValues(newKeyedValues);
+		setSyncedValues(newValues);
+		onValuesChange(newValues);
+	}
 
 	const isEmpty = localKeyedValues.length === 0;
 	const canAddMore =
@@ -100,8 +112,7 @@ export function SchemaFormInputArrayList({
 		const newKeyedValues = localKeyedValues.map((item) =>
 			item.key === key ? { ...item, value } : item,
 		);
-		setLocalKeyedValues(newKeyedValues);
-		onValuesChange(newKeyedValues.map(({ value }) => value));
+		emitKeyedValues(newKeyedValues);
 	}
 
 	function addItem() {
@@ -109,15 +120,13 @@ export function SchemaFormInputArrayList({
 			...localKeyedValues,
 			{ key: uuidv4(), value: undefined },
 		];
-		setLocalKeyedValues(newKeyedValues);
-		onValuesChange(newKeyedValues.map(({ value }) => value));
+		emitKeyedValues(newKeyedValues);
 	}
 
 	function moveItem(from: number, to: number) {
 		const newValues = [...localKeyedValues];
 		newValues.splice(to, 0, newValues.splice(from, 1)[0]);
-		setLocalKeyedValues(newValues);
-		onValuesChange(newValues.map(({ value }) => value));
+		emitKeyedValues(newValues);
 	}
 
 	function moveToTop(index: number) {
@@ -130,8 +139,7 @@ export function SchemaFormInputArrayList({
 
 	function deleteItem(key: string) {
 		const newValues = localKeyedValues.filter((item) => item.key !== key);
-		setLocalKeyedValues(newValues);
-		onValuesChange(newValues.map(({ value }) => value));
+		emitKeyedValues(newValues);
 	}
 
 	function handleDragEnd(event: DragEndEvent) {

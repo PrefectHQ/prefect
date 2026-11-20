@@ -92,7 +92,7 @@ describe("BlockDocumentDetailsPage", () => {
 
 	it("renders both code example text and docs link when both are present", () => {
 		const blockType = createFakeBlockType({
-			documentation_url: "https://docs.prefect.io/some-block-type",
+			documentation_url: "https://www.prefect.io/docs/some-block-type",
 			code_example: "```python\nfrom prefect import Block\n```",
 		});
 		const blockDocument = createFakeBlockDocument({
@@ -105,7 +105,7 @@ describe("BlockDocumentDetailsPage", () => {
 		const docsLink = screen.getByRole("link", { name: "View Docs" });
 		expect(docsLink).toHaveAttribute(
 			"href",
-			"https://docs.prefect.io/some-block-type",
+			"https://www.prefect.io/docs/some-block-type",
 		);
 	});
 

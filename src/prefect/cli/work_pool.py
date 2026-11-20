@@ -20,6 +20,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -566,7 +567,7 @@ async def ls(
     if output and output.lower() == "json":
         pools_json = [pool.model_dump(mode="json") for pool in sorted_pools]
         json_output = orjson.dumps(pools_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Work Pools",
@@ -636,7 +637,7 @@ async def inspect(
                 json_output = orjson.dumps(
                     pool_json, option=orjson.OPT_INDENT_2
                 ).decode()
-                _cli.console.print(json_output, soft_wrap=True)
+                print_verbatim(json_output)
             else:
                 _cli.console.print(Pretty(pool))
         except ObjectNotFound:
@@ -704,7 +705,7 @@ async def slots(
                     "total": total,
                 }
         json_output = orjson.dumps(data, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
         return
 
     # Header
@@ -865,7 +866,7 @@ async def update(
     if base_job_template:
         with open(base_job_template) as f:
             wp.base_job_template = json.load(f)
-    if concurrency_limit:
+    if concurrency_limit is not None:
         wp.concurrency_limit = concurrency_limit
     if description:
         wp.description = description
@@ -1151,6 +1152,7 @@ async def preview(
         try:
             responses = await client.get_scheduled_flow_runs_for_work_pool(
                 work_pool_name=name,
+                scheduled_before=now_fn("UTC") + datetime.timedelta(hours=hours),
             )
         except ObjectNotFound as exc:
             exit_with_error(exc)
@@ -1176,7 +1178,7 @@ async def preview(
     if output and output.lower() == "json":
         runs_json = [run.model_dump(mode="json") for run in sorted_runs]
         json_output = orjson.dumps(runs_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
         return
 
     for run in sorted_runs:
@@ -1305,7 +1307,7 @@ async def storage_inspect(
                 json_output = orjson.dumps(
                     storage_data, option=orjson.OPT_INDENT_2
                 ).decode()
-                _cli.console.print(json_output, soft_wrap=True)
+                print_verbatim(json_output)
             else:
                 storage_table.add_row("type", storage_type)
                 upload_config = _get_bundle_step_config(

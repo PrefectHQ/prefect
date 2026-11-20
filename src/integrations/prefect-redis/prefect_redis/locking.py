@@ -220,6 +220,12 @@ class RedisLockManager(LockManager):
         lock = self._locks.get(lock_name)
 
         if lock is not None and self.is_lock_holder(key, holder):
+            if isinstance(lock, AsyncLock):
+                # Release an async-acquired lock through a sync lock with the
+                # same token since this method is called synchronously.
+                token = lock.local.token
+                lock = Lock(self.client, lock_name, thread_local=False)
+                lock.local.token = token
             lock.release()
             del self._locks[lock_name]
             return

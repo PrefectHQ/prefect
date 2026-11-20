@@ -23,6 +23,15 @@ async function createFlowRunWithRetry(
 	}).toPass({ timeout: 30000 });
 }
 
+// The Runs page rewrites its URL on mount (default date range, then page
+// limits), re-suspending the route each time. Navigate once and wait for the
+// final rewrite instead of re-issuing page.goto on a short timeout, which
+// restarts that cycle and can starve indefinitely under CI load.
+async function gotoRunsPage(page: Page, url: string): Promise<void> {
+	await page.goto(url);
+	await expect(page).toHaveURL(/task-runs-limit=/);
+}
+
 async function waitForRunsPageReady(page: Page): Promise<void> {
 	await expect(
 		page
@@ -63,14 +72,13 @@ test.describe("Runs Page - Tab Switching", () => {
 		page,
 	}) => {
 		// Use limit=2 so pagination is needed even after filtering to Completed (3 runs)
-		await expect(async () => {
-			await page.goto(
-				`/runs?limit=2&flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
-			);
-			await expect(page.getByText(/\d+ Flow runs?/i)).toBeVisible({
-				timeout: 2000,
-			});
-		}).toPass({ timeout: 15000 });
+		await gotoRunsPage(
+			page,
+			`/runs?limit=2&flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
+		);
+		await expect(page.getByText(/\d+ Flow runs?/i)).toBeVisible({
+			timeout: 15000,
+		});
 
 		await expect(page.getByRole("tab", { name: /flow runs/i })).toBeVisible();
 
@@ -141,28 +149,26 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 	test("displays flow runs with state, name, and timestamps", async ({
 		page,
 	}) => {
-		await expect(async () => {
-			await page.goto(
-				`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
-			);
-			await expect(
-				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
-			).toBeVisible({ timeout: 2000 });
-		}).toPass({ timeout: 15000 });
+		await gotoRunsPage(
+			page,
+			`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
+		);
+		await expect(
+			page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
+		).toBeVisible({ timeout: 15000 });
 
 		await expect(page.getByText("Completed").first()).toBeVisible();
 		await expect(page.getByText("Failed").first()).toBeVisible();
 	});
 
 	test("filters by state with URL persistence", async ({ page }) => {
-		await expect(async () => {
-			await page.goto(
-				`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
-			);
-			await expect(
-				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
-			).toBeVisible({ timeout: 2000 });
-		}).toPass({ timeout: 15000 });
+		await gotoRunsPage(
+			page,
+			`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
+		);
+		await expect(
+			page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
+		).toBeVisible({ timeout: 15000 });
 
 		const stateFilterButton = page.getByRole("button", {
 			name: /all run states/i,
@@ -227,14 +233,11 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 	});
 
 	test("paginates through flow runs with URL updates", async ({ page }) => {
-		await expect(async () => {
-			await page.goto(
-				`/runs?limit=5&flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
-			);
-			await expect(page.getByText(/Page 1 of/)).toBeVisible({
-				timeout: 2000,
-			});
-		}).toPass({ timeout: 15000 });
+		await gotoRunsPage(
+			page,
+			`/runs?limit=5&flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
+		);
+		await expect(page.getByText(/Page 1 of/)).toBeVisible({ timeout: 15000 });
 
 		await page.getByRole("button", { name: /go to next page/i }).click();
 
@@ -246,14 +249,11 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 		const parentName = parentChildResult.parent_flow_run_name;
 		const childName = parentChildResult.child_flow_run_name;
 
-		await expect(async () => {
-			await page.goto(
-				`/runs?flow-run-search=${encodeURIComponent(`${prefix}pc-`)}`,
-			);
-			await expect(page.getByText(parentName)).toBeVisible({
-				timeout: 2000,
-			});
-		}).toPass({ timeout: 15000 });
+		await gotoRunsPage(
+			page,
+			`/runs?flow-run-search=${encodeURIComponent(`${prefix}pc-`)}`,
+		);
+		await expect(page.getByText(parentName)).toBeVisible({ timeout: 15000 });
 
 		await expect(page.getByText(childName)).toBeVisible({
 			timeout: 10000,
@@ -313,25 +313,23 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 		).toISOString();
 		const end = now.toISOString();
 
-		await expect(async () => {
-			await page.goto(
-				`/runs?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
-			);
-			await expect(
-				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
-			).toBeVisible({ timeout: 2000 });
-		}).toPass({ timeout: 15000 });
+		await gotoRunsPage(
+			page,
+			`/runs?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
+		);
+		await expect(
+			page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
+		).toBeVisible({ timeout: 15000 });
 	});
 
 	test("combines state + name filters", async ({ page }) => {
-		await expect(async () => {
-			await page.goto(
-				`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
-			);
-			await expect(
-				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
-			).toBeVisible({ timeout: 2000 });
-		}).toPass({ timeout: 15000 });
+		await gotoRunsPage(
+			page,
+			`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
+		);
+		await expect(
+			page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
+		).toBeVisible({ timeout: 15000 });
 
 		const stateFilterButton = page.getByRole("button", {
 			name: /all run states/i,
@@ -365,14 +363,11 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 		const parentName = parentChildResult.parent_flow_run_name;
 		const childName = parentChildResult.child_flow_run_name;
 
-		await expect(async () => {
-			await page.goto(
-				`/runs?flow-run-search=${encodeURIComponent(`${prefix}pc-`)}`,
-			);
-			await expect(page.getByText(parentName)).toBeVisible({
-				timeout: 2000,
-			});
-		}).toPass({ timeout: 15000 });
+		await gotoRunsPage(
+			page,
+			`/runs?flow-run-search=${encodeURIComponent(`${prefix}pc-`)}`,
+		);
+		await expect(page.getByText(parentName)).toBeVisible({ timeout: 15000 });
 
 		await page.getByRole("switch", { name: /hide subflows/i }).click();
 
@@ -385,14 +380,13 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 	});
 
 	test("combines state + date range filters", async ({ page }) => {
-		await expect(async () => {
-			await page.goto(
-				`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}&state=Completed&range=past-7-days`,
-			);
-			await expect(
-				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
-			).toBeVisible({ timeout: 2000 });
-		}).toPass({ timeout: 15000 });
+		await gotoRunsPage(
+			page,
+			`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}&state=Completed&range=past-7-days`,
+		);
+		await expect(
+			page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
+		).toBeVisible({ timeout: 15000 });
 
 		await expect(page).toHaveURL(/state=Completed/);
 		await expect(page).toHaveURL(/range=past-7-days/);

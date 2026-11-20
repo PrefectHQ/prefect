@@ -1,10 +1,11 @@
 import datetime
 import sys
+from collections import deque
 from datetime import timezone
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Annotated, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pytest
 from pydantic import BaseModel, Field, SecretStr
@@ -519,6 +520,99 @@ class TestFunctionToSchema:
             "definitions": {},
         }
 
+    def test_function_with_variadic_arguments(self):
+        def f(x: int, *args, **kwargs):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {"title": "x", "type": "integer", "position": 0},
+                "args": {
+                    "title": "args",
+                    "type": "array",
+                    "items": {},
+                    "default": [],
+                    "position": 1,
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "type": "object",
+                    "additionalProperties": True,
+                    "default": {},
+                    "position": 2,
+                },
+            },
+            "required": ["x"],
+            "definitions": {},
+        }
+
+    def test_function_with_annotated_variadic_arguments(self):
+        def f(*args: int, **kwargs: str):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "args": {
+                    "title": "args",
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "default": [],
+                    "position": 0,
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "default": {},
+                    "position": 1,
+                },
+            },
+            "definitions": {},
+        }
+
+    def test_function_with_annotated_variadic_arguments_and_v1_types(self):
+        import pydantic.v1 as pydantic
+
+        def f(x: pydantic.SecretStr, *args: int, **kwargs: str):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "title": "x",
+                    "position": 0,
+                    "type": "string",
+                    "writeOnly": True,
+                    "format": "password",
+                },
+                "args": {
+                    "title": "args",
+                    "position": 1,
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "default": [],
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "position": 2,
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "default": {},
+                },
+            },
+            "required": ["x"],
+            "definitions": {},
+        }
+
 
 class TestMethodToSchema:
     def test_methods_with_no_arguments(self):
@@ -727,6 +821,84 @@ class TestParseFlowDescriptionToSchema:
             "definitions": {},
         }
 
+    def test_flow_with_annotated_field_description(self):
+        def f(
+            x: Annotated[int, Field(description="x from Field")],
+            y: Annotated[int, Field(ge=0)] = 0,
+            z: Annotated[int, Field(description="z from Field")] = Field(
+                default=1, description="z from default Field"
+            ),
+            w: Annotated[
+                int, Field(description="w from Field"), Field(description=None)
+            ] = 2,
+        ):
+            """Function f.
+
+            Args:
+                y: y from docstring
+                w: w from docstring
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "title": "x",
+                    "description": "x from Field",
+                    "position": 0,
+                    "type": "integer",
+                },
+                "y": {
+                    "title": "y",
+                    "description": "y from docstring",
+                    "default": 0,
+                    "minimum": 0,
+                    "position": 1,
+                    "type": "integer",
+                },
+                "z": {
+                    "title": "z",
+                    "description": "z from default Field",
+                    "default": 1,
+                    "position": 2,
+                    "type": "integer",
+                },
+                "w": {
+                    "title": "w",
+                    "description": "w from docstring",
+                    "default": 2,
+                    "position": 3,
+                    "type": "integer",
+                },
+            },
+            "required": ["x"],
+            "definitions": {},
+        }
+
+    def test_flow_with_annotated_fields_pydantic_cannot_merge(self):
+        def f(
+            x: Annotated[
+                tuple[int, ...], Field(default=(1,)), Field(default_factory=tuple)
+            ] = (),
+        ):
+            """Function f.
+
+            Args:
+                x: x from docstring
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi()["properties"] == {
+            "x": {
+                "title": "x",
+                "description": "x from docstring",
+                "default": [],
+                "position": 0,
+            },
+        }
+
 
 class TestGetCallParameters:
     def test_raises_parameter_bind_with_no_kwargs(self):
@@ -798,6 +970,34 @@ class TestGetCallParameters:
         assert isinstance(result["retries"], int)
         assert isinstance(result["tags"], list)
         assert isinstance(result["labels"], list)
+
+
+class TestGetParameterDefaults:
+    def test_returns_signature_defaults(self):
+        def fn(a, b=1, c="x"):
+            pass
+
+        assert callables.get_parameter_defaults(fn) == {"b": 1, "c": "x"}
+
+    def test_field_defaults_are_unwrapped(self):
+        def fn(a: int, y: int = Field(default=3), tags: list[str] = Field(default=[])):
+            pass
+
+        result = callables.get_parameter_defaults(fn)
+        assert result == {"y": 3, "tags": []}
+        assert isinstance(result["y"], int)
+        assert isinstance(result["tags"], list)
+
+
+class TestExpandMappingParameters:
+    def test_field_defaults_are_unwrapped(self):
+        def fn(a: int, y: int = Field(default=3)):
+            pass
+
+        assert callables.expand_mapping_parameters(fn, {"a": [1, 2]}) == [
+            {"a": 1, "y": 3},
+            {"a": 2, "y": 3},
+        ]
 
 
 class TestExplodeVariadicParameter:
@@ -947,6 +1147,47 @@ class TestParametersToArgsKwargs:
         args, kwargs = callables.parameters_to_args_kwargs(fn, {"a": 1, "args": (2, 3)})
         assert args == (1, 2, 3)
         assert kwargs == {}
+
+    def test_var_positional_with_omitted_defaulted_param(self):
+        def fn(a=1, *args, **kwargs):
+            return a, args, kwargs
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            fn, {"args": [2, 3], "kwargs": {"b": 4}}
+        )
+        assert fn(*args, **kwargs) == (1, (2, 3), {"b": 4})
+
+    def test_empty_var_positional_with_omitted_defaulted_param(self):
+        def fn(a=1, *args):
+            return a, args
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": []})
+        assert fn(*args, **kwargs) == (1, ())
+
+    @pytest.mark.parametrize(
+        "value", [range(2, 4), (i for i in [2, 3]), deque([2, 3]), iter([2, 3])]
+    )
+    def test_iterable_var_positional_with_omitted_defaulted_param(self, value):
+        def fn(a=1, *args):
+            return a, args
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": value})
+        assert fn(*args, **kwargs) == (1, (2, 3))
+
+    @pytest.mark.parametrize("value", [None, 0, False, "ab", {"b": 2}])
+    def test_non_iterable_var_positional_is_not_dropped(self, value):
+        def fn(a=1, *args):
+            return a, args
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": value})
+        assert (args, kwargs) == ((), {"args": value})
+
+    def test_var_positional_with_omitted_field_defaulted_param(self):
+        def fn(a: int = Field(default=1), *args):
+            return a, args
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"args": [2]})
+        assert fn(*args, **kwargs) == (1, (2,))
 
     def test_wraps_with_fewer_positional_params_routes_rest_via_kwargs(self):
         """When the wrapper accepts fewer positional params than the wrapped
@@ -1902,5 +2143,67 @@ class TestEntrypointToSchema:
             },
             "title": "Parameters",
             "type": "object",
+            "definitions": {},
+        }
+
+    def test_function_with_annotated_variadic_arguments(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        def f(x: int, *args: int, **kwargs: str):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "properties": {
+                "x": {"title": "x", "position": 0, "type": "integer"},
+                "args": {
+                    "title": "args",
+                    "position": 1,
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "default": [],
+                },
+                "kwargs": {
+                    "title": "kwargs",
+                    "position": 2,
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "default": {},
+                },
+            },
+            "title": "Parameters",
+            "type": "object",
+            "required": ["x"],
+            "definitions": {},
+        }
+
+    def test_function_with_positional_only_args_and_mixed_defaults(
+        self, tmp_path: Path
+    ):
+        # Defaults apply to the trailing positional parameters, which span both
+        # positional-only and positional-or-keyword args. A required
+        # positional-only arg followed by defaulted args must not shift the
+        # defaults onto the wrong parameters.
+        source_code = dedent(
+            """
+        def f(a, b=5, /, c=10):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "properties": {
+                "a": {"title": "a", "position": 0},
+                "b": {"title": "b", "position": 1, "default": 5},
+                "c": {"title": "c", "position": 2, "default": 10},
+            },
+            "title": "Parameters",
+            "type": "object",
+            "required": ["a"],
             "definitions": {},
         }

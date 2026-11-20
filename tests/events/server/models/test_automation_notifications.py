@@ -4,11 +4,13 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
+from asyncpg import Connection
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.testing import retry_asserts
 from prefect.server.events.actions import DoNothing
 from prefect.server.events.models.automations import (
+    AUTOMATION_CHANGES_CHANNEL,
     create_automation,
     delete_automation,
     update_automation,
@@ -176,14 +178,28 @@ async def test_automation_listener_receives_notifications_and_processes_them(
         async def mock_automation_changed(automation_id, event):
             automation_changed_calls.append((automation_id, event))
 
-        with patch(
-            "prefect.server.events.triggers.automation_changed", mock_automation_changed
+        # NOTIFYs sent before LISTEN is registered are never delivered, so the
+        # test must wait until the listener is actually subscribed to the channel
+        listening = asyncio.Event()
+        original_add_listener = Connection.add_listener
+
+        async def add_listener_and_signal(self, channel, callback):
+            await original_add_listener(self, channel, callback)
+            if channel == AUTOMATION_CHANGES_CHANNEL:
+                listening.set()
+
+        with (
+            patch(
+                "prefect.server.events.triggers.automation_changed",
+                mock_automation_changed,
+            ),
+            patch.object(Connection, "add_listener", add_listener_and_signal),
         ):
             # Start the listener
             listener_task = asyncio.create_task(listen_for_automation_changes())
 
             try:
-                await asyncio.sleep(0.1)
+                await listening.wait()
 
                 # Create automation - should trigger "created" notification
                 created = await create_automation(

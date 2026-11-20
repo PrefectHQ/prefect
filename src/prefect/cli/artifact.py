@@ -13,6 +13,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -77,7 +78,7 @@ async def list_artifacts(
     if output and output.lower() == "json":
         artifacts_json = [artifact.model_dump(mode="json") for artifact in artifacts]
         json_output = orjson.dumps(artifacts_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Artifacts",
@@ -181,7 +182,7 @@ async def inspect(
             json_output = orjson.dumps(
                 artifacts_json, option=orjson.OPT_INDENT_2
             ).decode()
-            _cli.console.print(json_output, soft_wrap=True)
+            print_verbatim(json_output)
         else:
             _cli.console.print(Pretty(artifacts_json))
 

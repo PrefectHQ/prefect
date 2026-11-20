@@ -97,7 +97,7 @@ class EmailServerCredentials(Block):
 
     _block_type_name = "Email Server Credentials"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/email.png"  # noqa
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-email"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-email"  # noqa
 
     username: Optional[str] = Field(
         default=None,

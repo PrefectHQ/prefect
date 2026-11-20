@@ -313,3 +313,24 @@ class TestVertexAIWorkerKillInfrastructure:
                     configuration=job_config,
                     grace_seconds=30,
                 )
+
+    async def test_watch_job_run_timeout_message(self, flow_run, job_config):
+        job_config.prepare_for_flow_run(flow_run, None, None)
+        client = MagicMock()
+        client.get_custom_job = AsyncMock(
+            return_value=MagicMock(state=JobState.JOB_STATE_RUNNING)
+        )
+        until_states = (JobState.JOB_STATE_SUCCEEDED,)
+
+        async with VertexAIWorker("test-pool") as worker:
+            with pytest.raises(RuntimeError, match="JOB_STATE_SUCCEEDED"):
+                await worker._watch_job_run(
+                    job_name="job",
+                    full_job_name="projects/123/locations/us-central1/customJobs/456",
+                    job_service_async_client=client,
+                    current_state=JobState.JOB_STATE_PENDING,
+                    until_states=until_states,
+                    configuration=job_config,
+                    logger=MagicMock(),
+                    timeout=-1,
+                )

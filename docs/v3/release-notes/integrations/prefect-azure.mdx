@@ -1,5 +1,32 @@
 ---
 title: prefect-azure
+description: Release notes for prefect-azure, including Python 3.11 minimum support, Azure Container Instances fixes, and the Azure DevOps credentials block.
+---
+
+## 0.5.0
+
+_Released on November 19, 2026_
+
+**Breaking Changes**
+
+- Drop support for Python 3.10 and require Python 3.11 or later [#23324](https://github.com/PrefectHQ/prefect/pull/23324) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Bug Fixes**
+
+- Detect Azure Container Instances startup from the container group without waiting for the Azure Resource Manager deployment to finish [#23756](https://github.com/PrefectHQ/prefect/pull/23756) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Allow Azure Blob Storage bundle uploads to overwrite existing included-file sidecars when submissions reuse the same key [#23170](https://github.com/PrefectHQ/prefect/pull/23170) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Documentation**
+
+- Fix the documentation link in the Azure deployment steps [#23941](https://github.com/PrefectHQ/prefect/pull/23941) by [@madureira-gabriel](https://github.com/madureira-gabriel)
+- Update Azure block and worker links to the current Prefect docs site [#23642](https://github.com/PrefectHQ/prefect/pull/23642) by [@maximearmstrong](https://github.com/maximearmstrong)
+
+**Maintenance**
+
+- Limit the `setuptools<81` runtime dependency to extras that include Azure Machine Learning [#23593](https://github.com/PrefectHQ/prefect/pull/23593) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Add the Python 3.14 package classifier and run integration tests on Python 3.14 [#23273](https://github.com/PrefectHQ/prefect/pull/23273) by [@vyagubov](https://github.com/vyagubov)
+- Move Azure block and worker logos from Sanity to the Prefect repository [#23235](https://github.com/PrefectHQ/prefect/pull/23235) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
 ---
 
 ## 0.4.13

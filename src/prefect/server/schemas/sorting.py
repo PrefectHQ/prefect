@@ -66,6 +66,8 @@ class TaskRunSort(AutoEnum):
     NAME_DESC = AutoEnum.auto()
     NEXT_SCHEDULED_START_TIME_ASC = AutoEnum.auto()
     END_TIME_DESC = AutoEnum.auto()
+    DURATION_DESC = AutoEnum.auto()
+    DURATION_ASC = AutoEnum.auto()
 
     def as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
@@ -82,6 +84,18 @@ class TaskRunSort(AutoEnum):
                 db.TaskRun.next_scheduled_start_time.asc()
             ],
             "END_TIME_DESC": [db.TaskRun.end_time.desc()],
+            # break ties (e.g. task runs that haven't started yet) so that
+            # paginated results are stable
+            "DURATION_DESC": [
+                db.TaskRun.estimated_run_time.desc(),
+                db.TaskRun.expected_start_time.desc(),
+                db.TaskRun.id.desc(),
+            ],
+            "DURATION_ASC": [
+                db.TaskRun.estimated_run_time.asc(),
+                db.TaskRun.expected_start_time.desc(),
+                db.TaskRun.id.desc(),
+            ],
         }
         return sort_mapping[self.value]
 

@@ -13,6 +13,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -58,7 +59,7 @@ async def ls(
             gcl_limit.model_dump(mode="json") for gcl_limit in gcl_limits
         ]
         json_output = orjson.dumps(gcl_limits_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Global Concurrency Limits",
@@ -139,7 +140,7 @@ async def inspect(
         gcl_limit_json = gcl_limit.model_dump(mode="json")
         json_output = orjson.dumps(gcl_limit_json, option=orjson.OPT_INDENT_2).decode()
         if not file_path:
-            _cli.console.print(json_output, soft_wrap=True)
+            print_verbatim(json_output)
         else:
             with open(file_path, "w") as f:
                 f.write(json_output)

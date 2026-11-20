@@ -1,4 +1,5 @@
-from datetime import datetime
+import warnings
+from datetime import UTC, datetime
 from typing import Optional
 
 import pydantic
@@ -12,6 +13,32 @@ from prefect._internal.compatibility.deprecated import (
     deprecated_parameter,
     generate_deprecation_message,
 )
+from prefect.types import _datetime
+
+
+def test_generate_deprecation_message_prefect_start_date():
+    with (
+        _datetime.travel_to(datetime(2022, 1, 1, tzinfo=UTC)),
+        warnings.catch_warnings(),
+    ):
+        warnings.simplefilter("error", DeprecationWarning)
+        message = generate_deprecation_message(
+            "test name", start_date=_datetime.now("UTC")
+        )
+
+    assert message == (
+        "test name has been deprecated. It will not be available in new releases after Jul 2022."
+    )
+
+
+def test_generate_deprecation_message_aware_start_date():
+    assert (
+        generate_deprecation_message(
+            "test name",
+            start_date=datetime(2022, 1, 1, tzinfo=UTC),
+        )
+        == "test name has been deprecated. It will not be available in new releases after Jul 2022."
+    )
 
 
 def test_generate_deprecation_message():

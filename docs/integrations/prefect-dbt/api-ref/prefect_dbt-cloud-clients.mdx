@@ -26,7 +26,7 @@ Client for interacting with the dbt cloud Administrative API.
 #### `call_endpoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-call_endpoint(self, http_method: str, path: str, params: Optional[Dict[str, Any]] = None, json: Optional[Dict[str, Any]] = None) -> Response
+call_endpoint(self, http_method: str, path: str, params: dict[str, Any] | None = None, json: dict[str, Any] | None = None) -> Response
 ```
 
 Call an endpoint in the dbt Cloud API.
@@ -45,7 +45,7 @@ onto the base URL as determined by the client configuration.
 #### `create_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-create_job(self, project_id: int, environment_id: int, name: str, execute_steps: Optional[List[str]] = None, **kwargs: Any) -> Response
+create_job(self, project_id: int, environment_id: int, name: str, execute_steps: list[str] | None = None, **kwargs: Any) -> Response
 ```
 
 Creates a new dbt Cloud job.
@@ -79,7 +79,7 @@ Deletes a dbt Cloud job.
 #### `get_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-get_job(self, job_id: int, order_by: Optional[str] = None) -> Response
+get_job(self, job_id: int, order_by: str | None = None) -> Response
 ```
 
 Return job details for a job on an account.
@@ -92,7 +92,7 @@ Return job details for a job on an account.
 - The response from the dbt Cloud administrative API.
 
 
-#### `get_job_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_job_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_job_artifact(self, job_id: int, path: str) -> Response
@@ -111,7 +111,7 @@ Fetches an artifact from the most recent successful run of a job.
 #### `get_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-get_run(self, run_id: int, include_related: Optional[List[Literal['trigger', 'job', 'debug_logs', 'run_steps']]] = None) -> Response
+get_run(self, run_id: int, include_related: list[Literal['trigger', 'job', 'debug_logs', 'run_steps']] | None = None) -> Response
 ```
 
 Sends a request to the [get run endpoint](https://docs.getdbt.com/dbt-cloud/api-v2#tag/Runs/operation/getRunById)
@@ -128,10 +128,10 @@ logs will be truncated to the last 1,000 lines of the debug log output file.
 - The response from the dbt Cloud administrative API.
 
 
-#### `get_run_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_run_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-get_run_artifact(self, run_id: int, path: str, step: Optional[int] = None) -> Response
+get_run_artifact(self, run_id: int, path: str, step: int | None = None) -> Response
 ```
 
 Sends a request to the [get run artifact endpoint](https://docs.getdbt.com/dbt-cloud/api-v2#tag/Runs/operation/getArtifactsByRunId)
@@ -150,10 +150,10 @@ for the last step in the run.
 - The response from the dbt Cloud administrative API.
 
 
-#### `list_run_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `list_run_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-list_run_artifacts(self, run_id: int, step: Optional[int] = None) -> Response
+list_run_artifacts(self, run_id: int, step: int | None = None) -> Response
 ```
 
 Sends a request to the [list run artifacts endpoint](https://docs.getdbt.com/dbt-cloud/api-v2#tag/Runs/operation/listArtifactsByRunId)
@@ -173,7 +173,7 @@ for the last step in the run.
 #### `trigger_job_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-trigger_job_run(self, job_id: int, options: Optional[TriggerJobRunOptions] = None) -> Response
+trigger_job_run(self, job_id: int, options: TriggerJobRunOptions | None = None) -> Response
 ```
 
 Sends a request to the [trigger job run endpoint](https://docs.getdbt.com/dbt-cloud/api-v2#tag/Jobs/operation/triggerRun)
@@ -187,7 +187,7 @@ to initiate a job run.
 - The response from the dbt Cloud administrative API.
 
 
-### `DbtCloudMetadataClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DbtCloudMetadataClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Client for interacting with the dbt cloud Administrative API.
@@ -199,10 +199,10 @@ Client for interacting with the dbt cloud Administrative API.
 
 **Methods:**
 
-#### `query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L283" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-query(self, query: str, variables: Optional[Dict] = None, operation_name: Optional[str] = None) -> Dict[str, Any]
+query(self, query: str, variables: dict | None = None, operation_name: str | None = None) -> dict[str, Any]
 ```
 
 Run a GraphQL query against the dbt Cloud metadata API.

@@ -159,6 +159,10 @@ After transferring resources:
 - Some resource types require specific Prefect Cloud tiers
 - Check your workspace tier and capabilities
 
+**Automations skipped due to unrecognized action types**
+- Automations that use an action type your installed version of Prefect doesn't recognize are skipped, because the resources those actions reference can't be mapped to the destination
+- The skip message lists the unrecognized action types; upgrade Prefect and run the transfer again, or recreate the automation in the destination manually
+
 **Connection errors**
 - Verify both profiles are correctly configured
 - Check network connectivity and authentication

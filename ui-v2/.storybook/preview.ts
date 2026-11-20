@@ -28,7 +28,7 @@ export default {
 	loaders: [
 		mswLoader(async () => {
 			const worker = setupWorker(...handlers);
-			await worker.start({ onUnhandledRequest: "bypass" });
+			await worker.start({ onUnhandledFrame: "bypass" });
 			return worker;
 		}),
 	],

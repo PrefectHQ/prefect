@@ -2,7 +2,8 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "github>PrefectHQ/renovate-config",
-    "github>PrefectHQ/renovate-config:python"
+    "github>PrefectHQ/renovate-config:python",
+    "helpers:pinGitHubActionDigests"
   ],
   "packageRules": [
     {
@@ -12,7 +13,7 @@
       "allowedVersions": "<6.1.0"
     },
     {
-      "description": "Keep the old-SQLite compatibility image on Python 3.10.",
+      "description": "Keep the old-SQLite compatibility image on Python 3.11.",
       "matchManagers": ["dockerfile"],
       "matchFileNames": [".github/docker/old-sqlite.Dockerfile"],
       "matchPackageNames": ["python"],

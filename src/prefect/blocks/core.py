@@ -81,10 +81,7 @@ R = TypeVar("R")
 P = ParamSpec("P")
 
 ResourceTuple = tuple[dict[str, Any], list[dict[str, Any]]]
-UnionTypes: tuple[object, ...] = (Union,)
-if hasattr(types, "UnionType"):
-    # Python 3.10+ only
-    UnionTypes = (*UnionTypes, types.UnionType)
+UnionTypes: tuple[object, ...] = (Union, types.UnionType)
 
 
 def _nested_type_args(annotation: Any) -> tuple[Any, ...]:

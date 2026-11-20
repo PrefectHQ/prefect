@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 import dateutil.rrule
 import dateutil.tz
 import pytest
+import pytz
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
@@ -17,6 +18,7 @@ from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
+    _iana_timezone_name,
     construct_schedule,
 )
 from prefect.server.schemas.schedules import (
@@ -241,6 +243,36 @@ class TestDeploymentFlowRunCreate:
         assert dumped["parameters"]["dates"][1] == "2025-10-25"
 
 
+class TestIanaTimezoneName:
+    def test_bare_iana_filename(self):
+        """`dateutil` stores a bare IANA name in `_filename` when resolving
+        through the `tzdata` package (e.g. on Windows, where there is no
+        system zoneinfo directory)."""
+
+        class FakeTzFile(datetime.tzinfo):
+            _filename = "America/New_York"
+
+        assert _iana_timezone_name(FakeTzFile()) == "America/New_York"
+
+    def test_zoneinfo_path_filename(self):
+        class FakeTzFile(datetime.tzinfo):
+            _filename = "/usr/share/zoneinfo/America/New_York"
+
+        assert _iana_timezone_name(FakeTzFile()) == "America/New_York"
+
+    def test_windows_zoneinfo_path_filename(self):
+        class FakeTzFile(datetime.tzinfo):
+            _filename = "C:\\zoneinfo\\America\\New_York"
+
+        assert _iana_timezone_name(FakeTzFile()) == "America/New_York"
+
+    def test_unknown_filename_falls_back_to_utc(self):
+        class FakeTzFile(datetime.tzinfo):
+            _filename = "not-a-timezone"
+
+        assert _iana_timezone_name(FakeTzFile()) == "UTC"
+
+
 class TestRRuleScheduleFromRRule:
     """Verify that from_rrule() preserves IANA timezone names across DST."""
 
@@ -276,6 +308,11 @@ class TestRRuleScheduleFromRRule:
                 "America/New_York",
                 id="dateutil",
             ),
+            pytest.param(
+                lambda: pytz.timezone("America/New_York"),
+                "America/New_York",
+                id="pytz",
+            ),
         ],
     )
     def test_single_rrule_preserves_iana_timezone(
@@ -302,6 +339,11 @@ class TestRRuleScheduleFromRRule:
                 "America/New_York",
                 id="dateutil",
             ),
+            pytest.param(
+                lambda: pytz.timezone("America/New_York"),
+                "America/New_York",
+                id="pytz",
+            ),
         ],
     )
     def test_rruleset_preserves_iana_timezone(
@@ -316,6 +358,39 @@ class TestRRuleScheduleFromRRule:
         rset.rrule(rule)
         schedule = RRuleSchedule.from_rrule(rset)
         self._assert_daily_9am_across_dst(schedule, tz_name)
+
+    def test_single_rrule_preserves_pytz_localized_timezone(self) -> None:
+        tz = pytz.timezone("America/New_York")
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=tz.localize(self._DTSTART_BEFORE_DST),
+        )
+        schedule = RRuleSchedule.from_rrule(rule)
+        self._assert_daily_9am_across_dst(schedule, "America/New_York")
+
+    def test_rruleset_preserves_pytz_localized_timezone(self) -> None:
+        tz = pytz.timezone("America/New_York")
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=tz.localize(self._DTSTART_BEFORE_DST),
+        )
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(rule)
+        schedule = RRuleSchedule.from_rrule(rset)
+        self._assert_daily_9am_across_dst(schedule, "America/New_York")
+
+    @pytest.mark.parametrize(
+        "tzinfo,expected",
+        [
+            pytest.param(pytz.timezone("Europe/London"), "Europe/London", id="named"),
+            pytest.param(pytz.utc, "UTC", id="utc"),
+            pytest.param(pytz.FixedOffset(-300), "UTC", id="fixed-offset"),
+        ],
+    )
+    def test_iana_timezone_name_pytz(
+        self, tzinfo: datetime.tzinfo, expected: str
+    ) -> None:
+        assert _iana_timezone_name(tzinfo) == expected
 
     def test_single_rrule_preserves_name_bearing_tzinfo(self) -> None:
         """Regression: tzinfo with a public .name attribute (e.g. pendulum)."""
@@ -340,6 +415,85 @@ class TestRRuleScheduleFromRRule:
         )
         schedule = RRuleSchedule.from_rrule(rule)
         assert schedule.timezone == "America/New_York"
+
+    def test_rruleset_keeps_rdate_and_exdate_instants_in_another_timezone(
+        self,
+    ) -> None:
+        """Regression: RDATE/EXDATE given in a different timezone than DTSTART."""
+        utc = ZoneInfo("UTC")
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(
+            dateutil.rrule.rrule(
+                freq=dateutil.rrule.DAILY,
+                count=3,
+                dtstart=self._DTSTART_BEFORE_DST.replace(
+                    tzinfo=ZoneInfo("America/New_York")
+                ),
+            )
+        )
+        # 9 AM New York on 2024-03-02 and 2024-03-20, given in UTC
+        rset.exdate(datetime.datetime(2024, 3, 2, 14, 0, tzinfo=utc))
+        rset.rdate(datetime.datetime(2024, 3, 20, 13, 0, tzinfo=utc))
+
+        schedule = RRuleSchedule.from_rrule(rset)
+
+        assert schedule.timezone == "America/New_York"
+        assert [dt.astimezone(utc) for dt in schedule.to_rrule()] == [
+            dt.astimezone(utc) for dt in rset
+        ]
+
+    def test_rruleset_with_only_rdates_keeps_their_instants(self) -> None:
+        tz = ZoneInfo("America/New_York")
+        rset = dateutil.rrule.rruleset()
+        rset.rdate(datetime.datetime(2024, 3, 20, 9, 0, tzinfo=tz))
+
+        schedule = RRuleSchedule.from_rrule(rset)
+
+        assert list(schedule.to_rrule()) == list(rset)
+
+    @pytest.mark.parametrize("method", ["rdate", "exdate"])
+    @pytest.mark.parametrize(
+        "timezone, first, second",
+        [
+            # New York falls back from -04:00 to -05:00
+            (
+                "America/New_York",
+                datetime.datetime(2024, 11, 3, 5, 30, tzinfo=ZoneInfo("UTC")),
+                datetime.datetime(2024, 11, 3, 6, 30, tzinfo=ZoneInfo("UTC")),
+            ),
+            # London falls back from +01:00 to +00:00
+            (
+                "Europe/London",
+                datetime.datetime(2024, 10, 27, 0, 30, tzinfo=ZoneInfo("UTC")),
+                datetime.datetime(2024, 10, 27, 1, 30, tzinfo=ZoneInfo("UTC")),
+            ),
+        ],
+    )
+    def test_rruleset_keeps_second_occurrence_of_repeated_hour(
+        self,
+        method: str,
+        timezone: str,
+        first: datetime.datetime,
+        second: datetime.datetime,
+    ) -> None:
+        """Regression: an RDATE or EXDATE in the second 01:30 of a fall-back day
+        must not turn into the first 01:30."""
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(
+            dateutil.rrule.rrule(
+                freq=dateutil.rrule.DAILY,
+                count=1,
+                dtstart=first.astimezone(ZoneInfo(timezone)),
+            )
+        )
+        getattr(rset, method)(second)
+
+        schedule = RRuleSchedule.from_rrule(rset)
+
+        expected = [first, second] if method == "rdate" else [first]
+        assert [dt.astimezone(ZoneInfo("UTC")) for dt in schedule.to_rrule()] == (
+            expected
+        )
 
 
 @pytest.mark.skipif(

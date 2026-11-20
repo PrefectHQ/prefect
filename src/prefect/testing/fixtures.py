@@ -6,6 +6,7 @@ import socket
 import subprocess
 import sys
 from contextlib import contextmanager
+from datetime import timedelta
 from typing import Any, AsyncGenerator, Callable, Generator, List, Optional, Union
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -81,9 +82,6 @@ async def hosted_api_server(
     # Ensure the per-worker database URL override is applied before we start the server
     _ = test_database_connection_url
 
-    port = unused_tcp_port_factory()
-    print(f"Running hosted API server on port {port}")
-
     # Will connect to the same database as normal test clients
     settings = get_current_settings().to_environment_variables(exclude_unset=True)
 
@@ -91,18 +89,30 @@ async def hosted_api_server(
     # parameter on Windows, because the presence of creationflags causes
     # errors on Unix even if set to None
     kwargs: dict[str, object] = {}
+    listener: Optional[socket.socket] = None
     if sys.platform == "win32":
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        port = unused_tcp_port_factory()
+        bind_options = ["--host", "127.0.0.1", "--port", str(port)]
+    else:
+        # Bind the port here and hand the socket to uvicorn. If uvicorn binds a
+        # previously probed free port itself, another xdist worker can be given
+        # the same port first; this worker's uvicorn then fails to start and its
+        # tests silently use the other worker's server and database.
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+        bind_options = ["--fd", str(listener.fileno())]
+        kwargs["pass_fds"] = (listener.fileno(),)
+
+    print(f"Running hosted API server on port {port}")
 
     async with open_process(
         command=[
             "uvicorn",
             "--factory",
             "prefect.server.api.server:create_app",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(port),
+            *bind_options,
             "--log-level",
             "info",
         ],
@@ -114,6 +124,10 @@ async def hosted_api_server(
         },
         **kwargs,
     ) as process:
+        if listener is not None:
+            # The server process holds its own copy of the socket
+            listener.close()
+
         api_url = f"http://localhost:{port}/api"
 
         # Wait for the server to be ready
@@ -229,11 +243,9 @@ def mock_anyio_sleep(
 
     def latest_now(*args: Any) -> DateTime:
         # Fast-forwards the time by the total sleep time
-        return original_now(*args).add(
-            # Ensure we retain float precision
-            seconds=int(time_shift),
-            microseconds=int((time_shift - int(time_shift)) * 1000000),
-        )
+        # timedelta rather than pendulum's .add: on Python 3.13+ `now` returns a
+        # standard library datetime.
+        return original_now(*args) + timedelta(seconds=time_shift)
 
     monkeypatch.setattr("prefect.types._datetime.now", latest_now)
 

@@ -28,14 +28,20 @@ async def collect_resources(client: Any) -> Sequence["MigratableProtocol"]:
         client.read_deployments(),
         client.read_block_documents(),
         client.read_variables(),
-        client.read_global_concurrency_limits(),
         client.read_automations(),
     )
+
+    # The client reads 10 global concurrency limits per call by default.
+    global_concurrency_limits: list[Any] = []
+    while page := await client.read_global_concurrency_limits(
+        offset=len(global_concurrency_limits)
+    ):
+        global_concurrency_limits.extend(page)
 
     resources = await asyncio.gather(
         *[
             construct_migratable_resource(item)
-            for collection in collections
+            for collection in [*collections, global_concurrency_limits]
             for item in collection
         ]
     )

@@ -1,12 +1,14 @@
 ---
 title: How to automatically rerun your workflow when it fails
+description: Configure automatic retries for flows and tasks, including retry delays, jitter, custom retry conditions, and global retry settings.
 sidebarTitle: Automatically rerun a workflow when it fails
 keywords: ["retry", "failure", "error handling", "resilience", "automatic rerun"]
 ---
 
 ### Set the number of retries
 
-To rerun your workflow when an exception is raised, set the `retries` parameter to an integer.
+To rerun your workflow when it fails, set the `retries` parameter to an integer.
+A flow run is retried when the flow raises an exception or returns a `Failed` state, such as a failed task state or future.
 
 ```python
 from prefect import flow

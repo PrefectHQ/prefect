@@ -234,7 +234,8 @@ async def _generate_default_pull_action(
                 exit_with_error(
                     "Your flow code must be copied into your Docker image to run"
                     " your deployment.\nTo do so, you can copy this line into your"
-                    " Dockerfile: [yellow]COPY . /opt/prefect/[/yellow]"
+                    " Dockerfile: [yellow]COPY . /opt/prefect/[/yellow]",
+                    markup=True,
                 )
             return await _generate_pull_step_for_build_docker_image(
                 console, deploy_config, auto=False

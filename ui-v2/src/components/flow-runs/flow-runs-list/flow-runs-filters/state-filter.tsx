@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useStateOptions } from "@/api/observed-states";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -8,19 +9,16 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { StateBadge } from "@/components/ui/state-badge";
-import {
-	FLOW_RUN_STATES_MAP,
-	FLOW_RUN_STATES_NO_SCHEDULED,
-	type FlowRunState,
-} from "./state-filters.constants";
+import { SearchInput } from "@/components/ui/input";
+import { FLOW_RUN_STATES_NO_SCHEDULED } from "./state-filters.constants";
+import { StateNameBadge } from "./state-name-badge";
 
 const MAX_FILTERS_DISPLAYED = 2;
 
 type StateFilterProps = {
-	defaultValue?: Set<FlowRunState>;
-	selectedFilters: Set<FlowRunState> | undefined;
-	onSelectFilter: (filters: Set<FlowRunState>) => void;
+	defaultValue?: Set<string>;
+	selectedFilters: Set<string> | undefined;
+	onSelectFilter: (filters: Set<string>) => void;
 };
 
 export const StateFilter = ({
@@ -29,9 +27,15 @@ export const StateFilter = ({
 	onSelectFilter,
 }: StateFilterProps) => {
 	const [open, setOpen] = useState(false);
+	const [search, setSearch] = useState("");
+	const { names, data, isFetching, isError } = useStateOptions(
+		search,
+		[...selectedFilters],
+		open,
+	);
 
 	const isAllButScheduled = useMemo(() => {
-		const flowRunStatesNoScheduleSet = new Set<FlowRunState>(
+		const flowRunStatesNoScheduleSet = new Set<string>(
 			FLOW_RUN_STATES_NO_SCHEDULED,
 		);
 		if (
@@ -53,7 +57,7 @@ export const StateFilter = ({
 		onSelectFilter(new Set());
 	};
 
-	const handleSelectFilter = (filter: FlowRunState) => {
+	const handleSelectFilter = (filter: string) => {
 		// if all but scheduled is already selected, create a new set with the single filter
 		if (isAllButScheduled) {
 			onSelectFilter(new Set([filter]));
@@ -84,11 +88,7 @@ export const StateFilter = ({
 			<div className="flex flex-1 min-w-0 items-center gap-2">
 				<div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
 					{visible.map((filter) => (
-						<StateBadge
-							key={filter}
-							name={filter}
-							type={FLOW_RUN_STATES_MAP[filter]}
-						/>
+						<StateNameBadge key={filter} name={filter} />
 					))}
 				</div>
 				{extraCount > 0 && <p className="text-sm shrink-0">+ {extraCount}</p>}
@@ -108,6 +108,37 @@ export const StateFilter = ({
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="max-h-96 overflow-x-hidden overflow-y-auto">
+				<SearchInput
+					debounceMs={0}
+					aria-label="Search state names"
+					placeholder="Search state names..."
+					value={search}
+					onChange={(event) => setSearch(event.target.value)}
+					onKeyDown={(event) => {
+						if (event.key !== "Escape") event.stopPropagation();
+					}}
+				/>
+				{isFetching && (
+					<p role="status" className="px-2 text-sm">
+						Loading states...
+					</p>
+				)}
+				{isError && (
+					<p role="status" className="px-2 text-sm">
+						Could not load observed states. Built-in and selected names are
+						available.
+					</p>
+				)}
+				{data?.length === 200 && (
+					<p className="px-2 text-sm text-muted-foreground">
+						Showing up to 200 observed states. Search by prefix to find more.
+					</p>
+				)}
+				{!isFetching && !isError && names.length === 0 && (
+					<p role="status" className="px-2 text-sm">
+						No state names found.
+					</p>
+				)}
 				<DropdownMenuItem
 					onSelect={(e) => {
 						e.preventDefault();
@@ -126,27 +157,21 @@ export const StateFilter = ({
 					<Checkbox checked={selectedFilters.size === 0} className="mr-2" />
 					All run states
 				</DropdownMenuItem>
-				{Object.keys(FLOW_RUN_STATES_MAP).map((filterKey) => (
+				{names.map((filterKey) => (
 					<DropdownMenuItem
 						aria-label={filterKey}
 						key={filterKey}
 						onSelect={(e) => {
 							e.preventDefault();
-							handleSelectFilter(filterKey as FlowRunState);
+							handleSelectFilter(filterKey);
 						}}
 					>
 						<Checkbox
 							aria-label={filterKey}
 							className="mr-2"
-							checked={
-								!isAllButScheduled &&
-								selectedFilters.has(filterKey as FlowRunState)
-							}
+							checked={!isAllButScheduled && selectedFilters.has(filterKey)}
 						/>
-						<StateBadge
-							name={filterKey}
-							type={FLOW_RUN_STATES_MAP[filterKey as FlowRunState]}
-						/>
+						<StateNameBadge name={filterKey} />
 					</DropdownMenuItem>
 				))}
 			</DropdownMenuContent>

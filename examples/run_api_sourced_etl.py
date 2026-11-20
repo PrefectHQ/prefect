@@ -14,7 +14,7 @@
 #
 # * **Python** supplies a rich ecosystem of connectors and libraries for virtually every data source and destination.
 # * **pandas** gives you lightning-fast, expressive transforms that turn raw bits into tidy DataFrames.
-# * **Prefect** wraps the whole thing in battle-tested orchestration: automatic [retries](https://docs.prefect.io/v3/develop/write-tasks#retries), [scheduling](https://docs.prefect.io/v3/deploy/index#workflow-scheduling-and-parametrization), and [observability](https://docs.prefect.io/v3/develop/logging#prefect-loggers) , so you don't have to write reams of defensive code.
+# * **Prefect** wraps the whole thing in battle-tested orchestration: automatic [retries](https://www.prefect.io/docs/v3/develop/write-tasks#retries), [scheduling](https://www.prefect.io/docs/v3/deploy/index#workflow-scheduling-and-parametrization), and [observability](https://www.prefect.io/docs/v3/develop/logging#prefect-loggers) , so you don't have to write reams of defensive code.
 #
 # The result? You spend your time thinking about *what* you want to build, not *how* to keep it alive. Point this trio at any API, database, or file system and it will move the data where you need it while handling the messy details for you.
 #
@@ -24,9 +24,9 @@
 # 3. **Load** the result to a CSV – ready for your BI tool of choice.
 #
 # This example demonstrates these Prefect features:
-# * [`@task`](https://docs.prefect.io/v3/develop/write-tasks#write-and-run-tasks) – wrap any function in retries & observability.
-# * [`log_prints`](https://docs.prefect.io/v3/develop/logging#configure-logging) – surface `print()` logs automatically.
-# * Automatic [**retries**](https://docs.prefect.io/v3/develop/write-tasks#retries) with back-off, no extra code.
+# * [`@task`](https://www.prefect.io/docs/v3/develop/write-tasks#write-and-run-tasks) – wrap any function in retries & observability.
+# * [`log_prints`](https://www.prefect.io/docs/v3/develop/logging#configure-logging) – surface `print()` logs automatically.
+# * Automatic [**retries**](https://www.prefect.io/docs/v3/develop/write-tasks#retries) with back-off, no extra code.
 #
 # ### Rapid analytics from a public API
 # Your data team wants engagement metrics from Dev.to articles, daily. You need a quick,
@@ -34,7 +34,7 @@
 #
 # ### The Solution
 # Write three small Python functions (extract, transform, load), add two decorators, and
-# let Prefect handle [retries](https://docs.prefect.io/v3/develop/write-tasks#retries), [concurrency](https://docs.prefect.io/v3/develop/task-runners#configure-a-task-runner), and [logging](https://docs.prefect.io/v3/develop/logging#prefect-loggers). No framework-specific hoops, just
+# let Prefect handle [retries](https://www.prefect.io/docs/v3/develop/write-tasks#retries), [concurrency](https://www.prefect.io/docs/v3/develop/task-runners#configure-a-task-runner), and [logging](https://www.prefect.io/docs/v3/develop/logging#prefect-loggers). No framework-specific hoops, just
 # Python the way you already write it.
 #
 # *For more background on Prefect's design philosophy, check out our blog post: [Built to Fail: Design Patterns for Resilient Data Pipelines](https://www.prefect.io/blog/built-to-fail-design-patterns-for-resilient-data-pipelines)*

@@ -94,4 +94,13 @@ export default tseslint.config(
 			...testingLibrary.configs["flat/react"].rules,
 		},
 	},
+	{
+		files: ["tests/vitest.d.ts"],
+		rules: {
+			"@typescript-eslint/no-empty-object-type": [
+				"error",
+				{ allowInterfaces: "with-single-extends" },
+			],
+		},
+	},
 );

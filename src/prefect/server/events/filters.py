@@ -705,7 +705,9 @@ class EventTextFilter(EventDataFilter):
             include_conditions = []
             for term in parsed.include:
                 include_conditions.append(
-                    sa.func.lower(searchable_field).contains(term.lower())
+                    sa.func.lower(searchable_field).contains(
+                        term.lower(), autoescape=True
+                    )
                 )
 
             if include_conditions:
@@ -716,7 +718,9 @@ class EventTextFilter(EventDataFilter):
             exclude_conditions = []
             for term in parsed.exclude:
                 exclude_conditions.append(
-                    ~sa.func.lower(searchable_field).contains(term.lower())
+                    ~sa.func.lower(searchable_field).contains(
+                        term.lower(), autoescape=True
+                    )
                 )
 
             if exclude_conditions:
@@ -727,7 +731,9 @@ class EventTextFilter(EventDataFilter):
             required_conditions = []
             for term in parsed.required:
                 required_conditions.append(
-                    sa.func.lower(searchable_field).contains(term.lower())
+                    sa.func.lower(searchable_field).contains(
+                        term.lower(), autoescape=True
+                    )
                 )
 
             if required_conditions:

@@ -46,7 +46,9 @@ export const FlowRunCard = ({ flowRun, ...props }: FlowRunCardProps) => {
 					{"checked" in props && "onCheckedChange" in props && (
 						<Checkbox
 							checked={props.checked}
-							onCheckedChange={props.onCheckedChange}
+							onCheckedChange={(checked) =>
+								props.onCheckedChange?.(checked === true)
+							}
 						/>
 					)}
 					<FlowRunName flowRun={flowRun} />

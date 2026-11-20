@@ -3,10 +3,9 @@ import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
 export type WorkQueue = components["schemas"]["WorkQueueResponse"];
-export type WorkQueuesFilter =
-	components["schemas"]["Body_read_work_queues_work_queues_filter_post"];
+export type WorkQueuesFilter = components["schemas"]["Body_read_work_queues"];
 export type WorkPookWorkQueuesFilter =
-	components["schemas"]["Body_read_workers_work_pools__work_pool_name__workers_filter_post"];
+	components["schemas"]["Body_read_workers"];
 /**
  * Query key factory for work queues-related queries
  *

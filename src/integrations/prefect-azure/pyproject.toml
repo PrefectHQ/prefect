@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "prefect-azure"
 description = "Prefect integrations with Microsoft Azure services"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
@@ -16,10 +16,10 @@ classifiers = [
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
@@ -29,15 +29,16 @@ dependencies = [
   "azure-mgmt-resource>=21.2,<25",
   "prefect>=3.8.4",
   "prefect-docker>=0.6.2",
-  "setuptools<82",                      #required in 3.12 to get pkg_resources (used by azureml.core)
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 blob_storage = ["azure-storage-blob"]
 cosmos_db = ["azure-cosmos"]
-ml_datastore = ["azureml-core"]
-all_extras = ["azure-cosmos", "azure-storage-blob", "azureml-core"]
+# setuptools<81 ships pkg_resources, which older supported azureml-core versions
+# import at runtime. Only the ML datastore extra needs it.
+ml_datastore = ["azureml-core", "setuptools<81"]
+all_extras = ["azure-cosmos", "azure-storage-blob", "azureml-core", "setuptools<81"]
 
 [dependency-groups]
 dev = [
@@ -45,6 +46,7 @@ dev = [
   "azure-cosmos",
   "azure-storage-blob",
   "azureml-core",
+  "setuptools<81",  # pkg_resources, required by older azureml-core versions
   "coverage",
   "interrogate",
   "mkdocs-gen-files",

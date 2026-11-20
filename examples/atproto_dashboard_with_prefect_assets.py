@@ -226,5 +226,5 @@ if __name__ == "__main__":
 #
 # ## Learn More
 #
-# - [Prefect Assets Documentation](https://docs.prefect.io/v3/concepts/assets)
-# - [prefect-aws Integration](https://docs.prefect.io/integrations/prefect-aws)
+# - [Prefect Assets Documentation](https://www.prefect.io/docs/v3/concepts/assets)
+# - [prefect-aws Integration](https://www.prefect.io/docs/integrations/prefect-aws)

@@ -258,8 +258,8 @@ def _validate_multi_worker(workers: int, exit_fn: Callable[[str], object]) -> No
                 export PREFECT_REDIS_MESSAGING_DB="0"
 
             For complete setup instructions, see:
-            https://docs.prefect.io/v3/how-to-guides/self-hosted/server-cli#multi-worker-api-server
-            https://docs.prefect.io/v3/advanced/self-hosted#redis-setup
+            https://www.prefect.io/docs/v3/how-to-guides/self-hosted/server-cli#multi-worker-api-server
+            https://www.prefect.io/docs/v3/advanced/self-hosted#redis-setup
             """
         ).strip()
         exit_fn(error_message)

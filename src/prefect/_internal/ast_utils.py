@@ -111,7 +111,3 @@ async def find_prefect_decorated_functions_in_file(
 
 async def find_flow_functions_in_file(path: anyio.Path) -> list[DecoratedFnMetadata]:
     return await find_prefect_decorated_functions_in_file(path, "prefect", "flow")
-
-
-async def find_task_functions_in_file(path: anyio.Path) -> list[DecoratedFnMetadata]:
-    return await find_prefect_decorated_functions_in_file(path, "prefect", "task")

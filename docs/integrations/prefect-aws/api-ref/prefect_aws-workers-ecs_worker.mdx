@@ -190,13 +190,13 @@ task run request.
 Variables for templating an ECS job.
 
 
-### `ECSWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/workers/ecs_worker.py#L683" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ECSWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/workers/ecs_worker.py#L687" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The result of an ECS job.
 
 
-### `ECSWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/workers/ecs_worker.py#L689" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ECSWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/workers/ecs_worker.py#L693" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect worker to run flow runs as ECS tasks.
@@ -204,7 +204,7 @@ A Prefect worker to run flow runs as ECS tasks.
 
 **Methods:**
 
-#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/workers/ecs_worker.py#L1685" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/workers/ecs_worker.py#L1688" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 kill_infrastructure(self, infrastructure_pid: str, configuration: ECSJobConfiguration, grace_seconds: int = 30) -> None
@@ -222,7 +222,7 @@ Stop an ECS task.
 - `InfrastructureNotFound`: If the task doesn't exist.
 
 
-#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/workers/ecs_worker.py#L727" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/workers/ecs_worker.py#L731" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, flow_run: 'FlowRun', configuration: ECSJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None) -> ECSWorkerResult

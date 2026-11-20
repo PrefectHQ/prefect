@@ -1,12 +1,10 @@
 import { useCallback, useMemo } from "react";
+import type { StateType } from "@/api/flow-runs/constants";
 import type {
 	DateRangePreset,
 	DateRangeUrlState,
 } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/date-range-url-state";
-import {
-	FLOW_RUN_STATES_WITHOUT_SCHEDULED,
-	type FlowRunState,
-} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import { NON_SCHEDULED_STATE_TYPES } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 
 /**
@@ -45,7 +43,7 @@ export function isSystemFilter(id: string | null): boolean {
 
 /**
  * System filters that are always available in the saved filters menu.
- * These match the Vue UI's systemSavedSearches from prefect-ui-library.
+ * State-type presets include custom names as well as built-in names.
  *
  * - "Past week": Default filter applied on page load, filters to last 7 days
  * - "Hide scheduled runs": Filters to last 7 days and excludes scheduled-type states
@@ -61,7 +59,7 @@ export const SYSTEM_FILTERS: SavedFilter[] = [
 		name: "Hide scheduled runs",
 		filters: {
 			range: "past-7-days",
-			state: [...FLOW_RUN_STATES_WITHOUT_SCHEDULED],
+			stateTypes: [...NON_SCHEDULED_STATE_TYPES],
 		},
 	},
 ];
@@ -87,7 +85,8 @@ export const SYSTEM_DEFAULT_FILTER = SYSTEM_FILTERS[0];
  * - useRunsFilters uses comma-separated strings in URL params; this uses arrays for storage
  */
 export type SavedFilterValues = {
-	state?: FlowRunState[];
+	state?: string[];
+	stateTypes?: StateType[];
 	flows?: string[];
 	deployments?: string[];
 	workPools?: string[];
@@ -131,6 +130,7 @@ export type SavedFilterCreate = {
  */
 export const URL_PARAM_TO_FILTER_KEY_MAP = {
 	state: "state",
+	"state-types": "stateTypes",
 	flows: "flows",
 	deployments: "deployments",
 	"work-pools": "workPools",
@@ -142,6 +142,7 @@ export const URL_PARAM_TO_FILTER_KEY_MAP = {
 
 export const FILTER_KEY_TO_URL_PARAM_MAP = {
 	state: "state",
+	stateTypes: "state-types",
 	flows: "flows",
 	deployments: "deployments",
 	workPools: "work-pools",
@@ -185,6 +186,7 @@ export function areFiltersEqual(
 
 	return (
 		sortedArrayEqual(filterA.state, filterB.state) &&
+		sortedArrayEqual(filterA.stateTypes, filterB.stateTypes) &&
 		sortedArrayEqual(filterA.flows, filterB.flows) &&
 		sortedArrayEqual(filterA.deployments, filterB.deployments) &&
 		sortedArrayEqual(filterA.workPools, filterB.workPools) &&

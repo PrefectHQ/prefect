@@ -56,7 +56,7 @@
   const api = usePrefectApi()
   const route = useRoute()
   const serverSettings = await api.admin.getSettings()
-  const showPromotionalContent = computed(() => serverSettings.PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT)
+  const showPromotionalContent = computed(() => serverSettings.server.ui.show_promotional_content)
 
   // Cache to localStorage for use in error toasts
   localStorage.setItem('prefect-show-promotional-content', String(showPromotionalContent.value))

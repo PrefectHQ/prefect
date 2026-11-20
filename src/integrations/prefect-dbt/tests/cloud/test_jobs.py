@@ -565,7 +565,9 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 ]
             )
 
-            with pytest.raises(DbtCloudJobRunTimedOut):
+            with pytest.raises(
+                DbtCloudJobRunTimedOut, match="for job run with ID 10000"
+            ):
                 await trigger_dbt_cloud_job_run_and_wait_for_completion(
                     dbt_cloud_credentials=dbt_cloud_credentials,
                     job_id=1,

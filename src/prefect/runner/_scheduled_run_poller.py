@@ -173,8 +173,7 @@ class ScheduledRunPoller:
             starter = self._resolve_starter(flow_run)
 
             # Adhoc storage pull: if the deployment has storage with a
-            # pull_interval, pull code before starting the process (mirrors
-            # original Runner._run_process adhoc pull logic).
+            # pull_interval, pull code before starting the process.
             storage = (
                 self._deployment_registry.get_storage(flow_run.deployment_id)
                 if flow_run.deployment_id

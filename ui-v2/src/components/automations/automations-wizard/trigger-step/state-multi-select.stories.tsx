@@ -1,14 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { type ComponentProps, useState } from "react";
 import { fn } from "storybook/test";
-import {
-	STATE_NAMES_WITHOUT_SCHEDULED,
-	type StateName,
-} from "@/api/flow-runs/constants";
+import { STATE_NAMES_WITHOUT_SCHEDULED } from "@/api/flow-runs/constants";
+import { reactQueryDecorator } from "@/storybook/utils/react-query-decorator";
 import { StateMultiSelect } from "./state-multi-select";
 
 export default {
 	title: "Components/Automations/Wizard/StateMultiSelect",
+	decorators: [reactQueryDecorator],
 	component: StateMultiSelect,
 	args: {
 		selectedStates: [],
@@ -16,7 +15,7 @@ export default {
 		emptyMessage: "Any state",
 	},
 	render: function Render(args: ComponentProps<typeof StateMultiSelect>) {
-		const [selectedStates, setSelectedStates] = useState<StateName[]>(
+		const [selectedStates, setSelectedStates] = useState<string[]>(
 			args.selectedStates,
 		);
 

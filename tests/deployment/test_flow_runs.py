@@ -15,7 +15,8 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRunResult
 from prefect.context import FlowRunContext
 from prefect.deployments import arun_deployment, run_deployment
-from prefect.flow_engine import run_flow_async
+from prefect.exceptions import PrefectHTTPStatusError
+from prefect.flow_engine import run_flow, run_flow_async
 from prefect.settings import (
     PREFECT_API_URL,
 )
@@ -109,6 +110,43 @@ class TestRunDeployment:
         assert flow_run.job_variables == job_vars
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.job_variables == job_vars
+
+    async def test_run_deployment_with_variadic_parameters_and_enforced_schema(
+        self, prefect_client: PrefectClient
+    ):
+        @flow
+        async def flow_with_variadic_parameters(x: int = 1, *args: int, **kwargs: str):
+            return x, args, kwargs
+
+        flow_id = await prefect_client.create_flow(flow_with_variadic_parameters)
+        deployment_id = await prefect_client.create_deployment(
+            name=f"foo-deployment-{uuid4()}",
+            flow_id=flow_id,
+            parameter_openapi_schema=(
+                flow_with_variadic_parameters.parameters.model_dump_for_openapi()
+            ),
+            enforce_parameter_schema=True,
+        )
+
+        for parameters, expected in [
+            ({}, (1, (), {})),
+            ({"args": [2, 3], "kwargs": {"y": "z"}}, (1, (2, 3), {"y": "z"})),
+            ({"x": 5, "args": [2]}, (5, (2,), {})),
+        ]:
+            flow_run = await run_deployment(
+                deployment_id, parameters=parameters, timeout=0, client=prefect_client
+            )
+            assert flow_run.parameters == parameters
+            assert await run_flow(flow_with_variadic_parameters, flow_run) == expected
+
+        for parameters in [{"args": None}, {"kwargs": None}]:
+            with pytest.raises(PrefectHTTPStatusError, match="409"):
+                await run_deployment(
+                    deployment_id,
+                    parameters=parameters,
+                    timeout=0,
+                    client=prefect_client,
+                )
 
     async def test_returns_flow_run_on_timeout(
         self,

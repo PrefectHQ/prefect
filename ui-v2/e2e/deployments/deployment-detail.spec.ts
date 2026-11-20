@@ -188,7 +188,7 @@ test.describe("Deployment Detail Page", () => {
 
 		await expect(page.getByText(depName)).toBeVisible({ timeout: 10000 });
 
-		await page.getByRole("button", { name: "Run" }).click();
+		await page.getByRole("button", { name: "Run", exact: true }).click();
 		await page.getByRole("menuitem", { name: "Quick run" }).click();
 
 		await expect(page.getByText("Flow run created")).toBeVisible({

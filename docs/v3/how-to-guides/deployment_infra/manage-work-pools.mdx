@@ -110,7 +110,54 @@ View default base job template:
 prefect work-pool get-default-base-job-template --type process
 ```
 
-Example `prefect.yaml`:
+#### Create a work pool with custom defaults
+
+A base job template contains `job_configuration`, which references job variables, and `variables`, which defines their JSON schema.
+Set pool-wide defaults in `variables.properties.<variable_name>.default`.
+For example, the Docker worker's `image_pull_policy` default belongs in `variables.properties.image_pull_policy.default`.
+
+Connect the CLI to Prefect Cloud or a running Prefect server before creating or updating a work pool.
+The following example creates a Docker work pool that uses images already available on the Docker host and removes containers after completion.
+
+1. Save the default template for the Docker work pool type:
+
+   ```bash
+   prefect work-pool get-default-base-job-template --type docker --file base-job-template.json
+   ```
+
+2. Run this Python script in the same directory to change two defaults while preserving the rest of the generated template:
+
+   {/* pmd-metadata: notest */}
+   ```python
+   import json
+   from pathlib import Path
+
+   path = Path("base-job-template.json")
+   template = json.loads(path.read_text())
+   properties = template["variables"]["properties"]
+   properties["image_pull_policy"]["default"] = "Never"
+   properties["auto_remove"]["default"] = True
+   path.write_text(json.dumps(template, indent=2))
+   print(f"Saved work pool defaults to {path}")
+   ```
+
+   This script uses the file saved in the preceding step.
+   Keep the existing `job_configuration` references, such as `"image_pull_policy": "{{ image_pull_policy }}"`, so the worker receives the configured values.
+
+3. Create the work pool with the customized template:
+
+   ```bash
+   prefect work-pool create docker-pool --type docker --base-job-template base-job-template.json
+   ```
+
+To apply the file to an existing pool, use:
+
+```bash
+prefect work-pool update docker-pool --base-job-template base-job-template.json
+```
+
+Deployment-level `job_variables` override the work pool defaults.
+For example, use the following in `prefect.yaml`:
 
 ```yaml
 deployments:

@@ -277,7 +277,18 @@ export const DeploymentsDataTable = ({
 					/>
 				</div>
 				<div className="sm:col-span-2 md:col-span-3 lg:col-span-2">
-					<Select value={sort} onValueChange={onSortChange}>
+					<Select
+						value={sort}
+						onValueChange={(value) => {
+							if (
+								value === "CREATED_DESC" ||
+								value === "UPDATED_DESC" ||
+								value === "NAME_ASC" ||
+								value === "NAME_DESC"
+							)
+								onSortChange(value);
+						}}
+					>
 						<SelectTrigger
 							aria-label="Deployment sort order"
 							className="w-full"

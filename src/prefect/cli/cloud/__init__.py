@@ -20,6 +20,7 @@ from prefect.cli._cloud_utils import (
     prompt_select_from_list,
 )
 from prefect.cli._utilities import (
+    print_verbatim,
     exit_with_error,
     exit_with_success,
     with_cli_exception_handling,
@@ -350,7 +351,7 @@ async def workspace_ls(
             workspace.model_dump(mode="json") for workspace in sorted_workspaces
         ]
         json_output = orjson.dumps(workspaces_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
         return
 
     current_workspace = get_current_workspace(workspaces)

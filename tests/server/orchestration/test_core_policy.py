@@ -27,6 +27,7 @@ from prefect.server.models import (
     concurrency_limits,
     concurrency_limits_v2,
     deployments,
+    flow_run_input,
     flow_runs,
 )
 from prefect.server.orchestration.core_policy import (
@@ -84,7 +85,6 @@ ALL_ORCHESTRATION_STATES = list(
     sorted(ALL_ORCHESTRATION_STATES, key=lambda item: str(item))
     # Set the key to sort the `None` state
 )
-CANONICAL_STATES = list(states.StateType)
 TERMINAL_STATES = list(sorted(TERMINAL_STATES))
 
 
@@ -1387,19 +1387,6 @@ class TestRenameRetryingStates:
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestTransitionsFromTerminalStatesRule:
-    all_transitions = set(product(ALL_ORCHESTRATION_STATES, CANONICAL_STATES))
-    terminal_transitions = set(product(TERMINAL_STATES, ALL_ORCHESTRATION_STATES))
-
-    # Cast to sorted lists for deterministic ordering.
-    # Sort as strings to handle `None`.
-    active_transitions = list(
-        sorted(all_transitions - terminal_transitions, key=lambda item: str(item))
-    )
-    all_transitions = list(sorted(all_transitions, key=lambda item: str(item)))
-    terminal_transitions = list(
-        sorted(terminal_transitions, key=lambda item: str(item))
-    )
-
     @pytest.mark.parametrize(
         "intended_transition",
         [(terminal_state, StateType.CRASHED) for terminal_state in TERMINAL_STATES],
@@ -1546,7 +1533,19 @@ class TestTransitionsFromTerminalStatesRule:
         assert ctx.response_status == SetStateStatus.REJECT, ctx.response_details
 
     @pytest.mark.parametrize(
-        "intended_transition", active_transitions, ids=transition_names
+        "intended_transition",
+        [
+            (initial_state, StateType.CRASHED)
+            for initial_state in (
+                None,
+                StateType.SCHEDULED,
+                StateType.PENDING,
+                StateType.RUNNING,
+                StateType.PAUSED,
+                StateType.CANCELLING,
+            )
+        ],
+        ids=transition_names,
     )
     async def test_does_not_block_transitions_from_non_terminal_states(
         self,
@@ -1835,12 +1834,30 @@ class TestPreventPendingTransitions:
         StateType.CANCELLED,
         StateType.RUNNING,
         StateType.PENDING,
+        StateType.COMPLETED,
     ]
     banned_transitions = [(type_, StateType.PENDING) for type_ in banned_states]
-    all_states = set(ALL_ORCHESTRATION_STATES) - {None}
-    allowed_transitions = list(
-        sorted(set(product(all_states, all_states)).difference(banned_transitions))
-    )
+    # Keep the re-run cases: they guard against regressing
+    # PrefectHQ/prefect#9447 and PrefectHQ/prefect#7116.
+    allowed_transitions = [
+        # initial state outside `FROM_STATES`
+        (StateType.SCHEDULED, StateType.PENDING),
+        (StateType.FAILED, StateType.PENDING),
+        (StateType.CRASHED, StateType.PENDING),
+        (StateType.PAUSED, StateType.PENDING),
+        # infrastructure restart (PrefectHQ/prefect#7116)
+        (StateType.RUNNING, StateType.RUNNING),
+        # ad-hoc re-run
+        (StateType.CANCELLING, StateType.RUNNING),
+        (StateType.CANCELLED, StateType.RUNNING),
+        # deployed re-run
+        (StateType.PENDING, StateType.SCHEDULED),
+        (StateType.RUNNING, StateType.SCHEDULED),
+        (StateType.CANCELLING, StateType.SCHEDULED),
+        (StateType.CANCELLED, StateType.SCHEDULED),
+        # terminal target
+        (StateType.RUNNING, StateType.COMPLETED),
+    ]
 
     @pytest.mark.parametrize(
         "intended_transition", banned_transitions, ids=transition_names
@@ -3105,6 +3122,52 @@ class TestPausingFlows:
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert "hello" in ctx.run.empirical_policy.pause_keys
 
+    async def test_clears_stale_run_input_for_accepted_pause(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """If a pause key is accepted again (e.g. on a new attempt after a
+        reschedule), input stored under its keyset by an earlier attempt must be
+        removed so it can be saved again and isn't reused."""
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        keyset = {
+            "description": "paused-1-description",
+            "response": "paused-1-response",
+            "schema": "paused-1-schema",
+        }
+        for key in [*keyset.values(), "unrelated"]:
+            await flow_run_input.create_flow_run_input(
+                session=session,
+                flow_run_input=schemas.core.FlowRunInput(
+                    flow_run_id=ctx.run.id, key=key, value='"stale"'
+                ),
+            )
+        ctx.proposed_state = states.Paused(pause_key="1", timeout_seconds=1000)
+        ctx.proposed_state.state_details.run_input_keyset = keyset
+
+        async with HandlePausingFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        for key in keyset.values():
+            assert (
+                await flow_run_input.read_flow_run_input(
+                    session=session, flow_run_id=ctx.run.id, key=key
+                )
+                is None
+            )
+        assert await flow_run_input.read_flow_run_input(
+            session=session, flow_run_id=ctx.run.id, key="unrelated"
+        )
+
     async def test_defaults_pause_key_to_random_uuid(
         self,
         session,
@@ -3372,16 +3435,19 @@ class TestResumingFlows:
         initialize_orchestration,
     ):
         initial_state_type = states.StateType.PAUSED
-        proposed_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
             session,
             "flow",
             *intended_transition,
+            proposed_state_name="Resuming",
         )
         ctx.run.deployment_id = deployment.id
         the_future = now("UTC") + timedelta(minutes=5)
-        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=the_future, pause_reschedule=True
+        )
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
 
@@ -3389,6 +3455,97 @@ class TestResumingFlows:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.empirical_policy.resuming
+
+    async def test_does_not_mark_flow_run_as_resuming_when_blocking_pause_resumes(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        # The resumed run is already running; a resuming indicator left on it
+        # would make its next attempt skip the run count increment.
+        intended_transition = (states.StateType.PAUSED, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        the_future = now("UTC") + timedelta(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
+
+        async with HandleResumingPausedFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert not ctx.run.empirical_policy.resuming
+
+    async def test_resets_pause_metadata_when_blocking_pause_is_rescheduled(
+        self,
+        session: AsyncSession,
+        deployment: orm.Deployment,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+    ):
+        """A blocking pause resumes in-process, so moving to a scheduled state
+        means the run restarts from the top (e.g. after SIGTERM). Pauses must
+        fire again on the new attempt."""
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            deployment_id=deployment.id,
+            initial_details={
+                "pause_key": "2",
+                "pause_timeout": now("UTC") + timedelta(minutes=5),
+            },
+            proposed_state_name="AwaitingRetry",
+        )
+        ctx.run.empirical_policy.pause_keys = {"1", "2"}
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.empirical_policy.pause_keys == set()
+        assert not ctx.run.empirical_policy.resuming
+        assert ctx.run.empirical_policy.retry_type == "reschedule"
+
+    async def test_preserves_pause_keys_when_resuming_reschedule_style_pause(
+        self,
+        session: AsyncSession,
+        deployment: orm.Deployment,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+    ):
+        """Reschedule-style pauses (e.g. suspends) resume by rerunning the flow
+        from the top and rely on stored keys to skip pauses that already fired."""
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            deployment_id=deployment.id,
+            initial_details={
+                "pause_key": "1",
+                "pause_reschedule": True,
+                "pause_timeout": now("UTC") + timedelta(minutes=5),
+            },
+            proposed_state_name="Resuming",
+        )
+        ctx.run.empirical_policy.pause_keys = {"1"}
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.empirical_policy.pause_keys == {"1"}
         assert ctx.run.empirical_policy.resuming
 
 
@@ -4675,26 +4832,31 @@ class TestFlowConcurrencyLimits:
         ctx = await initialize_orchestration(
             session, "flow", *pending_transition, deployment_id=deployment.id
         )
+        await session.commit()
 
-        with (
-            mock.patch(
-                "prefect.server.orchestration.core_policy.get_concurrency_lease_storage",
-                return_value=lease_storage,
-            ),
-            mock.patch.object(
-                lease_storage,
-                "create_lease",
-                side_effect=create_lease_then_raise,
-            ),
-        ):
-            async with SecureFlowConcurrencySlots(ctx, *pending_transition) as ctx:
-                await ctx.validate_proposed_state()
+        db = provide_database_interface()
+        # An explicit transaction keeps SQLite from autocommitting the slot
+        # increment, which would survive the rollback below.
+        async with db.database_config.begin_transaction(session) as transaction:
+            with (
+                mock.patch(
+                    "prefect.server.orchestration.core_policy.get_concurrency_lease_storage",
+                    return_value=lease_storage,
+                ),
+                mock.patch.object(
+                    lease_storage,
+                    "create_lease",
+                    side_effect=create_lease_then_raise,
+                ),
+            ):
+                async with SecureFlowConcurrencySlots(ctx, *pending_transition) as ctx:
+                    await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.ABORT
-        assert isinstance(ctx.orchestration_error, RuntimeError)
-        assert str(ctx.orchestration_error) == "lease creation response lost"
+            assert ctx.response_status == SetStateStatus.ABORT
+            assert isinstance(ctx.orchestration_error, RuntimeError)
+            assert str(ctx.orchestration_error) == "lease creation response lost"
 
-        await session.rollback()
+            await transaction.rollback()
         assert orphan_lease_id is not None
         assert await lease_storage.read_lease(orphan_lease_id) is not None
         await session.refresh(flow)

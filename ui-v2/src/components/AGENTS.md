@@ -36,6 +36,7 @@ This directory contains React components for the Prefect UI migration from Vue t
 - Use `Form` component from `@/components/ui/form` to wrap forms
 - Use `FormField` component from `@/components/ui/form` to wrap form fields
 - Use `Stepper` component for wizard-like flows
+- Non-submit `Button`s inside a form (format, add item, etc.) must set `type="button"` — `@/components/ui/button` renders a native `<button>` with no default `type`, so clicks submit the enclosing form (including whole wizard forms)
 
 ## Schema Forms
 

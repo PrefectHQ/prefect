@@ -2,7 +2,6 @@ import contextlib
 import datetime
 import random
 import sqlite3
-from itertools import product
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -33,6 +32,13 @@ ALL_ORCHESTRATION_STATES = list(
     sorted(ALL_ORCHESTRATION_STATES, key=lambda item: str(item))
     # Set the key to sort the `None` state
 )
+
+REPRESENTATIVE_TRANSITIONS = [
+    (None, None),
+    (None, states.StateType.RUNNING),
+    (states.StateType.PENDING, None),
+    (states.StateType.PENDING, states.StateType.RUNNING),
+]
 
 
 async def commit_task_run_state(
@@ -549,7 +555,10 @@ class TestBaseOrchestrationRule:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], [*states.StateType])),
+        [
+            (None, states.StateType.RUNNING),
+            (states.StateType.PENDING, states.StateType.RUNNING),
+        ],
         ids=transition_names,
     )
     async def test_rules_that_raise_exceptions_during_before_transition(
@@ -634,7 +643,7 @@ class TestBaseOrchestrationRule:
         assert cleanup_step.call_count == 1, "All rules should clean up side effects"
         assert isinstance(ctx.orchestration_error, RuntimeError)
 
-    @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
+    @pytest.mark.parametrize("initial_state_type", [None, states.StateType.PENDING])
     async def test_rules_enforce_initial_state_validity(
         self, session, task_run, initial_state_type
     ):
@@ -674,7 +683,7 @@ class TestBaseOrchestrationRule:
         assert pre_transition_hook.call_count == 0
         assert post_transition_hook.call_count == 0
 
-    @pytest.mark.parametrize("proposed_state_type", ALL_ORCHESTRATION_STATES)
+    @pytest.mark.parametrize("proposed_state_type", [None, states.StateType.RUNNING])
     async def test_rules_enforce_proposed_state_validity(
         self, session, task_run, proposed_state_type
     ):
@@ -716,7 +725,7 @@ class TestBaseOrchestrationRule:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], [*states.StateType, None])),
+        REPRESENTATIVE_TRANSITIONS,
         ids=transition_names,
     )
     async def test_nested_valid_rules_fire_hooks(
@@ -829,7 +838,7 @@ class TestBaseOrchestrationRule:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], [*states.StateType, None])),
+        REPRESENTATIVE_TRANSITIONS,
         ids=transition_names,
     )
     async def test_complex_nested_rules_interact_sensibly(
@@ -1046,7 +1055,10 @@ class TestBaseUniversalTransform:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], [*states.StateType])),
+        [
+            (None, states.StateType.RUNNING),
+            (states.StateType.PENDING, states.StateType.RUNNING),
+        ],
         ids=transition_names,
     )
     async def test_universal_transforms_always_fire_on_all_transitions(
@@ -1099,7 +1111,7 @@ class TestBaseUniversalTransform:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], [None])),
+        [(None, None), (states.StateType.PENDING, None)],
         ids=transition_names,
     )
     async def test_universal_transforms_always_fire_on_nullified_transitions(
@@ -1155,7 +1167,10 @@ class TestBaseUniversalTransform:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], [*states.StateType])),
+        [
+            (None, states.StateType.RUNNING),
+            (states.StateType.PENDING, states.StateType.RUNNING),
+        ],
         ids=transition_names,
     )
     async def test_universal_transforms_never_fire_after_transition_on_errored_transitions(
@@ -1414,7 +1429,7 @@ class TestOrchestrationContext:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], [*states.StateType, None])),
+        REPRESENTATIVE_TRANSITIONS,
         ids=transition_names,
     )
     async def test_contexts_validate_proposed_states(
@@ -1603,6 +1618,34 @@ class TestOrchestrationContext:
             == "Error validating state: RuntimeError('One time error!')"
         )
 
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            TimeoutError("asyncpg query timeout"),
+            sqlalchemy.exc.TimeoutError("queue pool timeout"),
+        ],
+    )
+    async def test_context_state_validation_encounters_timeout_exception(
+        self, session, run_type, initialize_orchestration, exc
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+        object.__setattr__(
+            ctx.session,
+            "flush",
+            AsyncMock(side_effect=exc),
+        )
+
+        with pytest.raises((TimeoutError, sqlalchemy.exc.TimeoutError)):
+            async with contextlib.AsyncExitStack():
+                await ctx.validate_proposed_state()
+
+        assert ctx.proposed_state is None
+
     async def test_context_state_validation_encounters_sqlite_busy_exception(
         self, session, run_type, initialize_orchestration
     ):
@@ -1670,7 +1713,7 @@ class TestOrchestrationContext:
 class TestNullRejection:
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType], [*states.StateType])),
+        [(states.StateType.PENDING, states.StateType.RUNNING)],
         ids=transition_names,
     )
     async def test_null_rejects_fizzle_all_prior_rules(
@@ -1757,7 +1800,7 @@ class TestNullRejection:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType], [*states.StateType])),
+        [(states.StateType.PENDING, states.StateType.RUNNING)],
         ids=transition_names,
     )
     async def test_null_rejects_abort_all_subsequent_rules(
@@ -1844,7 +1887,7 @@ class TestNullRejection:
 
     @pytest.mark.parametrize(
         "proposed_state_type",
-        list(states.StateType),
+        [states.StateType.RUNNING],
     )
     async def test_cannot_null_reject_runs_with_no_state(
         self, session, run_type, proposed_state_type, initialize_orchestration

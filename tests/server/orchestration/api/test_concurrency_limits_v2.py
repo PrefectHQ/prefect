@@ -390,6 +390,22 @@ async def test_increment_concurrency_limit_slots_gt_zero_422(
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease", "decrement"])
+async def test_bulk_slot_endpoints_reject_empty_names_422(
+    endpoint: str,
+    client: AsyncClient,
+):
+    response = await client.post(
+        f"/v2/concurrency_limits/{endpoint}",
+        json={"names": [], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 422
+    errors = response.json()["exception_detail"]
+    assert [(error["loc"], error["type"]) for error in errors] == [
+        (["body", "names"], "too_short")
+    ]
+
+
 @pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_slots_with_unknown_name(
     endpoint: str,
@@ -731,6 +747,59 @@ async def test_increment_concurrency_limit_inactive(
     )
     assert refreshed_limit
     assert refreshed_limit.active_slots == 0  # Inactive limits are not incremented
+
+
+@pytest.mark.usefixtures("use_filesystem_lease_storage")
+async def test_releasing_lease_from_inactive_period_does_not_free_slots_after_enabling(
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            active=False,
+            name="enabled_later",
+            limit=1,
+        ),
+    )
+    await session.commit()
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": [limit.name], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+    disabled_period_lease_id = response.json()["lease_id"]
+
+    lease = await get_concurrency_lease_storage().read_lease(disabled_period_lease_id)
+    assert lease
+    assert lease.resource_ids == []
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{limit.id}", json={"active": True}
+    )
+    assert response.status_code == 204, response.text
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": [limit.name], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": disabled_period_lease_id},
+    )
+    assert response.status_code == 204, response.text
+
+    response = await client.get(f"/v2/concurrency_limits/{limit.id}")
+    assert response.json()["active_slots"] == 1
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": [limit.name], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 423
 
 
 @pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])

@@ -1,6 +1,7 @@
 import { STATE_NAME_TO_TYPE, type StateName } from "@/api/flow-runs/constants";
 import type { components } from "@/api/prefect";
 import { DeploymentLink } from "@/components/deployments/deployment-link";
+import { StateNameBadge } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-name-badge";
 import { FlowLink } from "@/components/flows/flow-link";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
@@ -18,6 +19,7 @@ type TriggerDetailsFlowRunStateProps = {
 	deploymentIds?: string[];
 	posture: AutomationTriggerEventPosture;
 	states: string[];
+	stateTypes?: string[];
 	time?: number;
 };
 
@@ -58,6 +60,7 @@ export const TriggerDetailsFlowRunState = ({
 	deploymentIds = [],
 	posture,
 	states,
+	stateTypes = [],
 	time,
 }: TriggerDetailsFlowRunStateProps) => {
 	const postureLabel = getAutomationTriggerEventPostureLabel(posture);
@@ -97,6 +100,9 @@ export const TriggerDetailsFlowRunState = ({
 				</>
 			)}
 
+			{stateTypes.length > 0 && (
+				<span>with state type {stateTypes.join(" or ")}</span>
+			)}
 			<span>{postureLabel}</span>
 
 			{states.length > 0 ? (
@@ -113,7 +119,7 @@ export const TriggerDetailsFlowRunState = ({
 							/>
 						);
 					}
-					return null;
+					return <StateNameBadge key={state} name={state} />;
 				})
 			) : (
 				<span>any state</span>

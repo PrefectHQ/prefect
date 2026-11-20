@@ -7,7 +7,10 @@ import anyio
 import anyio.abc
 
 from prefect.bundles import execute_bundle_in_subprocess
-from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._process_manager import (
+    ProcessHandle,
+    create_spawn_process_termination_scope,
+)
 
 if TYPE_CHECKING:
     from prefect.bundles import SerializedBundle
@@ -18,7 +21,6 @@ if TYPE_CHECKING:
 class BundleExecutionStarter:
     """Executes a pre-serialized bundle in a subprocess via `SpawnProcess`.
 
-    Source: runner.py lines 771-841.
     Uses module-level `execute_bundle_in_subprocess` reference -- patch the
     module to override.
 
@@ -65,7 +67,9 @@ class BundleExecutionStarter:
                 cwd=self._cwd,
                 env=env or None,
             )
-            handle = ProcessHandle(process)
+            handle = ProcessHandle(
+                process, termination_scope=create_spawn_process_termination_scope()
+            )
             task_status.started(handle)  # signal BEFORE blocking join
             handed_off = True
             await anyio.to_thread.run_sync(process.join)  # SpawnProcess.join is sync

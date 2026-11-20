@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import { useState } from "react";
 import { buildGetSettingsQuery } from "@/api/admin";
 import { buildUiSettingsQuery } from "@/api/ui-settings";
@@ -14,20 +14,29 @@ import {
 	SidebarGroup,
 	SidebarHeader,
 	SidebarMenu,
+	SidebarMenuAction,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	useSidebar,
 } from "@/components/ui/sidebar";
 import {
 	switchToV1Ui,
 	UiVersionSwitchDialog,
 	type UiVersionSwitchDialogValues,
 } from "@/components/ui-version-switch";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { isUiAvailable } from "@/utils/ui-version";
 
 export function AppSidebar() {
 	const auth = useAuthSafe();
 	const navigate = useNavigate();
+	const { setOpenMobile } = useSidebar();
+	const closeMobileNav = () => setOpenMobile(false);
 	const [isSwitchDialogOpen, setIsSwitchDialogOpen] = useState(false);
+	const [isV1ShortcutHidden, setIsV1ShortcutHidden] = useLocalStorage(
+		"prefect-v1-ui-shortcut-hidden",
+		false,
+	);
 
 	const handleLogout = () => {
 		auth?.logout();
@@ -76,7 +85,7 @@ export function AppSidebar() {
 				<SidebarGroup>
 					<SidebarMenu>
 						<SidebarMenuItem>
-							<Link to="/dashboard">
+							<Link to="/dashboard" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Dashboard</span>
@@ -85,7 +94,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/runs">
+							<Link to="/runs" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Runs</span>
@@ -94,7 +103,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/flows">
+							<Link to="/flows" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Flows</span>
@@ -103,7 +112,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/deployments">
+							<Link to="/deployments" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Deployments</span>
@@ -112,7 +121,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/work-pools">
+							<Link to="/work-pools" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Work Pools</span>
@@ -121,7 +130,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/blocks">
+							<Link to="/blocks" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Blocks</span>
@@ -130,7 +139,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/variables">
+							<Link to="/variables" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Variables</span>
@@ -139,7 +148,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/automations">
+							<Link to="/automations" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Automations</span>
@@ -148,7 +157,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/events">
+							<Link to="/events" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Event Feed</span>
@@ -157,7 +166,7 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/concurrency-limits">
+							<Link to="/concurrency-limits" onClick={closeMobileNav}>
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Concurrency</span>
@@ -194,7 +203,7 @@ export function AppSidebar() {
 						</>
 					)}
 					<SidebarMenuItem>
-						<Link to="/settings">
+						<Link to="/settings" onClick={closeMobileNav}>
 							{({ isActive }) => (
 								<SidebarMenuButton asChild isActive={isActive}>
 									<span>Settings</span>
@@ -202,11 +211,18 @@ export function AppSidebar() {
 							)}
 						</Link>
 					</SidebarMenuItem>
-					{canSwitchToV1 && (
+					{canSwitchToV1 && !isV1ShortcutHidden && (
 						<SidebarMenuItem>
 							<SidebarMenuButton onClick={() => setIsSwitchDialogOpen(true)}>
 								<span>Switch to V1 UI</span>
 							</SidebarMenuButton>
+							<SidebarMenuAction
+								aria-label="Hide Switch to V1 UI shortcut"
+								title="Hide shortcut (still available in Settings)"
+								onClick={() => setIsV1ShortcutHidden(true)}
+							>
+								<X aria-hidden="true" />
+							</SidebarMenuAction>
 						</SidebarMenuItem>
 					)}
 					{authRequired && (

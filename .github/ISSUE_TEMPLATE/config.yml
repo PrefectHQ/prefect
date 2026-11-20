@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: 📖 Read the documentation
-    url: https://docs.prefect.io/
+    url: https://www.prefect.io/docs/
     about: Please consult the documentation before opening any issues!
   - name: 🙋 Ask a question
     url: https://www.prefect.io/slack

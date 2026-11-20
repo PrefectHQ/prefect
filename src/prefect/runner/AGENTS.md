@@ -35,17 +35,11 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - Cancellation -> CancellationManager
 - Hooks -> HookRunner
 
-**Legacy methods on Runner exist only for backward compatibility.** Do not add new behavior to:
-- `_submit_run_and_capture_errors()` -- replaced by FlowRunExecutor.submit()
-- `_run_process()` -- replaced by ProcessStarter implementations
-- `_flow_run_process_map` dict -- replaced by ProcessManager
-- `_kill_process()` -- replaced by ProcessManager.kill()
-- `_run_on_crashed_hooks()` / `_run_on_cancellation_hooks()` -- replaced by HookRunner
-- `execute_flow_run()` -- deprecated (Mar 2026); use `FlowRunExecutorContext` + `WorkspaceResolvingEngineCommandStarter`
-- `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
-- `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
+**Runner has no execution path of its own.** Served runs go through `ScheduledRunPoller` -> `FlowRunExecutor`; one-shot callers (workers, `prefect flow-run execute`, `prefect.bundles.execute`) use `FlowRunExecutorContext` with a `ProcessStarter`. `Runner.execute_flow_run()`, `Runner.execute_bundle()` and `Runner.reschedule_current_flow_runs()` were removed after their deprecation period, along with the facade's own process map and kill/hook helpers. Do not reintroduce a second execution or process-tracking path on Runner: `Runner._cancel_run()` only delegates to `CancellationManager` for runs tracked by `ProcessManager`.
 
-These will be removed once internal callers are migrated. Direct ProcessWorker flow runs already use `FlowRunExecutorContext`; generated commands use `WorkspaceResolvingEngineCommandStarter`, while explicitly configured commands use `EngineCommandStarter`. Only the ad hoc bundle path still calls deprecated `Runner.execute_bundle()`. Keep lifecycle behavior in the extracted classes and do not route direct worker execution back through Runner.
+## Webserver Health Check
+
+The health check must not count a maintenance wait as a missed poll. Requests answered with `Prefect-Maintenance: true` retry indefinitely, so a poll can block for an entire Cloud maintenance window. `perform_health_check()` in `server.py` measures from `polling_window_start()` (`prefect._internal.server_maintenance`), the same rule the worker health check uses. `last_polled` is `None` until the first poll completes, so the health check measures from its own creation until then.
 
 ## EventEmitter WebSocket Degradation
 
@@ -87,6 +81,8 @@ The first authenticated connection consumes its attempt token. Replay and connec
 
 Each execution mode has a ProcessStarter implementation. To add a new execution mode, implement the ProcessStarter protocol and inject it into FlowRunExecutor -- do not add a new code path to Runner.
 
+A starter must give its `ProcessHandle` a termination scope that matches how it launched the child. The default scope stops a Windows child with `CTRL_BREAK_EVENT`, which only works when the child has its own console process group (`CREATE_NEW_PROCESS_GROUP`, as `EngineCommandStarter` sets); otherwise the event reaches every process on the console. `multiprocessing` spawn children share the runner's group, so use `create_spawn_process_termination_scope()`; use `create_isolated_termination_scope()` when the starter owns a whole process tree.
+
 ## Work Pool Clearing in `add_flow`
 
 `Runner.add_flow()` explicitly assigns `deployment.work_pool_name = None` and `deployment.work_queue_name = None` *after* the `RunnerDeployment` is constructed, not via constructor kwargs. This is intentional: post-construction assignment adds the fields to Pydantic's `model_fields_set`, which `server/models/deployments.py:update_deployment` checks to detect "explicitly cleared" vs. "not provided." Constructing with `work_pool_name=None` in kwargs does *not* trigger clearing — `RunnerDeployment` factory methods now omit `None`-valued work pool fields from the constructor. If you ever need another field to signal "clear this on the server side," follow the same post-construction-assignment pattern.
@@ -99,8 +95,9 @@ Each execution mode has a ProcessStarter implementation. To add a new execution 
 
 `ScheduledRunPoller` now calls `propose_pending` (Scheduled → Pending) before handing off to `FlowRunExecutor`. `FlowRunExecutor` then calls `propose_submitting` (Pending → Submitting sub-state) as step 1 of its lifecycle **when `propose_submitting=True` (the default)**. These are two separate transitions — do not collapse them. The split exists so automations listening for the Pending state fire correctly before the executor begins.
 
-**Three callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — all have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
+**Four callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — all have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
 - direct `ProcessWorker.run()` execution (`BaseWorker` already proposed Submitting)
+- ad hoc `ProcessWorker._submit_adhoc_run()` execution (the worker created or reset the run as Pending)
 - `prefect flow-run execute` CLI path (invoked by a worker)
 - `execute_bundle()` in `prefect.bundles.execute` (invoked by bundle dispatch)
 
@@ -108,7 +105,7 @@ The cancelling precheck (step 1a) still runs unconditionally even when `propose_
 
 ## ProcessWorker Execution Paths
 
-Direct ProcessWorker runs use `FlowRunExecutorContext` with `propose_submitting=False`. Generated commands use `WorkspaceResolvingEngineCommandStarter` so command selection follows workspace preparation; explicitly configured commands use `EngineCommandStarter` and retain their own pull-step semantics. The executor owns process tracking, cancellation, Attempt Control Session evidence, crash inference, and normalized infrastructure status. Ad hoc ProcessWorker submissions still call deprecated `Runner.execute_bundle()` and remain a migration target.
+Direct ProcessWorker runs use `FlowRunExecutorContext` with `propose_submitting=False`. Generated commands use `WorkspaceResolvingEngineCommandStarter` so command selection follows workspace preparation; explicitly configured commands use `EngineCommandStarter` and retain their own pull-step semantics. Ad hoc submissions (`_submit_adhoc_run`, used by `InfrastructureBoundFlow`) open their own `FlowRunExecutorContext` with `BundleExecutionStarter` and `propose_submitting=False`, passing the job configuration's `working_dir` and `env`. The executor owns process tracking, cancellation, Attempt Control Session evidence, crash inference, and normalized infrastructure status in every path.
 
 ## BlockStorageAdapter Pull Behavior
 
@@ -126,6 +123,10 @@ This matters because `get_directory` typically calls `shutil.copytree(..., dirs_
 - **`directories`** entries starting with `--` trigger a `UserWarning` but are not rejected. The values are passed to `git sparse-checkout set --` (with a `--` separator to prevent flag injection). The warning exists because such paths are unusual; legitimate use is allowed.
 
 These validations exist to prevent git argument injection. Do not bypass them when constructing `GitRepository` programmatically.
+
+## GitRepository Credential Redaction
+
+`GitRepository._url` may embed credentials (`https://user:token@host/...`), and `_repository_url_with_credentials` adds them from `credentials`. Any URL or git stderr that reaches logs, `repr`, or exception messages must go through `strip_auth_from_url` / `strip_auth_from_urls_in_text` (`prefect._internal.urls`); missed call sites have leaked tokens more than once. Redaction is display-only: equality checks and `to_pull_step()` keep the raw `_url`.
 
 ## GitRepository Concurrent Pull Protection
 
@@ -146,6 +147,8 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 **Pull-step directory fallback:** When pull steps run but none produces a `directory` output or changes CWD, `_ensure_entrypoint_in_workspace` copies storage into the workspace root as a fallback. This handles setup-only pull steps (e.g., `run_shell_script` for environment prep) that do not control the working directory themselves.
 
 **Automatic dependency installation:** By default, `WorkspaceResolvingEngineCommandStarter` does not install dependencies before starting a flow run. When no explicit command is passed and `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` is true, it auto-selects `uv run --no-default-groups --project <project_root>` with the worker-supplied workspace bootstrap — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). The bootstrap uses the prepared entrypoint with `prefect.flow_engine` when that module exposes its executable `_main`; older selected runtimes fall back to `prefect.engine` with `PREFECT__FLOW_ENTRYPOINT`, preserving the prepared workspace. If the setting is false or any condition fails, the command falls back to `None`. Explicit commands always take precedence.
+
+**Version skew in the runtime bootstrap:** `_workspace_runtime_bootstrap.py` runs inside the flow's selected runtime, which may ship an older Prefect than the worker. Do not make it depend on Prefect internals newer than that runtime; it keeps local copies instead. Its flow hook argument resolution is one such copy (see the hook-parity contract in `src/prefect/AGENTS.md`).
 
 ## Reference
 

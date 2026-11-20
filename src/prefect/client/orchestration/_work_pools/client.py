@@ -525,6 +525,8 @@ class WorkPoolAsyncClient(BaseAsyncClient):
                 json=work_pool.model_dump(mode="json", exclude_unset=True),
             )
         except HTTPStatusError as e:
+            if e.response.status_code == 403 and "plan does not support" in str(e):
+                raise ObjectUnsupported(http_exc=e) from e
             if e.response.status_code == 409:
                 if overwrite:
                     existing_work_pool = await self.read_work_pool(

@@ -1,9 +1,10 @@
 import inspect
 import sys
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from logging import Logger
 from pathlib import Path
+from types import CodeType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -31,6 +32,14 @@ STABLE_TRANSFORMS: dict[type, Callable[[Any], Any]] = {}
 logger: Logger = get_logger(__name__)
 
 
+def _stable_dataframe(df: Any) -> tuple[Any, ...]:
+    columns = list(df.columns)
+    if not columns:
+        # with no column Series to carry it, the row index must be kept
+        return (columns, [], df.index)
+    return (columns, [df.iloc[:, i] for i in range(len(columns))])
+
+
 def _register_stable_transforms() -> None:
     """
     Some inputs do not reliably produce deterministic byte strings when serialized via
@@ -45,9 +54,7 @@ def _register_stable_transforms() -> None:
     if sys.modules.get("pandas") is not None:
         import pandas as pd  # pyright: ignore
 
-        STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [  # pyright: ignore
-            df[col] for col in sorted(df.columns)
-        ]
+        STABLE_TRANSFORMS[pd.DataFrame] = _stable_dataframe  # pyright: ignore
 
 
 @dataclass
@@ -255,7 +262,7 @@ class CompoundCachePolicy(CachePolicy):
 
         if inputs_policies:
             new = Inputs(exclude=[other])
-            return CompoundCachePolicy(policies=[*self.policies, new])
+            return replace(self, policies=[*self.policies, new])
         else:
             # no dependency on inputs already
             return self
@@ -280,6 +287,19 @@ class _None(CachePolicy):
     def __add__(self, other: "CachePolicy") -> "CachePolicy":
         # adding _None is a no-op
         return other
+
+
+def _normalize_code_location(code: CodeType) -> CodeType:
+    """Remove compilation locations, including those in nested code constants."""
+    return code.replace(
+        co_filename="",
+        co_firstlineno=1,
+        co_linetable=b"",
+        co_consts=tuple(
+            _normalize_code_location(const) if isinstance(const, CodeType) else const
+            for const in code.co_consts
+        ),
+    )
 
 
 @dataclass
@@ -312,7 +332,10 @@ class TaskSource(CachePolicy):
             lines = inspect.getsource(task_ctx.task.fn.__class__)
         except OSError as exc:
             if "source code" in str(exc):
-                lines = task_ctx.task.fn.__code__.co_code
+                return hash_objects(
+                    _normalize_code_location(task_ctx.task.fn.__code__),
+                    raise_on_failure=True,
+                )
             else:
                 raise
 
@@ -404,7 +427,7 @@ class Inputs(CachePolicy):
     def __sub__(self, other: str) -> "CachePolicy":
         if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Can only subtract strings from key policies.")
-        return Inputs(exclude=self.exclude + [other])
+        return replace(self, exclude=self.exclude + [other])
 
 
 INPUTS = Inputs()

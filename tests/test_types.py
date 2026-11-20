@@ -3,11 +3,18 @@ from __future__ import annotations
 import datetime
 import sys
 import types
+from typing import Any
 
+import jsonschema
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from prefect.types import KeyValueLabelsField, SecondsTimeDelta
+from prefect.types import (
+    DurationOrSecondsTimeDelta,
+    KeyValueLabelsField,
+    NonNegativeTimeDelta,
+    SecondsTimeDelta,
+)
 from prefect.types import _datetime as datetime_types
 from prefect.types._datetime import human_friendly_diff
 
@@ -64,6 +71,50 @@ def test_seconds_timedelta_accepts_numeric_values():
     assert Model(duration=5).duration == datetime.timedelta(seconds=5)
     assert Model(duration="10").duration == datetime.timedelta(seconds=10)
     assert Model(duration="PT5S").duration == datetime.timedelta(seconds=5)
+
+
+@pytest.mark.parametrize(
+    "annotation", [DurationOrSecondsTimeDelta, NonNegativeTimeDelta]
+)
+def test_duration_schemas_distinguish_inputs_from_serialized_seconds(annotation: Any):
+    adapter = TypeAdapter(annotation, config=ConfigDict(ser_json_timedelta="float"))
+    input_validator = jsonschema.Draft202012Validator(adapter.json_schema())
+    output_validator = jsonschema.Draft202012Validator(
+        adapter.json_schema(mode="serialization")
+    )
+
+    for value in (60, "PT1M"):
+        input_validator.validate(value)
+        duration = adapter.validate_python(value)
+        serialized = adapter.dump_python(duration, mode="json")
+        assert serialized == 60
+        output_validator.validate(serialized)
+
+    assert not output_validator.is_valid("PT1M")
+
+
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+def test_duration_or_seconds_schema_allows_negative_seconds(mode: str):
+    adapter = TypeAdapter(
+        DurationOrSecondsTimeDelta, config=ConfigDict(ser_json_timedelta="float")
+    )
+    validator = jsonschema.Draft202012Validator(adapter.json_schema(mode=mode))
+
+    assert adapter.validate_python(-5) == datetime.timedelta(seconds=-5)
+    assert validator.is_valid(-5)
+
+
+@pytest.mark.parametrize("mode", ["validation", "serialization"])
+def test_non_negative_timedelta_schema_publishes_its_lower_bound(mode: str):
+    adapter = TypeAdapter(
+        NonNegativeTimeDelta, config=ConfigDict(ser_json_timedelta="float")
+    )
+    validator = jsonschema.Draft202012Validator(adapter.json_schema(mode=mode))
+
+    with pytest.raises(ValidationError):
+        adapter.validate_python(-5)
+    assert not validator.is_valid(-5)
+    assert validator.is_valid(0)
 
 
 def test_now_uses_to_stdlib_on_python_313_plus(monkeypatch: pytest.MonkeyPatch):
