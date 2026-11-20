@@ -351,7 +351,9 @@ async def bulk_increment_active_slots_with_lease(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> ConcurrencyLimitWithLeaseResponse:
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         acquired_limits, acquired = await _acquire_concurrency_slots(
             session=session,
             names=names,

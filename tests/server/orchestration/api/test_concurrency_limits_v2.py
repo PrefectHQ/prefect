@@ -1,4 +1,5 @@
 import shutil
+import sqlite3
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Generator
@@ -17,7 +18,7 @@ from prefect.server.concurrency.lease_storage import (
     get_concurrency_lease_storage,
 )
 from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
-from prefect.server.database import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models.concurrency_limits_v2 import (
     bulk_update_denied_slots,
     create_concurrency_limit,
@@ -463,6 +464,55 @@ async def test_increment_concurrency_limit_with_lease_simple(
     assert lease
     assert lease.resource_ids == [concurrency_limit.id]
     assert lease.metadata == ConcurrencyLimitLeaseMetadata(slots=1)
+
+
+async def test_increment_concurrency_limit_with_lease_holds_sqlite_write_lock(
+    client: AsyncClient,
+    concurrency_limit: ConcurrencyLimitV2,
+):
+    # A deferred transaction that reads first fails its increment with
+    # "database is locked" if another connection commits before its first
+    # write, because SQLite does not apply the busy timeout to that upgrade.
+    db = provide_database_interface()
+    if db.dialect.name != "sqlite":
+        pytest.skip("Transaction begin mode is SQLite-only")
+
+    engine = await db.engine()
+    db_path = sa.make_url(db.database_config.connection_url).database
+    assert db_path
+    concurrent_release_outcomes: list[str] = []
+
+    def commit_concurrent_release(
+        conn: Any, cursor: Any, statement: str, *args: Any, **kwargs: Any
+    ) -> None:
+        if "UPDATE concurrency_limit_v2 SET" not in statement:
+            return
+        with sqlite3.connect(db_path, timeout=0.1) as writer:
+            try:
+                writer.execute(
+                    "UPDATE concurrency_limit_v2 SET active_slots = active_slots"
+                    " WHERE id = ?",
+                    (str(concurrency_limit.id),),
+                )
+                concurrent_release_outcomes.append("committed")
+            except sqlite3.OperationalError:
+                concurrent_release_outcomes.append("blocked")
+
+    sa.event.listen(
+        engine.sync_engine, "before_cursor_execute", commit_concurrent_release
+    )
+    try:
+        response = await client.post(
+            "/v2/concurrency_limits/increment-with-lease",
+            json={"names": [concurrency_limit.name], "slots": 1, "mode": "concurrency"},
+        )
+    finally:
+        sa.event.remove(
+            engine.sync_engine, "before_cursor_execute", commit_concurrent_release
+        )
+
+    assert response.status_code == 200, response.text
+    assert concurrent_release_outcomes == ["blocked"]
 
 
 async def test_increment_concurrency_limit_with_lease_and_holder(

@@ -2,6 +2,7 @@
 
 import asyncio
 import threading
+import time
 from concurrent.futures import Future
 from typing import Any
 from unittest import mock
@@ -235,7 +236,7 @@ async def test_retries_failed_call_respects_retry_after_header(
         HTTPStatusError(
             "Limit is locked",
             request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
-            response=Response(423, headers={"Retry-After": "10"}),
+            response=Response(423, headers={"Retry-After": "1"}),
         ),
         Response(
             200,
@@ -245,38 +246,136 @@ async def test_retries_failed_call_respects_retry_after_header(
             },
         ),
     ]
+    request_times: list[float] = []
 
-    mocked_client.client.increment_concurrency_slots_with_lease.side_effect = responses
+    async def increment(*args: Any, **kwargs: Any) -> Response:
+        request_times.append(time.monotonic())
+        response = responses[len(request_times) - 1]
+        if isinstance(response, HTTPStatusError):
+            raise response
+        return response
+
+    mocked_client.client.increment_concurrency_slots_with_lease.side_effect = increment
 
     limit_names = sorted(["tag:test"])
     service = ConcurrencySlotAcquisitionWithLeaseService.instance(
         frozenset(limit_names)
     )
 
-    with mock.patch("asyncio.sleep") as sleep:
-        future: Future[Response] = service.send(
-            (
-                1,  # slots
-                "concurrency",  # mode
-                None,  # timeout_seconds
-                None,  # max_retries
-                60.0,  # lease_duration
-                False,  # strict
-                None,  # holder
-            )
+    future: Future[Response] = service.send(
+        (
+            1,  # slots
+            "concurrency",  # mode
+            None,  # timeout_seconds
+            None,  # max_retries
+            60.0,  # lease_duration
+            False,  # strict
+            None,  # holder
         )
-        await service.drain()
-        returned_response = await asyncio.wrap_future(future)
+    )
+    await service.drain()
+    returned_response = await asyncio.wrap_future(future)
 
-        assert returned_response == responses[1]
+    assert returned_response == responses[1]
+    assert len(request_times) == 2
+    assert request_times[1] - request_times[0] >= 1
 
-        # Verify sleep was called with the Retry-After value
-        sleep.assert_called_once_with(
-            float(responses[0].response.headers["Retry-After"])
+
+async def test_release_while_the_request_is_in_flight_ends_the_wait(
+    mocked_client: Any,
+) -> None:
+    granted = Response(
+        200,
+        json={
+            "lease_id": str(uuid4()),
+            "limits": [{"id": str(uuid4()), "name": "tag:test", "limit": 1}],
+        },
+    )
+    request_count = 0
+
+    async def increment(*args: Any, **kwargs: Any) -> Response:
+        nonlocal request_count
+        request_count += 1
+        if request_count > 1:
+            return granted
+        ConcurrencySlotAcquisitionWithLeaseService._wake_waiters(["tag:test"])
+        await asyncio.sleep(0)
+        raise HTTPStatusError(
+            "Limit is locked",
+            request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
+            response=Response(423, headers={"Retry-After": "60.0"}),
         )
-        assert (
-            mocked_client.client.increment_concurrency_slots_with_lease.call_count == 2
+
+    mocked_client.client.increment_concurrency_slots_with_lease.side_effect = increment
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["tag:test"])
+    )
+    future: Future[Response] = service.send(
+        (
+            1,  # slots
+            "concurrency",  # mode
+            10,  # timeout_seconds, well short of the Retry-After
+            None,  # max_retries
+            60.0,  # lease_duration
+            False,  # strict
+            None,  # holder
         )
+    )
+    returned_response = await asyncio.wrap_future(future)
+    await service.drain()
+
+    assert returned_response == granted
+    assert request_count == 2
+
+
+async def test_release_on_another_limit_leaves_the_wait_alone(
+    mocked_client: Any,
+) -> None:
+    granted = Response(
+        200,
+        json={
+            "lease_id": str(uuid4()),
+            "limits": [{"id": str(uuid4()), "name": "tag:test", "limit": 1}],
+        },
+    )
+    request_count = 0
+
+    async def increment(*args: Any, **kwargs: Any) -> Response:
+        nonlocal request_count
+        request_count += 1
+        if request_count > 1:
+            return granted
+        ConcurrencySlotAcquisitionWithLeaseService._wake_waiters(["tag:other"])
+        await asyncio.sleep(0)
+        raise HTTPStatusError(
+            "Limit is locked",
+            request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
+            response=Response(423, headers={"Retry-After": "60.0"}),
+        )
+
+    mocked_client.client.increment_concurrency_slots_with_lease.side_effect = increment
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["tag:test"])
+    )
+    future: Future[Response] = service.send(
+        (
+            1,  # slots
+            "concurrency",  # mode
+            0.5,  # timeout_seconds
+            None,  # max_retries
+            60.0,  # lease_duration
+            False,  # strict
+            None,  # holder
+        )
+    )
+
+    with pytest.raises(TimeoutError):
+        await asyncio.wrap_future(future)
+    await service.drain()
+
+    assert request_count == 1
 
 
 async def test_failed_call_status_code_not_retryable_returns_exception(
@@ -313,7 +412,7 @@ async def test_max_retries_honored(mocked_client: Any) -> None:
         HTTPStatusError(
             "Limit is locked",
             request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
-            response=Response(423, headers={"Retry-After": "1"}),
+            response=Response(423, headers={"Retry-After": "0"}),
         )
     ] * 5  # More 423s than max_retries
 
@@ -324,28 +423,25 @@ async def test_max_retries_honored(mocked_client: Any) -> None:
         frozenset(limit_names)
     )
 
-    with mock.patch("asyncio.sleep"):
-        future: Future[Response] = service.send(
-            (
-                1,  # slots
-                "concurrency",  # mode
-                None,  # timeout_seconds
-                2,  # max_retries - only allow 2 retries
-                60.0,  # lease_duration
-                False,  # strict
-                None,  # holder
-            )
+    future: Future[Response] = service.send(
+        (
+            1,  # slots
+            "concurrency",  # mode
+            None,  # timeout_seconds
+            2,  # max_retries - only allow 2 retries
+            60.0,  # lease_duration
+            False,  # strict
+            None,  # holder
         )
-        await service.drain()
+    )
+    await service.drain()
 
-        # Should get an exception after max_retries is exhausted
-        with pytest.raises(HTTPStatusError):
-            await asyncio.wrap_future(future)
+    # Should get an exception after max_retries is exhausted
+    with pytest.raises(HTTPStatusError):
+        await asyncio.wrap_future(future)
 
-        # Should have called increment 3 times (initial + 2 retries)
-        assert (
-            mocked_client.client.increment_concurrency_slots_with_lease.call_count == 3
-        )
+    # Should have called increment 3 times (initial + 2 retries)
+    assert mocked_client.client.increment_concurrency_slots_with_lease.call_count == 3
 
 
 async def test_basic_exception_returns_exception(mocked_client: Any) -> None:

@@ -1,8 +1,8 @@
 import asyncio
 import concurrent.futures
 import json
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator, Iterable
+from contextlib import asynccontextmanager, suppress
 from threading import Lock
 from typing import TYPE_CHECKING, Literal, Optional
 from uuid import UUID, uuid4
@@ -106,6 +106,34 @@ class ConcurrencySlotAcquisitionWithLeaseService(
         self._client: PrefectClient
         self.concurrency_limit_names: list[str] = sorted(list(concurrency_limit_names))
         self._pending_releases: set[concurrent.futures.Future[None]] = set()
+        self._slot_released = asyncio.Event()
+
+    @classmethod
+    def _wake_waiters(cls, released_names: Iterable[str]) -> None:
+        """End the `Retry-After` wait of every service in this process that
+        acquires slots on one of `released_names`.
+
+        `concurrency()` calls this once the server has confirmed its release, so
+        the woken service's next request can take the freed slot.
+        """
+        released = set(released_names)
+        with cls._instance_cache_lock:
+            services = [
+                service
+                for service in cls._instances.values()
+                if isinstance(service, cls)
+                and not released.isdisjoint(service.concurrency_limit_names)
+            ]
+
+        for service in services:
+            loop = service._loop
+            if loop is None:
+                continue
+            try:
+                loop.call_soon_threadsafe(service._slot_released.set)
+            except RuntimeError:
+                # The service's loop has closed, so nothing is waiting on it.
+                pass
 
     @asynccontextmanager
     async def _lifespan(self) -> AsyncGenerator[None, None]:
@@ -158,6 +186,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
 
         with timeout_async(seconds=timeout_seconds):
             while True:
+                self._slot_released.clear()
                 try:
                     if use_cache:
                         with _cache_lock:
@@ -193,9 +222,12 @@ class ConcurrencySlotAcquisitionWithLeaseService(
 
                     retry_after = float(exc.response.headers["Retry-After"])
                     logger.debug(
-                        f"Unable to acquire concurrency slot with lease for {self.concurrency_limit_names}. Retrying in {retry_after} second(s)."
+                        f"Unable to acquire concurrency slot with lease for {self.concurrency_limit_names}. Retrying in {retry_after} second(s), or sooner if a `concurrency()` block in this process releases one of these limits."
                     )
-                    await asyncio.sleep(retry_after)
+                    with suppress(TimeoutError):
+                        await asyncio.wait_for(
+                            self._slot_released.wait(), timeout=retry_after
+                        )
                     if max_retries is not None:
                         max_retries -= 1
 
