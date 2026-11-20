@@ -3127,7 +3127,7 @@ class TestWorkerProcess:
         return_id = schema["properties"]["return_id"]
         assert "return_id" not in schema["required"]
         assert return_id["type"] == "boolean"
-        assert "default" not in return_id
+        assert return_id["default"] is False
 
     async def test_heartbeat_returns_worker_id_on_request(
         self, client: AsyncClient, work_pool: WorkPool

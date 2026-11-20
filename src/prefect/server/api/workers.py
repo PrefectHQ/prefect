@@ -1279,7 +1279,7 @@ async def worker_heartbeat(
         None, description="The worker's heartbeat interval in seconds", embed=True
     ),
     return_id: bool = Body(
-        default_factory=lambda: False,
+        False,
         description="Return the worker ID. Defaults to false.",
         embed=True,
     ),
