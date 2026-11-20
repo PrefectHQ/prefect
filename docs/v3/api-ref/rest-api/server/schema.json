@@ -18002,6 +18002,40 @@
                             ]
                         ]
                     },
+                    "labels": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Labels",
+                        "description": "A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+                        "examples": [
+                            {
+                                "key": "value1",
+                                "key2": 42
+                            }
+                        ]
+                    },
                     "work_queue_name": {
                         "anyOf": [
                             {

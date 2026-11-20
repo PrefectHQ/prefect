@@ -135,6 +135,34 @@
                     "default": null,
                     "title": "Tags"
                 },
+                "labels": {
+                    "anyOf": [
+                        {
+                            "additionalProperties": {
+                                "anyOf": [
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "type": "integer"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ]
+                            },
+                            "type": "object"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Labels"
+                },
                 "description": {
                     "anyOf": [
                         {

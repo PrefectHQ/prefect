@@ -2047,6 +2047,30 @@ class TestRunnerDeployment:
         assert deployment.paused is False
         assert deployment.global_concurrency_limit is None
 
+    async def test_apply_with_labels(self, prefect_client: PrefectClient):
+        name = f"test-labels-{uuid.uuid4()}"
+        deployment_id = await RunnerDeployment.from_flow(
+            dummy_flow_1, name, labels={"sig": "abc123", "env": "dev"}
+        ).apply()
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+        assert deployment.labels["sig"] == "abc123"
+        assert deployment.labels["env"] == "dev"
+        assert "prefect.flow.id" in deployment.labels
+
+        await RunnerDeployment.from_flow(dummy_flow_1, name).apply()
+        deployment = await prefect_client.read_deployment(deployment_id)
+        assert deployment.labels["sig"] == "abc123"
+        assert deployment.labels["env"] == "dev"
+
+        await RunnerDeployment.from_flow(
+            dummy_flow_1, name, labels={"env": "prod"}
+        ).apply()
+        deployment = await prefect_client.read_deployment(deployment_id)
+        assert deployment.labels["env"] == "prod"
+        assert "sig" not in deployment.labels
+        assert "prefect.flow.id" in deployment.labels
+
     @pytest.mark.parametrize("clear_schedules", [False, True])
     @pytest.mark.parametrize("slug", [None, "daily"])
     @pytest.mark.parametrize(

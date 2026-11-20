@@ -347,6 +347,7 @@ class Runner:
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        labels: Optional[dict[str, Any]] = None,
     ) -> UUID:
         """
         Provides a flow to the runner to be run based on the provided configuration.
@@ -375,6 +376,8 @@ class Runner:
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. Values can be strings, numbers, or booleans.
             version: A version for the created deployment. Defaults to the flow's version.
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
@@ -399,6 +402,7 @@ class Runner:
             parameters=parameters,
             description=description,
             tags=tags,
+            labels=labels,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
             entrypoint_type=entrypoint_type,
@@ -445,6 +449,7 @@ class Runner:
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        labels: Optional[dict[str, Any]] = None,
     ) -> UUID:
         """
         Provides a flow to the runner to be run based on the provided configuration.
@@ -472,6 +477,8 @@ class Runner:
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. Values can be strings, numbers, or booleans.
             version: A version for the created deployment. Defaults to the flow's version.
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
@@ -492,6 +499,7 @@ class Runner:
                 triggers=triggers,
                 description=description,
                 tags=tags,
+                labels=labels,
                 version=version,
                 enforce_parameter_schema=enforce_parameter_schema,
                 entrypoint_type=entrypoint_type,

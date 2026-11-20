@@ -107,7 +107,7 @@ from prefect.settings import (
     PREFECT_UI_URL,
     get_current_settings,
 )
-from prefect.types import ListOfNonEmptyStrings
+from prefect.types import KeyValueLabels, ListOfNonEmptyStrings
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import freeze
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -198,6 +198,8 @@ class RunnerDeployment(BaseModel):
         tags: An optional list of tags to associate with this deployment; note that tags
             are used only for organizational purposes. For delegating work to workers,
             see `work_queue_name`.
+        labels: An optional dictionary of key-value labels to associate with this
+            deployment. Values can be strings, numbers, or booleans.
         schedule: A schedule to run this deployment on, once registered
         parameters: A dictionary of parameter values to pass to runs created from this
             deployment
@@ -241,6 +243,13 @@ class RunnerDeployment(BaseModel):
     tags: ListOfNonEmptyStrings = Field(
         default_factory=list,
         description="One of more tags to apply to this deployment.",
+    )
+    labels: KeyValueLabels = Field(
+        default_factory=dict,
+        description=(
+            "Key-value labels to apply to this deployment. Values can be strings,"
+            " numbers, or booleans."
+        ),
     )
     schedules: Optional[
         List[Union[DeploymentScheduleCreate, DeploymentScheduleUpdate]]
@@ -474,6 +483,7 @@ class RunnerDeployment(BaseModel):
                 parameters=parameters,
                 description=self.description,
                 tags=self.tags,
+                labels=self.labels,
                 path=self._path,
                 entrypoint=self.entrypoint,
                 storage_document_id=None,
@@ -580,6 +590,7 @@ class RunnerDeployment(BaseModel):
                 parameters=parameters,
                 description=self.description,
                 tags=self.tags,
+                labels=self.labels,
                 path=self._path,
                 entrypoint=self.entrypoint,
                 storage_document_id=None,
@@ -1049,6 +1060,7 @@ class RunnerDeployment(BaseModel):
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        labels: Optional[KeyValueLabels] = None,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -1072,6 +1084,9 @@ class RunnerDeployment(BaseModel):
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. If not provided, labels on an existing deployment are left
+                unchanged.
             version: A version for the created deployment. Defaults to the flow's version.
             version_type: The type of version information to use for the deployment.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
@@ -1118,6 +1133,8 @@ class RunnerDeployment(BaseModel):
             kwargs["work_pool_name"] = work_pool_name
         if work_queue_name is not None:
             kwargs["work_queue_name"] = work_queue_name
+        if labels is not None:
+            kwargs["labels"] = labels
 
         deployment = cls(**kwargs)
         deployment._sla = _sla
@@ -1199,6 +1216,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        labels: Optional[KeyValueLabels] = None,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -1221,6 +1239,9 @@ class RunnerDeployment(BaseModel):
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. If not provided, labels on an existing deployment are left
+                unchanged.
             version: A version for the created deployment. Defaults to the flow's version.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
@@ -1269,6 +1290,8 @@ class RunnerDeployment(BaseModel):
             kwargs["work_pool_name"] = work_pool_name
         if work_queue_name is not None:
             kwargs["work_queue_name"] = work_queue_name
+        if labels is not None:
+            kwargs["labels"] = labels
 
         deployment = cls(**kwargs)
         deployment._sla = _sla
@@ -1305,6 +1328,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        labels: Optional[KeyValueLabels] = None,
     ) -> "RunnerDeployment":
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
@@ -1333,6 +1357,9 @@ class RunnerDeployment(BaseModel):
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. If not provided, labels on an existing deployment are left
+                unchanged.
             version: A version for the created deployment. Defaults to the flow's version.
             version_type: The type of version information to use for the deployment. The version type
                 will be inferred if not provided.
@@ -1402,6 +1429,8 @@ class RunnerDeployment(BaseModel):
             kwargs["work_pool_name"] = work_pool_name
         if work_queue_name is not None:
             kwargs["work_queue_name"] = work_queue_name
+        if labels is not None:
+            kwargs["labels"] = labels
 
         deployment = cls(**kwargs)
         deployment._sla = _sla
@@ -1446,6 +1475,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        labels: Optional[KeyValueLabels] = None,
     ) -> "RunnerDeployment":
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
@@ -1474,6 +1504,9 @@ class RunnerDeployment(BaseModel):
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
+            labels: A dictionary of key-value labels to associate with the created
+                deployment. If not provided, labels on an existing deployment are left
+                unchanged.
             version: A version for the created deployment. Defaults to the flow's version.
             version_type: The type of version information to use for the deployment. The version type
                 will be inferred if not provided.
@@ -1541,6 +1574,8 @@ class RunnerDeployment(BaseModel):
             kwargs["work_pool_name"] = work_pool_name
         if work_queue_name is not None:
             kwargs["work_queue_name"] = work_queue_name
+        if labels is not None:
+            kwargs["labels"] = labels
 
         deployment = cls(**kwargs)
         deployment._sla = _sla
