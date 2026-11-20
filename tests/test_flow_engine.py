@@ -1063,6 +1063,71 @@ async def test_completion_save_failure_does_not_trigger_failure_hook(
 
 
 @pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+async def test_lost_completion_response_preserves_server_final_state(
+    async_flow: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    hook_states: list[states.State[Any]] = []
+
+    def record_hook(
+        flow: Flow[Any, Any], flow_run: Any, state: states.State[Any]
+    ) -> None:
+        hook_states.append(state)
+
+    def body() -> str:
+        return "done"
+
+    async def async_body() -> str:
+        return body()
+
+    test_flow = flow(
+        async_body if async_flow else body,
+        on_failure=[record_hook],
+        on_crashed=[record_hook],
+    )
+    flow_run = await prefect_client.create_flow_run(test_flow)
+
+    def raise_after_completed(state: states.State[Any]) -> None:
+        if state.is_completed():
+            raise ConnectionError("completion response lost")
+
+    if async_flow:
+        original_propose = flow_engine_module.propose_state
+
+        async def propose_async(
+            client: Any, state: states.State[Any], **kwargs: Any
+        ) -> states.State[Any]:
+            result = await original_propose(client, state, **kwargs)
+            raise_after_completed(state)
+            return result
+
+        monkeypatch.setattr(flow_engine_module, "propose_state", propose_async)
+    else:
+        original_propose_sync = flow_engine_module.propose_state_sync
+
+        def propose_sync(
+            client: Any, state: states.State[Any], **kwargs: Any
+        ) -> states.State[Any]:
+            result = original_propose_sync(client, state, **kwargs)
+            raise_after_completed(state)
+            return result
+
+        monkeypatch.setattr(flow_engine_module, "propose_state_sync", propose_sync)
+
+    with pytest.raises(ConnectionError, match="completion response lost"):
+        if async_flow:
+            await run_flow_async(test_flow, flow_run=flow_run)
+        else:
+            run_flow_sync(test_flow, flow_run=flow_run)
+
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    assert saved_run.state.is_completed()
+    assert not hook_states
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
 async def test_result_storage_failure_does_not_trigger_failure_hook(
     async_flow: bool,
     prefect_client: PrefectClient,

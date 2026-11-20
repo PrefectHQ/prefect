@@ -927,6 +927,26 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(message)
 
+    def _handle_crash_unless_final_on_server(self, exc: Exception) -> None:
+        """
+        Crash the run unless the server already has a final state, e.g. a
+        `Completed` proposal that committed but whose response was lost.
+        """
+        try:
+            server_state = self.client.read_flow_run(self.flow_run.id).state
+        except Exception:
+            self.logger.debug(
+                "Unable to read flow run state; not reporting a crash", exc_info=True
+            )
+            return
+        if server_state and server_state.is_final():
+            self.flow_run.state = server_state
+            self.flow_run.state_name = server_state.name
+            self.flow_run.state_type = server_state.type
+            self._capture_state_report(server_state)
+            return
+        self.handle_crash(exc)
+
     def handle_crash(self, exc: BaseException) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
@@ -1297,7 +1317,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                         # one that escapes before the run is final (e.g. from
                         # `setup_run_context`) would otherwise leave it Running
                         if self.flow_run.state and not self.flow_run.state.is_final():
-                            self.handle_crash(exc)
+                            self._handle_crash_unless_final_on_server(exc)
                         raise
                     except (Abort, Pause) as exc:
                         if state := getattr(exc, "state", None):
@@ -1668,6 +1688,26 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(message)
 
+    async def _handle_crash_unless_final_on_server(self, exc: Exception) -> None:
+        """
+        Crash the run unless the server already has a final state, e.g. a
+        `Completed` proposal that committed but whose response was lost.
+        """
+        try:
+            server_state = (await self.client.read_flow_run(self.flow_run.id)).state
+        except Exception:
+            self.logger.debug(
+                "Unable to read flow run state; not reporting a crash", exc_info=True
+            )
+            return
+        if server_state and server_state.is_final():
+            self.flow_run.state = server_state
+            self.flow_run.state_name = server_state.name
+            self.flow_run.state_type = server_state.type
+            self._capture_state_report(server_state)
+            return
+        await self.handle_crash(exc)
+
     async def handle_crash(self, exc: BaseException) -> None:
         # need to shield from asyncio cancellation to ensure we update the state
         # on the server before exiting
@@ -2036,7 +2076,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         # one that escapes before the run is final (e.g. from
                         # `setup_run_context`) would otherwise leave it Running
                         if self.flow_run.state and not self.flow_run.state.is_final():
-                            await self.handle_crash(exc)
+                            await self._handle_crash_unless_final_on_server(exc)
                         raise
                     except (Abort, Pause) as exc:
                         if state := getattr(exc, "state", None):
