@@ -272,7 +272,6 @@ async def test_reconcile_automations_skips_reload_when_snapshot_matches(
 
 
 async def test_reconcile_automations_reloads_when_snapshot_changes(
-    arachnophobia: Automation,
     open_automations_session: mock.Mock,
     load_automations: mock.AsyncMock,
     read_automation_state_snapshot: mock.AsyncMock,
@@ -280,9 +279,6 @@ async def test_reconcile_automations_reloads_when_snapshot_changes(
     previous_snapshot = (now("UTC"), 1)
     current_snapshot = (now("UTC") + timedelta(seconds=1), 2)
     triggers.automation_state_snapshot = previous_snapshot
-    triggers.load_automation(arachnophobia)
-    (trigger,) = arachnophobia.triggers_of_type(EventTrigger)
-    triggers.next_proactive_runs[trigger.id] = now("UTC")
     read_automation_state_snapshot.return_value = current_snapshot
 
     changed = await triggers.reconcile_automations()
@@ -290,9 +286,6 @@ async def test_reconcile_automations_reloads_when_snapshot_changes(
     assert changed is True
     load_automations.assert_awaited_once_with(open_automations_session)
     assert triggers.automation_state_snapshot == current_snapshot
-    assert triggers.automations_by_id == {}
-    assert triggers.triggers == {}
-    assert triggers.next_proactive_runs == {}
 
 
 async def test_only_considers_messages_with_attributes(

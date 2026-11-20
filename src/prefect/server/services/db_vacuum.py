@@ -267,6 +267,9 @@ async def vacuum_old_flow_runs(
 ) -> None:
     """Delete old top-level terminal flow runs past the retention period.
 
+    Age is measured by `end_time`, or by `state_timestamp` for terminal runs
+    with no `end_time`.
+
     `log` and `artifact` have no `ON DELETE CASCADE` from `flow_run`. Each run
     batch is selected and deleted in one locking transaction, then its children
     are deleted by `flow_run_id` using indexed lookups.
@@ -283,8 +286,16 @@ async def vacuum_old_flow_runs(
     eligible = sa.and_(
         db.FlowRun.parent_task_run_id.is_(None),
         db.FlowRun.state_type.in_(TERMINAL_STATES),
-        db.FlowRun.end_time.is_not(None),
-        db.FlowRun.end_time < retention_cutoff,
+        sa.or_(
+            db.FlowRun.end_time < retention_cutoff,
+            # Runs that reached a terminal state without running on servers
+            # before 3.6.14 have no `end_time`; fall back to when they
+            # entered their current state.
+            sa.and_(
+                db.FlowRun.end_time.is_(None),
+                db.FlowRun.state_timestamp < retention_cutoff,
+            ),
+        ),
     )
 
     runs_deleted = 0

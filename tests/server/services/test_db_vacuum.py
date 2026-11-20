@@ -90,6 +90,18 @@ async def _create_flow_run(
     return flow_run
 
 
+async def _clear_end_time(
+    session, db: PrefectDBInterface, flow_run_id, *, state_timestamp
+):
+    """Simulate a terminal run that never ran on a server before 3.6.14."""
+    await session.execute(
+        sa.update(db.FlowRun)
+        .where(db.FlowRun.id == flow_run_id)
+        .values(start_time=None, end_time=None, state_timestamp=state_timestamp)
+    )
+    await session.commit()
+
+
 async def _create_task_run(session, flow_run):
     task_run = await models.task_runs.create_task_run(
         session=session,
@@ -290,12 +302,37 @@ class TestVacuumOldFlowRuns:
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
 
-    async def test_preserves_terminal_run_without_end_time(self, session, flow):
-        """Terminal flow runs with end_time=None should not be deleted."""
+    @pytest.mark.parametrize(
+        "state_cls",
+        [
+            schemas.states.Completed,
+            schemas.states.Failed,
+            schemas.states.Cancelled,
+            schemas.states.Crashed,
+        ],
+    )
+    async def test_deletes_old_terminal_run_without_end_time(
+        self, session, flow, state_cls
+    ):
+        """Terminal runs written before 3.6.14 without ever running have no
+        `end_time` and are aged by when they entered their terminal state."""
         db = provide_database_interface()
-        await _create_flow_run(
-            session, flow, state=schemas.states.Completed(), end_time=None
+        flow_run = await _create_flow_run(session, flow, state=state_cls())
+        await _clear_end_time(session, db, flow_run.id, state_timestamp=OLD)
+        await _create_log(session, flow_run_id=flow_run.id)
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 0
+            assert await _count(new_session, db, db.Log) == 0
+
+    async def test_preserves_recent_terminal_run_without_end_time(self, session, flow):
+        db = provide_database_interface()
+        flow_run = await _create_flow_run(
+            session, flow, state=schemas.states.Cancelled()
         )
+        await _clear_end_time(session, db, flow_run.id, state_timestamp=RECENT)
 
         await vacuum_old_flow_runs(db=db)
 

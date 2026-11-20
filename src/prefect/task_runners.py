@@ -144,20 +144,25 @@ class TaskRunner(abc.ABC, Generic[F]):
             resolve_inputs_sync,
         )
 
+        # Ensure that any parameters in kwargs are expanded before next step
+        parameters = explode_variadic_parameter(task.fn, parameters)
+
         # We need to resolve some futures to map over their data, collect the upstream
         # links beforehand to retain relationship tracking.
         task_inputs = {
             k: collect_task_run_inputs_sync(v, max_depth=0)
             for k, v in parameters.items()
         }
+        # Keep dependencies grouped under the original function parameter names.
+        task_inputs = collapse_variadic_parameters(task.fn, task_inputs)
+        for key, value in task_inputs.items():
+            if isinstance(value, dict):
+                task_inputs[key] = set().union(*value.values())
 
         # Resolve the top-level parameters in order to get mappable data of a known length.
         # Nested parameters will be resolved in each mapped child where their relationships
         # will also be tracked.
         parameters = resolve_inputs_sync(parameters, max_depth=0)
-
-        # Ensure that any parameters in kwargs are expanded before this check
-        parameters = explode_variadic_parameter(task.fn, parameters)
 
         iterable_parameters: dict[str, Any] = {}
         static_parameters: dict[str, Any] = {}

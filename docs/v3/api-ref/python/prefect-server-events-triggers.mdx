@@ -162,29 +162,29 @@ Unloads the given automation from memory
 automation_changed(automation_id: UUID, event: Literal['automation__created', 'automation__updated', 'automation__deleted']) -> None
 ```
 
-### `load_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L872" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `load_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L878" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_automations(db: PrefectDBInterface, session: AsyncSession)
 ```
 
 
-Loads all automations for the given set of accounts
+Replaces the loaded automations with all automations from the database
 
 
-### `read_automation_state_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_automation_state_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L916" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_automation_state_snapshot(db: PrefectDBInterface, session: AsyncSession) -> AutomationStateSnapshot
 ```
 
-### `reconcile_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L906" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `reconcile_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L934" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reconcile_automations(force: bool = False) -> bool
 ```
 
-### `remove_buckets_exceeding_threshold` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L939" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `remove_buckets_exceeding_threshold` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 remove_buckets_exceeding_threshold(db: PrefectDBInterface, session: AsyncSession, trigger: EventTrigger)
@@ -194,7 +194,7 @@ remove_buckets_exceeding_threshold(db: PrefectDBInterface, session: AsyncSession
 Deletes bucket where the count has already exceeded the threshold
 
 
-### `read_buckets_for_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L954" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_buckets_for_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L965" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_buckets_for_automation(db: PrefectDBInterface, session: AsyncSession, trigger: Trigger, batch_size: int = AUTOMATION_BUCKET_BATCH_SIZE) -> AsyncGenerator['ORMAutomationBucket', None]
@@ -204,7 +204,7 @@ read_buckets_for_automation(db: PrefectDBInterface, session: AsyncSession, trigg
 Yields buckets for the given automation and trigger in batches.
 
 
-### `read_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L988" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L999" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_bucket(db: PrefectDBInterface, session: AsyncSession, trigger: Trigger, bucketing_key: Tuple[str, ...]) -> Optional['ORMAutomationBucket']
@@ -215,7 +215,7 @@ Gets the bucket this event would fall into for the given Automation, if there is
 one currently
 
 
-### `read_bucket_by_trigger_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1005" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_bucket_by_trigger_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1016" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_bucket_by_trigger_id(db: PrefectDBInterface, session: AsyncSession, automation_id: UUID, trigger_id: UUID, bucketing_key: Tuple[str, ...]) -> 'ORMAutomationBucket | None'
@@ -226,7 +226,7 @@ Gets the bucket this event would fall into for the given Automation, if there is
 one currently
 
 
-### `hold_expect_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1027" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `hold_expect_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1038" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 hold_expect_event(session: AsyncSession, trigger: EventTrigger, bucketing_key: Tuple[str, ...], event: ReceivedEvent) -> 'ORMAutomationBucket | None'
@@ -239,7 +239,7 @@ when the caller has nothing to evaluate: no bucket exists, or an earlier
 evaluation of the same event held it.
 
 
-### `increment_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1050" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `increment_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1061" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 increment_bucket(db: PrefectDBInterface, session: AsyncSession, bucket: 'ORMAutomationBucket', count: int, last_event: Optional[ReceivedEvent]) -> 'ORMAutomationBucket'
@@ -249,7 +249,7 @@ increment_bucket(db: PrefectDBInterface, session: AsyncSession, bucket: 'ORMAuto
 Adds the given count to the bucket, returning the new bucket
 
 
-### `start_new_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `start_new_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start_new_bucket(db: PrefectDBInterface, session: AsyncSession, trigger: EventTrigger, bucketing_key: Tuple[str, ...], start: prefect.types._datetime.DateTime, end: prefect.types._datetime.DateTime, count: int, triggered_at: Optional[prefect.types._datetime.DateTime] = None, last_event: Optional[ReceivedEvent] = None) -> 'ORMAutomationBucket'
@@ -261,7 +261,7 @@ plus any held `expect` events that occurred inside its window, returning the new
 bucket
 
 
-### `ensure_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1170" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ensure_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ensure_bucket(db: PrefectDBInterface, session: AsyncSession, trigger: EventTrigger, bucketing_key: Tuple[str, ...], start: prefect.types._datetime.DateTime, end: prefect.types._datetime.DateTime, last_event: Optional[ReceivedEvent], initial_count: int = 0) -> 'ORMAutomationBucket'
@@ -274,7 +274,7 @@ starts at `initial_count` plus any held `expect` events that occurred inside its
 window.
 
 
-### `remove_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1234" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `remove_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 remove_bucket(db: PrefectDBInterface, session: AsyncSession, bucket: 'ORMAutomationBucket')
@@ -284,13 +284,13 @@ remove_bucket(db: PrefectDBInterface, session: AsyncSession, bucket: 'ORMAutomat
 Removes the given bucket from the database
 
 
-### `sweep_closed_buckets` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1248" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `sweep_closed_buckets` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 sweep_closed_buckets(db: PrefectDBInterface, session: AsyncSession, older_than: prefect.types._datetime.DateTime) -> None
 ```
 
-### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset() -> None
@@ -300,7 +300,7 @@ reset() -> None
 Resets the in-memory state of the service
 
 
-### `listen_for_automation_changes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `listen_for_automation_changes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1278" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 listen_for_automation_changes() -> None
@@ -311,7 +311,7 @@ Listens for any changes to automations via PostgreSQL NOTIFY/LISTEN,
 and applies those changes to the set of loaded automations.
 
 
-### `consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1349" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 consumer(periodic_granularity: timedelta = timedelta(seconds=5)) -> AsyncGenerator[MessageHandler, None]
@@ -323,7 +323,7 @@ determine if they meet the automation criteria, queuing up a corresponding
 `TriggeredAction` for the `actions` service if the automation criteria is met.
 
 
-### `proactive_evaluation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1396" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `proactive_evaluation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1407" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 proactive_evaluation(trigger: EventTrigger, as_of: prefect.types._datetime.DateTime) -> prefect.types._datetime.DateTime
@@ -333,7 +333,7 @@ proactive_evaluation(trigger: EventTrigger, as_of: prefect.types._datetime.DateT
 The core proactive evaluation operation for a single Automation
 
 
-### `evaluate_proactive_triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1452" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `evaluate_proactive_triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1463" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 evaluate_proactive_triggers() -> None

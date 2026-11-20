@@ -9,10 +9,9 @@ import { getQueryService } from "@/api/service";
 
 export type WorkPool = components["schemas"]["WorkPoolResponse"];
 export type WorkPoolCreate = components["schemas"]["WorkPoolCreate"];
-export type WorkPoolsFilter =
-	components["schemas"]["Body_read_work_pools_work_pools_filter_post"];
+export type WorkPoolsFilter = components["schemas"]["Body_read_work_pools"];
 export type WorkPoolsCountFilter =
-	components["schemas"]["Body_count_work_pools_work_pools_count_post"];
+	components["schemas"]["Body_count_work_pools"];
 export type WorkPoolWorker = components["schemas"]["WorkerResponse"];
 export type WorkPoolStatus = components["schemas"]["WorkPoolStatus"];
 export type WorkPoolUpdate = components["schemas"]["WorkPoolUpdate"];

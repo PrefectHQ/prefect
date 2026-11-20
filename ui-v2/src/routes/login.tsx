@@ -3,9 +3,10 @@ import { z } from "zod";
 import { useAuthSafe } from "@/auth";
 import { LoginPage } from "@/components/auth/login-page";
 import { PrefectLoading } from "@/components/ui/loading";
+import { isSafeRedirectPath } from "@/utils";
 
 const loginSearchSchema = z.object({
-	redirectTo: z.string().optional(),
+	redirectTo: z.string().refine(isSafeRedirectPath).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/login")({

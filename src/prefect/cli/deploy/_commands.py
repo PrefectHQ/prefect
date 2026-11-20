@@ -19,9 +19,11 @@ import prefect
 import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
+    print_verbatim,
     with_cli_exception_handling,
 )
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
+from prefect.exceptions import ScriptError, exception_traceback
 
 deploy_app: cyclopts.App = cyclopts.App(
     name="deploy",
@@ -488,5 +490,8 @@ async def deploy(
                 console=_cli.console,
                 is_interactive=_cli.is_interactive,
             )
+    except ScriptError as exc:
+        print_verbatim(exception_traceback(exc.user_exc))
+        exit_with_error(str(exc))
     except ValueError as exc:
         exit_with_error(str(exc))

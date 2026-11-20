@@ -376,12 +376,37 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     Supports any remote file system supported by `fsspec`. The file system is specified
     using a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
 
-    Example:
+    Connection options for the file system are passed through `settings` as keyword
+    arguments to the `fsspec` implementation for the protocol. The accepted keys
+    depend on the implementation; see the
+    [fsspec implementations](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations)
+    and [other known implementations](https://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations)
+    for details. Protocols that use an external implementation require that package
+    to be installed, for example `s3fs` for `s3://` paths.
+
+    Values in `settings` are stored as plain text and are not obfuscated when the
+    block is displayed. Prefer to provide credentials through the environment where
+    the implementation supports it, or use a dedicated block, such as the `SMB` block
+    or the `S3Bucket` block from `prefect-aws`.
+
+    Examples:
         Load stored remote file system config:
         ```python
         from prefect.filesystems import RemoteFileSystem
 
         remote_file_system_block = RemoteFileSystem.load("BLOCK_NAME")
+        ```
+
+        Connect to an S3-compatible service, such as MinIO, by passing `s3fs` options
+        through `settings`. Credentials are read from the standard AWS environment
+        variables, such as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`:
+        ```python
+        from prefect.filesystems import RemoteFileSystem
+
+        remote_file_system_block = RemoteFileSystem(
+            basepath="s3://my-bucket/my-folder/",
+            settings={"client_kwargs": {"endpoint_url": "http://localhost:9000"}},
+        )
         ```
     """
 
@@ -396,7 +421,17 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     )
     settings: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Additional settings to pass through to fsspec.",
+        description=(
+            "Additional connection options passed as keyword arguments to the fsspec"
+            " implementation for the base path's protocol. The accepted keys depend on"
+            " the implementation; see"
+            " https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations"
+            " and"
+            " https://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations."
+            " Values are stored as plain text and are not obfuscated, so avoid storing"
+            " credentials here."
+        ),
+        examples=[{"client_kwargs": {"endpoint_url": "http://localhost:9000"}}],
     )
 
     # Cache for the configured fsspec file system used for access
@@ -515,6 +550,17 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return self.filesystem.get(from_path, local_path, recursive=True)
 
+    def _put_file(self, local_path: str, remote_path: str, overwrite: bool) -> None:
+        if not overwrite and self.filesystem.exists(remote_path):
+            raise FileExistsError(f"File {remote_path!r} already exists.")
+
+        # fsspec's SMB implementation forwards extra keyword arguments to
+        # `smbclient.open_file`, which rejects `overwrite`
+        if overwrite and not self.basepath.startswith("smb://"):
+            self.filesystem.put_file(local_path, remote_path, overwrite=True)
+        else:
+            self.filesystem.put_file(local_path, remote_path)
+
     async def aput_directory(
         self,
         local_path: Optional[str] = None,
@@ -526,6 +572,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        If `overwrite` is `False`, a `FileExistsError` is raised when a file already exists at the destination.
+        This check is best-effort: it is not atomic, so concurrent writers to the same destination may still
+        overwrite each other. Files are uploaded one at a time, so files uploaded before a conflicting file
+        is found are left in place.
         """
         if to_path is None:
             to_path = str(self.basepath)
@@ -547,7 +597,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         counter = 0
         for f in Path(local_path).rglob("*"):
             relative_path = f.relative_to(local_path)
-            if included_files and relative_path.as_posix() not in included_files:
+            if (
+                included_files is not None
+                and relative_path.as_posix() not in included_files
+            ):
                 continue
 
             if to_path.endswith("/"):
@@ -558,13 +611,9 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             if f.is_dir():
                 pass
             else:
-                f = f.as_posix()
-                if overwrite:
-                    await run_sync_in_worker_thread(
-                        self.filesystem.put_file, f, fpath, overwrite=True
-                    )
-                else:
-                    await run_sync_in_worker_thread(self.filesystem.put_file, f, fpath)
+                await run_sync_in_worker_thread(
+                    self._put_file, f.as_posix(), fpath, overwrite
+                )
 
                 counter += 1
 
@@ -582,6 +631,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        If `overwrite` is `False`, a `FileExistsError` is raised when a file already exists at the destination.
+        This check is best-effort: it is not atomic, so concurrent writers to the same destination may still
+        overwrite each other. Files are uploaded one at a time, so files uploaded before a conflicting file
+        is found are left in place.
         """
         if to_path is None:
             to_path = str(self.basepath)
@@ -603,7 +656,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         counter = 0
         for f in Path(local_path).rglob("*"):
             relative_path = f.relative_to(local_path)
-            if included_files and relative_path.as_posix() not in included_files:
+            if (
+                included_files is not None
+                and relative_path.as_posix() not in included_files
+            ):
                 continue
 
             if to_path.endswith("/"):
@@ -614,11 +670,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             if f.is_dir():
                 pass
             else:
-                f = f.as_posix()
-                if overwrite:
-                    self.filesystem.put_file(f, fpath, overwrite=True)
-                else:
-                    self.filesystem.put_file(f, fpath)
+                self._put_file(f.as_posix(), fpath, overwrite)
 
                 counter += 1
 
@@ -784,7 +836,6 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
             local_path=local_path,
             to_path=to_path,
             ignore_file=ignore_file,
-            overwrite=False,
         )
 
     @async_dispatch(aput_directory)
@@ -802,7 +853,6 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
             local_path=local_path,
             to_path=to_path,
             ignore_file=ignore_file,
-            overwrite=False,
         )
 
     async def aread_path(self, path: str) -> bytes:

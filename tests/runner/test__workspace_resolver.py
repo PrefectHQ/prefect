@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import sys
@@ -895,6 +896,8 @@ class TestWorkspaceResolverProcess:
         )
         messages = [log.message for log in logs]
         assert "Executing deployment step: raise_error" in messages
+        error_logs = [log for log in logs if log.level == logging.ERROR]
+        assert [log.message for log in error_logs] == ["resolver exploded"]
 
 
 class TestRelativePathSetWorkingDirectory:
