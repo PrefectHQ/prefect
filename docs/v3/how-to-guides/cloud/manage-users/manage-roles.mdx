@@ -51,6 +51,10 @@ The following built-in roles have permissions within a given workspace in Prefec
 | Owner     | All Developer abilities, _plus_: <br /> - Add and remove account members, and set their role within a workspace. <br /> - Set the workspace's default workspace role for all users in the account. <br /> - Set, view, edit workspace settings.    |
 | Worker     | The minimum scopes required for a worker to poll for and submit work.|
 
+On Enterprise plans, [access control lists](/v3/how-to-guides/cloud/manage-users/object-access-control-lists#who-can-access-an-object)
+can give a user more or less access to an individual block, deployment, or work pool than their workspace role gives.
+Access control lists do not restrict account Owners and Admins or workspace Owners.
+
 ## Custom workspace roles
 
 The built-in roles serve the needs of most users, but custom roles give users access to 
@@ -74,9 +78,6 @@ the workspace Admin takes on the responsibility for monitoring and setting permi
 
 See [Role permissions](#workspace-role-permissions) for details of permissions you may set for custom roles.
 
-On Enterprise plans, [access control lists](/v3/how-to-guides/cloud/manage-users/object-access-control-lists#how-roles-and-acls-combine)
-can give a user more or less access to an individual block, deployment, or work pool than their workspace role gives.
-
 After you create a new role, it becomes available in the account **Members** page and the **Workspace Sharing** 
 page for you to apply to users.
 
@@ -99,7 +100,7 @@ The following permissions are available for custom roles.
 
 | Permission                                                 | Description                                                                                                                                                                                                                                                                                       |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Manage access control lists for objects that support them | User can change the [access control lists](/v3/how-to-guides/cloud/manage-users/object-access-control-lists) of blocks, deployments, and work pools. A user with this permission can also view, run, and manage every block, deployment, and work pool in the workspace, whatever its access control list says. |
+| Manage access control lists for objects that support them | User can change the [access control lists](/v3/how-to-guides/cloud/manage-users/object-access-control-lists) of blocks, deployments, and work pools, if their role also lets them delete that type of object. A user with this permission can also view, run, and manage every block, deployment, and work pool in the workspace, whatever its access control list says. |
 
 ### Automations
 
