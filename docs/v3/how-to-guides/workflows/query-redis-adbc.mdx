@@ -1,0 +1,80 @@
+---
+title: Query Redis SQL data from a workflow
+description: Use the external Redis ADBC driver in Prefect tasks with task-local connections.
+keywords: ["arrow", "dataframe", "database connectivity", "autocommit"]
+---
+
+Use the community-maintained [Redis ADBC driver](https://github.com/redis/redis-adbc-driver)
+to query Redis with the Query Engine (Search) from a Prefect 3 flow. This uses
+custom Python tasks, rather than a dedicated Prefect ADBC collection or the
+`prefect-redis` command, locking, and messaging integrations.
+
+## Install the driver
+
+In the environment that runs your flow:
+
+```bash
+uv pip install prefect 'adbc-driver-redis[dbapi]'
+```
+
+Redis must run separately with Search enabled. Set `REDIS_URI` in your environment
+or secret configuration to a reachable endpoint, such as `redis://localhost:6379/0`.
+Use `rediss://` for verified TLS. Supported driver wheels bundle the native library;
+see [driver installation](https://github.com/redis/redis-adbc-driver/blob/main/docs/python-integrations.md#install-and-discover-the-driver)
+for platform requirements and source builds.
+
+## Query inside a task
+
+Save this as `redis_flow.py`. The task creates and closes its own connection and
+cursor, and fetches the result before closing them:
+
+```python redis_flow.py
+import os
+
+from adbc_driver_redis import dbapi
+from prefect import flow, task
+from prefect.cache_policies import NO_CACHE
+
+
+@task(cache_policy=NO_CACHE, persist_result=False)
+def query_redis() -> list[dict]:
+    with dbapi.connect(os.environ["REDIS_URI"]) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 42 AS answer")
+            return cursor.fetch_arrow_table().to_pylist()
+
+
+@flow(persist_result=False)
+def redis_pipeline() -> list[dict]:
+    return query_redis.submit().result()
+
+
+if __name__ == "__main__":
+    assert redis_pipeline() == [{"answer": 42}]
+```
+
+Run `python redis_flow.py` with your [Prefect execution environment](/v3/how-to-guides/workflows/write-and-run)
+configured. The constant query requires no fixture tables; it still connects to
+Redis with Search. For application queries, create, ingest or adopt SQL tables
+through the driver first. Arbitrary Redis keys do not automatically become tables.
+
+## Manage concurrent tasks and retries
+
+Open a separate connection inside each task. Do not pass live database connections,
+cursors or Arrow readers between tasks or processes. The example disables task
+caching and result persistence so each execution accesses Redis.
+
+For [retries](/v3/how-to-guides/workflows/retries), make write tasks idempotent.
+Redis writes autocommit even if a task fails; retrying an append or INSERT can
+create duplicates. Prefect transaction scopes do not add Redis rollback or
+isolation. Large Arrow results should follow your deployment's object-storage or
+result-persistence design rather than assuming an in-memory return fits every flow.
+
+## Deploy to workers
+
+Install compatible driver/native builds and any TLS trust files on every worker.
+A caller-local library path or `localhost` endpoint may not work remotely.
+The driver's [validation record](https://github.com/redis/redis-adbc-driver/blob/main/docs/sdlc/changes/prefect-integration/plan.md)
+covers local Prefect 3.9.0 flows, Arrow ingestion/fetch, concurrent queries, retries
+and SQL errors. It does not validate remote workers, Prefect Cloud, `prefect-redis`
+or Flight SQL.
