@@ -270,18 +270,22 @@ def preprocess_schema(
             schema["properties"], required_fields, allow_none_with_default
         )
 
-    if "definitions" in schema:  # Also process definitions for reused models
-        definitions = cast(dict[str, Any], schema["definitions"])
-        for definition in list(definitions.values()):
+    # Pydantic v1 places reused models under `definitions`, Pydantic v2 under `$defs`
+    for definitions_key in ("definitions", "$defs"):
+        if definitions_key not in schema:
+            continue
+        definitions = cast(dict[str, Any], schema[definitions_key])
+        for name, definition in list(definitions.items()):
             if "properties" in definition:
                 required_fields = definition.get("required", [])
                 process_properties(
                     definition["properties"], required_fields, allow_none_with_default
                 )
-            # Allow block types to be referenced by their id
+            # Allow block types to be referenced by their id. `anyOf` because a
+            # reference also satisfies block schemas without required fields.
             if "block_type_slug" in definition:
-                schema["definitions"][definition["title"]] = {
-                    "oneOf": [
+                definitions[name] = {
+                    "anyOf": [
                         definition,
                         {
                             "type": "object",
