@@ -1,5 +1,6 @@
 import asyncio
 from datetime import timedelta
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -18,6 +19,7 @@ from prefect.server.models.concurrency_limits_v2 import (
     create_concurrency_limit,
 )
 from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.server.services import repossessor
 from prefect.server.services.repossessor import (
     monitor_expired_leases,
     revoke_expired_lease,
@@ -25,10 +27,6 @@ from prefect.server.services.repossessor import (
 from prefect.server.utilities.leasing import ResourceLease
 
 pytestmark = pytest.mark.clear_db
-
-
-class ExpectedDuplicateLeaseReaperRace(AssertionError):
-    """Duplicate reapers consumed replacement capacity."""
 
 
 class TestRevokeExpiredLease:
@@ -117,11 +115,6 @@ class TestRevokeExpiredLease:
         assert lease_after_reap is not None
         assert concurrency_limit.active_slots == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=ExpectedDuplicateLeaseReaperRace,
-        reason="Duplicate queued reapers can decrement replacement capacity",
-    )
     async def test_duplicate_reapers_preserve_replacement_capacity(
         self,
         lease_storage: ConcurrencyLeaseStorage,
@@ -197,10 +190,55 @@ class TestRevokeExpiredLease:
                 first_reaper.cancel()
             await asyncio.gather(first_reaper, return_exceptions=True)
 
-        limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
+        await session.refresh(concurrency_limit)
         replacement = await original_read_lease(replacement_lease.id)
-        if replacement is None or limits[0].active_slots != 1:
-            raise ExpectedDuplicateLeaseReaperRace
+        assert replacement is not None
+        assert concurrency_limit.active_slots == 1
+
+    async def test_failed_reap_leaves_the_lease_for_a_later_pass(
+        self,
+        lease_storage: ConcurrencyLeaseStorage,
+        concurrency_limit: orm_models.ConcurrencyLimitV2,
+        session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        # one slot for the expired lease and one for another holder
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 2)
+        await session.commit()
+
+        expired_lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        class DecrementFailed(Exception):
+            pass
+
+        async def fail(*args: Any, **kwargs: Any) -> bool:
+            raise DecrementFailed
+
+        monkeypatch.setattr(repossessor, "bulk_decrement_active_slots", fail)
+        db = provide_database_interface()
+        with pytest.raises(DecrementFailed):
+            await revoke_expired_lease(
+                expired_lease.id, db=db, lease_storage=lease_storage
+            )
+        monkeypatch.undo()
+
+        assert await lease_storage.read_lease(expired_lease.id) is not None
+        await session.refresh(concurrency_limit)
+        assert concurrency_limit.active_slots == 2
+
+        # a later pass reaps the lease, and a duplicate of it changes nothing
+        for _ in range(2):
+            await revoke_expired_lease(
+                expired_lease.id, db=db, lease_storage=lease_storage
+            )
+
+        assert await lease_storage.read_lease(expired_lease.id) is None
+        await session.refresh(concurrency_limit)
+        assert concurrency_limit.active_slots == 1
 
     async def test_revoke_expired_lease_missing_lease(
         self, lease_storage, concurrency_limit
