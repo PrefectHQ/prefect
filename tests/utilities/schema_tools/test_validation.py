@@ -2010,7 +2010,7 @@ class TestPreprocessSchemaBlockTypes:
 
         # The schema should be transformed to include oneOf for block reference
         assert "Secret" in result["definitions"]
-        assert "oneOf" in result["definitions"]["Secret"]
+        assert "anyOf" in result["definitions"]["Secret"]
 
     def test_block_type_slug_in_defs_accepts_block_reference(self):
         schema = {
@@ -2036,6 +2036,47 @@ class TestPreprocessSchemaBlockTypes:
         }
 
         assert not validate(values, schema)
+
+    def test_block_reference_to_block_without_required_fields(self):
+        schema = {
+            "type": "object",
+            "properties": {"aws_credentials": {"$ref": "#/$defs/AwsCredentials"}},
+            "$defs": {
+                "AwsCredentials": {
+                    "title": "AwsCredentials",
+                    "type": "object",
+                    "block_type_slug": "aws-credentials",
+                    "properties": {"region_name": {"type": "string"}},
+                }
+            },
+        }
+
+        values = {
+            "aws_credentials": {
+                "$ref": {"block_document_id": "00000000-0000-0000-0000-000000000000"}
+            }
+        }
+
+        assert not validate(values, schema)
+
+    def test_block_type_slug_in_defs_with_ignore_required(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "registry_credentials": {"$ref": "#/$defs/DockerRegistryCredentials"}
+            },
+            "$defs": {
+                "DockerRegistryCredentials": {
+                    "title": "DockerRegistryCredentials",
+                    "type": "object",
+                    "block_type_slug": "docker-registry",
+                    "properties": {"username": {"type": "string"}},
+                    "required": ["username"],
+                }
+            },
+        }
+
+        assert not validate({"registry_credentials": {}}, schema, ignore_required=True)
 
 
 class TestPreprocessSchemaPydanticV2Tuples:
