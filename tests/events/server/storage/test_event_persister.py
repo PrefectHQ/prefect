@@ -435,6 +435,91 @@ async def test_shutdown_persists_batch_from_cancelled_periodic_flush(
     assert await get_event(event.id)
 
 
+async def test_inline_flush_survives_cancelled_error_from_database(
+    event: ReceivedEvent,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A CancelledError raised by the database during a batch-triggered flush
+    must not escape the handler, since that would stop the consumer task that
+    called it. The batch must be kept and persisted by a later flush."""
+    call_count = 0
+
+    async def cancelled_once_write_events(session, events):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise asyncio.CancelledError()
+        return await write_events(session=session, events=events)
+
+    monkeypatch.setattr(
+        "prefect.server.events.services.event_persister.write_events",
+        cancelled_once_write_events,
+    )
+
+    # batch_size=1 so every message flushes inline; the periodic flush never runs
+    async with event_persister.create_handler(
+        batch_size=1,
+        flush_every=timedelta(days=100),
+    ) as handler:
+        first_id = event.id
+        await handler(
+            CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+        )
+
+        event.id = uuid4()
+        await handler(
+            CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+        )
+
+        # assert before exiting the context, since teardown also flushes
+        assert await get_event(first_id)
+        assert await get_event(event.id)
+
+    assert call_count == 2
+
+
+async def test_inline_flush_propagates_task_cancellation(
+    event: ReceivedEvent,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Cancelling the task running a batch-triggered flush must still cancel it,
+    and the batch it was writing must be persisted by the final flush."""
+    write_started = asyncio.Event()
+    call_count = 0
+
+    async def hanging_once_write_events(session, events):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            write_started.set()
+            await asyncio.sleep(100)
+        return await write_events(session=session, events=events)
+
+    monkeypatch.setattr(
+        "prefect.server.events.services.event_persister.write_events",
+        hanging_once_write_events,
+    )
+
+    async with event_persister.create_handler(
+        batch_size=1,
+        flush_every=timedelta(days=100),
+    ) as handler:
+        handling = asyncio.create_task(
+            handler(
+                CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+            )
+        )
+        await asyncio.wait_for(write_started.wait(), timeout=5)
+
+        handling.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await handling
+
+    assert await get_event(event.id)
+
+
 async def test_drops_events_when_queue_is_full(
     event: ReceivedEvent,
     caplog: pytest.LogCaptureFixture,
