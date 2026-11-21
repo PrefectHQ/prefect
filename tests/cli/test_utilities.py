@@ -8,7 +8,11 @@ from rich.console import Console
 
 import prefect.cli
 import prefect.cli._app as _cli
-from prefect.cli._utilities import exit_with_error, print_verbatim
+from prefect.cli._utilities import (
+    exit_with_error,
+    load_json_key_values,
+    print_verbatim,
+)
 
 CLI_SOURCE_DIR = Path(prefect.cli.__file__).parent
 
@@ -66,6 +70,34 @@ def test_exit_with_error_renders_markup_when_requested(
         exit_with_error("[bold]styled[/bold]", markup=True)
 
     assert captured_console.getvalue() == "styled\n"
+
+
+@pytest.mark.parametrize(
+    "cli_input,expected",
+    [
+        (["name="], {"name": ""}),
+        (["name=foo"], {"name": "foo"}),
+        (["name=a=b"], {"name": "a=b"}),
+        (["count=5", 'items=["a", 1]'], {"count": 5, "items": ["a", 1]}),
+    ],
+)
+def test_load_json_key_values_parses_key_value_pairs(
+    cli_input: list[str], expected: dict[str, object]
+):
+    assert load_json_key_values(cli_input, "parameter") == expected
+
+
+def test_load_json_key_values_rejects_value_without_separator(
+    captured_console: io.StringIO,
+):
+    with pytest.raises(SystemExit) as exc_info:
+        load_json_key_values(["name"], "parameter")
+
+    assert exc_info.value.code == 1
+    assert (
+        "Invalid parameter option 'name'. Expected format 'key=value'."
+        in captured_console.getvalue().replace("\n", "")
+    )
 
 
 def _is_serialized_output(node: ast.expr) -> bool:
