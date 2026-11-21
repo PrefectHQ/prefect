@@ -779,6 +779,16 @@ def _generate_signature_from_source(
                 default = None  # Set to None if evaluation fails
             parameters[parameters.index(param)] = param.replace(default=default)
 
+    # Handle annotations for varargs e.g. def func(*args: int)
+    if vararg := func_def.args.vararg:
+        parameters.append(
+            inspect.Parameter(
+                vararg.arg,
+                inspect.Parameter.VAR_POSITIONAL,
+                annotation=_evaluate_annotation(vararg, namespace),
+            )
+        )
+
     # Handle annotations for keyword only args e.g. def func(*, a: int, b: str)
     for kwarg in func_def.args.kwonlyargs:
         name = kwarg.arg
@@ -805,15 +815,7 @@ def _generate_signature_from_source(
                 default = None
             parameters[parameters.index(param)] = param.replace(default=default)
 
-    # Handle annotations for varargs and kwargs e.g. def func(*args: int, **kwargs: str)
-    if vararg := func_def.args.vararg:
-        parameters.append(
-            inspect.Parameter(
-                vararg.arg,
-                inspect.Parameter.VAR_POSITIONAL,
-                annotation=_evaluate_annotation(vararg, namespace),
-            )
-        )
+    # Handle kwargs e.g. def func(**kwargs: str)
     if varkw := func_def.args.kwarg:
         parameters.append(
             inspect.Parameter(

@@ -2283,3 +2283,16 @@ class TestExpandMappingParametersWithFieldDefaults:
         result = callables.expand_mapping_parameters(fn, {"a": [[1], [2]]})
         assert call_count == 2, f"Expected factory called 2 times, got {call_count}"
         assert result == [{"a": [1], "b": []}, {"a": [2], "b": []}]
+
+
+class TestGenerateSignatureFromSource:
+    def test_varargs_before_keyword_only_parameters(self, tmp_path):
+        """parameter_schema_from_entrypoint must not raise when a function has
+        *args followed by keyword-only parameters."""
+        source = tmp_path / "pipeline_module.py"
+        source.write_text("def pipeline(*items, enabled=True):\n    pass\n")
+
+        result = callables.parameter_schema_from_entrypoint(f"{source}:pipeline")
+        assert "items" in result.properties
+        assert "enabled" in result.properties
+        assert result.properties["enabled"]["default"] is True
