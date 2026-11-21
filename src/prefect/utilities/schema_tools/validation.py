@@ -10,7 +10,6 @@ from jsonschema.validators import Draft202012Validator, create
 from referencing.jsonschema import ObjectSchema, Schema
 
 from prefect._internal.schemas._registry import non_fetching_registry
-from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.schema_tools.hydration import HydrationError, Placeholder
 
 if TYPE_CHECKING:
@@ -85,7 +84,7 @@ def validate(
         schema = preprocess_schema(schema, allow_none_with_default)
 
     if ignore_required:
-        schema = remove_nested_keys(["required"], schema)
+        schema = _remove_required(schema)
 
     if raise_on_error:
         try:
@@ -209,6 +208,19 @@ def build_error_obj(errors: list[JSONSchemaValidationError]) -> dict[str, Any]:
     return error_response
 
 
+def _remove_required(obj: Any) -> Any:
+    # Unlike remove_nested_keys, this also walks lists such as anyOf branches.
+    if isinstance(obj, dict):
+        return {
+            key: _remove_required(value)
+            for key, value in obj.items()
+            if key != "required"
+        }
+    if isinstance(obj, list):
+        return [_remove_required(item) for item in obj]
+    return obj
+
+
 def _fix_null_typing(
     key: str,
     schema: dict[str, Any],
@@ -270,8 +282,13 @@ def preprocess_schema(
             schema["properties"], required_fields, allow_none_with_default
         )
 
-    if "definitions" in schema:  # Also process definitions for reused models
-        definitions = cast(dict[str, Any], schema["definitions"])
+    for definitions_key in ("definitions", "$defs"):
+        if definitions_key not in schema:
+            continue
+
+        # Also process definitions for reused models. Pydantic v1 uses
+        # `definitions` while Pydantic v2 uses `$defs`.
+        definitions = cast(dict[str, Any], schema[definitions_key])
         for definition in list(definitions.values()):
             if "properties" in definition:
                 required_fields = definition.get("required", [])
@@ -280,8 +297,9 @@ def preprocess_schema(
                 )
             # Allow block types to be referenced by their id
             if "block_type_slug" in definition:
-                schema["definitions"][definition["title"]] = {
-                    "oneOf": [
+                # anyOf: a reference can also match a block with no required fields
+                definitions[definition["title"]] = {
+                    "anyOf": [
                         definition,
                         {
                             "type": "object",
