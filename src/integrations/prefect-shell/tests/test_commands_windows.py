@@ -7,7 +7,11 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
-from prefect_shell.commands import ShellOperation, shell_run_command
+from prefect_shell.commands import (
+    ShellOperation,
+    _console_encoding,
+    shell_run_command,
+)
 
 from prefect import flow
 
@@ -179,41 +183,106 @@ async def test_shell_run_command_throw_exception_on_nonzero_exit_code():
         await test_flow()
 
 
-# "café" appears literally in the script, so it is only 4 characters long if
-# PowerShell decodes the script as UTF-8; [char]0xE9 makes PowerShell write a
-# non-ASCII character that the caller has to decode.
-NON_ASCII_COMMAND = '$s = "café"; Write-Output $s.Length; Write-Output $s; [char]0xE9'
-NON_ASCII_OUTPUT = ["4", "café", "é"]
+WINDOWS_POWERSHELL = shutil.which("powershell") or "powershell"
+
+# Every spelling of Windows PowerShell that a caller can pass as `shell`.
+WINDOWS_POWERSHELL_SPELLINGS = [
+    "powershell",
+    "powershell.exe",
+    "PowerShell.EXE",
+    WINDOWS_POWERSHELL,
+    WINDOWS_POWERSHELL.replace("\\", "/"),
+]
+
+requires_pwsh = pytest.mark.skipif(
+    shutil.which("pwsh") is None, reason="pwsh is not installed"
+)
+ALL_POWERSHELLS = [
+    *WINDOWS_POWERSHELL_SPELLINGS,
+    pytest.param("pwsh", marks=requires_pwsh),
+    pytest.param("pwsh.exe", marks=requires_pwsh),
+]
 
 
-async def test_shell_run_command_non_ascii_windows():
+def console_can_encode(text: str) -> bool:
+    try:
+        text.encode(_console_encoding())
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+# PowerShell replaces a character that the console code page cannot encode
+# before we ever see it, so these tests only apply where "é" survives.
+requires_encodable_e_acute = pytest.mark.skipif(
+    not console_can_encode("é"),
+    reason="the console code page cannot encode U+00E9",
+)
+
+# "café" appears literally in the script, so it is only 4 characters long, with
+# U+00E9 (233) last, if PowerShell decodes the script as UTF-8. The output is
+# ASCII, so it does not depend on the console code page.
+NON_ASCII_SCRIPT_COMMAND = '$s = "café"; Write-Output $s.Length; [int]$s[3]'
+NON_ASCII_SCRIPT_OUTPUT = ["4", "233"]
+
+# PowerShell writes this in the console code page.
+NON_ASCII_OUTPUT_COMMAND = "[string][char]0xE9"
+NON_ASCII_OUTPUT = ["é"]
+
+# The usual workaround for garbled output: the script selects UTF-8 itself.
+# The console code page is shared with this process, so the script restores it.
+UTF8_OUTPUT_COMMAND = (
+    "$previous = [Console]::OutputEncoding; "
+    "try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+    "[string][char]0xE9; [string][char]0x3042 } "
+    "finally { [Console]::OutputEncoding = $previous }"
+)
+UTF8_OUTPUT = ["é", "あ"]
+
+
+@pytest.mark.parametrize("shell", WINDOWS_POWERSHELL_SPELLINGS)
+async def test_shell_run_command_non_ascii_script_windows(shell):
     @flow
     async def test_flow():
         return await shell_run_command(
-            command=NON_ASCII_COMMAND, return_all=True, shell="powershell"
+            command=NON_ASCII_SCRIPT_COMMAND,
+            return_all=True,
+            shell=shell,
+            extension=".ps1",
+        )
+
+    assert [line.rstrip() for line in await test_flow()] == NON_ASCII_SCRIPT_OUTPUT
+
+
+@requires_encodable_e_acute
+@pytest.mark.parametrize("shell", ALL_POWERSHELLS)
+async def test_shell_run_command_non_ascii_output_windows(shell):
+    @flow
+    async def test_flow():
+        return await shell_run_command(
+            command=NON_ASCII_OUTPUT_COMMAND,
+            return_all=True,
+            shell=shell,
+            extension=".ps1",
         )
 
     assert [line.rstrip() for line in await test_flow()] == NON_ASCII_OUTPUT
 
 
-@pytest.mark.skipif(shutil.which("pwsh") is None, reason="pwsh is not installed")
-async def test_shell_run_command_non_ascii_pwsh():
+@pytest.mark.parametrize(
+    "shell", ["powershell", pytest.param("pwsh", marks=requires_pwsh)]
+)
+async def test_shell_run_command_utf8_output_windows(shell):
     @flow
     async def test_flow():
         return await shell_run_command(
-            command=NON_ASCII_COMMAND, return_all=True, shell="pwsh", extension=".ps1"
+            command=UTF8_OUTPUT_COMMAND,
+            return_all=True,
+            shell=shell,
+            extension=".ps1",
         )
 
-    assert [line.rstrip() for line in await test_flow()] == NON_ASCII_OUTPUT
-
-
-class AsyncIter:
-    def __init__(self, items, **kwargs):
-        self.items = items
-
-    async def __aiter__(self):
-        for item in self.items:
-            yield item
+    assert [line.rstrip() for line in await test_flow()] == UTF8_OUTPUT
 
 
 @pytest.mark.parametrize("shell", [None, "powershell", "powershell.exe"])
@@ -226,7 +295,6 @@ async def test_shell_run_command_override_shell(shell, monkeypatch):
     )
     open_process_mock.return_value.__aenter__.return_value.returncode = 0
     monkeypatch.setattr("anyio.open_process", open_process_mock)
-    monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
 
     @flow
     async def test_flow():
@@ -269,9 +337,29 @@ class TestShellOperation:
         assert "completed with return code 0" in records[2].message
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_non_ascii(self, method):
-        op = ShellOperation(commands=[NON_ASCII_COMMAND])
+    async def test_non_ascii_script(self, method):
+        op = ShellOperation(commands=[NON_ASCII_SCRIPT_COMMAND])
+        assert await self.execute(op, method) == NON_ASCII_SCRIPT_OUTPUT
+
+    @requires_encodable_e_acute
+    @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_non_ascii_output(self, method):
+        op = ShellOperation(commands=[NON_ASCII_OUTPUT_COMMAND])
         assert await self.execute(op, method) == NON_ASCII_OUTPUT
+
+    @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_utf8_output(self, method):
+        op = ShellOperation(commands=[UTF8_OUTPUT_COMMAND])
+        assert await self.execute(op, method) == UTF8_OUTPUT
+
+    @requires_encodable_e_acute
+    def test_non_ascii_output_sync(self):
+        op = ShellOperation(commands=[NON_ASCII_OUTPUT_COMMAND])
+        assert op.run() == NON_ASCII_OUTPUT
+
+    def test_utf8_output_sync(self):
+        op = ShellOperation(commands=[UTF8_OUTPUT_COMMAND])
+        assert op.run() == UTF8_OUTPUT
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_using_statement_first(self, method):

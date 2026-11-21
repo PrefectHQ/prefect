@@ -4,7 +4,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Union
+from typing import Union
 from unittest.mock import AsyncMock
 from uuid import UUID
 
@@ -135,15 +135,6 @@ async def test_shell_run_command_update_current_env():
     assert result[1] == "test value"
 
 
-class AsyncIter:
-    def __init__(self, items: list[str], **kwargs: Any):
-        self.items = items
-
-    async def __aiter__(self):
-        for item in self.items:
-            yield item
-
-
 @pytest.mark.parametrize("shell", [None, "bash", "zsh"])
 async def test_shell_run_command_override_shell(
     shell: Union[str, None], monkeypatch: pytest.MonkeyPatch
@@ -156,7 +147,6 @@ async def test_shell_run_command_override_shell(
     )
     open_process_mock.return_value.__aenter__.return_value.returncode = 0
     monkeypatch.setattr("anyio.open_process", open_process_mock)
-    monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
 
     @flow
     async def test_flow() -> Union[list[str], str]:
@@ -260,7 +250,6 @@ class TestShellOperation:
         )
         open_process_mock.return_value.returncode = 0
         monkeypatch.setattr("anyio.open_process", open_process_mock)
-        monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
 
         op = ShellOperation(commands=["pwd"], shell=shell, working_dir=Path.home())
         await self.execute(op, method)
@@ -278,7 +267,6 @@ class TestShellOperation:
         )
         open_process_mock.return_value.returncode = 0
         monkeypatch.setattr("anyio.open_process", open_process_mock)
-        monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
 
         await self.execute(
             ShellOperation(commands=["echo 'hey'"], extension=".ps1"), method

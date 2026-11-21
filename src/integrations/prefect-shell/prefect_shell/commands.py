@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import codecs
+import ctypes
 import logging
 import os
 import signal
@@ -13,11 +14,19 @@ import tempfile
 import threading
 from contextlib import AsyncExitStack, ExitStack, contextmanager
 from contextvars import copy_context
-from typing import IO, Any, Generator, Optional, Union
+from pathlib import PureWindowsPath
+from typing import (
+    IO,
+    Any,
+    AsyncGenerator,
+    AsyncIterable,
+    Generator,
+    Optional,
+    Union,
+)
 
 import anyio
 from anyio.abc import Process
-from anyio.streams.text import TextReceiveStream
 from pydantic import DirectoryPath, Field, PrivateAttr
 
 from prefect import task
@@ -30,17 +39,20 @@ _SHELL_TERMINATE_GRACE_SECONDS = 5.0
 _DEFAULT_LOG_PREFIX = "PID {pid} {label}:\n"
 
 
-def _output_encoding(shell: str) -> str:
-    """The encoding a shell writes redirected output in.
+def _is_windows_powershell(shell: str) -> bool:
+    """Whether `shell` is Windows PowerShell, given by name or by path."""
+    return PureWindowsPath(shell).name.lower().removesuffix(".exe") == "powershell"
 
-    Windows PowerShell and pwsh on Windows write it in the console's output code
-    page, which the child inherits (the OEM code page when there is no console),
-    not UTF-8.
+
+def _console_encoding() -> str:
+    """The encoding of the Windows console output code page.
+
+    Shells on Windows, including Windows PowerShell and pwsh, write redirected
+    output in this code page (the OEM code page when there is no console)
+    unless the command selects another encoding.
     """
-    if sys.platform != "win32" or shell.lower() not in ("powershell", "pwsh"):
+    if sys.platform != "win32":
         return "utf-8"
-    import ctypes
-
     kernel32 = ctypes.windll.kernel32
     encoding = f"cp{kernel32.GetConsoleOutputCP() or kernel32.GetOEMCP()}"
     try:
@@ -48,6 +60,43 @@ def _output_encoding(shell: str) -> str:
     except LookupError:
         return "utf-8"
     return encoding
+
+
+def _decode_output(data: bytes) -> str:
+    """Decode whole lines of shell output.
+
+    Output is read as UTF-8, so a command that selects UTF-8 output is decoded
+    correctly whatever the console code page is. A line that is not valid UTF-8
+    is decoded in the console code page instead.
+    """
+    try:
+        return data.decode()
+    except UnicodeDecodeError:
+        pass
+    encoding = _console_encoding()
+    lines: list[str] = []
+    for line in data.splitlines(keepends=True):
+        try:
+            lines.append(line.decode())
+        except UnicodeDecodeError:
+            lines.append(line.decode(encoding, errors="replace"))
+    return "".join(lines)
+
+
+async def _receive_text(source: AsyncIterable[bytes]) -> AsyncGenerator[str, None]:
+    """Decode shell output as it is received.
+
+    Only whole lines are decoded, so a character split across two chunks is
+    never decoded in halves. An unterminated last line is decoded when the
+    stream ends.
+    """
+    pending = b""
+    async for chunk in source:
+        lines, newline, pending = (pending + chunk).rpartition(b"\n")
+        if newline:
+            yield _decode_output(lines + newline)
+    if pending:
+        yield _decode_output(pending)
 
 
 def _process_isolation_kwargs() -> dict[str, Any]:
@@ -188,7 +237,7 @@ async def shell_run_command(
 
     tmp = tempfile.NamedTemporaryFile(prefix="prefect-", suffix=extension, delete=False)
     try:
-        if shell.lower() == "powershell":
+        if _is_windows_powershell(shell):
             # Windows PowerShell 5.1 reads a script without a BOM in the ANSI
             # code page, which garbles non-ASCII text in the command.
             tmp.write(codecs.BOM_UTF8)
@@ -203,26 +252,18 @@ async def shell_run_command(
 
         shell_command = [shell, tmp.name]
 
-        encoding = _output_encoding(shell)
         lines: list[str] = []
         async with await anyio.open_process(
             shell_command, env=current_env, cwd=cwd
         ) as process:
-            async for text in TextReceiveStream(
-                process.stdout, encoding=encoding, errors="replace"
-            ):
+            async for text in _receive_text(process.stdout):
                 logger.log(level=stream_level, msg=text)
                 lines.extend(text.rstrip().split("\n"))
 
             await process.wait()
             if process.returncode:
                 stderr = "\n".join(
-                    [
-                        text
-                        async for text in TextReceiveStream(
-                            process.stderr, encoding=encoding, errors="replace"
-                        )
-                    ]
+                    [text async for text in _receive_text(process.stderr)]
                 )
                 if not stderr and lines:
                     stderr = f"{lines[-1]}\n"
@@ -287,10 +328,7 @@ class ShellProcess(JobRun[list[str]]):
         """
         Capture output from source (async version for anyio Process).
         """
-        encoding = _output_encoding(self._shell_operation._resolve_shell())
-        async for output in TextReceiveStream(
-            source, encoding=encoding, errors="replace"
-        ):
+        async for output in _receive_text(source):
             text = output.rstrip()
             if self._shell_operation.stream_output:
                 self.logger.info(self._format_output_log(output_label, text))
@@ -305,9 +343,8 @@ class ShellProcess(JobRun[list[str]]):
         """
         Capture output from source (sync version for subprocess pipes).
         """
-        encoding = _output_encoding(self._shell_operation._resolve_shell())
         for line in iter(source.readline, b""):
-            text = line.decode(encoding, errors="replace").rstrip()
+            text = _decode_output(line).rstrip()
             if not text:
                 continue
             if self._shell_operation.stream_output:
@@ -516,17 +553,6 @@ class ShellOperation(JobBlock[list[str]]):
     )
     _sync_temp_files: list[str] = PrivateAttr(default_factory=list)
 
-    def _resolve_extension(self) -> str:
-        return self.extension or (".ps1" if sys.platform == "win32" else ".sh")
-
-    def _resolve_shell(self) -> str:
-        extension = self._resolve_extension()
-        if self.shell is None and sys.platform == "win32" or extension == ".ps1":
-            return "powershell"
-        elif self.shell is None:
-            return "bash"
-        return self.shell.lower()
-
     @contextmanager
     def _prep_trigger_command(self) -> Generator[list[str], None, None]:
         """
@@ -536,7 +562,7 @@ class ShellOperation(JobBlock[list[str]]):
         """
         temp_file = None
         try:
-            extension = self._resolve_extension()
+            extension = self.extension or (".ps1" if sys.platform == "win32" else ".sh")
             temp_file = tempfile.NamedTemporaryFile(
                 prefix="prefect-",
                 suffix=extension,
@@ -548,7 +574,13 @@ class ShellOperation(JobBlock[list[str]]):
                 f"Writing the following commands to "
                 f"{temp_file.name!r}:{os.linesep}{joined_commands}"
             )
-            shell = self._resolve_shell()
+            if self.shell is None and sys.platform == "win32" or extension == ".ps1":
+                shell = "powershell"
+            elif self.shell is None:
+                shell = "bash"
+            else:
+                shell = self.shell.lower()
+
             if shell == "powershell":
                 # Windows PowerShell 5.1 reads a script without a BOM in the ANSI
                 # code page, which garbles non-ASCII text in the commands.
