@@ -2241,3 +2241,45 @@ class TestEntrypointToSchema:
             "required": ["a"],
             "definitions": {},
         }
+
+
+class TestExpandMappingParametersWithFieldDefaults:
+    def test_factory_not_called_for_supplied_parameters(self):
+        """expand_mapping_parameters must not invoke default_factory for parameters
+        that were explicitly supplied by the caller."""
+        call_count = 0
+
+        def counting_factory() -> list:
+            nonlocal call_count
+            call_count += 1
+            return []
+
+        def fn(a: list, b: list = Field(default_factory=counting_factory)):
+            pass
+
+        # b is explicitly supplied — counting_factory must not be called
+        result = callables.expand_mapping_parameters(
+            fn, {"a": [[1], [2]], "b": [10, 20]}
+        )
+        assert call_count == 0, (
+            f"Factory was called {call_count} times for a supplied parameter"
+        )
+        assert result == [{"a": [1], "b": 10}, {"a": [2], "b": 20}]
+
+    def test_factory_called_only_for_missing_parameters(self):
+        """expand_mapping_parameters must invoke default_factory exactly once per
+        mapped call when the parameter is omitted."""
+        call_count = 0
+
+        def counting_factory() -> list:
+            nonlocal call_count
+            call_count += 1
+            return []
+
+        def fn(a: list, b: list = Field(default_factory=counting_factory)):
+            pass
+
+        # b is not supplied — factory should be called once per mapped call
+        result = callables.expand_mapping_parameters(fn, {"a": [[1], [2]]})
+        assert call_count == 2, f"Expected factory called 2 times, got {call_count}"
+        assert result == [{"a": [1], "b": []}, {"a": [2], "b": []}]
