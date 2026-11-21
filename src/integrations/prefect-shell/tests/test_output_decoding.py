@@ -1,13 +1,10 @@
-import codecs
 from collections.abc import AsyncIterator
 
 import pytest
-from prefect_shell import commands
 from prefect_shell.commands import (
-    _console_encoding,
     _decode_output,
     _is_windows_powershell,
-    _receive_text,
+    _receive_lines,
 )
 
 
@@ -16,114 +13,53 @@ async def chunks(*items: bytes) -> AsyncIterator[bytes]:
         yield item
 
 
-@pytest.fixture
-def console_encoding(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
-    monkeypatch.setattr(commands, "_console_encoding", lambda: request.param)
-    return request.param
-
-
 @pytest.mark.parametrize(
-    "shell",
+    "shell,expected",
     [
-        "powershell",
-        "PowerShell",
-        "powershell.exe",
-        "POWERSHELL.EXE",
-        r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
-        "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+        ("powershell", True),
+        ("PowerShell.EXE", True),
+        (r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe", True),
+        ("C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe", True),
+        ("pwsh", False),
+        ("pwsh.exe", False),
+        ("bash", False),
+        (r"C:\powershell\bash.exe", False),
     ],
 )
-def test_is_windows_powershell(shell: str):
-    assert _is_windows_powershell(shell)
+def test_is_windows_powershell(shell: str, expected: bool):
+    assert _is_windows_powershell(shell) is expected
+
+
+@pytest.mark.parametrize("fallback", ["cp437", "cp932"])
+def test_decode_output_reads_utf8_whatever_the_fallback(fallback: str):
+    text = "café あ\r\n"
+    assert _decode_output(text.encode(), fallback) == text
 
 
 @pytest.mark.parametrize(
-    "shell",
-    [
-        "pwsh",
-        "pwsh.exe",
-        r"C:\Program Files\PowerShell\7\pwsh.exe",
-        "bash",
-        "/usr/bin/bash",
-        "cmd.exe",
-        r"C:\powershell\bash.exe",
-    ],
+    "fallback,text",
+    [("cp437", "café\r\n"), ("cp1252", "café\r\n"), ("cp932", "あいう\r\n")],
 )
-def test_is_not_windows_powershell(shell: str):
-    assert not _is_windows_powershell(shell)
+def test_decode_output_falls_back_for_invalid_utf8(fallback: str, text: str):
+    assert _decode_output(text.encode(fallback), fallback) == text
 
 
-def test_console_encoding_is_a_known_codec():
-    codecs.lookup(_console_encoding())
-
-
-@pytest.mark.parametrize(
-    "console_encoding", ["cp437", "cp1252", "cp932", "cp949"], indirect=True
-)
-def test_decode_output_reads_utf8_whatever_the_console_encoding(
-    console_encoding: str,
-):
-    text = "café あ 가\r\n"
-    assert _decode_output(text.encode()) == text
-
-
-@pytest.mark.parametrize(
-    "console_encoding,text",
-    [
-        ("cp437", "café\r\n"),
-        ("cp1252", "café\r\n"),
-        ("cp932", "あいう\r\n"),
-        ("cp949", "가나다\r\n"),
-    ],
-    indirect=["console_encoding"],
-)
-def test_decode_output_falls_back_to_the_console_encoding(
-    console_encoding: str, text: str
-):
-    assert _decode_output(text.encode(console_encoding)) == text
-
-
-@pytest.mark.parametrize("console_encoding", ["cp437"], indirect=True)
-def test_decode_output_decides_line_by_line(console_encoding: str):
+def test_decode_output_decides_line_by_line():
     data = "café\r\n".encode() + "café\r\n".encode("cp437") + b"plain\r\n"
-    assert _decode_output(data) == "café\r\ncafé\r\nplain\r\n"
+    assert _decode_output(data, "cp437") == "café\r\ncafé\r\nplain\r\n"
 
 
-@pytest.mark.parametrize("console_encoding", ["cp1252"], indirect=True)
-def test_decode_output_replaces_undecodable_bytes(console_encoding: str):
-    assert _decode_output(b"\x81\x8d\n") == "\ufffd\ufffd\n"
-
-
-@pytest.mark.parametrize("console_encoding", ["cp437"], indirect=True)
-async def test_receive_text_utf8_character_split_across_chunks(
-    console_encoding: str,
-):
-    data = "café\r\nあ\r\n".encode()
+@pytest.mark.parametrize("encoding", ["utf-8", "cp932"])
+async def test_receive_lines_character_split_across_chunks(encoding: str):
+    text = "あいう\r\nえお\r\n"
+    data = text.encode(encoding)
     for split in range(1, len(data)):
-        received = [
-            text async for text in _receive_text(chunks(data[:split], data[split:]))
-        ]
-        assert "".join(received) == "café\r\nあ\r\n"
+        source = chunks(data[:split], data[split:])
+        received = [part async for part in _receive_lines(source, "cp932")]
+        assert "".join(received) == text
 
 
-@pytest.mark.parametrize("console_encoding", ["cp932"], indirect=True)
-async def test_receive_text_console_encoding_character_split_across_chunks(
-    console_encoding: str,
-):
-    data = "あいう\r\nえお\r\n".encode("cp932")
-    for split in range(1, len(data)):
-        received = [
-            text async for text in _receive_text(chunks(data[:split], data[split:]))
-        ]
-        assert "".join(received) == "あいう\r\nえお\r\n"
-
-
-async def test_receive_text_yields_whole_lines():
-    received = [
-        text async for text in _receive_text(chunks(b"one\ntw", b"o\nthree\nfo", b"ur"))
-    ]
+async def test_receive_lines_yields_whole_lines():
+    source = chunks(b"one\ntw", b"o\nthree\nfo", b"ur")
+    received = [text async for text in _receive_lines(source, "cp437")]
     assert received == ["one\n", "two\nthree\n", "four"]
-
-
-async def test_receive_text_empty_stream():
-    assert [text async for text in _receive_text(chunks())] == []

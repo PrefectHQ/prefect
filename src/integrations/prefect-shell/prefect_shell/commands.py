@@ -27,6 +27,7 @@ from typing import (
 
 import anyio
 from anyio.abc import Process
+from anyio.streams.text import TextReceiveStream
 from pydantic import DirectoryPath, Field, PrivateAttr
 
 from prefect import task
@@ -49,7 +50,7 @@ def _console_encoding() -> str:
 
     Shells on Windows, including Windows PowerShell and pwsh, write redirected
     output in this code page (the OEM code page when there is no console)
-    unless the command selects another encoding.
+    unless the command selects another encoding. `utf-8` on other platforms.
     """
     if sys.platform != "win32":
         return "utf-8"
@@ -62,41 +63,44 @@ def _console_encoding() -> str:
     return encoding
 
 
-def _decode_output(data: bytes) -> str:
-    """Decode whole lines of shell output.
+def _decode_output(data: bytes, fallback: str) -> str:
+    """Decode whole lines of shell output as UTF-8.
 
-    Output is read as UTF-8, so a command that selects UTF-8 output is decoded
-    correctly whatever the console code page is. A line that is not valid UTF-8
-    is decoded in the console code page instead.
+    A line that is not valid UTF-8 is decoded in the `fallback` encoding, so a
+    command that selects UTF-8 output is read correctly whatever the console
+    code page is.
     """
-    try:
-        return data.decode()
-    except UnicodeDecodeError:
-        pass
-    encoding = _console_encoding()
     lines: list[str] = []
     for line in data.splitlines(keepends=True):
         try:
             lines.append(line.decode())
         except UnicodeDecodeError:
-            lines.append(line.decode(encoding, errors="replace"))
+            lines.append(line.decode(fallback, errors="replace"))
     return "".join(lines)
 
 
-async def _receive_text(source: AsyncIterable[bytes]) -> AsyncGenerator[str, None]:
-    """Decode shell output as it is received.
+async def _receive_lines(
+    source: AsyncIterable[bytes], fallback: str
+) -> AsyncGenerator[str, None]:
+    """Decode shell output with `_decode_output` as it is received.
 
     Only whole lines are decoded, so a character split across two chunks is
-    never decoded in halves. An unterminated last line is decoded when the
-    stream ends.
+    never decoded in halves.
     """
     pending = b""
     async for chunk in source:
         lines, newline, pending = (pending + chunk).rpartition(b"\n")
         if newline:
-            yield _decode_output(lines + newline)
+            yield _decode_output(lines + newline, fallback)
     if pending:
-        yield _decode_output(pending)
+        yield _decode_output(pending, fallback)
+
+
+def _receive_text(source: Any) -> AsyncIterable[str]:
+    """Decode the output of a shell process as it is received."""
+    if sys.platform != "win32":
+        return TextReceiveStream(source)
+    return _receive_lines(source, _console_encoding())
 
 
 def _process_isolation_kwargs() -> dict[str, Any]:
@@ -343,8 +347,9 @@ class ShellProcess(JobRun[list[str]]):
         """
         Capture output from source (sync version for subprocess pipes).
         """
+        fallback = _console_encoding()
         for line in iter(source.readline, b""):
-            text = _decode_output(line).rstrip()
+            text = _decode_output(line, fallback).rstrip()
             if not text:
                 continue
             if self._shell_operation.stream_output:
@@ -581,7 +586,7 @@ class ShellOperation(JobBlock[list[str]]):
             else:
                 shell = self.shell.lower()
 
-            if shell == "powershell":
+            if _is_windows_powershell(shell):
                 # Windows PowerShell 5.1 reads a script without a BOM in the ANSI
                 # code page, which garbles non-ASCII text in the commands.
                 temp_file.write(codecs.BOM_UTF8)

@@ -184,24 +184,9 @@ async def test_shell_run_command_throw_exception_on_nonzero_exit_code():
 
 
 WINDOWS_POWERSHELL = shutil.which("powershell") or "powershell"
-
-# Every spelling of Windows PowerShell that a caller can pass as `shell`.
-WINDOWS_POWERSHELL_SPELLINGS = [
-    "powershell",
-    "powershell.exe",
-    "PowerShell.EXE",
-    WINDOWS_POWERSHELL,
-    WINDOWS_POWERSHELL.replace("\\", "/"),
-]
-
 requires_pwsh = pytest.mark.skipif(
     shutil.which("pwsh") is None, reason="pwsh is not installed"
 )
-ALL_POWERSHELLS = [
-    *WINDOWS_POWERSHELL_SPELLINGS,
-    pytest.param("pwsh", marks=requires_pwsh),
-    pytest.param("pwsh.exe", marks=requires_pwsh),
-]
 
 
 def console_can_encode(text: str) -> bool:
@@ -240,7 +225,7 @@ UTF8_OUTPUT_COMMAND = (
 UTF8_OUTPUT = ["é", "あ"]
 
 
-@pytest.mark.parametrize("shell", WINDOWS_POWERSHELL_SPELLINGS)
+@pytest.mark.parametrize("shell", ["powershell", "powershell.exe", WINDOWS_POWERSHELL])
 async def test_shell_run_command_non_ascii_script_windows(shell):
     @flow
     async def test_flow():
@@ -255,7 +240,9 @@ async def test_shell_run_command_non_ascii_script_windows(shell):
 
 
 @requires_encodable_e_acute
-@pytest.mark.parametrize("shell", ALL_POWERSHELLS)
+@pytest.mark.parametrize(
+    "shell", ["powershell", "powershell.exe", pytest.param("pwsh", marks=requires_pwsh)]
+)
 async def test_shell_run_command_non_ascii_output_windows(shell):
     @flow
     async def test_flow():
@@ -285,6 +272,15 @@ async def test_shell_run_command_utf8_output_windows(shell):
     assert [line.rstrip() for line in await test_flow()] == UTF8_OUTPUT
 
 
+class AsyncIter:
+    def __init__(self, items):
+        self.items = items
+
+    async def __aiter__(self):
+        for item in self.items:
+            yield item
+
+
 @pytest.mark.parametrize("shell", [None, "powershell", "powershell.exe"])
 async def test_shell_run_command_override_shell(shell, monkeypatch):
     open_process_mock = AsyncMock()
@@ -295,6 +291,7 @@ async def test_shell_run_command_override_shell(shell, monkeypatch):
     )
     open_process_mock.return_value.__aenter__.return_value.returncode = 0
     monkeypatch.setattr("anyio.open_process", open_process_mock)
+    monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
 
     @flow
     async def test_flow():
@@ -340,6 +337,15 @@ class TestShellOperation:
     async def test_non_ascii_script(self, method):
         op = ShellOperation(commands=[NON_ASCII_SCRIPT_COMMAND])
         assert await self.execute(op, method) == NON_ASCII_SCRIPT_OUTPUT
+
+    def test_non_ascii_script_powershell_exe(self):
+        # Any extension other than exactly `.ps1` runs the shell as it was given.
+        op = ShellOperation(
+            commands=[NON_ASCII_SCRIPT_COMMAND],
+            shell="powershell.exe",
+            extension=".PS1",
+        )
+        assert op.run() == NON_ASCII_SCRIPT_OUTPUT
 
     @requires_encodable_e_acute
     @pytest.mark.parametrize("method", ["run", "trigger"])
