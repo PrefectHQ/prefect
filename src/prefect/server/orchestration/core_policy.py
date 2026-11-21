@@ -109,6 +109,87 @@ async def _release_concurrency_lease(
     await lease_storage.revoke_lease(lease_id=lease.id)
 
 
+@db_injector
+async def _promote_awaiting_concurrency_slot_runs(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    *,
+    deployment_id: UUID | None = None,
+    concurrency_limit_ids: list[UUID] | None = None,
+    exclude_flow_run_id: UUID | None = None,
+) -> list[UUID]:
+    """Promote queued `AwaitingConcurrencySlot` flow runs to `Scheduled` when slots free.
+
+    When a deployment concurrency slot is released, flow runs waiting in
+    `AwaitingConcurrencySlot` for that deployment may still have a future
+    `scheduled_time` (from `concurrency_slot_wait_seconds`) or, on push work
+    pools without a polling worker, may not be re-evaluated until a periodic
+    sweep because no `Scheduled` state transition occurred when the slot became
+    free. Transitioning up to the number of available slots back to `Scheduled`
+    with `scheduled_time=now("UTC")` updates `next_scheduled_start_time` and
+    emits `prefect.flow-run.Scheduled` so both push work pools and polling
+    workers can submit the next run immediately.
+    """
+    if deployment_id is None and not concurrency_limit_ids:
+        return []
+
+    deployment_query = sa.select(
+        db.Deployment.id,
+        db.ConcurrencyLimitV2.limit,
+        db.ConcurrencyLimitV2.active_slots,
+    ).join(
+        db.ConcurrencyLimitV2,
+        db.Deployment.concurrency_limit_id == db.ConcurrencyLimitV2.id,
+    )
+    if deployment_id is not None:
+        deployment_query = deployment_query.where(db.Deployment.id == deployment_id)
+    else:
+        deployment_query = deployment_query.where(
+            db.Deployment.concurrency_limit_id.in_(concurrency_limit_ids)
+        )
+
+    deployment_rows = (await session.execute(deployment_query)).all()
+    promoted_run_ids: list[UUID] = []
+
+    for dep_id, limit, active_slots in deployment_rows:
+        available_slots = max(0, limit - active_slots)
+        if available_slots <= 0:
+            continue
+
+        waiting_query = (
+            sa.select(db.FlowRun.id)
+            .where(
+                db.FlowRun.deployment_id == dep_id,
+                db.FlowRun.state_type == states.StateType.SCHEDULED,
+                db.FlowRun.state_name == "AwaitingConcurrencySlot",
+            )
+            .order_by(
+                db.FlowRun.next_scheduled_start_time.asc(),
+                db.FlowRun.created.asc(),
+            )
+            .limit(available_slots)
+        )
+        if exclude_flow_run_id is not None:
+            waiting_query = waiting_query.where(db.FlowRun.id != exclude_flow_run_id)
+
+        waiting_run_ids = list((await session.execute(waiting_query)).scalars().all())
+        for waiting_run_id in waiting_run_ids:
+            try:
+                await models.flow_runs.set_flow_run_state(
+                    session=session,
+                    flow_run_id=waiting_run_id,
+                    state=states.Scheduled(
+                        scheduled_time=now("UTC"),
+                        message="Deployment concurrency slot freed; scheduled for submission.",
+                    ),
+                )
+                promoted_run_ids.append(waiting_run_id)
+            except ObjectNotFoundError:
+                continue
+
+    return promoted_run_ids
+
+
 class CoreFlowPolicy(FlowRunOrchestrationPolicy):
     """
     Orchestration rules that run against flow-run-state transitions in priority order.
@@ -717,6 +798,13 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
                     "Failed to release deployment concurrency slots during cleanup"
                 )
 
+        await _promote_awaiting_concurrency_slot_runs(
+            session=context.session,
+            deployment_id=context.run.deployment_id,
+            concurrency_limit_ids=[concurrency_limit_id],
+            exclude_flow_run_id=context.run.id,
+        )
+
 
 class ValidateDeploymentConcurrencyAtRunning(FlowRunOrchestrationRule):
     """
@@ -950,6 +1038,11 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
                 lease_id=context.initial_state.state_details.deployment_concurrency_lease_id,
                 fallback_concurrency_limit_ids=fallback_concurrency_limit_ids,
             )
+            await _promote_awaiting_concurrency_slot_runs(
+                session=context.session,
+                deployment_id=context.run.deployment_id,
+                exclude_flow_run_id=context.run.id,
+            )
             return
 
         deployment = await deployments.read_deployment(
@@ -966,6 +1059,12 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         )
         if not slots_released:
             raise RuntimeError("Failed to release deployment concurrency slots")
+
+        await _promote_awaiting_concurrency_slot_runs(
+            session=context.session,
+            deployment_id=context.run.deployment_id,
+            exclude_flow_run_id=context.run.id,
+        )
 
 
 class CacheInsertion(TaskRunOrchestrationRule):
