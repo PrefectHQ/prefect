@@ -459,11 +459,6 @@ class TestValidateDeploymentConcurrencyAtRunning:
         )
         raise ExpectedDeploymentConcurrencyReacquisitionLeak
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=ExpectedDeploymentConcurrencyReleaseRace,
-        reason="Missing-lease fallback can decrement a replacement lease's slot",
-    )
     async def test_full_policy_missing_lease_release_preserves_replacement_slot(
         self,
         session: AsyncSession,
@@ -539,8 +534,7 @@ class TestValidateDeploymentConcurrencyAtRunning:
         )
         assert limit is not None
         await session.refresh(limit)
-        if limit.active_slots != 1:
-            raise ExpectedDeploymentConcurrencyReleaseRace
+        assert limit.active_slots == 1
 
     @pytest.mark.xfail(
         strict=True,

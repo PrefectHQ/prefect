@@ -63,12 +63,18 @@ async def revoke_expired_lease(
     )
 
     async with db.session_context(begin_transaction=True) as session:
-        await bulk_decrement_active_slots(
+        slots_released = await bulk_decrement_active_slots(
             session=session,
             concurrency_limit_ids=expired_lease.resource_ids,
             slots=expired_lease.metadata.slots,
             occupancy_seconds=occupancy_seconds,
         )
+        # Lets a later release of this lease, such as the flow run reaching a
+        # terminal state, skip its missing-lease fallback decrement. Storages
+        # loaded from custom modules may not implement this method.
+        mark_lease_released = getattr(lease_storage, "mark_lease_released", None)
+        if slots_released and mark_lease_released is not None:
+            await mark_lease_released(lease_id)
         await lease_storage.revoke_lease(lease_id)
 
 

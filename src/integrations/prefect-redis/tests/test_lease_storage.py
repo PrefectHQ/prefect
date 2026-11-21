@@ -4,7 +4,10 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import pytest
-from prefect_redis.lease_storage import ConcurrencyLeaseStorage
+from prefect_redis.lease_storage import (
+    RELEASED_LEASE_RETENTION,
+    ConcurrencyLeaseStorage,
+)
 from redis.asyncio import Redis, RedisCluster
 from redis.cluster import key_slot
 
@@ -37,6 +40,7 @@ class TestConcurrencyLeaseStorage:
             storage.expirations_key,
             storage._expiration_key(lease_id),
             storage._limit_holders_key(limit_id),
+            storage._released_key(lease_id),
         ]
 
         assert keys == [
@@ -44,6 +48,7 @@ class TestConcurrencyLeaseStorage:
             "{prefect:concurrency}:expirations",
             f"{{prefect:concurrency}}:expiration:{lease_id}",
             f"{{prefect:concurrency}}:limit:{limit_id}:holders",
+            f"{{prefect:concurrency}}:released:{lease_id}",
         ]
         assert len({key_slot(key.encode()) for key in keys}) == 1
 
@@ -233,6 +238,19 @@ class TestConcurrencyLeaseStorage:
 
         # Should not raise an error
         await storage.revoke_lease(nonexistent_id)
+
+    async def test_mark_lease_released(
+        self, storage: ConcurrencyLeaseStorage, redis: Redis
+    ):
+        lease_id = uuid4()
+        assert await storage.is_lease_released(lease_id) is False
+
+        await storage.mark_lease_released(lease_id)
+
+        assert await storage.is_lease_released(lease_id) is True
+        assert await storage.is_lease_released(uuid4()) is False
+        ttl = await redis.ttl(storage._released_key(lease_id))
+        assert 0 < ttl <= int(RELEASED_LEASE_RETENTION.total_seconds())
 
     async def test_read_active_lease_ids(self, storage: ConcurrencyLeaseStorage):
         """Test reading active lease IDs."""

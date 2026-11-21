@@ -38,6 +38,7 @@ class TestRevokeExpiredLease:
         storage = ConcurrencyLeaseStorage()
         storage.leases.clear()
         storage.expirations.clear()
+        storage.released.clear()
         return storage
 
     @pytest.fixture
@@ -202,6 +203,47 @@ class TestRevokeExpiredLease:
         if replacement is None or limits[0].active_slots != 1:
             raise ExpectedDuplicateLeaseReaperRace
 
+    async def test_revoke_expired_lease_marks_lease_released(
+        self, lease_storage, concurrency_limit, session: AsyncSession
+    ):
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 1)
+        await session.commit()
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        await revoke_expired_lease(
+            lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+
+        assert await lease_storage.read_lease(lease.id) is None
+        assert await lease_storage.is_lease_released(lease.id) is True
+
+    async def test_revoke_expired_lease_does_not_mark_unreturned_slots(
+        self, lease_storage, concurrency_limit, session: AsyncSession
+    ):
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 1)
+        concurrency_limit.active = False
+        await session.commit()
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        await revoke_expired_lease(
+            lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+
+        assert await lease_storage.read_lease(lease.id) is None
+        assert await lease_storage.is_lease_released(lease.id) is False
+
     async def test_revoke_expired_lease_missing_lease(
         self, lease_storage, concurrency_limit
     ):
@@ -231,6 +273,8 @@ class TestRevokeExpiredLease:
         # The stale expiration entry is cleared so the lease isn't reported as
         # expired forever
         assert lease_storage.expirations == {}
+        # No slots were returned, so a later release must still use its fallback
+        assert await lease_storage.is_lease_released(lease.id) is False
 
     async def test_revoke_expired_lease_skips_renewed_lease(
         self, lease_storage, session: AsyncSession

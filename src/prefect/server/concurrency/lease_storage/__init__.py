@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 import importlib
-from typing import ClassVar, Optional, Protocol, runtime_checkable
+from typing import ClassVar, Final, Optional, Protocol, runtime_checkable
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -11,6 +11,9 @@ from prefect.server.utilities.leasing import LeaseStorage, ResourceLease
 from prefect.settings.context import get_current_settings
 
 from prefect.types._concurrency import ConcurrencyLeaseHolder
+
+RELEASED_LEASE_RETENTION: Final[timedelta] = timedelta(days=7)
+"""How long storages remember a lease that `mark_lease_released` recorded."""
 
 
 @runtime_checkable
@@ -55,6 +58,34 @@ class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
         ...
 
     async def revoke_lease(self, lease_id: UUID) -> None: ...
+    async def mark_lease_released(self, lease_id: UUID) -> None:
+        """
+        Record that the slots held by a lease were returned to its limits.
+
+        The repossessor calls this before it revokes an expired lease, so a later
+        release of the same lease can tell that its slots were already returned.
+        Storages keep the record for at least `RELEASED_LEASE_RETENTION`.
+
+        Storages that do not override this method do not record released leases.
+
+        Args:
+            lease_id: The ID of the lease whose slots were returned.
+        """
+        return
+
+    async def is_lease_released(self, lease_id: UUID) -> bool:
+        """
+        Check if `mark_lease_released` recorded a lease.
+
+        Args:
+            lease_id: The ID of the lease to check.
+
+        Returns:
+            True if the slots held by the lease were already returned, False if
+            there is no record of the lease. Storages that do not override this
+            method always return False.
+        """
+        return False
 
     async def read_active_lease_ids(
         self, limit: int = 100, offset: int = 0

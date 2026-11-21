@@ -85,6 +85,13 @@ async def _release_concurrency_lease(
     lease_storage = get_concurrency_lease_storage()
     lease = await lease_storage.read_lease(lease_id=lease_id)
     if not lease:
+        # Storages loaded from custom modules may not implement this method.
+        is_lease_released = getattr(lease_storage, "is_lease_released", None)
+        if is_lease_released is not None and await is_lease_released(lease_id):
+            # The repossessor already returned this lease's slots when the
+            # lease expired. Decrementing again would free another holder's slot.
+            logger.info(f"Lease {lease_id} was already released; skipping slot release")
+            return
         logger.warning(f"Lease {lease_id} not found during release")
         if fallback_concurrency_limit_ids:
             slots_released = await concurrency_limits_v2.bulk_decrement_active_slots(

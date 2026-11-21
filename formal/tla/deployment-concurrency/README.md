@@ -149,6 +149,13 @@ expiration before releasing capacity, and memory storage updates that expiration
 on renewal. This covers renewal completed before the reaper reads the lease;
 renewal during its subsequent database work still races with revocation.
 
+The missing-lease fallback regression also passes: the repossessor records each
+lease whose slots it returned, and terminal release skips its fallback for a
+recorded lease, refining `SkipFallbackRelease`. A lease that disappears without
+a record still uses the fallback. The record is not atomic with SQL accounting,
+so a failure between the repossessor's decrement and its record leaves the
+counterexample reachable.
+
 The remaining regressions are strict `xfail` tests while claim authority is
 absent. Implementing the target requires removing those marks and passing the
 same boundary assertions; lower-level replacements are insufficient. The model
