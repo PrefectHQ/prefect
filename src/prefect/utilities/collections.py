@@ -2,6 +2,9 @@
 Utilities for extensions of and operations on Python collections.
 """
 
+import copy
+import copyreg
+import dataclasses
 import io
 import itertools
 import types
@@ -17,7 +20,7 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from dataclasses import fields, is_dataclass, replace
+from dataclasses import _FIELD_INITVAR, MISSING, InitVar, fields, is_dataclass, replace
 from enum import Enum, auto
 from typing import (
     TYPE_CHECKING,
@@ -244,6 +247,166 @@ class StopVisiting(BaseException):
     """
 
 
+def _lacks_field(obj: Any, name: str) -> bool:
+    """True if `obj` cannot produce a value for `name`.
+
+    Descriptors may raise something other than `AttributeError` (such as
+    `KeyError`) when they hold no value for `obj`; that also counts as lacking it.
+    """
+    try:
+        getattr(obj, name)
+    except Exception:
+        return True
+    return False
+
+
+def _is_required_init_var(field: Any) -> bool:
+    """True for InitVar fields that `replace()` would require as kwargs.
+
+    `dataclasses.fields()` omits both InitVar and ClassVar. ClassVar internal
+    fields also have `init=True` with missing defaults, so absence from
+    `fields()` alone is not enough — check the InitVar marker (or type).
+    InitVars declared with `init=False` are skipped by `replace()`, so they
+    must not trigger the copy fallback.
+    """
+    if not field.init:
+        return False
+    if field.default is not MISSING or field.default_factory is not MISSING:
+        return False
+    # `_field_type` survives postponed annotations; isinstance covers evaluated types.
+    return field._field_type is _FIELD_INITVAR or isinstance(field.type, InitVar)
+
+
+def _copy_instance_state(source: Any, target: Any, *, only_missing: bool) -> None:
+    """Copy `__dict__` entries and slot values from `source` to `target`.
+
+    Slots are read through each class's member descriptors, so private
+    (name-mangled) slots such as `__cache` -> `_Base__cache` and a base slot
+    shadowed by a subclass slot of the same name are both kept. With
+    `only_missing`, values `target` already holds are left alone.
+    """
+    source_dict = getattr(source, "__dict__", None)
+    if source_dict is not None:
+        target_dict = getattr(target, "__dict__", None)
+        if target_dict is None or not only_missing:
+            object.__setattr__(target, "__dict__", {**source_dict})
+        else:
+            for key, value in source_dict.items():
+                target_dict.setdefault(key, value)
+
+    cls = type(source)
+    for base in cls.__mro__:
+        for descriptor in vars(base).values():
+            if not isinstance(descriptor, types.MemberDescriptorType):
+                continue
+            try:
+                value = descriptor.__get__(source, cls)
+            except AttributeError:
+                continue
+            if only_missing:
+                try:
+                    descriptor.__get__(target, cls)
+                    continue
+                except AttributeError:
+                    pass
+            descriptor.__set__(target, value)
+
+
+def _effective_class_attr(cls: type, name: str) -> Any:
+    """Return the definition of `name` that attribute lookup on `cls` finds.
+
+    Walks the MRO like normal lookup, so a base method shadowed by a subclass
+    (for example by the `__getstate__` that `slots=True` dataclasses generate)
+    is not reported.
+    """
+    for base in cls.__mro__:
+        if name in vars(base):
+            return vars(base)[name]
+    return None
+
+
+def _copies_through_dataclass_state(cls: type) -> bool:
+    """True when `copy.copy` of `cls` uses only the default copy protocol.
+
+    That is: no `copyreg` reducer, and every hook `copy.copy` consults under
+    pickle protocol 4 (`__copy__`, `__reduce_ex__`, `__reduce__`,
+    `__getnewargs_ex__`, `__getnewargs__`, `__getstate__`, `__setstate__`)
+    resolves, the way attribute lookup on `cls` does, to the one from `object`,
+    the one `dataclasses` generates, or nothing. The generated `__getstate__`
+    returns only `dataclasses.fields()`, so inherited slots and inherited
+    `__dict__` entries are missing from such a copy. A class with any effective
+    custom hook decides its own copy and is trusted as is.
+    """
+    if cls in copyreg.dispatch_table:
+        return False
+    for name in ("__copy__", "__getnewargs_ex__", "__getnewargs__"):
+        if _effective_class_attr(cls, name) is not None:
+            return False
+    for name in ("__reduce_ex__", "__reduce__"):
+        if _effective_class_attr(cls, name) is not vars(object)[name]:
+            return False
+    getstate = _effective_class_attr(cls, "__getstate__")
+    if getstate not in (
+        vars(object).get("__getstate__"),
+        getattr(dataclasses, "_dataclass_getstate", None),
+    ):
+        return False
+    setstate = _effective_class_attr(cls, "__setstate__")
+    if setstate is not None and setstate is not getattr(
+        dataclasses, "_dataclass_setstate", None
+    ):
+        return False
+    return True
+
+
+def _reconstruct_bypassing_copy_hook(obj: Any) -> Any:
+    """Build a distinct copy of `obj` for a `__copy__` that returned `self`.
+
+    Allocates through the same reduction `copy.copy` would use without
+    `__copy__` (a `copyreg` reducer or `__reduce_ex__(4)`), so state that
+    C-backed bases set up from those arguments, such as `BaseException.args`,
+    survives. If that reduction cannot rebuild the object (for example it calls
+    the constructor without the required arguments), fall back to the type's
+    own `__new__`. Either way, `__dict__` and slot values are then copied from
+    `obj`.
+    """
+    cls = type(obj)
+    result = None
+    reductor = copyreg.dispatch_table.get(cls)
+    try:
+        rv = reductor(obj) if reductor is not None else obj.__reduce_ex__(4)
+        if isinstance(rv, tuple):
+            # Leave out the reduced state: `__setstate__` may assign through a
+            # frozen `__setattr__`, and stored state is copied from `obj` below.
+            func, args, *rest = rv
+            result = copy._reconstruct(obj, None, func, args, None, *rest[1:3])
+    except Exception:
+        result = None
+    if result is None or result is obj:
+        result = cls.__new__(cls)
+    _copy_instance_state(obj, result, only_missing=False)
+    return result
+
+
+def _copy_dataclass_instance(obj: Any) -> Any:
+    """Return a distinct shallow copy of a dataclass instance.
+
+    `copy.copy` is preferred so `__dict__` / slots / `__copy__` are honored.
+    If `__copy__` returns `self` (valid for some frozen value objects), build a
+    distinct instance with `_reconstruct_bypassing_copy_hook` so callers never
+    mutate the original through `object.__setattr__`. When the copy came from the
+    default protocol, state that a `slots=True` dataclass's generated
+    `__getstate__` leaves out (inherited slots and `__dict__` entries) is
+    filled in from `obj`, since `__post_init__` does not run to restore it.
+    """
+    result = copy.copy(obj)
+    if result is obj:
+        result = _reconstruct_bypassing_copy_hook(obj)
+    elif _copies_through_dataclass_state(type(obj)):
+        _copy_instance_state(obj, result, only_missing=True)
+    return result
+
+
 @overload
 def visit_collection(
     expr: Any,
@@ -336,6 +499,9 @@ def visit_collection(
     - When a dataclass is copied, fields declared with `init=False` keep their
       visited values. They are not recomputed by `__init__` or `__post_init__`
       from the new field values; this is intentional.
+    - Dataclasses with a required `InitVar` are copied without
+      `dataclasses.replace()`, which would demand the InitVar. Stored fields
+      keep their visited values; `__post_init__` is not re-run.
 
     Supported types:
     - List (including iterators)
@@ -532,21 +698,40 @@ def visit_collection(
 
     elif is_dataclass(expr) and not isinstance(expr, type):
         expr_fields = fields(expr)
-        values = [visit_nested(getattr(expr, f.name)) for f in expr_fields]
+        # Read each field once: a descriptor may return a fresh object per read,
+        # which would otherwise look like a change made by the visitor.
+        originals = [getattr(expr, f.name) for f in expr_fields]
+        values = [visit_nested(original) for original in originals]
         if return_data:
-            modified = any(
-                getattr(expr, f.name) is not v for f, v in zip(expr_fields, values)
-            )
+            modified = any(o is not v for o, v in zip(originals, values))
             if modified:
-                result = replace(
-                    expr,
-                    **{f.name: v for f, v in zip(expr_fields, values) if f.init},
+                # Required InitVars are excluded from fields() and are not stored
+                # on the instance, so replace() cannot rebuild the object. Copy
+                # without re-init and set visited stored fields directly.
+                # ClassVars are also excluded from fields() and have init=True
+                # with missing defaults, so detect true InitVars only.
+                requires_init_var = any(
+                    _is_required_init_var(f) for f in expr.__dataclass_fields__.values()
                 )
-                # `replace` rejects `init=False` fields and resets them, so set
-                # their visited values directly; this also works on frozen dataclasses
-                for f, v in zip(expr_fields, values):
-                    if not f.init:
-                        object.__setattr__(result, f.name, v)
+                if requires_init_var:
+                    result = _copy_dataclass_instance(expr)
+                    # Write the fields the visitor changed. An unchanged field is
+                    # only written when the copy lacks it (for example a
+                    # descriptor that keeps values outside `__dict__` and slots),
+                    # so setters on fields the copy already holds are not invoked.
+                    for f, o, v in zip(expr_fields, originals, values):
+                        if o is not v or _lacks_field(result, f.name):
+                            object.__setattr__(result, f.name, v)
+                else:
+                    result = replace(
+                        expr,
+                        **{f.name: v for f, v in zip(expr_fields, values) if f.init},
+                    )
+                    # `replace` rejects `init=False` fields and resets them, so set
+                    # their visited values directly; this also works on frozen dataclasses
+                    for f, v in zip(expr_fields, values):
+                        if not f.init:
+                            object.__setattr__(result, f.name, v)
 
     # --- Pydantic models
 
