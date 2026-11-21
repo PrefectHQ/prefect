@@ -936,9 +936,11 @@ def expand_mapping_parameters(
         call_parameters.update({key: value for key, value in static_parameters.items()})
 
         # Add default values for parameters; these are skipped earlier since they should
-        # not be mapped over
-        for key, value in get_parameter_defaults(func).items():
-            call_parameters.setdefault(key, value)
+        # not be mapped over. Resolve factories only for parameters that are actually
+        # missing — calling them for supplied parameters is unnecessary and can fail.
+        for name, param in inspect.signature(func).parameters.items():
+            if name not in call_parameters and param.default is not param.empty:
+                call_parameters[name] = _resolve_field_info_default(param.default)
 
         # Re-apply annotations to each key again
         for key, annotation in annotated_parameters.items():
