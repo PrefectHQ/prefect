@@ -971,6 +971,40 @@ class TestGetCallParameters:
         assert isinstance(result["tags"], list)
         assert isinstance(result["labels"], list)
 
+    def test_field_default_factory_is_called(self):
+        """Field(default_factory=...) should call the factory, not return FieldInfo."""
+
+        def run(
+            tags: list = Field(default_factory=list),
+            counts: dict = Field(default_factory=dict),
+            items: list = Field(default_factory=lambda: [1, 2, 3]),
+        ):
+            pass
+
+        result = callables.get_call_parameters(run, call_args=(), call_kwargs={})
+        assert result == {
+            "tags": [],
+            "counts": {},
+            "items": [1, 2, 3],
+        }
+        assert isinstance(result["tags"], list)
+        assert isinstance(result["counts"], dict)
+        assert isinstance(result["items"], list)
+
+    def test_field_default_factory_internal_type_error_propagates(self):
+        """A TypeError raised *inside* a zero-arg factory must not be swallowed."""
+
+        def broken_factory():
+            raise TypeError("internal error from factory")
+
+        def run(
+            tags: list = Field(default_factory=broken_factory),
+        ):
+            pass
+
+        with pytest.raises(TypeError, match="internal error from factory"):
+            callables.get_call_parameters(run, call_args=(), call_kwargs={})
+
 
 class TestGetParameterDefaults:
     def test_returns_signature_defaults(self):
@@ -2207,3 +2241,45 @@ class TestEntrypointToSchema:
             "required": ["a"],
             "definitions": {},
         }
+
+
+class TestExpandMappingParametersWithFieldDefaults:
+    def test_factory_not_called_for_supplied_parameters(self):
+        """expand_mapping_parameters must not invoke default_factory for parameters
+        that were explicitly supplied by the caller."""
+        call_count = 0
+
+        def counting_factory() -> list:
+            nonlocal call_count
+            call_count += 1
+            return []
+
+        def fn(a: list, b: list = Field(default_factory=counting_factory)):
+            pass
+
+        # b is explicitly supplied — counting_factory must not be called
+        result = callables.expand_mapping_parameters(
+            fn, {"a": [[1], [2]], "b": [10, 20]}
+        )
+        assert call_count == 0, (
+            f"Factory was called {call_count} times for a supplied parameter"
+        )
+        assert result == [{"a": [1], "b": 10}, {"a": [2], "b": 20}]
+
+    def test_factory_called_only_for_missing_parameters(self):
+        """expand_mapping_parameters must invoke default_factory exactly once per
+        mapped call when the parameter is omitted."""
+        call_count = 0
+
+        def counting_factory() -> list:
+            nonlocal call_count
+            call_count += 1
+            return []
+
+        def fn(a: list, b: list = Field(default_factory=counting_factory)):
+            pass
+
+        # b is not supplied — factory should be called once per mapped call
+        result = callables.expand_mapping_parameters(fn, {"a": [[1], [2]]})
+        assert call_count == 2, f"Expected factory called 2 times, got {call_count}"
+        assert result == [{"a": [1], "b": []}, {"a": [2], "b": []}]
