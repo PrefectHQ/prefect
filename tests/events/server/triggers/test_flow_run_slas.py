@@ -306,6 +306,8 @@ async def test_the_stuck_flow_triggers_with_a_wildcard_expect_that_is_a_superset
             triggering_labels={"prefect.resource.id": "prefect.flow-run.SLOWBOI"},
             # The triggering event is the last event, because the `posture` is `Proactive`
             triggering_event=last_event,
+            # The running event started the bucket and counted in it
+            triggering_events=[last_event],
             triggering_value=None,
         ),
     )
