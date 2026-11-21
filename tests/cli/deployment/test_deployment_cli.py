@@ -1335,6 +1335,34 @@ class TestDeploymentRun:
             expected_output_contains="Failed to parse JSON for parameter 'x'",
         )
 
+    @pytest.mark.parametrize(
+        "option,display_name",
+        [("--param", "parameter"), ("--job-variable", "job variable")],
+    )
+    async def test_rejects_key_value_option_without_separator(
+        self,
+        deployment: DeploymentResponse,
+        deployment_name: str,
+        prefect_client: PrefectClient,
+        option: str,
+        display_name: str,
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["deployment", "run", deployment_name, option, "name"],
+            expected_code=1,
+            expected_output_contains=(
+                f"Invalid {display_name} option 'name'. Expected format 'key=value'."
+            ),
+        )
+
+        flow_runs = await prefect_client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment.id])
+            )
+        )
+        assert flow_runs == []
+
     def test_validates_parameters_are_in_deployment_schema(
         self,
         deployment_name: str,
@@ -1358,6 +1386,8 @@ class TestDeploymentRun:
             ('{"key": "val"}', {"key": "val"}),
             ('["one", 2]', ["one", 2]),
             ('{"key": 2}', {"key": 2}),
+            ("", ""),
+            ("a=b", "a=b"),
         ],
     )
     async def test_passes_parameters_to_flow_run(
