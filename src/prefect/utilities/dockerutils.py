@@ -368,7 +368,7 @@ class ImageBuilder:
             destination = PurePosixPath(destination)
 
         source_hash = hashlib.sha256(text.encode()).hexdigest()
-        (self.context / f".{source_hash}").write_text(text)
+        (self.context / f".{source_hash}").write_text(text, encoding="utf-8")
         self.add_line(f"COPY .{source_hash} {destination}")
 
     def build(
@@ -387,7 +387,7 @@ class ImageBuilder:
         assert self.context is not None
         dockerfile_path: Path = self.context / "Dockerfile"
 
-        with dockerfile_path.open("w") as dockerfile:
+        with dockerfile_path.open("w", encoding="utf-8") as dockerfile:
             dockerfile.writelines(line + "\n" for line in self.dockerfile_lines)
 
         try:
@@ -680,7 +680,7 @@ def generate_default_dockerfile(context: Optional[Path] = None):
             f"Failed to generate Dockerfile. Dockerfile already exists in {context}."
         )
 
-    with Path(temp_dockerfile).open("w") as f:
+    with Path(temp_dockerfile).open("w", encoding="utf-8") as f:
         f.writelines(line + "\n" for line in lines)
 
     try:

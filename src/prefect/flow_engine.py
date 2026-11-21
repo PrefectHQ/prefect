@@ -46,8 +46,10 @@ from typing_extensions import ParamSpec
 from prefect import Task, __version__
 from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
+    adopt_prestarted_flow_run_suspension_observer,
     is_suspended_flow_run_state,
     observe_flow_run_suspension,
+    prestart_flow_run_suspension_observer,
     raise_if_flow_run_suspension_requested,
     register_flow_run_suspension_request,
 )
@@ -264,8 +266,13 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
 def _run_flow_from_runtime_entrypoint(flow_run_id: UUID, entrypoint: str) -> None:
     configure_from_env()
 
-    with handle_engine_signals(flow_run_id):
+    with (
+        handle_engine_signals(flow_run_id),
+        prestart_flow_run_suspension_observer(flow_run_id) as stop_suspension_observer,
+    ):
         flow_run = load_flow_run(flow_run_id=flow_run_id)
+        if not flow_run.deployment_id:
+            stop_suspension_observer()
         run_logger = flow_run_logger(flow_run=flow_run)
 
         try:
@@ -643,13 +650,27 @@ class BaseFlowRunEngine(Generic[P, R]):
             raise ValueError("Flow run not set")
 
         flow_run_suspension_request = self._get_flow_run_suspension_request()
+        prestarted_observer = (
+            adopt_prestarted_flow_run_suspension_observer(self.flow_run.id)
+            if self.flow_run.deployment_id
+            and flow_run_suspension_request is self._flow_run_suspension_request
+            else None
+        )
+        if prestarted_observer is not None:
+            # The prestarted observer marks its own request, so the engine and
+            # its tasks must check that same object.
+            self._flow_run_suspension_request = prestarted_observer.suspension_request
+            flow_run_suspension_request = prestarted_observer.suspension_request
+
         with ExitStack() as stack:
             stack.enter_context(
                 register_flow_run_suspension_request(
                     self.flow_run.id, flow_run_suspension_request
                 )
             )
-            if self.flow_run.deployment_id:
+            if prestarted_observer is not None:
+                prestarted_observer.ready_event.wait()
+            elif self.flow_run.deployment_id:
                 stack.enter_context(
                     observe_flow_run_suspension(
                         self.flow_run.id, flow_run_suspension_request

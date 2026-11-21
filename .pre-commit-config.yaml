@@ -8,6 +8,8 @@ repos:
     hooks:
       - id: no-commit-to-branch
         args: [--branch, main]
+      - id: mixed-line-ending
+        args: [--fix=lf]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.19
     hooks:

@@ -25,7 +25,7 @@ const MOCK_LOGS = [
 	createFakeLog({ level: 10, message: "Debug: cache hit" }),
 ].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
-type LogsFilterBody = components["schemas"]["Body_read_logs_logs_filter_post"];
+type LogsFilterBody = components["schemas"]["Body_read_logs"];
 
 describe("FlowRunLogs", () => {
 	beforeEach(() => {

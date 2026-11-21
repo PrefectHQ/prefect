@@ -10,7 +10,7 @@ Runs a flow run in a forked child process and reports the child's crashes.
 
 ## Functions
 
-### `execute_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/supervisor.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `execute_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/supervisor.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute_flow_run(payload: RunHookPayload) -> None
@@ -25,7 +25,7 @@ loaded from that entrypoint, relative to `working_dir` when one is
 given. Otherwise the flow is loaded from the flow run's deployment.
 
 
-### `run_child` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/supervisor.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_child` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/supervisor.py#L95" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_child(payload: RunHookPayload) -> NoReturn
@@ -41,10 +41,10 @@ otherwise.
 - `payload`: The flow run to execute.
 
 
-### `supervise_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/supervisor.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `supervise_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/supervisor.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-supervise_flow_run(payload: RunHookPayload) -> int
+supervise_flow_run(payload: RunHookPayload, restored_signal_mask: set[signal.Signals] | None = None) -> int
 ```
 
 
@@ -52,16 +52,21 @@ Run the flow run in a forked child and wait for the child to exit.
 
 If the child exits nonzero or is killed by a signal, `Crashed` is proposed
 for the flow run. SIGTERM sent to this process is forwarded to the child.
-Call this from the main thread.
+Call this from the main thread, after refreshing the global settings
+context from the environment that `/run` set; the child inherits those
+settings.
 
 **Args:**
 - `payload`: The flow run to execute.
+- `restored_signal_mask`: The signal mask to set once SIGTERM is forwarded
+to the child. Defaults to the mask when this is called. A SIGTERM
+that is pending when the mask is set is forwarded to the child.
 
 **Returns:**
 - The exit code for this process: 0 if the child exited 0, otherwise 1.
 
 
-### `describe_child_exit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/supervisor.py#L169" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `describe_child_exit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/supervisor.py#L196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_child_exit(wait_status: int) -> str | None
@@ -78,7 +83,7 @@ Describe how a child process ended, from its `os.waitpid` status.
 - `"was killed by signal 9"` or `"exited with code 1"`.
 
 
-### `report_crash` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/supervisor.py#L188" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `report_crash` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/microvm/supervisor.py#L215" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 report_crash(flow_run_id: UUID, crash_reason: str) -> None

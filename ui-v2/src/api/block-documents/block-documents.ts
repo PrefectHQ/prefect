@@ -12,7 +12,7 @@ import { queryKeyFactory as adminQueryKeyFactory } from "../admin";
 
 export type BlockDocument = components["schemas"]["BlockDocument"];
 export type BlockDocumentsFilter =
-	components["schemas"]["Body_read_block_documents_block_documents_filter_post"];
+	components["schemas"]["Body_read_block_documents"];
 
 /**
  * ```

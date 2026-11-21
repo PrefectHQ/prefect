@@ -177,8 +177,9 @@ class PrefectLogsSubscriber:
         Args:
             api_url: The base URL for a Prefect workspace
             filter: Log filter to apply
-            reconnection_attempts: When the client is disconnected, how many times
-                the client should attempt to reconnect
+            reconnection_attempts: Retry limit for consecutive failures. A
+                successful reconnect resets the failure count. Clean closes use
+                a separate count when reconnecting after them is enabled.
             reconnect_on_clean_close: Whether to reconnect when the server closes
                 the connection normally instead of ending iteration
         """
@@ -302,15 +303,16 @@ class PrefectLogsSubscriber:
 
     async def __anext__(self) -> Log:
         assert self._reconnection_attempts >= 0
-        attempts = 0
-        while attempts <= self._reconnection_attempts:
+        consecutive_failures = 0
+        consecutive_clean_closes = 0
+        while consecutive_failures <= self._reconnection_attempts:
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
                 # previous reconnection attempt.
                 #
                 # Otherwise, after the first time through this loop, we're recovering
                 # from a ConnectionClosed, so reconnect now.
-                if not self._websocket or attempts > 0:
+                if not self._websocket or consecutive_failures > 0:
                     try:
                         await self._reconnect()
                     finally:
@@ -318,6 +320,7 @@ class PrefectLogsSubscriber:
                             self.client_name, "out", "reconnect"
                         ).inc()
                     assert self._websocket
+                    consecutive_failures = 0
 
                 while True:
                     message = orjson.loads(await self._websocket.recv())
@@ -337,14 +340,23 @@ class PrefectLogsSubscriber:
                     if not self._reconnect_on_clean_close:
                         logger.debug('Connection closed with "OK" status')
                         raise StopAsyncIteration
+                    consecutive_clean_closes += 1
 
-                attempts += 1
+                consecutive_failures += 1
+                attempts = (
+                    consecutive_clean_closes
+                    if isinstance(exc, ConnectionClosedOK)
+                    else consecutive_failures
+                )
                 logger.debug(
                     "Retryable error with %s/%s attempts",
                     attempts,
                     self._reconnection_attempts,
                 )
-                if attempts > self._reconnection_attempts:
+                if (
+                    consecutive_failures > self._reconnection_attempts
+                    or consecutive_clean_closes > self._reconnection_attempts
+                ):
                     raise
 
                 if attempts > 2:
@@ -371,8 +383,9 @@ class PrefectCloudLogsSubscriber(PrefectLogsSubscriber):
             api_url: The base URL for a Prefect Cloud workspace
             api_key: The API key of an actor with the see_flows scope
             filter: Log filter to apply
-            reconnection_attempts: When the client is disconnected, how many times
-                the client should attempt to reconnect
+            reconnection_attempts: Retry limit for consecutive failures. A
+                successful reconnect resets the failure count. Clean closes use
+                a separate count when reconnecting after them is enabled.
             reconnect_on_clean_close: Whether to reconnect when the server closes
                 the connection normally instead of ending iteration
         """
