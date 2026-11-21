@@ -13,6 +13,7 @@ import httpx
 import pytest
 import sqlalchemy as sa
 import toml
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
@@ -53,6 +54,40 @@ from prefect.settings import (
 )
 
 pytestmark = pytest.mark.clear_db
+
+
+def test_openapi_operation_ids_use_route_names():
+    app = create_api_app(ignore_cache=True)
+    paths = app.openapi()["paths"]
+    operation_ids = [
+        operation["operationId"]
+        for path in paths.values()
+        for operation in path.values()
+        if isinstance(operation, dict) and "operationId" in operation
+    ]
+    assert operation_ids
+    assert len(operation_ids) == len(set(operation_ids))
+
+    checked = 0
+    for route in app.routes:
+        effective_route_contexts = getattr(route, "effective_route_contexts", None)
+        candidates = (
+            effective_route_contexts()
+            if callable(effective_route_contexts)
+            else (route,)
+            if isinstance(route, APIRoute)
+            else ()
+        )
+        for candidate in candidates:
+            if not candidate.include_in_schema:
+                continue
+            for method in candidate.methods:
+                operation = paths[candidate.path_format][method.lower()]
+                assert operation["operationId"] == (
+                    candidate.operation_id or candidate.name
+                )
+                checked += 1
+    assert checked == len(operation_ids)
 
 
 async def test_validation_error_handler_422(client):
@@ -292,6 +327,8 @@ def test_sqlite_locked_log_filter_works_for_docket_worker_logger():
         asyncpg.exceptions.QueryCanceledError(),
         asyncpg.exceptions.ConnectionDoesNotExistError(),
         asyncpg.exceptions.CannotConnectNowError(),
+        socket.gaierror(socket.EAI_NONAME, "Name or service not known"),
+        ConnectionRefusedError(errno.ECONNREFUSED, "Connect call failed"),
         sa.exc.InvalidRequestError(),
         sa.orm.exc.DetachedInstanceError(),
     ),
@@ -365,6 +402,11 @@ def test_non_data_database_errors_remain_retryable():
     assert is_client_retryable_exception(
         asyncpg.exceptions.PostgresConnectionError("connection failure")
     )
+
+
+def test_other_os_errors_are_not_retryable():
+    assert not is_client_retryable_exception(OSError(errno.EACCES, "Permission denied"))
+    assert not is_client_retryable_exception(FileNotFoundError("missing"))
 
 
 def _write_fake_ui_bundle(directory: pathlib.Path, marker: str) -> pathlib.Path:

@@ -32,12 +32,13 @@
     "eslint": "^8.57.1",
     "ts-node": "10.9.2",
     "typescript": "^5.9.2",
-    "vite": "^8.3.4",
+    "vite": "^8.3.8",
     "vitest": "5.1.0",
     "vue-tsc": "^3.1.2"
   },
   "overrides": {
     "dompurify": "^3.4.17",
+    "jsdom": "^31.0.1",
     "postcss-selector-parser": "^7.0.0"
   }
 }

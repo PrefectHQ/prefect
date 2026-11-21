@@ -124,6 +124,10 @@ This matters because `get_directory` typically calls `shutil.copytree(..., dirs_
 
 These validations exist to prevent git argument injection. Do not bypass them when constructing `GitRepository` programmatically.
 
+## GitRepository Credential Redaction
+
+`GitRepository._url` may embed credentials (`https://user:token@host/...`), and `_repository_url_with_credentials` adds them from `credentials`. Any URL or git stderr that reaches logs, `repr`, or exception messages must go through `strip_auth_from_url` / `strip_auth_from_urls_in_text` (`prefect._internal.urls`); missed call sites have leaked tokens more than once. Redaction is display-only: equality checks and `to_pull_step()` keep the raw `_url`.
+
 ## GitRepository Concurrent Pull Protection
 
 `GitRepository.pull_code()` serializes concurrent calls via a `FileLock` (`prefect.locking._filelock`). The lock file sits adjacent to the destination: `destination.parent / (destination.name + ".lock")`. Stale locks from crashed processes are recovered automatically via PID check. Tests that broadly monkeypatch `pathlib.Path.exists` must account for this lock file being created next to the destination.

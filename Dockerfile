@@ -123,6 +123,7 @@ RUN conda create \
     --name prefect
 
 # Use the prefect environment by default
+ENV PATH=/opt/conda/envs/prefect/bin:$PATH
 RUN echo "conda activate prefect" >> ~/.bashrc
 SHELL ["/bin/bash", "--login", "-c"]
 
@@ -230,4 +231,12 @@ RUN prefect version
 
 # Setup entrypoint
 COPY scripts/entrypoint.sh ./entrypoint.sh
+RUN if ! getent passwd prefect && ! getent passwd 1001; then \
+        useradd --uid 1001 --gid 0 --create-home --home-dir /home/prefect prefect; \
+    fi && \
+    chgrp -R 0 /opt/prefect && chmod -R g=u /opt/prefect && \
+    user_home=$( (getent passwd prefect || getent passwd 1001) | cut -d: -f6) && \
+    if [ -d "$user_home" ] && [ "$user_home" != / ] && [ "$user_home" != /root ]; then \
+        chgrp -R 0 "$user_home" && chmod -R g=u "$user_home"; \
+    fi
 ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/opt/prefect/entrypoint.sh"]
