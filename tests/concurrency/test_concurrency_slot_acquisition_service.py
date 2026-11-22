@@ -70,18 +70,19 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
     limit_names = sorted(["api", "database"])
     service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
 
-    with mock.patch("asyncio.sleep") as sleep:
+    # Patch `asyncio.sleep` only as seen by the service module. Patching it
+    # globally also records sleeps from unrelated background tasks.
+    sleep = mock.AsyncMock()
+    with mock.patch("prefect.concurrency.services.asyncio", wraps=asyncio, sleep=sleep):
         future = service.send((1, "concurrency", None, None))
         await service.drain()
         returned_response = await asyncio.wrap_future(future)
 
         assert returned_response == responses[1]
 
-        # `asyncio.sleep` is patched globally, so unrelated background tasks
-        # (e.g. on other loop threads) may also call it while patched. Only
-        # assert on the sleep for the Retry-After value.
-        retry_after = float(responses[0].response.headers["Retry-After"])
-        assert sleep.call_args_list.count(mock.call(retry_after)) == 1
+        sleep.assert_called_once_with(
+            float(responses[0].response.headers["Retry-After"])
+        )
         assert mocked_client.client.increment_concurrency_slots.call_count == 2
 
 
