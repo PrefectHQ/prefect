@@ -726,7 +726,9 @@ class ConcurrencyLimitCreate(ActionBaseModel):
     tag: str = Field(
         default=..., description="A tag the concurrency limit is applied to."
     )
-    concurrency_limit: int = Field(default=..., description="The concurrency limit.")
+    concurrency_limit: NonNegativeInteger = Field(
+        default=..., description="The concurrency limit."
+    )
 
 
 class ConcurrencyLimitV2Create(ActionBaseModel):

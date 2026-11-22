@@ -15789,6 +15789,7 @@
                     },
                     "concurrency_limit": {
                         "type": "integer",
+                        "minimum": 0.0,
                         "title": "Concurrency Limit",
                         "description": "The concurrency limit."
                     }
