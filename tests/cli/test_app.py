@@ -63,3 +63,25 @@ class TestCommandNameMatching:
             expected_code=1,
             expected_output_contains='Unknown command "work_pol"',
         )
+
+
+class TestListCommandsRejectNegativePagination:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            ["artifact", "ls", "--limit", "-1"],
+            ["artifact", "inspect", "my-key", "--limit", "-1"],
+            ["concurrency-limit", "ls", "--limit", "-1"],
+            ["concurrency-limit", "ls", "--offset", "-1"],
+            ["flow", "ls", "--limit", "-1"],
+            ["flow-run", "ls", "--limit", "-1"],
+            ["task-run", "ls", "--limit", "-1"],
+            ["variable", "ls", "--limit", "-1"],
+        ],
+    )
+    def test_negative_value_is_a_usage_error(self, command: list[str]):
+        invoke_and_assert(
+            command,
+            expected_output_contains="Must be >= 0.",
+            expected_code=1,
+        )

@@ -32,7 +32,9 @@ async def list_artifacts(
     limit: Annotated[
         int,
         cyclopts.Parameter(
-            "--limit", help="The maximum number of artifacts to return."
+            "--limit",
+            help="The maximum number of artifacts to return.",
+            validator=cyclopts.validators.Number(gte=0),
         ),
     ] = 100,
     all: Annotated[
@@ -111,7 +113,9 @@ async def inspect(
     limit: Annotated[
         int,
         cyclopts.Parameter(
-            "--limit", help="The maximum number of artifacts to return."
+            "--limit",
+            help="The maximum number of artifacts to return.",
+            validator=cyclopts.validators.Number(gte=0),
         ),
     ] = 10,
     output: Annotated[
