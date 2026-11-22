@@ -270,10 +270,11 @@ async def test_retries_failed_call_respects_retry_after_header(
 
         assert returned_response == responses[1]
 
-        # Verify sleep was called with the Retry-After value
-        sleep.assert_called_once_with(
-            float(responses[0].response.headers["Retry-After"])
-        )
+        # `asyncio.sleep` is patched globally, so unrelated background tasks
+        # (e.g. on other loop threads) may also call it while patched. Only
+        # assert on the sleep for the Retry-After value.
+        retry_after = float(responses[0].response.headers["Retry-After"])
+        assert sleep.call_args_list.count(mock.call(retry_after)) == 1
         assert (
             mocked_client.client.increment_concurrency_slots_with_lease.call_count == 2
         )
