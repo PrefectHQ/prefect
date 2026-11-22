@@ -150,6 +150,19 @@ class TestCreateVariable:
             in res.json()["exception_detail"][0]["msg"]
         )
 
+    async def test_name_cannot_be_empty(
+        self,
+        client: AsyncClient,
+    ):
+        res = await client.post(
+            "/variables/",
+            json={"name": "", "value": "my-value"},
+        )
+        assert res.status_code == 422
+
+        res = await client.post("/variables/filter")
+        assert res.json() == []
+
     async def test_name_unique(
         self,
         client: AsyncClient,
@@ -549,6 +562,17 @@ class TestUpdateVariable:
         )
         assert res.status_code == 404
 
+    async def test_name_cannot_be_empty(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        res = await client.patch(f"/variables/{variable.id}", json={"name": ""})
+        assert res.status_code == 422
+
+        res = await client.get(f"/variables/{variable.id}")
+        assert res.json()["name"] == variable.name
+
     async def test_name_unique(
         self,
         client: AsyncClient,
@@ -678,6 +702,17 @@ class TestUpdateVariableByName:
             json=update.model_dump(mode="json"),
         )
         assert res.status_code == 404
+
+    async def test_name_cannot_be_empty(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        res = await client.patch(f"/variables/name/{variable.name}", json={"name": ""})
+        assert res.status_code == 422
+
+        res = await client.get(f"/variables/name/{variable.name}")
+        assert res.status_code == 200
 
     async def test_name_unique(
         self,
