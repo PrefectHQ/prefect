@@ -45,7 +45,7 @@ class TestConcurrencyLimits:
         assert upsert_response.json()["concurrency_limit"] == 4242
         assert first_update < upsert_response.json()["updated"]
 
-    async def test_creating_concurrency_limit_of_zero(self, session, client):
+    async def test_creating_concurrency_limit_of_zero(self, client: AsyncClient):
         response = await client.post(
             "/concurrency_limits/", json={"tag": "zero", "concurrency_limit": 0}
         )
@@ -53,7 +53,7 @@ class TestConcurrencyLimits:
         assert response.json()["concurrency_limit"] == 0
 
     async def test_creating_negative_concurrency_limit_is_rejected(
-        self, session, client
+        self, client: AsyncClient
     ):
         response = await client.post(
             "/concurrency_limits/", json={"tag": "negative", "concurrency_limit": -1}
@@ -64,7 +64,7 @@ class TestConcurrencyLimits:
         assert read_response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_upserting_negative_concurrency_limit_is_rejected(
-        self, session, client
+        self, client: AsyncClient
     ):
         create_response = await client.post(
             "/concurrency_limits/", json={"tag": "existing", "concurrency_limit": 3}
