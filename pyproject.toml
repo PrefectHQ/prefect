@@ -80,7 +80,7 @@ dependencies = [
     "toml>=0.10.0",
     "typing_extensions>=4.10.0,<5.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
-    "websockets>=15.0.1,<17.0",
+    "websockets>=17.4,<17.5",
     "whenever>=0.10.5,<0.12.0",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
