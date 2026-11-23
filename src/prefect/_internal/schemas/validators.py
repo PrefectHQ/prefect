@@ -487,6 +487,29 @@ def validate_rrule_schedule_timezone(schedule: _T) -> _T:
     return schedule
 
 
+def validate_rrule_schedule_interval(schedule: _T) -> _T:
+    """`AfterValidator` for server action-schema schedule fields.
+
+    dateutil accepts `INTERVAL=0`, but iterating such a rule never advances, so
+    the scheduler would hang on it. It is rejected on writes rather than on
+    `RRuleSchedule` so that schedules already stored with it stay readable and
+    replaceable.
+    """
+    import dateutil.rrule
+
+    rrule = getattr(schedule, "rrule", None)
+    if not isinstance(rrule, str):
+        return schedule
+    try:
+        parsed = dateutil.rrule.rrulestr(rrule, forceset=True, cache=False)
+    except (ValueError, TypeError):
+        return schedule
+    rules = [*getattr(parsed, "_rrule", []), *getattr(parsed, "_exrule", [])]
+    if any(getattr(rule, "_interval", 1) < 1 for rule in rules):
+        raise ValueError(f'Invalid RRule string "{rrule}": INTERVAL must be at least 1')
+    return schedule
+
+
 ### STATE SCHEMA VALIDATORS ###
 
 
