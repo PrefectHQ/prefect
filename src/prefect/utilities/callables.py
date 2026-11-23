@@ -149,7 +149,7 @@ def get_parameter_defaults(
 
 def get_factory_parameter_defaults(
     fn: Callable[..., Any],
-) -> dict[str, Callable[[], Any]]:
+) -> dict[str, Callable[..., Any]]:
     """
     Return a mapping of parameter name to its `default_factory` callable
     for parameters backed by `Field(default_factory=...)`.
@@ -160,7 +160,7 @@ def get_factory_parameter_defaults(
     """
     signature = inspect.signature(fn)
 
-    factories: dict[str, Callable[[], Any]] = {}
+    factories: dict[str, Callable[..., Any]] = {}
 
     for name, param in signature.parameters.items():
         if param.default is not signature.empty:
