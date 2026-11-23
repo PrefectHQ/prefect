@@ -93,7 +93,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(
     ):
         client = get_events_client()
 
-    ssl_ctx = client._connect.connection_kwargs["ssl"]
+    ssl_ctx = client._connect.create_connection_kwargs["ssl"]
 
     # Verify it's an SSL context with the correct insecure settings
     assert isinstance(ssl_ctx, ssl.SSLContext)

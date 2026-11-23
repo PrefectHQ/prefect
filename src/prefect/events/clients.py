@@ -422,7 +422,7 @@ class PrefectEventsClient(EventsClient):
     async def _reconnect(self) -> None:
         logger.debug("Reconnecting websocket connection.")
 
-        if self._websocket:
+        if hasattr(self._connect, "connection"):
             self._websocket = None
             await self._connect.__aexit__(None, None, None)
             logger.debug("Cleared existing websocket connection.")

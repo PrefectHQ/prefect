@@ -58,8 +58,8 @@ def test_websocket_connect_ssl_integration():
         connector = websocket_connect("wss://example.com")
         assert isinstance(connector, connect)
         # Verify SSL context is configured
-        assert "ssl" in connector.connection_kwargs
-        ssl_context = connector.connection_kwargs["ssl"]
+        assert "ssl" in connector.create_connection_kwargs
+        ssl_context = connector.create_connection_kwargs["ssl"]
         assert not ssl_context.check_hostname
         assert ssl_context.verify_mode == ssl.CERT_NONE
 
@@ -69,7 +69,7 @@ def test_websocket_connect_no_ssl_for_ws():
     connector = websocket_connect("ws://example.com")
     assert isinstance(connector, connect)
     # Verify SSL is not configured for ws:// URLs
-    assert "ssl" not in connector.connection_kwargs
+    assert "ssl" not in connector.create_connection_kwargs
 
 
 def test_websocket_connect_kwargs_preservation():
