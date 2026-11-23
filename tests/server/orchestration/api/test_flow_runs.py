@@ -24,7 +24,13 @@ from prefect.server import models, schemas
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
-from prefect.server.database.orm_models import Deployment, Flow, WorkPool, WorkQueue
+from prefect.server.database.orm_models import (
+    Deployment,
+    Flow,
+    FlowRun,
+    WorkPool,
+    WorkQueue,
+)
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
@@ -45,6 +51,7 @@ from prefect.states import (
 )
 from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
+from tests.server import ConcurrentCommits
 
 pytestmark = pytest.mark.clear_db
 
@@ -1574,6 +1581,24 @@ class TestResumeFlowrun:
         )
         assert resumed_run.state.type == "RUNNING"
 
+    async def test_resuming_blocking_pause_despite_concurrent_sqlite_write(
+        self,
+        blocking_paused_flow_run: FlowRun,
+        client: AsyncClient,
+        session: AsyncSession,
+        commit_after_run_read: ConcurrentCommits,
+    ):
+        commit_after_run_read.armed = True
+        response = await client.post(
+            f"/flow_runs/{blocking_paused_flow_run.id}/resume",
+        )
+        assert response.status_code == 201, response.text
+        assert response.json()["status"] == "ACCEPT"
+        assert commit_after_run_read.writers
+
+        await session.refresh(blocking_paused_flow_run)
+        assert blocking_paused_flow_run.state.type == "RUNNING"
+
     async def test_resuming_blocking_pause_keeps_run_count_and_retries(
         self, flow: Flow, client: AsyncClient, session: AsyncSession
     ):
@@ -2628,6 +2653,51 @@ class TestSetFlowRunState:
         )
         # the transition is rejected and the returned state should be the existing state in the db
         assert api_response.state.id == pending_flow_run_with_transition_id.state_id
+
+    async def test_resent_failed_after_awaiting_retry_does_not_end_the_run(
+        self, flow, client, session
+    ):
+        """A client retrying a `Failed` proposal whose `AwaitingRetry` rejection it
+        never received must get the same rejection instead of failing the run."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                empirical_policy=schemas.core.FlowRunPolicy(retries=1, retry_delay=0),
+            ),
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+
+        for state_type in ("PENDING", "RUNNING"):
+            response = await client.post(
+                f"flow_runs/{flow_run_id}/set_state",
+                json={"state": {"type": state_type}},
+            )
+            assert response.status_code == 201, response.text
+
+        failed = {"type": "FAILED", "state_details": {"transition_id": str(uuid4())}}
+        first = await client.post(
+            f"flow_runs/{flow_run_id}/set_state", json={"state": failed}
+        )
+        assert first.status_code == 201, first.text
+        first_result = OrchestrationResult.model_validate(first.json())
+        assert first_result.status == responses.SetStateStatus.REJECT
+        assert first_result.state.name == "AwaitingRetry"
+
+        resend = await client.post(
+            f"flow_runs/{flow_run_id}/set_state", json={"state": failed}
+        )
+        assert resend.status_code == 200, resend.text
+        resend_result = OrchestrationResult.model_validate(resend.json())
+        assert resend_result.status == responses.SetStateStatus.REJECT
+        assert resend_result.state.id == first_result.state.id
+
+        session.expire_all()
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run.state.name == "AwaitingRetry"
 
     @pytest.mark.parametrize(
         "client_version,should_use_orchestration",

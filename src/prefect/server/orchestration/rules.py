@@ -858,6 +858,17 @@ class BaseOrchestrationRule(
             self.to_state_type = None
             self.context.proposed_state = None
         else:
+            # carry the client's transition id onto the substitute state so that
+            # `PreventDuplicateTransitions` recognizes a resend of this request
+            proposed_state = self.context.proposed_state
+            if (
+                proposed_state is not None
+                and proposed_state.state_details.transition_id is not None
+            ):
+                state.state_details.transition_id = (
+                    proposed_state.state_details.transition_id
+                )
+
             # a rule that mutates state should not fizzle itself
             self.to_state_type = state.type
             self.context.proposed_state = state

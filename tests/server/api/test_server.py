@@ -821,6 +821,27 @@ def test_create_ui_app_uses_v1_default_when_v2_disabled(
     assert settings_response.json()["available_uis"] == ["v1", "v2"]
 
 
+@pytest.mark.parametrize("v2_enabled", [True, False])
+def test_create_ui_app_warns_that_v2_enabled_setting_is_deprecated(
+    caplog: pytest.LogCaptureFixture,
+    v2_enabled: bool,
+):
+    with temporary_settings({PREFECT_SERVER_UI_V2_ENABLED: v2_enabled}):
+        create_ui_app(ephemeral=False)
+
+    deprecation_messages = [
+        record.getMessage()
+        for record in caplog.records
+        if "PREFECT_SERVER_UI_V2_ENABLED" in record.getMessage()
+    ]
+    if v2_enabled:
+        assert deprecation_messages == []
+    else:
+        assert len(deprecation_messages) == 1
+        assert "deprecated" in deprecation_messages[0]
+        assert "V1 UI will be removed in Prefect 3.10" in deprecation_messages[0]
+
+
 def test_create_ui_app_respects_v1_cookie_at_neutral_root(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -119,7 +119,9 @@ async def cancel_child_task_runs(
         )
 
     for task_run in child_task_runs:
-        async with db.session_context(begin_transaction=True) as session:
+        async with db.session_context(
+            begin_transaction=True, with_for_update=True
+        ) as session:
             await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
@@ -176,7 +178,9 @@ async def cancel_subflow_run(
         else:
             state = states.Cancelled(message="The parent flow run was cancelled.")
 
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         state_result = await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=subflow_run_id,
@@ -203,7 +207,9 @@ async def handle_cancelling_timeout(
     """Handle a scheduled CANCELLING timeout check for a single flow run."""
     settings = get_current_settings().server.services.cancellation_cleanup
 
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         flow_run_result = await session.execute(
             sa.select(
                 db.FlowRun,

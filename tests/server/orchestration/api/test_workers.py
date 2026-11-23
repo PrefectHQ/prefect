@@ -1,9 +1,14 @@
+import asyncio
+import sqlite3
+import threading
 import uuid
+from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from typing import List
 from unittest.mock import AsyncMock
 
 import pytest
+import sqlalchemy as sa
 from httpx import AsyncClient, Headers
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import (
@@ -32,6 +37,7 @@ from prefect.client.schemas.worker_channel import (
     WorkPoolSnapshotFrame,
 )
 from prefect.server import models, schemas
+from prefect.server.database import provide_database_interface
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.core import WorkPoolStorageConfiguration
 from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
@@ -108,6 +114,66 @@ def assert_status_events(resource_name: str, events: List[str]):
     for i, event in enumerate(events):
         assert event == found_events[i].event
         assert found_events[i].resource.name == resource_name
+
+
+@pytest.fixture
+def commit_after_work_pool_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[list[threading.Thread]]:
+    """Have another connection commit a write right after each work pool read.
+
+    A deferred SQLite transaction that reads and then writes fails with
+    "database is locked" (`SQLITE_BUSY_SNAPSHOT`) if another connection commits
+    in between. A transaction started with `BEGIN IMMEDIATE` makes the other
+    writer wait until it commits instead.
+    """
+    db = provide_database_interface()
+    if db.dialect.name != "sqlite":
+        pytest.skip("Covers SQLite write-lock upgrade behavior")
+
+    database = sa.engine.make_url(db.database_config.connection_url).database
+    assert database is not None
+    original_read_work_pool_by_name = models.workers.read_work_pool_by_name
+    writers: list[threading.Thread] = []
+
+    def commit_write(work_pool_name: str, settled: threading.Event) -> None:
+        # With no busy timeout, `BEGIN IMMEDIATE` either commits right away or
+        # fails because the heartbeat transaction already holds the write lock.
+        connection = sqlite3.connect(database, timeout=0, isolation_level=None)
+        try:
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+            except sqlite3.OperationalError:
+                settled.set()
+                connection.execute("PRAGMA busy_timeout = 60000")
+                connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                "UPDATE work_pool SET description = ? WHERE name = ?",
+                (str(uuid.uuid4()), work_pool_name),
+            )
+            connection.execute("COMMIT")
+        finally:
+            settled.set()
+            connection.close()
+
+    async def read_then_commit_elsewhere(*args, **kwargs):
+        work_pool = await original_read_work_pool_by_name(*args, **kwargs)
+        settled = threading.Event()
+        writer = threading.Thread(
+            target=commit_write, args=(kwargs["work_pool_name"], settled)
+        )
+        writers.append(writer)
+        writer.start()
+        assert await asyncio.to_thread(settled.wait, 60)
+        return work_pool
+
+    monkeypatch.setattr(
+        models.workers, "read_work_pool_by_name", read_then_commit_elsewhere
+    )
+    yield writers
+    for writer in writers:
+        writer.join(timeout=60)
+        assert not writer.is_alive()
 
 
 def _worker_channel_frame(frame_type: str, payload: dict) -> dict:
@@ -3097,6 +3163,59 @@ class TestWorkerChannelConnect:
             == WorkerChannelCloseReason.AUTHORIZATION_FAILED.value
         )
 
+    async def test_setup_heartbeat_waits_for_concurrent_sqlite_write(
+        self,
+        test_client: TestClient,
+        session: AsyncSession,
+        work_pool,
+        commit_after_work_pool_read: list[threading.Thread],
+    ):
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+
+        assert commit_after_work_pool_read
+        worker = await models.workers.read_worker_by_name(
+            session=session,
+            work_pool_id=work_pool.id,
+            worker_name="test-worker",
+        )
+        assert worker is not None
+
+    async def test_channel_heartbeat_waits_for_concurrent_sqlite_write(
+        self,
+        test_client: TestClient,
+        session: AsyncSession,
+        work_pool,
+        commit_after_work_pool_read: list[threading.Thread],
+    ):
+        with pytest.raises(WebSocketDisconnect) as exception:
+            with _connect_worker_channel(test_client, work_pool.name) as websocket:
+                _authenticate_worker_channel(websocket)
+                websocket.send_json(_worker_hello_frame())
+                ready = WorkerReadyFrame.model_validate(websocket.receive_json())
+                websocket.send_json(
+                    _worker_heartbeat_frame(
+                        str(ready.payload.consumer_id),
+                        heartbeat_interval_seconds=45,
+                    )
+                )
+                websocket.send_json({"type": "unexpected"})
+                websocket.receive_json()
+
+        # The channel stays open through the heartbeat and closes only on the
+        # unexpected frame.
+        assert exception.value.reason == WorkerChannelCloseReason.PROTOCOL_ERROR.value
+        assert len(commit_after_work_pool_read) == 2
+        worker = await models.workers.read_worker_by_name(
+            session=session,
+            work_pool_id=work_pool.id,
+            worker_name="test-worker",
+        )
+        assert worker is not None
+        assert worker.heartbeat_interval_seconds == 45
+
     def test_channel_closes_when_heartbeat_persistence_fails(
         self, monkeypatch: pytest.MonkeyPatch, test_client: TestClient, work_pool
     ):
@@ -3164,6 +3283,19 @@ class TestWorkerProcess:
         assert workers_response.json()[0]["status"] == "ONLINE"
 
         assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
+
+    async def test_heartbeat_waits_for_concurrent_sqlite_write(
+        self,
+        client: AsyncClient,
+        work_pool,
+        commit_after_work_pool_read: list[threading.Thread],
+    ):
+        response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json=dict(name="test-worker"),
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+        assert len(commit_after_work_pool_read) == 1
 
     async def test_worker_heartbeat_updates_work_pool_status(self, client, work_pool):
         # Verify that the work pool is not ready
