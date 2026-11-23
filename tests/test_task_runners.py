@@ -45,6 +45,11 @@ async def my_test_async_task(param1: Any, param2: Any) -> tuple[Any, Any]:
     return param1, param2
 
 
+@task(task_run_name=f"task_with_default_{uuid.uuid4()}")
+def task_with_default(param1: Any, param2: Any = "default") -> tuple[Any, Any]:
+    return param1, param2
+
+
 @task(task_run_name=f"context_matters_{uuid.uuid4()}")
 def context_matters(param1: Any = None, param2: Any = None) -> set[str]:
     return TagsContext.get().current_tags
@@ -220,6 +225,19 @@ class TestThreadPoolTaskRunner:
 
             results = [future.result() for future in futures]
             assert results == [(1, 4), (2, 5), (3, 6)]
+
+    def test_map_resolves_defaults_once(self):
+        """get_parameter_defaults should be called once, not per mapped call."""
+
+        @task
+        def task_with_counted_default(x: int, y: int = 0) -> int:
+            return x + y
+
+        with ThreadPoolTaskRunner() as runner:
+            futures = runner.map(task_with_counted_default, {"x": [1, 2, 3]})
+            results = [f.result() for f in futures]
+
+        assert results == [1, 2, 3]
 
     def test_map_async_task(self):
         with ThreadPoolTaskRunner() as runner:

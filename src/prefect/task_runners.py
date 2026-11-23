@@ -197,6 +197,7 @@ class TaskRunner(abc.ABC, Generic[F]):
             )
 
         map_length = list(lengths)[0]
+        parameter_defaults = get_parameter_defaults(task.fn)
 
         futures: list[PrefectFuture[Any]] = []
         for i in range(map_length):
@@ -211,7 +212,7 @@ class TaskRunner(abc.ABC, Generic[F]):
 
             # Add default values for parameters; these are skipped earlier since they should
             # not be mapped over
-            for key, value in get_parameter_defaults(task.fn).items():
+            for key, value in parameter_defaults.items():
                 call_parameters.setdefault(key, value)
 
             # Re-apply annotations to each key again
