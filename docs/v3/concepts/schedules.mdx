@@ -165,6 +165,8 @@ The max supported character length of an `rrulestr` is 6,500 characters
 
 `COUNT` is not supported. Please use `UNTIL` or the `/deployments/{id}/runs` endpoint to schedule a fixed number of
 flow runs.
+
+`INTERVAL` must be at least 1. Creating or updating a schedule with `INTERVAL=0` is rejected.
 </Note>
 
 <Note>
