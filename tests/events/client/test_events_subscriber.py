@@ -681,8 +681,11 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
     puppeteer.token = token
 
     awaiting_auth_response = asyncio.Event()
+    websocket: ClientConnection | None = None
 
     async def never_respond(self: ClientConnection, *args: object, **kwargs: object):
+        nonlocal websocket
+        websocket = self
         awaiting_auth_response.set()
         await asyncio.Event().wait()
 
@@ -706,4 +709,5 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
         await setup
 
     assert recorder.connections == 1
-    assert subscriber._connect.connection.state is WebsocketState.CLOSED
+    assert websocket is not None
+    assert websocket.state is WebsocketState.CLOSED

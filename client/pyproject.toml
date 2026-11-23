@@ -66,7 +66,7 @@ dependencies = [
     "toml>=0.10.0",
     "typing_extensions>=4.10.0,<5.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
-    "websockets>=15.0.1,<17.0",
+    "websockets>=15.0.1,<18",
     "whenever>=0.10.5,<0.12.0; python_version>='3.13'",
 ]
 [project.urls]
