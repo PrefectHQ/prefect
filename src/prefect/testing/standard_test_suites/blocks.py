@@ -17,7 +17,6 @@ try:
 except ImportError:
     HAS_PIL = False
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
 _REPO_ASSET_URL_PATTERN = re.compile(
     r"^https://raw\.githubusercontent\.com/PrefectHQ/prefect/(?P<sha>[0-9a-f]{40})/(?P<path>assets/.+)$"
 )
@@ -26,7 +25,8 @@ _REPO_ASSET_URL_PATTERN = re.compile(
 def _read_local_repo_asset(url: str) -> bytes | None:
     """
     Return the contents of a logo URL that points at an asset in this repository
-    pinned to a commit, read from the local git checkout at that commit.
+    pinned to a commit, read at that commit from the git repository containing
+    this file (an editable install, or a virtualenv inside a checkout).
 
     Returns `None` if the URL doesn't point at a pinned repository asset or the
     local checkout can't provide it (e.g. `prefect` is installed from a wheel, the
@@ -40,7 +40,7 @@ def _read_local_repo_asset(url: str) -> bytes | None:
             [
                 "git",
                 "-C",
-                str(_REPO_ROOT),
+                str(Path(__file__).parent),
                 "cat-file",
                 "blob",
                 f"{match.group('sha')}:{match.group('path')}",
