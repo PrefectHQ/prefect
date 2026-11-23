@@ -4,9 +4,11 @@ import contextlib
 import logging
 import ssl
 from typing import Type
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
+from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosedError
 
 from prefect.events import Event, get_events_client
@@ -81,19 +83,20 @@ def test_errors_when_missing_api_url_and_ephemeral_disabled():
 
 
 @pytest.mark.usefixtures("ephemeral_settings")
-async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    with temporary_settings(
-        updates={
-            PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True,
-            PREFECT_API_URL: "https://my-self-hosted-thing",
-            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: False,
-        }
+async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true():
+    with (
+        temporary_settings(
+            updates={
+                PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True,
+                PREFECT_API_URL: "https://my-self-hosted-thing",
+                PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: False,
+            }
+        ),
+        patch("prefect._internal.websockets.connect", wraps=connect) as mock_connect,
     ):
-        client = get_events_client()
+        get_events_client()
 
-    ssl_ctx = client._connect.create_connection_kwargs["ssl"]
+    ssl_ctx = mock_connect.call_args.kwargs["ssl"]
 
     # Verify it's an SSL context with the correct insecure settings
     assert isinstance(ssl_ctx, ssl.SSLContext)

@@ -1,6 +1,8 @@
 import ssl
+from unittest.mock import patch
 
 import pytest
+from websockets.asyncio.client import connect
 from websockets.asyncio.server import ServerConnection, serve
 
 from prefect.client.schemas import TaskRun
@@ -16,26 +18,7 @@ pytestmark = pytest.mark.clear_db
 
 def test_subscription_uses_websocket_connect_with_ssl_for_wss():
     """Test that Subscription creates a connector with SSL context for wss:// URLs"""
-    subscription = Subscription(
-        model=TaskRun,
-        path="/api/task_runs/subscriptions/scheduled",
-        keys=["test.task"],
-        base_url="https://api.example.com",
-    )
-
-    # Verify the connection is configured
-    assert subscription._connect is not None
-    # Verify SSL context is configured for wss:// URL
-    assert "ssl" in subscription._connect.create_connection_kwargs
-    ssl_context = subscription._connect.create_connection_kwargs["ssl"]
-    assert isinstance(ssl_context, ssl.SSLContext)
-    assert ssl_context.check_hostname is True
-    assert ssl_context.verify_mode == ssl.CERT_REQUIRED
-
-
-def test_subscription_uses_websocket_connect_with_insecure_ssl():
-    """Test that Subscription respects insecure SSL mode setting"""
-    with temporary_settings({PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
+    with patch("prefect._internal.websockets.connect", wraps=connect) as mock_connect:
         subscription = Subscription(
             model=TaskRun,
             path="/api/task_runs/subscriptions/scheduled",
@@ -43,24 +26,46 @@ def test_subscription_uses_websocket_connect_with_insecure_ssl():
             base_url="https://api.example.com",
         )
 
+    # Verify the connection is configured
+    assert subscription._connect is not None
+    # Verify SSL context is configured for wss:// URL
+    ssl_context = mock_connect.call_args.kwargs["ssl"]
+    assert isinstance(ssl_context, ssl.SSLContext)
+    assert ssl_context.check_hostname is True
+    assert ssl_context.verify_mode == ssl.CERT_REQUIRED
+
+
+def test_subscription_uses_websocket_connect_with_insecure_ssl():
+    """Test that Subscription respects insecure SSL mode setting"""
+    with (
+        temporary_settings({PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}),
+        patch("prefect._internal.websockets.connect", wraps=connect) as mock_connect,
+    ):
+        Subscription(
+            model=TaskRun,
+            path="/api/task_runs/subscriptions/scheduled",
+            keys=["test.task"],
+            base_url="https://api.example.com",
+        )
+
         # Verify SSL context is configured with insecure mode
-        assert "ssl" in subscription._connect.create_connection_kwargs
-        ssl_context = subscription._connect.create_connection_kwargs["ssl"]
+        ssl_context = mock_connect.call_args.kwargs["ssl"]
         assert not ssl_context.check_hostname
         assert ssl_context.verify_mode == ssl.CERT_NONE
 
 
 def test_subscription_no_ssl_for_http():
     """Test that Subscription doesn't add SSL for http:// URLs"""
-    subscription = Subscription(
-        model=TaskRun,
-        path="/api/task_runs/subscriptions/scheduled",
-        keys=["test.task"],
-        base_url="http://localhost:4200",
-    )
+    with patch("prefect._internal.websockets.connect", wraps=connect) as mock_connect:
+        Subscription(
+            model=TaskRun,
+            path="/api/task_runs/subscriptions/scheduled",
+            keys=["test.task"],
+            base_url="http://localhost:4200",
+        )
 
     # Verify SSL is not configured for http:// URLs
-    assert "ssl" not in subscription._connect.create_connection_kwargs
+    assert "ssl" not in mock_connect.call_args.kwargs
 
 
 def test_subscription_uses_custom_headers_from_settings():

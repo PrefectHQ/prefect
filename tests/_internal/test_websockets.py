@@ -54,22 +54,25 @@ def test_create_ssl_context_for_websocket_wss_secure():
 
 def test_websocket_connect_ssl_integration():
     """Test that websocket_connect integrates with SSL context creation"""
-    with temporary_settings({PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
+    with (
+        temporary_settings({PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}),
+        patch("prefect._internal.websockets.connect", wraps=connect) as mock_connect,
+    ):
         connector = websocket_connect("wss://example.com")
         assert isinstance(connector, connect)
         # Verify SSL context is configured
-        assert "ssl" in connector.create_connection_kwargs
-        ssl_context = connector.create_connection_kwargs["ssl"]
+        ssl_context = mock_connect.call_args.kwargs["ssl"]
         assert not ssl_context.check_hostname
         assert ssl_context.verify_mode == ssl.CERT_NONE
 
 
 def test_websocket_connect_no_ssl_for_ws():
     """Test that websocket_connect doesn't add SSL for ws:// URLs"""
-    connector = websocket_connect("ws://example.com")
+    with patch("prefect._internal.websockets.connect", wraps=connect) as mock_connect:
+        connector = websocket_connect("ws://example.com")
     assert isinstance(connector, connect)
     # Verify SSL is not configured for ws:// URLs
-    assert "ssl" not in connector.create_connection_kwargs
+    assert "ssl" not in mock_connect.call_args.kwargs
 
 
 def test_websocket_connect_kwargs_preservation():
