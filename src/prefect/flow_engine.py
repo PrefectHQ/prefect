@@ -948,11 +948,50 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(message)
 
+    def _handle_crash_unless_final_on_server(self, exc: Exception) -> None:
+        """
+        Crash the run unless the server already has a final or paused state,
+        e.g. a `Completed` proposal that committed but whose response was lost.
+        """
+        if self._adopt_final_or_paused_server_state():
+            return
+        try:
+            # Not forced, so the server rejects the crash if the run became
+            # final after the read above
+            self._set_crashed_state(exc, force=False)
+        except Abort as abort:
+            self.logger.debug(f"Crash not reported: {abort}")
+            self._attempt_conclusion = EngineOutcomeReceipt.orchestration_aborted()
+        except Exception:
+            self.logger.debug("Unable to report crash", exc_info=True)
+            # The crash may have committed even though its response was lost
+            self._adopt_final_or_paused_server_state()
+
+    def _adopt_final_or_paused_server_state(self) -> bool:
+        try:
+            server_state = self.client.read_flow_run(self.flow_run.id).state
+        except Exception:
+            self.logger.debug("Unable to read flow run state", exc_info=True)
+            return False
+        if server_state and (server_state.is_final() or server_state.is_paused()):
+            self.flow_run.state = server_state
+            self._capture_state_report(server_state)
+            self._telemetry.update_state(server_state)
+            if server_state.is_completed():
+                self._telemetry.end_span_on_success()
+            elif server_state.is_final():
+                self._telemetry.end_span_on_failure(server_state.message)
+            return True
+        return False
+
     def handle_crash(self, exc: BaseException) -> None:
+        self._set_crashed_state(exc, force=True)
+
+    def _set_crashed_state(self, exc: BaseException, force: bool) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
-        self.set_state(state, force=True)
+        self.set_state(state, force=force)
         self._raised = exc
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(state.message if state else None)
@@ -1313,8 +1352,12 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                         else:
                             self.handle_crash(exc)
                         raise
-                    except Exception:
-                        # regular exceptions are caught and re-raised to the user
+                    except Exception as exc:
+                        # Exceptions from user code are handled in `run_context`;
+                        # one that escapes before the run is final (e.g. from
+                        # `setup_run_context`) would otherwise leave it Running
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            self._handle_crash_unless_final_on_server(exc)
                         raise
                     except (Abort, Pause) as exc:
                         if state := getattr(exc, "state", None):
@@ -1685,14 +1728,56 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(message)
 
+    async def _handle_crash_unless_final_on_server(self, exc: Exception) -> None:
+        """
+        Crash the run unless the server already has a final or paused state,
+        e.g. a `Completed` proposal that committed but whose response was lost.
+        """
+        # need to shield from asyncio cancellation to ensure we update the state
+        # on the server before exiting
+        with CancelScope(shield=True):
+            if await self._adopt_final_or_paused_server_state():
+                return
+            try:
+                # Not forced, so the server rejects the crash if the run became
+                # final after the read above
+                await self._set_crashed_state(exc, force=False)
+            except Abort as abort:
+                self.logger.debug(f"Crash not reported: {abort}")
+                self._attempt_conclusion = EngineOutcomeReceipt.orchestration_aborted()
+            except Exception:
+                self.logger.debug("Unable to report crash", exc_info=True)
+                # The crash may have committed even though its response was lost
+                await self._adopt_final_or_paused_server_state()
+
+    async def _adopt_final_or_paused_server_state(self) -> bool:
+        try:
+            server_state = (await self.client.read_flow_run(self.flow_run.id)).state
+        except Exception:
+            self.logger.debug("Unable to read flow run state", exc_info=True)
+            return False
+        if server_state and (server_state.is_final() or server_state.is_paused()):
+            self.flow_run.state = server_state
+            self._capture_state_report(server_state)
+            self._telemetry.update_state(server_state)
+            if server_state.is_completed():
+                self._telemetry.end_span_on_success()
+            elif server_state.is_final():
+                self._telemetry.end_span_on_failure(server_state.message)
+            return True
+        return False
+
     async def handle_crash(self, exc: BaseException) -> None:
+        await self._set_crashed_state(exc, force=True)
+
+    async def _set_crashed_state(self, exc: BaseException, force: bool) -> None:
         # need to shield from asyncio cancellation to ensure we update the state
         # on the server before exiting
         with CancelScope(shield=True):
             state = await exception_to_crashed_state(exc)
             self.logger.error(f"Crash detected! {state.message}")
             self.logger.debug("Crash details:", exc_info=exc)
-            await self.set_state(state, force=True)
+            await self.set_state(state, force=force)
             self._raised = exc
 
             self._telemetry.record_exception(exc)
@@ -2048,8 +2133,12 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         else:
                             await self.handle_crash(exc)
                         raise
-                    except Exception:
-                        # regular exceptions are caught and re-raised to the user
+                    except Exception as exc:
+                        # Exceptions from user code are handled in `run_context`;
+                        # one that escapes before the run is final (e.g. from
+                        # `setup_run_context`) would otherwise leave it Running
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            await self._handle_crash_unless_final_on_server(exc)
                         raise
                     except (Abort, Pause) as exc:
                         if state := getattr(exc, "state", None):

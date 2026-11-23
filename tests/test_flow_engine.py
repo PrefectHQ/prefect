@@ -1061,10 +1061,237 @@ async def test_completion_save_failure_does_not_trigger_failure_hook(
         assert hook_states[0].id == saved_run.state.id
         assert not completion_attempts
     else:
-        # The Completed proposal failed, so the server still has Running.
-        assert saved_run.state.is_running()
+        # The Completed proposal failed, so the run is crashed rather than
+        # left Running or marked Failed.
+        assert saved_run.state.is_crashed()
+        assert "completion save failed" in saved_run.state.message
         assert len(completion_attempts) == 1
         assert not hook_states
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+@pytest.mark.parametrize(
+    "lost_state_type, expected_state_name",
+    [
+        # The server has a final state, so the engine keeps it
+        (StateType.COMPLETED, "Completed"),
+        # The server has an in-process `AwaitingRetry` that this engine can no
+        # longer run and workers do not pick up, so the engine crashes the run
+        (StateType.FAILED, "Crashed"),
+    ],
+    ids=["completed", "failed-awaiting-retry"],
+)
+async def test_lost_proposal_response(
+    async_flow: bool,
+    lost_state_type: StateType,
+    expected_state_name: str,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    hook_states: list[states.State[Any]] = []
+
+    def record_hook(
+        flow: Flow[Any, Any], flow_run: Any, state: states.State[Any]
+    ) -> None:
+        hook_states.append(state)
+
+    def body() -> str:
+        if lost_state_type == StateType.FAILED:
+            raise ValueError("flow body failed")
+        return "done"
+
+    async def async_body() -> str:
+        return body()
+
+    test_flow = flow(
+        async_body if async_flow else body,
+        retries=1,
+        on_failure=[record_hook],
+        on_crashed=[record_hook],
+    )
+    flow_run = await prefect_client.create_flow_run(test_flow)
+
+    def raise_after_proposal(state: states.State[Any]) -> None:
+        if state.type == lost_state_type:
+            raise ConnectionError("proposal response lost")
+
+    if async_flow:
+        original_propose = flow_engine_module.propose_state
+
+        async def propose_async(
+            client: Any, state: states.State[Any], **kwargs: Any
+        ) -> states.State[Any]:
+            result = await original_propose(client, state, **kwargs)
+            raise_after_proposal(state)
+            return result
+
+        monkeypatch.setattr(flow_engine_module, "propose_state", propose_async)
+    else:
+        original_propose_sync = flow_engine_module.propose_state_sync
+
+        def propose_sync(
+            client: Any, state: states.State[Any], **kwargs: Any
+        ) -> states.State[Any]:
+            result = original_propose_sync(client, state, **kwargs)
+            raise_after_proposal(state)
+            return result
+
+        monkeypatch.setattr(flow_engine_module, "propose_state_sync", propose_sync)
+
+    with pytest.raises(ConnectionError, match="proposal response lost"):
+        if async_flow:
+            await run_flow_async(test_flow, flow_run=flow_run)
+        else:
+            run_flow_sync(test_flow, flow_run=flow_run)
+
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    assert saved_run.state.name == expected_state_name
+    assert [state.name for state in hook_states] == (
+        ["Crashed"] if expected_state_name == "Crashed" else []
+    )
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+async def test_crash_does_not_overwrite_final_state_set_after_server_read(
+    async_flow: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    hook_states: list[states.State[Any]] = []
+
+    def record_hook(
+        flow: Flow[Any, Any], flow_run: Any, state: states.State[Any]
+    ) -> None:
+        hook_states.append(state)
+
+    def body() -> None:
+        pass
+
+    async def async_body() -> None:
+        pass
+
+    test_flow = flow(
+        async_body if async_flow else body,
+        result_storage="local-file-system/does-not-exist",
+        on_crashed=[record_hook],
+    )
+    flow_run = await prefect_client.create_flow_run(test_flow)
+
+    original_exception_to_crashed_state = flow_engine_module.exception_to_crashed_state
+
+    async def complete_then_build_crashed_state(
+        exc: BaseException, **kwargs: Any
+    ) -> states.State[Any]:
+        # Another actor finishes the run between the engine's read and its write
+        with get_client(sync_client=True) as client:
+            client.set_flow_run_state(flow_run.id, states.Completed())
+        return await original_exception_to_crashed_state(exc, **kwargs)
+
+    monkeypatch.setattr(
+        flow_engine_module,
+        "exception_to_crashed_state",
+        complete_then_build_crashed_state,
+    )
+
+    with pytest.raises(ValueError, match="Unable to find block document"):
+        if async_flow:
+            await run_flow_async(test_flow, flow_run=flow_run)
+        else:
+            run_flow_sync(test_flow, flow_run=flow_run)
+
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    assert saved_run.state.is_completed()
+    assert not hook_states
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+async def test_setup_failure_does_not_crash_run_paused_on_server(
+    async_flow: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def body() -> None:
+        pass
+
+    async def async_body() -> None:
+        pass
+
+    test_flow = flow(async_body if async_flow else body)
+    flow_run = await prefect_client.create_flow_run(test_flow)
+
+    def pause_then_fail() -> None:
+        # Another actor pauses the run before setup fails
+        with get_client(sync_client=True) as client:
+            client.set_flow_run_state(
+                flow_run.id, states.Paused(timeout_seconds=300), force=True
+            )
+        raise ValueError("setup failed")
+
+    monkeypatch.setattr(flow_engine_module, "get_result_store", pause_then_fail)
+
+    with pytest.raises(ValueError, match="setup failed"):
+        if async_flow:
+            await run_flow_async(test_flow, flow_run=flow_run)
+        else:
+            run_flow_sync(test_flow, flow_run=flow_run)
+
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    assert saved_run.state.is_paused()
+
+
+@pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
+async def test_setup_failure_crashes_run_when_server_read_fails(
+    async_flow: bool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def body() -> None:
+        pass
+
+    async def async_body() -> None:
+        pass
+
+    test_flow = flow(async_body if async_flow else body)
+    flow_run = await prefect_client.create_flow_run(test_flow)
+
+    reads_fail = False
+
+    def fail_setup() -> None:
+        nonlocal reads_fail
+        reads_fail = True
+        raise ValueError("setup failed")
+
+    original_read = SyncPrefectClient.read_flow_run
+    original_read_async = PrefectClient.read_flow_run
+
+    def read_flow_run(self: SyncPrefectClient, flow_run_id: UUID) -> FlowRun:
+        if reads_fail:
+            raise ConnectionError("read failed")
+        return original_read(self, flow_run_id)
+
+    async def read_flow_run_async(self: PrefectClient, flow_run_id: UUID) -> FlowRun:
+        if reads_fail:
+            raise ConnectionError("read failed")
+        return await original_read_async(self, flow_run_id)
+
+    monkeypatch.setattr(flow_engine_module, "get_result_store", fail_setup)
+    monkeypatch.setattr(SyncPrefectClient, "read_flow_run", read_flow_run)
+    monkeypatch.setattr(PrefectClient, "read_flow_run", read_flow_run_async)
+
+    with pytest.raises(ValueError, match="setup failed"):
+        if async_flow:
+            await run_flow_async(test_flow, flow_run=flow_run)
+        else:
+            run_flow_sync(test_flow, flow_run=flow_run)
+
+    reads_fail = False
+    saved_run = await prefect_client.read_flow_run(flow_run.id)
+    assert saved_run.state is not None
+    assert saved_run.state.is_crashed()
+    assert "setup failed" in saved_run.state.message
 
 
 @pytest.mark.parametrize("async_flow", [False, True], ids=["sync", "async"])
@@ -2678,6 +2905,46 @@ class TestFlowCrashDetection:
         assert (
             "BaseException was raised after user code finished executing" in caplog.text
         )
+
+    async def test_exception_in_setup_run_context_crashes_flow_sync(
+        self, prefect_client
+    ):
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name, result_storage="local-file-system/does-not-exist")
+        def my_flow():
+            pass
+
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_crashed()
+        assert "Unable to find block document" in flow_run.state.message
+
+    async def test_exception_in_setup_run_context_crashes_flow_async(
+        self, prefect_client
+    ):
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name, result_storage="local-file-system/does-not-exist")
+        async def my_flow():
+            pass
+
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            await my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_crashed()
+        assert "Unable to find block document" in flow_run.state.message
 
     async def test_termination_signal_after_user_code_finishes_does_not_crash_sync(
         self, prefect_client, monkeypatch, caplog
