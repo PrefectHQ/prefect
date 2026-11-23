@@ -2032,7 +2032,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Worker Heartbeat */
+        /**
+         * Worker Heartbeat
+         * @description Record a heartbeat and optionally return the worker's ID.
+         */
         post: operations["worker_heartbeat"];
         delete?: never;
         options?: never;
@@ -5264,6 +5267,11 @@ export interface components {
              * @description The worker's heartbeat interval in seconds
              */
             heartbeat_interval_seconds?: number | null;
+            /**
+             * Return Id
+             * @description Return the worker ID. Defaults to false.
+             */
+            return_id?: boolean;
         };
         /**
          * CLISettings
@@ -7114,6 +7122,12 @@ export interface components {
              * @default true
              */
             warn: boolean;
+            /**
+             * Aggregate Nested States
+             * @description Whether to aggregate nested collections of states when determining a flow or task run's final state. When enabled, returning nested collections of states (for example, the results of several `.map()` calls) aggregates the states at any depth, so a run fails if any nested state failed. When disabled (default), only a single state or a flat collection of states is aggregated and nested collections are treated as plain data, preserving the historical behavior.
+             * @default false
+             */
+            aggregate_nested_states: boolean;
         };
         /**
          * Flow
@@ -8697,6 +8711,11 @@ export interface components {
              * @description The task run ID associated with the log.
              */
             task_run_id?: string | null;
+            /**
+             * Worker Id
+             * @description The ID of the worker that wrote the log.
+             */
+            worker_id?: string | null;
         };
         /**
          * LogCreate
@@ -8728,6 +8747,8 @@ export interface components {
             flow_run_id?: string | null;
             /** Task Run Id */
             task_run_id?: string | null;
+            /** Worker Id */
+            worker_id?: string | null;
         };
         /**
          * LogFilter
@@ -17302,6 +17323,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The worker ID when requested. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Successful Response */
             204: {
                 headers: {

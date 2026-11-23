@@ -17,6 +17,7 @@ from fastapi import (
     WebSocket,
     status,
 )
+from fastapi.responses import PlainTextResponse, Response
 from packaging.version import Version
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -450,7 +451,7 @@ async def _build_worker_ready_frame(
             sent_at=now("UTC"),
             payload={
                 "consumer_id": hello.payload.consumer_id,
-                "worker_id": None,
+                "worker_id": worker.id,
                 "selected_channel_version": selected_channel_version,
                 "effective_heartbeat_interval_seconds": (
                     hello.payload.heartbeat_interval_seconds
@@ -1266,6 +1267,12 @@ async def worker_channel_connect(
 @router.post(
     "/{work_pool_name}/workers/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        200: {
+            "description": "The worker ID when requested.",
+            "content": {"text/plain": {"schema": {"type": "string", "format": "uuid"}}},
+        },
+    },
 )
 async def worker_heartbeat(
     work_pool_name: str = Path(..., description="The work pool name"),
@@ -1273,9 +1280,15 @@ async def worker_heartbeat(
     heartbeat_interval_seconds: Optional[int] = Body(
         None, description="The worker's heartbeat interval in seconds", embed=True
     ),
+    return_id: bool = Body(
+        False,
+        description="Return the worker ID. Defaults to false.",
+        embed=True,
+    ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> None:
+) -> Response:
+    """Record a heartbeat and optionally return the worker's ID."""
     async with db.session_context(
         begin_transaction=True, with_for_update=True
     ) as session:
@@ -1289,13 +1302,17 @@ async def worker_heartbeat(
                 detail=f'Work pool "{work_pool_name}" not found.',
             )
 
-        await models.workers.record_worker_heartbeat(
+        worker = await models.workers.record_worker_heartbeat(
             session=session,
             work_pool=work_pool,
             worker_name=name,
             heartbeat_interval_seconds=heartbeat_interval_seconds,
             emit_status_change=emit_work_pool_status_event,
+            return_worker=return_id,
         )
+        if worker is not None:
+            return PlainTextResponse(str(worker.id))
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{work_pool_name}/workers/filter")

@@ -39,6 +39,7 @@ from prefect._internal.launchers import resolve_bundle_step_with_launcher
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect._internal.server_maintenance import polling_window_start
+from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import (
@@ -1556,7 +1557,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 run_logger.info(
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
-                if self.backend_id:
+                if self.backend_id and self._client.server_type == ServerType.CLOUD:
                     try:
                         worker_url = url_for(
                             "worker",

@@ -2257,7 +2257,6 @@ class TestWorkerChannelConnect:
             ready = WorkerReadyFrame.model_validate(websocket.receive_json())
 
         assert ready.payload.consumer_id == uuid.UUID(hello["payload"]["consumer_id"])
-        assert ready.payload.worker_id is None
         assert ready.payload.accepted_capabilities == [
             WORKER_HEARTBEAT_CAPABILITY,
             WORK_POOL_SNAPSHOT_CAPABILITY,
@@ -2283,31 +2282,10 @@ class TestWorkerChannelConnect:
             worker_name="test-worker",
         )
         assert worker is not None
+        assert ready.payload.worker_id == worker.id
         assert worker.heartbeat_interval_seconds == 30
 
         assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
-
-    async def test_oss_ready_frame_returns_no_worker_id_but_records_heartbeat(
-        self, test_client: TestClient, session: AsyncSession, work_pool
-    ):
-        """OSS server should record the worker heartbeat internally but return
-        worker_id=None in the ready frame so workers don't set backend_id."""
-        with _connect_worker_channel(test_client, work_pool.name) as websocket:
-            _authenticate_worker_channel(websocket)
-            websocket.send_json(_worker_hello_frame())
-            ready = WorkerReadyFrame.model_validate(websocket.receive_json())
-
-        assert ready.payload.worker_id is None
-        assert ready.payload.initial_snapshot.work_pool.id == work_pool.id
-        assert ready.payload.initial_snapshot.snapshot_sequence == 1
-
-        worker = await models.workers.read_worker_by_name(
-            session=session,
-            work_pool_id=work_pool.id,
-            worker_name="test-worker",
-        )
-        assert worker is not None
-        assert worker.id is not None
 
     def test_connect_accepts_prefect_subprotocol_from_comma_separated_offers(
         self, test_client: TestClient, work_pool
@@ -3254,6 +3232,36 @@ class TestWorkerChannelConnect:
 
 
 class TestWorkerProcess:
+    async def test_heartbeat_return_id_is_optional_in_openapi(
+        self, client: AsyncClient
+    ):
+        response = await client.get("/openapi.json")
+        assert response.status_code == status.HTTP_200_OK
+        openapi = response.json()
+        path = openapi["paths"]["/work_pools/{work_pool_name}/workers/heartbeat"]
+        schema_ref = path["post"]["requestBody"]["content"]["application/json"][
+            "schema"
+        ]["$ref"]
+        schema = openapi["components"]["schemas"][schema_ref.rsplit("/", 1)[-1]]
+        return_id = schema["properties"]["return_id"]
+        assert "return_id" not in schema["required"]
+        assert return_id["type"] == "boolean"
+        assert return_id["default"] is False
+
+    async def test_heartbeat_returns_worker_id_on_request(
+        self, client: AsyncClient, work_pool: WorkPool
+    ):
+        heartbeat_url = f"/work_pools/{work_pool.name}/workers/heartbeat"
+        body = {"name": "test-worker", "return_id": True}
+        first = await client.post(heartbeat_url, json=body)
+        assert first.status_code == status.HTTP_200_OK
+        second = await client.post(heartbeat_url, json=body)
+        assert second.status_code == status.HTTP_200_OK
+
+        workers = await client.post(f"/work_pools/{work_pool.name}/workers/filter")
+        [worker] = workers.json()
+        assert first.text == second.text == worker["id"]
+
     async def test_heartbeat_worker(self, client, work_pool):
         workers_response = await client.post(
             f"/work_pools/{work_pool.name}/workers/filter"

@@ -104,6 +104,10 @@ Workers have two statuses: `ONLINE` and `OFFLINE`. A worker is online if it send
 If a worker misses three heartbeats, it is considered offline. By default, a worker is considered offline a maximum of 90 seconds 
 after it stopped sending heartbeats, but you can configure the threshold with the `PREFECT_WORKER_HEARTBEAT_SECONDS` setting.
 
+### Identify the worker that wrote a flow run log
+
+On a self-hosted Prefect server, the flow run log CSV includes the `worker_id` and, when available, the `worker_name` for entries written by a worker. The REST API also returns the ID in the `worker_id` field.
+
 ### Worker logs
 
 <span class="badge cloud"></span>
