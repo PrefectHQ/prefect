@@ -4451,7 +4451,7 @@ requires-dist = [
     { name = "apprise", specifier = ">=2.2.0,<3.0.0" },
     { name = "asgi-lifespan", specifier = ">=1.0,<3.0" },
     { name = "asyncpg", specifier = ">=0.23,<1.0.0" },
-    { name = "cachetools", specifier = ">=8,<8.1" },
+    { name = "cachetools", specifier = ">=5.3,<9" },
     { name = "certifi", specifier = ">=2026.10.19" },
     { name = "click", specifier = ">=8.0,<9" },
     { name = "cloudpickle", specifier = ">=2.0,<4.0" },
