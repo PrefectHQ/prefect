@@ -630,6 +630,67 @@ class TestLegacyInvalidRRuleTimezone:
         ] == [("0 9 * * *", True)]
 
 
+class TestStoredZeroIntervalRRule:
+    @pytest.fixture
+    async def zero_interval_schedule(
+        self,
+        db: PrefectDBInterface,
+        get_server_session: AsyncSessionGetter,
+        deployment,
+    ) -> UUID:
+        # Writes keep an explicit `DTSTART`, so this rule is accepted and stored
+        async with get_server_session() as session:
+            await models.deployments.delete_schedules_for_deployment(
+                session=session, deployment_id=deployment.id
+            )
+            schedule = db.DeploymentSchedule(
+                deployment_id=deployment.id,
+                schedule=schemas.schedules.RRuleSchedule(
+                    rrule="DTSTART:20261110T080000\nRRULE:FREQ=MINUTELY;INTERVAL=0"
+                ),
+                active=False,
+            )
+            session.add(schedule)
+            await session.commit()
+            return schedule.id
+
+    async def test_zero_interval_schedule_can_be_replaced_by_upsert(
+        self,
+        client: AsyncClient,
+        deployment: orm_models.Deployment,
+        zero_interval_schedule: UUID,
+    ):
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": deployment.name,
+                "flow_id": str(deployment.flow_id),
+                "schedules": [{"schedule": {"cron": "0 9 * * *"}}],
+            },
+        )
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert [
+            (s["schedule"]["cron"], s["active"]) for s in response.json()["schedules"]
+        ] == [("0 9 * * *", True)]
+
+    async def test_zero_interval_schedule_can_be_replaced_by_update(
+        self,
+        client: AsyncClient,
+        deployment: orm_models.Deployment,
+        zero_interval_schedule: UUID,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={"schedules": [{"schedule": {"cron": "0 9 * * *"}}]},
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert [
+            (s["schedule"]["cron"], s["active"]) for s in response.json()["schedules"]
+        ] == [("0 9 * * *", True)]
+
+
 class TestDeleteDeploymentSchedule:
     @pytest.fixture
     async def schedule_to_delete(
