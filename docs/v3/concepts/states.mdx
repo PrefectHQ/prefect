@@ -76,6 +76,8 @@ Here are some common state transitions and what they mean:
 | ⛔ | Running | Failed | Flow run | This usually means that your code raised an exception, check the flow run logs. |
 | ⛔ | Running | Crashed | Worker or flow run | Probably not a raised exception in your code, but could be an infrastructure issue such as 1) an out of memory error, 2) an evicted pod, or 3) a timeout. |
 
+Prefect rejects direct transitions from `COMPLETED` to `PENDING` to prevent workers from submitting a flow run that has already finished. When you rerun a deployment's flow run, the run moves to `Scheduled` before a worker can move it to `Pending` again.
+
 ## Final state determination
 
 The final state of a flow or task run depends on a number of factors; generally speaking there are three categories of terminal states:
