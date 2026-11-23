@@ -308,6 +308,40 @@ def test_concurrent_cleanup_does_not_evict_replacement(monkeypatch: pytest.Monke
         current.drain()
 
 
+def test_drain_all_does_not_wait_for_a_service_being_created():
+    # `instance()` holds `_instance_lock` while creating a service, which can wait
+    # on the `logging` module lock, and `APILogHandler.flush` calls `drain_all`
+    # while `logging.shutdown` holds that lock
+    creating = threading.Event()
+    release = threading.Event()
+
+    class SlowService(MockService):
+        def __init__(self) -> None:
+            creating.set()
+            # Stands in for `logging.getLogger` waiting on the logging lock
+            assert release.wait(10)
+            super().__init__()
+
+    existing = MockService.instance()
+    existing.send(1)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        creation = executor.submit(SlowService.instance)
+        try:
+            assert creating.wait(5)
+            executor.submit(MockService.drain_all).result(timeout=5)
+        finally:
+            release.set()
+        created = creation.result(timeout=5)
+
+    MockService.mock.assert_called_once_with(existing, 1)
+
+    # The service that was being created is handed out running
+    created.send(2)
+    created.drain()
+    MockService.mock.assert_called_with(created, 2)
+
+
 def test_instance_cache_lock_is_reset_after_fork(monkeypatch: pytest.MonkeyPatch):
     class ForkedService(MockService):
         _instance_cache_lock = threading.Lock()
