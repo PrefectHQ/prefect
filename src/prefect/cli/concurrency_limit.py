@@ -126,11 +126,19 @@ async def ls(
     *,
     limit: Annotated[
         int,
-        cyclopts.Parameter("--limit", help="Maximum number of limits to list."),
+        cyclopts.Parameter(
+            "--limit",
+            help="Maximum number of limits to list.",
+            validator=cyclopts.validators.Number(gte=0),
+        ),
     ] = 15,
     offset: Annotated[
         int,
-        cyclopts.Parameter("--offset", help="Offset for pagination."),
+        cyclopts.Parameter(
+            "--offset",
+            help="Offset for pagination.",
+            validator=cyclopts.validators.Number(gte=0),
+        ),
     ] = 0,
     output: Annotated[
         Optional[str],
