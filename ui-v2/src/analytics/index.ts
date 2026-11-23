@@ -7,6 +7,10 @@ function getAmplitudeApiKey(): string | undefined {
 	return import.meta.env.VITE_AMPLITUDE_API_KEY;
 }
 
+export function isAmplitudeConfigured(): boolean {
+	return Boolean(getAmplitudeApiKey());
+}
+
 export function initAmplitude(): boolean {
 	const amplitudeApiKey = getAmplitudeApiKey();
 	if (!amplitudeApiKey) {
