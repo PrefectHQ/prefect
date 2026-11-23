@@ -18,7 +18,6 @@ vi.mock('@/services/uiSettings', () => ({
   UiSettings: { settings: null, loadOptional: () => Promise.resolve(null) },
 }))
 vi.mock('@/utilities/uiVersion', () => ({
-  V2_PROMO_DISMISSED_STORAGE_KEY: 'v2-promo-dismissed',
   isUiAvailable: () => false,
   switchToV2Ui: vi.fn(),
 }))
