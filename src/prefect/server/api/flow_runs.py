@@ -467,7 +467,9 @@ async def resume_flow_run(
     """
     right_now = now("UTC")
 
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
         state = flow_run.state
 

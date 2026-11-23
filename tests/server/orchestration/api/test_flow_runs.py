@@ -24,7 +24,13 @@ from prefect.server import models, schemas
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
-from prefect.server.database.orm_models import Deployment, Flow, WorkPool, WorkQueue
+from prefect.server.database.orm_models import (
+    Deployment,
+    Flow,
+    FlowRun,
+    WorkPool,
+    WorkQueue,
+)
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
@@ -45,6 +51,7 @@ from prefect.states import (
 )
 from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
+from tests.server import ConcurrentCommits
 
 pytestmark = pytest.mark.clear_db
 
@@ -1573,6 +1580,24 @@ class TestResumeFlowrun:
             session=session, flow_run_id=flow_run_id
         )
         assert resumed_run.state.type == "RUNNING"
+
+    async def test_resuming_blocking_pause_despite_concurrent_sqlite_write(
+        self,
+        blocking_paused_flow_run: FlowRun,
+        client: AsyncClient,
+        session: AsyncSession,
+        commit_after_run_read: ConcurrentCommits,
+    ):
+        commit_after_run_read.armed = True
+        response = await client.post(
+            f"/flow_runs/{blocking_paused_flow_run.id}/resume",
+        )
+        assert response.status_code == 201, response.text
+        assert response.json()["status"] == "ACCEPT"
+        assert commit_after_run_read.writers
+
+        await session.refresh(blocking_paused_flow_run)
+        assert blocking_paused_flow_run.state.type == "RUNNING"
 
     async def test_resuming_blocking_pause_keeps_run_count_and_retries(
         self, flow: Flow, client: AsyncClient, session: AsyncSession
