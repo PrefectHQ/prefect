@@ -4777,7 +4777,7 @@ wheels = [
 
 [[package]]
 name = "prefect-kubernetes"
-version = "0.8.1"
+version = "0.8.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "exceptiongroup" },
@@ -4788,9 +4788,9 @@ dependencies = [
     { name = "python-json-logger" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9f/c0/2ef02a4be21b0f91cf23d3d59fe200b3660bee3616952fe242e585a9f0ee/prefect_kubernetes-0.8.1.tar.gz", hash = "sha256:e1f9cd26c80919c9e3a1cfcdfad43ceb1fdca517b111409476483d150b1b0c41", size = 122683, upload-time = "2026-11-12T16:33:56.596Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/29/38/e52f062a440a873c2ccb16d10da665f566ca9eb3c4551d690bd1d0bf0d4f/prefect_kubernetes-0.8.2.tar.gz", hash = "sha256:473370500e2bf71997c334736a6c7dbc3a9a2f82b8d9a9f89a415fd4f1225f9f", size = 128921, upload-time = "2026-11-23T15:40:08.003Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ed/5b/964b45864e2a222af8b30e1035e107979a275ae3768cd73cdee41afcfbad/prefect_kubernetes-0.8.1-py3-none-any.whl", hash = "sha256:4c81c1ac2c83a4c26bce7b440b378db2e69e455dcaea07cb57c583176dd6121d", size = 59169, upload-time = "2026-11-12T16:33:55.306Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/51/2aae5543b288e8bc23bd312685c3e5d5d0b056849be5a88e2846118471ca/prefect_kubernetes-0.8.2-py3-none-any.whl", hash = "sha256:1ea983663afda398b35c73121da476e858bd9f5ca7fcecc55d213251ad6e4611", size = 62176, upload-time = "2026-11-23T15:40:06.952Z" },
 ]
 
 [[package]]
