@@ -19,7 +19,7 @@
     "axios": "^1.18.1",
     "lodash.debounce": "4.0.8",
     "lodash.merge": "^4.6.2",
-    "tailwindcss": "3.4.19",
+    "tailwindcss": "4.3.5",
     "vee-validate": "4.15.1",
     "vue": "3.5.45",
     "vue-router": "4.6.4"
