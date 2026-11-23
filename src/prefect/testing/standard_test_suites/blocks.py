@@ -1,5 +1,9 @@
 import re
+import subprocess
 from abc import ABC, abstractmethod
+from io import BytesIO
+from pathlib import Path
+from typing import IO
 from urllib.request import urlopen
 
 import pytest
@@ -12,6 +16,51 @@ try:
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
+
+_REPO_ASSET_URL_PATTERN = re.compile(
+    r"^https://raw\.githubusercontent\.com/PrefectHQ/prefect/(?P<sha>[0-9a-f]{40})/(?P<path>assets/.+)$"
+)
+
+
+def _read_local_repo_asset(url: str) -> bytes | None:
+    """
+    Return the contents of a logo URL that points at an asset in this repository
+    pinned to a commit, read at that commit from the git repository containing
+    this file (an editable install, or a virtualenv inside a checkout).
+
+    Returns `None` if the URL doesn't point at a pinned repository asset or the
+    local checkout can't provide it (e.g. `prefect` is installed from a wheel, the
+    clone is shallow, or the commit or path doesn't exist).
+    """
+    match = _REPO_ASSET_URL_PATTERN.match(url)
+    if match is None:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(Path(__file__).parent),
+                "cat-file",
+                "blob",
+                f"{match.group('sha')}:{match.group('path')}",
+            ],
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def _open_logo(url: str) -> IO[bytes]:
+    # Read repository-hosted logos from the local git checkout instead of
+    # raw.githubusercontent.com, which intermittently rejects requests from CI
+    # (e.g. `503 Backend.max_conn reached`) and makes this test flaky. Reading
+    # the blob at the pinned commit yields the same bytes the URL serves.
+    if (content := _read_local_repo_asset(url)) is not None:
+        return BytesIO(content)
+    return urlopen(url)
 
 
 class BlockStandardTestSuite(ABC):
@@ -67,7 +116,9 @@ class BlockStandardTestSuite(ABC):
         assert logo_url is not None, (
             f"{block.__name__} is missing a value for _logo_url"
         )
-        img = Image.open(urlopen(str(logo_url)))
+        with _open_logo(str(logo_url)) as logo:
+            img = Image.open(logo)
+            img.load()
         assert img.width == img.height, "Logo should be a square image"
         assert 1000 > img.width > 45, (
             f"Logo should be between 200px and 1000px wid, but is {img.width}px wide"
