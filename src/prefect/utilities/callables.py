@@ -125,6 +125,11 @@ def get_parameter_defaults(
 ) -> dict[str, Any]:
     """
     Get default parameter values for a callable.
+
+    Parameters backed by a `default_factory` are excluded; use
+    `get_factory_parameter_defaults` to retrieve those separately so that
+    each call site can invoke the factory fresh rather than sharing one
+    resolved value.
     """
     signature = inspect.signature(fn)
 
@@ -132,9 +137,40 @@ def get_parameter_defaults(
 
     for name, param in signature.parameters.items():
         if param.default is not signature.empty:
+            if (
+                isinstance(param.default, pydantic.fields.FieldInfo)
+                and param.default.default_factory is not None
+            ):
+                continue  # handled by get_factory_parameter_defaults
             parameter_defaults[name] = _resolve_field_info_default(param.default)
 
     return parameter_defaults
+
+
+def get_factory_parameter_defaults(
+    fn: Callable[..., Any],
+) -> dict[str, Callable[[], Any]]:
+    """
+    Return a mapping of parameter name to its `default_factory` callable
+    for parameters backed by `Field(default_factory=...)`.
+
+    Unlike `get_parameter_defaults`, this returns the factory itself so the
+    caller can invoke it fresh for each use, preventing mutable defaults from
+    being shared across mapped calls.
+    """
+    signature = inspect.signature(fn)
+
+    factories: dict[str, Callable[[], Any]] = {}
+
+    for name, param in signature.parameters.items():
+        if param.default is not signature.empty:
+            if (
+                isinstance(param.default, pydantic.fields.FieldInfo)
+                and param.default.default_factory is not None
+            ):
+                factories[name] = param.default.default_factory
+
+    return factories
 
 
 def explode_variadic_parameter(

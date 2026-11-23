@@ -239,6 +239,24 @@ class TestThreadPoolTaskRunner:
 
         assert results == [1, 2, 3]
 
+    def test_map_factory_defaults_are_not_shared(self):
+        """Each mapped call should get its own list from default_factory, not a shared one."""
+        from pydantic import Field
+
+        @task
+        def task_with_factory_default(
+            x: int, items: list = Field(default_factory=list)
+        ) -> list:
+            items.append(x)
+            return items
+
+        with ThreadPoolTaskRunner() as runner:
+            futures = runner.map(task_with_factory_default, {"x": [1, 2, 3]})
+            results = [f.result() for f in futures]
+
+        # Each result should be its own independent list, not all sharing one
+        assert results == [[1], [2], [3]]
+
     def test_map_async_task(self):
         with ThreadPoolTaskRunner() as runner:
             parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
