@@ -342,6 +342,64 @@ def test_drain_all_does_not_wait_for_a_service_being_created():
     MockService.mock.assert_called_with(created, 2)
 
 
+def test_drain_all_does_not_drain_a_service_that_is_still_starting():
+    started = threading.Event()
+    release = threading.Event()
+
+    class SlowStartService(MockService):
+        def start(self) -> None:
+            super().start()
+            started.set()
+            # Block before `instance()` hands this service to its caller
+            assert release.wait(10)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        creation = executor.submit(SlowStartService.instance)
+        try:
+            assert started.wait(5)
+            MockService.drain_all(timeout=5)
+        finally:
+            release.set()
+        created = creation.result(timeout=5)
+
+    created.send(1)
+    created.drain()
+    MockService.mock.assert_called_once_with(created, 1)
+
+
+def test_concurrent_drain_all_stops_each_service_once(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    instance = MockService.instance()
+    lock = threading.Lock()
+    waiting: list[int] = []
+
+    class CountingLock:
+        def __enter__(self) -> None:
+            waiting.append(threading.get_ident())
+            lock.acquire()
+
+        def __exit__(self, *args: object) -> None:
+            lock.release()
+
+    monkeypatch.setattr(instance, "_lock", CountingLock())
+
+    # Hold the instance lock until both drains have checked that the instance is
+    # not stopped yet
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        with lock:
+            drains = [executor.submit(MockService.drain_all) for _ in range(2)]
+            deadline = time.monotonic() + 5
+            while len(waiting) < 2 and time.monotonic() < deadline:
+                time.sleep(0.01)
+            assert len(waiting) == 2
+        for drain in drains:
+            drain.result(timeout=5)
+
+    # A second stop signal would be left in the queue
+    assert instance._queue.unfinished_tasks == 0
+
+
 def test_instance_cache_lock_is_reset_after_fork(monkeypatch: pytest.MonkeyPatch):
     class ForkedService(MockService):
         _instance_cache_lock = threading.Lock()
