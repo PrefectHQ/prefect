@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import builtins
 import copy
+import inspect
 import json
 import os
 import sys
@@ -19,8 +20,23 @@ import pytest
 import toml
 from cachetools import TTLCache
 from packaging.version import Version
+from pydantic import (
+    AfterValidator,
+    AliasChoices,
+    BeforeValidator,
+    PlainValidator,
+    WrapValidator,
+)
+from pydantic.fields import FieldInfo
 from pydantic_core import to_jsonable_python
-from pydantic_settings import SettingsConfigDict
+from pydantic_settings import (
+    DotEnvSettingsSource,
+    EnvSettingsSource,
+    InitSettingsSource,
+    SecretsSettingsSource,
+    SettingsConfigDict,
+)
+from pydantic_settings.sources.utils import _annotation_is_complex
 from sqlalchemy import make_url
 
 import prefect.context
@@ -95,6 +111,7 @@ from prefect.settings.models.server.database import (
 from prefect.settings.profiles import _cast_settings
 from prefect.settings.sources import (
     PrefectTomlConfigSettingsSource,
+    ProfileSettingsTomlLoader,
     PyprojectTomlConfigSettingsSource,
     _read_toml_file,
 )
@@ -2978,6 +2995,131 @@ class TestProfilesCollection:
         ), "Changed profile source should be inequal"
 
 
+_SETTINGS_FIELDS = _get_settings_fields(Settings)
+
+
+def _settings_classes(
+    settings_cls: type[PrefectBaseSettings] = Settings,
+    path: tuple[str, ...] = (),
+) -> Generator[tuple[type[PrefectBaseSettings], tuple[str, ...]], None, None]:
+    yield settings_cls, path
+    for field_name, field in settings_cls.model_fields.items():
+        if inspect.isclass(field.annotation) and issubclass(
+            field.annotation, PrefectBaseSettings
+        ):
+            yield from _settings_classes(field.annotation, (*path, field_name))
+
+
+def _setting_field(setting: str) -> tuple[FieldInfo, type[PrefectBaseSettings]]:
+    """Return the field for a setting name and the settings class that owns it."""
+    settings_cls: type[PrefectBaseSettings] = Settings
+    *parents, field_name = _SETTINGS_FIELDS[setting].accessor.split(".")
+    for parent in parents:
+        settings_cls = settings_cls.model_fields[parent].annotation
+    return settings_cls.model_fields[field_name], settings_cls
+
+
+def _is_legacy_setting(setting: str) -> bool:
+    return _SETTINGS_FIELDS[setting].name != setting
+
+
+def _annotation_key(setting: str) -> str:
+    return repr(_setting_field(setting)[0].annotation)
+
+
+def _validation_alias_shape(setting: str) -> Any:
+    alias = _setting_field(setting)[0].validation_alias
+    if isinstance(alias, AliasChoices):
+        return AliasChoices, frozenset(type(choice) for choice in alias.choices)
+    return type(alias)
+
+
+def _first_setting_per_group(
+    key: Callable[[str], Any],
+    canonical_only: bool = False,
+    exclude: frozenset[str] = frozenset(),
+) -> list[str]:
+    groups: dict[Any, str] = {}
+    for setting in SUPPORTED_SETTINGS:
+        if setting in exclude or (canonical_only and _is_legacy_setting(setting)):
+            continue
+        groups.setdefault(key(setting), setting)
+    return list(groups.values())
+
+
+def _in_supported_order(*samples: list[str]) -> list[str]:
+    sampled = set().union(*samples)
+    return [setting for setting in SUPPORTED_SETTINGS if setting in sampled]
+
+
+def _profile_value_key(setting: str) -> tuple[Any, ...]:
+    field, _ = _setting_field(setting)
+    validators = [
+        metadata
+        for metadata in field.metadata
+        if isinstance(
+            metadata, (AfterValidator, BeforeValidator, PlainValidator, WrapValidator)
+        )
+    ]
+    return (
+        _annotation_key(setting),
+        repr(validators),
+        _annotation_is_complex(field.annotation, field.metadata),
+        type(to_jsonable_python(SUPPORTED_SETTINGS[setting]["test_value"])),
+        _validation_alias_shape(setting),
+        _is_legacy_setting(setting),
+    )
+
+
+# `_get_profiles_path` reads `PREFECT_PROFILES_PATH` from `.env` and the TOML
+# files directly, so every file-source sample includes it.
+PYPROJECT_TOML_SETTINGS = _in_supported_order(
+    _first_setting_per_group(_annotation_key, canonical_only=True),
+    [PREFECT_PROFILES_PATH.name],
+)
+PREFECT_TOML_SETTINGS = _in_supported_order(
+    _first_setting_per_group(
+        lambda setting: (
+            _annotation_key(setting),
+            repr(_setting_field(setting)[0].metadata),
+        ),
+        canonical_only=True,
+    ),
+    [PREFECT_PROFILES_PATH.name],
+)
+PROFILE_SETTINGS = _first_setting_per_group(
+    _profile_value_key,
+    exclude=frozenset(
+        {
+            PREFECT_PROFILES_PATH.name,
+            "PREFECT_TEST_SETTING",
+            "PREFECT_TESTING_TEST_SETTING",
+        }
+    ),
+)
+DOT_ENV_SETTINGS = _in_supported_order(
+    _first_setting_per_group(
+        lambda setting: (
+            _annotation_key(setting),
+            _validation_alias_shape(setting),
+            _is_legacy_setting(setting),
+        )
+    ),
+    _first_setting_per_group(
+        lambda setting: _setting_field(setting)[1], canonical_only=True
+    ),
+    [PREFECT_PROFILES_PATH.name],
+    # an empty value takes the empty-value branch of the dotenv source
+    [
+        next(
+            setting
+            for setting, config in SUPPORTED_SETTINGS.items()
+            if _to_environment_variable_value(config["test_value"]) == ""
+        )
+    ],
+)
+
+
 class TestSettingValues:
     @pytest.fixture(autouse=True)
     def clear_env_vars(self, monkeypatch: pytest.MonkeyPatch):
@@ -3072,6 +3214,9 @@ class TestSettingValues:
 
         self.check_setting_value(setting, value, expected_value)
 
+    @pytest.mark.parametrize(
+        "setting_and_value_and_expected_value", PROFILE_SETTINGS, indirect=True
+    )
     def test_set_via_profile(
         self,
         temporary_profiles_path: Path,
@@ -3079,15 +3224,6 @@ class TestSettingValues:
         monkeypatch: pytest.MonkeyPatch,
     ):
         setting, value, expected_value = setting_and_value_and_expected_value
-        if setting == "PREFECT_PROFILES_PATH":
-            pytest.skip("Profiles path cannot be set via a profile")
-        if (
-            setting == "PREFECT_TEST_SETTING"
-            or setting == "PREFECT_TESTING_TEST_SETTING"
-        ):
-            # PREFECT_TEST_MODE is used to set PREFECT_TEST_SETTING which messes
-            # with profile loading
-            pytest.skip("Can only set PREFECT_TESTING_TEST_SETTING when in test mode")
 
         with open(temporary_profiles_path, "w") as f:
             toml.dump(
@@ -3100,6 +3236,9 @@ class TestSettingValues:
 
         self.check_setting_value(setting, value, expected_value)
 
+    @pytest.mark.parametrize(
+        "setting_and_value_and_expected_value", DOT_ENV_SETTINGS, indirect=True
+    )
     def test_set_via_dot_env_file(
         self,
         setting_and_value_and_expected_value: tuple[str, Any, Any],
@@ -3119,6 +3258,9 @@ class TestSettingValues:
 
         self.check_setting_value(setting, value, expected_value)
 
+    @pytest.mark.parametrize(
+        "setting_and_value_and_expected_value", PREFECT_TOML_SETTINGS, indirect=True
+    )
     def test_set_via_prefect_toml_file(
         self,
         setting_and_value_and_expected_value: tuple[str, Any, Any],
@@ -3143,6 +3285,9 @@ class TestSettingValues:
 
         self.check_setting_value(setting, value, expected_value)
 
+    @pytest.mark.parametrize(
+        "setting_and_value_and_expected_value", PYPROJECT_TOML_SETTINGS, indirect=True
+    )
     def test_set_via_pyproject_toml_file(
         self,
         setting_and_value_and_expected_value: tuple[str, Any, Any],
@@ -3168,6 +3313,44 @@ class TestSettingValues:
         temporary_toml_file(toml_dict, path=Path("pyproject.toml"))
 
         self.check_setting_value(setting, value, expected_value)
+
+    def test_settings_classes_read_file_sources_at_their_path(self, tmp_path: Path):
+        settings_classes = list(_settings_classes())
+        with tmpchdir(str(tmp_path)):
+            for settings_cls, path in settings_classes:
+                config = settings_cls.model_config
+                assert config["prefect_toml_table_header"] == path
+                assert config["pyproject_toml_table_header"] == (
+                    "tool",
+                    "prefect",
+                    *path,
+                )
+                assert config["env_prefix"] == "PREFECT_" + (
+                    "_".join(path).upper() + "_" if path else ""
+                )
+                assert config.get("toml_file") == "prefect.toml"
+
+                sources = settings_cls.settings_customise_sources(
+                    settings_cls,
+                    init_settings=InitSettingsSource(settings_cls, init_kwargs={}),
+                    env_settings=EnvSettingsSource(settings_cls),
+                    dotenv_settings=DotEnvSettingsSource(settings_cls),
+                    file_secret_settings=SecretsSettingsSource(settings_cls),
+                )
+                assert [
+                    source.toml_table_header
+                    for source in sources
+                    if type(source) is PrefectTomlConfigSettingsSource
+                ] == [path]
+                assert [
+                    source.toml_table_header
+                    for source in sources
+                    if type(source) is PyprojectTomlConfigSettingsSource
+                ] == [("tool", "prefect", *path)]
+                assert (
+                    sum(type(source) is ProfileSettingsTomlLoader for source in sources)
+                    == 1
+                )
 
     def test_db_vacuum_event_retention_overrides_via_toml(
         self,
