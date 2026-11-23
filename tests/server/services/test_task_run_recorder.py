@@ -1280,6 +1280,80 @@ async def test_cancelled_error_from_database_counts_toward_retry_limit(
     assert flush_attempts == 2
 
 
+async def test_inline_flush_survives_cancelled_error_from_database(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A CancelledError raised by the database during a batch-triggered flush
+    must not escape the handler, since that would stop the consumer task that
+    called it. The batch must be kept and recorded by a later flush."""
+    first = pending_event
+    second = pending_event.model_copy(update={"id": uuid4()})
+    recorded: list[ReceivedEvent] = []
+    flush_attempts = 0
+
+    async def mock_record_bulk(events: list[ReceivedEvent]):
+        nonlocal flush_attempts
+        flush_attempts += 1
+        if flush_attempts == 1:
+            raise asyncio.CancelledError()
+        recorded.extend(events)
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_bulk_task_run_events",
+        mock_record_bulk,
+    )
+
+    # write_batch_size=1 so every message flushes inline; the periodic flush
+    # never runs
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=3600
+    ) as handler:
+        await handler(message(first))
+        await handler(message(second))
+
+        # assert before exiting the context, since teardown also flushes
+        assert [e.id for e in recorded] == [first.id]
+
+    assert [e.id for e in recorded] == [first.id, second.id]
+
+
+async def test_inline_flush_propagates_task_cancellation(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Cancelling the task running a batch-triggered flush must still cancel it,
+    and the batch it was writing must be recorded by the final flush."""
+    write_started = asyncio.Event()
+    recorded: list[ReceivedEvent] = []
+    flush_attempts = 0
+
+    async def mock_record_bulk(events: list[ReceivedEvent]):
+        nonlocal flush_attempts
+        flush_attempts += 1
+        if flush_attempts == 1:
+            write_started.set()
+            await asyncio.sleep(100)
+        recorded.extend(events)
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_bulk_task_run_events",
+        mock_record_bulk,
+    )
+
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=3600
+    ) as handler:
+        handling = asyncio.create_task(handler(message(pending_event)))
+        await asyncio.wait_for(write_started.wait(), timeout=5)
+
+        handling.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await handling
+
+    assert [e.id for e in recorded] == [pending_event.id]
+
+
 def make_event_with_flow_run(
     task_run_id: str,
     flow_run_id: Optional[str],
