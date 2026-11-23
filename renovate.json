@@ -7,11 +7,39 @@
   ],
   "packageRules": [
     {
+      "description": "Hold dateutil below 3 until botocore supports it.",
+      "matchManagers": ["pep621"],
+      "matchFileNames": ["pyproject.toml", "client/pyproject.toml"],
+      "matchPackageNames": ["python-dateutil"],
+      "allowedVersions": "<3"
+    },
+    {
+      "description": "Hold the Azure resource SDK below 25 until ACI deployments and AzureML extras support it.",
+      "matchManagers": ["pep621"],
+      "matchFileNames": ["src/integrations/prefect-azure/pyproject.toml"],
+      "matchPackageNames": ["azure-mgmt-resource"],
+      "allowedVersions": "<25"
+    },
+    {
       "description": "Hold legacy UI ESLint below 9 until @prefecthq/eslint-config supports flat config and compatible plugins.",
       "matchManagers": ["npm"],
       "matchFileNames": ["ui/package.json"],
       "matchPackageNames": ["eslint"],
       "allowedVersions": "<9"
+    },
+    {
+      "description": "Hold legacy UI Tailwind below 4 until the PostCSS, stylesheet, and design-system migration is complete.",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["ui/package.json"],
+      "matchPackageNames": ["tailwindcss"],
+      "allowedVersions": "<4"
+    },
+    {
+      "description": "Hold legacy UI Vue Router below 5 until the design and UI-library peer ranges support it.",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["ui/package.json"],
+      "matchPackageNames": ["vue-router"],
+      "allowedVersions": "<5"
     },
     {
       "description": "Hold TypeScript below 6.1.0 until the lint stack's peer ranges support it.",
