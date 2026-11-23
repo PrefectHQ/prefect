@@ -10,7 +10,7 @@ import logging
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
 from uuid import UUID
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import sqlalchemy as sa
 from docket import Depends, Retry
@@ -120,9 +120,11 @@ def _without_generated_dtstart(rrule: str, timezone: str | None) -> str:
     dtstart, _, rule = rrule.partition("\n")
     try:
         anchor = datetime.datetime.strptime(dtstart, "DTSTART:%Y%m%dT%H%M%S")
-    except ValueError:
+        # A timezone stored before they were validated on write may not resolve
+        # (e.g. "UTC+2")
+        tz = ZoneInfo(timezone) if timezone else datetime.timezone.utc
+    except (ValueError, ZoneInfoNotFoundError):
         return rrule
-    tz = ZoneInfo(timezone) if timezone else datetime.timezone.utc
     now = datetime.datetime.now(tz).replace(tzinfo=None)
     if anchor > now + datetime.timedelta(minutes=5):
         return rrule
