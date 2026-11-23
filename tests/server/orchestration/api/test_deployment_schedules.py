@@ -516,7 +516,8 @@ class TestLegacyInvalidRRuleTimezone:
         get_server_session: AsyncSessionGetter,
         deployment,
     ) -> UUID:
-        # Stored before RRule timezones were validated on write.
+        # Stored before RRule timezones were validated on write, with the
+        # `DTSTART` that writes add (#21362).
         async with get_server_session() as session:
             await models.deployments.delete_schedules_for_deployment(
                 session=session, deployment_id=deployment.id
@@ -524,7 +525,7 @@ class TestLegacyInvalidRRuleTimezone:
             schedule = db.DeploymentSchedule(
                 deployment_id=deployment.id,
                 schedule=schemas.schedules.RRuleSchedule(
-                    rrule="FREQ=DAILY", timezone="UTC+2"
+                    rrule="DTSTART:20200101T000000\nRRULE:FREQ=DAILY", timezone="UTC+2"
                 ),
                 active=False,
             )
@@ -573,6 +574,42 @@ class TestLegacyInvalidRRuleTimezone:
                 session=session, deployment_id=deployment.id
             )
         assert [s.schedule.timezone for s in schedules] == ["Etc/GMT-2"]
+
+    async def test_legacy_schedule_can_be_replaced_by_upsert(
+        self,
+        client: AsyncClient,
+        deployment: orm_models.Deployment,
+        legacy_schedule: UUID,
+    ):
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": deployment.name,
+                "flow_id": str(deployment.flow_id),
+                "schedules": [{"schedule": {"cron": "0 9 * * *"}}],
+            },
+        )
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert [
+            (s["schedule"]["cron"], s["active"]) for s in response.json()["schedules"]
+        ] == [("0 9 * * *", True)]
+
+    async def test_legacy_schedule_can_be_replaced_by_update(
+        self,
+        client: AsyncClient,
+        deployment: orm_models.Deployment,
+        legacy_schedule: UUID,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={"schedules": [{"schedule": {"cron": "0 9 * * *"}}]},
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert [
+            (s["schedule"]["cron"], s["active"]) for s in response.json()["schedules"]
+        ] == [("0 9 * * *", True)]
 
 
 class TestDeleteDeploymentSchedule:
