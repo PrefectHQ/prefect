@@ -766,7 +766,11 @@ class TestScheduleRulesWaterfall:
                     schemas.core.DeploymentSchedule(
                         schedule=schemas.schedules.IntervalSchedule(
                             interval=interval,
-                            anchor_date=now("UTC") + datetime.timedelta(seconds=1),
+                            # Anchor well into the future so a slow CI run can't let
+                            # the scheduler's `now()` pass the anchor, which would
+                            # push the first run out by a full interval (dropping
+                            # the second 60-day run past the 100-day max).
+                            anchor_date=now("UTC") + datetime.timedelta(hours=1),
                         ),
                         active=True,
                     )
