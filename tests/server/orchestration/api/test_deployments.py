@@ -2715,6 +2715,50 @@ class TestUpdateDeployment:
         response = await client.get(f"/deployments/{deployment_id}")
         assert [s["active"] for s in response.json()["schedules"]] == [False]
 
+    @pytest.mark.parametrize("method", ["post", "patch"])
+    async def test_update_deployment_replaces_stored_zero_interval_rrule(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+        method: str,
+    ):
+        name = f"zero-interval-{method}"
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": name,
+                "flow_id": str(flow.id),
+                "schedules": [
+                    {
+                        "schedule": {
+                            "rrule": "DTSTART:20261110T080000\nRRULE:FREQ=MINUTELY;INTERVAL=0"
+                        },
+                        "active": False,
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 201, response.text
+        deployment_id = response.json()["id"]
+
+        schedules = [{"schedule": {"cron": "0 9 * * *"}}]
+        if method == "post":
+            response = await client.post(
+                "/deployments/",
+                json={"name": name, "flow_id": str(flow.id), "schedules": schedules},
+            )
+            assert response.status_code == 200, response.text
+        else:
+            response = await client.patch(
+                f"/deployments/{deployment_id}", json={"schedules": schedules}
+            )
+            assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert [
+            (s["schedule"]["cron"], s["active"]) for s in response.json()["schedules"]
+        ] == [("0 9 * * *", True)]
+
     async def test_update_deployment_with_multiple_schedules_and_existing_slugs_422(
         self,
         client,

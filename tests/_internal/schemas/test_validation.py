@@ -186,6 +186,8 @@ class TestNormalizeRRuleString:
             # COUNT counts from dtstart — never advance.
             "FREQ=MINUTELY;COUNT=10",
             "FREQ=SECONDLY;COUNT=100",
+            # A zero interval has no period to advance by.
+            "FREQ=MINUTELY;INTERVAL=0",
         ],
     )
     def test_unsafe_shapes_get_legacy_anchor(self, rule):

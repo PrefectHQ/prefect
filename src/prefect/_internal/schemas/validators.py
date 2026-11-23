@@ -401,6 +401,7 @@ def normalize_rrule_string(
     if (
         freq is None
         or interval is None
+        or interval < 1
         or count is not None
         or freq not in (dateutil.rrule.SECONDLY, dateutil.rrule.MINUTELY)
     ):
