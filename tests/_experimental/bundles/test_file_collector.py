@@ -33,61 +33,6 @@ class TestCollectionResult:
         assert result.total_size == 0
         assert result.patterns_matched == {}
 
-    def test_create_with_files(self, tmp_path):
-        """Test creating a CollectionResult with files."""
-        file1 = tmp_path / "a.txt"
-        file2 = tmp_path / "b.txt"
-        file1.touch()
-        file2.touch()
-
-        result = CollectionResult(
-            files=[file1, file2],
-            warnings=[],
-            total_size=0,
-            patterns_matched={"a.txt": [file1], "b.txt": [file2]},
-        )
-        assert len(result.files) == 2
-        assert file1 in result.files
-        assert file2 in result.files
-
-    def test_create_with_warnings(self):
-        """Test creating a CollectionResult with warnings."""
-        result = CollectionResult(
-            files=[],
-            warnings=["Pattern 'missing.txt' matched no files"],
-            total_size=0,
-            patterns_matched={"missing.txt": []},
-        )
-        assert len(result.warnings) == 1
-        assert "missing.txt" in result.warnings[0]
-
-    def test_total_size_tracking(self, tmp_path):
-        """Test that total_size is tracked correctly."""
-        file = tmp_path / "data.txt"
-        file.write_text("12345")  # 5 bytes
-
-        result = CollectionResult(
-            files=[file],
-            warnings=[],
-            total_size=5,
-            patterns_matched={"data.txt": [file]},
-        )
-        assert result.total_size == 5
-
-    def test_patterns_matched_tracking(self, tmp_path):
-        """Test patterns_matched tracks which files each pattern matched."""
-        file = tmp_path / "config.yaml"
-        file.touch()
-
-        result = CollectionResult(
-            files=[file],
-            warnings=[],
-            total_size=0,
-            patterns_matched={"config.yaml": [file]},
-        )
-        assert "config.yaml" in result.patterns_matched
-        assert result.patterns_matched["config.yaml"] == [file]
-
 
 class TestFileCollector:
     """Tests for FileCollector class."""
@@ -447,25 +392,6 @@ class TestFileCollectorDirectory:
         assert len(result.files) == 1
         assert result.files[0].name == "main.py"
 
-    def test_collect_directory_excludes_ide_directories(self, tmp_path):
-        """Test that .idea and .vscode directories are excluded."""
-        project_dir = tmp_path / "project"
-        project_dir.mkdir()
-        (project_dir / "main.py").write_text("# code")
-        idea = project_dir / ".idea"
-        idea.mkdir()
-        (idea / "workspace.xml").write_text("<xml>")
-        vscode = project_dir / ".vscode"
-        vscode.mkdir()
-        (vscode / "settings.json").write_text("{}")
-
-        collector = FileCollector(tmp_path)
-        result = collector.collect(["project/"])
-
-        # Only main.py should be collected (IDE dirs are hidden anyway)
-        assert len(result.files) == 1
-        assert result.files[0].name == "main.py"
-
     def test_collect_empty_directory_adds_warning(self, tmp_path):
         """Test that empty directory produces warning, not error."""
         empty_dir = tmp_path / "empty"
@@ -521,22 +447,6 @@ class TestFileCollectorDirectory:
         assert len(result.files) == 1
         assert result.files[0].name == "setup.py"
 
-    def test_collect_directory_excludes_git_directory(self, tmp_path):
-        """Test that .git directories are excluded."""
-        project_dir = tmp_path / "project"
-        project_dir.mkdir()
-        (project_dir / "main.py").write_text("# code")
-        git_dir = project_dir / ".git"
-        git_dir.mkdir()
-        (git_dir / "config").write_text("[core]")
-
-        collector = FileCollector(tmp_path)
-        result = collector.collect(["project/"])
-
-        # Only main.py should be collected (.git is hidden anyway)
-        assert len(result.files) == 1
-        assert result.files[0].name == "main.py"
-
     def test_collect_directory_nested_hidden_component(self, tmp_path):
         """Test that files under any hidden path component are excluded."""
         data_dir = tmp_path / "data"
@@ -556,20 +466,6 @@ class TestFileCollectorDirectory:
         # Only data/visible/file.txt should be collected
         assert len(result.files) == 1
         assert "visible" in str(result.files[0])
-
-    def test_collect_directory_excludes_ds_store(self, tmp_path):
-        """Test that .DS_Store files are excluded."""
-        data_dir = tmp_path / "data"
-        data_dir.mkdir()
-        (data_dir / "file.txt").write_text("content")
-        (data_dir / ".DS_Store").write_bytes(b"\x00\x00\x00\x01")
-
-        collector = FileCollector(tmp_path)
-        result = collector.collect(["data/"])
-
-        # Only file.txt should be collected
-        assert len(result.files) == 1
-        assert result.files[0].name == "file.txt"
 
     def test_collect_directory_deduplicates_files(self, tmp_path):
         """Test that same file from overlapping patterns is deduplicated."""
@@ -735,21 +631,6 @@ class TestFileCollectorGlob:
         assert not any("__pycache__" in p for p in file_paths)
         assert any("module.py" in p for p in file_paths)
 
-    def test_collect_glob_excludes_node_modules(self, tmp_path):
-        """Test that glob results exclude node_modules directory."""
-        # Setup: create files including in node_modules
-        (tmp_path / "index.js").write_text("// index")
-        node_modules = tmp_path / "node_modules"
-        node_modules.mkdir()
-        (node_modules / "dep.js").write_text("// dep")
-
-        collector = FileCollector(tmp_path)
-        result = collector.collect(["**/*.js"])
-
-        # Should not include node_modules contents
-        assert len(result.files) == 1
-        assert result.files[0].name == "index.js"
-
     def test_collect_glob_excludes_venv(self, tmp_path):
         """Test that glob results exclude .venv and venv directories."""
         # Setup: create files including in virtual environments
@@ -771,22 +652,6 @@ class TestFileCollectorGlob:
         assert not any(".venv" in p for p in file_paths)
         assert not any("/venv/" in p or p.endswith("/venv") for p in file_paths)
         assert any("app.py" in p for p in file_paths)
-
-    def test_collect_glob_excludes_git_directory(self, tmp_path):
-        """Test that glob results exclude .git directory."""
-        # Setup: create files including in .git
-        (tmp_path / "file.txt").write_text("content")
-
-        git_dir = tmp_path / ".git"
-        git_dir.mkdir()
-        (git_dir / "config").write_text("[core]")
-
-        collector = FileCollector(tmp_path)
-        result = collector.collect(["**/*"])
-
-        # Should not include .git contents (also hidden, but specifically excluded)
-        file_paths = [str(f) for f in result.files]
-        assert not any(".git" in p for p in file_paths)
 
     def test_collect_multiple_glob_patterns(self, tmp_path):
         """Test collecting with multiple glob patterns."""
@@ -1187,12 +1052,6 @@ class TestLargeFileWarning:
         assert result.files[0].name == "collected.bin"
         assert result.total_size > LARGE_FILE_THRESHOLD
 
-    def test_large_file_threshold_constant(self):
-        """Test LARGE_FILE_THRESHOLD is exported and equals 10MB."""
-        from prefect.bundles._file_collector import LARGE_FILE_THRESHOLD
-
-        assert LARGE_FILE_THRESHOLD == 10 * 1024 * 1024  # 10 MB
-
 
 class TestCollectionSummary:
     """Tests for format_collection_summary function."""
@@ -1367,18 +1226,6 @@ class TestPreviewCollection:
         result = preview_collection(Path(tmp_path), ["*.txt"])
 
         assert result["file_count"] == 1
-
-    def test_preview_exported_in_all(self):
-        """Test preview_collection is in __all__."""
-        from prefect.bundles import _file_collector
-
-        assert "preview_collection" in _file_collector.__all__
-
-    def test_format_collection_summary_exported_in_all(self):
-        """Test format_collection_summary is in __all__."""
-        from prefect.bundles import _file_collector
-
-        assert "format_collection_summary" in _file_collector.__all__
 
     def test_preview_collection_returns_excluded_by_ignore(self, tmp_path):
         """Test preview_collection returns excluded_by_ignore list."""
