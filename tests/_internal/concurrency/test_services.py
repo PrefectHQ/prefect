@@ -367,32 +367,61 @@ def test_drain_all_does_not_drain_a_service_that_is_still_starting():
     MockService.mock.assert_called_once_with(created, 1)
 
 
-def test_concurrent_drain_all_stops_each_service_once(
+class CountingLock:
+    """A lock that counts the threads that have tried to acquire it."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.waiting = 0
+
+    def __enter__(self) -> None:
+        self.waiting += 1
+        self.lock.acquire()
+
+    def __exit__(self, *args: object) -> None:
+        self.lock.release()
+
+    def wait_for_waiters(self, count: int) -> None:
+        deadline = time.monotonic() + 5
+        while self.waiting < count and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert self.waiting == count
+
+
+def test_instance_during_drain_all_returns_a_new_service(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    draining = MockService.instance()
+    lock = CountingLock()
+    monkeypatch.setattr(draining, "_lock", lock)
+
+    # Hold the instance lock so that `drain_all` blocks before it stops the service
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        with lock.lock:
+            drain = executor.submit(MockService.drain_all)
+            lock.wait_for_waiters(1)
+            replacement = MockService.instance()
+        drain.result(timeout=5)
+
+    assert replacement is not draining
+    replacement.send(1)
+    replacement.drain()
+    MockService.mock.assert_called_once_with(replacement, 1)
+
+
+def test_concurrent_drains_stop_a_service_once(
     monkeypatch: pytest.MonkeyPatch,
 ):
     instance = MockService.instance()
-    lock = threading.Lock()
-    waiting: list[int] = []
-
-    class CountingLock:
-        def __enter__(self) -> None:
-            waiting.append(threading.get_ident())
-            lock.acquire()
-
-        def __exit__(self, *args: object) -> None:
-            lock.release()
-
-    monkeypatch.setattr(instance, "_lock", CountingLock())
+    lock = CountingLock()
+    monkeypatch.setattr(instance, "_lock", lock)
 
     # Hold the instance lock until both drains have checked that the instance is
     # not stopped yet
     with ThreadPoolExecutor(max_workers=2) as executor:
-        with lock:
-            drains = [executor.submit(MockService.drain_all) for _ in range(2)]
-            deadline = time.monotonic() + 5
-            while len(waiting) < 2 and time.monotonic() < deadline:
-                time.sleep(0.01)
-            assert len(waiting) == 2
+        with lock.lock:
+            drains = [executor.submit(instance.drain) for _ in range(2)]
+            lock.wait_for_waiters(2)
         for drain in drains:
             drain.result(timeout=5)
 

@@ -326,13 +326,18 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         # service, which can wait on the `logging` module lock, and
         # `APILogHandler.flush` calls this while `logging.shutdown` holds that lock
         with cls._instance_cache_lock:
-            instances = tuple(cls._instances.values())
-
-        for instance in instances:
             # A service that is still being created has no work to drain, and
             # stopping it would make `instance()` hand out a stopped service
-            if instance._handed_out:
-                futures.append(instance._drain(at_exit=at_exit))
+            instances = [
+                instance for instance in cls._instances.values() if instance._handed_out
+            ]
+            # Evict now so that `instance()` creates a replacement instead of
+            # returning a service that is about to be stopped
+            for instance in instances:
+                del cls._instances[instance._key]
+
+        for instance in instances:
+            futures.append(instance._drain(at_exit=at_exit))
 
         if get_running_loop() is not None:
             if futures:
