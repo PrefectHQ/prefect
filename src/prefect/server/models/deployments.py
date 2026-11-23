@@ -10,7 +10,7 @@ import logging
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
 from uuid import UUID
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
 from docket import Depends, Retry
@@ -46,7 +46,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
 from prefect.settings.context import get_current_settings
-from prefect.types._datetime import DateTime, now
+from prefect.types._datetime import DateTime, get_timezones, now
 from prefect.utilities.collections import batched_iterable
 
 T = TypeVar("T", bound=tuple[Any, ...])
@@ -120,11 +120,13 @@ def _without_generated_dtstart(rrule: str, timezone: str | None) -> str:
     dtstart, _, rule = rrule.partition("\n")
     try:
         anchor = datetime.datetime.strptime(dtstart, "DTSTART:%Y%m%dT%H%M%S")
-        # A timezone stored before they were validated on write may not resolve
-        # (e.g. "UTC+2")
-        tz = ZoneInfo(timezone) if timezone else datetime.timezone.utc
-    except (ValueError, ZoneInfoNotFoundError):
+    except ValueError:
         return rrule
+    if timezone and timezone not in get_timezones():
+        # Rows stored before timezones were validated on write can have ones
+        # `ZoneInfo` can't load, e.g. "UTC+2"
+        return rrule
+    tz = ZoneInfo(timezone) if timezone else datetime.timezone.utc
     now = datetime.datetime.now(tz).replace(tzinfo=None)
     if anchor > now + datetime.timedelta(minutes=5):
         return rrule
