@@ -4634,7 +4634,7 @@ wheels = [
 
 [[package]]
 name = "prefect-azure"
-version = "0.4.13"
+version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -4643,11 +4643,10 @@ dependencies = [
     { name = "azure-mgmt-resource" },
     { name = "prefect" },
     { name = "prefect-docker" },
-    { name = "setuptools" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a4/3e/5451d1ffdfd91af9b81fed528fabb2111c3a5b0f1aed43b813909a0a3cc2/prefect_azure-0.4.13.tar.gz", hash = "sha256:0e29a09d2e073d4a6e2b14889fc3f94978e1133300529cfd88ddabfcf481cc5b", size = 66701, upload-time = "2026-09-08T18:27:53.429Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/67/c1/c2b3621405035d12a9cdc47df7f84a264da2d43336017f1d341547839c83/prefect_azure-0.5.0.tar.gz", hash = "sha256:11bd56850face069ea09d2497b875940b2a54dd9137e869cf41b57ba9be4fda0", size = 71636, upload-time = "2026-11-19T18:14:14.451Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/2a/83a66d37044f63c7e5d9d634a1f50b9058327e494f8dca6e7c7c35f4a819/prefect_azure-0.4.13-py3-none-any.whl", hash = "sha256:fd32c2912884b8823c3c6d583a913cde850eceab62d761c5d2aa41d0aae1f0fa", size = 47068, upload-time = "2026-09-08T18:27:52.046Z" },
+    { url = "https://files.pythonhosted.org/packages/00/21/1d075bdd732fe4525a2e479cd575cba5877486e8f81c37cd4f2df2119f6c/prefect_azure-0.5.0-py3-none-any.whl", hash = "sha256:081f47a291582b9405c3379874cda640f1920dd2fc947b313dd58a001d380b28", size = 47739, upload-time = "2026-11-19T18:14:13.144Z" },
 ]
 
 [[package]]
@@ -4706,7 +4705,7 @@ wheels = [
 
 [[package]]
 name = "prefect-docker"
-version = "0.7.4"
+version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docker" },
@@ -4714,21 +4713,21 @@ dependencies = [
     { name = "prefect" },
     { name = "python-on-whales" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6c/55/35e245d41e091bf87207a9e6ee0049620fdb18a6420094ea639f71bac31f/prefect_docker-0.7.4.tar.gz", hash = "sha256:cfd4bd5f36d493472a4aa33b48695330a1ba70d022fdf8efc9aba8f9eea20cb3", size = 50648, upload-time = "2026-09-08T18:33:13.371Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/dd/ac/0c4cdfcb194419becbc0f9fb8aa200c65d7fd54bb615170545ab69cb5b7c/prefect_docker-0.8.0.tar.gz", hash = "sha256:1001e2289dda64827ba7e756b1dfce03ff471c4ce2cdb3b9db08f562a9fcdfde", size = 57607, upload-time = "2026-11-19T18:13:59.68Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/bf/ac92a81ba57ab290455e662efe0c2af1d39b81dc47c8048fb7d41ee6266f/prefect_docker-0.7.4-py3-none-any.whl", hash = "sha256:93d743696b79739ce24990796cb9d366516236dd81f3350e57b7f6205af58dc8", size = 32463, upload-time = "2026-09-08T18:33:12.248Z" },
+    { url = "https://files.pythonhosted.org/packages/95/d9/887aa2843e295ef534c7e2a9df8d6484d31b5b29cc5a6b8f6522ae80d8e8/prefect_docker-0.8.0-py3-none-any.whl", hash = "sha256:69c3ddd4d0f3277d91dfb13be0385f696be6cf0c845f0b9379a43190dcf3c5ba", size = 33767, upload-time = "2026-11-19T18:13:58.38Z" },
 ]
 
 [[package]]
 name = "prefect-email"
-version = "0.4.3"
+version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prefect" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bf/c0/0545483f865632cffa193c9736958ebb4a966bef6d6559f14736becbcd24/prefect_email-0.4.3.tar.gz", hash = "sha256:61b6be361a1a6a39f3d0975cbeca7514a9562719e7e47656e61ccf35385bad12", size = 16801, upload-time = "2026-09-08T18:33:07.514Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/2c/0614f79b7450c89fbde5775aaf03803ae28238a4b9bf017f8b7c33aebc23/prefect_email-0.5.0.tar.gz", hash = "sha256:d14d41cdb634462977a117f4f227dfe2dd1265470ed45021e3651aeaef2d9162", size = 17237, upload-time = "2026-11-19T17:53:05.732Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9d/d7/bbb73b56e9e2913cdfaee00b563c93370c57d9d979373e5227434453a4ef/prefect_email-0.4.3-py3-none-any.whl", hash = "sha256:8d9a0d638a9d46a57e82393e7e885cdbf95dd5c162214a864be33aef5eab0b12", size = 11034, upload-time = "2026-09-08T18:33:06.474Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/c6/75e89f86c21949753ea32c0e7730c8ddde52ff012bc860393fd4e259f785/prefect_email-0.5.0-py3-none-any.whl", hash = "sha256:9d0c346b4d5ffbd826c8c84fe481c5e02f6d90b458946acc1a2849f0a4004431", size = 11087, upload-time = "2026-11-19T17:53:04.488Z" },
 ]
 
 [[package]]
