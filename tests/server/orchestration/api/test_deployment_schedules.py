@@ -510,11 +510,16 @@ class TestUpdateDeploymentSchedule:
 
 class TestLegacyInvalidRRuleTimezone:
     @pytest.fixture
+    def legacy_timezone(self) -> str:
+        return "UTC+2"
+
+    @pytest.fixture
     async def legacy_schedule(
         self,
         db: PrefectDBInterface,
         get_server_session: AsyncSessionGetter,
         deployment,
+        legacy_timezone: str,
     ) -> UUID:
         # Stored before RRule timezones were validated on write, with the
         # `DTSTART` that writes add (#21362).
@@ -525,7 +530,8 @@ class TestLegacyInvalidRRuleTimezone:
             schedule = db.DeploymentSchedule(
                 deployment_id=deployment.id,
                 schedule=schemas.schedules.RRuleSchedule(
-                    rrule="DTSTART:20200101T000000\nRRULE:FREQ=DAILY", timezone="UTC+2"
+                    rrule="DTSTART:20200101T000000\nRRULE:FREQ=DAILY",
+                    timezone=legacy_timezone,
                 ),
                 active=False,
             )
@@ -575,6 +581,12 @@ class TestLegacyInvalidRRuleTimezone:
             )
         assert [s.schedule.timezone for s in schedules] == ["Etc/GMT-2"]
 
+    @pytest.mark.parametrize(
+        "legacy_timezone",
+        # the second is too long to be a file name
+        ["UTC+2", "UTC" + "x" * 300],
+        ids=["UTC+2", "long"],
+    )
     async def test_legacy_schedule_can_be_replaced_by_upsert(
         self,
         client: AsyncClient,
@@ -594,6 +606,12 @@ class TestLegacyInvalidRRuleTimezone:
             (s["schedule"]["cron"], s["active"]) for s in response.json()["schedules"]
         ] == [("0 9 * * *", True)]
 
+    @pytest.mark.parametrize(
+        "legacy_timezone",
+        # the second is too long to be a file name
+        ["UTC+2", "UTC" + "x" * 300],
+        ids=["UTC+2", "long"],
+    )
     async def test_legacy_schedule_can_be_replaced_by_update(
         self,
         client: AsyncClient,
