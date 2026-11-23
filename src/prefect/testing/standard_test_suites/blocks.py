@@ -1,5 +1,7 @@
 import re
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import IO
 from urllib.request import urlopen
 
 import pytest
@@ -12,6 +14,33 @@ try:
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
+
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+_REPO_ASSET_URL_PATTERN = re.compile(
+    r"^https://raw\.githubusercontent\.com/PrefectHQ/prefect/[0-9a-f]{40}/(?P<path>assets/.+)$"
+)
+
+
+def _local_repo_asset(url: str) -> Path | None:
+    """
+    Return the local checkout path for a logo URL that points at an asset in this
+    repository pinned to a commit, or `None` if it doesn't or no checkout is
+    available (e.g. when `prefect` is installed from a wheel).
+    """
+    match = _REPO_ASSET_URL_PATTERN.match(url)
+    if match is None:
+        return None
+    path = _REPO_ROOT / match.group("path")
+    return path if path.is_file() else None
+
+
+def _open_logo(url: str) -> IO[bytes]:
+    # Read repository-hosted logos from the local checkout instead of
+    # raw.githubusercontent.com, which intermittently rejects requests from CI
+    # (e.g. `503 Backend.max_conn reached`) and makes this test flaky.
+    if (path := _local_repo_asset(url)) is not None:
+        return path.open("rb")
+    return urlopen(url)
 
 
 class BlockStandardTestSuite(ABC):
@@ -67,7 +96,9 @@ class BlockStandardTestSuite(ABC):
         assert logo_url is not None, (
             f"{block.__name__} is missing a value for _logo_url"
         )
-        img = Image.open(urlopen(str(logo_url)))
+        with _open_logo(str(logo_url)) as logo:
+            img = Image.open(logo)
+            img.load()
         assert img.width == img.height, "Logo should be a square image"
         assert 1000 > img.width > 45, (
             f"Logo should be between 200px and 1000px wid, but is {img.width}px wide"
