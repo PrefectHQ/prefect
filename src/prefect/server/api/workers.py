@@ -1172,7 +1172,9 @@ async def worker_channel_connect(
         async with worker_channel_utils.messaging.ephemeral_subscription(
             worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC,
         ) as consumer_kwargs:
-            async with db.session_context(begin_transaction=True) as session:
+            async with db.session_context(
+                begin_transaction=True, with_for_update=True
+            ) as session:
                 ready, work_pool_update_event = await _build_worker_ready_frame(
                     session=session,
                     work_pool_name=work_pool_name,

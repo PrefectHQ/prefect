@@ -7122,6 +7122,12 @@ export interface components {
              * @default true
              */
             warn: boolean;
+            /**
+             * Aggregate Nested States
+             * @description Whether to aggregate nested collections of states when determining a flow or task run's final state. When enabled, returning nested collections of states (for example, the results of several `.map()` calls) aggregates the states at any depth, so a run fails if any nested state failed. When disabled (default), only a single state or a flat collection of states is aggregated and nested collections are treated as plain data, preserving the historical behavior.
+             * @default false
+             */
+            aggregate_nested_states: boolean;
         };
         /**
          * Flow

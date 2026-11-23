@@ -45,14 +45,18 @@ class ReactiveTriggers(RunInEphemeralServers, Service):
             read_batch_size=self.service_settings().read_batch_size,
         )
 
-        async with triggers.consumer() as handler:
-            self.consumer_task = asyncio.create_task(self.consumer.run(handler))
-            logger.debug("Reactive triggers started")
+        # Loading automations can be slow, so track it as part of `consumer_task`
+        # to allow `stop()` to cancel a service that hasn't finished starting
+        self.consumer_task = asyncio.create_task(self._consume(self.consumer))
+        try:
+            await self.consumer_task
+        except asyncio.CancelledError:
+            pass
 
-            try:
-                await self.consumer_task
-            except asyncio.CancelledError:
-                pass
+    async def _consume(self, consumer: Consumer) -> None:
+        async with triggers.consumer() as handler:
+            logger.debug("Reactive triggers started")
+            await consumer.run(handler)
 
     async def stop(self) -> None:
         assert self.consumer_task is not None, "Reactive triggers not started"

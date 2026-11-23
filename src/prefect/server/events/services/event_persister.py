@@ -156,7 +156,11 @@ async def create_handler(
                 # Database drivers can surface connection failures as
                 # CancelledError; keep the batch rather than losing it
                 handle_failed_flush(batch)
-                raise
+                # Only propagate a real cancellation of this task; re-raising
+                # the driver's error would stop the inline flush's consumer
+                task = asyncio.current_task()
+                if task is None or task.cancelling():
+                    raise
             except Exception:
                 handle_failed_flush(batch)
 

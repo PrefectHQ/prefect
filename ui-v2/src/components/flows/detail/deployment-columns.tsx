@@ -1,17 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import type { components } from "@/api/prefect";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Icon } from "@/components/ui/icons";
 import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { ColumnDef } from "@/lib/tanstack-table";
+import { DeploymentActionsCell } from "./cells";
 import { MiniDeploymentActivity } from "./mini-deployment-activity";
 
 type Deployment = components["schemas"]["DeploymentResponse"];
@@ -98,29 +91,7 @@ export const columns: ColumnDef<Deployment>[] = [
 	},
 	{
 		id: "actions",
-		cell: ({ row }) => {
-			if (!row.original.id) return null;
-
-			return (
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="icon">
-							<span className="sr-only">Open menu</span>
-							<Icon id="MoreHorizontal" className="size-4" />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-						<DropdownMenuItem
-							onClick={() =>
-								void navigator.clipboard.writeText(row.original.id)
-							}
-						>
-							Copy ID
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			);
-		},
+		cell: (props) => <DeploymentActionsCell {...props} />,
 		minSize: 30,
 		maxSize: 30,
 	},
