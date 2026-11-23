@@ -2,7 +2,7 @@ import pytest
 
 from prefect.blocks.core import Block
 from prefect.testing.standard_test_suites import BlockStandardTestSuite
-from prefect.testing.standard_test_suites.blocks import _local_repo_asset
+from prefect.testing.standard_test_suites.blocks import _read_local_repo_asset
 from prefect.utilities.dispatch import get_registry_for_type
 from prefect.utilities.importtools import to_qualified_name
 
@@ -35,16 +35,19 @@ def test_repository_hosted_logos_resolve_to_local_assets():
     }
     assert repo_hosted_logo_urls
     for url in repo_hosted_logo_urls:
-        path = _local_repo_asset(url)
-        assert path is not None, url
-        assert url.endswith(path.relative_to(path.parents[2]).as_posix())
+        assert _read_local_repo_asset(url), url
 
 
-def test_non_repository_logos_are_not_resolved_locally():
-    assert _local_repo_asset("https://example.com/assets/block-logos/slack.png") is None
-    assert (
-        _local_repo_asset(
-            "https://raw.githubusercontent.com/PrefectHQ/prefect/main/assets/block-logos/slack.png"
-        )
-        is None
-    )
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/assets/block-logos/slack.png",
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/main/assets/block-logos/slack.png",
+        # nonexistent commit
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/0000000000000000000000000000000000000000/assets/block-logos/slack.png",
+        # nonexistent path at a real commit
+        "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/does-not-exist.png",
+    ],
+)
+def test_logos_not_in_the_local_repository_are_not_resolved_locally(url: str):
+    assert _read_local_repo_asset(url) is None

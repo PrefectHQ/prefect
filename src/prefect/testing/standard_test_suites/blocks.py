@@ -1,5 +1,7 @@
 import re
+import subprocess
 from abc import ABC, abstractmethod
+from io import BytesIO
 from pathlib import Path
 from typing import IO
 from urllib.request import urlopen
@@ -17,29 +19,47 @@ except ImportError:
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _REPO_ASSET_URL_PATTERN = re.compile(
-    r"^https://raw\.githubusercontent\.com/PrefectHQ/prefect/[0-9a-f]{40}/(?P<path>assets/.+)$"
+    r"^https://raw\.githubusercontent\.com/PrefectHQ/prefect/(?P<sha>[0-9a-f]{40})/(?P<path>assets/.+)$"
 )
 
 
-def _local_repo_asset(url: str) -> Path | None:
+def _read_local_repo_asset(url: str) -> bytes | None:
     """
-    Return the local checkout path for a logo URL that points at an asset in this
-    repository pinned to a commit, or `None` if it doesn't or no checkout is
-    available (e.g. when `prefect` is installed from a wheel).
+    Return the contents of a logo URL that points at an asset in this repository
+    pinned to a commit, read from the local git checkout at that commit.
+
+    Returns `None` if the URL doesn't point at a pinned repository asset or the
+    local checkout can't provide it (e.g. `prefect` is installed from a wheel, the
+    clone is shallow, or the commit or path doesn't exist).
     """
     match = _REPO_ASSET_URL_PATTERN.match(url)
     if match is None:
         return None
-    path = _REPO_ROOT / match.group("path")
-    return path if path.is_file() else None
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(_REPO_ROOT),
+                "cat-file",
+                "blob",
+                f"{match.group('sha')}:{match.group('path')}",
+            ],
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    return result.stdout if result.returncode == 0 else None
 
 
 def _open_logo(url: str) -> IO[bytes]:
-    # Read repository-hosted logos from the local checkout instead of
+    # Read repository-hosted logos from the local git checkout instead of
     # raw.githubusercontent.com, which intermittently rejects requests from CI
-    # (e.g. `503 Backend.max_conn reached`) and makes this test flaky.
-    if (path := _local_repo_asset(url)) is not None:
-        return path.open("rb")
+    # (e.g. `503 Backend.max_conn reached`) and makes this test flaky. Reading
+    # the blob at the pinned commit yields the same bytes the URL serves.
+    if (content := _read_local_repo_asset(url)) is not None:
+        return BytesIO(content)
     return urlopen(url)
 
 
