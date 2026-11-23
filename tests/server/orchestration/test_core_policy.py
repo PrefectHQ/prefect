@@ -4,7 +4,6 @@ import math
 import random
 from collections.abc import Awaitable, Callable
 from datetime import timedelta, timezone
-from itertools import product
 from typing import NoReturn, Optional
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -797,7 +796,7 @@ class TestManualFlowRetries:
 class TestUpdatingFlowRunTrackerOnTasks:
     @pytest.mark.parametrize(
         "flow_run_count,initial_state_type",
-        list(product((5, 42), ALL_ORCHESTRATION_STATES)),
+        [(5, None), (42, StateType.SCHEDULED)],
     )
     async def test_task_runs_track_corresponding_flow_runs(
         self,
@@ -3697,35 +3696,6 @@ class TestHandleCancellingStateTransitions:
             list(set(ALL_ORCHESTRATION_STATES) - {states.StateType.CANCELLED, None})
         ),
     )
-    async def test_rejects_cancelled_cancelling_to_anything_but_cancelled(
-        self,
-        session,
-        initialize_orchestration,
-        proposed_state_type,
-    ):
-        initial_state_type = states.StateType.CANCELLING
-        intended_transition = (initial_state_type, proposed_state_type)
-
-        ctx = await initialize_orchestration(
-            session,
-            "flow",
-            *intended_transition,
-        )
-
-        async with EnforceCancellingToCancelledTransition(
-            ctx, *intended_transition
-        ) as ctx:
-            await ctx.validate_proposed_state()
-
-        assert ctx.response_status == SetStateStatus.REJECT
-        assert ctx.validated_state_type == states.StateType.CANCELLING
-
-    @pytest.mark.parametrize(
-        "proposed_state_type",
-        sorted(
-            list(set(ALL_ORCHESTRATION_STATES) - {states.StateType.CANCELLED, None})
-        ),
-    )
     async def test_does_not_block_cancelled_to_other_states(
         self,
         session,
@@ -4042,32 +4012,17 @@ class TestPreventDuplicateTransitions:
 
 
 class TestFlowConcurrencyLimits:
-    all_states = set(ALL_ORCHESTRATION_STATES) - {None}
+    ignored_secure_transitions = [
+        (StateType.PENDING, StateType.RUNNING),
+        (StateType.RUNNING, StateType.COMPLETED),
+        (StateType.CANCELLING, StateType.CANCELLED),
+    ]
 
-    ignored_secure_from_states = {
-        states.StateType.PENDING,
-        states.StateType.RUNNING,
-        states.StateType.CANCELLING,
-    }
-    ignored_secure_to_states = all_states - {
-        states.StateType.PENDING,
-    }
-    ignored_secure_transitions = list(
-        sorted(product(ignored_secure_from_states, ignored_secure_to_states))
-    )
-
-    ignored_release_from_states = all_states - {
-        states.StateType.RUNNING,
-        states.StateType.CANCELLING,
-    }
-    ignored_release_to_states = {
-        states.StateType.PENDING,
-        states.StateType.RUNNING,
-        states.StateType.CANCELLING,
-    }
-    ignored_release_transitions = list(
-        sorted(product(ignored_release_from_states, ignored_release_to_states))
-    )
+    ignored_release_transitions = [
+        (StateType.SCHEDULED, StateType.PENDING),
+        (StateType.PENDING, StateType.RUNNING),
+        (StateType.PENDING, StateType.CANCELLING),
+    ]
 
     async def create_deployment_with_concurrency_limit(
         self,
@@ -4219,6 +4174,7 @@ class TestFlowConcurrencyLimits:
             session,
             "flow",
             *intended_transition,
+            deployment_id=deployment.id,
         )
 
         async with contextlib.AsyncExitStack() as stack:

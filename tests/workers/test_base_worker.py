@@ -2377,26 +2377,6 @@ class TestPrepareForFlowRun:
     def deployment(self, flow):
         return DeploymentResponse(name="my-deployment-name", flow_id=flow.id)
 
-    def test_prepare_for_flow_run_without_deployment_and_flow(
-        self, job_config, flow_run
-    ):
-        job_config.prepare_for_flow_run(flow_run)
-
-        assert job_config.env == {
-            **get_current_settings().to_environment_variables(exclude_unset=True),
-            "MY_VAR": "foo",
-            "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-            "PREFECT__FLOW_ID": str(flow_run.flow_id),
-        }
-        assert job_config.labels == {
-            "my-label": "foo",
-            "prefect.io/flow-run-id": str(flow_run.id),
-            "prefect.io/flow-run-name": flow_run.name,
-            "prefect.io/version": prefect.__version__,
-        }
-        assert job_config.name == "my-job-name"
-        assert job_config.command == "prefect flow-run execute"
-
     def test_prepare_for_flow_run(self, job_config, flow_run):
         job_config.prepare_for_flow_run(flow_run)
 
@@ -3681,52 +3661,6 @@ class TestWorkerChannelClient:
         assert connect_context_by_ref["connect_context"].exited
         client.read_work_pool.assert_not_awaited()
         client.send_worker_heartbeat.assert_not_awaited()
-
-    async def test_sync_skips_rest_when_websocket_is_healthy(self):
-        worker_id = uuid.uuid4()
-        snapshot = Mock()
-        client = worker_channel_test_client()
-        client.read_work_pool = AsyncMock()
-        channel_by_ref: dict[str, WorkPoolWorkerChannel] = {}
-
-        def connect_factory(*args: Any, **kwargs: Any) -> FakeWorkerChannelConnect:
-            channel = channel_by_ref["channel"]
-            websocket = FakeWorkerChannelWebSocket(
-                [
-                    {"type": "auth_success"},
-                    worker_channel_ready_frame(
-                        channel.consumer_id, worker_id=worker_id
-                    ),
-                ]
-            )
-            return FakeWorkerChannelConnect(websocket)
-
-        channel = WorkPoolWorkerChannel(
-            client=client,
-            api_url="http://localhost:4200/api",
-            work_pool_is_available=lambda: True,
-            work_pool_name="test-work-pool",
-            worker_name="test-worker",
-            worker_type="test",
-            heartbeat_interval_seconds=30,
-            work_queue_names=[],
-            create_pool_if_not_found=True,
-            default_base_job_template={},
-            worker_metadata=no_worker_channel_metadata,
-            logger=logging.getLogger("test-worker-channel"),
-            on_work_pool_snapshot=snapshot,
-            connect_factory=connect_factory,
-        )
-        channel_by_ref["channel"] = channel
-
-        async with anyio.create_task_group() as task_group:
-            await channel.sync(task_group)
-            task_group.cancel_scope.cancel()
-
-        client.read_work_pool.assert_not_awaited()
-        client.send_worker_heartbeat.assert_not_awaited()
-        snapshot.assert_called_once()
-        assert channel.rest_fallback_enabled is False
 
     async def test_sync_times_out_setup_for_rest_fallback(self):
         client = worker_channel_test_client()

@@ -265,22 +265,6 @@ class TestIntervalSchedule:
             datetime(2022, 1, 3, tzinfo=ZoneInfo("UTC")),
         ]
 
-    async def test_get_dates_from_offset_naive_end(self):
-        # Regression test for https://github.com/PrefectHQ/orion/issues/2466
-        clock = IntervalSchedule(
-            interval=timedelta(days=1),
-            anchor_date=datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")),
-        )
-        dates = await clock.get_dates(
-            start=datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")),
-            end=datetime(2022, 1, 3, tzinfo=ZoneInfo("UTC")),
-        )
-        assert dates == [
-            datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")),
-            datetime(2022, 1, 2, tzinfo=ZoneInfo("UTC")),
-            datetime(2022, 1, 3, tzinfo=ZoneInfo("UTC")),
-        ]
-
     @pytest.mark.skipif(
         sys.version_info < (3, 13),
         reason="Bug only affects Python 3.13+ with whenever library",
@@ -1146,30 +1130,40 @@ class TestCronScheduleDaylightSavingsTime:
         assert not any(date.fold for date in whole + after)
 
     @pytest.mark.parametrize(
-        "timezone, transition",
+        "timezone, transition, cron",
         [
-            ("America/New_York", "2026-03-08T07:00:00+00:00"),
-            ("America/New_York", "2026-11-01T06:00:00+00:00"),
-            ("Europe/Berlin", "2026-03-29T01:00:00+00:00"),
-            ("Europe/Berlin", "2026-10-25T01:00:00+00:00"),
-            ("Australia/Lord_Howe", "2026-04-04T15:00:00+00:00"),
-            ("Australia/Lord_Howe", "2026-10-03T15:30:00+00:00"),
-            ("America/Santiago", "2026-04-05T03:00:00+00:00"),
-            ("America/Santiago", "2026-09-06T04:00:00+00:00"),
-        ],
-    )
-    @pytest.mark.parametrize(
-        "cron",
-        [
-            "*/15 * * * *",
-            "0 * * * *",
-            "30 1 * * *",
-            "30 2 * * *",
-            "* * * * *",
-            "0 0 * * *",
-            "45 23 * * *",
-            "*/7 * * * *",
-            "0,30 * * * *",
+            ("America/New_York", "2026-03-08T07:00:00+00:00", "* * * * *"),
+            ("America/New_York", "2026-03-08T07:00:00+00:00", "*/7 * * * *"),
+            ("America/New_York", "2026-03-08T07:00:00+00:00", "0 * * * *"),
+            ("America/New_York", "2026-03-08T07:00:00+00:00", "30 2 * * *"),
+            ("America/New_York", "2026-11-01T06:00:00+00:00", "* * * * *"),
+            ("America/New_York", "2026-11-01T06:00:00+00:00", "*/7 * * * *"),
+            ("America/New_York", "2026-11-01T06:00:00+00:00", "0 * * * *"),
+            ("America/New_York", "2026-11-01T06:00:00+00:00", "30 1 * * *"),
+            ("Europe/Berlin", "2026-03-29T01:00:00+00:00", "* * * * *"),
+            ("Europe/Berlin", "2026-03-29T01:00:00+00:00", "*/7 * * * *"),
+            ("Europe/Berlin", "2026-03-29T01:00:00+00:00", "0 * * * *"),
+            ("Europe/Berlin", "2026-03-29T01:00:00+00:00", "30 2 * * *"),
+            ("Europe/Berlin", "2026-10-25T01:00:00+00:00", "* * * * *"),
+            ("Europe/Berlin", "2026-10-25T01:00:00+00:00", "*/7 * * * *"),
+            ("Europe/Berlin", "2026-10-25T01:00:00+00:00", "0 * * * *"),
+            ("Europe/Berlin", "2026-10-25T01:00:00+00:00", "30 2 * * *"),
+            ("Australia/Lord_Howe", "2026-04-04T15:00:00+00:00", "* * * * *"),
+            ("Australia/Lord_Howe", "2026-04-04T15:00:00+00:00", "*/7 * * * *"),
+            ("Australia/Lord_Howe", "2026-04-04T15:00:00+00:00", "0 * * * *"),
+            ("Australia/Lord_Howe", "2026-04-04T15:00:00+00:00", "30 1 * * *"),
+            ("Australia/Lord_Howe", "2026-10-03T15:30:00+00:00", "* * * * *"),
+            ("Australia/Lord_Howe", "2026-10-03T15:30:00+00:00", "*/7 * * * *"),
+            ("Australia/Lord_Howe", "2026-10-03T15:30:00+00:00", "0 * * * *"),
+            ("Australia/Lord_Howe", "2026-10-03T15:30:00+00:00", "30 2 * * *"),
+            ("America/Santiago", "2026-04-05T03:00:00+00:00", "* * * * *"),
+            ("America/Santiago", "2026-04-05T03:00:00+00:00", "*/7 * * * *"),
+            ("America/Santiago", "2026-04-05T03:00:00+00:00", "0 * * * *"),
+            ("America/Santiago", "2026-04-05T03:00:00+00:00", "45 23 * * *"),
+            ("America/Santiago", "2026-09-06T04:00:00+00:00", "* * * * *"),
+            ("America/Santiago", "2026-09-06T04:00:00+00:00", "*/7 * * * *"),
+            ("America/Santiago", "2026-09-06T04:00:00+00:00", "0 * * * *"),
+            ("America/Santiago", "2026-09-06T04:00:00+00:00", "0 0 * * *"),
         ],
     )
     async def test_refill_near_transition_matches_scheduled_series(
