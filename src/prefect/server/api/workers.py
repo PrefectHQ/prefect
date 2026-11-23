@@ -939,7 +939,11 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 
 
-@router.post("/{work_pool_name}/queues", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{work_pool_name}/queues",
+    status_code=status.HTTP_201_CREATED,
+    operation_id="create_work_pool_queue",
+)
 async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
     work_pool_name: str = Path(..., description="The work pool name"),
@@ -983,7 +987,7 @@ async def create_work_queue(
     return response
 
 
-@router.get("/{work_pool_name}/queues/{name}")
+@router.get("/{work_pool_name}/queues/{name}", operation_id="read_work_pool_queue")
 async def read_work_queue(
     work_pool_name: str = Path(..., description="The work pool name"),
     work_queue_name: str = Path(
@@ -1019,7 +1023,7 @@ async def read_work_queue(
     return response
 
 
-@router.post("/{work_pool_name}/queues/filter")
+@router.post("/{work_pool_name}/queues/filter", operation_id="read_work_pool_queues")
 async def read_work_queues(
     work_pool_name: str = Path(..., description="The work pool name"),
     work_queues: schemas.filters.WorkQueueFilter = None,
@@ -1060,7 +1064,11 @@ async def read_work_queues(
     return ret
 
 
-@router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/{work_pool_name}/queues/{name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="update_work_pool_queue",
+)
 async def update_work_queue(
     work_queue: schemas.actions.WorkQueueUpdate,
     work_pool_name: str = Path(..., description="The work pool name"),
@@ -1093,7 +1101,9 @@ async def update_work_queue(
 
 
 @router.delete(
-    "/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT
+    "/{work_pool_name}/queues/{name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="delete_work_pool_queue",
 )
 async def delete_work_queue(
     work_pool_name: str = Path(..., description="The work pool name"),
@@ -1161,7 +1171,9 @@ async def worker_channel_connect(
         async with worker_channel_utils.messaging.ephemeral_subscription(
             worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC,
         ) as consumer_kwargs:
-            async with db.session_context(begin_transaction=True) as session:
+            async with db.session_context(
+                begin_transaction=True, with_for_update=True
+            ) as session:
                 ready, work_pool_update_event = await _build_worker_ready_frame(
                     session=session,
                     work_pool_name=work_pool_name,
@@ -1264,7 +1276,9 @@ async def worker_heartbeat(
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         work_pool = await models.workers.read_work_pool_by_name(
             session=session,
             work_pool_name=work_pool_name,

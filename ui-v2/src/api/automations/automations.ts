@@ -7,8 +7,7 @@ import type { components } from "@/api/prefect";
 import { getApiUrl, getQueryService } from "@/api/service";
 
 export type Automation = components["schemas"]["Automation"];
-export type AutomationsFilter =
-	components["schemas"]["Body_read_automations_automations_filter_post"];
+export type AutomationsFilter = components["schemas"]["Body_read_automations"];
 
 /**
  * ```

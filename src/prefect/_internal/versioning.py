@@ -6,7 +6,6 @@ from typing import Any, Callable, Coroutine, Dict, Literal, Optional
 from urllib.parse import urlparse
 
 from anyio import run_process
-from pydantic import Field
 
 from prefect.client.schemas.objects import VersionInfo
 
@@ -14,13 +13,6 @@ from prefect.client.schemas.objects import VersionInfo
 async def get_commit_message_first_line() -> str:
     result = await run_process(["git", "log", "-1", "--pretty=%B"])
     return result.stdout.decode().strip().splitlines()[0]
-
-
-class SimpleVersionInfo(VersionInfo):
-    type: Literal["prefect:simple"] = "prefect:simple"
-    version: str = Field(default="")
-    branch: Optional[str] = Field(default=None)
-    url: Optional[str] = Field(default=None)
 
 
 class GithubVersionInfo(VersionInfo):

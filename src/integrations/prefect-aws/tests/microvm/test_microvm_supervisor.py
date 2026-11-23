@@ -1,3 +1,4 @@
+import importlib
 import os
 import random
 import signal
@@ -5,6 +6,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from types import FrameType
 from unittest.mock import MagicMock, create_autospec
@@ -14,6 +16,15 @@ import pytest
 from prefect_aws.microvm import supervisor
 from prefect_aws.microvm.payload import RunHookPayload
 
+import prefect._flow_run_suspension
+import prefect._internal.observers
+import prefect.flow_engine
+from prefect import Flow, flow
+from prefect._flow_run_suspension import (
+    PrestartedFlowRunSuspensionObserver,
+    adopt_prestarted_flow_run_suspension_observer,
+    prestart_flow_run_suspension_observer,
+)
 from prefect._internal.control_listener import configure_from_env
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import get_client
@@ -25,7 +36,15 @@ from prefect.flow_engine import (
     load_flow_run,
     run_flow,
 )
-from prefect.states import Cancelled, Completed, Crashed, Failed, Running, StateType
+from prefect.states import (
+    Cancelled,
+    Completed,
+    Crashed,
+    Failed,
+    Pending,
+    Running,
+    StateType,
+)
 
 pytestmark = [
     pytest.mark.skipif(sys.platform == "win32", reason="The MicroVM entrypoint forks."),
@@ -229,15 +248,6 @@ def sigterm_is_blocked() -> bool:
     return signal.SIGTERM in signal.pthread_sigmask(signal.SIG_BLOCK, [])
 
 
-@pytest.fixture
-def restore_signal_mask() -> Iterator[None]:
-    mask_before_test = signal.pthread_sigmask(signal.SIG_BLOCK, [])
-    try:
-        yield
-    finally:
-        signal.pthread_sigmask(signal.SIG_SETMASK, mask_before_test)
-
-
 @pytest.mark.usefixtures("restore_signal_mask")
 def test_child_gets_default_sigterm_unblocked_and_parent_mask_is_restored(
     monkeypatch: pytest.MonkeyPatch,
@@ -394,3 +404,212 @@ def test_null_entrypoint_loads_the_flow_from_the_flow_run(
     signals.return_value.__enter__.assert_called_once()
     metrics.assert_called_once_with(flow_run, flow)
     metrics.return_value.__enter__.assert_called_once()
+
+
+@pytest.fixture
+def watched_flow_run_ids(monkeypatch: pytest.MonkeyPatch) -> list[UUID]:
+    """
+    Replace the `FlowRunSuspendingObserver` that suspension observer threads use,
+    so that none connects to the API, and return the IDs of the flow runs they
+    watch.
+    """
+    watched: list[UUID] = []
+
+    class FakeFlowRunSuspendingObserver:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeFlowRunSuspendingObserver":
+            return self
+
+        async def __aexit__(self, *exc_info: object) -> None:
+            pass
+
+        async def watch_flow_run_id(self, flow_run_id: UUID) -> None:
+            watched.append(flow_run_id)
+
+    monkeypatch.setattr(
+        prefect._internal.observers,
+        "FlowRunSuspendingObserver",
+        FakeFlowRunSuspendingObserver,
+    )
+    return watched
+
+
+@pytest.fixture
+def engine_observers_started(monkeypatch: pytest.MonkeyPatch) -> list[UUID]:
+    """
+    Return the IDs of the flow runs for which the flow run engine starts its own
+    suspension observer instead of adopting a prestarted one.
+    """
+    started: list[UUID] = []
+
+    @contextmanager
+    def record_observe_flow_run_suspension(
+        flow_run_id: UUID, suspension_request: object
+    ) -> Iterator[None]:
+        started.append(flow_run_id)
+        yield
+
+    monkeypatch.setattr(
+        prefect.flow_engine,
+        "observe_flow_run_suspension",
+        record_observe_flow_run_suspension,
+    )
+    return started
+
+
+def flow_that_records_it_ran(ran: list[bool]) -> Flow[[], None]:
+    @flow(name="microvm-supervisor-loaded-flow")
+    def loaded_flow() -> None:
+        ran.append(True)
+
+    return loaded_flow
+
+
+def deployment_flow_run(loaded_flow: Flow[[], None]) -> FlowRun:
+    with get_client(sync_client=True) as client:
+        flow_id = client.create_flow(loaded_flow)
+        deployment_id = client.create_deployment(
+            flow_id=flow_id, name=f"microvm-supervisor-{uuid4()}"
+        )
+        return client.create_flow_run_from_deployment(deployment_id)
+
+
+def patch_flow_loading(
+    monkeypatch: pytest.MonkeyPatch,
+    loaded_flow: Flow[[], None],
+    adopted_while_loading_flow_run: list[PrestartedFlowRunSuspensionObserver | None],
+    adopted_while_loading_flow: list[PrestartedFlowRunSuspensionObserver | None],
+) -> None:
+    """
+    Make the no-entrypoint path load `loaded_flow`, and record the prestarted
+    observer while the flow run and the flow load.
+    """
+    monkeypatch.setattr(
+        supervisor, "configure_from_env", create_autospec(configure_from_env)
+    )
+
+    def load_flow_run_recording(flow_run_id: UUID) -> FlowRun:
+        flow_run = load_flow_run(flow_run_id=flow_run_id)
+        adopted_while_loading_flow_run.append(
+            adopt_prestarted_flow_run_suspension_observer(flow_run_id)
+        )
+        return flow_run
+
+    def load_flow_recording(flow_run: FlowRun) -> Flow[[], None]:
+        adopted_while_loading_flow.append(
+            adopt_prestarted_flow_run_suspension_observer(flow_run.id)
+        )
+        return loaded_flow
+
+    monkeypatch.setattr(supervisor, "load_flow_run", load_flow_run_recording)
+    monkeypatch.setattr(supervisor, "load_flow", load_flow_recording)
+
+
+def test_null_entrypoint_deployment_run_adopts_the_prestarted_observer(
+    monkeypatch: pytest.MonkeyPatch,
+    watched_flow_run_ids: list[UUID],
+    engine_observers_started: list[UUID],
+):
+    ran: list[bool] = []
+    loaded_flow = flow_that_records_it_ran(ran)
+    flow_run = deployment_flow_run(loaded_flow)
+    assert flow_run.deployment_id is not None
+    adopted_while_loading_flow_run: list[
+        PrestartedFlowRunSuspensionObserver | None
+    ] = []
+    adopted_while_loading_flow: list[PrestartedFlowRunSuspensionObserver | None] = []
+    patch_flow_loading(
+        monkeypatch,
+        loaded_flow,
+        adopted_while_loading_flow_run,
+        adopted_while_loading_flow,
+    )
+
+    supervisor.execute_flow_run(make_payload(flow_run.id, entrypoint=None))
+
+    assert ran == [True]
+    assert read_state(flow_run.id).type == StateType.COMPLETED
+    assert len(adopted_while_loading_flow_run) == 1
+    assert adopted_while_loading_flow_run[0] is not None
+    assert adopted_while_loading_flow == adopted_while_loading_flow_run
+    assert engine_observers_started == []
+    assert watched_flow_run_ids == [flow_run.id]
+    assert adopt_prestarted_flow_run_suspension_observer(flow_run.id) is None
+
+
+def test_null_entrypoint_run_without_deployment_stops_the_prestarted_observer(
+    monkeypatch: pytest.MonkeyPatch,
+    flow_run_in: CreateFlowRun,
+    watched_flow_run_ids: list[UUID],
+    engine_observers_started: list[UUID],
+):
+    flow_run = flow_run_in(Pending())
+    assert flow_run.deployment_id is None
+    ran: list[bool] = []
+    loaded_flow = flow_that_records_it_ran(ran)
+    adopted_while_loading_flow_run: list[
+        PrestartedFlowRunSuspensionObserver | None
+    ] = []
+    adopted_while_loading_flow: list[PrestartedFlowRunSuspensionObserver | None] = []
+    patch_flow_loading(
+        monkeypatch,
+        loaded_flow,
+        adopted_while_loading_flow_run,
+        adopted_while_loading_flow,
+    )
+
+    supervisor.execute_flow_run(make_payload(flow_run.id, entrypoint=None))
+
+    assert ran == [True]
+    assert read_state(flow_run.id).type == StateType.COMPLETED
+    assert len(adopted_while_loading_flow_run) == 1
+    assert adopted_while_loading_flow_run[0] is not None
+    assert adopted_while_loading_flow == [None]
+    assert engine_observers_started == []
+
+
+def test_null_entrypoint_deployment_run_with_a_prefect_without_prestarted_observers(
+    monkeypatch: pytest.MonkeyPatch,
+    watched_flow_run_ids: list[UUID],
+    engine_observers_started: list[UUID],
+):
+    ran: list[bool] = []
+    loaded_flow = flow_that_records_it_ran(ran)
+    flow_run = deployment_flow_run(loaded_flow)
+    assert flow_run.deployment_id is not None
+    adopted_while_loading_flow_run: list[
+        PrestartedFlowRunSuspensionObserver | None
+    ] = []
+    adopted_while_loading_flow: list[PrestartedFlowRunSuspensionObserver | None] = []
+    try:
+        with monkeypatch.context() as older_prefect:
+            older_prefect.delattr(
+                prefect._flow_run_suspension, "prestart_flow_run_suspension_observer"
+            )
+            importlib.reload(supervisor)
+            assert (
+                supervisor.prestart_flow_run_suspension_observer
+                is not prestart_flow_run_suspension_observer
+            )
+            patch_flow_loading(
+                older_prefect,
+                loaded_flow,
+                adopted_while_loading_flow_run,
+                adopted_while_loading_flow,
+            )
+
+            supervisor.execute_flow_run(make_payload(flow_run.id, entrypoint=None))
+    finally:
+        importlib.reload(supervisor)
+
+    assert ran == [True]
+    assert read_state(flow_run.id).type == StateType.COMPLETED
+    assert adopted_while_loading_flow_run == [None]
+    assert engine_observers_started == [flow_run.id]
+    assert watched_flow_run_ids == []
+    assert (
+        supervisor.prestart_flow_run_suspension_observer
+        is prestart_flow_run_suspension_observer
+    )

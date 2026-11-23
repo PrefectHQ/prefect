@@ -480,6 +480,22 @@ class Consumer(_Consumer):
             )
             next_start_id, claimed_messages = result[0], result[1]
 
+            # Since Redis 7.0, the third element lists pending entries that no
+            # longer exist in the stream; Redis has already removed them from the
+            # PEL, so they can't be retried or dead-lettered
+            deleted_ids = result[2] if len(result) > 2 else []
+            if deleted_ids:
+                logger.warning(
+                    "%d pending entries were deleted from stream %s before "
+                    "consumer group %s processed them: %s",
+                    len(deleted_ids),
+                    self.stream,
+                    self.group,
+                    ", ".join(
+                        i.decode() if isinstance(i, bytes) else i for i in deleted_ids
+                    ),
+                )
+
             if not claimed_messages:
                 break
 
@@ -748,20 +764,49 @@ async def break_topic():
         yield
 
 
+def _parse_stream_id(stream_id: str | bytes) -> tuple[int, int]:
+    """Parse a Redis stream ID into a `(milliseconds, sequence)` tuple so IDs
+    compare numerically rather than as strings."""
+    if isinstance(stream_id, bytes):
+        stream_id = stream_id.decode()
+    ms, _, seq = stream_id.partition("-")
+    return int(ms), int(seq or 0)
+
+
+def _warn_if_skipped_group_has_unprocessed_entries(
+    stream_name: str, group: dict[str, Any], reason: str
+) -> None:
+    pending = group.get("pending") or 0
+    # `lag` is missing before Redis 7.0 and can be null when Redis can't compute it
+    lag = group.get("lag")
+    if pending or lag:
+        logger.warning(
+            "Excluding consumer group %r (%s) from the trim floor of stream %s "
+            "while it has %d pending entries and a lag of %s; entries it has not "
+            "processed may be trimmed",
+            group["name"],
+            reason,
+            stream_name,
+            pending,
+            "unknown" if lag is None else lag,
+        )
+
+
 async def _trim_stream_to_lowest_delivered_id(
     stream_name: str, latest_delivered_id: Optional[str] = None
 ) -> None:
     """
-    Trims a Redis stream by removing messages that have been delivered to all
+    Trims a Redis stream by removing messages that have been processed by all
     active consumers.
 
-    This function finds the lowest last-delivered-id across all consumer groups and
-    any non-consumer-group reader, then trims the stream up to that point, as we
-    know all consumers have processed those messages.
+    Each consumer group's floor is its oldest pending (delivered but not yet
+    acknowledged) entry if it has one, otherwise its last-delivered-id. This
+    function finds the lowest floor across all consumer groups and any
+    non-consumer-group reader, then trims the stream up to that point.
 
-    Consumer groups with all consumers idle beyond the configured threshold are
-    excluded from the trimming calculation to prevent inactive groups from blocking
-    stream trimming.
+    Consumer groups with all consumers idle beyond the configured threshold, and
+    groups that have not read anything yet, are excluded from the trimming
+    calculation to prevent inactive groups from blocking stream trimming.
 
     Args:
         stream_name: The name of the Redis stream to trim
@@ -771,9 +816,9 @@ async def _trim_stream_to_lowest_delivered_id(
     settings = RedisMessagingConsumerSettings()
     idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
 
-    delivered_ids = []
-    if latest_delivered_id and latest_delivered_id != "0-0":
-        delivered_ids.append(latest_delivered_id)
+    floor_ids: list[str] = []
+    if latest_delivered_id and _parse_stream_id(latest_delivered_id) != (0, 0):
+        floor_ids.append(latest_delivered_id)
 
     # Get information about all consumer groups for this stream
     try:
@@ -786,14 +831,14 @@ async def _trim_stream_to_lowest_delivered_id(
         return
     if not groups:
         logger.debug(f"No consumer groups found for stream {stream_name}")
-        if not delivered_ids:
+        if not floor_ids:
             return
 
-    # Find the lowest last-delivered-id across all active groups
-    group_ids = delivered_ids
+    skipped_groups: list[tuple[dict[str, Any], str]] = []
     for group in groups:
-        if group["last-delivered-id"] == "0-0":
+        if _parse_stream_id(group["last-delivered-id"]) == (0, 0):
             # Skip groups that haven't consumed anything
+            skipped_groups.append((group, "it has not read any entries yet"))
             continue
 
         # Check if this group has any active (non-idle) consumers
@@ -803,26 +848,50 @@ async def _trim_stream_to_lowest_delivered_id(
                 consumer["idle"] > idle_threshold_ms for consumer in consumers
             ):
                 # All consumers in this group are idle beyond threshold
+                reason = f"all {len(consumers)} consumers idle > {idle_threshold_ms}ms"
                 logger.debug(
-                    f"Skipping idle consumer group '{group['name']}' "
-                    f"(all {len(consumers)} consumers idle > {idle_threshold_ms}ms)"
+                    f"Skipping idle consumer group '{group['name']}' ({reason})"
                 )
+                skipped_groups.append((group, reason))
                 continue
         except Exception as e:
             # If we can't check consumer idle times, include the group to be safe
             logger.debug(f"Unable to check consumers for group '{group['name']}': {e}")
 
-        group_ids.append(group["last-delivered-id"])
+        group_floor = group["last-delivered-id"]
+        if group.get("pending"):
+            # Entries that were delivered but not acknowledged are still waiting
+            # to be retried, so the floor must not move past the oldest of them
+            try:
+                pending_summary = await redis_client.xpending(
+                    stream_name, group["name"]
+                )
+            except Exception as e:
+                logger.warning(
+                    "Unable to check pending entries for consumer group %r on "
+                    "stream %s, skipping trim: %s",
+                    group["name"],
+                    stream_name,
+                    e,
+                )
+                return
+            if pending_summary["min"]:
+                group_floor = pending_summary["min"]
 
-    if not group_ids:
+        floor_ids.append(group_floor)
+
+    if not floor_ids:
         logger.debug(f"No active consumer groups found for stream {stream_name}")
         return
 
-    lowest_id = min(group_ids)
+    lowest_id = min(floor_ids, key=_parse_stream_id)
 
-    if lowest_id == "0-0":
+    if _parse_stream_id(lowest_id) == (0, 0):
         logger.debug(f"No messages have been delivered in stream {stream_name}")
         return
+
+    for group, reason in skipped_groups:
+        _warn_if_skipped_group_has_unprocessed_entries(stream_name, group, reason)
 
     # Trim the stream up to (but not including) the lowest ID
     # XTRIM with MINID removes all entries with IDs strictly lower than the given ID

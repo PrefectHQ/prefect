@@ -13,7 +13,7 @@ Module containing tasks and flows for interacting with dbt CLI
 ### `atrigger_dbt_cli_command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-atrigger_dbt_cli_command(command: str, profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: Optional[str] = 'dbt-cli-command-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True) -> Optional[dbtRunnerResult]
+atrigger_dbt_cli_command(command: str, profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str | None = 'dbt-cli-command-summary', extra_command_args: list[str] | None = None, stream_output: bool = True) -> dbtRunnerResult | None
 ```
 
 
@@ -23,7 +23,7 @@ Async task for running dbt commands. See trigger_dbt_cli_command for full docs.
 ### `trigger_dbt_cli_command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-trigger_dbt_cli_command(command: str, profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: Optional[str] = 'dbt-cli-command-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True) -> Optional[dbtRunnerResult]
+trigger_dbt_cli_command(command: str, profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str | None = 'dbt-cli-command-summary', extra_command_args: list[str] | None = None, stream_output: bool = True) -> dbtRunnerResult | None
 ```
 
 
@@ -80,7 +80,7 @@ trigger_dbt_cli_command_flow()
 ### `arun_dbt_build` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L451" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-arun_dbt_build(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-build-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+arun_dbt_build(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-build-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -90,7 +90,7 @@ Async version of run_dbt_build. See run_dbt_build for full documentation.
 ### `run_dbt_build` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L477" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_dbt_build(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-build-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+run_dbt_build(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-build-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -131,7 +131,7 @@ Defaults to True.
 ### `arun_dbt_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L535" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-arun_dbt_model(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-run-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+arun_dbt_model(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-run-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -141,7 +141,7 @@ Async version of run_dbt_model. See run_dbt_model for full documentation.
 ### `run_dbt_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L561" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_dbt_model(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-run-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+run_dbt_model(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-run-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -182,7 +182,7 @@ Defaults to True.
 ### `arun_dbt_test` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-arun_dbt_test(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-test-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+arun_dbt_test(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-test-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -192,7 +192,7 @@ Async version of run_dbt_test. See run_dbt_test for full documentation.
 ### `run_dbt_test` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L645" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_dbt_test(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-test-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+run_dbt_test(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-test-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -233,7 +233,7 @@ Defaults to True.
 ### `arun_dbt_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L703" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-arun_dbt_snapshot(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-snapshot-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+arun_dbt_snapshot(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-snapshot-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -243,7 +243,7 @@ Async version of run_dbt_snapshot. See run_dbt_snapshot for full documentation.
 ### `run_dbt_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L729" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_dbt_snapshot(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-snapshot-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+run_dbt_snapshot(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-snapshot-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -284,7 +284,7 @@ Defaults to True.
 ### `arun_dbt_seed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L787" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-arun_dbt_seed(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-seed-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+arun_dbt_seed(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-seed-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -294,7 +294,7 @@ Async version of run_dbt_seed. See run_dbt_seed for full documentation.
 ### `run_dbt_seed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L813" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_dbt_seed(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-seed-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+run_dbt_seed(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-seed-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -335,7 +335,7 @@ Defaults to True.
 ### `arun_dbt_source_freshness` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L871" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-arun_dbt_source_freshness(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-source-freshness-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+arun_dbt_source_freshness(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-source-freshness-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 
@@ -345,7 +345,7 @@ Async version of run_dbt_source_freshness. See run_dbt_source_freshness for full
 ### `run_dbt_source_freshness` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/commands.py#L897" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_dbt_source_freshness(profiles_dir: Optional[Union[Path, str]] = None, project_dir: Optional[Union[Path, str]] = None, overwrite_profiles: bool = False, dbt_cli_profile: Optional[DbtCliProfile] = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-source-freshness-task-summary', extra_command_args: Optional[List[str]] = None, stream_output: bool = True)
+run_dbt_source_freshness(profiles_dir: Path | str | None = None, project_dir: Path | str | None = None, overwrite_profiles: bool = False, dbt_cli_profile: DbtCliProfile | None = None, create_summary_artifact: bool = False, summary_artifact_key: str = 'dbt-source-freshness-task-summary', extra_command_args: list[str] | None = None, stream_output: bool = True)
 ```
 
 

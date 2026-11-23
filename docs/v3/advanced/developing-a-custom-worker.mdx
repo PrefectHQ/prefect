@@ -174,7 +174,7 @@ In the pass-through pattern, template variables are passed through to the job co
 
 This pattern is useful when the execution environment is simple, and the deployment creators are expected to have high technical knowledge.
 
-The [Docker worker](https://prefecthq.github.io/prefect-docker/worker/) is an example of a worker that uses this pattern.
+The [Docker worker](/integrations/prefect-docker/api-ref/prefect_docker-worker) is an example of a worker that uses this pattern.
 
 #### Infrastructure as Code Templating
 
@@ -184,7 +184,7 @@ In the IaC pattern, it's often useful to use template variables to template port
 
 This approach allows work pool creators to provide a simpler interface to deployment creators while also controlling which portions of infrastructure are configurable by deployment creators.
 
-The [Kubernetes worker](https://prefecthq.github.io/prefect-kubernetes/worker/) is an example of a worker that uses this pattern.
+The [Kubernetes worker](/integrations/prefect-kubernetes/api-ref/prefect_kubernetes-worker) is an example of a worker that uses this pattern.
 
 ### Configuring Credentials
 
@@ -411,7 +411,7 @@ Most of the execution logic is omitted from the example above, but it shows that
     3. Monitor the execution
     4. Get the execution's final status from the infrastructure and return a `BaseWorkerResult` object
 
-To see other examples of worker implementations, see the [`ProcessWorker`](/v3/api-ref/python/prefect-workers-process) and [`KubernetesWorker`](https://prefecthq.github.io/prefect-kubernetes/worker/) implementations.
+To see other examples of worker implementations, see the [`ProcessWorker`](/v3/api-ref/python/prefect-workers-process) and [`KubernetesWorker`](/integrations/prefect-kubernetes/api-ref/prefect_kubernetes-worker) implementations.
 
 ### Integrating with the Prefect CLI
 

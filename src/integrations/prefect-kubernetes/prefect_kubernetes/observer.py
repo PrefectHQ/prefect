@@ -13,7 +13,6 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, cast
 
-import aiohttp
 import anyio
 import kopf
 from cachetools import TTLCache
@@ -47,6 +46,7 @@ from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
 from prefect_kubernetes.diagnostics import diagnose_k8s_pod
 from prefect_kubernetes.settings import KubernetesSettings
+from prefect_kubernetes.utilities import _is_transient_kubernetes_error
 
 # Cache used to keep track of the last event for a pod. This is used populate the `follows` field
 # on events to get correct event ordering. We only hold each pod's last event for 5 minutes to avoid
@@ -948,13 +948,6 @@ _JOB_LOOKUP_REQUEST_TIMEOUT = 30
 _JOB_LOOKUP_RETRY_WAIT = wait_exponential_jitter(initial=1, max=60)
 
 
-def _is_transient_job_lookup_error(exc: BaseException) -> bool:
-    if isinstance(exc, ApiException):
-        status = exc.status or 0
-        return status in (408, 429) or (500 <= status < 600 and status != 501)
-    return isinstance(exc, (aiohttp.ClientError, TimeoutError, ConnectionError))
-
-
 async def _read_job_uid(name: str, namespace: str) -> str | None:
     """Return the UID of the named job, or `None` if it doesn't exist."""
     client = await _get_kubernetes_client()
@@ -997,7 +990,7 @@ async def _job_still_exists(
 
     try:
         async for attempt in AsyncRetrying(
-            retry=retry_if_exception(_is_transient_job_lookup_error),
+            retry=retry_if_exception(_is_transient_kubernetes_error),
             wait=_JOB_LOOKUP_RETRY_WAIT,
             before_sleep=log_retry,
             reraise=True,

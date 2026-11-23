@@ -54,7 +54,7 @@ the state name (for example, `prefect.flow-run.Running` or
 | `prefect.work-queue.{uuid}` | `work-queue` | When a work queue is assigned |
 | `prefect.work-pool.{uuid}` | `work-pool` | When a work pool is assigned (includes `prefect.work-pool.type` label) |
 | `prefect.task-run.{uuid}` | `task-run` | When the flow run is a subflow called from a task |
-| `prefect.tag.{tag}` | `tag` | One entry per tag on the flow run or its flow/deployment |
+| `prefect.tag.{tag}` | `tag` | One entry per tag on the flow run or its flow/deployment. Tags that don't fit within [`PREFECT_SERVER_EVENTS_MAXIMUM_RELATED_RESOURCES`](/v3/api-ref/settings-ref#maximum_related_resources) (100 by default) are left out |
 | `prefect.deployment.{uuid}` or `prefect.automation.{uuid}` | `creator` | Provenance: which deployment or automation created this run |
 
 ### Archived flow label (Prefect Cloud)

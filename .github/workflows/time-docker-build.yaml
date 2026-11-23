@@ -53,7 +53,6 @@ jobs:
             --platform linux/amd64,linux/arm64 \
             --no-cache \
             --progress=plain \
-            --build-arg NODE_VERSION=26.13.1 \
             .
           end_time=$(date +%s)
           base_time=$((end_time - start_time))

@@ -3,7 +3,6 @@ import { Settings } from '@/services/uiSettings'
 export type UiVersion = 'v1' | 'v2'
 
 export const UI_VERSION_COOKIE_NAME = 'prefect_ui_version'
-export const V2_PROMO_DISMISSED_STORAGE_KEY = 'prefect-v2-promo-dismissed'
 
 const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365
 const V2_LANDING_PATH = '/dashboard'

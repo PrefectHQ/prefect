@@ -1,5 +1,5 @@
 fastapi==0.148.0
 uvicorn==0.54.0
-uv==0.13.4
-websockets==16.1.1
+uv==0.13.7
+websockets==17.4
 httpx==0.28.1
