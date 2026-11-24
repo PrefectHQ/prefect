@@ -225,8 +225,15 @@ async def test_removes_existing_automations_on_changes(
 
 
 async def test_gracefully_handles_errors_during_changes(
-    starting_automations, automations_session: AsyncSession
+    starting_automations,
+    automations_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    # The periodic evaluation reconciles the loaded automations with the database,
+    # which would (correctly) drop the deleted automation that the failed change
+    # left loaded if its first run is slow enough to finish after the delete
+    monkeypatch.setattr(triggers, "periodic_evaluation", mock.AsyncMock())
+
     async with triggers.consumer():
         await asyncio.sleep(0.1)
 
