@@ -89,6 +89,27 @@ class CancellableCleanupHandler:
             self.cancelled.set()
 
 
+class FrozenUntilFirstOperationClock:
+    """
+    Replacement for the cleanup executor's `now` that stays frozen until the
+    first operation is sent, then follows real time.
+
+    This keeps a short lease from expiring before the executor sends its first
+    renewal, no matter how slowly the test is scheduled, while still letting
+    the lease expire in real time afterwards.
+    """
+
+    def __init__(self):
+        self.frozen_at = now("UTC")
+        self._released = False
+
+    def release(self) -> None:
+        self._released = True
+
+    def __call__(self, tz: str = "UTC") -> DateTime:
+        return now(tz) if self._released else self.frozen_at
+
+
 class CleanupWorkerTestImpl(WorkerTestImpl):
     type = "cleanup-test-with-handlers"
     cleanup_handlers = (RecordingCleanupHandler(),)
@@ -794,10 +815,15 @@ async def test_executor_cancels_handler_when_renew_loses_reservation():
     assert [type(frame) for frame in sent] == [CleanupRenewFrame]
 
 
-async def test_executor_cancels_handler_when_renewal_misses_lease_deadline():
+async def test_executor_cancels_handler_when_renewal_misses_lease_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    clock = FrozenUntilFirstOperationClock()
+    monkeypatch.setattr("prefect.workers._cleanup.now", clock)
     sent: list[CleanupOperationFrame] = []
 
     async def send(frame: CleanupOperationFrame):
+        clock.release()
         sent.append(frame)
         return None
 
@@ -810,12 +836,9 @@ async def test_executor_cancels_handler_when_renewal_misses_lease_deadline():
         operation_retry_delay_seconds=0,
         max_operation_attempts=1,
     )
-    # The lease must actually expire for this test to finish, but a 50ms lease
-    # could expire before the renewal task first ran on a loaded runner,
-    # dropping the reservation without ever sending the renew frame.
-    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=1))
+    message = _message_frame(lease_expires_at=clock.frozen_at + timedelta(seconds=0.05))
 
-    with anyio.fail_after(5):
+    with anyio.fail_after(1):
         await executor.execute(message)
 
     assert handler.started.is_set()
@@ -823,10 +846,15 @@ async def test_executor_cancels_handler_when_renewal_misses_lease_deadline():
     assert [type(frame) for frame in sent] == [CleanupRenewFrame]
 
 
-async def test_executor_cancels_handler_when_renew_send_exceeds_lease_deadline():
+async def test_executor_cancels_handler_when_renew_send_exceeds_lease_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    clock = FrozenUntilFirstOperationClock()
+    monkeypatch.setattr("prefect.workers._cleanup.now", clock)
     sent: list[CleanupOperationFrame] = []
 
     async def send(frame: CleanupOperationFrame):
+        clock.release()
         sent.append(frame)
         await anyio.sleep_forever()
 
@@ -839,12 +867,9 @@ async def test_executor_cancels_handler_when_renew_send_exceeds_lease_deadline()
         operation_retry_delay_seconds=0,
         max_operation_attempts=1,
     )
-    # The lease must actually expire for this test to finish, but a 50ms lease
-    # could expire before the renewal task first ran on a loaded runner,
-    # dropping the reservation without ever sending the renew frame.
-    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=1))
+    message = _message_frame(lease_expires_at=clock.frozen_at + timedelta(seconds=0.05))
 
-    with anyio.fail_after(5):
+    with anyio.fail_after(1):
         await executor.execute(message)
 
     assert handler.started.is_set()
