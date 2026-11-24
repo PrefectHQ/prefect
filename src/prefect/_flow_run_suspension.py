@@ -3,10 +3,11 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import threading
-from contextlib import contextmanager
-from typing import Callable, Generator, NamedTuple
+from contextlib import asynccontextmanager, contextmanager
+from typing import AsyncGenerator, Callable, Generator, NamedTuple
 from uuid import UUID
 
+from prefect._internal.concurrency.primitives import Event
 from prefect.client.schemas.objects import State
 from prefect.exceptions import Pause
 from prefect.logging.loggers import get_logger
@@ -87,11 +88,37 @@ def raise_if_flow_run_suspension_requested() -> None:
         flow_run_context.flow_run_suspension_request.raise_if_requested()
 
 
+class ObserverReadyEvent:
+    """
+    An event that a thread and an event loop can both wait for.
+
+    The async flow run engine waits for the suspension observer without blocking
+    its event loop, which other flow runs may share.
+    """
+
+    def __init__(self) -> None:
+        self._event = threading.Event()
+        self._async_event = Event()
+
+    def set(self) -> None:
+        self._event.set()
+        self._async_event.set()
+
+    def is_set(self) -> bool:
+        return self._event.is_set()
+
+    def wait(self, timeout: float | None = None) -> bool:
+        return self._event.wait(timeout)
+
+    async def wait_async(self) -> None:
+        await self._async_event.wait()
+
+
 def _start_flow_run_suspension_observer(
     flow_run_id: UUID,
     suspension_request: FlowRunSuspensionRequest,
     polling_interval: float = 10,
-) -> tuple[threading.Thread, threading.Event, Callable[[], None]]:
+) -> tuple[threading.Thread, ObserverReadyEvent, Callable[[], None]]:
     """
     Start a thread that watches a flow run for suspension.
 
@@ -102,7 +129,7 @@ def _start_flow_run_suspension_observer(
 
     logger = get_logger("flow_run_suspension")
     stop_event = threading.Event()
-    ready_event = threading.Event()
+    ready_event = ObserverReadyEvent()
     observer_task_lock = threading.Lock()
     observer_task: tuple[asyncio.AbstractEventLoop, asyncio.Task[None]] | None = None
 
@@ -182,18 +209,44 @@ def observe_flow_run_suspension(
     thread, ready_event, stop = _start_flow_run_suspension_observer(
         flow_run_id, suspension_request, polling_interval
     )
-    ready_event.wait()
 
     try:
+        # A signal, such as SIGTERM, can interrupt this wait.
+        ready_event.wait()
         yield
     finally:
         stop()
         thread.join(timeout=2)
 
 
+@asynccontextmanager
+async def observe_flow_run_suspension_async(
+    flow_run_id: UUID,
+    suspension_request: FlowRunSuspensionRequest,
+    polling_interval: float = 10,
+) -> AsyncGenerator[None, None]:
+    """
+    Async counterpart of `observe_flow_run_suspension`.
+
+    Waits for the observer's first check without blocking the event loop, so other
+    work on the loop, such as other flow runs, keeps running meanwhile. Leaving
+    the context stops the observer without waiting for its thread to exit, so the
+    thread can still be closing its connections after the context exits.
+    """
+    _, ready_event, stop = _start_flow_run_suspension_observer(
+        flow_run_id, suspension_request, polling_interval
+    )
+
+    try:
+        await ready_event.wait_async()
+        yield
+    finally:
+        stop()
+
+
 class PrestartedFlowRunSuspensionObserver(NamedTuple):
     suspension_request: FlowRunSuspensionRequest
-    ready_event: threading.Event
+    ready_event: ObserverReadyEvent
 
 
 _prestarted_flow_run_suspension_observers: dict[

@@ -46,9 +46,11 @@ from typing_extensions import ParamSpec
 from prefect import Task, __version__
 from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
+    PrestartedFlowRunSuspensionObserver,
     adopt_prestarted_flow_run_suspension_observer,
     is_suspended_flow_run_state,
     observe_flow_run_suspension,
+    observe_flow_run_suspension_async,
     prestart_flow_run_suspension_observer,
     raise_if_flow_run_suspension_requested,
     register_flow_run_suspension_request,
@@ -642,17 +644,17 @@ class BaseFlowRunEngine(Generic[P, R]):
             return parent_flow_run_context.flow_run_suspension_request
         return self._flow_run_suspension_request
 
-    @contextmanager
-    def setup_flow_run_suspension_request(
-        self,
-    ) -> Generator[FlowRunSuspensionRequest, None, None]:
-        if not self.flow_run:
-            raise ValueError("Flow run not set")
-
+    def _adopt_flow_run_suspension_request(
+        self, flow_run: FlowRun
+    ) -> tuple[FlowRunSuspensionRequest, PrestartedFlowRunSuspensionObserver | None]:
+        """
+        Returns the suspension request of `flow_run`, and the observer prestarted
+        for it if the engine adopts one.
+        """
         flow_run_suspension_request = self._get_flow_run_suspension_request()
         prestarted_observer = (
-            adopt_prestarted_flow_run_suspension_observer(self.flow_run.id)
-            if self.flow_run.deployment_id
+            adopt_prestarted_flow_run_suspension_observer(flow_run.id)
+            if flow_run.deployment_id
             and flow_run_suspension_request is self._flow_run_suspension_request
             else None
         )
@@ -661,7 +663,18 @@ class BaseFlowRunEngine(Generic[P, R]):
             # its tasks must check that same object.
             self._flow_run_suspension_request = prestarted_observer.suspension_request
             flow_run_suspension_request = prestarted_observer.suspension_request
+        return flow_run_suspension_request, prestarted_observer
 
+    @contextmanager
+    def setup_flow_run_suspension_request(
+        self,
+    ) -> Generator[FlowRunSuspensionRequest, None, None]:
+        if not self.flow_run:
+            raise ValueError("Flow run not set")
+
+        flow_run_suspension_request, prestarted_observer = (
+            self._adopt_flow_run_suspension_request(self.flow_run)
+        )
         with ExitStack() as stack:
             stack.enter_context(
                 register_flow_run_suspension_request(
@@ -2213,6 +2226,38 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     # --------------------------
 
     @asynccontextmanager
+    async def _setup_flow_run_suspension_request_async(
+        self,
+    ) -> AsyncGenerator[FlowRunSuspensionRequest, None]:
+        """
+        Async counterpart of `setup_flow_run_suspension_request`, which waits for
+        the observer's first check without blocking the event loop.
+        """
+        if not self.flow_run:
+            raise ValueError("Flow run not set")
+
+        flow_run_suspension_request, prestarted_observer = (
+            self._adopt_flow_run_suspension_request(self.flow_run)
+        )
+        async with AsyncExitStack() as stack:
+            stack.enter_context(
+                register_flow_run_suspension_request(
+                    self.flow_run.id, flow_run_suspension_request
+                )
+            )
+            if prestarted_observer is not None:
+                await prestarted_observer.ready_event.wait_async()
+            elif self.flow_run.deployment_id:
+                await stack.enter_async_context(
+                    observe_flow_run_suspension_async(
+                        self.flow_run.id, flow_run_suspension_request
+                    )
+                )
+
+            flow_run_suspension_request.raise_if_requested()
+            yield flow_run_suspension_request
+
+    @asynccontextmanager
     async def start(self) -> AsyncGenerator[None, None]:
         async with self.initialize_run():
             with (
@@ -2220,7 +2265,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                with self.setup_flow_run_suspension_request():
+                async with self._setup_flow_run_suspension_request_async():
                     await self.begin_run()
 
                     yield
