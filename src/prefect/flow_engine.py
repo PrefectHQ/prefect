@@ -2265,7 +2265,16 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                async with self._setup_flow_run_suspension_request_async():
+                async with AsyncExitStack() as stack:
+                    if (
+                        type(self).setup_flow_run_suspension_request
+                        is BaseFlowRunEngine.setup_flow_run_suspension_request
+                    ):
+                        await stack.enter_async_context(
+                            self._setup_flow_run_suspension_request_async()
+                        )
+                    else:
+                        stack.enter_context(self.setup_flow_run_suspension_request())
                     await self.begin_run()
 
                     yield

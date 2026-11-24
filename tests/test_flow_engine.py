@@ -4980,6 +4980,35 @@ class TestSuspendFlowRun:
         assert suspension_request.is_requested()
         assert not mark_flow_run_suspension_requested(flow_run.id, states.Suspended())
 
+    async def test_async_engine_honors_sync_suspension_context_manager_override(self):
+        steps: list[str] = []
+
+        @flow(name=f"test_suspension_context_manager_override_{uuid.uuid4()}")
+        async def example_flow():
+            steps.append("run")
+
+        class CustomEngine(AsyncFlowRunEngine):
+            @contextmanager
+            def setup_flow_run_suspension_request(
+                self,
+            ) -> Generator[FlowRunSuspensionRequest, None, None]:
+                with super().setup_flow_run_suspension_request() as request:
+                    steps.append("enter")
+                    try:
+                        yield request
+                    finally:
+                        steps.append("exit")
+
+            async def begin_run(self) -> State:
+                steps.append("begin")
+                return await super().begin_run()
+
+        engine = CustomEngine(flow=example_flow)
+        async with engine.start(), engine.run_context():
+            await engine.call_flow_fn()
+
+        assert steps == ["enter", "begin", "run", "exit"]
+
     @pytest.mark.parametrize("engine_type", ["sync", "async"])
     async def test_task_call_stops_at_suspension_boundary(
         self,
