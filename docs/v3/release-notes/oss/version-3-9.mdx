@@ -13,11 +13,14 @@ description: Release notes for Prefect 3.9.0 and 3.9.1, including Python 3.15 su
 * Resolve Prefect API route dependencies on the event loop. Custom FastAPI apps that include Prefect routers directly must key dependency overrides on async variants such as `aprovide_database_interface`, `aget_created_by`, and `provide_worker_lookups`; apps built with `create_app` or `create_api_app` are unaffected thanks to [#24091](https://github.com/PrefectHQ/prefect/pull/24091) — by [@fatih-acar](https://github.com/fatih-acar) in [#23279](https://github.com/PrefectHQ/prefect/pull/23279)
 * Use route names for OpenAPI operation IDs, which can break generated REST clients that reference the old IDs — by [@devin-ai-integration](https://github.com/apps/devin-ai-integration) in [#24010](https://github.com/PrefectHQ/prefect/pull/24010)
 * `prefect deployment run` now rejects `--param` and `--job-variable` values without `=` by [@harshit3355](https://github.com/harshit3355) in [#24035](https://github.com/PrefectHQ/prefect/pull/24035)
+
+**Behavior Changes & Deprecations 🔄**
+
 * Exceptions that escape the flow engine outside user code now end the flow run in `Crashed` by [@devin-ai-integration](https://github.com/apps/devin-ai-integration) in [#23679](https://github.com/PrefectHQ/prefect/pull/23679)
 * Paused deployment schedules stay paused on redeploy instead of being reactivated by [@dayan02dev](https://github.com/dayan02dev) in [#23869](https://github.com/PrefectHQ/prefect/pull/23869)
 * Reject nonpositive `INTERVAL` values on `RRULE` or `EXRULE` deployment schedule writes with HTTP 422; existing schedules with invalid intervals remain readable and replaceable — by [@devin-ai-integration](https://github.com/apps/devin-ai-integration) in [#24080](https://github.com/PrefectHQ/prefect/pull/24080)
 * Creating or updating a tag-based concurrency limit with a negative value is now rejected by [@DanShinde](https://github.com/DanShinde) in [#24041](https://github.com/PrefectHQ/prefect/pull/24041)
-* Announce V1 UI removal for Prefect 3.10 (the V1 UI remains available in 3.9.5) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration) in [#24072](https://github.com/PrefectHQ/prefect/pull/24072)
+* Deprecate the V1 UI, which remains available in 3.9.5 and will be removed in Prefect 3.10 — by [@devin-ai-integration](https://github.com/apps/devin-ai-integration) in [#24072](https://github.com/PrefectHQ/prefect/pull/24072)
 
 **Enhancements ➕➕**
 
