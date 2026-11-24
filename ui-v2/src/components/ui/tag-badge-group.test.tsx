@@ -108,8 +108,8 @@ describe("TagBadgeGroup", () => {
 	});
 
 	it("shows every tag when they fit, even if the counter is wider than the last tag", () => {
-		// the group sizes itself to its tags (120); a 70px counter does not fit
-		// next to the first tag, but no counter is needed when both tags fit
+		// the group sizes itself to its tags (120); the 70px counter would not
+		// fit next to the first tag, but it is not needed when both tags fit
 		restoreLayout = mockLayout(120, () => 70);
 		render(<TagBadgeGroup tags={["alpha", "beta"]} />);
 

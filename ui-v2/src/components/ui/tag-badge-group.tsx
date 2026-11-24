@@ -70,8 +70,8 @@ export const TagBadgeGroup = ({
 			const widths = tags.map((_, i) => widthOf(tagRefs.current.get(i)));
 			let used = 0;
 			let count = 0;
-			// No early exit: the last tag needs no room for the counter, so it
-			// can fit even when an earlier tag did not fit next to the counter.
+			// No early exit: a tag that does not fit next to the `+N` counter can
+			// still fit when it is the last tag and the counter is not shown.
 			for (let i = 0; i < cap; i++) {
 				used += widths[i];
 				const hasOverflow = i + 1 < tags.length;
