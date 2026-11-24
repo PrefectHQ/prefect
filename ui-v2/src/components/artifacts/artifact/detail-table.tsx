@@ -22,9 +22,9 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 
 	const columns = useMemo(
 		() =>
-			headers.map((header) =>
+			headers.map((header, index) =>
 				columnHelper.display({
-					id: header,
+					id: `column-${index}`,
 					header: () => header,
 					cell: ({ row }) => {
 						const value = Object.prototype.propertyIsEnumerable.call(

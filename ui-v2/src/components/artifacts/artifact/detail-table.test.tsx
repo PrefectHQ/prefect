@@ -7,6 +7,35 @@ const sampleData =
 	'[{"customer_id": "12345", "name": "John Smith", "churn_probability": 0.85}, {"customer_id": "56789", "name": "Jane Jones", "churn_probability": 0.65}]';
 
 describe("ArtifactDetailTable", () => {
+	it.each([{}, { "": "first" }])(
+		"renders empty-name columns when the first row is %j",
+		(firstRow) => {
+			const { getAllByRole } = render(
+				<DetailTable
+					tableData={JSON.stringify([
+						firstRow,
+						{ "": "value", "column-0": "other", "column-1": "another" },
+					])}
+				/>,
+			);
+
+			expect(
+				getAllByRole("columnheader").map((header) => header.textContent),
+			).toEqual(["", "column-0", "column-1"]);
+			const rows = getAllByRole("row");
+			expect(
+				within(rows[1])
+					.getAllByRole("cell")
+					.map((cell) => cell.textContent),
+			).toEqual([firstRow[""] ?? "", "", ""]);
+			expect(
+				within(rows[2])
+					.getAllByRole("cell")
+					.map((cell) => cell.textContent),
+			).toEqual(["value", "other", "another"]);
+		},
+	);
+
 	it.each(["constructor", "toString", "__proto__", "hasOwnProperty"])(
 		"renders only own values for the %s column",
 		(header) => {
