@@ -295,7 +295,7 @@ async def test_retries_failed_call_respects_retry_after_header(
 )
 async def test_retries_failed_call_with_unusable_retry_after_header(
     mocked_client: Any, headers: dict[str, str], expected_sleep: float
-) -> None:
+):
     """Test that an unusable Retry-After header on a 423 does not stop retries."""
     responses = [
         HTTPStatusError(
