@@ -120,6 +120,33 @@ describe("TagBadgeGroup", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("shows every tag when only the last one is narrower than the counter", () => {
+		// 3 tags (180) fill the group; a 70px counter does not fit after the
+		// first or second tag, but no counter is needed once all 3 are shown
+		restoreLayout = mockLayout(180, () => 70);
+		render(<TagBadgeGroup tags={["alpha", "beta", "gamma"]} />);
+
+		expect(getVisibleTag("alpha")).toBeVisible();
+		expect(getVisibleTag("beta")).toBeVisible();
+		expect(getVisibleTag("gamma")).toBeVisible();
+		expect(
+			screen.queryByRole("button", { name: /more tags/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("keeps reserving room for the counter when maxTagsDisplayed hides tags", () => {
+		// 2 tags fill 120, but the third tag is hidden by the cap, so the
+		// counter must stay and only one tag fits next to it
+		restoreLayout = mockLayout(120, () => 50);
+		render(
+			<TagBadgeGroup tags={["alpha", "beta", "gamma"]} maxTagsDisplayed={2} />,
+		);
+
+		expect(getVisibleTag("alpha")).toBeVisible();
+		expect(getOverflowButton()).toHaveTextContent("+2");
+		expect(getOverflowButton()).toHaveAttribute("title", "beta, gamma");
+	});
+
 	it("measures duplicate tags independently", () => {
 		// 2 tags (120) + overflow (30) fit in 160
 		restoreLayout = mockLayout(160);
