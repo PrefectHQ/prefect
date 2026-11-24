@@ -12,6 +12,7 @@
         </template>
       </PGlobalSidebar>
     </template>
+    <V1UiRemovalBanner class="app-router-view__banner" />
     <ContextSidebar v-if="showMenu && !$route.meta.public" class="app-router-view__sidebar" @click="close" />
     <router-view :class="['app-router-view__view', { 'app-router-view__view--public': $route.meta.public }]">
       <template #default="{ Component }">
@@ -29,6 +30,7 @@
   import { computed, provide, watchEffect } from 'vue'
   import { RouterView, useRoute } from 'vue-router'
   import ContextSidebar from '@/components/ContextSidebar.vue'
+  import V1UiRemovalBanner from '@/components/V1UiRemovalBanner.vue'
   import { useApiConfig } from '@/compositions/useApiConfig'
   import { useCreateCan } from '@/compositions/useCreateCan'
   import { useMobileMenuOpen } from '@/compositions/useMobileMenuOpen'
@@ -104,6 +106,10 @@
   py-3
 }
 
+.app-router-view__banner {
+  grid-column: 1 / -1;
+}
+
 .app-router-view__sidebar { @apply
   bg-floating
   top-[54px]
@@ -134,6 +140,11 @@
     --prefect-scroll-margin: theme('spacing.2');
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .app-router-view .app-router-view__sidebar {
+    height: 100%;
   }
 }
 

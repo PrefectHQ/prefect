@@ -51,8 +51,11 @@ tmpchdir(path: str)
 Change current-working directories for the duration of the context,
 with special handling for UNC paths on Windows.
 
+Contexts may be nested within the same thread. Other threads block until
+the outermost context exits.
 
-### `filename` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem/__init__.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `filename` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem/__init__.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filename(path: str) -> str
@@ -62,7 +65,7 @@ filename(path: str) -> str
 Extract the file name from a path with remote file system support
 
 
-### `is_local_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem/__init__.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `is_local_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem/__init__.py#L190" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_local_path(path: Union[str, pathlib.Path, Any]) -> bool
@@ -72,7 +75,7 @@ is_local_path(path: Union[str, pathlib.Path, Any]) -> bool
 Check if the given path points to a local or remote file system
 
 
-### `to_display_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem/__init__.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `to_display_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem/__init__.py#L206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_display_path(path: Union[pathlib.Path, str], relative_to: Optional[Union[pathlib.Path, str]] = None) -> str
@@ -83,7 +86,7 @@ Convert a path to a displayable path. The absolute path or relative path to the
 current (or given) directory will be returned, whichever is shorter.
 
 
-### `relative_path_to_current_platform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem/__init__.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `relative_path_to_current_platform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem/__init__.py#L223" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 relative_path_to_current_platform(path_str: str) -> Path
@@ -94,7 +97,7 @@ Converts a relative path generated on any platform to a relative path for the
 current platform.
 
 
-### `get_open_file_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem/__init__.py#L227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_open_file_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem/__init__.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_open_file_limit() -> int

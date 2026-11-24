@@ -1,7 +1,11 @@
-import { useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { buildGetSettingsQuery, buildGetVersionQuery } from "@/api/admin";
-import { initAmplitude, trackWebAppLoaded } from "./index";
+import {
+	initAmplitude,
+	isAmplitudeConfigured,
+	trackWebAppLoaded,
+} from "./index";
 
 type ServerSettings = {
 	server?: {
@@ -13,34 +17,36 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
 	const [amplitudeInitialized, setAmplitudeInitialized] = useState(false);
 	const trackingAttempted = useRef(false);
 
+	const { data: settings } = useQuery({
+		...buildGetSettingsQuery(),
+		enabled: isAmplitudeConfigured(),
+	});
+	const analyticsEnabled =
+		(settings as ServerSettings | undefined)?.server?.analytics_enabled ??
+		false;
+
 	useEffect(() => {
-		if (!amplitudeInitialized) {
+		if (analyticsEnabled && !amplitudeInitialized) {
 			setAmplitudeInitialized(initAmplitude());
 		}
-	}, [amplitudeInitialized]);
+	}, [analyticsEnabled, amplitudeInitialized]);
 
-	const [{ data: settings }, { data: version }] = useQueries({
-		queries: [
-			{ ...buildGetSettingsQuery(), enabled: amplitudeInitialized },
-			{ ...buildGetVersionQuery(), enabled: amplitudeInitialized },
-		],
+	const { data: version } = useQuery({
+		...buildGetVersionQuery(),
+		enabled: amplitudeInitialized,
 	});
 
 	useEffect(() => {
-		if (!amplitudeInitialized || trackingAttempted.current) {
+		if (!amplitudeInitialized || trackingAttempted.current || !version) {
 			return;
 		}
 
-		if (settings && version) {
-			trackingAttempted.current = true;
-			const serverSettings = settings as ServerSettings;
-			const analyticsEnabled = serverSettings.server?.analytics_enabled ?? true;
-			trackWebAppLoaded(analyticsEnabled, {
-				environment: "OSS",
-				prefect_version: version,
-			});
-		}
-	}, [amplitudeInitialized, settings, version]);
+		trackingAttempted.current = true;
+		trackWebAppLoaded(analyticsEnabled, {
+			environment: "OSS",
+			prefect_version: version,
+		});
+	}, [amplitudeInitialized, analyticsEnabled, version]);
 
 	return <>{children}</>;
 }

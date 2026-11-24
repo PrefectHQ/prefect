@@ -42,7 +42,9 @@ async def list_variables(
     limit: Annotated[
         int,
         cyclopts.Parameter(
-            "--limit", help="The maximum number of variables to return."
+            "--limit",
+            help="The maximum number of variables to return.",
+            validator=cyclopts.validators.Number(gte=0),
         ),
     ] = 100,
     output: Annotated[

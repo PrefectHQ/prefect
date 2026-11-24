@@ -9,6 +9,7 @@ import tempfile
 import warnings
 from datetime import timedelta
 from pathlib import Path
+from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Optional
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -491,6 +492,38 @@ class TestProjectDeploy:
         )
         assert deployment.name == "test-name"
         assert deployment.work_pool_name == work_pool.name
+
+    async def test_deploy_reports_script_error_for_non_def_entrypoint(
+        self, project_dir: Path, work_pool: WorkPool
+    ):
+        (project_dir / "flows" / "etl.py").write_text(
+            dedent(
+                """
+                import not_a_module
+                from prefect import flow
+
+                @flow
+                def etl():
+                    pass
+
+                etl_daily = etl.with_options(name="etl-daily")
+                """
+            )
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/etl.py:etl_daily -n test-name -p {work_pool.name}"
+            ),
+            expected_code=1,
+            expected_output_contains=[
+                "import not_a_module",
+                "ModuleNotFoundError: No module named 'not_a_module'",
+                "encountered an exception: ModuleNotFoundError",
+            ],
+            expected_output_does_not_contain=["load_flow_from_entrypoint"],
+        )
 
     async def test_project_deploy_with_default_work_pool(
         self, project_dir: Path, prefect_client: PrefectClient

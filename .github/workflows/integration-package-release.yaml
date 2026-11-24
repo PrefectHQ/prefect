@@ -45,7 +45,7 @@ jobs:
           cache-dependency-path: "requirements*.txt"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         if: steps.package_name.outputs.PACKAGE_NAME == 'prefect-aws'
         with:
           version: latest
@@ -146,6 +146,16 @@ jobs:
     needs: [build-pypi-dists, publish-pypi-dists, get-prefect-version]
     if: needs.build-pypi-dists.outputs.PACKAGE_NAME == 'prefect-aws'
     uses: ./.github/workflows/prefect-aws-docker-images.yaml
+    with:
+      prefect_version: ${{ needs.get-prefect-version.outputs.PREFECT_VERSION }}
+      prefect_aws_version: ${{ needs.build-pypi-dists.outputs.PACKAGE_VERSION }}
+    secrets: inherit
+
+  trigger-microvm-docker-build:
+    name: Build the prefect-aws MicroVM Docker image
+    needs: [build-pypi-dists, publish-pypi-dists, get-prefect-version]
+    if: needs.build-pypi-dists.outputs.PACKAGE_NAME == 'prefect-aws'
+    uses: ./.github/workflows/prefect-aws-microvm-docker-images.yaml
     with:
       prefect_version: ${{ needs.get-prefect-version.outputs.PREFECT_VERSION }}
       prefect_aws_version: ${{ needs.build-pypi-dists.outputs.PACKAGE_VERSION }}

@@ -599,7 +599,7 @@ class GitRepository:
         """
         Clones the repository into the local destination.
         """
-        self._logger.debug("Cloning repository %s", self._url)
+        self._logger.debug("Cloning repository %s", strip_auth_from_url(self._url))
 
         repository_url = self._repository_url_with_credentials
         cmd = ["git"]
@@ -672,11 +672,13 @@ class GitRepository:
             raise RuntimeError(error_message) from exc_chain
 
         if self._commit_sha:
-            # Fetch the commit
-            await run_process(
-                ["git", "fetch", "origin", self._commit_sha],
-                cwd=self.destination,
-            )
+            # The clone usually already contains the commit. Only fetch it when
+            # missing, since git can't fetch a short SHA from a remote.
+            if not await self._has_commit():
+                await run_process(
+                    ["git", "fetch", "origin", self._commit_sha],
+                    cwd=self.destination,
+                )
             await self._checkout_commit(self._commit_sha)
 
         # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
@@ -698,7 +700,8 @@ class GitRepository:
 
     def __repr__(self) -> str:
         return (
-            f"GitRepository(name={self._name!r} repository={self._url!r},"
+            f"GitRepository(name={self._name!r}"
+            f" repository={strip_auth_from_url(self._url)!r},"
             f" branch={self._branch!r})"
         )
 

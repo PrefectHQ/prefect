@@ -17,6 +17,7 @@ from fastapi import (
     WebSocket,
     status,
 )
+from fastapi.responses import PlainTextResponse, Response
 from packaging.version import Version
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -450,7 +451,7 @@ async def _build_worker_ready_frame(
             sent_at=now("UTC"),
             payload={
                 "consumer_id": hello.payload.consumer_id,
-                "worker_id": None,
+                "worker_id": worker.id,
                 "selected_channel_version": selected_channel_version,
                 "effective_heartbeat_interval_seconds": (
                     hello.payload.heartbeat_interval_seconds
@@ -939,7 +940,11 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 
 
-@router.post("/{work_pool_name}/queues", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{work_pool_name}/queues",
+    status_code=status.HTTP_201_CREATED,
+    operation_id="create_work_pool_queue",
+)
 async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
     work_pool_name: str = Path(..., description="The work pool name"),
@@ -983,7 +988,7 @@ async def create_work_queue(
     return response
 
 
-@router.get("/{work_pool_name}/queues/{name}")
+@router.get("/{work_pool_name}/queues/{name}", operation_id="read_work_pool_queue")
 async def read_work_queue(
     work_pool_name: str = Path(..., description="The work pool name"),
     work_queue_name: str = Path(
@@ -1019,7 +1024,7 @@ async def read_work_queue(
     return response
 
 
-@router.post("/{work_pool_name}/queues/filter")
+@router.post("/{work_pool_name}/queues/filter", operation_id="read_work_pool_queues")
 async def read_work_queues(
     work_pool_name: str = Path(..., description="The work pool name"),
     work_queues: schemas.filters.WorkQueueFilter = None,
@@ -1060,7 +1065,11 @@ async def read_work_queues(
     return ret
 
 
-@router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/{work_pool_name}/queues/{name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="update_work_pool_queue",
+)
 async def update_work_queue(
     work_queue: schemas.actions.WorkQueueUpdate,
     work_pool_name: str = Path(..., description="The work pool name"),
@@ -1093,7 +1102,9 @@ async def update_work_queue(
 
 
 @router.delete(
-    "/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT
+    "/{work_pool_name}/queues/{name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="delete_work_pool_queue",
 )
 async def delete_work_queue(
     work_pool_name: str = Path(..., description="The work pool name"),
@@ -1161,7 +1172,9 @@ async def worker_channel_connect(
         async with worker_channel_utils.messaging.ephemeral_subscription(
             worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC,
         ) as consumer_kwargs:
-            async with db.session_context(begin_transaction=True) as session:
+            async with db.session_context(
+                begin_transaction=True, with_for_update=True
+            ) as session:
                 ready, work_pool_update_event = await _build_worker_ready_frame(
                     session=session,
                     work_pool_name=work_pool_name,
@@ -1254,6 +1267,12 @@ async def worker_channel_connect(
 @router.post(
     "/{work_pool_name}/workers/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        200: {
+            "description": "The worker ID when requested.",
+            "content": {"text/plain": {"schema": {"type": "string", "format": "uuid"}}},
+        },
+    },
 )
 async def worker_heartbeat(
     work_pool_name: str = Path(..., description="The work pool name"),
@@ -1261,10 +1280,18 @@ async def worker_heartbeat(
     heartbeat_interval_seconds: Optional[int] = Body(
         None, description="The worker's heartbeat interval in seconds", embed=True
     ),
+    return_id: bool = Body(
+        False,
+        description="Return the worker ID. Defaults to false.",
+        embed=True,
+    ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> None:
-    async with db.session_context(begin_transaction=True) as session:
+) -> Response:
+    """Record a heartbeat and optionally return the worker's ID."""
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         work_pool = await models.workers.read_work_pool_by_name(
             session=session,
             work_pool_name=work_pool_name,
@@ -1275,13 +1302,17 @@ async def worker_heartbeat(
                 detail=f'Work pool "{work_pool_name}" not found.',
             )
 
-        await models.workers.record_worker_heartbeat(
+        worker = await models.workers.record_worker_heartbeat(
             session=session,
             work_pool=work_pool,
             worker_name=name,
             heartbeat_interval_seconds=heartbeat_interval_seconds,
             emit_status_change=emit_work_pool_status_event,
+            return_worker=return_id,
         )
+        if worker is not None:
+            return PlainTextResponse(str(worker.id))
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{work_pool_name}/workers/filter")

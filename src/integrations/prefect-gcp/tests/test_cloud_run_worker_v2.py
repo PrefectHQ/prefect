@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from googleapiclient.errors import HttpError
 from prefect_gcp.credentials import GcpCredentials
-from prefect_gcp.models.cloud_run_v2 import ExecutionV2, SecretKeySelector
+from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2, SecretKeySelector
 from prefect_gcp.utilities import slugify_name
 from prefect_gcp.workers.cloud_run_v2 import (
     CloudRunWorkerJobV2Configuration,
@@ -1023,7 +1023,10 @@ class TestCloudRunWorkerV2ReadinessPollRetries:
     def _make_not_ready_job(self):
         job = MagicMock()
         job.is_ready.return_value = False
-        job.get_ready_condition.return_value = "waiting"
+        job.get_ready_condition.return_value = {
+            "type": "Ready",
+            "state": "CONDITION_RECONCILING",
+        }
         return job
 
     def test_readiness_poll_retries_transient_error_then_succeeds(
@@ -1161,6 +1164,163 @@ class TestCloudRunWorkerV2ReadinessPollRetries:
                 )
 
         assert mock_get.call_count == 3
+
+
+class TestCloudRunWorkerV2ReadinessFailure:
+    """A job whose Ready condition reaches the terminal `CONDITION_FAILED`
+    state will never become ready, so the readiness poll should stop."""
+
+    def _make_job(self, state, reason=None, message=None):
+        condition = {"type": "Ready", "state": state}
+        if reason:
+            condition["reason"] = reason
+        if message:
+            condition["message"] = message
+
+        return JobV2(
+            name="test-job",
+            uid="12345",
+            generation="2",
+            createTime="2021-08-31T18:00:00Z",
+            updateTime="2021-08-31T18:00:00Z",
+            launchStage="BETA",
+            terminalCondition=condition,
+            executionCount=0,
+            reconciling=False,
+            satisfiesPzs=False,
+            etag="etag-12345",
+        )
+
+    @pytest.mark.parametrize(
+        "reason",
+        [
+            "CONTAINER_PERMISSION_DENIED",
+            "CONTAINER_IMAGE_UNAUTHORIZED",
+            "SECRETS_ACCESS_CHECK_FAILED",
+            "INTERNAL",
+        ],
+    )
+    def test_readiness_poll_raises_when_job_fails(
+        self, cloud_run_worker_v2_job_config, mock_credentials, reason
+    ):
+        failed_job = self._make_job(
+            "CONDITION_FAILED", reason=reason, message="the job cannot start"
+        )
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.get", return_value=failed_job
+        ) as mock_get:
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.time.sleep"
+            ) as mock_sleep:
+                with pytest.raises(
+                    RuntimeError, match=f"{reason}.*the job cannot start"
+                ):
+                    CloudRunWorkerV2._wait_for_job_creation(
+                        cr_client=MagicMock(),
+                        configuration=cloud_run_worker_v2_job_config,
+                        logger=MagicMock(spec=PrefectLogAdapter),
+                    )
+
+        assert mock_get.call_count == 1
+        mock_sleep.assert_not_called()
+
+    def test_readiness_poll_raises_when_job_fails_without_reason(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        failed_job = self._make_job("CONDITION_FAILED")
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.get", return_value=failed_job
+        ):
+            with mock.patch("prefect_gcp.workers.cloud_run_v2.time.sleep"):
+                with pytest.raises(RuntimeError, match="failed to become ready"):
+                    CloudRunWorkerV2._wait_for_job_creation(
+                        cr_client=MagicMock(),
+                        configuration=cloud_run_worker_v2_job_config,
+                        logger=MagicMock(spec=PrefectLogAdapter),
+                    )
+
+    def test_readiness_poll_raises_when_job_fails_after_reconciling(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        jobs = [
+            self._make_job("CONDITION_RECONCILING"),
+            self._make_job(
+                "CONDITION_FAILED",
+                reason="CONTAINER_PERMISSION_DENIED",
+                message="the job cannot start",
+            ),
+        ]
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.get", side_effect=jobs
+        ) as mock_get:
+            with mock.patch("prefect_gcp.workers.cloud_run_v2.time.sleep"):
+                with pytest.raises(RuntimeError, match="CONTAINER_PERMISSION_DENIED"):
+                    CloudRunWorkerV2._wait_for_job_creation(
+                        cr_client=MagicMock(),
+                        configuration=cloud_run_worker_v2_job_config,
+                        logger=MagicMock(spec=PrefectLogAdapter),
+                    )
+
+        assert mock_get.call_count == 2
+
+    @pytest.mark.parametrize(
+        "condition",
+        [
+            {},
+            {"type": "Ready", "state": "CONDITION_PENDING"},
+            {"type": "Ready", "state": "CONDITION_RECONCILING"},
+        ],
+        ids=["no-condition", "pending", "reconciling"],
+    )
+    def test_readiness_poll_keeps_waiting_while_job_is_not_failed(
+        self, cloud_run_worker_v2_job_config, mock_credentials, condition
+    ):
+        waiting_job = self._make_job("CONDITION_RECONCILING")
+        waiting_job.terminalCondition = condition
+        jobs = [waiting_job, waiting_job, self._make_job("CONDITION_SUCCEEDED")]
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.get", side_effect=jobs
+        ) as mock_get:
+            with mock.patch("prefect_gcp.workers.cloud_run_v2.time.sleep"):
+                CloudRunWorkerV2._wait_for_job_creation(
+                    cr_client=MagicMock(),
+                    configuration=cloud_run_worker_v2_job_config,
+                    logger=MagicMock(spec=PrefectLogAdapter),
+                )
+
+        assert mock_get.call_count == 3
+
+    def test_failed_job_is_deleted(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        failed_job = self._make_job(
+            "CONDITION_FAILED",
+            reason="CONTAINER_PERMISSION_DENIED",
+            message="the job cannot start",
+        )
+
+        with mock.patch("prefect_gcp.workers.cloud_run_v2.JobV2.create"):
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.JobV2.get", return_value=failed_job
+            ):
+                with mock.patch(
+                    "prefect_gcp.workers.cloud_run_v2.JobV2.delete"
+                ) as mock_delete:
+                    with pytest.raises(
+                        RuntimeError, match="CONTAINER_PERMISSION_DENIED"
+                    ):
+                        worker._create_job_and_wait_for_registration(
+                            configuration=cloud_run_worker_v2_job_config,
+                            cr_client=MagicMock(),
+                            logger=MagicMock(spec=PrefectLogAdapter),
+                        )
+
+        mock_delete.assert_called_once()
 
 
 class TestCloudRunWorkerV2SubmitJobRetries:

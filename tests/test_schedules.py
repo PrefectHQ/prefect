@@ -1,3 +1,4 @@
+import dataclasses
 import datetime
 
 import pytest
@@ -31,6 +32,10 @@ class TestSchedule:
         assert schedule.day_or is True
         assert schedule.active is True
         assert schedule.parameters == {}
+
+    def test_schedule_round_trips_through_asdict(self):
+        schedule = Cron("0 0 * * *")
+        assert Schedule(**dataclasses.asdict(schedule)) == schedule
 
 
 class TestCronSchedule:

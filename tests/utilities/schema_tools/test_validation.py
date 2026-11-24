@@ -100,6 +100,19 @@ async def test_ignore_required():
     assert len(res) == 0
 
 
+def test_is_valid():
+    schema = {
+        "title": "Parameters",
+        "type": "object",
+        "properties": {"param": {"title": "param", "position": 0, "type": "integer"}},
+        "required": ["param"],
+    }
+
+    assert is_valid({"param": 10}, schema)
+    assert not is_valid({"param": "not an integer"}, schema)
+    assert not is_valid({}, schema)
+
+
 class TestNumber:
     @pytest.fixture
     def schema(self) -> dict:
@@ -113,18 +126,6 @@ class TestNumber:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": 10}, True),  # Valid integer
-            ({"param": "not an integer"}, False),  # Invalid type
-            ({}, False),  # Missing required field
-            ({"param": None}, False),  # Null value
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": 10}, []),  # Valid integer
@@ -133,6 +134,7 @@ class TestNumber:
                 ["'not an integer' is not of type 'integer'"],
             ),  # Invalid type
             ({}, ["'param' is a required property"]),  # Missing required field
+            ({"param": None}, ["None is not of type 'integer'"]),  # Null value
         ],
     )
     def test_validate(self, schema, obj, expected_errors):
@@ -153,19 +155,6 @@ class TestBoolean:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": True}, True),
-            ({"param": False}, True),
-            ({"param": "not a boolean"}, False),
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": True}, []),  # Valid boolean (True)
@@ -175,6 +164,7 @@ class TestBoolean:
                 ["'not a boolean' is not of type 'boolean'"],
             ),  # Invalid type
             ({}, ["'param' is a required property"]),  # Missing required field
+            ({"param": None}, ["None is not of type 'boolean'"]),  # Null value
         ],
     )
     def test_validate(self, schema, obj, expected_errors):
@@ -195,23 +185,12 @@ class TestString:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": "test string"}, True),
-            ({"param": 123}, False),
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": "test string"}, []),  # Valid string
             ({"param": 123}, ["123 is not of type 'string'"]),  # Incorrect type
             ({}, ["'param' is a required property"]),  # Missing required field
+            ({"param": None}, ["None is not of type 'string'"]),  # Null value
         ],
     )
     def test_validate(self, schema, obj, expected_errors):
@@ -235,19 +214,6 @@ class TestDate:
             },
             "required": ["value"],
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"value": "2023-01-01"}, True),
-            ({"value": "not a date"}, False),
-            ({"value": 123}, False),
-            ({}, False),
-            ({"value": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -282,19 +248,6 @@ class TestDateTime:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": "2023-01-01T12:00:00Z"}, True),
-            ({"param": "not a datetime"}, False),
-            ({"param": 123}, False),
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": "2023-01-01T12:00:00Z"}, []),
@@ -320,18 +273,6 @@ class TestDict:
             },
             "required": ["param"],
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": {"key": "value"}}, True),
-            ({"param": "not a dict"}, False),
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -373,19 +314,6 @@ class TestObject:
                 }
             },
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": {"population": 1, "name": "string"}}, True),
-            ({"param": {"population": "not an integer", "name": "string"}}, False),
-            ({"param": {"population": 1}}, False),  # Missing required field 'name'
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -432,27 +360,6 @@ class TestObjectOptionalParameters:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            (
-                {"param": {"population": 100000, "name": "Example City"}},
-                True,
-            ),  # Both optional properties provided
-            ({"param": {"population": 100000}}, True),  # Only population provided
-            ({"param": {"name": "Example City"}}, True),  # Only name provided
-            ({"param": {}}, True),  # Neither optional property provided
-            (
-                {"param": {"population": "not an integer", "name": "Example City"}},
-                False,
-            ),  # Invalid type for population
-            ({}, False),  # Missing required 'param'
-            ({"param": None}, False),  # 'param' is null
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": {"population": 100000, "name": "Example City"}}, []),
@@ -485,18 +392,6 @@ class TestArray:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": [1, 2, 3]}, True),
-            ({"param": "not an array"}, False),
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": [1, 2, 3]}, []),
@@ -526,18 +421,6 @@ class TestArrayOfStrings:
             },
             "required": ["param"],
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": ["str1", "str2"]}, True),
-            ({"param": [1, 2, 3]}, False),  # Invalid item type
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -587,23 +470,6 @@ class TestArrayOfObjects:
                 }
             },
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": [{"population": 1, "name": "string"}]}, True),
-            ({"param": [{"population": 1}]}, False),  # Missing required field 'name'
-            (
-                {"param": [{"population": "string", "name": 1}]},
-                False,
-            ),  # Invalid item type
-            ({"param": [1]}, False),  # Invalid type
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -660,46 +526,6 @@ class TestNestedObject:
                 },
             },
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            (
-                {
-                    "param": {
-                        "population": 100000,
-                        "name": "Raccoon City",
-                        "state": {"name": "South Dakota", "bird": "Blue Jay"},
-                    }
-                },
-                True,
-            ),
-            (
-                {
-                    "param": {
-                        "population": "not an integer",
-                        "name": "Raccoon City",
-                        "state": {"name": "South Dakota", "bird": "Blue Jay"},
-                    }
-                },
-                False,
-            ),
-            (
-                {
-                    "param": {
-                        "population": 100000,
-                        "name": "Raccoon City",
-                        "state": {"name": "South Dakota"},
-                    }
-                },
-                False,
-            ),  # Missing required state property 'bird'
-            ({}, False),  # Missing required 'param'
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",

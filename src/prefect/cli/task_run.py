@@ -97,7 +97,11 @@ async def ls(
     ] = None,
     limit: Annotated[
         int,
-        cyclopts.Parameter("--limit", help="Maximum number of task runs to list"),
+        cyclopts.Parameter(
+            "--limit",
+            help="Maximum number of task runs to list",
+            validator=cyclopts.validators.Number(gte=0),
+        ),
     ] = 15,
     state: Annotated[
         Optional[list[str]],

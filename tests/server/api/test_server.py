@@ -13,6 +13,7 @@ import httpx
 import pytest
 import sqlalchemy as sa
 import toml
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
@@ -53,6 +54,40 @@ from prefect.settings import (
 )
 
 pytestmark = pytest.mark.clear_db
+
+
+def test_openapi_operation_ids_use_route_names():
+    app = create_api_app(ignore_cache=True)
+    paths = app.openapi()["paths"]
+    operation_ids = [
+        operation["operationId"]
+        for path in paths.values()
+        for operation in path.values()
+        if isinstance(operation, dict) and "operationId" in operation
+    ]
+    assert operation_ids
+    assert len(operation_ids) == len(set(operation_ids))
+
+    checked = 0
+    for route in app.routes:
+        effective_route_contexts = getattr(route, "effective_route_contexts", None)
+        candidates = (
+            effective_route_contexts()
+            if callable(effective_route_contexts)
+            else (route,)
+            if isinstance(route, APIRoute)
+            else ()
+        )
+        for candidate in candidates:
+            if not candidate.include_in_schema:
+                continue
+            for method in candidate.methods:
+                operation = paths[candidate.path_format][method.lower()]
+                assert operation["operationId"] == (
+                    candidate.operation_id or candidate.name
+                )
+                checked += 1
+    assert checked == len(operation_ids)
 
 
 async def test_validation_error_handler_422(client):
@@ -292,6 +327,8 @@ def test_sqlite_locked_log_filter_works_for_docket_worker_logger():
         asyncpg.exceptions.QueryCanceledError(),
         asyncpg.exceptions.ConnectionDoesNotExistError(),
         asyncpg.exceptions.CannotConnectNowError(),
+        socket.gaierror(socket.EAI_NONAME, "Name or service not known"),
+        ConnectionRefusedError(errno.ECONNREFUSED, "Connect call failed"),
         sa.exc.InvalidRequestError(),
         sa.orm.exc.DetachedInstanceError(),
     ),
@@ -365,6 +402,11 @@ def test_non_data_database_errors_remain_retryable():
     assert is_client_retryable_exception(
         asyncpg.exceptions.PostgresConnectionError("connection failure")
     )
+
+
+def test_other_os_errors_are_not_retryable():
+    assert not is_client_retryable_exception(OSError(errno.EACCES, "Permission denied"))
+    assert not is_client_retryable_exception(FileNotFoundError("missing"))
 
 
 def _write_fake_ui_bundle(directory: pathlib.Path, marker: str) -> pathlib.Path:
@@ -777,6 +819,27 @@ def test_create_ui_app_uses_v1_default_when_v2_disabled(
     settings_response.raise_for_status()
     assert settings_response.json()["default_ui"] == "v1"
     assert settings_response.json()["available_uis"] == ["v1", "v2"]
+
+
+@pytest.mark.parametrize("v2_enabled", [True, False])
+def test_create_ui_app_warns_that_v2_enabled_setting_is_deprecated(
+    caplog: pytest.LogCaptureFixture,
+    v2_enabled: bool,
+):
+    with temporary_settings({PREFECT_SERVER_UI_V2_ENABLED: v2_enabled}):
+        create_ui_app(ephemeral=False)
+
+    deprecation_messages = [
+        record.getMessage()
+        for record in caplog.records
+        if "PREFECT_SERVER_UI_V2_ENABLED" in record.getMessage()
+    ]
+    if v2_enabled:
+        assert deprecation_messages == []
+    else:
+        assert len(deprecation_messages) == 1
+        assert "deprecated" in deprecation_messages[0]
+        assert "V1 UI will be removed in Prefect 3.10" in deprecation_messages[0]
 
 
 def test_create_ui_app_respects_v1_cookie_at_neutral_root(

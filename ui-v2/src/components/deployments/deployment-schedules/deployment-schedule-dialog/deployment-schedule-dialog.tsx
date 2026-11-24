@@ -122,7 +122,12 @@ const DeploymentScheduleDialogForms = ({
 				/>
 			</TabsContent>
 			<TabsContent value="rrule">
-				<RRuleScheduleForm />
+				<RRuleScheduleForm
+					deployment_id={deployment.id}
+					scheduleToEdit={scheduleToEdit}
+					onSubmit={onSubmit}
+					parameterOverrides={parameterOverrides}
+				/>
 			</TabsContent>
 		</Tabs>
 	);

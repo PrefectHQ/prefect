@@ -1,4 +1,6 @@
 import base64
+import email
+import email.policy
 import pathlib
 
 import pytest
@@ -83,3 +85,27 @@ async def test_email_send_message(
         if isinstance(val, list):
             val = ", ".join(val)
         assert message[key] == val
+
+
+@pytest.mark.parametrize("filename", ["Q3 report.txt", "résumé.txt"])
+async def test_email_send_message_attachment_filename(
+    filename, tmp_path, email_server_credentials
+):
+    attachment = tmp_path / filename
+    attachment.write_bytes(b"attachment contents")
+
+    @flow
+    async def test_flow():
+        return await email_send_message(
+            email_server_credentials=email_server_credentials,
+            subject="Example Flow Notification",
+            msg="<h1>Report attached</h1>",
+            attachments=[str(attachment)],
+            email_to="someone@email.com",
+        )
+
+    message = await test_flow()
+
+    # parse the message as a mail client would receive it
+    received = email.message_from_bytes(message.as_bytes(), policy=email.policy.default)
+    assert [part.get_filename() for part in received.iter_attachments()] == [filename]

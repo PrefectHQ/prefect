@@ -1,5 +1,5 @@
 import datetime
-from typing import List
+from typing import Any, List
 from unittest import mock
 from uuid import uuid4
 
@@ -279,6 +279,29 @@ class TestCreateDeployment:
 
         assert len(schedules) == 2
         assert schedules[0].id == first_schedule.id
+
+    async def test_create_deployment_hydrates_schedule_parameters(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "schedules": [
+                    {
+                        "schedule": {"interval": 3600},
+                        "parameters": {
+                            "x": {"__prefect_kind": "json", "value": '"str_of_json"'}
+                        },
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["schedules"][0]["parameters"] == {"x": "str_of_json"}
 
     async def test_default_work_queue_name_is_none(self, session, client, flow):
         data = DeploymentCreate(name="My Deployment", flow_id=flow.id).model_dump(
@@ -1249,6 +1272,39 @@ class TestCreateDeployment:
         assert response.status_code == 200
         assert response.json().get("schedules") == []
 
+    async def test_upsert_deployment_keeps_active_state_of_unchanged_schedules(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        data = {
+            "name": "My Deployment",
+            "flow_id": str(flow.id),
+            # schedules without slugs that only differ in their parameters
+            "schedules": [
+                {"schedule": {"cron": "0 9 * * *"}, "parameters": {"x": 1}},
+                {"schedule": {"cron": "0 9 * * *"}, "parameters": {"x": 2}},
+            ],
+        }
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+        ids = {s["parameters"]["x"]: s["id"] for s in response.json()["schedules"]}
+        response = await client.patch(
+            f"/deployments/{deployment_id}/schedules/{ids[1]}", json={"active": False}
+        )
+        assert response.status_code == 204
+
+        # upsert the same schedules without `active`
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 200, response.text
+
+        assert {
+            schedule["parameters"]["x"]: schedule["active"]
+            for schedule in response.json()["schedules"]
+        } == {1: False, 2: True}
+
     async def test_create_deployment_with_oversized_parameters_returns_422(
         self,
         client: AsyncClient,
@@ -1729,6 +1785,11 @@ class TestPaginateDeployments:
 
 
 class TestUpdateDeployment:
+    async def test_openapi_documents_error_responses(self, client):
+        response = await client.get("/openapi.json")
+        responses = response.json()["paths"]["/deployments/{id}"]["patch"]["responses"]
+        assert set(responses) == {"204", "400", "404", "409", "422"}
+
     async def test_update_deployment_clears_job_variables_with_empty_dict(
         self, client, flow, work_pool
     ):
@@ -2091,6 +2152,57 @@ class TestUpdateDeployment:
         response = await client.get(f"/deployments/{deployment.id}")
         assert response.json()["parameters"] == {"x": value}
 
+    @pytest.mark.parametrize(
+        "existing_slug",
+        [None, "test-schedule"],
+        ids=["replaces-schedules", "updates-schedules-by-slug"],
+    )
+    async def test_update_deployment_hydrates_schedule_parameters(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+        existing_slug: str | None,
+    ):
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "schedules": [{"schedule": {"interval": 3600}, "slug": existing_slug}],
+            },
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        parameters = {"x": {"__prefect_kind": "json", "value": '"str_of_json"'}}
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={
+                "schedules": [
+                    {
+                        "schedule": {"interval": 3600},
+                        "slug": "test-schedule",
+                        "parameters": parameters,
+                    },
+                    {
+                        "schedule": {"interval": 7200},
+                        "slug": "new-schedule",
+                        "parameters": parameters,
+                    },
+                ]
+            },
+        )
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert {
+            schedule["slug"]: schedule["parameters"]
+            for schedule in response.json()["schedules"]
+        } == {
+            "test-schedule": {"x": "str_of_json"},
+            "new-schedule": {"x": "str_of_json"},
+        }
+
     async def test_update_deployment_can_update_pull_steps(
         self,
         client,
@@ -2395,7 +2507,7 @@ class TestUpdateDeployment:
         client,
         flow,
     ):
-        """When a schedule is provided without active or a slug, active should default to true."""
+        """A changed schedule provided without active or a slug defaults to active."""
         schedule1 = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
@@ -2443,6 +2555,165 @@ class TestUpdateDeployment:
         assert response.status_code == 200
         assert len(response.json()["schedules"]) == 1
         assert response.json()["schedules"][0]["active"] is True
+
+    @pytest.mark.parametrize(
+        "created, redeployed, expected_active",
+        [
+            pytest.param(
+                {"cron": "10 * * * *"},
+                {"schedule": {"cron": "10 * * * *"}},
+                False,
+                id="unchanged",
+            ),
+            pytest.param(
+                {"cron": "10 * * * *"},
+                {"schedule": {"cron": "10 * * * *"}, "active": True},
+                True,
+                id="explicit-active",
+            ),
+            # without an `anchor_date`, an interval is anchored when it's saved
+            pytest.param(
+                {"interval": 3600},
+                {"schedule": {"interval": 3600}},
+                False,
+                id="generated-anchor-date",
+            ),
+            pytest.param(
+                {"interval": 3600, "anchor_date": "2026-01-01T09:00Z"},
+                {"schedule": {"interval": 3600, "anchor_date": "2026-01-01T09:00Z"}},
+                False,
+                id="unchanged-anchor-date",
+            ),
+            pytest.param(
+                {"interval": 3600, "anchor_date": "2026-01-01T09:00Z"},
+                {"schedule": {"interval": 3600, "anchor_date": "2026-01-01T09:30Z"}},
+                True,
+                id="changed-anchor-date",
+            ),
+            # a bare minutely rrule gets a recent `DTSTART` that moves with each deploy
+            pytest.param(
+                {"rrule": "DTSTART:20261110T080000\nRRULE:FREQ=MINUTELY"},
+                {"schedule": {"rrule": "DTSTART:20261112T190500\nRRULE:FREQ=MINUTELY"}},
+                False,
+                id="generated-dtstart",
+            ),
+            pytest.param(
+                {"rrule": "DTSTART:20261110T080000\nRRULE:FREQ=MINUTELY"},
+                {"schedule": {"rrule": "DTSTART:20261112T190530\nRRULE:FREQ=MINUTELY"}},
+                True,
+                id="changed-dtstart",
+            ),
+            pytest.param(
+                {"rrule": "DTSTART:20261110T080000\nRRULE:FREQ=MINUTELY"},
+                {"schedule": {"rrule": "DTSTART:20990101T090000\nRRULE:FREQ=MINUTELY"}},
+                True,
+                id="future-dtstart",
+            ),
+        ],
+    )
+    async def test_update_deployment_keeps_active_state_of_unchanged_schedules(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+        created: dict[str, Any],
+        redeployed: dict[str, Any],
+        expected_active: bool,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "schedules": [{"schedule": created}],
+            },
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+        (schedule,) = response.json()["schedules"]
+        response = await client.patch(
+            f"/deployments/{deployment_id}/schedules/{schedule['id']}",
+            json={"active": False},
+        )
+        assert response.status_code == 204
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}", json={"schedules": [redeployed]}
+        )
+        assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert [s["active"] for s in response.json()["schedules"]] == [expected_active]
+
+    async def test_update_deployment_matches_unchanged_schedules_first(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        anchored = {"interval": 3600, "anchor_date": "2026-01-01T09:00Z"}
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "schedules": [{"schedule": anchored, "active": False}],
+            },
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        # an interval without `anchor_date` doesn't take the unchanged schedule's state
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={
+                "schedules": [{"schedule": {"interval": 3600}}, {"schedule": anchored}]
+            },
+        )
+        assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert sorted(
+            (s["schedule"]["anchor_date"].startswith("2026-01-01T09:00"), s["active"])
+            for s in response.json()["schedules"]
+        ) == [(False, True), (True, False)]
+
+    async def test_update_deployment_allows_for_clients_generating_dtstart_early(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        rrule = "RRULE:FREQ=MINUTELY"
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "schedules": [
+                    {
+                        "schedule": {"rrule": f"DTSTART:20261110T080000\n{rrule}"},
+                        "active": False,
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        # a client whose clock is ahead adds a `DTSTART` that's in the server's future
+        ahead = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+            minutes=2
+        )
+        dtstart = ahead.strftime("DTSTART:%Y%m%dT%H%M00")
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"schedules": [{"schedule": {"rrule": f"{dtstart}\n{rrule}"}}]},
+        )
+        assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert [s["active"] for s in response.json()["schedules"]] == [False]
 
     async def test_update_deployment_with_multiple_schedules_and_existing_slugs_422(
         self,
@@ -3953,6 +4224,16 @@ class TestCreateFlowRunFromDeployment:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "is not associated with a work pool" in response.json()["detail"]
+
+    async def test_openapi_documents_create_flow_run_responses(self, client):
+        response = await client.get("/openapi.json")
+        responses = response.json()["paths"]["/deployments/{id}/create_flow_run"][
+            "post"
+        ]["responses"]
+        assert set(responses) == {"200", "201", "400", "404", "409", "422"}
+        assert responses["201"]["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/FlowRunResponse"
+        }
 
     async def test_create_flow_run_enforces_parameter_schema(
         self,

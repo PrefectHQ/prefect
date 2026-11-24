@@ -98,6 +98,15 @@ describe("getStateColor", () => {
 		expect(mockGetPropertyValue).toHaveBeenCalledWith("--state-scheduled-500");
 	});
 
+	test("should read the color mode's override on body", () => {
+		document.body.style.setProperty("--state-failed-600", "#ee2fee");
+
+		const RESULT = getStateColor("FAILED");
+		document.body.style.removeProperty("--state-failed-600");
+
+		expect(RESULT).toEqual("#ee2fee");
+	});
+
 	test("should trim whitespace from CSS variable value", () => {
 		vi.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue").mockReturnValue(
 			"  #abcdef  ",

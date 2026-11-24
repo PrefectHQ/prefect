@@ -5,7 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._process_manager import (
+    ProcessHandle,
+    _WindowsSpawnProcessTerminationScope,
+)
 from prefect.runner._starter_bundle import BundleExecutionStarter
 
 pytestmark = pytest.mark.clear_db
@@ -76,6 +79,26 @@ class TestBundleExecutionStarter:
         handle = mock_task_status.started.call_args[0][0]
         assert isinstance(handle, ProcessHandle)
         assert handle.pid == 456
+
+    async def test_start_uses_spawn_termination_scope_on_windows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr("prefect.runner._process_manager.sys.platform", "win32")
+        mock_process = MagicMock(pid=456)
+        mock_task_status = MagicMock()
+
+        starter = BundleExecutionStarter(bundle=MagicMock())
+
+        with patch(
+            "prefect.runner._starter_bundle.execute_bundle_in_subprocess",
+            return_value=mock_process,
+        ):
+            await starter.start(MagicMock(), task_status=mock_task_status)
+
+        handle = mock_task_status.started.call_args[0][0]
+        assert isinstance(
+            handle.termination_scope, _WindowsSpawnProcessTerminationScope
+        )
 
     async def test_start_passes_cwd(self):
         mock_bundle = MagicMock()
