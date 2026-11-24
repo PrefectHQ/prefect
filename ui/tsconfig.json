@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
     "declaration": true,
     "esModuleInterop": true,
     "importHelpers": true,
@@ -18,13 +17,17 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "tests/*": [
+        "./tests/*"
       ]
     },
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
-    "target": "esnext"
+    "target": "esnext",
+    "types": ["node"]
   },
   "include": [
     "**/*.ts",

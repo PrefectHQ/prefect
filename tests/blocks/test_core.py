@@ -3107,10 +3107,10 @@ class TestDeleteBlock:
 
         with pytest.raises(ValueError) as exception:
             await new_block.load(new_block_name)
-            assert (
-                f"Unable to find block document named {new_block_name}"
-                in exception.value
-            )
+
+        assert f"Unable to find block document named {new_block_name}" in str(
+            exception.value
+        )
 
     async def test_delete_block_from_base_block(self, NewBlock):
         new_block = NewBlock(a="foo", b="bar")
@@ -3125,10 +3125,10 @@ class TestDeleteBlock:
 
         with pytest.raises(ValueError) as exception:
             await new_block.load(new_block_name)
-            assert (
-                f"Unable to find block document named {new_block_name}"
-                in exception.value
-            )
+
+        assert f"Unable to find block document named {new_block_name}" in str(
+            exception.value
+        )
 
 
 class NestedFunModel(BaseModel):

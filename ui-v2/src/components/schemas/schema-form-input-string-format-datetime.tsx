@@ -3,8 +3,9 @@ import { formatInTimeZone } from "date-fns-tz";
 import { useState } from "react";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
+import { getLocalTimezone } from "@/utils";
 
-const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const localTimezone = getLocalTimezone();
 
 type SchemaFormInputStringFormatDateTimeProps = {
 	value: string | undefined;

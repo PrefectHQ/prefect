@@ -381,30 +381,28 @@ def _parse_name_from_pattern(
     name_pattern = re.escape(name_pattern).replace(r"\*", ".*")
 
     if "/" in name_pattern:
-        flow_name, deploy_name = name_pattern.split("/", 1)
-        flow_name = (
-            re.compile(flow_name.replace("*", ".*"))
-            if "*" in flow_name
-            else re.compile(flow_name)
-        )
-        deploy_name = (
-            re.compile(deploy_name.replace("*", ".*"))
-            if "*" in deploy_name
-            else re.compile(deploy_name)
-        )
+        flow_pattern, deploy_pattern = name_pattern.split("/", 1)
+        flow_name = re.compile(flow_pattern)
+        deploy_name = re.compile(deploy_pattern)
     else:
         flow_name = None
-        deploy_name = re.compile(name_pattern.replace("*", ".*"))
+        deploy_name = re.compile(name_pattern)
 
     for deploy_config in deploy_configs:
         if not deploy_config.get("entrypoint"):
             continue
-        entrypoint = deploy_config.get("entrypoint").split(":")[-1].replace("_", "-")
+        flow_func_name = deploy_config.get("entrypoint").split(":")[-1]
         deployment_name = deploy_config.get("name")
-        flow_match = flow_name.fullmatch(entrypoint) if flow_name else True
+        flow_match = (
+            flow_name.fullmatch(flow_func_name.replace("_", "-")) if flow_name else True
+        )
         deploy_match = deploy_name.fullmatch(deployment_name)
         if flow_match and deploy_match:
-            parsed_names.append(deployment_name)
+            # Keep the flow qualifier so deployments with the same name in other
+            # flows aren't selected too
+            parsed_names.append(
+                f"{flow_func_name}/{deployment_name}" if flow_name else deployment_name
+            )
 
     return parsed_names
 

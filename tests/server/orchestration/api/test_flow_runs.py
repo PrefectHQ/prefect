@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import json
 import logging
 import shutil
 from typing import Any, AsyncGenerator, Generator, List, Optional
@@ -23,7 +24,13 @@ from prefect.server import models, schemas
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
-from prefect.server.database.orm_models import Deployment, Flow, WorkPool, WorkQueue
+from prefect.server.database.orm_models import (
+    Deployment,
+    Flow,
+    FlowRun,
+    WorkPool,
+    WorkQueue,
+)
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
@@ -44,6 +51,7 @@ from prefect.states import (
 )
 from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
+from tests.server import ConcurrentCommits
 
 pytestmark = pytest.mark.clear_db
 
@@ -1573,6 +1581,173 @@ class TestResumeFlowrun:
         )
         assert resumed_run.state.type == "RUNNING"
 
+    async def test_resuming_blocking_pause_despite_concurrent_sqlite_write(
+        self,
+        blocking_paused_flow_run: FlowRun,
+        client: AsyncClient,
+        session: AsyncSession,
+        commit_after_run_read: ConcurrentCommits,
+    ):
+        commit_after_run_read.armed = True
+        response = await client.post(
+            f"/flow_runs/{blocking_paused_flow_run.id}/resume",
+        )
+        assert response.status_code == 201, response.text
+        assert response.json()["status"] == "ACCEPT"
+        assert commit_after_run_read.writers
+
+        await session.refresh(blocking_paused_flow_run)
+        assert blocking_paused_flow_run.state.type == "RUNNING"
+
+    async def test_resuming_blocking_pause_keeps_run_count_and_retries(
+        self, flow: Flow, client: AsyncClient, session: AsyncSession
+    ):
+        """Resuming a blocking pause continues the current attempt, so it must
+        not count as a new run or use up a retry."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                empirical_policy=schemas.core.FlowRunPolicy(retries=1, retry_delay=0),
+            ),
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+
+        async def set_state(type: StateType, **kwargs: Any) -> OrchestrationResult:
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=dict(type=type.value, **kwargs)),
+            )
+            assert response.status_code == 201, response.text
+            return OrchestrationResult.model_validate(response.json())
+
+        async def read_run_count() -> int:
+            session.expire_all()
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=flow_run_id
+            )
+            assert run is not None
+            return run.run_count
+
+        await set_state(StateType.PENDING)
+        await set_state(StateType.RUNNING)
+        await set_state(
+            StateType.PAUSED,
+            name="Paused",
+            state_details=dict(
+                pause_key="1",
+                pause_reschedule=False,
+                pause_timeout=(now("UTC") + datetime.timedelta(hours=1)).isoformat(),
+            ),
+        )
+        assert await read_run_count() == 1
+
+        response = await client.post(f"/flow_runs/{flow_run_id}/resume")
+        assert response.status_code == 201, response.text
+        assert response.json()["status"] == "ACCEPT"
+        assert await read_run_count() == 1
+
+        # The first failure after the pause still has its retry available.
+        result = await set_state(StateType.FAILED)
+        assert result.status == responses.SetStateStatus.REJECT
+        assert result.state is not None
+        assert result.state.name == "AwaitingRetry"
+
+    async def test_attempt_after_resuming_blocking_pause_is_counted(
+        self, flow: Flow, client: AsyncClient, session: AsyncSession
+    ):
+        """A run rescheduled after a blocking pause was resumed (for example on
+        SIGTERM) starts a new attempt, which must be counted."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session, flow_run=schemas.core.FlowRun(flow_id=flow.id)
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+
+        async def set_state(type: StateType, **kwargs: Any) -> OrchestrationResult:
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=dict(type=type.value, **kwargs)),
+            )
+            assert response.status_code == 201, response.text
+            return OrchestrationResult.model_validate(response.json())
+
+        await set_state(StateType.PENDING)
+        await set_state(StateType.RUNNING)
+        await set_state(
+            StateType.PAUSED,
+            name="Paused",
+            state_details=dict(pause_key="1", pause_reschedule=False),
+        )
+        response = await client.post(f"/flow_runs/{flow_run_id}/resume")
+        assert response.json()["status"] == "ACCEPT"
+
+        await set_state(StateType.SCHEDULED, name="AwaitingRetry")
+        await set_state(StateType.PENDING)
+        await set_state(StateType.RUNNING)
+
+        session.expire_all()
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run is not None
+        assert run.run_count == 2
+        assert not run.empirical_policy.resuming
+
+    async def test_resuming_blocking_pause_before_first_run_counts_the_run(
+        self, flow: Flow, client: AsyncClient, session: AsyncSession
+    ):
+        """A run forced into a blocking pause before it ever ran has no attempt
+        to continue, so resuming it starts the first one."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session, flow_run=schemas.core.FlowRun(flow_id=flow.id)
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=dict(
+                state=dict(
+                    type=StateType.PAUSED.value,
+                    name="Paused",
+                    state_details=dict(pause_key="1", pause_reschedule=False),
+                ),
+                force=True,
+            ),
+        )
+        assert response.status_code == 201, response.text
+
+        response = await client.post(f"/flow_runs/{flow_run_id}/resume")
+        assert response.json()["status"] == "ACCEPT"
+
+        session.expire_all()
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run is not None
+        assert run.run_count == 1
+        assert not run.empirical_policy.resuming
+
+        # a later attempt is still counted
+        for state in (
+            dict(type=StateType.SCHEDULED.value, name="AwaitingRetry"),
+            dict(type=StateType.PENDING.value),
+            dict(type=StateType.RUNNING.value),
+        ):
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/set_state", json=dict(state=state)
+            )
+            assert response.status_code == 201, response.text
+
+        session.expire_all()
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run is not None
+        assert run.run_count == 2
+
     async def test_resuming_nonblocking_pauses(
         self, nonblocking_paused_flow_run, client, session
     ):
@@ -1747,6 +1922,50 @@ class TestResumeFlowrun:
         assert flow_run_input
         assert orjson.loads(flow_run_input.value) == {"approved": True}
 
+    async def test_resume_flow_run_waiting_for_input_with_integer_beyond_64_bit_range(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        flow: Flow,
+    ):
+        class BigIntInput(RunInput):
+            count: int
+
+        server_state = schemas.states.Paused(pause_key="1")
+        keyset = keyset_from_paused_state(Paused(pause_key="1"))
+        server_state.state_details.run_input_keyset = keyset
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, state=server_state),
+        )
+        await models.flow_run_input.create_flow_run_input(
+            session=session,
+            flow_run_input=schemas.core.FlowRunInput(
+                flow_run_id=flow_run.id,
+                key=keyset["schema"],
+                value=orjson.dumps(BigIntInput.model_json_schema()).decode(),
+            ),
+        )
+        await session.commit()
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/resume",
+            json={"run_input": {"count": 2**64 + 1}},
+        )
+
+        assert response.status_code == 201, response.text
+        assert response.json()["status"] == "ACCEPT"
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=flow_run.id,
+            key=keyset["response"],
+        )
+
+        assert flow_run_input
+        assert json.loads(flow_run_input.value) == {"count": 2**64 + 1}
+
     async def test_resume_flow_run_waiting_for_input_with_json_hydrated_input(
         self,
         session,
@@ -1917,6 +2136,54 @@ class TestSetFlowRunState:
         )
         assert run.state.type == StateType.CANCELLING
 
+    async def test_stale_pending_proposal_for_completed_flow_run_is_aborted(
+        self,
+        deployment: Deployment,
+        client: AsyncClient,
+        session: AsyncSession,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23961
+
+        A worker with a stale copy of a run must not move a completed run without
+        persisted result data back to Pending. A rerun through Scheduled must
+        still be possible."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id, deployment_id=deployment.id
+            ),
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+
+        async def set_state(type: StateType, **kwargs: Any) -> OrchestrationResult:
+            response = await client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=dict(type=type.value, **kwargs)),
+            )
+            assert response.status_code in (200, 201), response.text
+            return OrchestrationResult.model_validate(response.json())
+
+        await set_state(StateType.PENDING)
+        await set_state(StateType.RUNNING)
+        result = await set_state(StateType.COMPLETED)
+        assert result.status == responses.SetStateStatus.ACCEPT
+
+        result = await set_state(StateType.PENDING)
+        assert result.status == responses.SetStateStatus.ABORT
+
+        session.expire_all()
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run is not None
+        assert run.state.type == StateType.COMPLETED
+
+        result = await set_state(StateType.SCHEDULED, name="AwaitingRetry")
+        assert result.status == responses.SetStateStatus.ACCEPT
+        result = await set_state(StateType.PENDING)
+        assert result.status == responses.SetStateStatus.ACCEPT
+
     async def test_pauses_fire_again_after_blocking_pause_is_rescheduled(
         self,
         deployment: Deployment,
@@ -1981,7 +2248,9 @@ class TestSetFlowRunState:
             session=session, flow_run_id=flow_run_id
         )
         assert run is not None
-        assert run.run_count == 3
+        # resuming the first pause continued the first attempt; only the
+        # rescheduled attempt counts as a new run
+        assert run.run_count == 2
 
     async def test_input_pauses_can_be_replayed_after_blocking_pause_is_rescheduled(
         self,
@@ -2384,6 +2653,51 @@ class TestSetFlowRunState:
         )
         # the transition is rejected and the returned state should be the existing state in the db
         assert api_response.state.id == pending_flow_run_with_transition_id.state_id
+
+    async def test_resent_failed_after_awaiting_retry_does_not_end_the_run(
+        self, flow, client, session
+    ):
+        """A client retrying a `Failed` proposal whose `AwaitingRetry` rejection it
+        never received must get the same rejection instead of failing the run."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                empirical_policy=schemas.core.FlowRunPolicy(retries=1, retry_delay=0),
+            ),
+        )
+        await session.commit()
+        flow_run_id = flow_run.id
+
+        for state_type in ("PENDING", "RUNNING"):
+            response = await client.post(
+                f"flow_runs/{flow_run_id}/set_state",
+                json={"state": {"type": state_type}},
+            )
+            assert response.status_code == 201, response.text
+
+        failed = {"type": "FAILED", "state_details": {"transition_id": str(uuid4())}}
+        first = await client.post(
+            f"flow_runs/{flow_run_id}/set_state", json={"state": failed}
+        )
+        assert first.status_code == 201, first.text
+        first_result = OrchestrationResult.model_validate(first.json())
+        assert first_result.status == responses.SetStateStatus.REJECT
+        assert first_result.state.name == "AwaitingRetry"
+
+        resend = await client.post(
+            f"flow_runs/{flow_run_id}/set_state", json={"state": failed}
+        )
+        assert resend.status_code == 200, resend.text
+        resend_result = OrchestrationResult.model_validate(resend.json())
+        assert resend_result.status == responses.SetStateStatus.REJECT
+        assert resend_result.state.id == first_result.state.id
+
+        session.expire_all()
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run.state.name == "AwaitingRetry"
 
     @pytest.mark.parametrize(
         "client_version,should_use_orchestration",

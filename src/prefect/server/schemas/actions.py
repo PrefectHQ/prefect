@@ -30,6 +30,8 @@ from prefect._internal.schemas.validators import (
     validate_parameter_size_field,
     validate_parameters_conform_to_schema,
     validate_parent_and_ref_diff,
+    validate_rrule_schedule_interval,
+    validate_rrule_schedule_timezone,
     validate_schedule_max_scheduled_runs,
 )
 from prefect.server.utilities.schemas import get_class_fields_only
@@ -102,8 +104,15 @@ class FlowUpdate(ActionBaseModel):
 # Fields that accept `None` (e.g. `DeploymentScheduleUpdate.schedule`)
 # use `Optional[NormalizedSchedule]` directly — Pydantic only runs the
 # `AfterValidator` on the non-None branch.
+#
+# RRule timezones and intervals are validated here too, rather than on
+# RRuleSchedule, so that schedules already stored with an invalid timezone or a
+# zero interval stay readable.
 NormalizedSchedule = Annotated[
-    schemas.schedules.SCHEDULE_TYPES, AfterValidator(normalize_schedule_rrule)
+    schemas.schedules.SCHEDULE_TYPES,
+    AfterValidator(validate_rrule_schedule_timezone),
+    AfterValidator(validate_rrule_schedule_interval),
+    AfterValidator(normalize_schedule_rrule),
 ]
 
 
@@ -720,7 +729,9 @@ class ConcurrencyLimitCreate(ActionBaseModel):
     tag: str = Field(
         default=..., description="A tag the concurrency limit is applied to."
     )
-    concurrency_limit: int = Field(default=..., description="The concurrency limit.")
+    concurrency_limit: NonNegativeInteger = Field(
+        default=..., description="The concurrency limit."
+    )
 
 
 class ConcurrencyLimitV2Create(ActionBaseModel):
@@ -879,6 +890,7 @@ class LogCreate(ActionBaseModel):
     timestamp: DateTime = Field(default=..., description="The log timestamp.")
     flow_run_id: Optional[UUID] = Field(None)
     task_run_id: Optional[UUID] = Field(None)
+    worker_id: Optional[UUID] = Field(None)
 
 
 def validate_base_job_template(v: dict[str, Any]) -> dict[str, Any]:

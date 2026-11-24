@@ -5,7 +5,7 @@ from datetime import timezone
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Annotated, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pytest
 from pydantic import BaseModel, Field, SecretStr
@@ -819,6 +819,84 @@ class TestParseFlowDescriptionToSchema:
             },
             "required": ["x", "y"],
             "definitions": {},
+        }
+
+    def test_flow_with_annotated_field_description(self):
+        def f(
+            x: Annotated[int, Field(description="x from Field")],
+            y: Annotated[int, Field(ge=0)] = 0,
+            z: Annotated[int, Field(description="z from Field")] = Field(
+                default=1, description="z from default Field"
+            ),
+            w: Annotated[
+                int, Field(description="w from Field"), Field(description=None)
+            ] = 2,
+        ):
+            """Function f.
+
+            Args:
+                y: y from docstring
+                w: w from docstring
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "title": "x",
+                    "description": "x from Field",
+                    "position": 0,
+                    "type": "integer",
+                },
+                "y": {
+                    "title": "y",
+                    "description": "y from docstring",
+                    "default": 0,
+                    "minimum": 0,
+                    "position": 1,
+                    "type": "integer",
+                },
+                "z": {
+                    "title": "z",
+                    "description": "z from default Field",
+                    "default": 1,
+                    "position": 2,
+                    "type": "integer",
+                },
+                "w": {
+                    "title": "w",
+                    "description": "w from docstring",
+                    "default": 2,
+                    "position": 3,
+                    "type": "integer",
+                },
+            },
+            "required": ["x"],
+            "definitions": {},
+        }
+
+    def test_flow_with_annotated_fields_pydantic_cannot_merge(self):
+        def f(
+            x: Annotated[
+                tuple[int, ...], Field(default=(1,)), Field(default_factory=tuple)
+            ] = (),
+        ):
+            """Function f.
+
+            Args:
+                x: x from docstring
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi()["properties"] == {
+            "x": {
+                "title": "x",
+                "description": "x from docstring",
+                "default": [],
+                "position": 0,
+            },
         }
 
 
@@ -2099,5 +2177,33 @@ class TestEntrypointToSchema:
             "title": "Parameters",
             "type": "object",
             "required": ["x"],
+            "definitions": {},
+        }
+
+    def test_function_with_positional_only_args_and_mixed_defaults(
+        self, tmp_path: Path
+    ):
+        # Defaults apply to the trailing positional parameters, which span both
+        # positional-only and positional-or-keyword args. A required
+        # positional-only arg followed by defaulted args must not shift the
+        # defaults onto the wrong parameters.
+        source_code = dedent(
+            """
+        def f(a, b=5, /, c=10):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "properties": {
+                "a": {"title": "a", "position": 0},
+                "b": {"title": "b", "position": 1, "default": 5},
+                "c": {"title": "c", "position": 2, "default": 10},
+            },
+            "title": "Parameters",
+            "type": "object",
+            "required": ["a"],
             "definitions": {},
         }

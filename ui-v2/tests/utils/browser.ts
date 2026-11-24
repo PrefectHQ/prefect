@@ -45,3 +45,14 @@ export const mockInMemoryLocalStorage = () => {
 		}
 	};
 };
+
+/**
+ * Stubs the time zone reported by `Intl.DateTimeFormat().resolvedOptions()`.
+ * Call `vi.restoreAllMocks()` afterwards to restore it.
+ */
+export const mockBrowserTimezone = (timeZone: string | undefined) => {
+	const options = new Intl.DateTimeFormat().resolvedOptions();
+	return vi
+		.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+		.mockReturnValue(Object.assign(options, { timeZone }));
+};

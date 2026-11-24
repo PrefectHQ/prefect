@@ -890,26 +890,55 @@ async def automation_changed(
     global automation_state_snapshot
 
     async with _automations_lock():
-        if event in ("automation__deleted", "automation__updated"):
+        if event == "automation__deleted":
             forget_automation(automation_id)
 
         async with automations_session() as session:
             if event in ("automation__created", "automation__updated"):
                 automation = await read_automation(session, automation_id)
+
+                # Swap the automation without awaiting so that concurrent
+                # evaluations never see it missing while it is being re-read
+                if event == "automation__updated":
+                    forget_automation(automation_id)
                 load_automation(automation)
+
             automation_state_snapshot = await read_automation_state_snapshot(session)
 
 
 @db_injector
 async def load_automations(db: PrefectDBInterface, session: AsyncSession):
-    """Loads all automations for the given set of accounts"""
+    """Replaces the loaded automations with all automations from the database"""
     query = sa.select(db.Automation)
 
     logger.debug("Loading automations")
 
     result = await session.execute(query)
-    for automation in result.scalars().all():
-        load_automation(Automation.model_validate(automation, from_attributes=True))
+    automations = [
+        Automation.model_validate(automation, from_attributes=True)
+        for automation in result.scalars().all()
+    ]
+
+    # Swap the loaded automations without awaiting so that concurrent evaluations
+    # see either the previous set of automations or the new one, never an empty or
+    # partially loaded set
+    previous_automations = automations_by_id.copy()
+    previous_triggers = triggers.copy()
+    # Reload clears the outer index, leaving saved buckets intact.
+    previous_triggers_by_expect = _triggers_by_expect.copy()
+    previous_next_proactive_runs = next_proactive_runs.copy()
+
+    clear_loaded_automations()
+    try:
+        for automation in automations:
+            load_automation(automation)
+    except Exception:
+        clear_loaded_automations()
+        automations_by_id.update(previous_automations)
+        triggers.update(previous_triggers)
+        _triggers_by_expect.update(previous_triggers_by_expect)
+        next_proactive_runs.update(previous_next_proactive_runs)
+        raise
 
     logger.debug(
         "Loaded %s automations with %s triggers", len(automations_by_id), len(triggers)
@@ -944,23 +973,7 @@ async def reconcile_automations(force: bool = False) -> bool:
             if not force and current_snapshot == automation_state_snapshot:
                 return False
 
-            previous_automations = automations_by_id.copy()
-            previous_triggers = triggers.copy()
-            # Reload clears the outer index, leaving saved buckets intact.
-            previous_triggers_by_expect = _triggers_by_expect.copy()
-            previous_next_proactive_runs = next_proactive_runs.copy()
-
-            clear_loaded_automations()
-
-            try:
-                await load_automations(session)
-            except Exception:
-                clear_loaded_automations()
-                automations_by_id.update(previous_automations)
-                triggers.update(previous_triggers)
-                _triggers_by_expect.update(previous_triggers_by_expect)
-                next_proactive_runs.update(previous_next_proactive_runs)
-                raise
+            await load_automations(session)
 
             automation_state_snapshot = current_snapshot
             return True
@@ -1374,10 +1387,7 @@ async def consumer(
     `TriggeredAction` for the `actions` service if the automation criteria is met."""
     # Start the automation change listener task
     sync_task = asyncio.create_task(listen_for_automation_changes())
-
-    await reconcile_automations(force=True)
-
-    proactive_task = asyncio.create_task(evaluate_periodically(periodic_granularity))
+    proactive_task: asyncio.Task[None] | None = None
 
     ordering = get_triggers_causal_ordering()
 
@@ -1415,13 +1425,20 @@ async def consumer(
             pass  # it's fine to ACK this message, since it is safe in the DB
 
     try:
+        await reconcile_automations(force=True)
+
+        proactive_task = asyncio.create_task(
+            evaluate_periodically(periodic_granularity)
+        )
+
         logger.debug("Starting reactive evaluation task")
         yield message_handler
     finally:
-        sync_task.cancel()
-        proactive_task.cancel()
+        background_tasks = [t for t in (sync_task, proactive_task) if t is not None]
+        for task in background_tasks:
+            task.cancel()
         # Wait for tasks to finish
-        await asyncio.gather(sync_task, proactive_task, return_exceptions=True)
+        await asyncio.gather(*background_tasks, return_exceptions=True)
 
 
 async def proactive_evaluation(

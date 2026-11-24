@@ -8,8 +8,7 @@ import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
 export type Variable = components["schemas"]["Variable"];
-export type VariablesFilter =
-	components["schemas"]["Body_read_variables_variables_filter_post"];
+export type VariablesFilter = components["schemas"]["Body_read_variables"];
 
 /**
  * Query key factory for variables-related queries

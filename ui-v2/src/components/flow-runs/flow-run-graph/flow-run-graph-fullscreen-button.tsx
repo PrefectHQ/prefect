@@ -40,7 +40,7 @@ export function FlowRunGraphFullscreenButton({
 					return;
 				}
 
-				if (event.key === "Escape") {
+				if (event.key === "Escape" && fullscreen) {
 					toggleFullscreen();
 					return;
 				}
@@ -49,7 +49,7 @@ export function FlowRunGraphFullscreenButton({
 		);
 
 		return () => controller.abort();
-	}, [toggleFullscreen]);
+	}, [fullscreen, toggleFullscreen]);
 
 	return (
 		<Tooltip>

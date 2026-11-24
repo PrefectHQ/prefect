@@ -116,6 +116,39 @@ class TestMemoryLockManager:
         ):
             manager.release_lock(key=key, holder="holder2")
 
+    def test_release_never_acquired_lock_is_noop(self):
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        manager.release_lock(key=key, holder="holder1")
+        assert not manager.is_locked(key=key)
+
+    def test_raises_if_releasing_expired_lock_reacquired_by_other_holder(self):
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        assert manager.acquire_lock(key=key, holder="holder1", hold_timeout=0.1)
+        assert manager.acquire_lock(key=key, holder="holder2", acquire_timeout=5)
+        with pytest.raises(
+            ValueError, match=f"No lock held by holder1 for transaction with key {key}"
+        ):
+            manager.release_lock(key=key, holder="holder1")
+        assert manager.is_lock_holder(key, holder="holder2")
+        manager.release_lock(key=key, holder="holder2")
+
+    def test_release_lock_after_hold_timeout_expiry(self):
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        assert manager.acquire_lock(key=key, holder="holder1")
+        assert manager.is_locked(key=key)
+        # trigger the expiration timer's callback synchronously (what a
+        # hold_timeout would fire asynchronously) so the test has no timing
+        # dependence on the scheduler
+        manager._expire_lock(key)
+        assert not manager.is_locked(key=key)
+        # releasing a lock that has expired is a no-op, not an error, matching
+        # RedisLockManager.release_lock
+        manager.release_lock(key=key, holder="holder1")
+        assert not manager.is_locked(key=key)
+
     def test_is_lock_holder(self):
         key = str(uuid4())
         manager = MemoryLockManager()
@@ -404,6 +437,17 @@ class TestFileSystemLockManager:
         store.release_lock(key=key, holder="holder2")
         assert not store.is_locked(key=key)
 
+    def test_release_lock_after_hold_timeout_expiry(self, store, clock: _Clock):
+        key = str(uuid4())
+        assert store.acquire_lock(key=key, holder="holder1", hold_timeout=10)
+        assert store.is_locked(key=key)
+        clock.advance(11)
+        assert not store.is_locked(key=key)
+        # releasing a lock that has expired is a no-op, not an error, matching
+        # RedisLockManager.release_lock
+        store.release_lock(key=key, holder="holder1")
+        assert not store.is_locked(key=key)
+
     def test_raises_if_releasing_with_wrong_holder(self, store):
         key = str(uuid4())
         assert store.acquire_lock(key=key, holder="holder1")
@@ -412,6 +456,33 @@ class TestFileSystemLockManager:
             ValueError, match=f"No lock held by holder2 for transaction with key {key}"
         ):
             store.release_lock(key=key, holder="holder2")
+
+    def test_release_expired_lock_is_noop(
+        self, store: FileSystemLockManager, clock: _Clock
+    ):
+        key = str(uuid4())
+        assert store.acquire_lock(key=key, holder="holder1", hold_timeout=10)
+        clock.advance(11)
+        store.release_lock(key=key, holder="holder1")
+        assert not store.is_locked(key=key)
+
+    def test_release_never_acquired_lock_is_noop(self, store: FileSystemLockManager):
+        key = str(uuid4())
+        store.release_lock(key=key, holder="holder1")
+        assert not store.is_locked(key=key)
+
+    def test_raises_if_releasing_expired_lock_reacquired_by_other_holder(
+        self, store: FileSystemLockManager, clock: _Clock
+    ):
+        key = str(uuid4())
+        assert store.acquire_lock(key=key, holder="holder1", hold_timeout=10)
+        clock.advance(11)
+        assert store.acquire_lock(key=key, holder="holder2")
+        with pytest.raises(
+            ValueError, match=f"No lock held by holder1 for transaction with key {key}"
+        ):
+            store.release_lock(key=key, holder="holder1")
+        assert store.is_lock_holder(key, holder="holder2")
 
     def test_is_lock_holder(self, store):
         key = str(uuid4())

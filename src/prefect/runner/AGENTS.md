@@ -81,6 +81,8 @@ The first authenticated connection consumes its attempt token. Replay and connec
 
 Each execution mode has a ProcessStarter implementation. To add a new execution mode, implement the ProcessStarter protocol and inject it into FlowRunExecutor -- do not add a new code path to Runner.
 
+A starter must give its `ProcessHandle` a termination scope that matches how it launched the child. The default scope stops a Windows child with `CTRL_BREAK_EVENT`, which only works when the child has its own console process group (`CREATE_NEW_PROCESS_GROUP`, as `EngineCommandStarter` sets); otherwise the event reaches every process on the console. `multiprocessing` spawn children share the runner's group, so use `create_spawn_process_termination_scope()`; use `create_isolated_termination_scope()` when the starter owns a whole process tree.
+
 ## Work Pool Clearing in `add_flow`
 
 `Runner.add_flow()` explicitly assigns `deployment.work_pool_name = None` and `deployment.work_queue_name = None` *after* the `RunnerDeployment` is constructed, not via constructor kwargs. This is intentional: post-construction assignment adds the fields to Pydantic's `model_fields_set`, which `server/models/deployments.py:update_deployment` checks to detect "explicitly cleared" vs. "not provided." Constructing with `work_pool_name=None` in kwargs does *not* trigger clearing — `RunnerDeployment` factory methods now omit `None`-valued work pool fields from the constructor. If you ever need another field to signal "clear this on the server side," follow the same post-construction-assignment pattern.
@@ -122,6 +124,10 @@ This matters because `get_directory` typically calls `shutil.copytree(..., dirs_
 
 These validations exist to prevent git argument injection. Do not bypass them when constructing `GitRepository` programmatically.
 
+## GitRepository Credential Redaction
+
+`GitRepository._url` may embed credentials (`https://user:token@host/...`), and `_repository_url_with_credentials` adds them from `credentials`. Any URL or git stderr that reaches logs, `repr`, or exception messages must go through `strip_auth_from_url` / `strip_auth_from_urls_in_text` (`prefect._internal.urls`); missed call sites have leaked tokens more than once. Redaction is display-only: equality checks and `to_pull_step()` keep the raw `_url`.
+
 ## GitRepository Concurrent Pull Protection
 
 `GitRepository.pull_code()` serializes concurrent calls via a `FileLock` (`prefect.locking._filelock`). The lock file sits adjacent to the destination: `destination.parent / (destination.name + ".lock")`. Stale locks from crashed processes are recovered automatically via PID check. Tests that broadly monkeypatch `pathlib.Path.exists` must account for this lock file being created next to the destination.
@@ -141,6 +147,8 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 **Pull-step directory fallback:** When pull steps run but none produces a `directory` output or changes CWD, `_ensure_entrypoint_in_workspace` copies storage into the workspace root as a fallback. This handles setup-only pull steps (e.g., `run_shell_script` for environment prep) that do not control the working directory themselves.
 
 **Automatic dependency installation:** By default, `WorkspaceResolvingEngineCommandStarter` does not install dependencies before starting a flow run. When no explicit command is passed and `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` is true, it auto-selects `uv run --no-default-groups --project <project_root>` with the worker-supplied workspace bootstrap — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). The bootstrap uses the prepared entrypoint with `prefect.flow_engine` when that module exposes its executable `_main`; older selected runtimes fall back to `prefect.engine` with `PREFECT__FLOW_ENTRYPOINT`, preserving the prepared workspace. If the setting is false or any condition fails, the command falls back to `None`. Explicit commands always take precedence.
+
+**Version skew in the runtime bootstrap:** `_workspace_runtime_bootstrap.py` runs inside the flow's selected runtime, which may ship an older Prefect than the worker. Do not make it depend on Prefect internals newer than that runtime; it keeps local copies instead. Its flow hook argument resolution is one such copy (see the hook-parity contract in `src/prefect/AGENTS.md`).
 
 ## Reference
 

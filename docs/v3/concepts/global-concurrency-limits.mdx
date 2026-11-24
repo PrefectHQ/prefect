@@ -75,9 +75,10 @@ Use `strict=True` when you need absolute certainty that concurrency limits are b
 Global concurrency limits can be in an **active** or **inactive** state:
 
 - **Active**: Slots can be occupied, and code execution is blocked when slots are unable to be acquired. This is the normal operating mode where concurrency enforcement occurs.
-- **Inactive**: Slots are not occupied, and code execution is not blocked. The limit exists but has no effect. This is useful for temporarily disabling enforcement without deleting the limit configuration.
+- **Inactive limits** let operations start without acquiring slots. Use this state to temporarily disable enforcement without deleting the limit configuration.
 
 You can toggle a limit between active and inactive states to enable or disable concurrency enforcement without changing your code.
+If you reactivate a limit, releasing a lease created while the limit was inactive leaves that limit's occupied slots intact.
 
 ### Slot decay
 

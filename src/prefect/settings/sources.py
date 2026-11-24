@@ -1,4 +1,6 @@
+import io
 import os
+import stat
 import sys
 import threading
 import warnings
@@ -21,13 +23,15 @@ from pydantic_settings.sources import (
     ConfigFileSourceMixin,
     DotenvType,
 )
+from pydantic_settings.sources.utils import parse_env_vars
 
 from prefect._internal.compatibility.backports import tomllib
 from prefect.settings.constants import DEFAULT_PREFECT_HOME, DEFAULT_PROFILES_PATH
 from prefect.utilities.collections import get_from_dict
 
-_file_cache: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=100, ttl=60)
+_file_cache: TTLCache[str, Any] = TTLCache(maxsize=100, ttl=60)
 _file_cache_lock = threading.Lock()
+_dotenv_file_lock = threading.Lock()
 
 
 def _read_toml_file(path: Path) -> dict[str, Any]:
@@ -45,6 +49,36 @@ def _read_toml_file(path: Path) -> dict[str, Any]:
     with _file_cache_lock:
         _file_cache[cache_key] = data
     return data
+
+
+def _read_dotenv_file(path: Path, encoding: str | None = None) -> dict[str, str | None]:
+    """Read a dotenv file, sharing its contents across all settings sources.
+
+    Each settings class builds its own dotenv source, so without a cache `.env`
+    is opened once per settings class every time settings are loaded. Regular
+    files are re-read when they change. FIFOs (e.g. 1Password Environments
+    mounts) are slow to open and their `stat` may not reflect content
+    changes, so they are re-read once the cache TTL expires.
+
+    Only the file contents are cached. Values are parsed on each call, so
+    `${VAR}` interpolation uses the current environment. Loads are serialized
+    so that concurrent cache misses open the file only once.
+    """
+    path_stat = path.stat()
+    if stat.S_ISFIFO(path_stat.st_mode):
+        version = "fifo"
+    else:
+        version = f"{path_stat.st_ino}:{path_stat.st_size}:{path_stat.st_mtime_ns}"
+    cache_key = f"dotenv_file:{path.absolute()}:{encoding}:{version}"
+    with _dotenv_file_lock:
+        with _file_cache_lock:
+            content: str | None = _file_cache.get(cache_key)
+        if content is None:
+            with open(path, encoding=encoding or "utf8") as f:
+                content = f.read()
+            with _file_cache_lock:
+                _file_cache[cache_key] = content
+    return dotenv.dotenv_values(stream=io.StringIO(content))
 
 
 class EnvFilterSettingsSource(EnvSettingsSource):
@@ -126,6 +160,14 @@ class FilteredDotEnvSettingsSource(DotEnvSettingsSource):
                     for key, value in self.env_vars.items()  # type: ignore
                     if key.lower() not in env_blacklist
                 }
+
+    def _read_env_file(self, file_path: Path) -> Mapping[str, str | None]:
+        return parse_env_vars(
+            _read_dotenv_file(file_path, self.env_file_encoding),
+            self.case_sensitive,
+            self.env_ignore_empty,
+            self.env_parse_none_str,
+        )
 
 
 class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
@@ -360,7 +402,7 @@ def _get_profiles_path() -> Path:
     if env_path := os.getenv("PREFECT_PROFILES_PATH"):
         return Path(env_path)
     if Path(".env").is_file() and (
-        dotenv_path := dotenv.dotenv_values(".env").get("PREFECT_PROFILES_PATH")
+        dotenv_path := _read_dotenv_file(Path(".env")).get("PREFECT_PROFILES_PATH")
     ):
         return Path(dotenv_path)
     if toml_path := _get_profiles_path_from_toml("prefect.toml", ["profiles_path"]):

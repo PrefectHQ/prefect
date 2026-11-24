@@ -1,8 +1,19 @@
+from collections.abc import Generator
+
 import pytest
 
-from prefect.server.models.task_workers import observe_worker
+from prefect.server.models.task_workers import observe_worker, task_worker_tracker
 
 pytestmark = pytest.mark.clear_db
+
+
+@pytest.fixture(autouse=True)
+def reset_task_worker_tracker() -> Generator[None, None, None]:
+    # The tracker is a process-global, in-memory singleton that `clear_db` does
+    # not touch, so workers observed by other tests would otherwise leak in.
+    task_worker_tracker.reset()
+    yield
+    task_worker_tracker.reset()
 
 
 @pytest.mark.parametrize(

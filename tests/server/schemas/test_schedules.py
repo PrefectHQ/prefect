@@ -459,11 +459,21 @@ class TestIntervalScheduleDaylightSavingsTime:
         Tests the situation where a long duration has passed since the start date that crosses a DST boundary;
         for very short intervals this occasionally could result in "next" scheduled times that are in the past by one hour.
         """
+        # Use the canonical IANA ID; legacy aliases like `US/Pacific` are absent
+        # from some system tz databases (e.g. Ubuntu without `tzdata-legacy`).
         anchor_date = (
-            Instant.from_timestamp(1582002945.964696).to_tz("US/Pacific").to_stdlib()
+            Instant.from_timestamp(1582002945.964696)
+            .to_tz("America/Los_Angeles")
+            .to_stdlib()
         )
         current_date = (
             Instant.from_timestamp(1593643144.233938).to_tz("UTC").to_stdlib()
+        )
+        # The anchor is in PST and the current date falls in PDT, so the
+        # schedule must cross a DST boundary.
+        assert anchor_date.utcoffset() == timedelta(hours=-8)
+        assert current_date.astimezone(anchor_date.tzinfo).utcoffset() == timedelta(
+            hours=-7
         )
         s = IntervalSchedule(
             interval=timedelta(minutes=1, seconds=15), anchor_date=anchor_date
@@ -711,6 +721,82 @@ class TestIntervalScheduleDaylightSavingsTime:
             "03-08 03:00",
             "03-09 05:00",
         ]
+
+    @pytest.mark.parametrize(
+        "interval, anchor, timezone, start",
+        [
+            # refill after the fall-back transition (OSS-8405)
+            (
+                timedelta(hours=26),
+                datetime(2026, 1, 1, 9, 30),
+                "America/New_York",
+                datetime(2026, 11, 2, 1, 1, tzinfo=ZoneInfo("UTC")),
+            ),
+            # next occurrence lands in the repeated hour after falling back
+            (
+                timedelta(days=2, minutes=30),
+                datetime(2025, 1, 1, 9, 30),
+                "Europe/London",
+                datetime(2027, 10, 31, 0, 59, tzinfo=ZoneInfo("UTC")),
+            ),
+            # southern hemisphere, years after the anchor
+            (
+                timedelta(days=3, hours=23),
+                datetime(2025, 1, 1, 9, 30),
+                "Australia/Sydney",
+                datetime(2027, 4, 5, 12, tzinfo=ZoneInfo("UTC")),
+            ),
+        ],
+    )
+    async def test_mixed_interval_dates_are_consistent_across_start_dates(
+        self,
+        interval: timedelta,
+        anchor: datetime,
+        timezone: str,
+        start: datetime,
+    ):
+        """
+        A mixed day-and-time interval must return the series that stepping from
+        the anchor produces, even when DST changes lie between the anchor and
+        the start date.
+        """
+        anchor = anchor.replace(tzinfo=ZoneInfo(timezone))
+        s = IntervalSchedule(interval=interval, anchor_date=anchor, timezone=timezone)
+        series = await s.get_dates(n=1000, start=anchor)
+        expected = [d for d in series if d >= start][:3]
+
+        assert await s.get_dates(n=3, start=start) == expected
+
+    @pytest.mark.parametrize(
+        "interval, start",
+        [
+            # each step adds a microsecond, so the start lands just before an
+            # occurrence that the seek must keep
+            (
+                timedelta(days=1, microseconds=1),
+                datetime(2025, 1, 31, 7, 30, 0, 29, tzinfo=ZoneInfo("UTC")),
+            ),
+            (
+                timedelta(days=1, microseconds=1),
+                datetime(2025, 3, 12, 6, 30, 0, 70, tzinfo=ZoneInfo("UTC")),
+            ),
+            (
+                timedelta(days=2, seconds=1, microseconds=333_333),
+                datetime(2025, 11, 4, 7, 30, tzinfo=ZoneInfo("UTC")),
+            ),
+        ],
+    )
+    async def test_fractional_mixed_interval_refill_matches_anchored_series(
+        self, interval: timedelta, start: datetime
+    ):
+        anchor = datetime(2025, 1, 1, 2, 30, tzinfo=ZoneInfo("America/New_York"))
+        s = IntervalSchedule(
+            interval=interval, anchor_date=anchor, timezone="America/New_York"
+        )
+        series = await s.get_dates(n=1000, start=anchor)
+        expected = [d for d in series if d >= start][:3]
+
+        assert await s.get_dates(n=3, start=start) == expected
 
 
 @pytest.mark.skipif(
@@ -1738,6 +1824,44 @@ class TestRRuleSchedule:
         assert roundtrip_rruleset._exrule[0]._dtstart.tzinfo == expected_tzinfo
         assert roundtrip_rruleset._rdate[0].tzinfo == expected_tzinfo
         assert roundtrip_rruleset._exdate[0].tzinfo == expected_tzinfo
+
+    async def test_serialization_preserves_rdate_and_exdate_in_another_timezone(
+        self,
+    ):
+        dt_nyc = datetime(2024, 3, 1, 9, tzinfo=ZoneInfo("America/New_York"))
+        rrset = rrule.rruleset(cache=True)
+        rrset.rrule(rrule.rrule(rrule.DAILY, count=3, dtstart=dt_nyc))
+        # 9 AM New York on 2024-03-02 and 2024-03-20, given in UTC
+        rrset.exdate(datetime(2024, 3, 2, 14, tzinfo=ZoneInfo("UTC")))
+        rrset.rdate(datetime(2024, 3, 20, 13, tzinfo=ZoneInfo("UTC")))
+
+        roundtrip_rruleset = RRuleSchedule.from_rrule(rrset).to_rrule()
+
+        assert list(roundtrip_rruleset) == list(rrset)
+
+    @pytest.mark.parametrize("method", ["rdate", "exdate"])
+    async def test_serialization_keeps_second_occurrence_of_repeated_hour(self, method):
+        utc = ZoneInfo("UTC")
+        # the first 01:30 in New York on 2024-11-03
+        first = datetime(2024, 11, 3, 5, 30, tzinfo=utc)
+        # the second 01:30, after falling back from EDT to EST
+        second = datetime(2024, 11, 3, 6, 30, tzinfo=utc)
+        rrset = rrule.rruleset(cache=True)
+        rrset.rrule(
+            rrule.rrule(
+                rrule.DAILY,
+                count=1,
+                dtstart=first.astimezone(ZoneInfo("America/New_York")),
+            )
+        )
+        getattr(rrset, method)(second)
+
+        schedule = RRuleSchedule.from_rrule(rrset)
+        dates = await schedule.get_dates(n=5, start=datetime(2024, 11, 1, tzinfo=utc))
+
+        expected = [first, second] if method == "rdate" else [first]
+        assert [dt.astimezone(utc) for dt in schedule.to_rrule()] == expected
+        assert [dt.astimezone(utc) for dt in dates] == expected
 
     @pytest.mark.xfail(
         reason="we currently cannot roundtrip RRuleSchedule objects for all timezones"

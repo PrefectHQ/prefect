@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest import mock
 from uuid import uuid4
 
 import pytest
@@ -411,7 +412,7 @@ def test_event_patterns_with_related_name(
     )
 
 
-def test_exact_and_wildcard_name_filters_can_match_the_same_event(
+def test_related_name_index_only_checks_exact_matches_and_fallbacks(
     completion_automation: Automation,
     completion_event: ReceivedEvent,
 ):
@@ -432,9 +433,15 @@ def test_exact_and_wildcard_name_filters_can_match_the_same_event(
     for automation in automations:
         triggers.load_automation(automation)
 
-    assert {
-        trigger.id for trigger in triggers.find_interested_triggers(completion_event)
-    } == {completion_automation.trigger.id, automations[0].trigger.id}
+    with mock.patch.object(
+        EventTrigger, "covers", autospec=True, side_effect=EventTrigger.covers
+    ) as covers:
+        assert {
+            trigger.id
+            for trigger in triggers.find_interested_triggers(completion_event)
+        } == {completion_automation.trigger.id, automations[0].trigger.id}
+
+    assert covers.call_count == 2
 
 
 def test_forgetting_compound_automation_removes_name_matches(

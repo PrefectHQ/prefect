@@ -61,10 +61,16 @@ class LockManager(Protocol):
         """
         Releases the lock on the corresponding transaction record.
 
+        If the lock no longer exists (e.g. it expired or was already released),
+        this method is a no-op.
+
         Args:
             key: Unique identifier for the transaction record.
             holder: Unique identifier for the holder of the lock. Must match the
                 holder provided when acquiring the lock.
+
+        Raises:
+            ValueError: If the lock is held by a different holder.
         """
         ...
 

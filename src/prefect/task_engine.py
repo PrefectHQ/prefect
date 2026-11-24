@@ -228,7 +228,21 @@ def _create_task_run_locally(
 
 
 class TaskRunTimeoutError(TimeoutError):
-    """Raised when a task run exceeds its timeout."""
+    """Raised when a task exceeds its configured timeout."""
+
+
+class _GeneratorFinalizerError(Exception):
+    """Internal: a generator task's finalizer raised while the consumer closed it.
+
+    Wrapping the error lets the transaction contexts unwind with an exception
+    (running rollback instead of committing a staged transaction) while the run
+    contexts skip their retry handling; the wrapped error is unwrapped and
+    raised to the consumer before the generator engine returns.
+    """
+
+    def __init__(self, cause: BaseException) -> None:
+        super().__init__(cause)
+        self.cause = cause
 
 
 @dataclass
@@ -1058,6 +1072,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     yield self
             except TimeoutError as exc:
                 self.handle_timeout(exc)
+            except _GeneratorFinalizerError:
+                # A generator task's finalizer failed while the consumer closed
+                # it; not a retryable task failure, so re-raise unchanged.
+                raise
             except Exception as exc:
                 self.handle_exception(exc)
 
@@ -1707,6 +1725,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     yield self
             except TimeoutError as exc:
                 await self.handle_timeout(exc)
+            except _GeneratorFinalizerError:
+                # A generator task's finalizer failed while the consumer closed
+                # it; not a retryable task failure, so re-raise unchanged.
+                raise
             except Exception as exc:
                 await self.handle_exception(exc)
 
@@ -1811,20 +1833,17 @@ def run_generator_task_sync(
         context=context,
     )
 
-    with engine.start(task_run_id=task_run_id, dependencies=dependencies):
-        while engine.is_running():
-            engine.wait_until_ready()
-            with (
-                engine.asset_context(),
-                engine.run_context(),
-                engine.transaction_context() as txn,
-            ):
-                # TODO: generators should default to commit_mode=OFF
-                # because they are dynamic by definition
-                # for now we just prevent this branch explicitly
-                if False and txn.is_committed():
-                    txn.read()
-                else:
+    try:
+        with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+            while engine.is_running():
+                engine.wait_until_ready()
+                with (
+                    engine.asset_context(),
+                    engine.run_context(),
+                    engine.transaction_context() as txn,
+                ):
+                    # TODO: generators should default to commit_mode=OFF
+                    # because they are dynamic by definition
                     call_args, call_kwargs = parameters_to_args_kwargs(
                         task.fn, engine.parameters or {}
                     )
@@ -1845,9 +1864,25 @@ def run_generator_task_sync(
                         engine.handle_success(exc.value, transaction=txn)
                     except GeneratorExit as exc:
                         engine.handle_success(None, transaction=txn)
-                        gen.throw(exc)
-            raise_if_flow_run_suspension_requested()
+                        try:
+                            gen.throw(exc)
+                        except StopIteration:
+                            # the generator suppressed GeneratorExit and
+                            # returned; treat that as a successful close
+                            pass
+                        except Exception as close_exc:
+                            raise _GeneratorFinalizerError(close_exc) from close_exc
+                        else:
+                            # the generator yielded while handling
+                            # GeneratorExit; a plain generator's close
+                            # rejects that
+                            raise _GeneratorFinalizerError(
+                                RuntimeError("generator ignored GeneratorExit")
+                            )
+                raise_if_flow_run_suspension_requested()
 
+    except _GeneratorFinalizerError as wrapper:
+        raise wrapper.cause
     return engine.result()
 
 
@@ -1871,20 +1906,17 @@ async def run_generator_task_async(
         context=context,
     )
 
-    async with engine.start(task_run_id=task_run_id, dependencies=dependencies):
-        while engine.is_running():
-            await engine.wait_until_ready()
-            async with (
-                engine.asset_context(),
-                engine.run_context(),
-                engine.transaction_context() as txn,
-            ):
-                # TODO: generators should default to commit_mode=OFF
-                # because they are dynamic by definition
-                # for now we just prevent this branch explicitly
-                if False and txn.is_committed():
-                    txn.read()
-                else:
+    try:
+        async with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+            while engine.is_running():
+                await engine.wait_until_ready()
+                async with (
+                    engine.asset_context(),
+                    engine.run_context(),
+                    engine.transaction_context() as txn,
+                ):
+                    # TODO: generators should default to commit_mode=OFF
+                    # because they are dynamic by definition
                     call_args, call_kwargs = parameters_to_args_kwargs(
                         task.fn, engine.parameters or {}
                     )
@@ -1905,9 +1937,35 @@ async def run_generator_task_async(
                     except (StopAsyncIteration, GeneratorExit) as exc:
                         await engine.handle_success(None, transaction=txn)
                         if isinstance(exc, GeneratorExit):
-                            gen.throw(exc)
-            raise_if_flow_run_suspension_requested()
+                            try:
+                                await gen.athrow(exc)
+                            except StopAsyncIteration:
+                                # the generator suppressed GeneratorExit and
+                                # returned; treat that as a successful close
+                                pass
+                            except Exception as close_exc:
+                                # The consumer is closing the generator and
+                                # its finalizer raised. Wrap the error so
+                                # the transaction rolls back and the run
+                                # contexts do not schedule a retry; the
+                                # consumer sees the original error from
+                                # aclose(), like a plain async generator.
+                                raise _GeneratorFinalizerError(close_exc) from (
+                                    close_exc
+                                )
+                            else:
+                                # the generator yielded while handling
+                                # GeneratorExit; a plain async generator's
+                                # aclose rejects that
+                                raise _GeneratorFinalizerError(
+                                    RuntimeError(
+                                        "async generator ignored GeneratorExit"
+                                    )
+                                )
+                raise_if_flow_run_suspension_requested()
 
+    except _GeneratorFinalizerError as wrapper:
+        raise wrapper.cause
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():
         await engine.result()
