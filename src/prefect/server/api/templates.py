@@ -16,6 +16,7 @@ router: PrefectRouter = PrefectRouter(tags=["Automations"])
 @router.post(
     "/automations/templates/validate",
     response_class=Response,
+    operation_id="validate_automation_template",
 )
 @router.post(
     "/templates/validate",

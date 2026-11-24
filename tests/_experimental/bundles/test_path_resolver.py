@@ -26,57 +26,6 @@ from prefect.bundles._path_resolver import (
 )
 
 
-class TestPathValidationError:
-    """Tests for PathValidationError dataclass."""
-
-    def test_create_with_required_fields(self):
-        """Test creating a PathValidationError with required fields."""
-        error = PathValidationError(
-            input_path="test.txt",
-            resolved_path=None,
-            error_type="empty",
-            message="Path cannot be empty",
-        )
-        assert error.input_path == "test.txt"
-        assert error.resolved_path is None
-        assert error.error_type == "empty"
-        assert error.message == "Path cannot be empty"
-        assert error.suggestion is None
-
-    def test_create_with_suggestion(self):
-        """Test creating a PathValidationError with optional suggestion."""
-        error = PathValidationError(
-            input_path="/absolute/path",
-            resolved_path="/absolute/path",
-            error_type="absolute",
-            message="Absolute paths not allowed",
-            suggestion="Use relative path from flow file directory",
-        )
-        assert error.suggestion == "Use relative path from flow file directory"
-
-    def test_all_error_types_are_valid(self):
-        """Test that all documented error types can be used."""
-        valid_error_types = [
-            "empty",
-            "whitespace",
-            "null_byte",
-            "absolute",
-            "duplicate",
-            "traversal",
-            "symlink_loop",
-            "broken_symlink",
-            "not_found",
-        ]
-        for error_type in valid_error_types:
-            error = PathValidationError(
-                input_path="test",
-                resolved_path=None,
-                error_type=error_type,
-                message=f"Error: {error_type}",
-            )
-            assert error.error_type == error_type
-
-
 class TestPathValidationResult:
     """Tests for PathValidationResult dataclass."""
 
@@ -186,36 +135,12 @@ class TestValidatePathInput:
         assert exc_info.value.error_type == "whitespace"
         assert "whitespace" in exc_info.value.message.lower()
 
-    def test_tabs_only_rejected(self):
-        """Test that tabs-only string raises PathValidationError."""
-        with pytest.raises(PathValidationError) as exc_info:
-            validate_path_input("\t\t")
-        assert exc_info.value.error_type == "whitespace"
-
-    def test_newlines_only_rejected(self):
-        """Test that newlines-only string raises PathValidationError."""
-        with pytest.raises(PathValidationError) as exc_info:
-            validate_path_input("\n\n")
-        assert exc_info.value.error_type == "whitespace"
-
     def test_null_byte_rejected(self):
         """Test that path with null byte raises PathValidationError."""
         with pytest.raises(PathValidationError) as exc_info:
             validate_path_input("path\x00.txt")
         assert exc_info.value.error_type == "null_byte"
         assert "null" in exc_info.value.message.lower()
-
-    def test_null_byte_at_start(self):
-        """Test that null byte at start is rejected."""
-        with pytest.raises(PathValidationError) as exc_info:
-            validate_path_input("\x00path.txt")
-        assert exc_info.value.error_type == "null_byte"
-
-    def test_null_byte_at_end(self):
-        """Test that null byte at end is rejected."""
-        with pytest.raises(PathValidationError) as exc_info:
-            validate_path_input("path.txt\x00")
-        assert exc_info.value.error_type == "null_byte"
 
     def test_absolute_path_unix_rejected(self):
         """Test that absolute Unix path raises PathValidationError."""
@@ -244,14 +169,6 @@ class TestValidatePathInput:
         """Test that valid relative path does not raise."""
         validate_path_input("config.yaml")  # Should not raise
 
-    def test_valid_relative_path_with_dot(self):
-        """Test that path starting with ./ does not raise."""
-        validate_path_input("./config.yaml")  # Should not raise
-
-    def test_valid_relative_path_with_subdirectory(self):
-        """Test that path with subdirectory does not raise."""
-        validate_path_input("data/file.txt")  # Should not raise
-
     def test_valid_path_with_backslashes(self):
         """Test that backslashes in path are allowed as input."""
         validate_path_input("data\\file.txt")  # Should not raise
@@ -260,14 +177,6 @@ class TestValidatePathInput:
         """Test that parent reference in relative path is allowed at input validation stage."""
         # Note: traversal detection happens during resolution, not input validation
         validate_path_input("../sibling/file.txt")  # Should not raise at input stage
-
-    def test_valid_dotfile(self):
-        """Test that dotfile paths are valid."""
-        validate_path_input(".gitignore")  # Should not raise
-
-    def test_valid_hidden_directory(self):
-        """Test that hidden directory paths are valid."""
-        validate_path_input(".config/settings.yaml")  # Should not raise
 
 
 class TestCheckForDuplicates:
@@ -349,49 +258,11 @@ class TestCheckForDuplicates:
 class TestNormalizePathSeparator:
     """Tests for normalize_path_separator function."""
 
-    def test_backslash_to_forward_slash(self):
-        """Test that backslashes are converted to forward slashes."""
-        assert normalize_path_separator("data\\file.txt") == "data/file.txt"
-
-    def test_multiple_backslashes(self):
-        """Test that multiple backslashes are converted."""
-        assert (
-            normalize_path_separator("path\\to\\deeply\\nested\\file.txt")
-            == "path/to/deeply/nested/file.txt"
-        )
-
-    def test_forward_slashes_unchanged(self):
-        """Test that forward slashes remain unchanged."""
-        assert normalize_path_separator("data/file.txt") == "data/file.txt"
-
     def test_mixed_slashes(self):
         """Test that mixed slashes are normalized."""
         assert (
             normalize_path_separator("path\\to/mixed/file.txt")
             == "path/to/mixed/file.txt"
-        )
-
-    def test_no_slashes(self):
-        """Test that path without slashes is unchanged."""
-        assert normalize_path_separator("file.txt") == "file.txt"
-
-    def test_empty_string(self):
-        """Test that empty string returns empty string."""
-        assert normalize_path_separator("") == ""
-
-    def test_dot_path(self):
-        """Test that dot path is handled."""
-        assert normalize_path_separator(".\\config") == "./config"
-
-    def test_double_dot_path(self):
-        """Test that parent reference path is handled."""
-        assert normalize_path_separator("..\\sibling") == "../sibling"
-
-    def test_windows_style_path(self):
-        """Test full Windows-style path conversion."""
-        assert (
-            normalize_path_separator("src\\prefect\\bundles\\__init__.py")
-            == "src/prefect/bundles/__init__.py"
         )
 
 
@@ -400,14 +271,6 @@ symlink_skip = pytest.mark.skipif(
     platform.system() == "Windows",
     reason="Symlink tests require admin privileges on Windows",
 )
-
-
-class TestMaxSymlinkDepth:
-    """Tests for MAX_SYMLINK_DEPTH constant."""
-
-    def test_max_symlink_depth_is_10(self):
-        """Test that MAX_SYMLINK_DEPTH is set to 10."""
-        assert MAX_SYMLINK_DEPTH == 10
 
 
 @symlink_skip

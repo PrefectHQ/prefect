@@ -34,6 +34,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types._datetime import Duration, now
+from tests.server import ConcurrentCommits
 
 pytestmark = pytest.mark.clear_db
 
@@ -1062,3 +1063,58 @@ async def test_cancel_subflow_run_handles_deleted_flow_run(
     # Call with a non-existent flow run ID - should not raise
     db = provide_database_interface()
     await cancel_subflow_run(uuid4(), db=db)
+
+
+async def test_cancel_child_task_runs_despite_concurrent_sqlite_write(
+    session: AsyncSession,
+    cancelled_flow_run: FlowRun,
+    orphaned_task_run_maker: Callable[..., Any],
+    commit_after_run_read: ConcurrentCommits,
+):
+    task_run = await orphaned_task_run_maker(cancelled_flow_run, states.Running)
+
+    commit_after_run_read.armed = True
+    await cancel_child_task_runs(cancelled_flow_run.id, db=provide_database_interface())
+
+    assert commit_after_run_read.writers
+    await session.refresh(task_run)
+    assert task_run.state.type == states.StateType.CANCELLED
+
+
+async def test_cancel_subflow_run_despite_concurrent_sqlite_write(
+    session: AsyncSession,
+    cancelled_flow_run: FlowRun,
+    orphaned_subflow_run_maker: Callable[..., Any],
+    commit_after_run_read: ConcurrentCommits,
+):
+    subflow_run = await orphaned_subflow_run_maker(cancelled_flow_run, states.Running)
+
+    commit_after_run_read.armed = True
+    await cancel_subflow_run(subflow_run.id, db=provide_database_interface())
+
+    assert commit_after_run_read.writers
+    await session.refresh(subflow_run)
+    assert subflow_run.state.type == states.StateType.CANCELLED
+
+
+async def test_handle_cancelling_timeout_despite_concurrent_sqlite_write(
+    cleanup_queue: WorkerCleanupQueue,
+    cancelling_flow_run_maker: Callable[..., Awaitable[Any]],
+    session: AsyncSession,
+    work_pool: Any,
+    commit_after_run_read: ConcurrentCommits,
+):
+    flow_run = await cancelling_flow_run_maker(infrastructure_pid="infra-pid-1")
+
+    commit_after_run_read.armed = True
+    with temporary_settings(
+        {PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS: 60}
+    ):
+        message, timeout_state_id = await _handle_cancelling_timeout_for_run(
+            flow_run, cleanup_queue
+        )
+
+    assert commit_after_run_read.writers
+    await session.refresh(flow_run)
+    assert flow_run.state_id == timeout_state_id
+    assert message is not None

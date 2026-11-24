@@ -13,10 +13,9 @@ export type DeploymentWithFlow = Deployment & {
 	flow?: components["schemas"]["Flow"];
 };
 export type DeploymentSchedule = components["schemas"]["DeploymentSchedule"];
-export type DeploymentsFilter =
-	components["schemas"]["Body_read_deployments_deployments_filter_post"];
+export type DeploymentsFilter = components["schemas"]["Body_read_deployments"];
 export type DeploymentsPaginationFilter =
-	components["schemas"]["Body_paginate_deployments_deployments_paginate_post"];
+	components["schemas"]["Body_paginate_deployments"];
 
 /**
  * Query key factory for deployments-related queries

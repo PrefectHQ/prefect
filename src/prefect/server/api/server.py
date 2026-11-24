@@ -373,6 +373,10 @@ def is_client_retryable_exception(exc: Exception) -> bool:
             asyncpg.exceptions.ConnectionDoesNotExistError,
             asyncpg.exceptions.CannotConnectNowError,
             asyncpg.exceptions.PostgresConnectionError,
+            # raised unwrapped by asyncpg when the database host does not
+            # resolve or refuses the connection, e.g. during a restart
+            socket.gaierror,
+            ConnectionRefusedError,
             sqlalchemy.exc.InvalidRequestError,
             sqlalchemy.orm.exc.DetachedInstanceError,
         ),
@@ -519,7 +523,13 @@ def create_api_app(
         return API_APP_CACHE[cache_key]
 
     fast_api_app_kwargs = fast_api_app_kwargs or {}
-    api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
+    api_app = FastAPI(
+        title=API_TITLE,
+        **{
+            "generate_unique_id_function": lambda route: route.name,
+            **fast_api_app_kwargs,
+        },
+    )
 
     if logfire:
         logfire.instrument_fastapi(api_app)  # pyright: ignore
@@ -623,6 +633,12 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     configured_default_ui: UIVersion = (
         "v2" if prefect.settings.get_current_settings().server.ui.v2_enabled else "v1"
     )
+    if configured_default_ui == "v1":
+        logger.warning(
+            "Setting `PREFECT_SERVER_UI_V2_ENABLED=false` is deprecated. The V1 UI"
+            " will be removed in Prefect 3.10, and this setting will no longer have"
+            " any effect. Unset `PREFECT_SERVER_UI_V2_ENABLED` to use the V2 UI."
+        )
     v1_base_url, v2_base_url = _resolve_ui_base_urls(PREFECT_UI_SERVE_BASE.value())
     ui_settings_path = _join_ui_path(v1_base_url, "ui-settings")
     static_directory_root = prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()

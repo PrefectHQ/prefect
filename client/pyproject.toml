@@ -28,7 +28,7 @@ dependencies = [
     "amplitude-analytics>=1.2.1,<2.0.0",
     "anyio>=4.4.0,<5.0.0",
     "asgi-lifespan>=1.0,<3.0",
-    "cachetools>=5.3,<8.0",
+    "cachetools>=5.3,<9",
     "certifi>=2026.10.19",
     "cloudpickle>=2.0,<4.0",
     "coolname>=1.0.4,<6.0.0",
@@ -66,7 +66,7 @@ dependencies = [
     "toml>=0.10.0",
     "typing_extensions>=4.10.0,<5.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
-    "websockets>=15.0.1,<17.0",
+    "websockets>=15.0.1,<18",
     "whenever>=0.10.5,<0.12.0; python_version>='3.13'",
 ]
 [project.urls]
@@ -75,7 +75,7 @@ Documentation = "https://www.prefect.io/docs"
 Source = "https://github.com/PrefectHQ/prefect"
 Tracker = "https://github.com/PrefectHQ/prefect/issues"
 [project.optional-dependencies]
-notifications = ["apprise>=1.13.0, <2.1.0"]
+notifications = ["apprise>=2.2.0, <3.0.0"]
 
 
 [tool.hatch.version]

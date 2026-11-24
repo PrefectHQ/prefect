@@ -9,7 +9,6 @@ import {
 	createMarkdownArtifact,
 	createTableArtifact,
 	expect,
-	listArtifacts,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
@@ -17,12 +16,10 @@ import {
 const LIST_PREFIX = "e2e-art-list-";
 
 async function waitForArtifactsPageReady(page: Page): Promise<void> {
-	// The "Artifacts" text is rendered as a BreadcrumbItem (<li>), not a heading,
-	// so we match the empty-state heading OR the breadcrumb text to detect page ready.
+	// The "Artifacts" breadcrumb (<li>, not a heading) renders in both the empty
+	// and non-empty states once the route's queries resolve.
 	await expect(
-		page
-			.getByRole("heading", { name: /create an artifact to get started/i })
-			.or(page.getByRole("listitem").filter({ hasText: /^Artifacts$/ })),
+		page.getByRole("listitem").filter({ hasText: /^Artifacts$/ }),
 	).toBeVisible({ timeout: 10000 });
 }
 
@@ -49,21 +46,30 @@ test.describe("Artifacts List Page", () => {
 		}
 	});
 
-	test("Empty state when no artifacts exist", async ({ page, apiClient }) => {
-		const artifacts = await listArtifacts(apiClient);
-		test.skip(artifacts.length > 0, "Artifacts already exist from other tests");
-
-		// Use toPass retry pattern to handle slow page loads under CI load
+	test("Empty state when no artifacts exist", async ({ page }) => {
+		// Other tests running in parallel create and delete artifacts at any
+		// time, so a separate API check before or after navigation can disagree
+		// with what the page rendered. Capture the exact list response the page used
+		// and decide based on that.
+		let renderedArtifactsCount = 0;
 		await expect(async () => {
+			const listResponse = page.waitForResponse(
+				(response) =>
+					response.url().endsWith("/artifacts/latest/filter") &&
+					response.request().method() === "POST",
+			);
 			await page.goto("/artifacts");
+			const body: unknown = await (await listResponse).json();
+			if (!Array.isArray(body)) {
+				throw new Error(
+					`Unexpected artifacts response: ${JSON.stringify(body)}`,
+				);
+			}
+			renderedArtifactsCount = body.length;
 			await waitForArtifactsPageReady(page);
 		}).toPass({ timeout: 15000 });
 
-		// Another shard may have created artifacts between the skip-check and
-		// page load, putting us in the non-empty state. Re-verify via API so a
-		// rendering bug in the empty state still surfaces as a real failure.
-		const rechecked = await listArtifacts(apiClient);
-		test.skip(rechecked.length > 0, "Artifacts appeared from another shard");
+		test.skip(renderedArtifactsCount > 0, "Artifacts exist from other tests");
 
 		await expect(
 			page.getByRole("heading", {

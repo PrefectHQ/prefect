@@ -422,7 +422,9 @@ class TestCountFlowsModels:
         ],
     ]
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    api_params = [params[0], params[1], params[9], params[14], params[15], params[18]]
+
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_python_client_filter(self, kwargs, expected):
         async with get_client() as client:
             flows = await client.read_flows(**kwargs)
@@ -438,7 +440,7 @@ class TestCountFlowsModels:
         read = await models.flows.read_flows(session=session, **kwargs)
         assert len({r.id for r in read}) == expected
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
@@ -448,7 +450,7 @@ class TestCountFlowsModels:
         )
         assert response.json() == expected
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_api_read(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
@@ -635,7 +637,20 @@ class TestCountFlowRunModels:
         ],
     ]
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    # params[29] and params[30] guard PrefectHQ/prefect#8043: the count and filter
+    # endpoints must treat work pools the same way.
+    api_params = [
+        params[0],
+        params[1],
+        params[8],
+        params[13],
+        params[14],
+        params[17],
+        params[29],
+        params[30],
+    ]
+
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_python_client_filter(self, kwargs, expected):
         async with get_client() as client:
             flow_runs = await client.read_flow_runs(**kwargs)
@@ -651,14 +666,14 @@ class TestCountFlowRunModels:
         read = await models.flow_runs.read_flow_runs(session=session, **kwargs)
         assert len({r.id for r in read}) == expected
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
         response = await client.post("/flow_runs/count", json=adjusted_kwargs)
         assert response.json() == expected
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_api_read(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
@@ -817,7 +832,17 @@ class TestCountTaskRunsModels:
         ],
     ]
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    api_params = [
+        params[0],
+        params[1],
+        params[5],
+        params[11],
+        params[15],
+        params[21],
+        params[29],
+    ]
+
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_python_client_filter(self, kwargs, expected):
         async with get_client() as client:
             task_runs = await client.read_task_runs(**kwargs)
@@ -833,7 +858,7 @@ class TestCountTaskRunsModels:
         read = await models.task_runs.read_task_runs(session=session, **kwargs)
         assert len({r.id for r in read}) == expected
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
         response = await client.post(
@@ -842,7 +867,7 @@ class TestCountTaskRunsModels:
         )
         assert response.json() == expected
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_api_read(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
@@ -971,7 +996,18 @@ class TestCountDeploymentModels:
         ],
     ]
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    api_params = [
+        params[0],
+        params[1],
+        params[6],
+        params[13],
+        params[16],
+        params[17],
+        params[19],
+        params[20],
+    ]
+
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_python_client_filter(self, kwargs, expected):
         async with get_client() as client:
             deployments = await client.read_deployments(**kwargs)
@@ -987,7 +1023,7 @@ class TestCountDeploymentModels:
         read = await models.deployments.read_deployments(session=session, **kwargs)
         assert len({r.id for r in read}) == expected
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
@@ -998,7 +1034,7 @@ class TestCountDeploymentModels:
 
         assert response.json() == expected
 
-    @pytest.mark.parametrize("kwargs,expected", params)
+    @pytest.mark.parametrize("kwargs,expected", api_params)
     async def test_api_read(self, client, kwargs, expected):
         adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 

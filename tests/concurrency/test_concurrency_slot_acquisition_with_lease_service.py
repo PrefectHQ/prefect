@@ -253,7 +253,10 @@ async def test_retries_failed_call_respects_retry_after_header(
         frozenset(limit_names)
     )
 
-    with mock.patch("asyncio.sleep") as sleep:
+    # Patch `asyncio.sleep` only as seen by the service module. Patching it
+    # globally also records sleeps from unrelated background tasks.
+    sleep = mock.AsyncMock()
+    with mock.patch("prefect.concurrency.services.asyncio", wraps=asyncio, sleep=sleep):
         future: Future[Response] = service.send(
             (
                 1,  # slots

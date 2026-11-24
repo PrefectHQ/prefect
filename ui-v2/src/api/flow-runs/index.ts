@@ -17,17 +17,15 @@ export type FlowRunWithDeploymentAndFlow = FlowRun & {
 	deployment: Deployment;
 	flow: Flow;
 };
-export type FlowRunsFilter =
-	components["schemas"]["Body_read_flow_runs_flow_runs_filter_post"];
+export type FlowRunsFilter = components["schemas"]["Body_read_flow_runs"];
 
 export type FlowRunsPaginateFilter =
-	components["schemas"]["Body_paginate_flow_runs_flow_runs_paginate_post"];
+	components["schemas"]["Body_paginate_flow_runs"];
 
-export type FlowRunsCountFilter =
-	components["schemas"]["Body_count_flow_runs_flow_runs_count_post"];
+export type FlowRunsCountFilter = components["schemas"]["Body_count_flow_runs"];
 
 export type FlowRunHistoryFilter =
-	components["schemas"]["Body_read_flow_run_history_ui_flow_runs_history_post"];
+	components["schemas"]["Body_read_flow_run_history"];
 
 export type SimpleFlowRun = components["schemas"]["SimpleFlowRun"];
 
@@ -58,8 +56,7 @@ export function toFlowRunsCountFilter(
 /**
  * The request body for setting a flow run state
  */
-type SetFlowRunStateBody =
-	components["schemas"]["Body_set_flow_run_state_flow_runs__id__set_state_post"];
+type SetFlowRunStateBody = components["schemas"]["Body_set_flow_run_state"];
 
 /**
  * Parameters for setting a flow run state, combining the path param with the request body

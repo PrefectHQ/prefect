@@ -169,7 +169,7 @@ valid_cron_string(cls, v: str) -> str
 validate_timezone(self)
 ```
 
-### `RRuleSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L735" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RRuleSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L772" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 RRule schedule, based on the iCalendar standard
@@ -192,13 +192,13 @@ a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
 **Methods:**
 
-#### `from_rrule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L766" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_rrule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L803" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_rrule(cls, rrule: dateutil.rrule.rrule | dateutil.rrule.rruleset) -> 'RRuleSchedule'
 ```
 
-#### `get_dates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L878" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_dates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L915" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_dates(self, n: Optional[int] = None, start: datetime.datetime = None, end: datetime.datetime = None) -> List[DateTime]
@@ -238,7 +238,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `to_rrule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L823" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_rrule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L860" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_rrule(self) -> dateutil.rrule.rrule
@@ -248,7 +248,7 @@ Since rrule doesn't properly serialize/deserialize timezones, we localize dates
 here
 
 
-#### `validate_rrule_str` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L762" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_rrule_str` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L799" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_rrule_str(cls, v: str) -> str

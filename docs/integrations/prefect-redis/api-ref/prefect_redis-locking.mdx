@@ -68,19 +68,19 @@ Acquires a lock synchronously.
 - True if the lock was acquired, False otherwise.
 
 
-#### `await_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `await_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 await_for_lock(self, key: str, timeout: Optional[float] = None) -> bool
 ```
 
-#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_lock_holder(self, key: str, holder: str) -> bool
 ```
 
-#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L252" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_locked(self, key: str) -> bool
@@ -107,7 +107,7 @@ holder provided when acquiring the lock.
 - `ValueError`: If the lock is held by a different holder.
 
 
-#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L236" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool

@@ -76,6 +76,8 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         self._task: Optional[asyncio.Task[None]] = None
         self._stopped: bool = False
         self._started: bool = False
+        # Set once `instance()` can hand this instance to a caller
+        self._handed_out: bool = False
         self._key = hash((self.__class__, *args))
         self._lock = threading.Lock()
         self._ready_items_since_yield = 0
@@ -94,6 +96,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """Reset instance state after fork() to prevent deadlocks in child process."""
         self._stopped = True
         self._started = False
+        self._handed_out = False
         self._loop = None
         self._done_event = None
         self._task = None
@@ -146,6 +149,11 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
             return
 
         with self._lock:
+            # Another thread may have stopped this instance while we waited for the
+            # lock; a second stop signal would never be taken from the queue
+            if self._stopped:
+                return
+
             if not at_exit:  # The logger may not be available during interpreter exit
                 logger.debug("Stopping service %r", self)
 
@@ -314,12 +322,22 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         Returns an awaitable if called from an async context.
         """
         futures: list[concurrent.futures.Future[bool]] = []
-        with cls._instance_lock:
-            with cls._instance_cache_lock:
-                instances = tuple(cls._instances.values())
-
+        # Do not take `_instance_lock`: `instance()` holds it while creating a
+        # service, which can wait on the `logging` module lock, and
+        # `APILogHandler.flush` calls this while `logging.shutdown` holds that lock
+        with cls._instance_cache_lock:
+            # A service that is still being created has no work to drain, and
+            # stopping it would make `instance()` hand out a stopped service
+            instances = [
+                instance for instance in cls._instances.values() if instance._handed_out
+            ]
+            # Evict now so that `instance()` creates a replacement instead of
+            # returning a service that is about to be stopped
             for instance in instances:
-                futures.append(instance._drain(at_exit=at_exit))
+                del cls._instances[instance._key]
+
+        for instance in instances:
+            futures.append(instance._drain(at_exit=at_exit))
 
         if get_running_loop() is not None:
             if futures:
@@ -386,6 +404,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
             instance._remove_instance()
             raise
 
+        instance._handed_out = True
         return instance
 
 

@@ -71,9 +71,17 @@ jobs:
           # reference prefect.* warning classes, which would otherwise
           # trigger a prefect import during pytest startup.
           #
+          # --timeout=600 raises the global 90s pytest-timeout for the import
+          # benchmarks: cold imports run far slower under simulation mode and
+          # the heavier ones (e.g. prefect.server.api.server) exceed 90s.
+          #
           # pytest-codspeed writes each invocation's results to a unique file
           # (keyed by PID), so the CodSpeed action collects all of them.
+          #
+          # Failures are tracked in `status` so every benchmark still runs,
+          # but any failing invocation fails the job.
           run: |
+            status=0
             for module in \
               prefect \
               prefect.client.schemas.objects \
@@ -84,10 +92,10 @@ jobs:
               prefect.task_runners \
             ; do
               uv run pytest "benches/bench_import.py::bench_import_module[$module]" \
-                --codspeed -vv -o 'filterwarnings='
+                --codspeed -vv -o 'filterwarnings=' --timeout=600 || status=1
             done
             uv run pytest benches/bench_import.py::bench_import_prefect_flow \
-              --codspeed -vv -o 'filterwarnings='
+              --codspeed -vv -o 'filterwarnings=' --timeout=600 || status=1
             uv run pytest \
               benches/bench_tasks.py \
               benches/bench_flows.py::bench_flow_decorator \
@@ -95,5 +103,6 @@ jobs:
               --codspeed \
               --numprocesses auto \
               --dist worksteal \
-              -vv
+              -vv || status=1
+            exit $status
           token: ${{ secrets.CODSPEED_TOKEN }}

@@ -15,6 +15,7 @@ import type { SchemaFormProps } from "./schema-form";
 import { SchemaForm } from "./schema-form";
 import type { PrefectSchemaObject } from "./types/schemas";
 import type { SchemaFormValues } from "./types/values";
+import { removePrefectKindValues } from "./utilities/removePrefectKindValues";
 
 function TestSchemaForm({
 	schema = { type: "object", properties: {} },
@@ -385,6 +386,86 @@ describe("property.type", () => {
 				);
 			});
 			expect(hasJsonKind).toBe(false);
+		});
+	});
+
+	describe("property without a type (untyped parameter)", () => {
+		// parameters without a type annotation produce properties without a `type`
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {
+				config_name: { title: "config_name" } as SchemaObject,
+				begin_id: { title: "begin_id" } as SchemaObject,
+				publish: { title: "publish" } as SchemaObject,
+			},
+		};
+
+		function renderUntyped(initialValues: Record<string, unknown>) {
+			const spy = vi.fn();
+
+			function Wrapper() {
+				const [values, setValues] = useState(initialValues);
+				spy.mockImplementation((value: Record<string, unknown>) =>
+					setValues(value),
+				);
+
+				return (
+					<TestSchemaForm
+						schema={schema}
+						values={values}
+						onValuesChange={spy}
+						kinds={["json"]}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+
+			return spy;
+		}
+
+		test("carries existing values into the JSON input", async () => {
+			const spy = renderUntyped({ config_name: "prod", begin_id: 202201 });
+
+			// eslint-disable-next-line @typescript-eslint/require-await
+			await act(async () => {
+				vi.runAllTimers();
+			});
+
+			const latest = spy.mock.lastCall?.[0] as SchemaFormValues;
+			expect(latest).toEqual({
+				config_name: { __prefect_kind: "json", value: '"prod"' },
+				begin_id: { __prefect_kind: "json", value: "202201" },
+				publish: { __prefect_kind: "json", value: undefined },
+			});
+			expect(removePrefectKindValues(latest)).toEqual({
+				config_name: "prod",
+				begin_id: 202201,
+				publish: undefined,
+			});
+
+			const inputs = screen.getAllByTestId("mock-json-input");
+			expect(
+				inputs.map((input) => (input as HTMLTextAreaElement).value),
+			).toEqual(['"prod"', "202201", ""]);
+		});
+
+		test("serializes object values as formatted JSON", async () => {
+			const spy = renderUntyped({ config_name: { region: "us-east-1" } });
+
+			// eslint-disable-next-line @typescript-eslint/require-await
+			await act(async () => {
+				vi.runAllTimers();
+			});
+
+			expect(spy).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					config_name: {
+						__prefect_kind: "json",
+						value: JSON.stringify({ region: "us-east-1" }, null, 2),
+					},
+				}),
+			);
 		});
 	});
 

@@ -1,6 +1,7 @@
 export {
 	type Automation,
 	buildGetAutomationQuery,
+	buildListAllAutomationsQuery,
 	buildListAutomationsQuery,
 	type TemplateValidationError,
 	useCreateAutomation,

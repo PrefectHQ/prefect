@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,7 +10,10 @@ import {
 	useDeploymentCreateFlowRun,
 } from "@/api/flow-runs";
 import { useSchemaForm } from "@/components/schemas";
+import { isPrefectKindValueJson } from "@/components/schemas/types/prefect-kind-value";
 import type { SchemaFormValues } from "@/components/schemas/types/values";
+import { isArray, isRecord } from "@/components/schemas/utilities/guards";
+import { removePrefectKindValues } from "@/components/schemas/utilities/removePrefectKindValues";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/utils/date";
 import { createFakeFlowRunName } from "./create-fake-flow-run-name";
@@ -81,6 +84,8 @@ const formSchema = z.object({
 });
 
 export type CreateFlowRunSchema = z.infer<typeof formSchema>;
+
+export type ParametersInputMode = "form" | "json";
 
 export type AdditionalOptionsOverrides = {
 	message?: string;
@@ -155,6 +160,7 @@ export const useCreateFlowRunForm = (
 	const [initialFormValues] = useState(() =>
 		createDefaultValues(deployment, overrideAdditionalOptions),
 	);
+	const hasParametersSchema = Boolean(deployment.parameter_openapi_schema);
 	const [initialParameterValues] = useState(
 		() => overrideParameters ?? deployment.parameters ?? {},
 	);
@@ -169,9 +175,89 @@ export const useCreateFlowRunForm = (
 		validateForm: validateParametersForm,
 	} = useSchemaForm(initialParameterValues);
 
+	const initialParametersInputMode: ParametersInputMode = hasParametersSchema
+		? "form"
+		: "json";
+	const [parametersInputMode, setParametersInputMode] =
+		useState<ParametersInputMode>(initialParametersInputMode);
+	const [parametersJson, setParametersJson] = useState(() =>
+		hasParametersSchema ? "" : formatParametersJson(initialParameterValues),
+	);
+	const [parametersJsonError, setParametersJsonError] = useState<string | null>(
+		null,
+	);
+	const [parametersFormError, setParametersFormError] = useState<string | null>(
+		null,
+	);
+	// The schema form fills in defaults when it mounts. After the user edits the
+	// JSON document, remounting the form must not add back values they removed.
+	const [skipParameterDefaults, setSkipParameterDefaults] = useState(false);
+
 	const { createDeploymentFlowRun } = useDeploymentCreateFlowRun();
 
+	const onParametersInputModeChange = (mode: ParametersInputMode) => {
+		if (mode === parametersInputMode) {
+			return;
+		}
+
+		if (mode === "json") {
+			const invalidJsonPath =
+				findInvalidPrefectKindJsonPath(parametersFormValues);
+			if (invalidJsonPath !== null) {
+				setParametersFormError(
+					`Invalid JSON in "${invalidJsonPath}". Fix it before you switch to JSON.`,
+				);
+				return;
+			}
+
+			const values = removePrefectKindValues(parametersFormValues);
+			setParametersFormValues(values);
+			setParametersJson(formatParametersJson(values));
+			setParametersJsonError(null);
+			setParametersFormError(null);
+			setSkipParameterDefaults(true);
+		} else if (!hasParametersSchema || parametersJsonError) {
+			return;
+		}
+
+		setParametersInputMode(mode);
+	};
+
+	const onParametersFormValuesChange = useCallback(
+		(values: SchemaFormValues) => {
+			setParametersFormError(null);
+			setParametersFormValues(values);
+		},
+		[setParametersFormValues],
+	);
+
+	// Valid JSON is applied to the schema form values right away, so validation,
+	// submission, and switching back to the form all use the latest JSON document.
+	const onParametersJsonChange = (value: string) => {
+		setParametersJson(value);
+
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(value);
+		} catch {
+			setParametersJsonError("Invalid JSON");
+			return;
+		}
+
+		if (!isRecord(parsed)) {
+			setParametersJsonError("Parameters must be a JSON object");
+			return;
+		}
+
+		setParametersJsonError(null);
+		setParametersFormValues(parsed);
+	};
+
 	const onCreate = async (values: CreateFlowRunSchema) => {
+		if (parametersInputMode === "json" && parametersJsonError) {
+			return;
+		}
+
 		if (values.parameter_openapi_schema && values.enforce_parameter_schema) {
 			try {
 				await validateParametersForm({
@@ -212,6 +298,14 @@ export const useCreateFlowRunForm = (
 					setParametersFormValues(
 						overrideParameters ?? deployment.parameters ?? {},
 					);
+					setParametersInputMode(initialParametersInputMode);
+					setParametersJson(
+						hasParametersSchema
+							? ""
+							: formatParametersJson(
+									overrideParameters ?? deployment.parameters ?? {},
+								),
+					);
 				},
 				onError: (error) => {
 					const message =
@@ -227,8 +321,15 @@ export const useCreateFlowRunForm = (
 		form,
 		onCreate,
 		parametersFormValues,
-		setParametersFormValues,
+		onParametersFormValuesChange,
 		parameterFormErrors,
+		parametersFormError,
+		skipParameterDefaults,
+		parametersInputMode,
+		onParametersInputModeChange,
+		parametersJson,
+		onParametersJsonChange,
+		parametersJsonError,
 	};
 };
 
@@ -248,6 +349,52 @@ const DEFAULT_STATE = {
 		untrackable_result: false,
 	},
 };
+
+function formatParametersJson(values: unknown): string {
+	return JSON.stringify(values, null, 2);
+}
+
+function findInvalidPrefectKindJsonPath(
+	value: unknown,
+	path = "",
+): string | null {
+	if (isPrefectKindValueJson(value)) {
+		if (value.value === undefined || value.value.trim() === "") {
+			return null;
+		}
+
+		try {
+			JSON.parse(value.value);
+			return null;
+		} catch {
+			return path;
+		}
+	}
+
+	if (isArray(value)) {
+		for (const [index, item] of value.entries()) {
+			const invalidPath = findInvalidPrefectKindJsonPath(
+				item,
+				`${path}[${index}]`,
+			);
+			if (invalidPath !== null) {
+				return invalidPath;
+			}
+		}
+	} else if (isRecord(value)) {
+		for (const [key, item] of Object.entries(value)) {
+			const invalidPath = findInvalidPrefectKindJsonPath(
+				item,
+				path ? `${path}.${key}` : key,
+			);
+			if (invalidPath !== null) {
+				return invalidPath;
+			}
+		}
+	}
+
+	return null;
+}
 
 function createPayload(
 	parameterValues: SchemaFormValues,
