@@ -1,7 +1,6 @@
 import inspect
 from collections.abc import Callable, Generator, Iterator
 from typing import Any, Optional
-from uuid import uuid4
 
 import pytest
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
@@ -203,7 +202,11 @@ async def test_override_for_async_provider_takes_precedence_over_original(
     "original,method,path",
     [
         (provide_database_interface, "GET", "/ready"),
-        (provide_request_api_version, "DELETE", f"/block_schemas/{uuid4()}"),
+        (
+            provide_request_api_version,
+            "DELETE",
+            "/block_schemas/00000000-0000-0000-0000-000000000000",
+        ),
         (get_created_by, "POST", "/flow_runs/"),
         (get_updated_by, "POST", "/deployments/"),
         (is_ephemeral_request, "POST", "/events"),
