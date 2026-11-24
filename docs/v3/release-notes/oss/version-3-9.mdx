@@ -7,12 +7,12 @@ description: Release notes for Prefect 3.9.0 and 3.9.1, including Python 3.15 su
 
 *Released on November 24, 2026*
 
-**Breaking Changes ⚠️**
+**Upgrade notes ⬆️**
 
-* Append `worker_id` and `worker_name` to self-hosted flow run log CSV exports, expanding them from five to seven columns and breaking readers that unpack exactly five positional fields — by [@devin-ai-integration](https://github.com/apps/devin-ai-integration) in [#24022](https://github.com/PrefectHQ/prefect/pull/24022)
-* Resolve Prefect API route dependencies on the event loop. Custom FastAPI apps that include Prefect routers directly must key dependency overrides on async variants such as `aprovide_database_interface`, `aget_created_by`, and `provide_worker_lookups`; apps built with `create_app` or `create_api_app` are unaffected thanks to [#24091](https://github.com/PrefectHQ/prefect/pull/24091) — by [@fatih-acar](https://github.com/fatih-acar) in [#23279](https://github.com/PrefectHQ/prefect/pull/23279)
-* Use route names for OpenAPI operation IDs, which can break generated REST clients that reference the old IDs — by [@devin-ai-integration](https://github.com/apps/devin-ai-integration) in [#24010](https://github.com/PrefectHQ/prefect/pull/24010)
-* `prefect deployment run` now rejects `--param` and `--job-variable` values without `=` by [@harshit3355](https://github.com/harshit3355) in [#24035](https://github.com/PrefectHQ/prefect/pull/24035)
+* Self-hosted flow run log CSV exports now have seven columns, with `worker_id` and `worker_name` appended. If your reader unpacks five positional fields, update it to read by column header — by [@devin-ai-integration](https://github.com/apps/devin-ai-integration) in [#24022](https://github.com/PrefectHQ/prefect/pull/24022)
+* Prefect API route dependencies now resolve on the event loop. If your custom FastAPI app includes Prefect routers directly, key dependency overrides on async variants such as `aprovide_database_interface`, `aget_created_by`, and `provide_worker_lookups`. Apps built with `create_app` or `create_api_app` need no changes thanks to [#24091](https://github.com/PrefectHQ/prefect/pull/24091) — by [@fatih-acar](https://github.com/fatih-acar) in [#23279](https://github.com/PrefectHQ/prefect/pull/23279)
+* OpenAPI operation IDs now use route names. If you use a generated REST client, regenerate it from the updated OpenAPI schema — by [@devin-ai-integration](https://github.com/apps/devin-ai-integration) in [#24010](https://github.com/PrefectHQ/prefect/pull/24010)
+* Use `key=value` for every `--param` and `--job-variable` argument to `prefect deployment run`; both options now require an equals sign — by [@harshit3355](https://github.com/harshit3355) in [#24035](https://github.com/PrefectHQ/prefect/pull/24035)
 
 **Behavior Changes & Deprecations 🔄**
 
