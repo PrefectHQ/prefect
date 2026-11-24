@@ -39,16 +39,10 @@ import sqlalchemy.orm.exc
 from docket import Docket
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.encoders import jsonable_encoder
-from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.openapi.constants import REF_PREFIX
-from fastapi.openapi.utils import (
-    get_openapi,
-    validation_error_definition,
-    validation_error_response_definition,
-)
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from packaging.version import Version
@@ -70,6 +64,7 @@ from prefect.server.database import (
     provide_database_interface,
 )
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.schemas.responses import HTTPErrorResponse, InvalidRequestResponse
 from prefect.server.schemas.ui import UISettings
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.utilities.database import get_dialect
@@ -331,82 +326,6 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, list):
         return [_json_safe(v) for v in value]
     return value
-
-
-_INVALID_REQUEST_RESPONSE_SCHEMA: dict[str, Any] = {
-    "title": "InvalidRequestResponse",
-    "type": "object",
-    "properties": {
-        "exception_message": {"title": "Exception Message", "type": "string"},
-        "exception_detail": {
-            "title": "Exception Detail",
-            "type": "array",
-            "items": {"$ref": f"{REF_PREFIX}ValidationError"},
-        },
-        "request_body": {"title": "Request Body"},
-    },
-    "required": ["exception_message", "exception_detail"],
-}
-
-_HTTP_ERROR_RESPONSE_SCHEMA: dict[str, Any] = {
-    "title": "HTTPErrorResponse",
-    "type": "object",
-    "properties": {"detail": {"title": "Detail", "type": "string"}},
-    "required": ["detail"],
-}
-
-
-def _document_error_responses(
-    schema: dict[str, Any], *, prefect_validation_errors: bool = True
-) -> dict[str, Any]:
-    """
-    Add request validation and HTTP exception bodies to route-declared 422 schemas.
-    Use `InvalidRequestResponse` for Prefect's validation handler, or retain
-    `HTTPValidationError` for FastAPI's default handler.
-    """
-    default_ref = f"{REF_PREFIX}HTTPValidationError"
-    validation_ref = (
-        f"{REF_PREFIX}InvalidRequestResponse"
-        if prefect_validation_errors
-        else default_ref
-    )
-    documented = False
-    for path_item in schema.get("paths", {}).values():
-        for operation in path_item.values():
-            response = operation.get("responses", {}).get("422")
-            if response is None:
-                continue
-            content = response.setdefault("content", {}).setdefault(
-                "application/json", {}
-            )
-            route_schema = content.get("schema")
-            route_bodies = (
-                []
-                if route_schema is None or route_schema == {"$ref": default_ref}
-                else [route_schema]
-            )
-            content["schema"] = {
-                "anyOf": [
-                    *route_bodies,
-                    {"$ref": validation_ref},
-                    {"$ref": f"{REF_PREFIX}HTTPErrorResponse"},
-                ]
-            }
-            documented = True
-
-    if documented:
-        schemas = schema.setdefault("components", {}).setdefault("schemas", {})
-        schemas.setdefault("ValidationError", validation_error_definition)
-        if prefect_validation_errors:
-            if default_ref not in json.dumps(schema):
-                schemas.pop("HTTPValidationError", None)
-            schemas["InvalidRequestResponse"] = _INVALID_REQUEST_RESPONSE_SCHEMA
-        else:
-            schemas.setdefault(
-                "HTTPValidationError", validation_error_response_definition
-            )
-        schemas["HTTPErrorResponse"] = _HTTP_ERROR_RESPONSE_SCHEMA
-    return schema
 
 
 async def integrity_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -676,10 +595,6 @@ def create_api_app(
         **{
             "generate_unique_id_function": lambda route: route.name,
             **fast_api_app_kwargs,
-            "exception_handlers": {
-                RequestValidationError: validation_exception_handler,
-                **(fast_api_app_kwargs.get("exception_handlers") or {}),
-            },
         },
     )
     api_app.router.dependency_overrides_provider = _DependencyOverridesProvider(api_app)
@@ -775,21 +690,6 @@ def create_api_app(
                     content={"exception_message": "Unauthorized"},
                 )
             return await call_next(request)
-
-    def openapi() -> dict[str, Any]:
-        if api_app.openapi_schema is None:
-            schema = FastAPI.openapi(api_app)
-            handler = api_app.exception_handlers.get(RequestValidationError)
-            if handler is validation_exception_handler:
-                schema = _document_error_responses(schema)
-            elif handler is request_validation_exception_handler:
-                schema = _document_error_responses(
-                    schema, prefect_validation_errors=False
-                )
-            api_app.openapi_schema = schema
-        return api_app.openapi_schema
-
-    api_app.openapi = openapi
 
     API_APP_CACHE[cache_key] = api_app
 
@@ -1215,6 +1115,12 @@ def create_app(
     )
     api_app = create_api_app(
         fast_api_app_kwargs={
+            "responses": {
+                422: {
+                    "model": InvalidRequestResponse | HTTPErrorResponse,
+                    "description": "Validation Error",
+                }
+            },
             "exception_handlers": {
                 # NOTE: FastAPI special cases the generic `Exception` handler and
                 #       registers it as a separate middleware from the others
@@ -1222,7 +1128,7 @@ def create_app(
                 RequestValidationError: validation_exception_handler,
                 sa.exc.IntegrityError: integrity_exception_handler,
                 ObjectNotFoundError: prefect_object_not_found_exception_handler,
-            }
+            },
         },
         final=final,
         ignore_cache=ignore_cache,
@@ -1285,12 +1191,10 @@ def create_app(
 
         This method is attached to the global public app for easy access.
         """
-        partial_schema = _document_error_responses(
-            get_openapi(
-                title=API_TITLE,
-                version=API_VERSION,
-                routes=api_app.routes,
-            )
+        partial_schema = get_openapi(
+            title=API_TITLE,
+            version=API_VERSION,
+            routes=api_app.routes,
         )
         new_schema = partial_schema.copy()
 

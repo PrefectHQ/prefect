@@ -1,14 +1,13 @@
 import argparse
 import json
 
-from prefect.server.api.server import create_api_app, create_ui_app
+from prefect.server.api.server import create_app, create_ui_app
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--api-compatibility", action="store_true")
 args = parser.parse_args()
 
-api_app = create_api_app()
-openapi_schema = api_app.openapi()
+openapi_schema = create_app(ephemeral=True).openapi()
 
 if args.api_compatibility:
     # The shared suite expects the API mount prefix and excludes the root UI.

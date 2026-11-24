@@ -806,6 +806,20 @@ class WorkQueueConcurrencyStatus(PrefectBaseModel):
     page: int = Field(description="Current page number (1-indexed).")
 
 
+class InvalidRequestResponse(PrefectBaseModel):
+    """The 422 body sent by Prefect's request validation handler."""
+
+    exception_message: str
+    exception_detail: list[dict[str, Any]]
+    request_body: Any
+
+
+class HTTPErrorResponse(PrefectBaseModel):
+    """An HTTP exception body, whose detail may contain any JSON value."""
+
+    detail: Any
+
+
 class TemplateValidationErrorDetail(PrefectBaseModel):
     """Where and why a template failed validation."""
 

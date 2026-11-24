@@ -4,7 +4,11 @@ import orjson
 from fastapi import Body, Response
 from jinja2.exceptions import TemplateSyntaxError
 
-from prefect.server.schemas.responses import TemplateValidationErrorResponse
+from prefect.server.schemas.responses import (
+    HTTPErrorResponse,
+    InvalidRequestResponse,
+    TemplateValidationErrorResponse,
+)
 from prefect.server.utilities.server import PrefectRouter
 from prefect.server.utilities.user_templates import (
     TemplateSecurityError,
@@ -14,7 +18,12 @@ from prefect.server.utilities.user_templates import (
 router: PrefectRouter = PrefectRouter(tags=["Automations"])
 
 _TEMPLATE_VALIDATION_RESPONSES: dict[int | str, dict[str, Any]] = {
-    422: {"model": TemplateValidationErrorResponse}
+    422: {
+        "model": TemplateValidationErrorResponse
+        | InvalidRequestResponse
+        | HTTPErrorResponse,
+        "description": "Validation Error",
+    }
 }
 
 

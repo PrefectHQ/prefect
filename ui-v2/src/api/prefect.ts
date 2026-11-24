@@ -8515,6 +8515,14 @@ export interface components {
             name: string;
         };
         /**
+         * HTTPErrorResponse
+         * @description An HTTP exception body, whose detail may contain any JSON value.
+         */
+        HTTPErrorResponse: {
+            /** Detail */
+            detail: unknown;
+        };
+        /**
          * HistoryResponse
          * @description Represents a history of aggregation states over an interval
          */
@@ -8660,6 +8668,20 @@ export interface components {
              * @example America/New_York
              */
             timezone?: string | null;
+        };
+        /**
+         * InvalidRequestResponse
+         * @description The 422 body sent by Prefect's request validation handler.
+         */
+        InvalidRequestResponse: {
+            /** Exception Message */
+            exception_message: string;
+            /** Exception Detail */
+            exception_detail: {
+                [key: string]: unknown;
+            }[];
+            /** Request Body */
+            request_body: unknown;
         };
         /**
          * Log
@@ -12141,19 +12163,6 @@ export interface components {
              */
             display_value?: string | null;
         };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
-        };
         /** Variable */
         Variable: {
             /**
@@ -13066,20 +13075,6 @@ export interface components {
              */
             port: number;
         };
-        /** InvalidRequestResponse */
-        InvalidRequestResponse: {
-            /** Exception Message */
-            exception_message: string;
-            /** Exception Detail */
-            exception_detail: components["schemas"]["ValidationError"][];
-            /** Request Body */
-            request_body?: unknown;
-        };
-        /** HTTPErrorResponse */
-        HTTPErrorResponse: {
-            /** Detail */
-            detail: string;
-        };
         /**
          * UISettings
          * @description Runtime UI configuration returned by /ui-settings endpoint.
@@ -13154,6 +13149,15 @@ export interface operations {
                     "application/json": boolean;
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidRequestResponse"] | components["schemas"]["HTTPErrorResponse"];
+                };
+            };
         };
     };
     server_version: {
@@ -13172,6 +13176,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidRequestResponse"] | components["schemas"]["HTTPErrorResponse"];
                 };
             };
         };
@@ -19155,7 +19168,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Unprocessable Content */
+            /** @description Validation Error */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -19188,7 +19201,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Unprocessable Content */
+            /** @description Validation Error */
             422: {
                 headers: {
                     [name: string]: unknown;
