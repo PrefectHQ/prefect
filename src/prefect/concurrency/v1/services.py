@@ -12,7 +12,9 @@ from typing_extensions import Unpack
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import FutureQueueService
 from prefect.client.orchestration import get_client
-from prefect.concurrency.services import _get_retry_after_seconds
+from prefect.concurrency.services import (
+    _get_retry_after_seconds,  # pyright: ignore[reportPrivateUsage]
+)
 from prefect.utilities.timeout import timeout_async
 
 if TYPE_CHECKING:
