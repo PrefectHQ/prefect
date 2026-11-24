@@ -810,9 +810,12 @@ async def test_executor_cancels_handler_when_renewal_misses_lease_deadline():
         operation_retry_delay_seconds=0,
         max_operation_attempts=1,
     )
-    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=0.05))
+    # The lease must actually expire for this test to finish, but a 50ms lease
+    # could expire before the renewal task first ran on a loaded runner,
+    # dropping the reservation without ever sending the renew frame.
+    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=1))
 
-    with anyio.fail_after(1):
+    with anyio.fail_after(5):
         await executor.execute(message)
 
     assert handler.started.is_set()
@@ -836,9 +839,12 @@ async def test_executor_cancels_handler_when_renew_send_exceeds_lease_deadline()
         operation_retry_delay_seconds=0,
         max_operation_attempts=1,
     )
-    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=0.05))
+    # The lease must actually expire for this test to finish, but a 50ms lease
+    # could expire before the renewal task first ran on a loaded runner,
+    # dropping the reservation without ever sending the renew frame.
+    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=1))
 
-    with anyio.fail_after(1):
+    with anyio.fail_after(5):
         await executor.execute(message)
 
     assert handler.started.is_set()
