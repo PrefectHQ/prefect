@@ -229,6 +229,21 @@ def _discard_cleanup_lease(lease_id: UUID) -> None:
         ctx.cleanup_lease_ids.remove(lease_id)
 
 
+async def _release_inactive_concurrency_lease(lease_id: UUID) -> None:
+    """Attempt to release an empty lease with a one-second cleanup deadline."""
+    try:
+        with anyio.fail_after(1):
+            await arelease_concurrency_slots_with_lease(lease_id=lease_id)
+    except Exception:
+        logger.debug(
+            "Failed to release lease %s for inactive concurrency limits",
+            lease_id,
+            exc_info=True,
+        )
+    else:
+        _discard_cleanup_lease(lease_id)
+
+
 def _release_lease_when_granted(
     service: ConcurrencySlotAcquisitionWithLeaseService,
     future: "concurrent.futures.Future[httpx.Response]",
@@ -330,19 +345,7 @@ async def concurrency(
         return
 
     if not any(limit.active for limit in response.limits):
-        # Inactive limits are not enforced, so give the lease back right away
-        # instead of renewing it for the whole run. The lease holds no slots,
-        # so if the release fails it can safely expire on its own.
-        try:
-            await arelease_concurrency_slots_with_lease(lease_id=response.lease_id)
-        except Exception:
-            logger.debug(
-                "Failed to release lease %s for inactive concurrency limits",
-                response.lease_id,
-                exc_info=True,
-            )
-        else:
-            _discard_cleanup_lease(response.lease_id)
+        await _release_inactive_concurrency_lease(response.lease_id)
         yield
         return
 

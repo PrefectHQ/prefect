@@ -2,11 +2,14 @@ from typing import Any
 from unittest import mock
 from uuid import UUID
 
+import anyio
 import pytest
 from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
+from prefect._internal.concurrency.cancellation import CancelledError
+from prefect.client.orchestration import PrefectClient
 from prefect.concurrency._asyncio import (
     aacquire_concurrency_slots,
     aacquire_concurrency_slots_with_lease,
@@ -17,6 +20,7 @@ from prefect.concurrency.asyncio import (
     concurrency,
     rate_limit,
 )
+from prefect.concurrency.context import ConcurrencyContext
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import ConcurrencyLimitV2
@@ -403,6 +407,50 @@ async def test_concurrency_proceeds_when_inactive_lease_release_fails(
 
     release_spy.assert_called_once()
     assert executed
+
+
+async def test_concurrency_proceeds_when_inactive_lease_release_is_slow(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    release_completed = False
+    release_finished = False
+
+    async def slow_release(*args: Any, **kwargs: Any) -> None:
+        nonlocal release_completed, release_finished
+        try:
+            await anyio.sleep(1.5)
+            release_completed = True
+        finally:
+            release_finished = True
+
+    with ConcurrencyContext() as ctx:
+        with mock.patch.object(
+            PrefectClient,
+            "release_concurrency_slots_with_lease",
+            side_effect=slow_release,
+        ) as release_spy:
+            async with concurrency(inactive_concurrency_limit.name, strict=True):
+                assert release_finished
+                assert not release_completed
+                assert len(ctx.cleanup_lease_ids) == 1
+
+            release_spy.assert_called_once()
+
+
+async def test_concurrency_propagates_cancellation_during_inactive_lease_release(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    with ConcurrencyContext() as ctx:
+        with mock.patch.object(
+            PrefectClient,
+            "release_concurrency_slots_with_lease",
+            side_effect=CancelledError,
+        ):
+            with pytest.raises(CancelledError):
+                async with concurrency(inactive_concurrency_limit.name, strict=True):
+                    pytest.fail("Caller cancellation must prevent context entry")
+
+        assert len(ctx.cleanup_lease_ids) == 1
 
 
 async def test_concurrency_maintains_lease_when_any_limit_is_active(
