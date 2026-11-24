@@ -13,6 +13,7 @@ from httpx import HTTPStatusError, Request, Response
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import ConcurrencyLeaseHolder
 from prefect.concurrency.services import (
+    _DEFAULT_RETRY_AFTER_SECONDS,
     ConcurrencySlotAcquisitionWithLeaseService,
     _create_empty_limits_response,
     _no_limits_cache,
@@ -277,6 +278,56 @@ async def test_retries_failed_call_respects_retry_after_header(
         sleep.assert_called_once_with(
             float(responses[0].response.headers["Retry-After"])
         )
+        assert (
+            mocked_client.client.increment_concurrency_slots_with_lease.call_count == 2
+        )
+
+
+@pytest.mark.parametrize(
+    "headers, expected_sleep",
+    [
+        ({"Retry-After": "Wed, 21 Oct 2015 07:28:00 GMT"}, 0.0),
+        ({"Retry-After": "not-a-number"}, _DEFAULT_RETRY_AFTER_SECONDS),
+        ({"Retry-After": "inf"}, _DEFAULT_RETRY_AFTER_SECONDS),
+        ({}, _DEFAULT_RETRY_AFTER_SECONDS),
+    ],
+    ids=["http-date", "malformed", "non-finite", "missing"],
+)
+async def test_retries_failed_call_with_unusable_retry_after_header(
+    mocked_client: Any, headers: dict[str, str], expected_sleep: float
+) -> None:
+    """Test that an unusable Retry-After header on a 423 does not stop retries."""
+    responses = [
+        HTTPStatusError(
+            "Limit is locked",
+            request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
+            response=Response(423, headers=headers),
+        ),
+        Response(
+            200,
+            json={
+                "lease_id": str(uuid4()),
+                "limits": [{"id": str(uuid4()), "name": "tag:test", "limit": 10}],
+            },
+        ),
+    ]
+
+    mocked_client.client.increment_concurrency_slots_with_lease.side_effect = responses
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["tag:test"])
+    )
+
+    sleep = mock.AsyncMock()
+    with mock.patch("prefect.concurrency.services.asyncio", wraps=asyncio, sleep=sleep):
+        future: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, None)
+        )
+        await service.drain()
+        returned_response = await asyncio.wrap_future(future)
+
+        assert returned_response == responses[1]
+        sleep.assert_called_once_with(expected_sleep)
         assert (
             mocked_client.client.increment_concurrency_slots_with_lease.call_count == 2
         )
