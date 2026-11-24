@@ -289,6 +289,68 @@ async def test_reconcile_automations_reloads_when_snapshot_changes(
     assert triggers.automation_state_snapshot == current_snapshot
 
 
+@pytest.fixture
+def named_automation() -> Automation:
+    return Automation(
+        name="Named deployment",
+        trigger=EventTrigger(
+            expect={"prefect.flow-run.Completed"},
+            match_related={"prefect.resource.name": "deployment-0"},
+            posture=Posture.Reactive,
+            threshold=1,
+        ),
+        actions=[actions.DoNothing()],
+    )
+
+
+@pytest.fixture
+def named_event(frozen_time: DateTime) -> ReceivedEvent:
+    return ReceivedEvent(
+        occurred=frozen_time,
+        event="prefect.flow-run.Completed",
+        resource={"prefect.resource.id": "prefect.flow-run.example"},
+        related=[
+            {
+                "prefect.resource.id": "prefect.deployment.example",
+                "prefect.resource.role": "deployment",
+                "prefect.resource.name": "deployment-0",
+            }
+        ],
+        id=uuid4(),
+    )
+
+
+async def test_automation_update_replaces_name_matches(
+    named_automation: Automation,
+    named_event: ReceivedEvent,
+    open_automations_session: mock.Mock,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    triggers.load_automation(named_automation)
+    assert list(triggers.find_interested_triggers(named_event)) == [
+        named_automation.trigger
+    ]
+    updated = Automation.model_validate(
+        {
+            **named_automation.model_dump(),
+            "trigger": {
+                **named_automation.trigger.model_dump(),
+                "match_related": {"prefect.resource.name": "deployment-1"},
+            },
+        }
+    )
+    monkeypatch.setattr(
+        triggers, "read_automation", mock.AsyncMock(return_value=updated)
+    )
+
+    await triggers.automation_changed(named_automation.id, "automation__updated")
+
+    assert not triggers.find_interested_triggers(named_event)
+    updated_event = named_event.model_copy(deep=True)
+    updated_event.related[0]["prefect.resource.name"] = "deployment-1"
+    assert list(triggers.find_interested_triggers(updated_event)) == [updated.trigger]
+
+
 async def test_only_considers_messages_with_attributes(
     effective_automations,
     reactive_evaluation: mock.AsyncMock,
