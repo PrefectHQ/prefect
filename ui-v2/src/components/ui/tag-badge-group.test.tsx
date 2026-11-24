@@ -107,6 +107,19 @@ describe("TagBadgeGroup", () => {
 		);
 	});
 
+	it("shows every tag when they fit, even if the counter is wider than the last tag", () => {
+		// the group sizes itself to its tags (120); the 70px counter would not
+		// fit next to the first tag, but it is not needed when both tags fit
+		restoreLayout = mockLayout(120, () => 70);
+		render(<TagBadgeGroup tags={["alpha", "beta"]} />);
+
+		expect(getVisibleTag("alpha")).toBeVisible();
+		expect(getVisibleTag("beta")).toBeVisible();
+		expect(
+			screen.queryByRole("button", { name: /more tags/i }),
+		).not.toBeInTheDocument();
+	});
+
 	it("measures duplicate tags independently", () => {
 		// 2 tags (120) + overflow (30) fit in 160
 		restoreLayout = mockLayout(160);
