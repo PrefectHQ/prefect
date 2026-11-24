@@ -102,6 +102,7 @@ def _get_publisher_settings() -> RedisMessagingPublisherSettings:
 
     The server creates a publisher for every event it emits, and resolving
     settings reads the environment and configuration files each time.
+    `clear_cached_clients` clears this cache, as it does the messaging URL.
     """
     return RedisMessagingPublisherSettings()
 
